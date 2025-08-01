@@ -18,6 +18,7 @@
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/accordion.min.js" defer></script>
+    <script src="/dist/js/progress.min.js" defer></script>
     <script src="/dist/js/tab.min.js" defer></script>
     <script src="/dist/js/echarts.min.js" defer></script>
     <script src="/dist/js/json2yaml.js" defer></script>
@@ -54,6 +55,7 @@
                         <a class="item" data-tab="seven">Network</a>
                         <a class="item" data-tab="eight">Optimizations<div class="ui red label" id="optimization_count">0</div></a>
                         <a class="item" data-tab="nine">Badges</a>
+                        <a class="item" data-tab="ten">AI</a>
 
                     </div>
                     <div class="ui active tab segment" data-tab="one">
@@ -82,10 +84,10 @@
                             <ul></ul>
                         </div>
                         <h3>Usage Scenario File</h3>
-                        <pre id="usage-scenario"></pre>
+                        <div id="usage-scenario"></div>
                     </div>
                     <div class="ui tab segment" data-tab="six">
-                        <pre id="logs"></pre>
+                        <div id="logs"></div>
                     </div>
                     <div class="ui tab segment" data-tab="seven">
                         <i class="info circle icon"></i>This is a list of all <b>external</b> network connections the system requested.
@@ -115,11 +117,34 @@
                             </div>
                         </div>
                     </div>
+                    <div class="ui tab segment" data-tab="ten">
+                        <div id="ai-container" class="ui container">As AI jobs are quite expensive this feature is only available in the enterprise version. You can see our pricing under <a href="https://www.green-coding.io/products/green-metrics-tool/">https://www.green-coding.io/products/green-metrics-tool/</a></div>
+                    </div>
 
 
                 </div>
             </div>
         </div><!-- end ui full-width-card card -->
+
+        <div id="run-failed" class="ui icon message error hidden">
+            <i class="times icon"></i>
+            <div class="content">
+                <div class="header">
+                    Failed
+                </div>
+                This run has failed. Please see logs for details
+            </div>
+        </div>
+
+        <div id="run-warnings" class="ui icon message warning hidden">
+            <i class="warning icon"></i>
+            <div class="content">
+                <div class="header">
+                    Warnings
+                </div>
+                <ul></ul>
+            </div>
+        </div>
 
         <div class="ui steps attached phases">
             <a class="active step" data-tab="[BASELINE]">

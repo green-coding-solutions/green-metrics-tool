@@ -48,12 +48,14 @@ if __name__ == '__main__':
     parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
     parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
     parser.add_argument('--skip-volume-inspect', action='store_true', help='Disable docker volume inspection. Can help if you encounter permission issues.')
+    parser.add_argument('--no-phase-padding', action='store_true', help='Do not add paddings to phase end to capture incomplete last sampling interval.')
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
     parser.add_argument('--dev-no-phase-stats', action='store_true', help='Do not calculate phase stats.')
     parser.add_argument('--dev-cache-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
     parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
+    parser.add_argument('--dev-no-save', action='store_true', help='Will save no data to the DB. This implicitly activates --dev-no-phase-stats, --dev-no-metrics and --dev-no-optimizations')
     parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
     parser.add_argument('--iterations', type=int, default=1, help='Specify how many times each scenario should be run. Default is 1. With multiple files, all files are processed sequentially, then the entire sequence is repeated N times. Example: with files A.yml, B.yml and --iterations 2, the execution order is A, B, A, B.')
@@ -139,15 +141,17 @@ if __name__ == '__main__':
     try:
         for filename in filenames:
             print(TerminalColors.OKBLUE, '\nRunning: ', filename, TerminalColors.ENDC)
-            runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filename,
+            
+            runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=args.filename,
                             branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                             skip_system_checks=args.skip_system_checks,
                             skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                             full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
-                            dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics,
+                            dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics, dev_no_save=args.dev_no_save,
                             dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
                             docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
-                            skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder, usage_scenario_variables=variables_dict)
+                            skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder,
+                            usage_scenario_variables=variables_dict, phase_padding=not args.no_phase_padding)
 
             run_id = runner.run()  # Start main code
 
@@ -155,6 +159,11 @@ if __name__ == '__main__':
             # From a user perspective it makes perfect sense to run both jobs directly after each other
             # In a cloud setup it however makes sense to free the measurement machine as soon as possible
             # So this code should be individually callable, separate from the runner
+
+            if runner._dev_no_optimizations is False and runner._dev_no_save is False:
+                import optimization_providers.base  # We need to import this here as we need the correct config file
+                print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
+                optimization_providers.base.import_reporters()
 
             if not runner._dev_no_optimizations:
                 import optimization_providers.base  # We need to import this here as we need the correct config file
@@ -168,26 +177,32 @@ if __name__ == '__main__':
             if args.file_cleanup:
                 shutil.rmtree(runner._tmp_folder)
 
-            print(TerminalColors.OKGREEN,'\n\n####################################################################################')
-            print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={runner._run_id}")
-            print('####################################################################################\n\n', TerminalColors.ENDC)
+            if not runner._dev_no_save:
+                print(TerminalColors.OKGREEN,'\n\n####################################################################################')
+                print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={runner._run_id}")
+                print('####################################################################################\n\n', TerminalColors.ENDC)
 
+                if args.print_phase_stats:
+                    phase_stats = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
+                    print(f"Data for phase {args.print_phase_stats}")
+                    for el in phase_stats:
+                        print(el)
+                    print('')
+            else:
+                print(TerminalColors.OKGREEN,'\n\n####################################################################################')
+                print('Run finished | --dev-no-save was active and nothing was written to DB')
+                print('####################################################################################\n\n', TerminalColors.ENDC)
 
-            if args.print_phase_stats:
-                phase_stats = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
-                print(f"Data for phase {args.print_phase_stats}")
-                for el in phase_stats:
-                    print(el)
-                print('')
-
+    except KeyboardInterrupt:
+        pass
     except FileNotFoundError as e:
-        error_helpers.log_error('File or executable not found', exception=e, previous_exception=e.__context__, run_id=runner._run_id if runner else None)
+        error_helpers.log_error('File or executable not found', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Command failed', stdout=e.stdout, stderr=e.stderr, previous_exception=e.__context__, run_id=runner._run_id if runner else None)
+        error_helpers.log_error('Command failed', stdout=e.stdout, stderr=e.stderr, exception_context=e.__context__, run_id=runner._run_id if runner else None)
     except RuntimeError as e:
-        error_helpers.log_error('RuntimeError occured in runner.py', exception=e, previous_exception=e.__context__, run_id=runner._run_id if runner else None)
+        error_helpers.log_error('RuntimeError occured in runner.py', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
     except BaseException as e:
-        error_helpers.log_error('Base exception occured in runner.py', exception=e, previous_exception=e.__context__, run_id=runner._run_id if runner else None)
+        error_helpers.log_error('Base exception occured in runner.py', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
     finally:
         if args.print_logs and runner:
             for container_id_outer, std_out in runner.get_logs().items():

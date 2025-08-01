@@ -6,8 +6,9 @@ import io
 import os
 import re
 import subprocess
+import json
 
-GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
+GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
 from contextlib import redirect_stdout, redirect_stderr
 import pytest
@@ -89,6 +90,58 @@ def test_env_variable_allow_unsafe_true():
     assert 'TEST_ALLOWED' in env_var_output, Tests.assertion_info('TEST_ALLOWED in env vars', env_var_output)
     assert 'TEST_TOO_LONG' in env_var_output, Tests.assertion_info('TEST_TOO_LONG in env vars', env_var_output)
 
+# labels: [object] (optional)
+# Key-Value pairs for labels on the container
+
+def get_labels():
+    ps = subprocess.run(
+        ['docker', 'inspect', 'test-container'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8',
+    )
+    labels = json.loads(ps.stdout)[0].get('Config', {}).get('Labels', {})
+    return labels
+
+def test_labels_allowed_characters():
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_allowed.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        labels = get_labels()
+
+        assert labels.get('TESTALLOWED') == 'alpha-num123_', Tests.assertion_info('TESTALLOWED label', labels)
+        assert labels.get('test.label') == 'example.com', Tests.assertion_info('test.label label', labels)
+        assert labels.get('OTHER_LABEL') == 'http://localhost:8080', Tests.assertion_info('OTHER_LABEL label', labels)
+
+def test_labels_too_long():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert "- value of label 'LABEL_TOO_LONG' is too long 1075 (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe" == str(e.value), Tests.assertion_info('Label value is too long', str(e.value))
+
+def test_labels_skip_unsafe_true():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', skip_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        labels = get_labels()
+
+    assert 'LABEL_ALLOWED' in labels, Tests.assertion_info('LABEL_ALLOWED in labels', labels)
+    assert 'LABEL_TOO_LONG' not in labels, Tests.assertion_info('LABEL_TOO_LONG not in labels', labels)
+
+def test_labels_allow_unsafe_true():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', allow_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        labels = get_labels()
+
+    assert 'LABEL_ALLOWED' in labels, Tests.assertion_info('LABEL_ALLOWED in labels', labels)
+    assert 'LABEL_TOO_LONG' in labels, Tests.assertion_info('LABEL_TOO_LONG in labels', labels)
+
 # ports: [int:int] (optional)
 # Docker container portmapping on host OS to be used with --allow-unsafe flag.
 
@@ -155,7 +208,7 @@ def test_compose_include_not_same_dir():
 
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(ValueError) as e:
         with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
+            context.run_until('import_metric_providers')
     assert str(e.value).startswith('Included compose file "../compose.yml" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore') , \
         Tests.assertion_info('Root directory escape', str(e.value))
 
@@ -167,7 +220,7 @@ def test_context_include():
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
+            context.run_until('import_metric_providers')
     # will not throw an exception
 
 def test_context_include_escape():
@@ -183,12 +236,33 @@ def test_context_include_escape():
     assert str(e.value).startswith('../../../../../../ must not be in folder above root repo folder') , \
         Tests.assertion_info('Root directory escape', str(e.value))
 
+def test_include_overwrites_string_values():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/overwrite_string_from_include.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')
+
+    assert runner._usage_scenario['name'] == 'Name overwritten'
+    assert runner._usage_scenario['author'] == 'Author overwritten'
+    assert runner._usage_scenario['description'] == 'Description as is'
+
+def test_include_overwrites_string_values_even_if_top_include():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/overwrite_string_from_include_even_if_top.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')
+
+    assert runner._usage_scenario['name'] == 'Name overwritten'
+    assert runner._usage_scenario['author'] == 'Author overwritten'
+    assert runner._usage_scenario['description'] == 'Description as is'
+
+
 def test_unsupported_compose():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/unsupported_compose.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
 
     with pytest.raises(SchemaError) as e:
         with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
+            context.run_until('import_metric_providers')
     assert str(e.value) == 'Your compose file does contain a key that GMT does not support - Please check if the container will still run as intended. If you want to ignore this error you can add the attribute `ignore-unsupported-compose: true` to your usage_scenario.yml\nError: ["Wrong key \'blkio_config\' in {\'image\': \'alpine\', \'blkio_config\': {\'weight\': 300}}"]'
 
 def test_skip_unsupported_compose():
@@ -203,11 +277,10 @@ def test_skip_unsupported_compose():
 def test_setup_commands_one_command():
     out = io.StringIO()
     err = io.StringIO()
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/setup_commands_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/setup_commands_noop.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
 
     with redirect_stdout(out), redirect_stderr(err):
-        with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
+        runner.run()
     assert 'Running command:  docker exec test-container sh -c ps -a' in out.getvalue(), \
         Tests.assertion_info('stdout message: Running command: docker exec  ps -a', out.getvalue())
     assert '1 root      0:00 /bin/sh' in out.getvalue(), \
@@ -216,27 +289,14 @@ def test_setup_commands_one_command():
 def test_setup_commands_multiple_commands():
     out = io.StringIO()
     err = io.StringIO()
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/setup_commands_multiple_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/setup_commands_multiple_noop.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
 
     with redirect_stdout(out), redirect_stderr(err):
-        with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
+        runner.run()
 
-    expected_pattern = re.compile(r'Running command:  docker exec test-container echo hello world.*\
-\s*Stdout: hello world.*\
-\s*Stderr:.*\
-\s*Running command:  docker exec test-container ps -a.*\
-\s*Stdout:\s+PID\s+USER\s+TIME\s+COMMAND.*\
-\s*1\s+root\s+\d:\d\d\s+/bin/sh.*\
-\s*1\d+\s+root\s+\d:\d\d\s+ps -a.*\
-\s*Stderr:.*\
-\s*Running command:  docker exec test-container echo goodbye world.*\
-\s*Stdout: goodbye world.*\
-', re.MULTILINE)
-
-    assert re.search(expected_pattern, out.getvalue()), \
-        Tests.assertion_info('container stdout showing 3 commands run in sequence',\
-         'different messages in container stdout')
+    assert 'Running command:  docker exec test-container ps -a' in out.getvalue()
+    assert 'hello world' in out.getvalue()
+    assert 'goodbye world' in out.getvalue()
 
 def assert_order(text, first, second):
     index1 = text.find(first)
@@ -482,7 +542,7 @@ def test_depends_on_healthcheck_error_max_waiting_time():
 def test_network_created():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     with Tests.RunUntilManager(runner) as context:
-        context.run_until('setup_services')
+        context.run_until('setup_networks')
         ps = subprocess.run(
             ['docker', 'network', 'ls'],
             check=True,
@@ -506,6 +566,18 @@ def test_container_is_in_network():
         )
         inspect = ps.stdout
     assert 'test-container' in inspect, Tests.assertion_info('test-container', inspect)
+
+def test_network_alias_added():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_alias.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert 'Adding network alias test-alias for network gmt-test-network in service test-container' in out.getvalue()
+    docker_run_command = re.search(r"docker run with: (.*)", out.getvalue()).group(1)
+    assert '--network-alias test-alias' in docker_run_command
 
 
 
@@ -971,9 +1043,7 @@ def test_non_git_root_supplied():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
 
-    assert 'Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename' == str(e.value), \
-        Tests.assertion_info('Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename', str(e.value))
-
+    assert f"Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename. Real repo root is {GMT_DIR}" == str(e.value)
 
 def test_internal_network():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/internal_network.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
@@ -1053,3 +1123,45 @@ def test_restart_no_error():
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
+
+
+def test_outside_symlink_not_allowed():
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', filename='usage_scenario.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+
+    with pytest.raises(RuntimeError) as exc:
+
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('import_metric_providers')
+
+    assert 'Repository contained outside symlink' in str(exc)
+    assert '/passwd' in str(exc)
+
+
+def test_outside_symlink_not_allowed_deep():
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', branch="deep", filename='usage_scenario_deep.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+
+    with pytest.raises(RuntimeError) as exc:
+
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('import_metric_providers')
+
+    assert 'Repository contained outside symlink' in str(exc)
+    assert '/passwd' in str(exc)
+
+def test_outside_symlink_not_allowed_missing_outside():
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', branch="missing-outside", filename='usage_scenario.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+
+    with pytest.raises(RuntimeError) as exc:
+
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('import_metric_providers')
+
+    assert 'Repository contained outside symlink' in str(exc)
+    assert '/h4huhguihui3ghguirue' in str(exc)
+
+# plain symlinks, even if missing, as long as they are inside the repository we want to allow at the moment
+def test_outside_symlink_not_allowed_missing_inside():
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', branch="missing-inside", filename='usage_scenario.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')

@@ -68,12 +68,13 @@ class ScenarioRunner:
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
-        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False,
-        skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None):
+        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False, dev_no_save=False,
+        skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None, phase_padding=True):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
 
+        config = GlobalConfig().config
         # variables that should not change if you call run multiple times
         if name:
             self._name = name
@@ -93,6 +94,7 @@ class ScenarioRunner:
         self._dev_flow_timetravel = dev_flow_timetravel
         self._dev_no_optimizations = dev_no_optimizations
         self._dev_no_phase_stats = dev_no_phase_stats
+        self._dev_no_save = dev_no_save
         self._uri = uri
         self._uri_type = uri_type
         self._original_filename = filename
@@ -103,7 +105,7 @@ class ScenarioRunner:
         self._architecture = utils.get_architecture()
 
         self._sci = {'R_d': None, 'R': 0}
-        self._sci |= GlobalConfig().config.get('sci', None)  # merge in data from machine config like I, TE etc.
+        self._sci |= config.get('sci', None)  # merge in data from machine config like I, TE etc.
 
         self._job_id = job_id
         self._arguments = locals()
@@ -111,6 +113,7 @@ class ScenarioRunner:
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
+
         self._commit_hash_folder = commit_hash_folder if commit_hash_folder else ''
         self._user_id = user_id
         self._measurement_flow_process_duration = measurement_flow_process_duration
@@ -118,6 +121,11 @@ class ScenarioRunner:
         self._disabled_metric_providers = [] if disabled_metric_providers is None else disabled_metric_providers
         self._allowed_run_args = [] if allowed_run_args is None else allowed_run_args # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
         self._last_measurement_duration = 0
+        self._phase_padding = phase_padding
+        self._phase_padding_ms = max(
+            utils.get_metric_providers(config, self._disabled_metric_providers).values(),
+            key=lambda x: x.get('sampling_rate', 0) if x else 0
+        ).get('sampling_rate', 0)
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
@@ -143,6 +151,7 @@ class ScenarioRunner:
         self.__working_folder_rel = ''
         self.__image_sizes = {}
         self.__volume_sizes = {}
+        self.__warnings = []
 
         # we currently do not use this variable
         # self.__filename = self._original_filename # this can be changed later if working directory changes
@@ -195,10 +204,12 @@ class ScenarioRunner:
         Path(path).mkdir(parents=True, exist_ok=True)
 
     def save_notes_runner(self):
-        if not self._run_id:
+        print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
+
+        if not self._run_id or self._dev_no_save:
+            print('Skipping saving notes due to missing run_id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
         self.__notes_helper.save_to_db(self._run_id)
 
     def clear_caches(self):
@@ -212,11 +223,13 @@ class ScenarioRunner:
     def check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
         if self._skip_system_checks:
-            print("System check skipped")
+            print('Skipping check system due to --skip-system-checks')
             return
 
         if mode =='start':
-            system_checks.check_start()
+            warnings = system_checks.check_start()
+            for warn in warnings:
+                self.__warnings.append(warn)
         else:
             raise RuntimeError('Unknown mode for system check:', mode)
 
@@ -263,6 +276,8 @@ class ScenarioRunner:
                     encoding='UTF-8'
                 )  # always name target-dir repo according to spec
 
+            if problematic_symlink := utils.find_outside_symlinks(self._repo_folder):
+                raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
         else:
             if self._branch:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
@@ -271,11 +286,14 @@ class ScenarioRunner:
             path = os.path.realpath(self._uri)
             self.__working_folder = self._repo_folder = path
 
+        if self._dev_no_save:
+            return
+
         self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8').strip()
 
         git_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self._repo_folder, encoding='UTF-8').strip()
         if git_repo_root != self._repo_folder:
-            raise RuntimeError('Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename')
+            raise RuntimeError(f"Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename. Real repo root is {git_repo_root}")
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
@@ -304,6 +322,7 @@ class ScenarioRunner:
                     nodes = self.construct_sequence(node)
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
+
                 try:
                     usage_scenario_dir = os.path.split(usage_scenario_file)[0]
                     filename = runner_join_paths(usage_scenario_dir, nodes[0], force_path_as_root=True)
@@ -344,6 +363,7 @@ class ScenarioRunner:
 
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(usage_scenario, Loader)
+
             # Now that we have parsed the yml file we need to check for the special case in which we have a
             # compose-file key. In this case we merge the data we find under this key but overwrite it with
             # the data from the including file.
@@ -357,7 +377,7 @@ class ScenarioRunner:
                         else:
                             dict1[k] = v
                     return dict1
-                return dict1
+                return dict2
 
             new_dict = {}
             if 'compose-file' in yml_obj.keys():
@@ -370,6 +390,7 @@ class ScenarioRunner:
                 del yml_obj['compose-file']
 
             yml_obj.update(new_dict)
+
 
             # If a service is defined as None we remove it. This is so we can have a compose file that starts
             # all the various services but we can disable them in the usage_scenario. This is quite useful when
@@ -427,10 +448,12 @@ class ScenarioRunner:
                     service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
     def remove_docker_images(self):
+        print(TerminalColors.HEADER, '\nRemoving all temporary GMT images', TerminalColors.ENDC)
+
         if self._dev_cache_build:
+            print('Skipping removing of all temporary GMT images skipped due to --dev-cache-build')
             return
 
-        print(TerminalColors.HEADER, '\nRemoving all temporary GMT images', TerminalColors.ENDC)
         subprocess.run(
             'docker images --format "{{.Repository}}:{{.Tag}}" | grep "gmt_run_tmp" | xargs docker rmi -f',
             shell=True,
@@ -455,6 +478,10 @@ class ScenarioRunner:
         and then link itself in the runs table accordingly.
     '''
     def register_machine_id(self):
+
+        if self._dev_no_save:
+            return
+
         config = GlobalConfig().config
         if config['machine'].get('id') is None \
             or not isinstance(config['machine']['id'], int) \
@@ -466,6 +493,13 @@ class ScenarioRunner:
         machine.register()
 
     def initialize_run(self):
+        print(TerminalColors.HEADER, '\nInitializing run', TerminalColors.ENDC)
+
+        if self._dev_no_save:
+            self._run_id = None
+            print('Skipping initialization of run due to --dev-no-save')
+            return self._run_id
+
         config = GlobalConfig().config
 
         gmt_hash, _ = get_repo_info(GMT_ROOT_DIR)
@@ -482,12 +516,14 @@ class ScenarioRunner:
 
         measurement_config = {}
 
-        measurement_config['settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric_providers'} # filter out static metric providers which might not be relevant for platform we are running on
-        measurement_config['providers'] = utils.get_metric_providers(config, self._disabled_metric_providers) # get only the providers relevant to our platform
+        measurement_config['measurement_settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric_providers'} # filter out static metric providers which might not be relevant for platform we are running on
+        measurement_config['configured_metric_providers'] = utils.get_metric_providers(config, self._disabled_metric_providers) # get only the providers relevant to our platform
+        measurement_config['cluster_settings'] = config.get('cluster', {}) # untypical that it is empty, but it does not necessarily need to exist
+        measurement_config['machine_settings'] = config['machine']
         measurement_config['allowed_run_args'] = self._allowed_run_args
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['sci'] = self._sci
-
+        measurement_config['phase_padding'] = self._phase_padding_ms
 
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
@@ -516,13 +552,14 @@ class ScenarioRunner:
         return self._run_id
 
     def import_metric_providers(self):
-        if self._dev_no_metrics:
-            print(TerminalColors.HEADER, '\nSkipping import of metric providers', TerminalColors.ENDC)
+        print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
+
+        if self._dev_no_metrics or self._dev_no_save:
+            print('Skipping import of metric providers due to --dev-no-save or --dev-no-metrics')
             return
 
         config = GlobalConfig().config
 
-        print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
 
         metric_providers = utils.get_metric_providers(config)
 
@@ -564,8 +601,10 @@ class ScenarioRunner:
         self.__metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
 
     def download_dependencies(self):
+        print(TerminalColors.HEADER, '\nDownloading dependencies', TerminalColors.ENDC)
+
         if self._dev_cache_build:
-            print(TerminalColors.HEADER, '\nSkipping downloading dependencies', TerminalColors.ENDC)
+            print('Skipping downloading dependencies due to --dev-cache-build')
             return
 
         print(TerminalColors.HEADER, '\nDownloading dependencies', TerminalColors.ENDC)
@@ -631,6 +670,7 @@ class ScenarioRunner:
 
                 docker_build_command = ['docker', 'run', '--rm',
                     '-v', '/workspace',
+                    # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
                     '-v', f"{self._repo_folder}:/tmp/repo:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
@@ -697,6 +737,8 @@ class ScenarioRunner:
 
     def save_image_and_volume_sizes(self):
 
+        print(TerminalColors.HEADER, '\nSaving image and volume sizes', TerminalColors.ENDC)
+
         for _, service in self._usage_scenario.get('services', {}).items():
             tmp_img_name = self.clean_image_name(service['image'])
 
@@ -725,6 +767,11 @@ class ScenarioRunner:
                     self.__volume_sizes[volume] = int(output.strip().split('\t', maxsplit=1)[0])
                 except Exception as exc:
                     raise RuntimeError('Docker volumes could not be inspected. This can happen if you are storing images in a root only accessible location. Consider switching to docker rootless, running with --skip-volume-inspect or running GMT with sudo.') from exc
+
+        if self._dev_no_save:
+            print('Skipping saving of image and volume sizes due to --dev-no-save')
+            return
+
         DB().query("""
             UPDATE runs
             SET machine_specs = machine_specs || %s
@@ -823,8 +870,10 @@ class ScenarioRunner:
 
             docker_run_string.append('-v')
             if 'folder-destination' in service:
+                 # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
                 docker_run_string.append(f"{self._repo_folder}:{service['folder-destination']}:ro")
             else:
+                 # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
                 docker_run_string.append(f"{self._repo_folder}:/tmp/repo:ro")
 
             if self.__docker_params:
@@ -871,6 +920,10 @@ class ScenarioRunner:
             if service.get('init', False):
                 docker_run_string.append('--init')
 
+            if shm_size := service.get('shm_size', False):
+                docker_run_string.append('--shm-size')
+                docker_run_string.append(str(shm_size))
+
             if 'ports' in service:
                 if self._allow_unsafe:
                     if not isinstance(service['ports'], list):
@@ -911,12 +964,13 @@ class ScenarioRunner:
                         raise RuntimeError('Environment variable needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!')
 
                     # Check the key of the environment var
-                    if not self._allow_unsafe and re.search(r'^[A-Z_]+[A-Z0-9_]*$', env_key) is None:
+                    if not self._allow_unsafe and re.fullmatch(r'[A-Za-z_]+[A-Za-z0-9_]*', env_key) is None:
                         if self._skip_unsafe:
-                            warn_message= arrows(f"Found environment var key with wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ allowed: {env_key} - Skipping")
+                            warn_message= arrows(f"Found environment var key with wrong format. Only ^[A-Za-z_]+[A-Za-z0-9_]*$ allowed: {env_key} - Skipping")
                             print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
                             continue
-                        env_var_check_errors.append(f"- key '{env_key}' has wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ is allowed - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        env_var_check_errors.append(f"- key '{env_key}' has wrong format. Only ^[A-Za-z_]+[A-Za-z0-9_]*$ is allowed - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        continue # do not add to append string if not conformant
 
                     # Check the value of the environment var
                     # We only forbid long values (>1024), every character is allowed.
@@ -926,6 +980,7 @@ class ScenarioRunner:
                             print(TerminalColors.WARNING, arrows(f"Found environment var value with size {len(env_value)} (max allowed length is 1024) - Skipping env var '{env_key}'"), TerminalColors.ENDC)
                             continue
                         env_var_check_errors.append(f"- value of environment var '{env_key}' is too long {len(env_value)} (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        continue # do not add to append string if not conformant
 
                     docker_run_string.append('-e')
                     docker_run_string.append(f"{env_key}={env_value}")
@@ -933,10 +988,54 @@ class ScenarioRunner:
                 if env_var_check_errors:
                     raise RuntimeError('Docker container environment setup has problems:\n\n'.join(env_var_check_errors))
 
+            if 'labels' in service:
+                labels_check_errors = []
+                for docker_label_var in service['labels']:
+                    # https://docs.docker.com/reference/compose-file/services/#labels
+                    if isinstance(docker_label_var, str) and '=' in docker_label_var:
+                        label_key, label_value = docker_label_var.split('=')
+                    elif isinstance(service['labels'], dict):
+                        label_key, label_value = str(docker_label_var), str(service['labels'][docker_label_var])
+                    else:
+                        raise RuntimeError('Label needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!')
+
+                    # Check the key of the environment var
+                    if not self._allow_unsafe and re.fullmatch(r'[A-Za-z_]+[A-Za-z0-9_.]*', label_key) is None:
+                        if self._skip_unsafe:
+                            warn_message= arrows(f"Found label key with wrong format. Only ^[A-Za-z_]+[A-Za-z0-9_.]*$ allowed: {label_key} - Skipping")
+                            print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
+                            continue
+                        labels_check_errors.append(f"- key '{label_key}' has wrong format. Only ^[A-Za-z_]+[A-Za-z0-9_.]*$ is allowed - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        continue # do not add to append string if not conformant
+
+                    # Check the value of the environment var
+                    # We only forbid long values (>1024), every character is allowed.
+                    # The value is directly passed to the container and is not evaluated on the host system, so there is no security related reason to forbid special characters.
+                    if not self._allow_unsafe and len(label_value) > 1024:
+                        if self._skip_unsafe:
+                            warn_message= arrows(f"Found label length > 1024: {label_key} - Skipping")
+                            print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
+                            continue
+                        labels_check_errors.append(f"- value of label '{label_key}' is too long {len(label_value)} (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        continue # do not add to append string if not conformant
+
+                    docker_run_string.append('-l')
+                    docker_run_string.append(f"{label_key}={label_value}")
+
+                if labels_check_errors:
+                    raise RuntimeError('Docker container labels that have problems:\n\n'.join(labels_check_errors))
+
             if 'networks' in service:
                 for network in service['networks']:
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
+                    if isinstance(service['networks'], dict) and service['networks'][network]:
+                        if service['networks'][network].get('aliases', None):
+                            for alias in service['networks'][network]['aliases']:
+                                docker_run_string.append('--network-alias')
+                                docker_run_string.append(alias)
+                                print(f"Adding network alias {alias} for network {network} in service {service_name}")
+
             elif self.__join_default_network:
                 # only join default network if no other networks provided
                 # if this is true only one entry is in self.__networks
@@ -1126,30 +1225,51 @@ class ScenarioRunner:
             print('Stdout:', container_id)
 
             print('Running commands')
-            for cmd in service.get('setup-commands', []):
-                if shell := cmd.get('shell', False):
-                    d_command = ['docker', 'exec', container_name, shell, '-c', cmd['command']] # This must be a list!
+            for cmd_obj in service.get('setup-commands', []):
+                if shell := cmd_obj.get('shell', False):
+                    d_command = ['docker', 'exec', container_name, shell, '-c', cmd_obj['command']] # This must be a list!
                 else:
-                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd['command'])] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'])] # This must be a list!
 
                 print('Running command: ', ' '.join(d_command))
 
-                # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
-                # injection of unwawnted params
-                ps = subprocess.run(
-                    d_command,
-                    check=True,
-                    stderr=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    encoding='UTF-8'
-                )
-                print('Stdout:', ps.stdout)
-                print('Stderr:', ps.stderr)
+                if cmd_obj.get('detach', False) is True:
+                    print('Executing setup-commands process asynchronously and detaching ...')
+                    #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
+                    # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
+                    # injection of unwawnted params
 
-                if ps.stdout:
-                    self.add_to_log(container_name, f"stdout {ps.stdout}", d_command)
-                if ps.stderr:
-                    self.add_to_log(container_name, f"stderr {ps.stderr}", d_command)
+                    ps = subprocess.Popen(
+                        d_command,
+                        stderr=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        preexec_fn=os.setsid,
+                        encoding='UTF-8',
+                    )
+
+                    self.__ps_to_kill.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
+
+                else:
+                    # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
+                    # injection of unwawnted params
+                    ps = subprocess.run(
+                        d_command,
+                        check=True,
+                        stderr=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        encoding='UTF-8'
+                    )
+
+                self.__ps_to_read.append({
+                    'cmd': d_command,
+                    'ps': ps,
+                    'container_name': container_name,
+                    'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
+                    'ignore-errors': cmd_obj.get('ignore-errors', False),
+                    'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
+                    'detail_name': container_name,
+                    'detach': cmd_obj.get('detach', False),
+                })
 
         print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
 
@@ -1164,16 +1284,25 @@ class ScenarioRunner:
             self.__stdout_logs[log_entry_name] = ''
         self.__stdout_logs[log_entry_name] = '\n'.join((self.__stdout_logs[log_entry_name], message))
 
+    def save_warnings(self):
+        if not self._run_id or self._dev_no_save:
+            print("Skipping saving warning due to missing run id or --dev-no-save")
+            return
+        for message in self.__warnings:
+            DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (self._run_id, message))
+
     def add_containers_to_metric_providers(self):
         for metric_provider in self.__metric_providers:
             if metric_provider._metric_name.endswith('_container'):
                 metric_provider.add_containers(self.__containers)
 
     def start_metric_providers(self, allow_container=True, allow_other=True):
-        if self._dev_no_metrics:
+        print(TerminalColors.HEADER, '\nStarting metric providers', TerminalColors.ENDC)
+
+        if self._dev_no_metrics or self._dev_no_save:
+            print('Skipping start of metric providers due to --dev-no-metrics or --dev-no-save')
             return
 
-        print(TerminalColors.HEADER, '\nStarting metric providers', TerminalColors.ENDC)
 
         # Here we start all container related providers
         # This includes tcpdump, which is only for debugging of the containers itself
@@ -1239,6 +1368,11 @@ class ScenarioRunner:
 
         phase_time = int(time.time_ns() / 1_000)
 
+        if self._phase_padding:
+            self.__notes_helper.add_note({'note': f"Ending phase {phase} [UNPADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+            phase_time += self._phase_padding_ms*1000 # value is in ms and we need to get to us
+            time.sleep(self._phase_padding_ms/1000) # no custom sleep here as even with dev_no_sleeps we must ensure phases don't overlap
+
         if phase not in self.__phases:
             raise RuntimeError('Calling end_phase before start_phase. This is a developer error!')
 
@@ -1246,13 +1380,16 @@ class ScenarioRunner:
             for container_to_pause in self.__services_to_pause_phase[phase]:
                 info_text = f"Pausing {container_to_pause} after phase: {phase}."
                 print(info_text)
-                self.__notes_helper.add_note({'note': info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
+                self.__notes_helper.add_note({'note':  info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
                 subprocess.run(['docker', 'pause', container_to_pause], check=True, stdout=subprocess.DEVNULL)
 
-
         self.__phases[phase]['end'] = phase_time
-        self.__notes_helper.add_note({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+
+        if self._phase_padding:
+            self.__notes_helper.add_note({'note': f"Ending phase {phase} [PADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+        else:
+            self.__notes_helper.add_note({'note': f"Ending phase {phase} [UNPADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
     def run_flows(self):
         ps_to_kill_tmp = []
@@ -1413,10 +1550,12 @@ class ScenarioRunner:
 
     # this method should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):
-        if self._dev_no_metrics:
+        print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
+
+        if self._dev_no_metrics or self._dev_no_save:
+            print('Skipping stop of metric providers due to --dev-no-metrics or --dev-no-save')
             return
 
-        print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
         errors = []
         for metric_provider in self.__metric_providers:
             if not metric_provider.has_started():
@@ -1439,7 +1578,11 @@ class ScenarioRunner:
                 errors.append(f"{metric_provider.__class__.__name__} returned error message: {str(exc)}")
                 continue
 
-            metric_importer.import_measurements(df, metric_provider._metric_name, self._run_id)
+            if isinstance(df, list):
+                for i, dfi in enumerate(df):
+                    metric_importer.import_measurements(dfi, metric_provider._sub_metrics_name[i], self._run_id)
+            else:
+                metric_importer.import_measurements(df, metric_provider._metric_name, self._run_id)
 
             print('Imported', TerminalColors.HEADER, len(df), TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
 
@@ -1518,10 +1661,12 @@ class ScenarioRunner:
         self.__notes_helper.add_note({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
 
     def update_start_and_end_times(self):
-        if not self._run_id:
+        print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
+
+        if not self._run_id or self._dev_no_save:
+            print('Skipping update of start and end times due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
         DB().query("""
             UPDATE runs
             SET start_measurement=%s, end_measurement=%s
@@ -1531,7 +1676,10 @@ class ScenarioRunner:
 
 
     def set_run_failed(self):
-        if not self._run_id:
+        print(TerminalColors.HEADER, '\nMarking run as failed', TerminalColors.ENDC)
+
+        if not self._run_id or self._dev_no_save:
+            print('Skipping marking run to failed due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
         DB().query("""
@@ -1542,10 +1690,12 @@ class ScenarioRunner:
 
 
     def store_phases(self):
-        if not self._run_id:
+        print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
+
+        if not self._run_id or self._dev_no_save:
+            print('Skipping updating phases in DB due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
         # internally PostgreSQL stores JSON ordered. This means our name-indexed dict will get
         # re-ordered. Therefore we change the structure and make it a list now.
         # We did not make this before, as we needed the duplicate checking of dicts
@@ -1591,10 +1741,12 @@ class ScenarioRunner:
                 self.add_to_log(container_id, f"stderr: {log.stderr}")
 
     def save_stdout_logs(self):
-        if not self._run_id:
+        print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
+
+        if not self._run_id or self._dev_no_save:
+            print('Skipping savings logs to DB due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
         logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
         logs_as_str = logs_as_str.replace('\x00','')
         if logs_as_str:
@@ -1611,25 +1763,28 @@ class ScenarioRunner:
     #    - Turbo Boost became active during run
     #    - etc.
     def identify_invalid_run(self):
+        print(TerminalColors.HEADER, '\nTrying to identify if run is invalid', TerminalColors.ENDC)
+
         # on macOS we run our tests inside the VM. Thus measurements are not reliable as they contain the overhead and reproducability is quite bad.
         if platform.system() == 'Darwin':
             invalid_message = 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\n'
-            DB().query('''
-                UPDATE runs
-                SET invalid_run = COALESCE(invalid_run, '') || %s
-                WHERE id=%s''',
-                params=(invalid_message, self._run_id)
-            )
+            print(TerminalColors.WARNING, invalid_message, TerminalColors.ENDC)
+
+            if not self._run_id or self._dev_no_save:
+                print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
+            else:
+                self.__warnings.append(invalid_message)
 
         for argument in self._arguments:
-            if (argument.startswith('dev_') or argument == 'skip_system_checks')  and self._arguments[argument] not in (False, None):
+            # dev no optimizations does not make the run invalid ... all others do
+            if argument != 'dev_no_optimizations' and (argument.startswith('dev_') or argument == 'skip_system_checks')  and self._arguments[argument] not in (False, None):
                 invalid_message = 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
-                DB().query('''
-                    UPDATE runs
-                    SET invalid_run = COALESCE(invalid_run, '') || %s
-                    WHERE id=%s''',
-                    params=(invalid_message, self._run_id)
-                )
+                print(TerminalColors.WARNING, invalid_message, TerminalColors.ENDC)
+
+                if not self._run_id or self._dev_no_save:
+                    print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
+                else:
+                    self.__warnings.append(invalid_message)
                 break # one is enough
 
     def cleanup(self, continue_measurement=False):
@@ -1686,6 +1841,7 @@ class ScenarioRunner:
         self.__working_folder_rel = ''
         self.__image_sizes = {}
         self.__volume_sizes = {}
+        self.__warnings = []
 
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
@@ -1747,6 +1903,7 @@ class ScenarioRunner:
             self.setup_networks()
             self.setup_services()
             self.end_phase('[BOOT]')
+            self.check_process_returncodes()
 
             if self._debugger.active:
                 self._debugger.pause('Container setup complete. Waiting to start container providers')
@@ -1837,23 +1994,30 @@ class ScenarioRunner:
                                 raise exc
                             finally:
                                 try:
-                                    if self._run_id and self._dev_no_phase_stats is False:
-                                        # After every run, even if it failed, we want to generate phase stats.
-                                        # They will not show the accurate data, but they are still neded to understand how
-                                        # much a failed run has accrued in total energy and carbon costs
-                                        print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
-
-                                        # get all the metrics from the measurements table grouped by metric
-                                        # loop over them issuing separate queries to the DB
-                                        from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-                                        build_and_store_phase_stats(self._run_id, self._sci)
-
+                                    self.save_warnings()
                                 except BaseException as exc:
                                     self.add_to_log(exc.__class__.__name__, str(exc))
                                     self.set_run_failed()
                                     raise exc
                                 finally:
-                                    self.cleanup()  # always run cleanup automatically after each run
+                                    try:
+                                        if self._run_id and self._dev_no_phase_stats is False and self._dev_no_save is False:
+                                            # After every run, even if it failed, we want to generate phase stats.
+                                            # They will not show the accurate data, but they are still neded to understand how
+                                            # much a failed run has accrued in total energy and carbon costs
+                                            print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
+
+                                            # get all the metrics from the measurements table grouped by metric
+                                            # loop over them issuing separate queries to the DB
+                                            from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
+                                            build_and_store_phase_stats(self._run_id, self._sci)
+
+                                    except BaseException as exc:
+                                        self.add_to_log(exc.__class__.__name__, str(exc))
+                                        self.set_run_failed()
+                                        raise exc
+                                    finally:
+                                        self.cleanup()  # always run cleanup automatically after each run
 
 
 

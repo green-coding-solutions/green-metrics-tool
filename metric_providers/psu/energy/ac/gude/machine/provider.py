@@ -5,18 +5,18 @@ from metric_providers.base import BaseMetricProvider
 
 
 class PsuEnergyAcGudeMachineProvider(BaseMetricProvider):
-    def __init__(self, resolution, skip_check=False):
+    def __init__(self, sampling_rate, skip_check=False):
         super().__init__(
             metric_name='psu_energy_ac_gude_machine',
             metrics={'time': int, 'value': int},
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
 
     def start_profiling(self, containers=None):
-        call_string = f"{self._current_dir}/check_gude_modified.py -i {self._resolution}"
+        call_string = f"{self._current_dir}/check_gude_modified.py -i {self._sampling_rate}"
 
         call_string += f" > {self._filename}"
 

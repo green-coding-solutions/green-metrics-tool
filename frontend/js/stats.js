@@ -94,7 +94,7 @@ const fetchAndFillRunData = async (url_params) => {
             fillRunTab('#machine-specs', run_data[item]); // recurse
         } else if(item == 'usage_scenario') {
             // we would really like to highlight here what was replaced, but since the replace mechanism is so powerful that even the !include command could be modified we can only replace after the file was merged. Thus it is not possible to know after what the replacements are
-            document.querySelector("pre#usage-scenario").textContent = json2yaml(run_data[item]);
+            document.querySelector("#usage-scenario").textContent = json2yaml(run_data[item]);
         } else if(item == 'usage_scenario_variables') {
             if (Object.keys(run_data[item]).length > 0) {
                 const container = document.querySelector("#usage-scenario-variables ul");
@@ -107,7 +107,7 @@ const fetchAndFillRunData = async (url_params) => {
 
         } else if(item == 'logs' && run_data?.[item] != null) {
             // textContent does escaping for us
-            document.querySelector("pre#logs").textContent = run_data[item];
+            document.querySelector("#logs").textContent = run_data[item];
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
         } else if(item == 'phases' || item == 'id') {
@@ -119,11 +119,11 @@ const fetchAndFillRunData = async (url_params) => {
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]}</td></tr>`)
         } else if(item == 'failed' && run_data?.[item] == true) {
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Status</strong></td><td><span class="ui red horizontal label">This run has failed. Please see logs for details</span></td></tr>`)
-        } else if(item == 'start_measurement' || item == 'end_measurement' || item == 'created_at' ) {
+            document.querySelector('#run-failed').classList.remove('hidden');
+        } else if(item == 'start_measurement' || item == 'end_measurement') {
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td title="${run_data?.[item]}">${new Date(run_data?.[item] / 1e3)}</td></tr>`)
+        } else if(item == 'created_at' ) {
             document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td title="${run_data?.[item]}">${new Date(run_data?.[item])}</td></tr>`)
-        } else if(item == 'invalid_run' && run_data?.[item] != null) {
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><span class="ui yellow horizontal label">${run_data?.[item]}</span></td></tr>`)
         } else if(item == 'gmt_hash') {
             document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data?.[item]}">${run_data?.[item]}</a></td></tr>`);
         } else if(item == 'uri') {
@@ -137,15 +137,12 @@ const fetchAndFillRunData = async (url_params) => {
 
     // create new custom field
     // timestamp is in microseconds, therefore divide by 10**6
-    const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1000000
+    const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1e6
     const measurement_duration_display = (measurement_duration_in_s > 60) ? `${numberFormatter.format(measurement_duration_in_s / 60)} min` : `${numberFormatter.format(measurement_duration_in_s)} s`
 
     document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
 
-    if (run_data.invalid_run) {
-        showNotification('Run measurement has been marked as invalid', run_data.invalid_run);
-        document.body.classList.add("invalidated-measurement")
-    }
+    // warnings will be fetched separately
 
 }
 
@@ -163,10 +160,15 @@ const buildCommitLink = (run_data) => {
 
 const fillRunTab = async (selector, data, parent = '') => {
     for (const item in data) {
-        if(data[item] != null && typeof data[item] == 'object')
+
+        if(data[item] != null && typeof data[item] == 'object') {
+            if (parent == '') {
+                document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${item}</h2></strong></td><td></td></tr>`)
+            }
             fillRunTab(selector, data[item], `${item}.`)
-        else
+        } else {
             document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${parent}${item}</strong></td><td>${data?.[item]}</td></tr>`)
+        }
     }
 }
 
@@ -452,6 +454,115 @@ const fetchAndFillOptimizationsData = async (url_params) => {
     $('#optimization_count').html(optimizations.data.length)
 }
 
+const fetchAndFillAIData = async (url_params) => {
+
+    if (ACTIVATE_AI_OPTIMISATIONS !== true) return;
+
+    let ai_data = null;
+    try {
+        ai_data = await makeAPICall('/v1/ai/' + url_params['id'])
+    } catch (err) {
+        // Do nothing as ai data will be empty most of the time
+        return
+    }
+
+    ai_data.sort((a, b) => a.rating - b.rating);
+
+    const stats = {
+        'green':0,
+        'yellow':0,
+        'red':0
+    };
+
+    ai_data.forEach(d => {
+        if (d.rating > 75) {
+            d.color = "green";
+        } else if (d.rating > 35) {
+            d.color = "yellow";
+        } else if (d.rating > 0) {
+            d.color = "red";
+        } else {
+            console.log('Massive error. We need to report this');
+            return;
+        }
+
+        stats[d.color] += 1;
+    });
+
+    const progressBar = `
+        <div id="ai_progress" class="ui multiple progress" data-value="${stats['red']},${stats['yellow']},${stats['green']}" data-total=${ai_data.length}>
+            <div class="red bar"></div>
+            <div class="yellow bar"></div>
+            <div class="green bar"></div>
+        </div>
+        `
+
+    const aiTemplate = `
+        <div class="title">
+            <div class="ui {{color}} label">{{rating}}</div> {{filename}}:{{function_name}} <i class="dropdown icon"></i>
+        </div>
+        <div class="content">
+            <h4 class="ui horizontal divider header">
+            <i class="barcode icon"></i>
+                Your code
+            </h4>
+            <pre>{{code}}</pre>
+            <h4 class="ui horizontal divider header">
+            <i class="brain icon"></i>
+                {{model}}
+            </h4>
+            <p>{{ret_val}}</p>
+            <button class="ui primary basic button copy-button">Improve this with AI</button>
+        </div>
+    `;
+    const ai_container = document.getElementById("ai-container");
+
+    ai_container.innerHTML = progressBar;
+
+    ai_data.forEach(d => {
+        let optimizationHTML = aiTemplate
+            .replace("{{function_name}}", d.name)
+            .replace("{{rating}}", d.rating)
+            .replace("{{filename}}", d.filename)
+            .replace("{{code}}", d.code)
+            .replace("{{model}}", d.model)
+            .replace("{{color}}", d.color)
+            .replace("{{ret_val}}", (d.ret_val || '').replace(/\n/g, '<br>'))
+
+        const optimizationElement = document.createElement("div");
+        optimizationElement.classList.add("ui", "styled","fluid", "accordion");
+        optimizationElement.innerHTML = optimizationHTML;
+        ai_container.appendChild(optimizationElement);
+
+    });
+
+    $('#ai_progress').progress();
+
+    $('body').on('click', '.copy-button', function() {
+        var code = $(this).closest('.content').find('pre').text();
+        copyTextToClipboard('You are a world class programmer. Please improve:' + code); // TODO: Refactor to use central function in main.js
+        showNotification('Code copied', 'The code has been copied to the clipboard.')
+    });
+
+}
+
+function copyTextToClipboard(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+            console.log("Text successfully copied to clipboard");
+        }, function(err) {
+            console.error("Failed to copy text: ", err);
+        });
+    } else {
+        // Fallback for older browsers
+        var textArea = $('<textarea>');
+        $('body').append(textArea);
+        textArea.val(text).select();
+        document.execCommand('copy');
+        textArea.remove();
+    }
+}
+
 const fetchTimelineData = async (url_params) => {
     document.querySelector('#api-loader').style.display = '';
     document.querySelector('#loader-question').remove();
@@ -476,6 +587,25 @@ const fetchTimelineNotes = async (url_params) => {
     return notes?.data;
 }
 
+const fetchAndFillWarnings = async (url_params) => {
+    let warnings = null;
+    try {
+        warnings = await makeAPICall('/v1/warnings/' + url_params['id'])
+        if (!warnings || warnings?.data?.length === 0) return;
+    } catch (err) {
+        showNotification('Could not get warnings data from API', err);
+        return;
+    }
+
+    const container = document.querySelector('#run-warnings');
+    const ul = container.querySelector('ul');
+    warnings.data.forEach(w => {
+        ul.insertAdjacentHTML('beforeend', `<li>${w[1]}</li>`);
+    });
+    container.classList.remove('hidden');
+}
+
+
 
 /* Chart starting code*/
 $(document).ready( (e) => {
@@ -494,6 +624,8 @@ $(document).ready( (e) => {
         fetchAndFillRunData(url_params);
         fetchAndFillNetworkIntercepts(url_params);
         fetchAndFillOptimizationsData(url_params);
+        fetchAndFillAIData(url_params);
+        fetchAndFillWarnings(url_params);
 
         (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
             const phase_stats = await fetchAndFillPhaseStatsData(url_params);

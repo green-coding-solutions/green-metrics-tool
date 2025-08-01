@@ -19,35 +19,37 @@ def run(p_sync: Playwright, browser_name: str, fifo_path: str) -> None:
         # this leverages new headless mode by Chromium: https://developer.chrome.com/articles/new-headless/
         # The mode is however ~40% slower: https://github.com/microsoft/playwright/issues/21216
         browser = p_sync.chromium.launch(headless=False,args=["--headless=new"], proxy=proxy_server)
-    context = browser.new_context(ignore_https_errors=True)
-    page = context.new_page()
 
     try:
+        with open('/tmp/browser_ready', 'w+', encoding='utf-8') as f:
+            f.write('ready')
+
         for _ in range(1,10):
             with open(fifo_path, 'r', encoding='utf-8') as fifo:
-                # Read data from the named pipe
-                url = fifo.read()
+                url = fifo.read() # Read data from the named pipe
                 log_note(f"Opening URL {url}")
-                context = browser.new_context(ignore_https_errors=True)
+                context = browser.new_context(ignore_https_errors=True, viewport={"width": 1280, "height": 720})
                 page = context.new_page()
-                page.goto(url)
-                page.wait_for_load_state('load')
+                page.set_default_timeout(5_000)
+
+                page.goto(url, timeout=5_000, wait_until='commit')
+
+                page.wait_for_load_state('load', timeout=5_000)
                 log_note(f"Finished loading URL {url}")
+
                 page.close()
                 context.close()
 
+        browser.close()
 
     except Exception as e:
         if hasattr(e, 'message'): # only Playwright error class has this member
             log_note(f"Exception occurred: {e.message}")
         log_note("Page content was:")
         log_note(page.content())
+        context.close()
+        browser.close()
         raise e
-
-    # ---------------------
-    context.close()
-    browser.close()
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

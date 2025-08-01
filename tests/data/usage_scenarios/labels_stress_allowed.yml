@@ -1,19 +1,18 @@
 ---
-name: Test Stress
+name: Labels Stress
 author: Dan Mateas
 description: test
 
 services:
-
-  test-container-memory-int:
+  test-container:
     type: container
-    image: alpine
-    deploy:
-      resources:
-        limits:
-          memory: 1
-
-
+    image: gcb_stress
+    build:
+      context: ../stress-application
+    labels:
+      TESTALLOWED: 'alpha-num123_'
+      test.label: 'example.com'
+      OTHER_LABEL: 'http://localhost:8080'
 flow:
   - name: Stress
     container: test-container

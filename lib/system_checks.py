@@ -47,6 +47,26 @@ def check_one_energy_and_scope_machine_provider():
 def check_tmpfs_mount():
     return not any(partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs' for partition in psutil.disk_partitions())
 
+def check_ntp():
+    if platform.system() == 'Darwin': # no NTP for darwin, as this is linux cluster only functionality
+        return True
+
+    ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8')
+    if 'NTP service: inactive' not in ntp_status: # NTP must be inactive
+        return False
+
+    return True
+
+def check_largest_sampling_rate():
+    metric_providers = utils.get_metric_providers(GlobalConfig().config)
+    if not metric_providers: # no provider provider configured passes this check
+        return True
+
+    return max(
+        metric_providers.values(),
+        key=lambda x: x.get('sampling_rate', 0) if x else 0
+    ).get('sampling_rate', 0) <= 1000
+
 def check_cpu_utilization():
     return psutil.cpu_percent(0.1) < 5.0
 
@@ -58,11 +78,11 @@ def check_free_memory():
     return psutil.virtual_memory().available >= GMT_Resources['free_memory']
 
 def check_containers_running():
-    result = subprocess.run(['docker', 'ps', '--format', '{{.Names}}'],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            check=True, encoding='UTF-8')
-    return not bool(result.stdout.strip())
+    result = subprocess.check_output(['docker', 'ps', '--format', '{{.Names}}'], encoding='UTF-8')
+    return not bool(result.strip())
+
+def check_gmt_dir_dirty():
+    return subprocess.check_output(['git', 'status', '-s'], encoding='UTF-8') == ''
 
 def check_docker_daemon():
     result = subprocess.run(['docker', 'version'],
@@ -94,9 +114,12 @@ def check_swap_disabled():
 
 start_checks = [
     (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
+    (check_gmt_dir_dirty, Status.WARN, 'gmt directory dirty', 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir.'),
     (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
+    (check_ntp, Status.WARN, 'ntp', 'You have NTP time syncing active. This can create noise in runs and should be deactivated.'),
     (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement.'),
+    (check_largest_sampling_rate, Status.WARN, 'high sampling rate', 'You have chosen at least one provider with a sampling rate > 1000 ms. That is not recommended and might lead also to longer benchmarking times due to internal extra sleeps to adjust measurement frames.'),
     (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'We recommend to free up some disk space (< 1GiB available)'),
     (check_free_memory, Status.ERROR, '1 GiB free memory', 'No free memory! Please kill some programs (< 1GiB available)'),
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),
@@ -108,6 +131,7 @@ start_checks = [
 
 def check_start():
     print(TerminalColors.HEADER, '\nRunning System Checks', TerminalColors.ENDC)
+    warnings = []
     max_key_length = max(len(key[2]) for key in start_checks)
 
     for check in start_checks:
@@ -123,6 +147,7 @@ def check_start():
             else:
                 if check[1] == Status.WARN:
                     output = f"{TerminalColors.WARNING}WARN{TerminalColors.ENDC} ({check[3]})"
+                    warnings.append(check[3])
                 elif check[1] == Status.INFO:
                     output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} ({check[3]})"
                 else:
@@ -137,3 +162,5 @@ def check_start():
             if retval is False and check[1].value >= GlobalConfig().config['measurement']['system_check_threshold']:
                 # Error needs to raise
                 raise ConfigurationCheckError(check[3], check[1])
+
+    return warnings

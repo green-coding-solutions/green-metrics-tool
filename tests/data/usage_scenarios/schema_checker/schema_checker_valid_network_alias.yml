@@ -1,17 +1,19 @@
 ---
-name: Test Stress
+name: Test
 author: Dan Mateas
 description: test
+
+networks:
+  gmt-test-network:
 
 services:
   test-container:
     type: container
     image: gcb_stress
-    build:
-      context: ../stress-application
-    setup-commands:
-      - command: ps -a
-        shell: sh
+    networks:
+      gmt-test-network:
+        aliases:
+          - test-alias
 
 flow:
   - name: Stress
@@ -20,3 +22,6 @@ flow:
       - type: console
         command: stress-ng -c 1 -t 1 -q
         note: Starting Stress
+        shell: bash
+        log-stdout: true
+        log-stderr: false

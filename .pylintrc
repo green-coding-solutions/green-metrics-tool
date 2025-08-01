@@ -33,7 +33,8 @@ disable=missing-function-docstring,
     ungrouped-imports,
     no-else-return,
     too-many-positional-arguments,
-    no-else-break
+    no-else-break,
+    no-else-raise
 
 [MASTER]
 ignore=env

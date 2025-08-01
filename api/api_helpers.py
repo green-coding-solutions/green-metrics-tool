@@ -180,7 +180,9 @@ def get_run_info(user, run_id):
                     LEFT JOIN categories as t on t.id = elements) as categories,
                 filename, start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario, usage_scenario_variables,
-                created_at, invalid_run, phases, logs, failed, gmt_hash, runner_arguments
+                created_at,
+                (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = runs.id) as invalid_run,
+                phases, logs, failed, gmt_hash, runner_arguments
             FROM runs
             WHERE
                 (TRUE = %s OR user_id = ANY(%s::int[]))
@@ -189,7 +191,7 @@ def get_run_info(user, run_id):
     params = (user.is_super_user(), user.visible_users(), run_id)
     return DB().fetch_one(query, params=params, fetch_mode='dict')
 
-def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, sorting='run'):
+def get_timeline_query(user, uri, filename, machine_id, branch, metric, phase, start_date=None, end_date=None, detail_name=None, sorting='run'):
 
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
@@ -199,12 +201,12 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, 
 
     params = [user.is_super_user(), user.visible_users(), uri, filename, branch, f"%{phase}"]
 
-    metrics_condition = ''
-    if metrics is None or metrics.strip() == '' or metrics.strip() == 'key':
-        metrics_condition =  "AND (p.metric LIKE '%%_energy_%%' OR metric = 'software_carbon_intensity_global' OR metric = 'phase_time_syscall_system') AND p.metric NOT LIKE '%%_container' AND p.metric NOT LIKE '%%_slice' "
-    elif metrics.strip() != 'all':
-        metrics_condition =  "AND p.metric = %s"
-        params.append(metrics)
+    metric_condition = ''
+    if metric is None or metric.strip() == '' or metric.strip() == 'key':
+        metric_condition =  "AND (p.metric LIKE '%%_energy_%%' OR metric = 'software_carbon_intensity_global' OR metric = 'phase_time_syscall_system') AND p.metric NOT LIKE '%%_container' AND p.metric NOT LIKE '%%_slice' "
+    elif metric.strip() != 'all':
+        metric_condition =  "AND p.metric = %s"
+        params.append(metric)
 
     start_date_condition = ''
     if start_date is not None:
@@ -247,7 +249,7 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, 
                 AND r.end_measurement IS NOT NULL
                 AND r.failed != TRUE
                 AND p.phase LIKE %s
-                {metrics_condition}
+                {metric_condition}
                 {start_date_condition}
                 {end_date_condition}
                 {detail_name_condition}
@@ -445,6 +447,19 @@ def determine_comparison_case(user, ids, force_mode=None):
         return ('Repeated Run', 'commit_hash')  # Case A - Everything is identical and just repeating runs
 
     raise RuntimeError('Could not determine comparison case after checking all conditions')
+
+def check_run_failed(user, ids):
+    query = """
+            SELECT
+               COUNT(failed)
+            FROM runs
+            WHERE
+                (TRUE = %s OR user_id = ANY(%s::int[]))
+                AND id = ANY(%s::uuid[])
+                AND failed IS TRUE
+            """
+    params = (user.is_super_user(), user.visible_users(), ids)
+    return DB().fetch_one(query, params=params)[0]
 
 def get_phase_stats(user, ids):
     query = """

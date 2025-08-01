@@ -184,8 +184,21 @@ def test_post_run_add_non_existent_repo():
     run = Software(name=run_name, repo_url='https://github.com/no-company-here/and-no-repo/', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
-    assert json.loads(response.text)['err'] == 'Could not find repository https://github.com/no-company-here/and-no-repo/ and branch main. Is the repo publicly accessible, not empty and does the branch main exist?'
+    assert json.loads(response.text)['err'] == 'Could not read from repository https://github.com/no-company-here/and-no-repo/ and branch main. Is the repo publicly accessible, not empty and does the branch main exist?'
 
+
+def test_post_repo_with_auth():
+    run_name = 'test_' + utils.randomword(12)
+    run = Software(name=run_name, repo_url='https://arne:password@green-coding.io/green-coding-solutions/green-metrics-tool/', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
+    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+
+def test_post_repo_ssh():
+    run_name = 'test_' + utils.randomword(12)
+    run = Software(name=run_name, repo_url='git@github.com:green-coding-solutions/green-metrics-tool.git', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
+    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
 
 

@@ -2,18 +2,17 @@
 name: Test Stress
 author: Dan Mateas
 description: test
-description: test
 
 services:
-  test-container:
+
+  test-container-memory-int:
     type: container
-    image: gcb_stress
-    build:
-      context: ../stress-application
-    setup-commands:
-      - command: echo hello world
-      - command: ps -a
-      - command: echo goodbye world
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          memory: null
+
 
 flow:
   - name: Stress

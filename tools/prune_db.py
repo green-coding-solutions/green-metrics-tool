@@ -6,6 +6,7 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.db import DB
+from lib.global_config import GlobalConfig
 
 if __name__ == '__main__':
     import argparse
@@ -19,15 +20,22 @@ if __name__ == '__main__':
         print("This will remove ALL runs, measurement, CI, carbonDB and hog data from the DB. Continue? (y/N)")
         answer = sys.stdin.readline()
         if answer.strip().lower() == 'y':
-            DB().query('TRUNCATE runs CASCADE')
-            DB().query('TRUNCATE ci_measurements CASCADE')
-            DB().query('TRUNCATE hog_measurements CASCADE')
-            DB().query('TRUNCATE carbondb_energy_data CASCADE')
-            DB().query('TRUNCATE carbondb_energy_data_day CASCADE')
+            DB().query('TRUNCATE TABLE runs CASCADE')
+            DB().query('TRUNCATE TABLE ci_measurements CASCADE')
+
+            if GlobalConfig().config.get('activate_carbon_db', False):
+                from ee.tools.prune_db_ee import prune_carbondb #pylint: disable=import-error,no-name-in-module
+                prune_carbondb()
+
+            if GlobalConfig().config.get('activate_power_hog', False):
+                from ee.tools.prune_db_ee import prune_power_hog #pylint: disable=import-error,no-name-in-module
+
+                prune_power_hog()
+
             print("Done")
     elif args.mode == 'failed-runs':
         print("This will remove all runs that have not ended, which includes failed ones, but also possibly running, so be sure no measurement is currently active. Continue? (y/N)")
         answer = sys.stdin.readline()
         if answer.strip().lower() == 'y':
-            DB().query('DELETE FROM runs WHERE end_measurement IS NULL')
+            DB().query('DELETE FROM runs WHERE failed = TRUE OR end_measurement IS NULL')
             print("Done")

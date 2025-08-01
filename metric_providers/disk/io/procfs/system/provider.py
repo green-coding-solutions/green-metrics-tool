@@ -1,47 +1,31 @@
 import os
 from functools import lru_cache
 
-from lib import utils
 from metric_providers.base import BaseMetricProvider
+from metric_providers.disk.io.disk_io_parse import DiskIoParseMixin
 
-class DiskIoProcfsSystemProvider(BaseMetricProvider):
-    def __init__(self, resolution, skip_check=False):
+class DiskIoProcfsSystemProvider(BaseMetricProvider, DiskIoParseMixin):
+    def __init__(self, sampling_rate, skip_check=False):
         super().__init__(
             metric_name='disk_io_procfs_system',
             metrics={'time': int, 'read_sectors': int, 'written_sectors': int, 'device': str},
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit='Bytes',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
 
+        self._sub_metrics_name = ['disk_io_read_procfs_system', 'disk_io_write_procfs_system']
+
     def _parse_metrics(self, df):
-        df['detail_name'] = df['device']
-
-        df = df.sort_values(by=['device', 'time'], ascending=True)
-
-        df['read_sectors_intervals'] = df.groupby(['device'])['read_sectors'].diff()
-        df['read_sectors_intervals'] = df.groupby('device')['read_sectors_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
-
-        df['written_sectors_intervals'] = df.groupby(['device'])['written_sectors'].diff()
-        df['written_sectors_intervals'] = df.groupby('device')['written_sectors_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
-
-        # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
-        # Since one value is useless for us we drop the row
-        df.dropna(inplace=True)
-
-        if (df['written_sectors_intervals'] < 0).any():
-            raise ValueError('DiskIoProcfsSystemProvider data column written_sectors_intervals had negative values.')
-
-        if (df['read_sectors_intervals'] < 0).any():
-            raise ValueError('DiskIoProcfsSystemProvider data column read_sectors_intervals had negative values.')
+        df = super()._parse_metrics(df)
 
         df['blocksize'] = df['device'].apply(self.get_blocksize)
-        df['value'] = (df['read_sectors_intervals'] + df['written_sectors_intervals'])*df['blocksize']
-        df['value'] = df.value.astype(int)
-        df = df.drop(columns=['read_sectors','written_sectors', 'written_sectors_intervals', 'read_sectors_intervals', 'device', 'blocksize'])  # clean up
+        df['read_bytes'] = df['read_sectors']*df['blocksize']
+        df['written_bytes'] = df['written_sectors']*df['blocksize']
+        df['detail_name'] = df['device']
 
-        return df
+        return self._parse_metrics_splitup_helper(df)
 
     @lru_cache(maxsize=100)
     def get_blocksize(self, device_name):

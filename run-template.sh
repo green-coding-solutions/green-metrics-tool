@@ -16,9 +16,9 @@ if [[ "$1" == "website" ]]; then
     fi
 
     if [[ -n "${3-}" && "${3-}" == '--quick' ]]; then
-        python3 "${GMT_ROOT_DIR}/runner.py" --uri ${GMT_ROOT_DIR} --filename 'templates/website/usage_scenario.yml' --variables __GMT_VAR_PAGE__="${2}" __GMT_VAR_SLEEP_1__=0 __GMT_VAR_SLEEP_2__=0 --dev-no-sleeps --skip-system-checks --dev-cache-build --dev-no-optimizations ${4-} ${5-}
+        python3 "${GMT_ROOT_DIR}/runner.py" --uri ${GMT_ROOT_DIR} --filename 'templates/website/usage_scenario.yml' --variables __GMT_VAR_PAGE__="${2}" __GMT_VAR_SLEEP__=0 --dev-no-sleeps --skip-system-checks --dev-cache-build --dev-no-optimizations ${4-} ${5-}
     else
-        python3 "${GMT_ROOT_DIR}/runner.py" --uri ${GMT_ROOT_DIR} --filename 'templates/website/usage_scenario.yml' --variables __GMT_VAR_PAGE__="${2}" __GMT_VAR_SLEEP_1__=2 __GMT_VAR_SLEEP_2__=5 ${3-} ${4-}
+        python3 "${GMT_ROOT_DIR}/runner.py" --uri ${GMT_ROOT_DIR} --filename 'templates/website/usage_scenario.yml' --variables __GMT_VAR_PAGE__="${2}" __GMT_VAR_SLEEP__=5 ${3-} ${4-}
     fi
 
 elif [[ "$1" == "ai" ]]; then

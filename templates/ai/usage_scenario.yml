@@ -14,7 +14,7 @@ flow:
     container: gcb-ai-model
     commands:
       - type: console
-        command: ollama pull __GMT_VAR_MODEL__
+        command: "ollama pull '__GMT_VAR_MODEL__'"
         read-notes-stdout: true
         log-stdout: true
 
@@ -22,7 +22,7 @@ flow:
     container: gcb-ai-model
     commands:
       - type: console
-        command: ollama run __GMT_VAR_MODEL__ ""
+        command: "ollama run '__GMT_VAR_MODEL__' ''"
         read-notes-stdout: true
         log-stdout: true
 
@@ -30,6 +30,6 @@ flow:
     container: gcb-ai-model
     commands:
       - type: console
-        command: ollama run __GMT_VAR_MODEL__ "__GMT_VAR_PROMPT__"
+        command: "ollama run '__GMT_VAR_MODEL__' '__GMT_VAR_PROMPT__'"
         read-notes-stdout: true
         log-stdout: true

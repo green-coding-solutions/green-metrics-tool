@@ -47,6 +47,25 @@ services:
           cpus: 1
           memory: "10M"
 
+  test-container-memory-int:
+    type: container
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: 11000000
+
+
+  test-container-memory-float:
+    type: container
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: 10000001.23
+
   test-container-limits-partial:
     type: container
     image: alpine
@@ -68,6 +87,20 @@ services:
     image: alpine
     cpus: 1
     mem_limit: "10M"
+
+
+  test-container-limit-only-service-level-memory-int:
+    type: container
+    image: alpine
+    cpus: 1
+    mem_limit: 11000000
+
+  test-container-limit-only-service-level-memory-float:
+    type: container
+    image: alpine
+    cpus: 1
+    mem_limit: 10000001.23
+
 
 
 flow:
