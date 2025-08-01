@@ -157,7 +157,7 @@ def test_runner_with_glob_pattern_filename():
     # Test runner.py with glob pattern that matches multiple files in a folder
     ps = subprocess.run(
         ['python3', 'runner.py', '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/runner_filename/*.yml',
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-metrics', '--dev-no-optimizations', '--dev-no-save'],
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         cwd=GMT_DIR,
         capture_output=True,
         text=True,
@@ -176,7 +176,7 @@ def test_runner_with_iterations_and_multiple_files():
          '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml',
          '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_2.yml',
          '--iterations', '2',
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-metrics', '--dev-no-optimizations', '--dev-no-save'],
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         cwd=GMT_DIR,
         capture_output=True,
         text=True,
