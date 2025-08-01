@@ -129,9 +129,9 @@ if __name__ == '__main__':
             else:
                 print(TerminalColors.FAIL, f'Error: No valid files found for --filename pattern: {pattern}', TerminalColors.ENDC)
             sys.exit(1)
-
         filenames.extend(valid_files)
 
+    # Remove duplicates and repeat for each iteration
     filenames = list(set(filenames)) * args.iterations
 
     runner = None
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     try:
         for filename in filenames:
             print(TerminalColors.OKBLUE, '\nRunning: ', filename, TerminalColors.ENDC)
-            
+
             runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=args.filename,
                             branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                             skip_system_checks=args.skip_system_checks,
