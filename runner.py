@@ -142,7 +142,7 @@ if __name__ == '__main__':
         for filename in filenames:
             print(TerminalColors.OKBLUE, '\nRunning: ', filename, TerminalColors.ENDC)
 
-            runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=args.filename,
+            runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filename,
                             branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                             skip_system_checks=args.skip_system_checks,
                             skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
