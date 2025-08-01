@@ -77,12 +77,6 @@ machine:
   base_temperature_feature: False
 
 measurement:
-  system_check_threshold: 3 # Can be 1=INFO, 2=WARN or 3=ERROR
-  pre_test_sleep: 5
-  idle_duration: 10
-  baseline_duration: 5
-  post_test_sleep: 5
-  phase_transition_time: 1
   boot:
     wait_time_dependencies: 60
   metric_providers:

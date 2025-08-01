@@ -29,6 +29,13 @@ const getSettings = async () => {
         document.querySelector('#measurement-flow-process-duration').value = data?.data?._capabilities?.measurement?.flow_process_duration;
         document.querySelector('#measurement-total-duration').value = data?.data?._capabilities?.measurement?.total_duration;
         $('#measurement-disabled-metric-providers').dropdown('set exactly', data?.data?._capabilities?.measurement?.disabled_metric_providers);
+        document.querySelector('#measurement-system-check-threshold').value = data?.data?._capabilities?.measurement?.system_check_threshold;
+        document.querySelector('#measurement-pre-test-sleep').value = data?.data?._capabilities?.measurement?.pre_test_sleep;
+        document.querySelector('#measurement-idle-duration').value = data?.data?._capabilities?.measurement?.idle_duration;
+        document.querySelector('#measurement-baseline-duration').value = data?.data?._capabilities?.measurement?.baseline_duration;
+        document.querySelector('#measurement-post-test-sleep').value = data?.data?._capabilities?.measurement?.post_test_sleep;
+        document.querySelector('#measurement-phase-transition-time').value = data?.data?._capabilities?.measurement?.phase_transition_time;
+        document.querySelector('#measurement-wait-time-dependencies').value = data?.data?._capabilities?.measurement?.wait_time_dependencies;
     } catch (err) {
         showNotification('Could not load settings', err);
     }

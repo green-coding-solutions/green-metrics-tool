@@ -129,7 +129,7 @@ start_checks = [
 
 ]
 
-def check_start():
+def check_start(system_check_threshold=3):
     print(TerminalColors.HEADER, '\nRunning System Checks', TerminalColors.ENDC)
     warnings = []
     max_key_length = max(len(key[2]) for key in start_checks)
@@ -159,7 +159,7 @@ def check_start():
 
             print(f"Checking {formatted_key} : {output}")
 
-            if retval is False and check[1].value >= GlobalConfig().config['measurement']['system_check_threshold']:
+            if retval is False and check[1].value >= system_check_threshold:
                 # Error needs to raise
                 raise ConfigurationCheckError(check[3], check[1])
 

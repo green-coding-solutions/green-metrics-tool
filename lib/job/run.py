@@ -42,21 +42,30 @@ class RunJob(Job):
             uri_type='URL',
             filename=self._filename,
             branch=self._branch,
-            skip_unsafe=user._capabilities['measurement'].get('skip_unsafe', True),
-            allow_unsafe=user._capabilities['measurement'].get('allow_unsafe', False),
-            skip_system_checks=skip_system_checks,
-            skip_volume_inspect=user._capabilities['measurement'].get('skip_volume_inspect', False),
-            full_docker_prune=full_docker_prune,
-            docker_prune=docker_prune,
+            skip_unsafe=user._capabilities['measurement']['skip_unsafe'],
+            allow_unsafe=user._capabilities['measurement']['allow_unsafe'],
+            skip_system_checks=user._capabilities['measurement']['skip_system_checks'],
+            skip_volume_inspect=user._capabilities['measurement']['skip_volume_inspect'],
+            full_docker_prune=full_docker_prune, # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
+            docker_prune=docker_prune, # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
             job_id=self._id,
             user_id=self._user_id,
             usage_scenario_variables=self._usage_scenario_variables,
             measurement_flow_process_duration=user._capabilities['measurement']['flow_process_duration'],
-            dev_no_sleeps=user._capabilities['measurement'].get('dev_no_sleeps', False),
-            dev_no_optimizations=user._capabilities['measurement'].get('dev_no_optimizations', False),
             measurement_total_duration=user._capabilities['measurement']['total_duration'],
+            measurement_system_check_threshold=user._capabilities['measurement']['system_check_threshold'],
+            measurement_pre_test_sleep=user._capabilities['measurement']['pre_test_sleep'],
+            measurement_idle_duration=user._capabilities['measurement']['idle_duration'],
+            measurement_baseline_duration=user._capabilities['measurement']['baseline_duration'],
+            measurement_post_test_sleep=user._capabilities['measurement']['post_test_sleep'],
+            measurement_phase_transition_time=user._capabilities['measurement']['phase_transition_time'],
+            measurement_wait_time_dependencies=user._capabilities['measurement']['wait_time_dependencies'],
+            dev_no_sleeps=user._capabilities['measurement']['dev_no_sleeps'],
+            dev_no_optimizations=user._capabilities['measurement']['dev_no_optimizations'],
             disabled_metric_providers=user._capabilities['measurement']['disabled_metric_providers'],
             allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'], # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
+
+
         )
         try:
             # Start main code. Only URL is allowed for cron jobs
