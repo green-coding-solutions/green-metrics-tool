@@ -4,7 +4,7 @@ SET capabilities = jsonb_set(
     '{user,updateable_settings}',
     (
         COALESCE(capabilities->'user'->'updateable_settings', '[]'::jsonb) ||
-        '["measurement.system_check_threshold", "measurement.pre_test_sleep", "measurement.idle_duration", "measurement.baseline_duration", "measurement.post_test_sleep", "measurement.phase_transition_time", "measurement.wait_time_dependencies"]'::jsonb
+        '["measurement.system_check_threshold", "measurement.pre_test_sleep", "measurement.idle_duration", "measurement.baseline_duration", "measurement.post_test_sleep", "measurement.phase_transition_time", "measurement.wait_time_dependencies", "measurement.skip_volume_inspect"]'::jsonb
     ),
     true
 ) WHERE id != 0;
@@ -65,3 +65,34 @@ SET capabilities = jsonb_set(
     true
 );
 
+UPDATE users
+SET capabilities = jsonb_set(
+    capabilities,
+    '{measurement,allow_unsafe}',
+    'false',
+    true
+);
+
+UPDATE users
+SET capabilities = jsonb_set(
+    capabilities,
+    '{measurement,skip_unsafe}',
+    'true',
+    true
+);
+
+UPDATE users
+SET capabilities = jsonb_set(
+    capabilities,
+    '{measurement,skip_system_checks}',
+    'false',
+    true
+);
+
+UPDATE users
+SET capabilities = jsonb_set(
+    capabilities,
+    '{measurement,skip_volume_inspect}',
+    'false',
+    true
+);

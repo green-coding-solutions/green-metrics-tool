@@ -187,6 +187,11 @@
                                     <td><input type="checkbox"  id="measurement-dev-no-optimizations" name="measurement-dev-no-optimizations" data-setting="measurement.dev_no_optimizations"></td>
                                     <td><button id="save-measurement-dev-no-optimizations" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
                                 </tr>
+                                <tr>
+                                    <td>(DEV) Skip volume inspect<br><span><small><i class="question circle icon"></i>You can use this while developing to speed up runs on the cluster if you are not interested in the volume sizes or experience errors with shared non-readable volumes.</small></span></td>
+                                    <td><input type="checkbox"  id="measurement-skip-volume-inspect" name="easurement-skip-volume-inspect" data-setting="measurement.skip_volume_inspect"></td>
+                                    <td><button id="save-measurement-skip-volume-inspect" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
                                 <!--
                                 <tr>
                                     <td>Kill running measurements</td>

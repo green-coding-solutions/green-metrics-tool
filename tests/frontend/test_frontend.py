@@ -618,6 +618,7 @@ def test_settings_measurement():
     assert user._capabilities['measurement']['post_test_sleep'] == 5
     assert user._capabilities['measurement']['phase_transition_time'] == 1
     assert user._capabilities['measurement']['wait_time_dependencies'] == 60
+    assert user._capabilities['measurement']['skip_volume_inspect'] is False
 
 
     value = page.locator('#measurement-disabled-metric-providers').input_value()
@@ -660,33 +661,39 @@ def test_settings_measurement():
     value = page.locator('#measurement-wait-time-dependencies').input_value()
     assert int(value.strip()) == user._capabilities['measurement']['wait_time_dependencies']
 
+    value = page.locator('#measurement-skip-volume-inspect').is_checked()
+    assert value is user._capabilities['measurement']['skip_volume_inspect']
+
+
+    page.locator('#measurement-system-check-threshold').fill('2')
     page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "NetworkConnectionsProxyContainerProvider");')
     page.locator('#measurement-flow-process-duration').fill('456')
     page.locator('#measurement-total-duration').fill('123')
     page.locator('#measurement-phase-padding').click()
-    page.locator('#measurement-dev-no-sleeps').click()
-    page.locator('#measurement-dev-no-optimizations').click()
-    page.locator('#measurement-system-check-threshold').fill('2')
     page.locator('#measurement-pre-test-sleep').fill('100')
     page.locator('#measurement-idle-duration').fill('200')
     page.locator('#measurement-baseline-duration').fill('100')
     page.locator('#measurement-post-test-sleep').fill('100')
     page.locator('#measurement-phase-transition-time').fill('2')
     page.locator('#measurement-wait-time-dependencies').fill('120')
+    page.locator('#measurement-dev-no-sleeps').click()
+    page.locator('#measurement-dev-no-optimizations').click()
+    page.locator('#measurement-skip-volume-inspect').click()
 
+    page.locator('#save-measurement-system-check-threshold').click()
     page.locator('#save-measurement-disabled-metric-providers').click()
     page.locator('#save-measurement-flow-process-duration').click()
     page.locator('#save-measurement-total-duration').click()
     page.locator('#save-measurement-phase-padding').click()
-    page.locator('#save-measurement-dev-no-sleeps').click()
-    page.locator('#save-measurement-dev-no-optimizations').click()
-    page.locator('#save-measurement-system-check-threshold').click()
     page.locator('#save-measurement-pre-test-sleep').click()
     page.locator('#save-measurement-idle-duration').click()
     page.locator('#save-measurement-baseline-duration').click()
     page.locator('#save-measurement-post-test-sleep').click()
     page.locator('#save-measurement-phase-transition-time').click()
     page.locator('#save-measurement-wait-time-dependencies').click()
+    page.locator('#save-measurement-dev-no-sleeps').click()
+    page.locator('#save-measurement-dev-no-optimizations').click()
+    page.locator('#save-measurement-skip-volume-inspect').click()
 
     #page.wait_for_load_state("networkidle") # Network Idle sadly not enough here. The DB seems to take 1-2 seconds
     time.sleep(1)
@@ -705,50 +712,4 @@ def test_settings_measurement():
     assert user._capabilities['measurement']['post_test_sleep'] == 100
     assert user._capabilities['measurement']['phase_transition_time'] == 2
     assert user._capabilities['measurement']['wait_time_dependencies'] == 120
-
-
-    page.locator('#measurement-disabled-metric-providers').click()
-    page.locator('#measurement-flow-process-duration').fill('86400')
-    page.locator('#measurement-total-duration').fill('86400')
-    page.locator('#measurement-phase-padding').click()
-    page.locator('#measurement-dev-no-sleeps').click()
-    page.locator('#measurement-dev-no-optimizations').click()
-    page.locator('#measurement-system-check-threshold').fill('3')
-    page.locator('#measurement-pre-test-sleep').fill('5')
-    page.locator('#measurement-idle-duration').fill('10')
-    page.locator('#measurement-baseline-duration').fill('5')
-    page.locator('#measurement-post-test-sleep').fill('5')
-    page.locator('#measurement-phase-transition-time').fill('1')
-    page.locator('#measurement-wait-time-dependencies').fill('60')
-
-    page.locator('#save-measurement-disabled-metric-providers').click()
-    page.locator('#save-measurement-flow-process-duration').click()
-    page.locator('#save-measurement-total-duration').click()
-    page.locator('#save-measurement-phase-padding').click()
-    page.locator('#save-measurement-dev-no-sleeps').click()
-    page.locator('#save-measurement-dev-no-optimizations').click()
-    page.locator('#save-measurement-system-check-threshold').click()
-    page.locator('#save-measurement-pre-test-sleep').click()
-    page.locator('#save-measurement-idle-duration').click()
-    page.locator('#save-measurement-baseline-duration').click()
-    page.locator('#save-measurement-post-test-sleep').click()
-    page.locator('#save-measurement-phase-transition-time').click()
-    page.locator('#save-measurement-wait-time-dependencies').click()
-
-    #page.wait_for_load_state("networkidle") # Network Idle sadly not enough here. The DB seems to take 1-2 seconds
-    time.sleep(1)
-
-    user = User(1)
-    assert user._capabilities['measurement']['disabled_metric_providers'] == []
-    assert user._capabilities['measurement']['flow_process_duration'] == 86400
-    assert user._capabilities['measurement']['total_duration'] == 86400
-    assert user._capabilities['measurement']['phase_padding'] is True
-    assert user._capabilities['measurement']['dev_no_sleeps'] is False
-    assert user._capabilities['measurement']['dev_no_optimizations'] is False
-    assert user._capabilities['measurement']['system_check_threshold'] == 3
-    assert user._capabilities['measurement']['pre_test_sleep'] == 5
-    assert user._capabilities['measurement']['idle_duration'] == 10
-    assert user._capabilities['measurement']['baseline_duration'] == 5
-    assert user._capabilities['measurement']['post_test_sleep'] == 5
-    assert user._capabilities['measurement']['phase_transition_time'] == 1
-    assert user._capabilities['measurement']['wait_time_dependencies'] == 60
+    assert user._capabilities['measurement']['skip_volume_inspect'] is True

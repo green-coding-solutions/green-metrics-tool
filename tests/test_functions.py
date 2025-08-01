@@ -22,6 +22,16 @@ TEST_MEASUREMENT_DURATION = TEST_MEASUREMENT_END_TIME - TEST_MEASUREMENT_START_T
 TEST_MEASUREMENT_DURATION_S = TEST_MEASUREMENT_DURATION / 1_000_000
 TEST_MEASUREMENT_DURATION_H = TEST_MEASUREMENT_DURATION_S/60/60
 
+def shorten_sleep_times(duration_in_s):
+    DB().query('''
+        UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,pre_test_sleep}',%s,false);
+        UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,baseline_duration}',%s,false);
+        UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,idle_duration}',%s,false);
+        UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,post_test_sleep}',%s,false);
+        UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,phase_transition_time}',%s,false);
+    ''', params=(duration_in_s, duration_in_s, duration_in_s, duration_in_s, duration_in_s))
+
+
 def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename', user_id=1, machine_id=1):
     # spoof time from the beginning of UNIX time until now.
     phases = [
@@ -265,7 +275,6 @@ class RunUntilManager:
             raise RuntimeError("run_until must be used within the context")
 
         try:
-            config = GlobalConfig().config
             self.__runner.start_measurement()
             self.__runner.clear_caches()
             self.__runner.check_system('start')
@@ -285,10 +294,10 @@ class RunUntilManager:
             self.__runner.initialize_run()
 
             self.__runner.start_metric_providers(allow_other=True, allow_container=False)
-            self.__runner.custom_sleep(config['measurement']['pre_test_sleep'])
+            self.__runner.custom_sleep(self.__runner._measurement_pre_test_sleep)
 
             self.__runner.start_phase('[BASELINE]')
-            self.__runner.custom_sleep(config['measurement']['baseline_duration'])
+            self.__runner.custom_sleep(self.__runner._measurement_baseline_duration)
             self.__runner.end_phase('[BASELINE]')
 
             self.__runner.start_phase('[INSTALLATION]')
@@ -310,7 +319,7 @@ class RunUntilManager:
             self.__runner.start_metric_providers(allow_container=True, allow_other=False)
 
             self.__runner.start_phase('[IDLE]')
-            self.__runner.custom_sleep(config['measurement']['idle_duration'])
+            self.__runner.custom_sleep(self.__runner._measurement_idle_duration)
             self.__runner.end_phase('[IDLE]')
 
             self.__runner.start_phase('[RUNTIME]')
@@ -324,7 +333,7 @@ class RunUntilManager:
             self.__runner.end_measurement()
             self.__runner.check_process_returncodes()
             self.__runner.identify_invalid_run()
-            self.__runner.custom_sleep(config['measurement']['post_test_sleep'])
+            self.__runner.custom_sleep(self.__runner._measurement_post_test_sleep)
             self.__runner.update_start_and_end_times()
             self.__runner.store_phases()
             self.__runner.read_container_logs()

@@ -65,7 +65,7 @@ class User():
             raise ValueError(f"You cannot change this setting: {name}")
 
         match name:
-            case 'measurement.dev_no_optimizations' | 'measurement.dev_no_sleeps' | 'measurement.phase_padding':
+            case 'measurement.dev_no_optimizations' | 'measurement.dev_no_sleeps' | 'measurement.phase_padding' | 'measurement.skip_volume_inspect':
                 if not isinstance(value, bool):
                     raise ValueError(f'The setting {name} must be boolean')
             case 'measurement.flow_process_duration' | 'measurement.total_duration':

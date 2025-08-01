@@ -37,7 +37,7 @@ def setup_module(module):
         subprocess.run(['docker', 'compose', '-f', GMT_DIR+folder+'compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = ScenarioRunner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=False, dev_no_sleeps=False, dev_no_metrics=False, skip_system_checks=False)
+        runner = ScenarioRunner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=False, dev_no_sleeps=False, dev_no_metrics=False, skip_system_checks=False, measurement_pre_test_sleep=1, measurement_baseline_duration=1, measurement_idle_duration=1, measurement_post_test_sleep=1, measurement_phase_transition_time=1, measurement_wait_time_dependencies=5)
         runner.run()
 
     #pylint: disable=global-statement

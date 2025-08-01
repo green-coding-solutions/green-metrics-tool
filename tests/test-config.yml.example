@@ -56,16 +56,6 @@ machine:
   base_temperature_feature: "asd"
 
 measurement:
-  system_check_threshold: 3
-  pre_test_sleep: 0
-  idle_duration: 0
-  baseline_duration: 0
-  flow_process_duration: 1800 # half hour
-  total_duration: 3600 # one hour
-  post_test_sleep: 0
-  phase_transition_time: 0
-  boot:
-    wait_time_dependencies: 10
   metric_providers:
     linux:
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:

@@ -26,6 +26,7 @@ const getSettings = async () => {
         if (data?.data?._capabilities?.measurement?.dev_no_optimizations === true) document.querySelector('#measurement-dev-no-optimizations').checked = true;
         if (data?.data?._capabilities?.measurement?.dev_no_sleeps === true) document.querySelector('#measurement-dev-no-sleeps').checked = true;
         if (data?.data?._capabilities?.measurement?.phase_padding === true) document.querySelector('#measurement-phase-padding').checked = true;
+        if (data?.data?._capabilities?.measurement?.skip_volume_inspect === true) document.querySelector('#measurement-skip-volume-inspect').checked = true;
         document.querySelector('#measurement-flow-process-duration').value = data?.data?._capabilities?.measurement?.flow_process_duration;
         document.querySelector('#measurement-total-duration').value = data?.data?._capabilities?.measurement?.total_duration;
         $('#measurement-disabled-metric-providers').dropdown('set exactly', data?.data?._capabilities?.measurement?.disabled_metric_providers);

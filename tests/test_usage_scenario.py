@@ -491,14 +491,14 @@ Container health of dependent service 'test-container-2': healthy
 
 def test_depends_on_healthcheck_missing_start_period():
     # Test setup: Container would be healthy after 3 seconds, however, no start_period is set (default 0s), therefore start_interval is not used.
-    # Because max waiting time is configured to be 5s (test_config.yml), exception is raised after 5s.
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_missing_start_period.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    # Because max waiting time is configured to be 5s, exception is raised after 5s.
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_missing_start_period.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=5)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exception = "Health check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not healthy but 'starting' after waiting for 10 sec"
+    expected_exception = "Health check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not healthy but 'starting' after waiting for 5 sec"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
@@ -529,7 +529,7 @@ def test_depends_on_healthcheck_error_container_unhealthy():
 def test_depends_on_healthcheck_error_max_waiting_time():
     # Test setup: Container would be healthy after 7 seconds, however, interval is set to 100s and there is no start interval.
     # Because max waiting time is configured to be 10s (test_config.yml), the healthcheck at 10s will never be executed.
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_max_waiting_time.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_max_waiting_time.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=10)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
