@@ -163,8 +163,30 @@ class ScenarioRunner:
         self.__volume_sizes = {}
         self.__warnings = []
 
+        self._check_all_durations()
+
         # we currently do not use this variable
         # self.__filename = self._original_filename # this can be changed later if working directory changes
+
+
+    def _check_all_durations(self):
+        if self._measurement_total_duration is None: # exit early if no max timeout specififed
+            return
+
+        durations = {
+            "measurement_flow_process_duration": self._measurement_flow_process_duration,
+            'pre_test_sleep': self._measurement_pre_test_sleep,
+            'post_test_sleep': self._measurement_post_test_sleep,
+            'idle_duration': self._measurement_idle_duration,
+            'baseline_duration': self._measurement_baseline_duration,
+            'phase_transition_time': self._measurement_phase_transition_time,
+            'wait_time_dependencies': self._measurement_wait_time_dependencies,
+        }
+
+        for key, value in durations.items():
+            if value is not None and value > self._measurement_total_duration:
+                raise ValueError(f"Cannot run flows due to configuration error. Measurement_total_duration must be >= {key}, otherwise the flow will run into a timeout in every case. Values are: {key}: {value} and measurement_total_duration: {self._measurement_total_duration}")
+
 
     def custom_sleep(self, sleep_time):
         if not self._dev_no_sleeps:
