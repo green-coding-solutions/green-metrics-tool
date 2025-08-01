@@ -84,7 +84,6 @@ measurement:
       network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
 
       psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
-        sampling_rate: 99
         CPUChips: 1
         TDP: 60
       psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
