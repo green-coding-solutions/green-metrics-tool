@@ -173,16 +173,14 @@ class ScenarioRunner:
         if self._measurement_total_duration is None: # exit early if no max timeout specififed
             return
 
-        config = GlobalConfig().config
-
         durations = {
             "measurement_flow_process_duration": self._measurement_flow_process_duration,
-            'pre_test_sleep': config['measurement']['pre_test_sleep'],
-            'post_test_sleep': config['measurement']['post_test_sleep'],
-            'idle_duration': config['measurement']['idle_duration'],
-            'baseline_duration': config['measurement']['baseline_duration'],
-            'phase_transition_time': config['measurement']['phase_transition_time'],
-            'wait_time_dependencies': config['measurement']['boot']['wait_time_dependencies'],
+            'pre_test_sleep': self._measurement_pre_test_sleep,
+            'post_test_sleep': self._measurement_post_test_sleep,
+            'idle_duration': self._measurement_idle_duration,
+            'baseline_duration': self._measurement_baseline_duration,
+            'phase_transition_time': self._measurement_phase_transition_time,
+            'wait_time_dependencies': self._measurement_wait_time_dependencies,
         }
 
         for key, value in durations.items():
