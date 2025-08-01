@@ -81,6 +81,9 @@ def check_containers_running():
     result = subprocess.check_output(['docker', 'ps', '--format', '{{.Names}}'], encoding='UTF-8')
     return not bool(result.strip())
 
+def check_gmt_dir_dirty():
+    return subprocess.check_output(['git', 'status', '-s'], encoding='UTF-8') == ''
+
 def check_docker_daemon():
     result = subprocess.run(['docker', 'version'],
                             stdout=subprocess.PIPE,
@@ -111,6 +114,7 @@ def check_swap_disabled():
 
 start_checks = [
     (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
+    (check_gmt_dir_dirty, Status.WARN, 'gmt directory dirty', 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir.'),
     (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
     (check_ntp, Status.WARN, 'ntp', 'You have NTP time syncing active. This can create noise in runs and should be deactivated.'),
@@ -125,8 +129,9 @@ start_checks = [
 
 ]
 
-def check_start():
+def check_start(system_check_threshold=3):
     print(TerminalColors.HEADER, '\nRunning System Checks', TerminalColors.ENDC)
+    warnings = []
     max_key_length = max(len(key[2]) for key in start_checks)
 
     for check in start_checks:
@@ -142,6 +147,7 @@ def check_start():
             else:
                 if check[1] == Status.WARN:
                     output = f"{TerminalColors.WARNING}WARN{TerminalColors.ENDC} ({check[3]})"
+                    warnings.append(check[3])
                 elif check[1] == Status.INFO:
                     output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} ({check[3]})"
                 else:
@@ -153,6 +159,8 @@ def check_start():
 
             print(f"Checking {formatted_key} : {output}")
 
-            if retval is False and check[1].value >= GlobalConfig().config['measurement']['system_check_threshold']:
+            if retval is False and check[1].value >= system_check_threshold:
                 # Error needs to raise
                 raise ConfigurationCheckError(check[3], check[1])
+
+    return warnings

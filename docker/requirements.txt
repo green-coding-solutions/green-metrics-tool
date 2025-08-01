@@ -1,13 +1,13 @@
 gunicorn==23.0.0
 psycopg[binary]==3.2.9
 psycopg_pool==3.2.6
-fastapi[standard]==0.115.12
+fastapi[standard]==0.116.1
 starlette>=0.35
-uvicorn[standard]==0.34.3
-pandas==2.3.0
+uvicorn[standard]==0.35.0
+pandas==2.3.1
 PyYAML==6.0.2
 anybadge==1.16.0
-orjson==3.10.18
+orjson==3.11.1
 scipy==1.15.2
 schema==0.7.7
 deepdiff==8.5.0
@@ -15,6 +15,6 @@ redis==6.2.0
 hiredis==3.2.1
 requests==2.32.4
 uvicorn-worker==0.3.0
-cachetools==6.0.0
+cachetools==6.1.0
 
-pytest==8.4.0 # needed because we need to exit in db.py if tests run with wrong config
+pytest==8.4.1 # needed because we need to exit in db.py if tests run with wrong config

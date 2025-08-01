@@ -77,16 +77,7 @@ machine:
   base_temperature_feature: False
 
 measurement:
-  system_check_threshold: 3 # Can be 1=INFO, 2=WARN or 3=ERROR
-  pre_test_sleep: 5
-  idle_duration: 10
-  baseline_duration: 5
-  post_test_sleep: 5
-  phase_transition_time: 1
-  boot:
-    wait_time_dependencies: 60
   metric_providers:
-
   # Please select the needed providers according to the working ones on your system
   # More info https://docs.green-coding.io/docs/measuring/metric-providers
   # Please activate and deactivate any provider in this list by uncommenting it.
@@ -138,6 +129,8 @@ measurement:
 #        chips: ['thinkpad-isa-0000']
 #        features: ['fan1', 'fan2']
     #--- Debug - These providers should only be needed for debugging and introspection purposes
+#      cpu.throttling.msr.component.provider.CpuThrottlingMsrComponentProvider:
+#        sampling_rate: 99
 #      cpu.frequency.sysfs.core.provider.CpuFrequencySysfsCoreProvider:
 #        sampling_rate: 99
 #      cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
@@ -176,12 +169,10 @@ measurement:
 ##        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
     #--- Model based - These providers estimate rather than measure. Helpful where measuring is not possible, like in VMs
 #      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
-#        sampling_rate: 99
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        TDP: 65
 #      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
-#        sampling_rate: 99
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        HW_CPUFreq: 3200
@@ -227,6 +218,10 @@ sci:
     # The number worldwide for 2024 is 473
     # The number 334 that comes as default is for Germany from 2024 and comes from https://app.electricitymaps.com/zone/DE/all/yearly
     I: 334
+    # N is not technically part of the SCI, but we keep the value here for better clustering.
+    # N is the network energy intensity per transferred data. It transforms values like GB to kWh
+    # See https://www.green-coding.io/co2-formulas/ for details
+    N: 0.04106063
 
 #optimization:
 #  ignore:

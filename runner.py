@@ -58,6 +58,21 @@ if __name__ == '__main__':
     parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
+    # Measurement settings
+    parser.add_argument('--measurement-system-check-threshold', type=int, default=3, help='System check threshold when to issue warning and when to fail. When set on 3 runs will fail only on erros, when 2 then also on warnings and 1 also on pure info statements. Can be 1=INFO, 2=WARN or 3=ERROR')
+    parser.add_argument('--measurement-pre-test-sleep', type=int, default=5, help='Override measurement pre-test sleep')
+    parser.add_argument('--measurement-idle-duration', type=int, default=60, help='Override measurement idle duration')
+    parser.add_argument('--measurement-baseline-duration', type=int, default=60, help='Override measurement baseline duration')
+    parser.add_argument('--measurement-post-test-sleep', type=int, default=5, help='Override measurement post-test sleep')
+    parser.add_argument('--measurement-phase-transition-time', type=int, default=1, help='Override measurement phase transition time')
+    parser.add_argument('--measurement-wait-time-dependencies', type=int, default=60, help='Override measurement wait time for dependencies')
+    parser.add_argument('--measurement-flow-process-duration', type=int, default=86400, help='Override measurement flow process duration')
+    parser.add_argument('--measurement-total-duration', type=int, default=86400, help='Override measurement total duration')
+
+    # intentionally not supported
+    # parser.add_argument('--disabled-metric-providers', nargs='+', help='Override disabled metric providers') # user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
+    # parser.add_argument('--allowed-run-args', nargs='+', help='Override allowed run arguments to be passed to the docker container') # user can just go into --allow-unsafe and using another args="+" for parsing CLI is flaky
+
     args = parser.parse_args()
 
     if args.uri is None:
@@ -119,7 +134,19 @@ if __name__ == '__main__':
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
                     docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
                     skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder,
-                    usage_scenario_variables=variables_dict, phase_padding=not args.no_phase_padding)
+                    usage_scenario_variables=variables_dict, phase_padding=not args.no_phase_padding,
+                    measurement_system_check_threshold=args.measurement_system_check_threshold,
+                    measurement_pre_test_sleep=args.measurement_pre_test_sleep,
+                    measurement_idle_duration=args.measurement_idle_duration,
+                    measurement_baseline_duration=args.measurement_baseline_duration,
+                    measurement_post_test_sleep=args.measurement_post_test_sleep,
+                    measurement_phase_transition_time=args.measurement_phase_transition_time,
+                    measurement_wait_time_dependencies=args.measurement_wait_time_dependencies,
+                    measurement_flow_process_duration=args.measurement_flow_process_duration,
+                    measurement_total_duration=args.measurement_total_duration,
+                    #disabled_metric_providers # this is intentionally not supported as the user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
+                    #allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] # this is intentionally not supported as the user can just enter --allow-unsafe in CLI mode and using another args="+" for parsing CLI is flaky
+                    )
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except

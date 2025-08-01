@@ -180,7 +180,9 @@ def get_run_info(user, run_id):
                     LEFT JOIN categories as t on t.id = elements) as categories,
                 filename, start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario, usage_scenario_variables,
-                created_at, invalid_run, phases, logs, failed, gmt_hash, runner_arguments
+                created_at,
+                (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = runs.id) as invalid_run,
+                phases, logs, failed, gmt_hash, runner_arguments
             FROM runs
             WHERE
                 (TRUE = %s OR user_id = ANY(%s::int[]))
@@ -445,6 +447,19 @@ def determine_comparison_case(user, ids, force_mode=None):
         return ('Repeated Run', 'commit_hash')  # Case A - Everything is identical and just repeating runs
 
     raise RuntimeError('Could not determine comparison case after checking all conditions')
+
+def check_run_failed(user, ids):
+    query = """
+            SELECT
+               COUNT(failed)
+            FROM runs
+            WHERE
+                (TRUE = %s OR user_id = ANY(%s::int[]))
+                AND id = ANY(%s::uuid[])
+                AND failed IS TRUE
+            """
+    params = (user.is_super_user(), user.visible_users(), ids)
+    return DB().fetch_one(query, params=params)[0]
 
 def get_phase_stats(user, ids):
     query = """

@@ -13,7 +13,7 @@ services:
     image: greencoding/squid_reverse_proxy:v3
     healthcheck:
       test: [
-        "CMD", "curl", "-fs", "--proxy", "http://squid:3128", "http://example.com"
+        "CMD", "curl", "-fs", "--proxy", "http://squid:3128", "https://www.google.com", "--insecure"
       ]
       interval: "1h" # effectively turns repeated healthchecks during runtime off
       start_period: "60s"

@@ -6,6 +6,7 @@ import io
 import os
 import re
 import subprocess
+import json
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
@@ -89,6 +90,58 @@ def test_env_variable_allow_unsafe_true():
     assert 'TEST_ALLOWED' in env_var_output, Tests.assertion_info('TEST_ALLOWED in env vars', env_var_output)
     assert 'TEST_TOO_LONG' in env_var_output, Tests.assertion_info('TEST_TOO_LONG in env vars', env_var_output)
 
+# labels: [object] (optional)
+# Key-Value pairs for labels on the container
+
+def get_labels():
+    ps = subprocess.run(
+        ['docker', 'inspect', 'test-container'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8',
+    )
+    labels = json.loads(ps.stdout)[0].get('Config', {}).get('Labels', {})
+    return labels
+
+def test_labels_allowed_characters():
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_allowed.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        labels = get_labels()
+
+        assert labels.get('TESTALLOWED') == 'alpha-num123_', Tests.assertion_info('TESTALLOWED label', labels)
+        assert labels.get('test.label') == 'example.com', Tests.assertion_info('test.label label', labels)
+        assert labels.get('OTHER_LABEL') == 'http://localhost:8080', Tests.assertion_info('OTHER_LABEL label', labels)
+
+def test_labels_too_long():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert "- value of label 'LABEL_TOO_LONG' is too long 1075 (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe" == str(e.value), Tests.assertion_info('Label value is too long', str(e.value))
+
+def test_labels_skip_unsafe_true():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', skip_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        labels = get_labels()
+
+    assert 'LABEL_ALLOWED' in labels, Tests.assertion_info('LABEL_ALLOWED in labels', labels)
+    assert 'LABEL_TOO_LONG' not in labels, Tests.assertion_info('LABEL_TOO_LONG not in labels', labels)
+
+def test_labels_allow_unsafe_true():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', allow_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        labels = get_labels()
+
+    assert 'LABEL_ALLOWED' in labels, Tests.assertion_info('LABEL_ALLOWED in labels', labels)
+    assert 'LABEL_TOO_LONG' in labels, Tests.assertion_info('LABEL_TOO_LONG in labels', labels)
+
 # ports: [int:int] (optional)
 # Docker container portmapping on host OS to be used with --allow-unsafe flag.
 
@@ -155,7 +208,7 @@ def test_compose_include_not_same_dir():
 
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(ValueError) as e:
         with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
+            context.run_until('import_metric_providers')
     assert str(e.value).startswith('Included compose file "../compose.yml" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore') , \
         Tests.assertion_info('Root directory escape', str(e.value))
 
@@ -167,7 +220,7 @@ def test_context_include():
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
+            context.run_until('import_metric_providers')
     # will not throw an exception
 
 def test_context_include_escape():
@@ -183,12 +236,33 @@ def test_context_include_escape():
     assert str(e.value).startswith('../../../../../../ must not be in folder above root repo folder') , \
         Tests.assertion_info('Root directory escape', str(e.value))
 
+def test_include_overwrites_string_values():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/overwrite_string_from_include.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')
+
+    assert runner._usage_scenario['name'] == 'Name overwritten'
+    assert runner._usage_scenario['author'] == 'Author overwritten'
+    assert runner._usage_scenario['description'] == 'Description as is'
+
+def test_include_overwrites_string_values_even_if_top_include():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/overwrite_string_from_include_even_if_top.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')
+
+    assert runner._usage_scenario['name'] == 'Name overwritten'
+    assert runner._usage_scenario['author'] == 'Author overwritten'
+    assert runner._usage_scenario['description'] == 'Description as is'
+
+
 def test_unsupported_compose():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/unsupported_compose.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
 
     with pytest.raises(SchemaError) as e:
         with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
+            context.run_until('import_metric_providers')
     assert str(e.value) == 'Your compose file does contain a key that GMT does not support - Please check if the container will still run as intended. If you want to ignore this error you can add the attribute `ignore-unsupported-compose: true` to your usage_scenario.yml\nError: ["Wrong key \'blkio_config\' in {\'image\': \'alpine\', \'blkio_config\': {\'weight\': 300}}"]'
 
 def test_skip_unsupported_compose():
@@ -325,7 +399,7 @@ def test_depends_on_huge():
     assert_order(out.getvalue(), 'test-container-1', 'test-container-2')
 
 def test_depends_on_error_not_running():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_not_running.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_not_running.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=10)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -417,14 +491,14 @@ Container health of dependent service 'test-container-2': healthy
 
 def test_depends_on_healthcheck_missing_start_period():
     # Test setup: Container would be healthy after 3 seconds, however, no start_period is set (default 0s), therefore start_interval is not used.
-    # Because max waiting time is configured to be 5s (test_config.yml), exception is raised after 5s.
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_missing_start_period.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    # Because max waiting time is configured to be 5s, exception is raised after 5s.
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_missing_start_period.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=5)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exception = "Health check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not healthy but 'starting' after waiting for 10 sec"
+    expected_exception = "Health check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not healthy but 'starting' after waiting for 5 sec"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
@@ -455,7 +529,7 @@ def test_depends_on_healthcheck_error_container_unhealthy():
 def test_depends_on_healthcheck_error_max_waiting_time():
     # Test setup: Container would be healthy after 7 seconds, however, interval is set to 100s and there is no start interval.
     # Because max waiting time is configured to be 10s (test_config.yml), the healthcheck at 10s will never be executed.
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_max_waiting_time.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_max_waiting_time.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=10)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -468,7 +542,7 @@ def test_depends_on_healthcheck_error_max_waiting_time():
 def test_network_created():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     with Tests.RunUntilManager(runner) as context:
-        context.run_until('setup_services')
+        context.run_until('setup_networks')
         ps = subprocess.run(
             ['docker', 'network', 'ls'],
             check=True,
@@ -492,6 +566,18 @@ def test_container_is_in_network():
         )
         inspect = ps.stdout
     assert 'test-container' in inspect, Tests.assertion_info('test-container', inspect)
+
+def test_network_alias_added():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_alias.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert 'Adding network alias test-alias for network gmt-test-network in service test-container' in out.getvalue()
+    docker_run_command = re.search(r"docker run with: (.*)", out.getvalue()).group(1)
+    assert '--network-alias test-alias' in docker_run_command
 
 
 

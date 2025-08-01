@@ -10,14 +10,15 @@ jobs:
       pull-requests: write
     steps:
       - name: Eco CI Energy Estimation - Initialize
-        uses: green-coding-solutions/eco-ci-energy-estimation@undersampling-debugging
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: start-measurement
           project: "Green Metrics Tool"
           machine: "ubuntu-latest"
           tags: "CI/CD, PR-Workflow"
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
-          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+          co2-calculation-method: 'location-based'
+          co2-grid-intensity-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
 
       - name: 'Checkout repository'
         uses: actions/checkout@v4
@@ -32,17 +33,13 @@ jobs:
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Eco CI Energy Estimation - Get Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@undersampling-debugging
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: get-measurement
 
       - name: Eco CI Energy Estimation - End Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@undersampling-debugging
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: display-results
           pr-comment: true
 
-      - name: Eco CI Debug
-        shell: bash
-        run: |
-            journalctl -n 50000 | grep myprocess

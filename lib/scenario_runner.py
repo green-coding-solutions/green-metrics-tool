@@ -69,7 +69,10 @@ class ScenarioRunner:
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
         user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False, dev_no_save=False,
-        skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None, phase_padding=True):
+        skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None, phase_padding=True,
+        measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
+        measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
+        measurement_wait_time_dependencies=60):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -120,6 +123,13 @@ class ScenarioRunner:
         self._measurement_total_duration = measurement_total_duration
         self._disabled_metric_providers = [] if disabled_metric_providers is None else disabled_metric_providers
         self._allowed_run_args = [] if allowed_run_args is None else allowed_run_args # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
+        self._measurement_system_check_threshold = measurement_system_check_threshold
+        self._measurement_pre_test_sleep = measurement_pre_test_sleep
+        self._measurement_idle_duration = measurement_idle_duration
+        self._measurement_baseline_duration = measurement_baseline_duration
+        self._measurement_post_test_sleep = measurement_post_test_sleep
+        self._measurement_phase_transition_time = measurement_phase_transition_time
+        self._measurement_wait_time_dependencies = measurement_wait_time_dependencies
         self._last_measurement_duration = 0
         self._phase_padding = phase_padding
         self._phase_padding_ms = max(
@@ -151,6 +161,7 @@ class ScenarioRunner:
         self.__working_folder_rel = ''
         self.__image_sizes = {}
         self.__volume_sizes = {}
+        self.__warnings = []
 
         self._check_all_durations()
 
@@ -250,7 +261,9 @@ class ScenarioRunner:
             return
 
         if mode =='start':
-            system_checks.check_start()
+            warnings = system_checks.check_start(self._measurement_system_check_threshold)
+            for warn in warnings:
+                self.__warnings.append(warn)
         else:
             raise RuntimeError('Unknown mode for system check:', mode)
 
@@ -307,6 +320,9 @@ class ScenarioRunner:
             path = os.path.realpath(self._uri)
             self.__working_folder = self._repo_folder = path
 
+        if self._dev_no_save:
+            return
+
         self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8').strip()
 
         git_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self._repo_folder, encoding='UTF-8').strip()
@@ -340,6 +356,7 @@ class ScenarioRunner:
                     nodes = self.construct_sequence(node)
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
+
                 try:
                     usage_scenario_dir = os.path.split(usage_scenario_file)[0]
                     filename = runner_join_paths(usage_scenario_dir, nodes[0], force_path_as_root=True)
@@ -380,6 +397,7 @@ class ScenarioRunner:
 
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(usage_scenario, Loader)
+
             # Now that we have parsed the yml file we need to check for the special case in which we have a
             # compose-file key. In this case we merge the data we find under this key but overwrite it with
             # the data from the including file.
@@ -393,7 +411,7 @@ class ScenarioRunner:
                         else:
                             dict1[k] = v
                     return dict1
-                return dict1
+                return dict2
 
             new_dict = {}
             if 'compose-file' in yml_obj.keys():
@@ -406,6 +424,7 @@ class ScenarioRunner:
                 del yml_obj['compose-file']
 
             yml_obj.update(new_dict)
+
 
             # If a service is defined as None we remove it. This is so we can have a compose file that starts
             # all the various services but we can disable them in the usage_scenario. This is quite useful when
@@ -493,6 +512,10 @@ class ScenarioRunner:
         and then link itself in the runs table accordingly.
     '''
     def register_machine_id(self):
+
+        if self._dev_no_save:
+            return
+
         config = GlobalConfig().config
         if config['machine'].get('id') is None \
             or not isinstance(config['machine']['id'], int) \
@@ -844,7 +867,6 @@ class ScenarioRunner:
         return OrderedDict((key, services[key]) for key in names_ordered)
 
     def setup_services(self):
-        config = GlobalConfig().config
         print(TerminalColors.HEADER, '\nSetting up services', TerminalColors.ENDC)
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
@@ -975,12 +997,13 @@ class ScenarioRunner:
                         raise RuntimeError('Environment variable needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!')
 
                     # Check the key of the environment var
-                    if not self._allow_unsafe and re.search(r'^[A-Z_]+[A-Z0-9_]*$', env_key) is None:
+                    if not self._allow_unsafe and re.fullmatch(r'[A-Za-z_]+[A-Za-z0-9_]*', env_key) is None:
                         if self._skip_unsafe:
-                            warn_message= arrows(f"Found environment var key with wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ allowed: {env_key} - Skipping")
+                            warn_message= arrows(f"Found environment var key with wrong format. Only ^[A-Za-z_]+[A-Za-z0-9_]*$ allowed: {env_key} - Skipping")
                             print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
                             continue
-                        env_var_check_errors.append(f"- key '{env_key}' has wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ is allowed - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        env_var_check_errors.append(f"- key '{env_key}' has wrong format. Only ^[A-Za-z_]+[A-Za-z0-9_]*$ is allowed - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        continue # do not add to append string if not conformant
 
                     # Check the value of the environment var
                     # We only forbid long values (>1024), every character is allowed.
@@ -990,6 +1013,7 @@ class ScenarioRunner:
                             print(TerminalColors.WARNING, arrows(f"Found environment var value with size {len(env_value)} (max allowed length is 1024) - Skipping env var '{env_key}'"), TerminalColors.ENDC)
                             continue
                         env_var_check_errors.append(f"- value of environment var '{env_key}' is too long {len(env_value)} (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        continue # do not add to append string if not conformant
 
                     docker_run_string.append('-e')
                     docker_run_string.append(f"{env_key}={env_value}")
@@ -997,10 +1021,54 @@ class ScenarioRunner:
                 if env_var_check_errors:
                     raise RuntimeError('Docker container environment setup has problems:\n\n'.join(env_var_check_errors))
 
+            if 'labels' in service:
+                labels_check_errors = []
+                for docker_label_var in service['labels']:
+                    # https://docs.docker.com/reference/compose-file/services/#labels
+                    if isinstance(docker_label_var, str) and '=' in docker_label_var:
+                        label_key, label_value = docker_label_var.split('=')
+                    elif isinstance(service['labels'], dict):
+                        label_key, label_value = str(docker_label_var), str(service['labels'][docker_label_var])
+                    else:
+                        raise RuntimeError('Label needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!')
+
+                    # Check the key of the environment var
+                    if not self._allow_unsafe and re.fullmatch(r'[A-Za-z_]+[A-Za-z0-9_.]*', label_key) is None:
+                        if self._skip_unsafe:
+                            warn_message= arrows(f"Found label key with wrong format. Only ^[A-Za-z_]+[A-Za-z0-9_.]*$ allowed: {label_key} - Skipping")
+                            print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
+                            continue
+                        labels_check_errors.append(f"- key '{label_key}' has wrong format. Only ^[A-Za-z_]+[A-Za-z0-9_.]*$ is allowed - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        continue # do not add to append string if not conformant
+
+                    # Check the value of the environment var
+                    # We only forbid long values (>1024), every character is allowed.
+                    # The value is directly passed to the container and is not evaluated on the host system, so there is no security related reason to forbid special characters.
+                    if not self._allow_unsafe and len(label_value) > 1024:
+                        if self._skip_unsafe:
+                            warn_message= arrows(f"Found label length > 1024: {label_key} - Skipping")
+                            print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
+                            continue
+                        labels_check_errors.append(f"- value of label '{label_key}' is too long {len(label_value)} (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        continue # do not add to append string if not conformant
+
+                    docker_run_string.append('-l')
+                    docker_run_string.append(f"{label_key}={label_value}")
+
+                if labels_check_errors:
+                    raise RuntimeError('Docker container labels that have problems:\n\n'.join(labels_check_errors))
+
             if 'networks' in service:
                 for network in service['networks']:
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
+                    if isinstance(service['networks'], dict) and service['networks'][network]:
+                        if service['networks'][network].get('aliases', None):
+                            for alias in service['networks'][network]['aliases']:
+                                docker_run_string.append('--network-alias')
+                                docker_run_string.append(alias)
+                                print(f"Adding network alias {alias} for network {network} in service {service_name}")
+
             elif self.__join_default_network:
                 # only join default network if no other networks provided
                 # if this is true only one entry is in self.__networks
@@ -1103,7 +1171,7 @@ class ScenarioRunner:
                     time_waited = 0
                     state = ''
                     health = 'healthy' # default because some containers have no health
-                    max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
+                    max_waiting_time = self._measurement_wait_time_dependencies
                     while time_waited < max_waiting_time:
                         status_output = subprocess.check_output(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
@@ -1249,6 +1317,13 @@ class ScenarioRunner:
             self.__stdout_logs[log_entry_name] = ''
         self.__stdout_logs[log_entry_name] = '\n'.join((self.__stdout_logs[log_entry_name], message))
 
+    def save_warnings(self):
+        if not self._run_id or self._dev_no_save:
+            print("Skipping saving warning due to missing run id or --dev-no-save")
+            return
+        for message in self.__warnings:
+            DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (self._run_id, message))
+
     def add_containers_to_metric_providers(self):
         for metric_provider in self.__metric_providers:
             if metric_provider._metric_name.endswith('_container'):
@@ -1304,15 +1379,14 @@ class ScenarioRunner:
             raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total_duration'.")
 
     def start_phase(self, phase, transition = True):
-        config = GlobalConfig().config
         print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
 
         self.check_total_runtime_exceeded()
 
         if transition:
             # The force-sleep must go and we must actually check for the temperature baseline
-            print(f"\nForce-sleeping for {config['measurement']['phase_transition_time']}s")
-            self.custom_sleep(config['measurement']['phase_transition_time'])
+            print(f"\nForce-sleeping for {self._measurement_phase_transition_time}s")
+            self.custom_sleep(self._measurement_phase_transition_time)
             #print(TerminalColors.HEADER, '\nChecking if temperature is back to baseline ...', TerminalColors.ENDC)
 
         phase_time = int(time.time_ns() / 1_000)
@@ -1731,12 +1805,7 @@ class ScenarioRunner:
             if not self._run_id or self._dev_no_save:
                 print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
             else:
-                DB().query('''
-                    UPDATE runs
-                    SET invalid_run = COALESCE(invalid_run, '') || %s
-                    WHERE id=%s''',
-                    params=(invalid_message, self._run_id)
-                )
+                self.__warnings.append(invalid_message)
 
         for argument in self._arguments:
             # dev no optimizations does not make the run invalid ... all others do
@@ -1747,12 +1816,7 @@ class ScenarioRunner:
                 if not self._run_id or self._dev_no_save:
                     print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
                 else:
-                    DB().query('''
-                        UPDATE runs
-                        SET invalid_run = COALESCE(invalid_run, '') || %s
-                        WHERE id=%s''',
-                        params=(invalid_message, self._run_id)
-                    )
+                    self.__warnings.append(invalid_message)
                 break # one is enough
 
     def cleanup(self, continue_measurement=False):
@@ -1809,6 +1873,7 @@ class ScenarioRunner:
         self.__working_folder_rel = ''
         self.__image_sizes = {}
         self.__volume_sizes = {}
+        self.__warnings = []
 
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
@@ -1825,7 +1890,6 @@ class ScenarioRunner:
 
         '''
         try:
-            config = GlobalConfig().config
             self.start_measurement() # we start as early as possible to include initialization overhead
             self.clear_caches()
             self.check_system('start')
@@ -1848,10 +1912,10 @@ class ScenarioRunner:
             if self._debugger.active:
                 self._debugger.pause('metric-providers (non-container) start complete. Waiting to start measurement')
 
-            self.custom_sleep(config['measurement']['pre_test_sleep'])
+            self.custom_sleep(self._measurement_pre_test_sleep)
 
             self.start_phase('[BASELINE]')
-            self.custom_sleep(config['measurement']['baseline_duration'])
+            self.custom_sleep(self._measurement_baseline_duration)
             self.end_phase('[BASELINE]')
 
             if self._debugger.active:
@@ -1883,7 +1947,7 @@ class ScenarioRunner:
                 self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
 
             self.start_phase('[IDLE]')
-            self.custom_sleep(config['measurement']['idle_duration'])
+            self.custom_sleep(self._measurement_idle_duration)
             self.end_phase('[IDLE]')
 
             if self._debugger.active:
@@ -1905,7 +1969,7 @@ class ScenarioRunner:
 
             self.end_measurement()
             self.check_process_returncodes()
-            self.custom_sleep(config['measurement']['post_test_sleep'])
+            self.custom_sleep(self._measurement_post_test_sleep)
             self.identify_invalid_run()
 
         except BaseException as exc:
@@ -1961,23 +2025,30 @@ class ScenarioRunner:
                                 raise exc
                             finally:
                                 try:
-                                    if self._run_id and self._dev_no_phase_stats is False and self._dev_no_save is False:
-                                        # After every run, even if it failed, we want to generate phase stats.
-                                        # They will not show the accurate data, but they are still neded to understand how
-                                        # much a failed run has accrued in total energy and carbon costs
-                                        print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
-
-                                        # get all the metrics from the measurements table grouped by metric
-                                        # loop over them issuing separate queries to the DB
-                                        from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-                                        build_and_store_phase_stats(self._run_id, self._sci)
-
+                                    self.save_warnings()
                                 except BaseException as exc:
                                     self.add_to_log(exc.__class__.__name__, str(exc))
                                     self.set_run_failed()
                                     raise exc
                                 finally:
-                                    self.cleanup()  # always run cleanup automatically after each run
+                                    try:
+                                        if self._run_id and self._dev_no_phase_stats is False and self._dev_no_save is False:
+                                            # After every run, even if it failed, we want to generate phase stats.
+                                            # They will not show the accurate data, but they are still neded to understand how
+                                            # much a failed run has accrued in total energy and carbon costs
+                                            print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
+
+                                            # get all the metrics from the measurements table grouped by metric
+                                            # loop over them issuing separate queries to the DB
+                                            from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
+                                            build_and_store_phase_stats(self._run_id, self._sci)
+
+                                    except BaseException as exc:
+                                        self.add_to_log(exc.__class__.__name__, str(exc))
+                                        self.set_run_failed()
+                                        raise exc
+                                    finally:
+                                        self.cleanup()  # always run cleanup automatically after each run
 
 
 

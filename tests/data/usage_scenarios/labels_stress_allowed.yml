@@ -1,0 +1,22 @@
+---
+name: Labels Stress
+author: Dan Mateas
+description: test
+
+services:
+  test-container:
+    type: container
+    image: gcb_stress
+    build:
+      context: ../stress-application
+    labels:
+      TESTALLOWED: 'alpha-num123_'
+      test.label: 'example.com'
+      OTHER_LABEL: 'http://localhost:8080'
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress

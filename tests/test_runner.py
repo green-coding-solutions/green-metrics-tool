@@ -1,10 +1,13 @@
 from contextlib import nullcontext as does_not_raise
 
+import io
 import pytest
 import re
 import os
 import platform
 import subprocess
+
+from contextlib import redirect_stdout, redirect_stderr
 
 from lib.scenario_runner import ScenarioRunner
 from lib.global_config import GlobalConfig
@@ -82,7 +85,7 @@ def test_reporters_still_running():
 
 def test_template_website():
     ps = subprocess.run(
-        ['bash', '../run-template.sh', 'website', 'https://www.google.de', '--quick', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml"],
+        ['bash', os.path.normpath(f"{GMT_DIR}/run-template.sh"), 'website', 'https://www.google.de', '--quick', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml"],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -104,6 +107,29 @@ def test_runner_can_use_different_user():
 
     assert runner._user_id == USER_ID
 
+@pytest.fixture
+def delete_and_create_temp_file():
+    file_path = f"{GMT_DIR}/THIS_IS_A_TEST_FILE_FROM_A_UNIT_TESTS_DELETE_ME"
+
+    with open(file_path, "w", encoding='utf-8') as f:
+        f.write("Hello, world!")
+
+    yield
+
+    os.unlink(file_path)
+
+def test_runner_dirty_dir(delete_and_create_temp_file): #pylint: disable=unused-argument, redefined-outer-name
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+
+    with redirect_stdout(out), redirect_stderr(err), Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')
+
+    assert 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir.' in out.getvalue()
+
 def test_runner_run_invalidated():
 
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True)
@@ -111,15 +137,17 @@ def test_runner_run_invalidated():
     run_id = runner.run()
 
     query = """
-            SELECT id, invalid_run
-            FROM runs
-            WHERE id = %s
+            SELECT message
+            FROM warnings
+            WHERE run_id = %s
+            ORDER BY created_at DESC
             """
-    data = DB().fetch_one(query, (run_id,))
+    data = DB().fetch_all(query, (run_id,))
 
-    assert data[0] == run_id
+    messages = [d[0] for d in data]
 
     if platform.system() == 'Darwin':
-        assert data[1] == 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\nDevelopment switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
+        assert 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\n' in messages
+        assert any('Development switches or skip_system_checks were active for this run.' in msg for msg in messages)
     else:
-        assert data[1] == 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
+        assert 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n' in messages

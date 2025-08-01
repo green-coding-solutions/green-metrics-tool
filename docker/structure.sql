@@ -46,12 +46,21 @@ VALUES (
                 "measurement.disabled_metric_providers",
                 "measurement.flow_process_duration",
                 "measurement.total_duration",
-                "measurement.phase_padding"
+                "measurement.phase_padding",
+                "measurement.system_check_threshold",
+                "measurement.pre_test_sleep",
+                "measurement.idle_duration",
+                "measurement.baseline_duration",
+                "measurement.post_test_sleep",
+                "measurement.phase_transition_time",
+                "measurement.wait_time_dependencies",
+                "measurement.skip_volume_inspect"
             ]
         },
         "api": {
             "quotas": {},
             "routes": [
+                "/v1/warnings/{run_id}",
                 "/v1/insights",
                 "/v1/ci/insights",
                 "/v1/machines",
@@ -107,8 +116,19 @@ VALUES (
             "quotas": {},
             "dev_no_sleeps": false,
             "dev_no_optimizations": false,
+            "allow_unsafe": false,
+            "skip_unsafe": true,
+            "skip_system_checks": false,
+            "skip_volume_inspect": false,
             "total_duration": 86400,
             "flow_process_duration": 86400,
+            "system_check_threshold": 3,
+            "pre_test_sleep": 5,
+            "baseline_duration": 60,
+            "idle_duration": 60,
+            "post_test_sleep": 5,
+            "phase_transition_time": 1,
+            "wait_time_dependencies": 60,
             "orchestrators": {
                 "docker": {
                     "allowed_run_args": []
@@ -338,6 +358,19 @@ CREATE TABLE notes (
 CREATE INDEX "notes_run_id" ON "notes" USING HASH ("run_id");
 CREATE TRIGGER notes_moddatetime
     BEFORE UPDATE ON notes
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+CREATE TABLE warnings (
+    id SERIAL PRIMARY KEY,
+    run_id uuid REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    message text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+CREATE INDEX "warnings_run_id" ON "warnings" USING HASH ("run_id");
+CREATE TRIGGER warnings_moddatetime
+    BEFORE UPDATE ON warnings
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 

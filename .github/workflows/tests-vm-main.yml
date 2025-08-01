@@ -7,18 +7,20 @@ on:
 
 jobs:
   run-tests-main:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
 
       - name: Eco CI Energy Estimation - Initialize
-        uses: green-coding-solutions/eco-ci-energy-estimation@undersampling-debugging
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: start-measurement
           project: "Green Metrics Tool"
           machine: "ubuntu-latest"
           tags: "CI/CD, Main-Workflow"
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
-          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+          # Intensity for California in 2024
+          co2-calculation-method: 'constant'
+          co2-grid-intensity-constant: 231
 
       - id: check-date
         if: ${{ github.event_name != 'workflow_dispatch' }}
@@ -27,7 +29,7 @@ jobs:
           branch: 'main'
 
       - name: Eco CI Energy Estimation - After Check Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@undersampling-debugging
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: get-measurement
 
@@ -45,16 +47,11 @@ jobs:
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Eco CI Energy Estimation - Get Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@undersampling-debugging
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: get-measurement
 
       - name: Eco CI Energy Estimation - End Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@undersampling-debugging
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: display-results
-
-      - name: Eco CI Debug
-        shell: bash
-        run: |
-            journalctl -n 50000 | grep myprocess

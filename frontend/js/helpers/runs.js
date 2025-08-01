@@ -190,7 +190,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 if(row[11] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
                 else if(row[10] == null) el = `${el} (in progress 🔥)`;
 
-                if(row[5] != null) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">invalidated</span>`;
+
+                if(row[5] != 0) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">Warnings</span>`;
 
                 return `<a href="/stats.html?id=${row[0]}" target="_blank">${el}</a>`
             },
@@ -273,6 +274,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
 
 (async () => {
 
+    const url_params = getURLParams();
+
     document.querySelector('#home-toggle-button').addEventListener('click', el => {
         if (el.currentTarget.innerText === 'Switch to repository view') {
             document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Repositories';
@@ -285,7 +288,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         }
     });
 
-    if (localStorage.getItem('scenario_runner_data_shown') === 'repositories') {
+    if (url_params['show'] === 'repositories' || localStorage.getItem('scenario_runner_data_shown') === 'repositories') {
         document.querySelector('#runs-and-repos-table-title').innerText = 'Repositories';
         document.querySelector('#home-toggle-button').innerText = 'Switch to last runs view';
         document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Repositories';
