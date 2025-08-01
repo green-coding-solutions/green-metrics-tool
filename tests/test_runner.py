@@ -156,17 +156,20 @@ def test_runner_with_glob_pattern_filename():
     """Test that runner works with glob pattern filenames like folder/*.yml"""
     # Test runner.py with glob pattern that matches multiple files in a folder
     ps = subprocess.run(
-        ['python3', 'runner.py', '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/runner_filename/*.yml',
+        ['python3', 'runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/runner_filename/*.yml',
          '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         cwd=GMT_DIR,
-        capture_output=True,
-        text=True,
-        check=False
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
     )
 
-    assert ps.returncode == 0, f"Runner failed with stderr: {ps.stderr}"
-    assert 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml' in ps.stdout
-    assert 'tests/data/usage_scenarios/runner_filename/basic_stress_2.yml' in ps.stdout
+    assert ps.returncode == 0
+    assert 'Running:  tests/data/usage_scenarios/runner_filename/basic_stress_1.yml' in ps.stdout
+    assert 'Running:  tests/data/usage_scenarios/runner_filename/basic_stress_2.yml' in ps.stdout
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 def test_runner_with_iterations_and_multiple_files():
     """Test that runner processes files in correct order with --iterations"""
@@ -178,15 +181,17 @@ def test_runner_with_iterations_and_multiple_files():
          '--iterations', '2',
          '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         cwd=GMT_DIR,
-        capture_output=True,
-        text=True,
-        check=False
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
     )
 
-    assert ps.returncode == 0, f"Runner failed with stderr: {ps.stderr}"
+    assert ps.returncode == 0
     # Should see each file processed twice (2 iterations)
-    assert ps.stdout.count('tests/data/usage_scenarios/runner_filename/basic_stress_1.yml') == 2
-    assert ps.stdout.count('tests/data/usage_scenarios/runner_filename/basic_stress_2.yml') == 2
+    assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_1.yml') == 2
+    assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_2.yml') == 2
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 def test_runner_filename_pattern_no_match_error():
     """Test that runner fails gracefully when filename pattern matches no files"""
@@ -196,9 +201,10 @@ def test_runner_filename_pattern_no_match_error():
          '--filename', 'tests/data/usage_scenarios/nonexistent_*.yml',
          '--skip-system-checks'],
         cwd=GMT_DIR,
-        capture_output=True,
-        text=True,
-        check=False
+        check=False,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
     )
 
     assert ps.returncode == 1, "Runner should fail when no files match pattern"
