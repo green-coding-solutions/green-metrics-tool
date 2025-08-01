@@ -83,7 +83,7 @@ def run_workload(name, uri, filename, branch):
         filename=filename,
         branch=branch,
         skip_unsafe=True,
-        skip_system_checks=None,
+        skip_system_checks=False,
         full_docker_prune=False,
         docker_prune=True,
         job_id=None,
