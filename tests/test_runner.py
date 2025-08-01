@@ -153,12 +153,11 @@ def test_runner_run_invalidated():
         assert 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n' in messages
 
 def test_runner_with_glob_pattern_filename():
-    """Test that runner works with glob pattern filenames like basic_*.yml"""
-    # Test runner.py with glob pattern that matches multiple files, providing required variable
+    """Test that runner works with glob pattern filenames like folder/*.yml"""
+    # Test runner.py with glob pattern that matches multiple files in a folder
     ps = subprocess.run(
-        ['python3', 'runner.py', '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/basic_*.yml',
-         '--variables', '__GMT_VAR_COMMAND__=stress-ng',
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-metrics', '--dev-no-optimizations'],
+        ['python3', 'runner.py', '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/runner_filename/*.yml',
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-metrics', '--dev-no-optimizations', '--dev-no-save'],
         cwd=GMT_DIR,
         capture_output=True,
         text=True,
@@ -166,38 +165,18 @@ def test_runner_with_glob_pattern_filename():
     )
 
     assert ps.returncode == 0, f"Runner failed with stderr: {ps.stderr}"
-    # Should see both files being processed
-    assert 'tests/data/usage_scenarios/basic_stress.yml' in ps.stdout
-    assert 'tests/data/usage_scenarios/basic_stress_with_variables.yml' in ps.stdout
-
-def test_runner_with_multiple_filename_args():
-    """Test that runner works with multiple --filename arguments"""
-    # Test runner.py with multiple --filename arguments
-    ps = subprocess.run(
-        ['python3', 'runner.py', '--uri', GMT_DIR,
-         '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
-         '--filename', 'tests/data/usage_scenarios/setup_commands_stress.yml',
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-metrics', '--dev-no-optimizations'],
-        cwd=GMT_DIR,
-        capture_output=True,
-        text=True,
-        check=False
-    )
-
-    assert ps.returncode == 0, f"Runner failed with stderr: {ps.stderr}"
-    # Should see both files being processed
-    assert 'tests/data/usage_scenarios/basic_stress.yml' in ps.stdout
-    assert 'tests/data/usage_scenarios/setup_commands_stress.yml' in ps.stdout
+    assert 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml' in ps.stdout
+    assert 'tests/data/usage_scenarios/runner_filename/basic_stress_2.yml' in ps.stdout
 
 def test_runner_with_iterations_and_multiple_files():
     """Test that runner processes files in correct order with --iterations"""
     # Test runner.py with multiple files and iterations=2
     ps = subprocess.run(
         ['python3', 'runner.py', '--uri', GMT_DIR,
-         '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
-         '--filename', 'tests/data/usage_scenarios/setup_commands_stress.yml',
+         '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml',
+         '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_2.yml',
          '--iterations', '2',
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-metrics', '--dev-no-optimizations'],
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-metrics', '--dev-no-optimizations', '--dev-no-save'],
         cwd=GMT_DIR,
         capture_output=True,
         text=True,
@@ -206,8 +185,8 @@ def test_runner_with_iterations_and_multiple_files():
 
     assert ps.returncode == 0, f"Runner failed with stderr: {ps.stderr}"
     # Should see each file processed twice (2 iterations)
-    assert ps.stdout.count('tests/data/usage_scenarios/basic_stress.yml') == 2
-    assert ps.stdout.count('tests/data/usage_scenarios/setup_commands_stress.yml') == 2
+    assert ps.stdout.count('tests/data/usage_scenarios/runner_filename/basic_stress_1.yml') == 2
+    assert ps.stdout.count('tests/data/usage_scenarios/runner_filename/basic_stress_2.yml') == 2
 
 def test_runner_filename_pattern_no_match_error():
     """Test that runner fails gracefully when filename pattern matches no files"""
