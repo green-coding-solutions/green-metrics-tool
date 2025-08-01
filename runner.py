@@ -159,15 +159,11 @@ if __name__ == '__main__':
             # From a user perspective it makes perfect sense to run both jobs directly after each other
             # In a cloud setup it however makes sense to free the measurement machine as soon as possible
             # So this code should be individually callable, separate from the runner
-
-            if runner._dev_no_optimizations is False and runner._dev_no_save is False:
+            if not runner._dev_no_optimizations and not runner._dev_no_save:
                 import optimization_providers.base  # We need to import this here as we need the correct config file
                 print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
                 optimization_providers.base.import_reporters()
-
-            if not runner._dev_no_optimizations and not runner._dev_no_save:
                 print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
-
                 optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
             if args.file_cleanup:
