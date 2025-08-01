@@ -26,7 +26,7 @@ class RunJob(Job):
         return DB().fetch_one(query, params=(self._machine_id, ))
 
     #pylint: disable=arguments-differ
-    def _process(self, skip_system_checks=False, docker_prune=False, full_docker_prune=False):
+    def _process(self, docker_prune=False, full_docker_prune=False):
 
         user = User(self._user_id)
 
