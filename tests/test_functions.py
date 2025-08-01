@@ -232,7 +232,7 @@ def reset_db():
     pg_dbname = config['postgresql']['dbname']
     redis_port = config['redis']['port']
     subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} -c \'DROP schema "public" CASCADE\' '],
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} -c \'DROP SCHEMA IF EXISTS "public" CASCADE\' '],
         check=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
