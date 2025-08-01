@@ -176,12 +176,12 @@ def insert_user(user_id, token):
     DB().query("""
         INSERT INTO "public"."users"("id", "name","token","capabilities","created_at")
         VALUES
-        (%s, %s, %s, (SELECT capabilities FROM users WHERE user.id = 1), E'2024-08-22 11:28:24.937262+00')
+        (%s, %s, %s, (SELECT capabilities FROM users WHERE id = 1), E'2024-08-22 11:28:24.937262+00')
     """, params=(user_id, token, sha256_hash.hexdigest()))
     DB().query("""
         UPDATE users SET capabilities = jsonb_set(capabilities, '{user,visible_users}', %s ,false)
-            WHERE user.id = %s
-    """, params=(user_id, user_id))
+            WHERE id = %s
+    """, params=(str(user_id), user_id))
 
 
 def import_demo_data():
