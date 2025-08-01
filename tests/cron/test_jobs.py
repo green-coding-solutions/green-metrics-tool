@@ -68,6 +68,8 @@ def test_insert_job():
     assert job._state == 'WAITING'
 
 def test_simple_run_job_no_quota():
+    Tests.shorten_sleep_times(1)
+
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
@@ -91,6 +93,8 @@ def test_simple_run_job_no_quota():
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
 def test_simple_run_job_quota_gets_deducted():
+    Tests.shorten_sleep_times(1)
+
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
@@ -119,6 +123,8 @@ def test_simple_run_job_quota_gets_deducted():
     assert User(1)._capabilities['measurement']['quotas']['1'] < 10_000 * 60
 
 def test_simple_run_job_with_variables():
+    Tests.shorten_sleep_times(1)
+
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'

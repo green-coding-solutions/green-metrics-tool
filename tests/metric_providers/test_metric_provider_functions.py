@@ -168,7 +168,7 @@ def test_powermetrics():
 
 def test_cloud_energy():
     filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_mach_system.log')
-    obj = PsuEnergyAcXgboostMachineProvider(100, HW_CPUFreq=4000, CPUChips=1, CPUThreads=1, TDP=160,
+    obj = PsuEnergyAcXgboostMachineProvider(HW_CPUFreq=4000, CPUChips=1, CPUThreads=1, TDP=160,
                  HW_MemAmountGB=4, skip_check=True, filename=filename)
 
     df = obj.read_metrics()

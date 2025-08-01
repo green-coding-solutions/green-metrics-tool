@@ -69,7 +69,10 @@ class ScenarioRunner:
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
         user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False, dev_no_save=False,
-        skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None, phase_padding=True):
+        skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None, phase_padding=True,
+        measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
+        measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
+        measurement_wait_time_dependencies=60):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -120,6 +123,13 @@ class ScenarioRunner:
         self._measurement_total_duration = measurement_total_duration
         self._disabled_metric_providers = [] if disabled_metric_providers is None else disabled_metric_providers
         self._allowed_run_args = [] if allowed_run_args is None else allowed_run_args # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
+        self._measurement_system_check_threshold = measurement_system_check_threshold
+        self._measurement_pre_test_sleep = measurement_pre_test_sleep
+        self._measurement_idle_duration = measurement_idle_duration
+        self._measurement_baseline_duration = measurement_baseline_duration
+        self._measurement_post_test_sleep = measurement_post_test_sleep
+        self._measurement_phase_transition_time = measurement_phase_transition_time
+        self._measurement_wait_time_dependencies = measurement_wait_time_dependencies
         self._last_measurement_duration = 0
         self._phase_padding = phase_padding
         self._phase_padding_ms = max(
@@ -153,8 +163,30 @@ class ScenarioRunner:
         self.__volume_sizes = {}
         self.__warnings = []
 
+        self._check_all_durations()
+
         # we currently do not use this variable
         # self.__filename = self._original_filename # this can be changed later if working directory changes
+
+
+    def _check_all_durations(self):
+        if self._measurement_total_duration is None: # exit early if no max timeout specififed
+            return
+
+        durations = {
+            "measurement_flow_process_duration": self._measurement_flow_process_duration,
+            'pre_test_sleep': self._measurement_pre_test_sleep,
+            'post_test_sleep': self._measurement_post_test_sleep,
+            'idle_duration': self._measurement_idle_duration,
+            'baseline_duration': self._measurement_baseline_duration,
+            'phase_transition_time': self._measurement_phase_transition_time,
+            'wait_time_dependencies': self._measurement_wait_time_dependencies,
+        }
+
+        for key, value in durations.items():
+            if value is not None and value > self._measurement_total_duration:
+                raise ValueError(f"Cannot run flows due to configuration error. Measurement_total_duration must be >= {key}, otherwise the flow will run into a timeout in every case. Values are: {key}: {value} and measurement_total_duration: {self._measurement_total_duration}")
+
 
     def custom_sleep(self, sleep_time):
         if not self._dev_no_sleeps:
@@ -227,7 +259,7 @@ class ScenarioRunner:
             return
 
         if mode =='start':
-            warnings = system_checks.check_start()
+            warnings = system_checks.check_start(self._measurement_system_check_threshold)
             for warn in warnings:
                 self.__warnings.append(warn)
         else:
@@ -833,7 +865,6 @@ class ScenarioRunner:
         return OrderedDict((key, services[key]) for key in names_ordered)
 
     def setup_services(self):
-        config = GlobalConfig().config
         print(TerminalColors.HEADER, '\nSetting up services', TerminalColors.ENDC)
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
@@ -1138,7 +1169,7 @@ class ScenarioRunner:
                     time_waited = 0
                     state = ''
                     health = 'healthy' # default because some containers have no health
-                    max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
+                    max_waiting_time = self._measurement_wait_time_dependencies
                     while time_waited < max_waiting_time:
                         status_output = subprocess.check_output(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
@@ -1346,15 +1377,14 @@ class ScenarioRunner:
             raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total_duration'.")
 
     def start_phase(self, phase, transition = True):
-        config = GlobalConfig().config
         print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
 
         self.check_total_runtime_exceeded()
 
         if transition:
             # The force-sleep must go and we must actually check for the temperature baseline
-            print(f"\nForce-sleeping for {config['measurement']['phase_transition_time']}s")
-            self.custom_sleep(config['measurement']['phase_transition_time'])
+            print(f"\nForce-sleeping for {self._measurement_phase_transition_time}s")
+            self.custom_sleep(self._measurement_phase_transition_time)
             #print(TerminalColors.HEADER, '\nChecking if temperature is back to baseline ...', TerminalColors.ENDC)
 
         phase_time = int(time.time_ns() / 1_000)
@@ -1858,7 +1888,6 @@ class ScenarioRunner:
 
         '''
         try:
-            config = GlobalConfig().config
             self.start_measurement() # we start as early as possible to include initialization overhead
             self.clear_caches()
             self.check_system('start')
@@ -1881,10 +1910,10 @@ class ScenarioRunner:
             if self._debugger.active:
                 self._debugger.pause('metric-providers (non-container) start complete. Waiting to start measurement')
 
-            self.custom_sleep(config['measurement']['pre_test_sleep'])
+            self.custom_sleep(self._measurement_pre_test_sleep)
 
             self.start_phase('[BASELINE]')
-            self.custom_sleep(config['measurement']['baseline_duration'])
+            self.custom_sleep(self._measurement_baseline_duration)
             self.end_phase('[BASELINE]')
 
             if self._debugger.active:
@@ -1916,7 +1945,7 @@ class ScenarioRunner:
                 self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
 
             self.start_phase('[IDLE]')
-            self.custom_sleep(config['measurement']['idle_duration'])
+            self.custom_sleep(self._measurement_idle_duration)
             self.end_phase('[IDLE]')
 
             if self._debugger.active:
@@ -1938,7 +1967,7 @@ class ScenarioRunner:
 
             self.end_measurement()
             self.check_process_returncodes()
-            self.custom_sleep(config['measurement']['post_test_sleep'])
+            self.custom_sleep(self._measurement_post_test_sleep)
             self.identify_invalid_run()
 
         except BaseException as exc:

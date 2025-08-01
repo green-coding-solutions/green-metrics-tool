@@ -22,6 +22,14 @@ TEST_MEASUREMENT_DURATION = TEST_MEASUREMENT_END_TIME - TEST_MEASUREMENT_START_T
 TEST_MEASUREMENT_DURATION_S = TEST_MEASUREMENT_DURATION / 1_000_000
 TEST_MEASUREMENT_DURATION_H = TEST_MEASUREMENT_DURATION_S/60/60
 
+def shorten_sleep_times(duration_in_s):
+    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,pre_test_sleep}',%s,false)", params=(str(duration_in_s), ))
+    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,baseline_duration}',%s,false)", params=(str(duration_in_s), ))
+    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,idle_duration}',%s,false)", params=(str(duration_in_s), ))
+    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,post_test_sleep}',%s,false)", params=(str(duration_in_s), ))
+    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,phase_transition_time}',%s,false)", params=(str(duration_in_s), ))
+
+
 def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename', user_id=1, machine_id=1):
     # spoof time from the beginning of UNIX time until now.
     phases = [
@@ -165,12 +173,16 @@ def insert_user(user_id, token):
     sha256_hash = hashlib.sha256()
     sha256_hash.update(token.encode('UTF-8'))
 
-    # Reminder: because of f-string all {} braces are doubled to be escaped
-    DB().query(f"""
+    DB().query("""
         INSERT INTO "public"."users"("id", "name","token","capabilities","created_at")
         VALUES
-        (%s, %s, %s,E'{{"user":{{"visible_users":[{user_id}],"is_super_user": false}},"api":{{"quotas":{{}},"routes":["/v1/user/setting","/v1/user/settings","/v2/carbondb/add","/v2/carbondb/filters","/v2/carbondb","/v1/carbondb/add","/v1/ci/measurement/add","/v2/ci/measurement/add","/v1/software/add","/v1/hog/add"]}},"data":{{"runs":{{"retention":2678400}},"hog_tasks":{{"retention":2678400}},"measurements":{{"retention":2678400}},"hog_coalitions":{{"retention":2678400}},"ci_measurements":{{"retention":2678400}},"hog_measurements":{{"retention":2678400}}}},"jobs":{{"schedule_modes":["one-off","daily","weekly","commit","variance"]}},"machines":[1],"measurement":{{"quotas":{{}},"total_duration":86400,"flow_process_duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}}',E'2024-08-22 11:28:24.937262+00');
+        (%s, %s, %s, (SELECT capabilities FROM users WHERE id = 1), E'2024-08-22 11:28:24.937262+00')
     """, params=(user_id, token, sha256_hash.hexdigest()))
+    DB().query("""
+        UPDATE users SET capabilities = jsonb_set(capabilities, '{user,visible_users}', %s ,false)
+            WHERE id = %s
+    """, params=(str(user_id), user_id))
+
 
 def import_demo_data():
     config = GlobalConfig().config
@@ -232,7 +244,7 @@ def reset_db():
     pg_dbname = config['postgresql']['dbname']
     redis_port = config['redis']['port']
     subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} -c \'DROP schema "public" CASCADE\' '],
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} -c \'DROP SCHEMA IF EXISTS "public" CASCADE\' '],
         check=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -265,7 +277,6 @@ class RunUntilManager:
             raise RuntimeError("run_until must be used within the context")
 
         try:
-            config = GlobalConfig().config
             self.__runner.start_measurement()
             self.__runner.clear_caches()
             self.__runner.check_system('start')
@@ -285,10 +296,10 @@ class RunUntilManager:
             self.__runner.initialize_run()
 
             self.__runner.start_metric_providers(allow_other=True, allow_container=False)
-            self.__runner.custom_sleep(config['measurement']['pre_test_sleep'])
+            self.__runner.custom_sleep(self.__runner._measurement_pre_test_sleep)
 
             self.__runner.start_phase('[BASELINE]')
-            self.__runner.custom_sleep(config['measurement']['baseline_duration'])
+            self.__runner.custom_sleep(self.__runner._measurement_baseline_duration)
             self.__runner.end_phase('[BASELINE]')
 
             self.__runner.start_phase('[INSTALLATION]')
@@ -310,7 +321,7 @@ class RunUntilManager:
             self.__runner.start_metric_providers(allow_container=True, allow_other=False)
 
             self.__runner.start_phase('[IDLE]')
-            self.__runner.custom_sleep(config['measurement']['idle_duration'])
+            self.__runner.custom_sleep(self.__runner._measurement_idle_duration)
             self.__runner.end_phase('[IDLE]')
 
             self.__runner.start_phase('[RUNTIME]')
@@ -324,7 +335,7 @@ class RunUntilManager:
             self.__runner.end_measurement()
             self.__runner.check_process_returncodes()
             self.__runner.identify_invalid_run()
-            self.__runner.custom_sleep(config['measurement']['post_test_sleep'])
+            self.__runner.custom_sleep(self.__runner._measurement_post_test_sleep)
             self.__runner.update_start_and_end_times()
             self.__runner.store_phases()
             self.__runner.read_container_logs()

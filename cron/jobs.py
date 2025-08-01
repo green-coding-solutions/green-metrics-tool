@@ -33,7 +33,6 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         parser.add_argument('type', help='Select the operation mode.', choices=['email', 'run'])
         parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
-        parser.add_argument('--skip-system-checks', action='store_true', default=False, help='Skip system checks')
         parser.add_argument('--full-docker-prune', action='store_true', default=False, help='Prune all images and build caches on the system')
         parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
 
@@ -55,7 +54,7 @@ if __name__ == '__main__':
             sys.exit(0)
         print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'Processing Job ID#: ', job_main._id)
         if args.type == 'run':
-            job_main.process(skip_system_checks=args.skip_system_checks, docker_prune=args.docker_prune, full_docker_prune=args.full_docker_prune)
+            job_main.process(docker_prune=args.docker_prune, full_docker_prune=args.full_docker_prune)
         elif args.type == 'email':
             job_main.process()
         print('Successfully processed jobs queue item.')
