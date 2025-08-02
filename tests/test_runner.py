@@ -158,6 +158,7 @@ def test_runner_with_glob_pattern_filename():
     ps = subprocess.run(
         ['python3', 'runner.py', '--uri', GMT_DIR,
          '--filename', 'tests/data/usage_scenarios/runner_filename/basic*.yml',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         cwd=GMT_DIR,
         check=True,
@@ -180,6 +181,7 @@ def test_runner_with_iterations_and_multiple_files():
          '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_2.yml',
          '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml',
          '--iterations', '2',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         cwd=GMT_DIR,
         check=True,
@@ -199,7 +201,9 @@ def test_runner_uses_default_filename():
     """Test that runner uses default usage_scenario.yml when no filename is provided"""
     # Test runner.py with no --filename argument, should use default usage_scenario.yml
     ps = subprocess.run(
-        ['python3', f'{GMT_DIR}/runner.py', '--uri', f'{GMT_DIR}/tests/data/usage_scenarios/runner_filename/',
+        ['python3', f'{GMT_DIR}/runner.py',
+         '--uri', f'{GMT_DIR}/tests/data/usage_scenarios/runner_filename/',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         cwd=f'{GMT_DIR}/tests/data/usage_scenarios/runner_filename/',
         check=True,
@@ -219,7 +223,8 @@ def test_runner_filename_pattern_no_match_error():
     ps = subprocess.run(
         ['python3', 'runner.py', '--uri', GMT_DIR,
          '--filename', 'tests/data/usage_scenarios/nonexistent_*.yml',
-         '--skip-system-checks'],
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         cwd=GMT_DIR,
         check=False,
         stderr=subprocess.PIPE,
@@ -236,6 +241,7 @@ def test_runner_filename_relative_to_local_uri():
     ps = subprocess.run(
         ['python3', 'runner.py', '--uri', f'{GMT_DIR}/tests/data',
          '--filename', 'usage_scenarios/runner_filename/basic_stress_1.yml',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         cwd=GMT_DIR,
         check=True,
@@ -254,6 +260,7 @@ def test_runner_filename_with_remote_uri():
     ps = subprocess.run(
         ['python3', 'runner.py', '--uri', 'https://github.com/green-coding-solutions/example-applications/',
          '--filename', 'stress/usage_scenario.yml',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         cwd=GMT_DIR,
         check=True,
