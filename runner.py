@@ -134,17 +134,30 @@ if __name__ == '__main__':
 
     filenames = []
     for pattern in filename_patterns:
-        matches = glob.glob(pattern)
-        valid_files = [f for f in matches if os.path.isfile(f)]
+        if run_type == 'folder':
+            # For local directories, look for files relative to the URI path
+            search_pattern = os.path.join(args.uri, pattern)
+            matches = glob.glob(search_pattern)
+            # Convert absolute paths back to relative paths for ScenarioRunner
+            valid_files = []
+            for match in matches:
+                if os.path.isfile(match):
+                    # Convert absolute path back to relative path
+                    relative_path = os.path.relpath(match, args.uri)
+                    valid_files.append(relative_path)
 
-        if not valid_files:
-            if using_default_filename:
-                print(TerminalColors.FAIL, f'Error: Default file not found: {pattern}', TerminalColors.ENDC)
-                print('Please create the file or specify a different file with --filename')
-            else:
-                print(TerminalColors.FAIL, f'Error: No valid files found for --filename pattern: {pattern}', TerminalColors.ENDC)
-            sys.exit(1)
-        filenames.extend(valid_files)
+            if not valid_files:
+                if using_default_filename:
+                    print(TerminalColors.FAIL, f'Error: Default file not found: {pattern}. Search pattern: {search_pattern}', TerminalColors.ENDC)
+                    print('Please create the file or specify a different file with --filename')
+                else:
+                    print(TerminalColors.FAIL, f'Error: No valid files found for --filename pattern: {pattern}. Search pattern: {search_pattern}', TerminalColors.ENDC)
+                sys.exit(1)
+            filenames.extend(valid_files)
+        else:
+            # For URLs, file validation will happen after checkout in ScenarioRunner
+            # Just pass the pattern as-is since we can't validate files that don't exist locally yet
+            filenames.append(pattern)
 
     # Execute the given usage scenarios multiple times (if iterations > 1)
     filenames = filenames * args.iterations

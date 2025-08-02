@@ -229,3 +229,40 @@ def test_runner_filename_pattern_no_match_error():
 
     assert ps.returncode == 1, "Runner should fail when no files match pattern"
     assert 'No valid files found for --filename pattern' in ps.stdout
+
+def test_runner_filename_relative_to_local_uri():
+    """Test that runner works with filename relative to a local URI directory"""
+    # Test the fix for filename patterns relative to URI path
+    ps = subprocess.run(
+        ['python3', 'runner.py', '--uri', f'{GMT_DIR}/tests/data',
+         '--filename', 'usage_scenarios/runner_filename/basic_stress_1.yml',
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        cwd=GMT_DIR,
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    assert 'Running:  usage_scenarios/runner_filename/basic_stress_1.yml' in ps.stdout
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+def test_runner_filename_with_remote_uri():
+    """Test that runner works with remote URI and relative filename"""
+    # Test runner.py with remote URI and filename parameter
+    ps = subprocess.run(
+        ['python3', 'runner.py', '--uri', 'https://github.com/green-coding-solutions/example-applications/',
+         '--filename', 'stress/usage_scenario.yml',
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        cwd=GMT_DIR,
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8',
+        timeout=60  # 1 minute timeout for git clone operation
+    )
+
+    assert ps.returncode == 0
+    assert 'Running:  stress/usage_scenario.yml' in ps.stdout
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
