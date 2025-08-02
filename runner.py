@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory starting  with / or a remote git repository starting with http(s)://')
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
-    parser.add_argument('--filename', type=str, action='append', help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported.')
+    parser.add_argument('--filename', type=str, action='append', help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported. Duplicate filenames are allowed and will be processed multiple times.')
 
     parser.add_argument('--variables', nargs='+', help='Variables that will be replaced into the usage_scenario.yml file')
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
@@ -146,8 +146,8 @@ if __name__ == '__main__':
             sys.exit(1)
         filenames.extend(valid_files)
 
-    # Remove duplicates and repeat for each iteration
-    filenames = list(set(filenames)) * args.iterations
+    # Execute the given usage scenarios multiple times (if iterations > 1)
+    filenames = filenames * args.iterations
 
     runner = None
 

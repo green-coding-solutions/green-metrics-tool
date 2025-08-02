@@ -157,7 +157,7 @@ def test_runner_with_glob_pattern_filename():
     # Test runner.py with glob pattern that matches multiple files in a folder
     ps = subprocess.run(
         ['python3', 'runner.py', '--uri', GMT_DIR,
-         '--filename', 'tests/data/usage_scenarios/runner_filename/*.yml',
+         '--filename', 'tests/data/usage_scenarios/runner_filename/basic*.yml',
          '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         cwd=GMT_DIR,
         check=True,
@@ -172,12 +172,13 @@ def test_runner_with_glob_pattern_filename():
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 def test_runner_with_iterations_and_multiple_files():
-    """Test that runner processes files in correct order with --iterations"""
-    # Test runner.py with multiple files and iterations=2
+    """Test that runner processes files in correct order with --iterations and allows duplicates"""
+    # Test runner.py with multiple files including duplicates and iterations=2
     ps = subprocess.run(
         ['python3', 'runner.py', '--uri', GMT_DIR,
          '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml',
          '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_2.yml',
+         '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml',
          '--iterations', '2',
          '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         cwd=GMT_DIR,
@@ -188,9 +189,28 @@ def test_runner_with_iterations_and_multiple_files():
     )
 
     assert ps.returncode == 0
-    # Should see each file processed twice (2 iterations)
-    assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_1.yml') == 2
+    # Should see basic_stress_1.yml processed 4 times (2 duplicates * 2 iterations)
+    # and basic_stress_2.yml processed 2 times (1 instance * 2 iterations)
+    assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_1.yml') == 4
     assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_2.yml') == 2
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+def test_runner_uses_default_filename():
+    """Test that runner uses default usage_scenario.yml when no filename is provided"""
+    # Test runner.py with no --filename argument, should use default usage_scenario.yml
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--uri', f'{GMT_DIR}/tests/data/usage_scenarios/runner_filename/',
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        cwd=f'{GMT_DIR}/tests/data/usage_scenarios/runner_filename/',
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    # Should use the default usage_scenario.yml file
+    assert 'Running:  usage_scenario.yml' in ps.stdout
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 def test_runner_filename_pattern_no_match_error():
