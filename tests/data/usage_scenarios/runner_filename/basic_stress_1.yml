@@ -1,6 +1,6 @@
 ---
-name: Test Stress
-author: Dan Mateas
+name: Test runner.py --filename parameter
+author: David Kopp
 description: test
 
 services:
@@ -8,7 +8,7 @@ services:
     type: container
     image: gcb_stress
     build:
-      context: ../stress-application
+      context: ../../stress-application
 
 flow:
   - name: Stress
