@@ -85,85 +85,6 @@ def test_uri_github_repo_and_using_default_filename():
     assert uri_in_db == uri, Tests.assertion_info(f"uri: {uri}", uri_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
-## --filename FILENAME
-#    Optionally specify different filenames, using wildcards and relative paths
-def test_runner_with_glob_pattern_filename():
-    """Test that runner works with glob pattern filenames like folder/*.yml"""
-    ps = subprocess.run(
-        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
-         '--filename', 'tests/data/usage_scenarios/runner_filename/basic*.yml',
-         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
-        check=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
-
-    assert ps.returncode == 0
-    assert 'Running:  tests/data/usage_scenarios/runner_filename/basic_stress_1.yml' in ps.stdout
-    assert 'Running:  tests/data/usage_scenarios/runner_filename/basic_stress_2.yml' in ps.stdout
-    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
-
-def test_runner_filename_relative_to_local_uri():
-    """Test that runner works with filename relative to a local URI directory"""
-    # Note: The provided folder is not the root of a git repository. Normally that would fail, however we use the `--dev-no-save` flag so this check is skipped.
-    ps = subprocess.run(
-        ['python3', f'{GMT_DIR}/runner.py', '--uri', f'{GMT_DIR}/tests/data',
-         '--filename', 'usage_scenarios/runner_filename/basic_stress_1.yml',
-         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
-        check=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
-
-    assert ps.returncode == 0
-    assert 'Running:  usage_scenarios/runner_filename/basic_stress_1.yml' in ps.stdout
-    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
-
-def test_runner_filename_pattern_no_match_error():
-    """Test that runner fails gracefully when filename pattern matches no files"""
-    ps = subprocess.run(
-        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
-         '--filename', 'tests/data/usage_scenarios/nonexistent_*.yml',
-         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
-        check=False,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
-
-    assert ps.returncode == 1, "Runner should fail when no files match pattern"
-    assert 'No valid files found for --filename pattern' in ps.stdout
-
-## --iterations ITERATIONS
-#    Optionally specify the number of iterations the files should be executed
-def test_runner_with_iterations_and_multiple_files():
-    """Test that runner processes files in correct order with --iterations and allows duplicates"""
-    ps = subprocess.run(
-        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
-         '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml',
-         '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_2.yml',
-         '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml',
-         '--iterations', '2',
-         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
-        check=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
-
-    assert ps.returncode == 0
-    # Should see basic_stress_1.yml processed 4 times (2 duplicates * 2 iterations)
-    # and basic_stress_2.yml processed 2 times (1 instance * 2 iterations)
-    assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_1.yml') == 4
-    assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_2.yml') == 2
-    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
-
 ## --branch BRANCH
 #    Optionally specify the git branch when targeting a git repository
 def test_uri_local_branch():
@@ -229,6 +150,8 @@ def test_name_is_in_db():
 
 # --filename FILENAME
 #    An optional alternative filename if you do not want to use "usage_scenario.yml"
+#    Multiple filenames, wildcards and relative paths are supported
+
     # basic positive case
 def test_different_filename():
     run_name = 'test_' + utils.randomword(12)
@@ -241,14 +164,31 @@ def test_different_filename():
         encoding='UTF-8'
     )
 
-    with open('data/usage_scenarios/basic_stress.yml', 'r', encoding='utf-8') as f:
+    with open(f'{GMT_DIR}/tests/data/usage_scenarios/basic_stress.yml', 'r', encoding='utf-8') as f:
         usage_scenario_contents = yaml.safe_load(f)
     usage_scenario_in_db = utils.get_run_data(run_name)['usage_scenario']
-    assert usage_scenario_in_db == usage_scenario_contents,\
+    assert usage_scenario_in_db == usage_scenario_contents, \
         Tests.assertion_info(usage_scenario_contents, usage_scenario_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
-# if that filename is missing...
+    # if file does not exist ...
+def test_runner_filename_pattern_no_match_error():
+    """Test that runner fails gracefully when filename pattern matches no files"""
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/nonexistent_*.yml',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        check=False,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 1, "Runner should fail when no files match pattern"
+    assert 'No valid files found for --filename pattern' in ps.stdout
+
+    # if file does not exist and ScenarioRunner is called directly
 def test_different_filename_missing():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='I_do_not_exist.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True)
 
@@ -264,6 +204,68 @@ def test_different_filename_missing():
     assert expected_exception_2 in str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception_2}", str(e.value))
 
+    # Using * wildcard
+def test_runner_with_glob_pattern_filename():
+    """Test that runner works with glob pattern filenames like folder/*.yml"""
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/runner_filename/basic*.yml',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    assert 'Running:  tests/data/usage_scenarios/runner_filename/basic_stress_1.yml' in ps.stdout
+    assert 'Running:  tests/data/usage_scenarios/runner_filename/basic_stress_2.yml' in ps.stdout
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+    # Using relative path as filename with relative path as URI
+def test_runner_filename_relative_to_local_uri():
+    """Test that runner works with filename relative to a local URI directory"""
+    # Note: The provided folder is not the root of a git repository. Normally that would fail, however we use the `--dev-no-save` flag so this check is skipped.
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--uri', f'{GMT_DIR}/tests/data',
+         '--filename', 'usage_scenarios/runner_filename/basic_stress_1.yml',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    assert 'Running:  usage_scenarios/runner_filename/basic_stress_1.yml' in ps.stdout
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+## --iterations ITERATIONS
+#    Optionally specify the number of iterations the files should be executed
+def test_runner_with_iterations_and_multiple_files():
+    """Test that runner processes files in correct order with --iterations and allows duplicates"""
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml',
+         '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_2.yml',
+         '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml',
+         '--iterations', '2',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    # Should see basic_stress_1.yml processed 4 times (2 duplicates * 2 iterations)
+    # and basic_stress_2.yml processed 2 times (1 instance * 2 iterations)
+    assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_1.yml') == 4
+    assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_2.yml') == 2
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 #   Check that default is to leave the files
 def test_no_file_cleanup():
