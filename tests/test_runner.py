@@ -151,3 +151,125 @@ def test_runner_run_invalidated():
         assert any('Development switches or skip_system_checks were active for this run.' in msg for msg in messages)
     else:
         assert 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n' in messages
+
+def test_runner_with_glob_pattern_filename():
+    """Test that runner works with glob pattern filenames like folder/*.yml"""
+    # Test runner.py with glob pattern that matches multiple files in a folder
+    ps = subprocess.run(
+        ['python3', 'runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/runner_filename/basic*.yml',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        cwd=GMT_DIR,
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    assert 'Running:  tests/data/usage_scenarios/runner_filename/basic_stress_1.yml' in ps.stdout
+    assert 'Running:  tests/data/usage_scenarios/runner_filename/basic_stress_2.yml' in ps.stdout
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+def test_runner_with_iterations_and_multiple_files():
+    """Test that runner processes files in correct order with --iterations and allows duplicates"""
+    # Test runner.py with multiple files including duplicates and iterations=2
+    ps = subprocess.run(
+        ['python3', 'runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml',
+         '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_2.yml',
+         '--filename', 'tests/data/usage_scenarios/runner_filename/basic_stress_1.yml',
+         '--iterations', '2',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        cwd=GMT_DIR,
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    # Should see basic_stress_1.yml processed 4 times (2 duplicates * 2 iterations)
+    # and basic_stress_2.yml processed 2 times (1 instance * 2 iterations)
+    assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_1.yml') == 4
+    assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_2.yml') == 2
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+def test_runner_uses_default_filename():
+    """Test that runner uses default usage_scenario.yml when no filename is provided"""
+    # Test runner.py with no --filename argument, should use default usage_scenario.yml
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py',
+         '--uri', f'{GMT_DIR}/tests/data/usage_scenarios/runner_filename/',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        cwd=f'{GMT_DIR}/tests/data/usage_scenarios/runner_filename/',
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    # Should use the default usage_scenario.yml file
+    assert 'Running:  usage_scenario.yml' in ps.stdout
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+def test_runner_filename_pattern_no_match_error():
+    """Test that runner fails gracefully when filename pattern matches no files"""
+    # Test runner.py with pattern that matches no files
+    ps = subprocess.run(
+        ['python3', 'runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/nonexistent_*.yml',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        cwd=GMT_DIR,
+        check=False,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 1, "Runner should fail when no files match pattern"
+    assert 'No valid files found for --filename pattern' in ps.stdout
+
+def test_runner_filename_relative_to_local_uri():
+    """Test that runner works with filename relative to a local URI directory"""
+    # Test the fix for filename patterns relative to URI path
+    ps = subprocess.run(
+        ['python3', 'runner.py', '--uri', f'{GMT_DIR}/tests/data',
+         '--filename', 'usage_scenarios/runner_filename/basic_stress_1.yml',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        cwd=GMT_DIR,
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    assert 'Running:  usage_scenarios/runner_filename/basic_stress_1.yml' in ps.stdout
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+def test_runner_filename_with_remote_uri():
+    """Test that runner works with remote URI and relative filename"""
+    # Test runner.py with remote URI and filename parameter
+    ps = subprocess.run(
+        ['python3', 'runner.py', '--uri', 'https://github.com/green-coding-solutions/example-applications/',
+         '--filename', 'stress/usage_scenario.yml',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        cwd=GMT_DIR,
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8',
+        timeout=60  # 1 minute timeout for git clone operation
+    )
+
+    assert ps.returncode == 0
+    assert 'Running:  stress/usage_scenario.yml' in ps.stdout
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
