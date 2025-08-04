@@ -6,6 +6,37 @@ All contributions should be done via Pull Requests. We use the standard forking 
 
 Please see our: [Contribution Guidelines](https://docs.green-coding.org/docs/contributing/green-metrics-tool-contribution/)
 
+## Development Environment Setup
+
+### direnv (Optional)
+
+For automatic virtual environment activation, install [direnv](https://direnv.net/):
+
+```bash
+# Ubuntu/Debian
+sudo apt install direnv
+
+# macOS
+brew install direnv
+
+# Add to ~/.bashrc or ~/.zshrc
+echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+# or for zsh:
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+
+# Reload shell
+source ~/.bashrc  # or source ~/.zshrc
+```
+
+After installing direnv, enable it for this project:
+
+```bash
+cd /path/to/green-metrics-tool
+direnv allow
+```
+
+Now the virtual environment will activate automatically when entering the project directory.
+
 ## Python conventions
 
 We adhere to standard ([PEP8][pep8]) python conventions for the most part.
