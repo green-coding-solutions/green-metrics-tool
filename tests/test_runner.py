@@ -267,6 +267,7 @@ def test_runner_with_iterations_and_multiple_files():
     assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_2.yml') == 2
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
+## --file-cleanup
 #   Check that default is to leave the files
 def test_no_file_cleanup():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True)
@@ -289,6 +290,7 @@ def test_file_cleanup():
     assert not os.path.exists('/tmp/green-metrics-tool'), \
         Tests.assertion_info('tmp directory exists', not os.path.exists('/tmp/green-metrics-tool'))
 
+## --skip-unsafe and --allow-unsafe
 #pylint: disable=unused-variable
 def test_skip_and_allow_unsafe_both_true():
 
@@ -297,6 +299,7 @@ def test_skip_and_allow_unsafe_both_true():
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, Tests.assertion_info('', str(e.value))
 
+## --debug
 def test_debug(monkeypatch):
     monkeypatch.setattr('sys.stdin', io.StringIO('Enter'))
     ps = subprocess.run(
@@ -313,6 +316,7 @@ def test_debug(monkeypatch):
     assert expected_output in ps.stdout, \
         Tests.assertion_info(expected_output, 'no/different output')
 
+## --skip-systems-check
 test_data = [
    (True, f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", does_not_raise()),
    (False, f"{os.path.dirname(os.path.realpath(__file__))}/test-config-extra-network-and-duplicate-psu-providers.yml", pytest.raises(ConfigurationCheckError)),
@@ -329,6 +333,7 @@ def test_check_system(skip_system_checks, config_file, expectation):
     finally:
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # reset, just in case. although done by fixture
 
+## Variables
 def test_check_broken_variable_format():
 
     with pytest.raises(ValueError) as e:
@@ -361,6 +366,7 @@ def test_usage_scenario_variable_replacement_done_correctly():
 
     assert runner._usage_scenario['flow'][0]['commands'][0]['command'] == 'stress-ng -c 1 -t 1 -q'
 
+## Check if metrics provider are already running
 def test_reporters_still_running():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False)
     runner2 = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False)
@@ -378,6 +384,7 @@ def test_reporters_still_running():
             expected_error = r'Another instance of the \w+ metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.'
             assert re.match(expected_error, str(e.value)), Tests.assertion_info(expected_error, str(e.value))
 
+## Using template
 def test_template_website():
     ps = subprocess.run(
         ['bash', os.path.normpath(f"{GMT_DIR}/run-template.sh"), 'website', 'https://www.google.de', '--quick', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml"],
@@ -391,7 +398,7 @@ def test_template_website():
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
-
+## --user-id
 def test_runner_can_use_different_user():
     USER_ID = 758932
     Tests.insert_user(USER_ID, "My bad password")
