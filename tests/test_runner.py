@@ -44,7 +44,7 @@ def test_uri_local_dir():
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 def test_uri_local_dir_missing():
-    runner = ScenarioRunner(uri='/tmp/missing', uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri='/tmp/missing', uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
@@ -237,8 +237,8 @@ def test_name_is_in_db():
 def test_different_filename():
     run_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR , '--filename', 'tests/data/usage_scenarios/basic_stress.yml', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-        '--skip-system-checks', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations', '--dev-no-sleeps', '--dev-cache-build'],
+        ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/basic_stress.yml', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+        '--skip-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -254,7 +254,7 @@ def test_different_filename():
 
 # if that filename is missing...
 def test_different_filename_missing():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='I_do_not_exist.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='I_do_not_exist.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True)
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
@@ -271,7 +271,7 @@ def test_different_filename_missing():
 
 #   Check that default is to leave the files
 def test_no_file_cleanup():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True)
     runner.run()
 
     assert os.path.exists('/tmp/green-metrics-tool'), \
@@ -282,7 +282,7 @@ def test_no_file_cleanup():
 def test_file_cleanup():
     subprocess.run(
         ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR , '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
-         '--file-cleanup', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", '--skip-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
+         '--file-cleanup', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", '--skip-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-save'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -295,7 +295,7 @@ def test_file_cleanup():
 def test_skip_and_allow_unsafe_both_true():
 
     with pytest.raises(RuntimeError) as e:
-        ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, skip_unsafe=True, allow_unsafe=True)
+        ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, skip_unsafe=True, allow_unsafe=True)
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, Tests.assertion_info('', str(e.value))
 
@@ -305,7 +305,7 @@ def test_debug(monkeypatch):
         ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR , '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
          '--debug',
          '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", '--skip-system-checks',
-          '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
+          '--dev-no-sleeps', '--dev-cache-build', '--dev-no-save'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -315,13 +315,10 @@ def test_debug(monkeypatch):
     assert expected_output in ps.stdout, \
         Tests.assertion_info(expected_output, 'no/different output')
 
-
-
 test_data = [
    (True, f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", does_not_raise()),
    (False, f"{os.path.dirname(os.path.realpath(__file__))}/test-config-extra-network-and-duplicate-psu-providers.yml", pytest.raises(ConfigurationCheckError)),
 ]
-
 @pytest.mark.parametrize("skip_system_checks,config_file,expectation", test_data)
 def test_check_system(skip_system_checks, config_file, expectation):
 
