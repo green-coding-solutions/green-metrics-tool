@@ -128,7 +128,7 @@ def check_suspend(*, run_duration):
     if ps.stderr:
         raise RuntimeError(f"Could not check for system suspend state: {ps.stderr}")
 
-    return ps.returncode == 0 and 'Entering' not in ps.stdout and 'suspend' not in ps.stdout
+    return 'Entering' not in ps.stdout and 'suspend' not in ps.stdout
 
 ######## END CHECK FUNCTIONS ########
 
