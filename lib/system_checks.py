@@ -13,6 +13,7 @@ import subprocess
 import psutil
 import locale
 import platform
+import math
 
 from psycopg import OperationalError as psycopg_OperationalError
 
@@ -31,7 +32,7 @@ GMT_Resources = {
 }
 
 ######## CHECK FUNCTIONS ########
-def check_db():
+def check_db(*_, **__):
     try:
         DB().query('SELECT 1')
     except psycopg_OperationalError:
@@ -39,15 +40,15 @@ def check_db():
         os._exit(1)
     return True
 
-def check_one_energy_and_scope_machine_provider():
+def check_one_energy_and_scope_machine_provider(*_, **__):
     metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
     energy_machine_providers = [provider for provider in metric_providers if ".energy" in provider and ".machine" in provider]
     return len(energy_machine_providers) <= 1
 
-def check_tmpfs_mount():
+def check_tmpfs_mount(*_, **__):
     return not any(partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs' for partition in psutil.disk_partitions())
 
-def check_ntp():
+def check_ntp(*_, **__):
     if platform.system() == 'Darwin': # no NTP for darwin, as this is linux cluster only functionality
         return True
 
@@ -57,7 +58,7 @@ def check_ntp():
 
     return True
 
-def check_largest_sampling_rate():
+def check_largest_sampling_rate(*_, **__):
     metric_providers = utils.get_metric_providers(GlobalConfig().config)
     if not metric_providers: # no provider provider configured passes this check
         return True
@@ -67,36 +68,36 @@ def check_largest_sampling_rate():
         key=lambda x: x.get('sampling_rate', 0) if x else 0
     ).get('sampling_rate', 0) <= 1000
 
-def check_cpu_utilization():
+def check_cpu_utilization(*_, **__):
     return psutil.cpu_percent(0.1) < 5.0
 
-def check_free_disk():
+def check_free_disk(*_, **__):
     free_space_bytes = psutil.disk_usage(os.path.dirname(os.path.abspath(__file__))).free
     return free_space_bytes >= GMT_Resources['free_disk']
 
-def check_free_memory():
+def check_free_memory(*_, **__):
     return psutil.virtual_memory().available >= GMT_Resources['free_memory']
 
-def check_containers_running():
+def check_containers_running(*_, **__):
     result = subprocess.check_output(['docker', 'ps', '--format', '{{.Names}}'], encoding='UTF-8')
     return not bool(result.strip())
 
-def check_gmt_dir_dirty():
+def check_gmt_dir_dirty(*_, **__):
     return subprocess.check_output(['git', 'status', '-s'], encoding='UTF-8') == ''
 
-def check_docker_daemon():
+def check_docker_daemon(*_, **__):
     result = subprocess.run(['docker', 'version'],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             check=False, encoding='UTF-8')
     return result.returncode == 0
 
-def check_utf_encoding():
+def check_utf_encoding(*_, **__):
     return locale.getpreferredencoding().lower() == sys.getdefaultencoding().lower() == 'utf-8'
 
 # This text we compare with indicates that no swap is used
 #pylint: disable=no-else-return
-def check_swap_disabled():
+def check_swap_disabled(*_, **__):
     if platform.system() == 'Darwin':
         result = subprocess.check_output(['sysctl', 'vm.swapusage'], encoding='utf-8')
         return result.strip() == 'vm.swapusage: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)'
@@ -109,10 +110,31 @@ def check_swap_disabled():
                 return False
         return True
 
+def check_suspend(*, run_duration):
+    run_duration = math.ceil(run_duration/1e6/60)
+
+    if platform.system() == 'Darwin': # no NTP for darwin, as this is linux cluster only functionality
+        command = ['bash', '-c', f"log show --style syslog --predicate 'eventMessage contains[c] \"Entering sleep\" OR eventMessage contains[c] \"Entering Sleep\"' --last {run_duration}m"]
+    else:
+        command = ['journalctl', '--grep=\'suspend\'', '--output=short-iso', '--since', f"'{run_duration} minutes ago'"]
+
+    ps = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        encoding='UTF-8'
+    )
+    if ps.stderr:
+        raise RuntimeError(f"Could not check for system suspend state: {ps.stderr}")
+
+
+
+    return ps.returncode == 0 and 'Entering' not in ps.stdout and 'suspend' not in ps.stdout
 
 ######## END CHECK FUNCTIONS ########
 
-start_checks = [
+start_checks = (
     (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
     (check_gmt_dir_dirty, Status.WARN, 'gmt directory dirty', 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir.'),
     (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
@@ -126,18 +148,29 @@ start_checks = [
     (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
     (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
     (check_swap_disabled, Status.WARN, 'swap disabled', 'Your system uses a swap filesystem. This can lead to very instable measurements. Please disable swap.'),
+)
 
-]
+end_checks = (
+    (check_suspend, Status.ERROR, 'system suspend', 'System has gone into suspend during measurement. This will skew all measurement data'),
+)
 
-def check_start(system_check_threshold=3):
-    print(TerminalColors.HEADER, '\nRunning System Checks', TerminalColors.ENDC)
+def system_check(mode='start', system_check_threshold=3, run_duration=None):
+    print(TerminalColors.HEADER, f"\nRunning System Checks - Mode: {mode}", TerminalColors.ENDC)
     warnings = []
-    max_key_length = max(len(key[2]) for key in start_checks)
 
-    for check in start_checks:
+    if mode == 'start':
+        checks = start_checks
+    elif mode == 'end':
+        checks = end_checks
+    else:
+        raise RuntimeError('Unknown mode for system check:', mode)
+
+    max_key_length = max(len(key[2]) for key in checks)
+
+    for check in checks:
         retval = None
         try:
-            retval = check[0]()
+            retval = check[0](run_duration=run_duration)
         except ConfigurationCheckError as exp:
             raise exp
         finally:
