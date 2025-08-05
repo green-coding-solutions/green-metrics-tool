@@ -116,7 +116,7 @@ def check_suspend(*, run_duration):
     if platform.system() == 'Darwin': # no NTP for darwin, as this is linux cluster only functionality
         command = ['bash', '-c', f"log show --style syslog --predicate 'eventMessage contains[c] \"Entering sleep\" OR eventMessage contains[c] \"Entering Sleep\"' --last {run_duration}m"]
     else:
-        command = ['journalctl', '--grep=\'suspend\'', '--output=short-iso', '--since', f"{run_duration} minutes ago"]
+        command = ['journalctl', '--grep=\'suspend\'', '--output=short-iso', '--since', f"{run_duration} minutes ago", '-q']
 
     ps = subprocess.run(
         command,
