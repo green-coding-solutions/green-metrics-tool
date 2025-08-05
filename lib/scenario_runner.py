@@ -258,12 +258,9 @@ class ScenarioRunner:
             print('Skipping check system due to --skip-system-checks')
             return
 
-        if mode =='start':
-            warnings = system_checks.check_start(self._measurement_system_check_threshold)
-            for warn in warnings:
-                self.__warnings.append(warn)
-        else:
-            raise RuntimeError('Unknown mode for system check:', mode)
+        warnings = system_checks.system_check(mode, self._measurement_system_check_threshold, run_duration=self._last_measurement_duration)
+        for warn in warnings:
+            self.__warnings.append(warn)
 
 
     def checkout_repository(self):
@@ -1690,6 +1687,8 @@ class ScenarioRunner:
         self.__end_measurement = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
 
+        self.update_start_and_end_times()
+
     def update_start_and_end_times(self):
         print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
 
@@ -1967,6 +1966,7 @@ class ScenarioRunner:
 
             self.end_measurement()
             self.check_process_returncodes()
+            self.check_system('end')
             self.custom_sleep(self._measurement_post_test_sleep)
             self.identify_invalid_run()
 
@@ -1986,7 +1986,6 @@ class ScenarioRunner:
                     if self.__phases.get('[RUNTIME]', None) is not None and self.__phases['[RUNTIME]'].get('end', None) is None:
                         self.__phases['[RUNTIME]']['end'] = int(time.time_ns() / 1_000)
 
-                self.update_start_and_end_times()
                 self.store_phases()
                 self.read_container_logs()
             except BaseException as exc:
