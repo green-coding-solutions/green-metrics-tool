@@ -149,7 +149,7 @@ start_checks = (
 )
 
 end_checks = (
-    (check_suspend, Status.ERROR, 'system suspend', 'System has gone into suspend during measurement. This will skew all measurement data'),
+    (check_suspend, Status.ERROR, 'system suspend', 'System has gone into suspend during measurement. This will skew all measurement data. If GMT shall ever be able to correctly account for suspend states please note that metric providers must support CLOCK_BOOTIME. See https://github.com/green-coding-solutions/green-metrics-tool/pull/1229 for discussion.'),
 )
 
 def system_check(mode='start', system_check_threshold=3, run_duration=None):
