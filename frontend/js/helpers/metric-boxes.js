@@ -4,177 +4,99 @@
 */
 class PhaseMetrics extends HTMLElement {
    connectedCallback() {
+        const tabCards = {
+            power: [
+                { key: 'cpu', name: 'CPU', icon: 'microchip' },
+                { key: 'dram', name: 'DRAM', icon: 'memory' },
+                { key: 'gpu', name: 'GPU', icon: 'camera retro' },
+                { key: 'disk', name: 'Disk', icon: 'hdd' },
+                { key: 'machine', name: 'Machine', icon: 'power off' },
+            ],
+            energy: [
+                { key: 'cpu', name: 'CPU', icon: 'microchip' },
+                { key: 'dram', name: 'DRAM', icon: 'memory' },
+                { key: 'gpu', name: 'GPU', icon: 'camera retro' },
+                { key: 'disk', name: 'Disk', icon: 'hdd' },
+                { key: 'machine', name: 'Machine', icon: 'battery three quarters' },
+            ],
+            co2: [
+                { key: 'cpu', name: 'CPU', icon: 'microchip' },
+                { key: 'dram', name: 'DRAM', icon: 'memory' },
+                { key: 'gpu', name: 'GPU', icon: 'camera retro' },
+                { key: 'disk', name: 'Disk', icon: 'hdd' },
+                { key: 'machine', name: 'Machine', icon: 'burn' },
+            ],
+        };
+
+        const extraCards = [
+            { key: 'runtime', name: 'Runtime', icon: 'clock' },
+            { key: 'sci', name: 'SCI', icon: 'leaf' },
+            { key: 'network', name: 'Network', icon: 'wifi' },
+        ];
+
+        const createCard = ({ key, name, icon }, suffix = '') => {
+            const cardClass = suffix ? `${key}-${suffix}` : key;
+            return `
+                <div class="ui card ${cardClass}">
+                    <div class="content">
+                        <i class="${icon} icon"></i><b>${name}</b>
+                        <div class="right floated meta si-unit"></div>
+                    </div>
+                    <div class="extra content">
+                        <div class="description">
+                            <span class="value">N/A</span>
+                            <div class="right floated meta help" data-tooltip="No data available" data-position="bottom right" data-inverted>
+                                <i class="question circle outline icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        };
+
+        const buildTab = (tab, active = false) => `
+            <div class="ui tab ${active ? 'active' : ''}" data-tab="${tab}">
+                <div class="ui five cards stackable">
+                    ${tabCards[tab].map(card => createCard(card, tab)).join('')}
+                </div>
+            </div>`;
+
         this.innerHTML = `
-        <h3 class="ui dividing header print-page-break">Key metrics</h3>
-        <div class="ui four cards stackable">
-            <div class="ui card phase-duration">
-                <div class="ui content">
-                    <div class="ui top attached purple label overflow-ellipsis">Phase Duration <span class="si-unit"></span></div>
-                    <div class="description">
-                        <div class="ui fluid mini statistic">
-                            <div class="value">
-                                <i class="clock icon"></i> <span>N/A</span>
-                            </div>
-                        </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Duration of the phase.">
-                            <i class="question circle icon"></i>
-                        </div>
-                        <div class="ui bottom left attached label">
-                            <span class="metric-type"></span>
-                        </div>
-                    </div>
-                </div>
+            <h3 class="ui dividing header print-page-break">Metrics Overview</h3>
+            <div class="ui top attached tabular menu">
+                <a class="item active" data-tab="power">Power</a>
+                <a class="item" data-tab="energy">Energy</a>
+                <a class="item" data-tab="co2">CO<sub>2</sub></a>
             </div>
-            <div class="ui card machine-power">
-                <div class="ui content">
-                    <div class="ui top attached orange label overflow-ellipsis">Machine Power <span class="si-unit"></span></div>
-                    <div class="description">
-                        <div class="ui fluid mini statistic">
-                            <div class="value">
-                                <i class="power off icon"></i> <span>N/A</span>
-                            </div>
-                        </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
-                            <span class="source"></span>
-                            <i class="question circle icon"></i>
-                        </div>
-                        <div class="ui bottom left attached label">
-                            <span class="metric-type"></span>
-                        </div>
-                    </div>
-                </div>
+            <div class="ui bottom attached segment">
+                ${buildTab('power', true)}
+                ${buildTab('energy')}
+                ${buildTab('co2')}
             </div>
-            <div class="ui card machine-energy">
-                <div class="ui content">
-                    <div class="ui top attached blue label overflow-ellipsis">Machine Energy <span class="si-unit"></span></div>
-                    <div class="description">
-                        <div class="ui fluid mini statistic">
-                            <div class="value">
-                                <i class="battery three quarters icon"></i> <span>N/A</span>
-                            </div>
-                        </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
-                            <span class="source"></span>
-                            <i class="question circle icon"></i>
-                        </div>
-                        <div class="ui bottom left attached label">
-                            <span class="metric-type"></span>
-                        </div>
-                    </div>
-                </div>
+            <div class="ui warning message hidden">
+                <ul></ul>
             </div>
-            <div class="ui card network-energy">
-                <div class="ui content">
-                    <div class="ui top blue attached label overflow-ellipsis">Network Transmission Energy<span class="si-unit"></span></div>
-                    <div class="description">
-                        <div class="ui fluid mini statistic">
-                            <div class="value">
-                                <i class="battery three quarters icon"></i> <span>N/A</span>
-                            </div>
-                        </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Estimated external energy cost for network infrastructure. See details under formula.">
-                            <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
-                            <i class="question circle icon"></i>
-                        </div>
-                        <div class="ui bottom left attached label">
-                            <span class="metric-type"></span>
-                        </div>
-                    </div>
-                </div>
+            <div class="ui three cards stackable">
+                ${extraCards.map(card => createCard(card)).join('')}
             </div>
-            <div class="ui card machine-co2">
-                <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (usage) <span class="si-unit"></span></div>
-                    <div class="description">
-                        <div class="ui fluid mini statistic">
-                            <div class="value">
-                                <i class="burn icon"></i> <span>N/A</span>
-                            </div>
-                        </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="CO2 cost of usage phase">
-                            <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
-                            <i class="question circle icon"></i>
-                        </div>
-                        <div class="ui bottom left attached label">
-                            <span class="metric-type"></span>
-                        </div>
-                    </div>
-                </div>
+            <br>
+            <div class="ui accordion">
+               <div class="title ui header">
+                  <i class="dropdown icon"></i> <a><u>Click here for detailed metrics ...</u></a>
+               </div>
+               <div class="content">
+                  <h3 class="ui dividing header">Detailed metrics</h3>
+                  <table class="ui celled table compare-metrics-table sortable">
+                     <thead></thead>
+                     <tbody></tbody>
+                  </table>
+                  <co2-tangible></co2-tangible>
+                  <h3 class="ui dividing header hide-for-single-stats">Detailed Charts</h3>
+                  <div class="compare-chart-container"></div>
+               </div>
             </div>
-            <div class="ui card network-co2">
-                <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">Network Transmission CO2 <span class="si-unit"></span></div>
-                    <div class="description">
-                        <div class="ui fluid mini statistic">
-                            <div class="value">
-                                <i class="burn icon"></i> <span>N/A</span>
-                            </div>
-                        </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Estimated external CO2 cost for network infrastructure. See details under formula.">
-                            <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
-                            <i class="question circle icon"></i>
-                        </div>
-                        <div class="ui bottom left attached label">
-                            <span class="metric-type"></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="ui card embodied-carbon">
-                <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (manufacturing)  <span class="si-unit"></span></div>
-                    <div class="description">
-                        <div class="ui fluid mini statistic">
-                            <div class="value">
-                                <i class="burn icon"></i> <span>N/A</span>
-                            </div>
-                        </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="CO2 (manufacturing) attr. to lifetime share of phase duration.">
-                            <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
-                            <i class="question circle icon"></i>
-                        </div>
-                        <div class="ui bottom left attached label">
-                            <span class="metric-type"></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="ui card software-carbon-intensity">
-                <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">SCI</sub> <span class="si-unit"></span></div>
-                    <div class="description">
-                        <div class="ui fluid mini statistic">
-                            <div class="value">
-                                <i class="burn icon"></i> <span>N/A</span>
-                            </div>
-                        </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="SCI by the Green Software Foundation">
-                            <u><a href="https://docs.green-coding.io/docs/measuring/sci/">see Details</a></u>
-                            <i class="question circle icon"></i>
-                        </div>
-                        <div class="ui bottom left attached label">
-                            <span class="metric-type"></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div><!-- end ui three cards stackable -->
-        <br>
-        <div class="ui accordion">
-            <div class="title ui header">
-                <i class="dropdown icon"></i> <a><u>Click here for detailed metrics ...</u></a>
-            </div>
-            <div class="content">
-                <h3 class="ui dividing header">Detailed metrics</h3>
-                <table class="ui celled table compare-metrics-table sortable">
-                  <thead></thead>
-                  <tbody></tbody>
-                </table>
-                <co2-tangible></co2-tangible>
-                <h3 class="ui dividing header hide-for-single-stats">Detailed Charts</h3>
-                <div class="compare-chart-container"></div>
-            </div>
-        </div>`;
+        `;
+
+        $(this).find('.menu .item').tab();
     }
 }
 
@@ -364,37 +286,45 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
 const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std_dev_text, unit, raw_value, raw_unit, explanation, source) => {
 
     let selector = null;
-    // key metrics are already there, cause we want a fixed order, so we just replace
-    if(machine_energy_metric_condition(metric_name)) {
-        selector = '.machine-energy';
-    } else if(network_energy_metric_condition(metric_name)) {
-        selector = '.network-energy';
-    } else if(phase_time_metric_condition(metric_name)) {
-        selector = '.phase-duration';
-    } else if(network_carbon_metric_condition(metric_name)) {
-        selector = '.network-co2';
-    } else if(embodied_carbon_share_metric_condition(metric_name)) {
-        selector = '.embodied-carbon';
+
+    if(phase_time_metric_condition(metric_name)) {
+        selector = '.runtime';
     } else if(sci_metric_condition(metric_name)) {
-        selector = '.software-carbon-intensity';
-    } else if(machine_power_metric_condition(metric_name)) {
-        selector = '.machine-power';
-    } else if(psu_machine_carbon_metric_condition(metric_name)) {
-        selector = '.machine-co2';
+        selector = '.sci';
+    } else if(network_energy_metric_condition(metric_name)) {
+        selector = '.network';
     } else {
-        return; // could not match key metric
+        const isPower = metric_name.indexOf('_power_') !== -1;
+        const isEnergy = metric_name.indexOf('_energy_') !== -1;
+        const isCO2 = metric_name.indexOf('_carbon_') !== -1;
+
+        let component = null;
+        if(metric_name.indexOf('cpu') !== -1) component = 'cpu';
+        else if(metric_name.indexOf('memory') !== -1) component = 'dram';
+        else if(metric_name.indexOf('gpu') !== -1) component = 'gpu';
+        else if(metric_name.indexOf('disk') !== -1) component = 'disk';
+        else if(metric_name.indexOf('psu') !== -1 || metric_name.indexOf('machine') !== -1) component = 'machine';
+
+        if(component !== null) {
+            if(isPower) selector = `.${component}-power`;
+            else if(isEnergy) selector = `.${component}-energy`;
+            else if(isCO2) selector = `.${component}-co2`;
+        }
     }
 
+    if(selector === null) return; // could not match key metric
 
-    document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerText = `${value} ${std_dev_text}`
+    const card = document.querySelector(`div.tab[data-tab='${phase}'] ${selector}`);
+    if(!card) return;
 
-    document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value`).setAttribute('title', `${raw_value} [${raw_unit}]`)
+    const valueNode = card.querySelector('.value');
+    valueNode.innerText = `${value} ${std_dev_text}`;
+    valueNode.setAttribute('title', `${raw_value} [${raw_unit}]`);
 
-    document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .si-unit`).innerText = `[${unit}]`
-    if(std_dev_text != '') document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(AVG + STD.DEV)`;
-    else if(String(value).indexOf('%') !== -1) document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(Diff. in %)`;
+    const unitNode = card.querySelector('.si-unit');
+    if(unitNode) unitNode.innerText = unit;
 
-    node = document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .source`)
-    if (node !== null) node.innerText = source // not every key metric shall have a custom detail_name
+    const helpNode = card.querySelector('.help');
+    if(helpNode) helpNode.setAttribute('data-tooltip', explanation || 'No data available');
 
 }
