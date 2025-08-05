@@ -85,9 +85,9 @@ char* detect_cgroup_path(const char* controller, int user_id, const char* id) {
         return path;
     }
 
-    // Try cgroups v2 with systemd but non-slice mountpoints and with cgroup name instead of container id (used for debug purposes)
+    // Try cgroups v2 with full cgroup name (typically used for debug purposes)
     snprintf(path, PATH_MAX,
-             "/sys/fs/cgroup/system.slice/%s/%s",
+             "/sys/fs/cgroup/%s/%s",
              id, controller);
     fd = fopen(path, "r");
     if (fd != NULL) {
