@@ -691,7 +691,7 @@ class ScenarioRunner:
             if 'build' in service:
                 context, dockerfile = self.get_build_info(service)
                 print(f"Building {service['image']}")
-                self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes_helper.add_note( note=f"Building {service['image']}", detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
                 context_path = self.join_paths(self.__working_folder, context)
@@ -735,7 +735,7 @@ class ScenarioRunner:
 
             else:
                 print(f"Pulling {service['image']}")
-                self.__notes_helper.add_note({'note':f"Pulling {service['image']}" , 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes_helper.add_note( note="Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
                 ps = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
@@ -1306,11 +1306,10 @@ class ScenarioRunner:
     def get_logs(self):
         return self.__stdout_logs
 
-    def add_to_log(self, container_name, message, cmd=''):
-        log_entry_name = f"{container_name}_{cmd}"
-        if log_entry_name not in self.__stdout_logs:
-            self.__stdout_logs[log_entry_name] = ''
-        self.__stdout_logs[log_entry_name] = '\n'.join((self.__stdout_logs[log_entry_name], message))
+    def add_to_log(self, identifier, message):
+        if identifier in self.__stdout_logs:
+            raise RuntimeError('Log identifier "{identifier}" was already present. This would overwrite the logs.')
+        self.__stdout_logs[identifier] = message
 
     def save_warnings(self):
         if not self._run_id or self._dev_no_save:
@@ -1349,7 +1348,7 @@ class ScenarioRunner:
             metric_provider.start_profiling()
 
             if self._verbose_provider_boot:
-                self.__notes_helper.add_note({'note': message, 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes_helper.add_note( note=message, detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
                 self.custom_sleep(10)
 
         print(TerminalColors.HEADER, '\nWaiting for Metric Providers to boot ...', TerminalColors.ENDC)
@@ -1385,7 +1384,7 @@ class ScenarioRunner:
             #print(TerminalColors.HEADER, '\nChecking if temperature is back to baseline ...', TerminalColors.ENDC)
 
         phase_time = int(time.time_ns() / 1_000)
-        self.__notes_helper.add_note({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+        self.__notes_helper.add_note( note=f"Starting phase {phase}", detail_name='[NOTES]', timestamp=phase_time)
 
         self.__phases[phase] = {'start': phase_time, 'name': phase}
 
@@ -1396,7 +1395,7 @@ class ScenarioRunner:
         phase_time = int(time.time_ns() / 1_000)
 
         if self._phase_padding:
-            self.__notes_helper.add_note({'note': f"Ending phase {phase} [UNPADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+            self.__notes_helper.add_note( note=f"Ending phase {phase} [UNPADDED]", detail_name='[NOTES]', timestamp=phase_time)
             phase_time += self._phase_padding_ms*1000 # value is in ms and we need to get to us
             time.sleep(self._phase_padding_ms/1000) # no custom sleep here as even with dev_no_sleeps we must ensure phases don't overlap
 
@@ -1407,16 +1406,16 @@ class ScenarioRunner:
             for container_to_pause in self.__services_to_pause_phase[phase]:
                 info_text = f"Pausing {container_to_pause} after phase: {phase}."
                 print(info_text)
-                self.__notes_helper.add_note({'note':  info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
+                self.__notes_helper.add_note( note= info_text, detail_name='[NOTES]', timestamp=phase_time)
 
                 subprocess.run(['docker', 'pause', container_to_pause], check=True, stdout=subprocess.DEVNULL)
 
         self.__phases[phase]['end'] = phase_time
 
         if self._phase_padding:
-            self.__notes_helper.add_note({'note': f"Ending phase {phase} [PADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+            self.__notes_helper.add_note( note=f"Ending phase {phase} [PADDED]", detail_name='[NOTES]', timestamp=phase_time)
         else:
-            self.__notes_helper.add_note({'note': f"Ending phase {phase} [UNPADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+            self.__notes_helper.add_note( note=f"Ending phase {phase} [UNPADDED]", detail_name='[NOTES]', timestamp=phase_time)
 
     def run_flows(self):
         ps_to_kill_tmp = []
@@ -1438,7 +1437,7 @@ class ScenarioRunner:
                     self.check_total_runtime_exceeded()
 
                     if 'note' in cmd_obj:
-                        self.__notes_helper.add_note({'note': cmd_obj['note'], 'detail_name': flow['container'], 'timestamp': int(time.time_ns() / 1_000)})
+                        self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=flow['container'], timestamp=int(time.time_ns() / 1_000))
 
                     if cmd_obj['type'] == 'console':
                         print(TerminalColors.HEADER, '\nConsole command', cmd_obj['command'], 'on container', flow['container'], TerminalColors.ENDC)
@@ -1630,22 +1629,20 @@ class ScenarioRunner:
                 stdout = ps['ps'].stdout
                 stderr = ps['ps'].stderr
 
-            if stdout:
-                for line in stdout.splitlines():
-                    print('stdout from process:', ps['cmd'], line)
-                    self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
+            if stdout is not None:
+                print('stdout from process:', ps['cmd'], stdout)
+                self.add_to_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDOUT", stdout)
 
-                    if ps['read-notes-stdout']:
-                        if note := self.__notes_helper.parse_note(line):
-                            self.__notes_helper.add_note({'note': note[1], 'detail_name': ps['detail_name'], 'timestamp': note[0]})
+                if ps['read-notes-stdout']:
+                    self.__notes_helper.parse_and_add_notes(ps['detail_name'], stdout)
 
-                    if ps['read-sci-stdout']:
-                        if match := re.findall(r'GMT_SCI_R=(\d+)', line):
-                            self._sci['R'] += int(match[0])
-            if stderr:
-                for line in stderr.splitlines():
-                    print('stderr from process:', ps['cmd'], line)
-                    self.add_to_log(ps['container_name'], f"stderr: {line}", ps['cmd'])
+                if ps['read-sci-stdout']:
+                    for match in re.findall(r'^GMT_SCI_R=(\d+)$', stdout, re.MULTILINE):
+                        self._sci['R'] += int(match[0])
+
+            if stderr is not None:
+                print('stderr from process:', ps['cmd'], stderr)
+                self.add_to_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDERR", stderr)
 
     def check_process_returncodes(self):
         print(TerminalColors.HEADER, '\nChecking process return codes', TerminalColors.ENDC)
@@ -1669,7 +1666,7 @@ class ScenarioRunner:
         self.__start_measurement = int(time.time_ns() / 1_000)
         self.__start_measurement_seconds = time.time()
 
-        self.__notes_helper.add_note({'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
+        self.__notes_helper.add_note( note='Start of measurement', detail_name='[NOTES]', timestamp=self.__start_measurement)
 
     def end_measurement(self, skip_on_already_ended=False):
         if self.__end_measurement:
@@ -1678,7 +1675,7 @@ class ScenarioRunner:
             raise RuntimeError('end_measurement was requested although value as already set!')
 
         self.__end_measurement = int(time.time_ns() / 1_000)
-        self.__notes_helper.add_note({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
+        self.__notes_helper.add_note( note='End of measurement', detail_name='[NOTES]', timestamp=self.__end_measurement)
 
         self.update_start_and_end_times()
 
@@ -1746,21 +1743,18 @@ class ScenarioRunner:
                 stderr=stderr_behaviour,
             )
 
-            if log.stdout:
-                self.add_to_log(container_id, f"stdout: {log.stdout}")
+            if log.stdout is not None:
+                self.add_to_log(f"{container_id} (STDOUT)", log.stdout)
 
-                if container_info['read-notes-stdout'] or container_info['read-sci-stdout']:
-                    for line in log.stdout.splitlines():
-                        if container_info['read-notes-stdout']:
-                            if note := self.__notes_helper.parse_note(line):
-                                self.__notes_helper.add_note({'note': note[1], 'detail_name': container_info['name'], 'timestamp': note[0]})
+                if container_info['read-notes-stdout']:
+                    self.__notes_helper.parse_and_add_notes(container_info['name'], log.stdout)
 
-                        if container_info['read-sci-stdout']:
-                            if match := re.findall(r'GMT_SCI_R=(\d+)', line):
-                                self._sci['R'] += int(match[0])
+                if container_info['read-sci-stdout']:
+                    for match in re.findall(r'^GMT_SCI_R=(\d+)$', log.stdout, re.MULTILINE):
+                        self._sci['R'] += int(match[0])
 
-            if log.stderr:
-                self.add_to_log(container_id, f"stderr: {log.stderr}")
+            if log.stderr is not None:
+                self.add_to_log(f"{container_id} (STDERR)", log.stderr)
 
     def save_stdout_logs(self):
         print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
@@ -1964,7 +1958,7 @@ class ScenarioRunner:
             self.identify_invalid_run()
 
         except BaseException as exc:
-            self.add_to_log(exc.__class__.__name__, str(exc))
+            self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
             self.set_run_failed()
             raise exc
         finally:
@@ -1982,42 +1976,42 @@ class ScenarioRunner:
                 self.store_phases()
                 self.read_container_logs()
             except BaseException as exc:
-                self.add_to_log(exc.__class__.__name__, str(exc))
+                self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
                 self.set_run_failed()
                 raise exc
             finally:
                 try:
                     self.stop_metric_providers()
                 except BaseException as exc:
-                    self.add_to_log(exc.__class__.__name__, str(exc))
+                    self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
                     self.set_run_failed()
                     raise exc
                 finally:
                     try:
                         self.read_and_cleanup_processes()
                     except BaseException as exc:
-                        self.add_to_log(exc.__class__.__name__, str(exc))
+                        self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
                         self.set_run_failed()
                         raise exc
                     finally:
                         try:
                             self.save_notes_runner()
                         except BaseException as exc:
-                            self.add_to_log(exc.__class__.__name__, str(exc))
+                            self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
                             self.set_run_failed()
                             raise exc
                         finally:
                             try:
                                 self.save_stdout_logs()
                             except BaseException as exc:
-                                self.add_to_log(exc.__class__.__name__, str(exc))
+                                self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
                                 self.set_run_failed()
                                 raise exc
                             finally:
                                 try:
                                     self.save_warnings()
                                 except BaseException as exc:
-                                    self.add_to_log(exc.__class__.__name__, str(exc))
+                                    self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
                                     self.set_run_failed()
                                     raise exc
                                 finally:
@@ -2034,7 +2028,7 @@ class ScenarioRunner:
                                             build_and_store_phase_stats(self._run_id, self._sci)
 
                                     except BaseException as exc:
-                                        self.add_to_log(exc.__class__.__name__, str(exc))
+                                        self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
                                         self.set_run_failed()
                                         raise exc
                                     finally:
