@@ -148,7 +148,29 @@ measurement:
 #        sampling_rate: 99
 #      memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
 #        sampling_rate: 99
+    #--- Cgroup system monitoring - These providers can be used to monitor background processes
 #      cpu.utilization.cgroup.system.provider.CpuUtilizationCgroupSystemProvider:
+#        sampling_rate: 99
+#        cgroups:
+#            "org.gnome.Shell@wayland.service":
+#                name: "Window Manager incl. X11"
+#            "session-2.scope":
+#                name: "GNOME Desktop"
+#      memory.used.cgroup.system.provider.MemoryUsedCgroupSystemProvider:
+#        sampling_rate: 99
+#        cgroups:
+#            "org.gnome.Shell@wayland.service":
+#                name: "Window Manager incl. X11"
+#            "session-2.scope":
+#                name: "GNOME Desktop"
+#      disk.io.cgroup.system.provider.DiskIoCgroupSystemProvider:
+#        sampling_rate: 99
+#        cgroups:
+#            "org.gnome.Shell@wayland.service":
+#                name: "Window Manager incl. X11"
+#            "session-2.scope":
+#                name: "GNOME Desktop"
+#      network.io.cgroup.system.provider.NetworkIoCgroupSystemProvider:
 #        sampling_rate: 99
 #        cgroups:
 #            "org.gnome.Shell@wayland.service":
