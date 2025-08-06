@@ -1485,22 +1485,15 @@ class ScenarioRunner:
                             print('Executing process synchronously.')
                             if self._measurement_flow_process_duration:
                                 print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
-                                ps = subprocess.run(
-                                    docker_exec_command,
-                                    stderr=stderr_behaviour,
-                                    stdout=stdout_behaviour,
-                                    encoding='UTF-8',
-                                    check=False, # cause it will be checked later and also ignore-errors checked
-                                    timeout=self._measurement_flow_process_duration,
-                                )
-                            else:
-                                ps = subprocess.run(
-                                    docker_exec_command,
-                                    stderr=stderr_behaviour,
-                                    stdout=stdout_behaviour,
-                                    encoding='UTF-8',
-                                    check=False, # cause it will be checked later and also ignore-errors checked
-                                )
+
+                            ps = subprocess.run(
+                                docker_exec_command,
+                                stderr=stderr_behaviour,
+                                stdout=stdout_behaviour,
+                                encoding='UTF-8',
+                                check=False, # cause it will be checked later and also ignore-errors checked
+                                timeout=self._measurement_flow_process_duration,
+                            )
 
                         ps_to_read_tmp.append({
                             'cmd': docker_exec_command,
