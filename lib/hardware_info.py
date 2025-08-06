@@ -27,7 +27,7 @@ linux_info_list = [
     [rpwr, 'Linux Version', '/usr/bin/hostnamectl', r'Kernel:\s*(?P<o>.*)'],
     [rpwr, 'Operating System', '/usr/bin/hostnamectl', r'Operating System:\s*(?P<o>.*)'],
     [rpwr, 'Architecture', '/usr/bin/hostnamectl', r'Architecture:\s*(?P<o>.*)'],
-    [rpwr, 'Kernel Modules', 'lsmod', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Kernel Modules', 'lsmod | sort', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
     [cf, 'Free Memory', psutil.virtual_memory, [], 'available'],
     [cf, 'Disk Usage', psutil.disk_usage, ['/'], 'free'],
