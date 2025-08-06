@@ -1,43 +1,26 @@
-/*
-    WebComponent function without ShadowDOM
-    to expand the template in the HTML pages
-*/
 class PhaseMetrics extends HTMLElement {
    connectedCallback() {
-        const tabCards = {
-            power: [
-                { key: 'cpu', name: 'CPU', icon: 'microchip' },
-                { key: 'dram', name: 'DRAM', icon: 'memory' },
-                { key: 'gpu', name: 'GPU', icon: 'camera retro' },
-                { key: 'disk', name: 'Disk', icon: 'hdd' },
-                { key: 'machine', name: 'Machine', icon: 'power off' },
-            ],
-            energy: [
-                { key: 'cpu', name: 'CPU', icon: 'microchip' },
-                { key: 'dram', name: 'DRAM', icon: 'memory' },
-                { key: 'gpu', name: 'GPU', icon: 'camera retro' },
-                { key: 'disk', name: 'Disk', icon: 'hdd' },
-                { key: 'machine', name: 'Machine', icon: 'battery three quarters' },
-            ],
-            co2: [
-                { key: 'cpu', name: 'CPU', icon: 'microchip' },
-                { key: 'dram', name: 'DRAM', icon: 'memory' },
-                { key: 'gpu', name: 'GPU', icon: 'camera retro' },
-                { key: 'disk', name: 'Disk', icon: 'hdd' },
-                { key: 'machine', name: 'Machine', icon: 'burn' },
-            ],
-        };
-
-        const extraCards = [
-            { key: 'runtime', name: 'Runtime', icon: 'clock' },
-            { key: 'sci', name: 'SCI', icon: 'leaf' },
-            { key: 'network', name: 'Network', icon: 'wifi' },
+        const tabCards = [
+                { key: 'cpu', name: 'CPU', icon: 'microchip', colour: 'orange' },
+                { key: 'gpu', name: 'GPU', icon: 'camera retro', colour: 'orange' },
+                { key: 'dram', name: 'DRAM', icon: 'memory', colour: 'orange' },
+                { key: 'disk', name: 'Disk', icon: 'hdd', colour: 'orange' },
+                { key: 'machine', name: 'Machine', icon: 'power off', colour: 'orange' },
         ];
 
-        const createCard = ({ key, name, icon }, suffix = '') => {
+        const extraCards = [
+            { key: 'runtime', name: 'Phase Duration', icon: 'clock', colour: 'green' },
+            { key: 'runtime', name: 'Data Transferred', icon: 'clock', colour: 'green' },
+            { key: 'network', name: 'Network', icon: 'power off', colour: 'green' },
+            { key: 'runtime', name: 'Embodied Carbon', icon: 'clock', colour: 'green' },
+            { key: 'runtime', name: 'Operational Carbon', icon: 'clock', colour: 'green' },
+            { key: 'sci', name: 'SCI', icon: 'leaf', colour: 'green' },
+        ];
+
+        const createCard = ({ key, name, icon, colour }, suffix = '') => {
             const cardClass = suffix ? `${key}-${suffix}` : key;
             return `
-                <div class="ui card ${cardClass}">
+                <div class="ui ${colour} card ${cardClass}">
                     <div class="content">
                         <i class="${icon} icon"></i><b>${name}</b>
                         <div class="right floated meta si-unit"></div>
@@ -55,28 +38,47 @@ class PhaseMetrics extends HTMLElement {
 
         const buildTab = (tab, active = false) => `
             <div class="ui tab ${active ? 'active' : ''}" data-tab="${tab}">
-                <div class="ui five cards stackable">
-                    ${tabCards[tab].map(card => createCard(card, tab)).join('')}
+                <div class="ui six cards stackable">
+                    ${tabCards.map(card => createCard(card, tab)).join('')}
                 </div>
+                <h4 class="ui horizontal left aligned divider header">Impact</h4>
+                <div class="ui six cards stackable">
+                    ${extraCards.map(card => createCard(card)).join('')}
+                </div>
+
             </div>`;
 
+
+            // <div class="ui stackable grid">
+            //     <div class="two wide left attached column">
+            //         <div class="ui vertical fluid tabular menu">
+            //             <a class="item active" data-tab="power">Power</a>
+            //             <a class="item" data-tab="energy">Energy</a>
+            //             <a class="item" data-tab="co2">CO<sub>2</sub></a>
+            //         </div>
+            //     </div>
+            //     <div class="fourteen wide right attached column">
+            //         <div class="ui seamless right attached segment">
+            //             ${buildTab('power', true)}
+            //             ${buildTab('energy')}
+            //             ${buildTab('co2')}
+            //         </div>
+            //     </div>
+            // </div>
+
         this.innerHTML = `
-            <h3 class="ui dividing header print-page-break">Metrics Overview</h3>
-            <div class="ui top attached tabular menu">
-                <a class="item active" data-tab="power">Power</a>
-                <a class="item" data-tab="energy">Energy</a>
-                <a class="item" data-tab="co2">CO<sub>2</sub></a>
-            </div>
-            <div class="ui bottom attached segment">
-                ${buildTab('power', true)}
-                ${buildTab('energy')}
-                ${buildTab('co2')}
-            </div>
-            <div class="ui warning message hidden">
-                <ul></ul>
-            </div>
-            <div class="ui three cards stackable">
-                ${extraCards.map(card => createCard(card)).join('')}
+            <div class="ui segments">
+                <div class="ui segment">
+                    <div class="ui pointing menu">
+                        <a class="active item" data-tab="power">Power</a>
+                        <a class="item" data-tab="energy">Energy</a>
+                        <a class="item" data-tab="co2">CO<sub>2</sub></a>
+                    </div>
+                    <h4 class="ui horizontal left aligned divider header">Hardware</h4>
+                    ${buildTab('power', true)}
+                    ${buildTab('energy', false)}
+                    ${buildTab('co2', false)}
+                </div>
             </div>
             <br>
             <div class="ui accordion">
@@ -283,48 +285,66 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
     }
 }
 
-const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std_dev_text, unit, raw_value, raw_unit, explanation, source) => {
+const updateKeyMetric = (
+    phase, metric_name, clean_name, detail_name,
+    value, std_dev_text, unit, raw_value, raw_unit,
+    explanation, source
+) => {
 
     let selector = null;
 
-    if(phase_time_metric_condition(metric_name)) {
+    console.log(`Updating key metric for ${metric_name} in phase ${phase} with value ${value} ${unit}`);
+
+    if (phase_time_metric_condition(metric_name)) {
         selector = '.runtime';
-    } else if(sci_metric_condition(metric_name)) {
+    } else if (sci_metric_condition(metric_name)) {
         selector = '.sci';
-    } else if(network_energy_metric_condition(metric_name)) {
+    } else if (network_energy_metric_condition(metric_name)) {
         selector = '.network';
+    } else if (network_carbon_metric_condition(metric_name)) {
+        selector = '.network-co2';
+    } else if (embodied_carbon_share_metric_condition(metric_name)) {
+        selector = '.embodied-carbon';
     } else {
-        const isPower = metric_name.indexOf('_power_') !== -1;
-        const isEnergy = metric_name.indexOf('_energy_') !== -1;
-        const isCO2 = metric_name.indexOf('_carbon_') !== -1;
+        const isPower = metric_name.includes('_power_');
+        const isEnergy = metric_name.includes('_energy_');
+        const isCO2 = metric_name.includes('_carbon_');
 
         let component = null;
-        if(metric_name.indexOf('cpu') !== -1) component = 'cpu';
-        else if(metric_name.indexOf('memory') !== -1) component = 'dram';
-        else if(metric_name.indexOf('gpu') !== -1) component = 'gpu';
-        else if(metric_name.indexOf('disk') !== -1) component = 'disk';
-        else if(metric_name.indexOf('psu') !== -1 || metric_name.indexOf('machine') !== -1) component = 'machine';
+        if (metric_name.includes('cpu')) component = 'cpu';
+        else if (metric_name.includes('memory') || metric_name.includes('dram')) component = 'dram';
+        else if (metric_name.includes('gpu')) component = 'gpu';
+        else if (metric_name.includes('disk')) component = 'disk';
+        else if (metric_name.includes('psu') || metric_name.includes('machine')) component = 'machine';
 
-        if(component !== null) {
-            if(isPower) selector = `.${component}-power`;
-            else if(isEnergy) selector = `.${component}-energy`;
-            else if(isCO2) selector = `.${component}-co2`;
+        if (component !== null) {
+            if (isPower) selector = `.${component}-power`;
+            else if (isEnergy) selector = `.${component}-energy`;
+            else if (isCO2) selector = `.${component}-co2`;
         }
     }
 
-    if(selector === null) return; // could not match key metric
+    if (selector === null) {
+        console.warn(`No matching selector found for metric "${metric_name}"`);
+        return;
+    }
 
     const card = document.querySelector(`div.tab[data-tab='${phase}'] ${selector}`);
-    if(!card) return;
+    if (!card) {
+        console.warn(`No card found for selector "${selector}" in phase "${phase}"`);
+        return;
+    }
 
     const valueNode = card.querySelector('.value');
     valueNode.innerText = `${value} ${std_dev_text}`;
     valueNode.setAttribute('title', `${raw_value} [${raw_unit}]`);
 
     const unitNode = card.querySelector('.si-unit');
-    if(unitNode) unitNode.innerText = unit;
+    if (unitNode) unitNode.innerText = unit;
 
     const helpNode = card.querySelector('.help');
-    if(helpNode) helpNode.setAttribute('data-tooltip', explanation || 'No data available');
+    if (helpNode) helpNode.setAttribute('data-tooltip', explanation || 'No data available');
 
-}
+    const sourceNode = card.querySelector('.source');
+    if (sourceNode) sourceNode.innerText = source || '';
+};
