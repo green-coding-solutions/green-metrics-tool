@@ -593,8 +593,13 @@ const fetchAndFillWarnings = async (url_params) => {
         warnings = await makeAPICall('/v1/warnings/' + url_params['id'])
         if (!warnings || warnings?.data?.length === 0) return;
     } catch (err) {
-        showNotification('Could not get warnings data from API', err);
+        if (err instanceof APIEmptyResponse204) {
+            console.log('No warnings where present in API response. Skipping error as this is allowed case.')
+        } else {
+            showNotification('Could not get warnings data from API', err);
+        }
         return;
+
     }
 
     const container = document.querySelector('#run-warnings');
