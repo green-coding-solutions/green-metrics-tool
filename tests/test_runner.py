@@ -329,7 +329,7 @@ def test_check_system(skip_system_checks, config_file, expectation):
 
     try:
         with expectation:
-            runner.check_system()
+            runner._check_system('start')
     finally:
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # reset, just in case. although done by fixture
 
