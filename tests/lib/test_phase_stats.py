@@ -410,3 +410,17 @@ def test_sci_run():
     assert len(data) == 1
     assert 50 < data[0]['value'] < 150
     assert data[0]['unit'] == 'ugCO2e/Cool run'
+
+def test_sci_multi_steps_run():
+    runner = ScenarioRunner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_sci_multi.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        run_id = runner.run()
+
+    data = DB().fetch_all("SELECT value, unit FROM phase_stats WHERE phase = %s AND run_id = %s AND metric = 'software_carbon_intensity_global' ", params=('004_[RUNTIME]', run_id), fetch_mode='dict')
+
+    assert len(data) == 1
+    assert 8 < data[0]['value'] < 20
+    assert data[0]['unit'] == 'ugCO2e/Cool run'

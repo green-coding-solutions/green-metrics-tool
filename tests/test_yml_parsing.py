@@ -13,9 +13,9 @@ class TestYML(unittest.TestCase):
         name = 'test_' + utils.randomword(12)
 
         runner = ScenarioRunner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
-        runner.checkout_repository() # We need to do this to setup the file paths correctly
+        runner._checkout_repository() # We need to do this to setup the file paths correctly
 
-        runner.load_yml_file()
+        runner._load_yml_file()
         result_obj = {'name': 'Import Test',
                     'services': {'test-container':
                                     {'type': 'container'}},
@@ -28,9 +28,9 @@ class TestYML(unittest.TestCase):
         name = 'test_' + utils.randomword(12)
 
         runner = ScenarioRunner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
-        runner.checkout_repository() # We need to do this to setup the file paths correctly
+        runner._checkout_repository() # We need to do this to setup the file paths correctly
 
-        runner.load_yml_file()
+        runner._load_yml_file()
         result_obj = {'name': 'my sample flow',
                       'author': 'Arne Tarara',
                       'description': 'test',
@@ -50,5 +50,5 @@ class TestYML(unittest.TestCase):
         name = 'test_' + utils.randomword(12)
         test_root_file = 'tests/data/usage_scenarios/import_error.yml'
         runner = ScenarioRunner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
-        runner.checkout_repository() # We need to do this to setup the file paths correctly
-        self.assertRaises(ValueError, runner.load_yml_file)
+        runner._checkout_repository() # We need to do this to setup the file paths correctly
+        self.assertRaises(ValueError, runner._load_yml_file)

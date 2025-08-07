@@ -13,23 +13,23 @@ valid_test_data = [
 ]
 
 
-@pytest.mark.parametrize("run_id,note,detail,timestamp", invalid_test_data)
-def test_invalid_timestamp(run_id, note, detail, timestamp):
+@pytest.mark.parametrize("run_id,note,detail_name,timestamp", invalid_test_data)
+def test_invalid_timestamp(run_id, note, detail_name, timestamp):
     with pytest.raises(ValueError) as err:
         notes = Notes()
-        notes.add_note({"note": note,"detail_name": detail,"timestamp": timestamp,})
+        notes.add_note(note, detail_name, timestamp)
         notes.save_to_db(run_id)
     expected_exception = "invalid literal for int"
     assert expected_exception in str(err.value), \
         Tests.assertion_info(f"Exception: {expected_exception}", str(err.value))
 
-@pytest.mark.parametrize("run_id,note,detail,timestamp", valid_test_data)
+@pytest.mark.parametrize("run_id,note,detail_name,timestamp", valid_test_data)
 @patch('lib.db.DB.query')
-def test_valid_timestamp(mock_query, run_id, note, detail, timestamp):
+def test_valid_timestamp(mock_query, run_id, note, detail_name, timestamp):
     mock_query.return_value = None  # Replace with the desired return value
 
     notes = Notes()
-    notes.add_note({"note": note, "detail_name": detail, "timestamp": timestamp})
+    notes.add_note(note, detail_name, timestamp)
     notes.save_to_db(run_id)
 
     mock_query.assert_called_once()

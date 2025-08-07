@@ -277,79 +277,70 @@ class RunUntilManager:
             raise RuntimeError("run_until must be used within the context")
 
         try:
-            self.__runner.start_measurement()
-            self.__runner.clear_caches()
-            self.__runner.check_system('start')
-            self.__runner.initialize_folder(self.__runner._tmp_folder)
-            self.__runner.checkout_repository()
-            self.__runner.load_yml_file()
-            self.__runner.initial_parse()
-            self.__runner.register_machine_id()
-            self.__runner.import_metric_providers()
+            self.__runner._start_measurement()
+            self.__runner._clear_caches()
+            self.__runner._check_system('start')
+            self.__runner._initialize_folder(self.__runner._tmp_folder)
+            self.__runner._checkout_repository()
+            self.__runner._load_yml_file()
+            self.__runner._initial_parse()
+            self.__runner._register_machine_id()
+            self.__runner._import_metric_providers()
             if step == 'import_metric_providers':
                 return
-            self.__runner.populate_image_names()
-            self.__runner.prepare_docker()
-            self.__runner.check_running_containers()
-            self.__runner.remove_docker_images()
-            self.__runner.download_dependencies()
-            self.__runner.initialize_run()
+            self.__runner._populate_image_names()
+            self.__runner._prepare_docker()
+            self.__runner._check_running_containers()
+            self.__runner._remove_docker_images()
+            self.__runner._download_dependencies()
+            self.__runner._initialize_run()
 
-            self.__runner.start_metric_providers(allow_other=True, allow_container=False)
-            self.__runner.custom_sleep(self.__runner._measurement_pre_test_sleep)
+            self.__runner._start_metric_providers(allow_other=True, allow_container=False)
+            self.__runner._custom_sleep(self.__runner._measurement_pre_test_sleep)
 
-            self.__runner.start_phase('[BASELINE]')
-            self.__runner.custom_sleep(self.__runner._measurement_baseline_duration)
-            self.__runner.end_phase('[BASELINE]')
+            self.__runner._start_phase('[BASELINE]')
+            self.__runner._custom_sleep(self.__runner._measurement_baseline_duration)
+            self.__runner._end_phase('[BASELINE]')
 
-            self.__runner.start_phase('[INSTALLATION]')
-            self.__runner.build_docker_images()
-            self.__runner.end_phase('[INSTALLATION]')
+            self.__runner._start_phase('[INSTALLATION]')
+            self.__runner._build_docker_images()
+            self.__runner._end_phase('[INSTALLATION]')
 
-            self.__runner.save_image_and_volume_sizes()
+            self.__runner._save_image_and_volume_sizes()
 
-            self.__runner.start_phase('[BOOT]')
-            self.__runner.setup_networks()
+            self.__runner._start_phase('[BOOT]')
+            self.__runner._setup_networks()
             if step == 'setup_networks':
                 return
-            self.__runner.setup_services()
+            self.__runner._setup_services()
             if step == 'setup_services':
                 return
-            self.__runner.end_phase('[BOOT]')
+            self.__runner._end_phase('[BOOT]')
 
-            self.__runner.add_containers_to_metric_providers()
-            self.__runner.start_metric_providers(allow_container=True, allow_other=False)
+            self.__runner._add_containers_to_metric_providers()
+            self.__runner._start_metric_providers(allow_container=True, allow_other=False)
 
-            self.__runner.start_phase('[IDLE]')
-            self.__runner.custom_sleep(self.__runner._measurement_idle_duration)
-            self.__runner.end_phase('[IDLE]')
+            self.__runner._start_phase('[IDLE]')
+            self.__runner._custom_sleep(self.__runner._measurement_idle_duration)
+            self.__runner._end_phase('[IDLE]')
 
-            self.__runner.start_phase('[RUNTIME]')
-            self.__runner.run_flows() # can trigger debug breakpoints;
-            self.__runner.end_phase('[RUNTIME]')
+            self.__runner._start_phase('[RUNTIME]')
+            self.__runner._run_flows() # can trigger debug breakpoints;
+            self.__runner._end_phase('[RUNTIME]')
 
-            self.__runner.start_phase('[REMOVE]')
-            self.__runner.custom_sleep(1)
-            self.__runner.end_phase('[REMOVE]')
+            self.__runner._start_phase('[REMOVE]')
+            self.__runner._custom_sleep(1)
+            self.__runner._end_phase('[REMOVE]')
 
-            self.__runner.end_measurement()
-            self.__runner.check_process_returncodes()
-            self.__runner.identify_invalid_run()
-            self.__runner.custom_sleep(self.__runner._measurement_post_test_sleep)
-            self.__runner.update_start_and_end_times()
-            self.__runner.store_phases()
-            self.__runner.read_container_logs()
-            self.__runner.stop_metric_providers()
-            self.__runner.read_and_cleanup_processes()
-            self.__runner.save_notes_runner()
-            self.__runner.save_stdout_logs()
-
-            if self.__runner._dev_no_phase_stats is False:
-                from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-                build_and_store_phase_stats(self.__runner._run_id, self.__runner._sci)
+            self.__runner._end_measurement()
+            self.__runner._check_process_returncodes()
+            self.__runner._check_system('end')
+            self.__runner._custom_sleep(self.__runner._measurement_post_test_sleep)
+            self.__runner._identify_invalid_run()
+            self.__runner._post_process(0)
 
         except BaseException as exc:
-            self.__runner.add_to_log(exc.__class__.__name__, str(exc))
+            self.__runner._add_to_log(exc.__class__.__name__, str(exc))
             raise exc
 
     def __exit__(self, exc_type, exc_value, traceback):
