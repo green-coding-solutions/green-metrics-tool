@@ -138,12 +138,23 @@ class ScenarioRunner:
         ).get('sampling_rate', 0)
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
-
+        self._safe_post_processing_steps = (
+                ('end_measurement',  {'skip_on_already_ended': True}),
+                ('patch_phases', {}),
+                ('read_container_logs', {}),
+                ('stop_metric_providers', {}),
+                ('read_and_cleanup_processes', {}),
+                ('store_phases', {}),
+                ('save_notes_runner', {}),
+                ('save_stdout_logs', {}),
+                ('save_warnings', {}),
+                ('process_phase_stats', {}),
+            )
 
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
         # They are __ as they should not be changed because this could break the state of the runner
-        self.__stdout_logs = OrderedDict()
+        self.__stdout_logs = []
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
@@ -1307,9 +1318,7 @@ class ScenarioRunner:
         return self.__stdout_logs
 
     def add_to_log(self, identifier, message):
-        if identifier in self.__stdout_logs:
-            raise RuntimeError('Log identifier "{identifier}" was already present. This would overwrite the logs.')
-        self.__stdout_logs[identifier] = message
+        self.__stdout_logs.append(f"{identifier}\n{message}")
 
     def save_warnings(self):
         if not self._run_id or self._dev_no_save:
@@ -1744,7 +1753,7 @@ class ScenarioRunner:
             )
 
             if log.stdout is not None:
-                self.add_to_log(f"{container_id} (STDOUT)", log.stdout)
+                self.add_to_log(f"{container_info['name']} (STDOUT)", log.stdout)
 
                 if container_info['read-notes-stdout']:
                     self.__notes_helper.parse_and_add_notes(container_info['name'], log.stdout)
@@ -1754,7 +1763,7 @@ class ScenarioRunner:
                         self._sci['R'] += int(match[0])
 
             if log.stderr is not None:
-                self.add_to_log(f"{container_id} (STDERR)", log.stderr)
+                self.add_to_log(f"{container_info['name']} (STDERR)", log.stderr)
 
     def save_stdout_logs(self):
         print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
@@ -1763,7 +1772,7 @@ class ScenarioRunner:
             print('Skipping savings logs to DB due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
+        logs_as_str = '\n\n'.join(self.__stdout_logs)
         logs_as_str = logs_as_str.replace('\x00','')
         if logs_as_str:
             DB().query("""
@@ -1803,6 +1812,42 @@ class ScenarioRunner:
                     self.__warnings.append(invalid_message)
                 break # one is enough
 
+    def patch_phases(self):
+        if self.__phases:
+            last_phase_name, _ = next(reversed(self.__phases.items()))
+            if self.__phases[last_phase_name].get('end', None) is None:
+                self.__phases[last_phase_name]['end'] = int(time.time_ns() / 1_000)
+
+            # Also patch Runtime phase separately, which we need as this will only get set after all child runtime phases
+            if self.__phases.get('[RUNTIME]', None) is not None and self.__phases['[RUNTIME]'].get('end', None) is None:
+                self.__phases['[RUNTIME]']['end'] = int(time.time_ns() / 1_000)
+
+    def process_phase_stats(self):
+        if not self._run_id or self._dev_no_phase_stats or self._dev_no_save:
+            return
+
+        # After every run, even if it failed, we want to generate phase stats.
+        # They will not show the accurate data, but they are still neded to understand how
+        # much a failed run has accrued in total energy and carbon costs
+        print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
+
+        # get all the metrics from the measurements table grouped by metric
+        # loop over them issuing separate queries to the DB
+        from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
+        build_and_store_phase_stats(self._run_id, self._sci)
+
+    def post_process(self, index):
+        try:
+            for step in self._safe_post_processing_steps[index:]:
+                method_name, args = step
+                getattr(self, method_name)(**args)
+                index += 1
+        except BaseException as exc:
+            self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
+            self.set_run_failed()
+            self.post_process(index+1)
+            raise exc
+
     def cleanup(self, continue_measurement=False):
         #https://github.com/green-coding-solutions/green-metrics-tool/issues/97
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
@@ -1821,7 +1866,7 @@ class ScenarioRunner:
         print('Stopping containers')
         for container_id in self.__containers:
             subprocess.run(['docker', 'rm', '-f', container_id], check=True, stderr=subprocess.DEVNULL)
-        self.__containers = {}
+        self.__containers.clear()
 
         print('Removing network')
         for network_name in self.__networks:
@@ -1849,15 +1894,19 @@ class ScenarioRunner:
             self.__start_measurement_seconds = None
             self.__notes_helper = Notes()
 
-        self.__phases = OrderedDict()
+        self.__stdout_logs.clear()
+        self.__phases.clear()
         self.__end_measurement = None
         self.__join_default_network = False
         #self.__filename = self._original_filename # # we currently do not use this variable
+        self.__services_to_pause_phase.clear()
+        self.__join_default_network = False
+        self.__docker_params.clear()
         self.__working_folder = self._repo_folder
         self.__working_folder_rel = ''
-        self.__image_sizes = {}
-        self.__volume_sizes = {}
-        self.__warnings = []
+        self.__image_sizes.clear()
+        self.__volume_sizes.clear()
+        self.__warnings.clear()
 
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
@@ -1958,83 +2007,14 @@ class ScenarioRunner:
             self.identify_invalid_run()
 
         except BaseException as exc:
-            self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
+            self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
             self.set_run_failed()
             raise exc
         finally:
             try:
-                self.end_measurement(skip_on_already_ended=True) # end_measurement can already been set if error happens in check_process_returncodes
-                if self.__phases:
-                    last_phase_name, _ = next(reversed(self.__phases.items()))
-                    if self.__phases[last_phase_name].get('end', None) is None:
-                        self.__phases[last_phase_name]['end'] = int(time.time_ns() / 1_000)
-
-                    # Also patch Runtime phase separately, which we need as this will only get set after all child runtime phases
-                    if self.__phases.get('[RUNTIME]', None) is not None and self.__phases['[RUNTIME]'].get('end', None) is None:
-                        self.__phases['[RUNTIME]']['end'] = int(time.time_ns() / 1_000)
-
-                self.store_phases()
-                self.read_container_logs()
-            except BaseException as exc:
-                self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
-                self.set_run_failed()
-                raise exc
+                self.post_process(0)
             finally:
-                try:
-                    self.stop_metric_providers()
-                except BaseException as exc:
-                    self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
-                    self.set_run_failed()
-                    raise exc
-                finally:
-                    try:
-                        self.read_and_cleanup_processes()
-                    except BaseException as exc:
-                        self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
-                        self.set_run_failed()
-                        raise exc
-                    finally:
-                        try:
-                            self.save_notes_runner()
-                        except BaseException as exc:
-                            self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
-                            self.set_run_failed()
-                            raise exc
-                        finally:
-                            try:
-                                self.save_stdout_logs()
-                            except BaseException as exc:
-                                self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
-                                self.set_run_failed()
-                                raise exc
-                            finally:
-                                try:
-                                    self.save_warnings()
-                                except BaseException as exc:
-                                    self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
-                                    self.set_run_failed()
-                                    raise exc
-                                finally:
-                                    try:
-                                        if self._run_id and self._dev_no_phase_stats is False and self._dev_no_save is False:
-                                            # After every run, even if it failed, we want to generate phase stats.
-                                            # They will not show the accurate data, but they are still neded to understand how
-                                            # much a failed run has accrued in total energy and carbon costs
-                                            print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
-
-                                            # get all the metrics from the measurements table grouped by metric
-                                            # loop over them issuing separate queries to the DB
-                                            from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-                                            build_and_store_phase_stats(self._run_id, self._sci)
-
-                                    except BaseException as exc:
-                                        self.add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)}", str(exc))
-                                        self.set_run_failed()
-                                        raise exc
-                                    finally:
-                                        self.cleanup()  # always run cleanup automatically after each run
-
-
+                self.cleanup()
 
 
         print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
