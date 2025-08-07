@@ -1647,7 +1647,7 @@ class ScenarioRunner:
 
                 if ps['read-sci-stdout']:
                     for match in re.findall(r'^GMT_SCI_R=(\d+)$', stdout, re.MULTILINE):
-                        self._sci['R'] += int(match[0])
+                        self._sci['R'] += int(match)
 
             if stderr is not None:
                 print('stderr from process:', ps['cmd'], stderr)
@@ -1760,7 +1760,7 @@ class ScenarioRunner:
 
                 if container_info['read-sci-stdout']:
                     for match in re.findall(r'^GMT_SCI_R=(\d+)$', log.stdout, re.MULTILINE):
-                        self._sci['R'] += int(match[0])
+                        self._sci['R'] += int(match)
 
             if log.stderr is not None:
                 self.add_to_log(f"{container_info['name']} (STDERR)", log.stderr)
