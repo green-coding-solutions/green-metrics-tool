@@ -60,6 +60,12 @@ const network_energy_metric_condition = (metric) => {
     return false;
 }
 
+const network_io_metric_condition = (metric) => {
+    if(metric == 'network_io_cgroup_container') return true;
+    return false;
+}
+
+
 const machine_power_metric_condition = (metric) => {
     if(metric.match(/^.*_power_.*_machine$/) !== null) return true;
     return false;
@@ -242,6 +248,11 @@ METRIC_MAPPINGS = {
         "explanation": "Machine CO₂ calculated by formula via XGBoost estimation"
     },
     "network_energy_formula_global": {
+        "clean_name": "Network Transmission",
+        "source": "Formula",
+        "explanation": "Estimated external energy cost for network infrastructure."
+    },
+    "network_power_formula_global": {
         "clean_name": "Network Transmission",
         "source": "Formula",
         "explanation": "Estimated external energy cost for network infrastructure."
