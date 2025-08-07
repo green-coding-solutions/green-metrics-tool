@@ -322,6 +322,23 @@ CREATE TRIGGER categories_moddatetime
     EXECUTE PROCEDURE moddatetime (updated_at);
 
 
+CREATE TABLE micro_phases (
+    id SERIAL PRIMARY KEY,
+    run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    name text NOT NULL,
+    start_time bigint NOT NULL,
+    end_time bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+
+CREATE INDEX "micro_phases_run_id" ON "micro_phases" USING HASH ("run_id");
+CREATE TRIGGER micro_phases_moddatetime
+    BEFORE UPDATE ON micro_phases
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+
 CREATE TABLE phase_stats (
     id SERIAL PRIMARY KEY,
     run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
