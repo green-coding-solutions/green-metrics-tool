@@ -266,6 +266,11 @@ def build_and_store_phase_stats(run_id, sci=None):
                 network_io_in_kWh = Decimal(sum(network_bytes_total)) / 1_000_000_000 * Decimal(sci['N'])
                 network_io_in_uJ = network_io_in_kWh * 3_600_000_000_000
                 csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_uJ, 'TOTAL', None, None, None, None, None, 'uJ'))
+
+                #power calculations
+                network_io_power_w = (network_io_in_kWh * Decimal('3600000') / Decimal(duration_in_s) * Decimal('1000'))
+                csv_buffer.write(generate_csv_line(run_id, 'network_power_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_power_w, 'TOTAL', None, None, None, None, None, 'mW'))
+
                 # co2 calculations
                 network_io_carbon_in_ug = network_io_in_kWh * Decimal(sci['I']) * 1_000_000
                 if '[' not in phase['name']: # only for runtime sub phases
