@@ -1,33 +1,18 @@
 class PhaseMetrics extends HTMLElement {
    connectedCallback() {
-        const hardwareCards = [
-                { key: 'cpu', name: 'CPU', icon: 'microchip', colour: 'orange', variable:true },
-                { key: 'gpu', name: 'GPU', icon: 'camera retro', colour: 'orange', variable:true  },
-                { key: 'dram', name: 'DRAM', icon: 'memory', colour: 'orange', variable:true },
-                { key: 'disk', name: 'Disk', icon: 'hdd', colour: 'orange', variable:true  },
-                { key: 'machine', name: 'Machine', icon: 'server', colour: 'orange', variable:true },
-        ];
 
-        const extraCards = [
-            { key: 'runtime', name: 'Phase Duration', icon: 'hourglass half', colour: 'green', variable:false },
-            { key: 'network-data', name: 'Data Transferred', icon: 'exchange', colour: 'green', variable:false },
-            { key: 'network', name: 'Network', icon: 'sitemap', colour: 'green', variable:true },
-            { key: 'embodied-carbon', name: 'Embodied Carbon', icon: 'industry', colour: 'green', variable:false },
-            { key: 'operational-carbon', name: 'Operational Carbon', icon: 'fire', colour: 'green', variable:false },
-            { key: 'sci', name: 'SCI', icon: 'leaf', colour: 'green', variable:false },
-        ];
-
-        const createCard = ({ key, name, icon, colour, variable }, suffix = '') => {
+        const createCard = ({ key, name, icon, variable }, suffix = '', colour) => {
             const cardClass = variable ? `${key}-${suffix}` : key;
+            const colourClass = variable ? colour : 'green';
             return `
-                <div class="ui ${colour} card ${cardClass}">
+                <div class="ui ${colourClass} card ${cardClass}">
                     <div class="content">
-                        <i class="${icon} icon"></i><b class="metric-name">${name}</b>
+                        <i class="${icon} icon"></i><span class="metric-name">${name}</span>
                         <div class="right floated meta si-unit"></div>
                     </div>
                     <div class="extra content">
                         <div class="description">
-                            <span class="value">N/A</span>
+                            <span class="value bold">N/A</span>
                             <div class="right floated meta help" data-tooltip="No data available" data-position="bottom right" data-inverted>
                                 <i class="question circle outline icon"></i>
                             </div>
@@ -36,35 +21,18 @@ class PhaseMetrics extends HTMLElement {
                 </div>`;
         };
 
-        const buildTab = (tab, active = false) => `
+        const buildTab = (tab, active = false, colour='green') => `
             <div class="ui tab ${active ? 'active' : ''}" data-tab="${tab}">
-                <div class="ui six cards stackable">
-                    ${hardwareCards.map(card => createCard(card, tab)).join('')}
+                <div class="ui five cards stackable">
+                    ${HARDWARECARDS.map(card => createCard(card, tab, colour)).join('')}
                 </div>
                 <h4 class="ui horizontal left aligned divider header">Impact</h4>
-                <div class="ui six cards stackable">
-                    ${extraCards.map(card => createCard(card, tab)).join('')}
+                <div class="ui five cards stackable">
+                    ${EXTRACARDS.map(card => createCard(card, tab, colour)).join('')}
                 </div>
 
             </div>`;
 
-
-            // <div class="ui stackable grid">
-            //     <div class="two wide left attached column">
-            //         <div class="ui vertical fluid tabular menu">
-            //             <a class="item active" data-tab="power">Power</a>
-            //             <a class="item" data-tab="energy">Energy</a>
-            //             <a class="item" data-tab="co2">CO<sub>2</sub></a>
-            //         </div>
-            //     </div>
-            //     <div class="fourteen wide right attached column">
-            //         <div class="ui seamless right attached segment">
-            //             ${buildTab('power', true)}
-            //             ${buildTab('energy')}
-            //             ${buildTab('co2')}
-            //         </div>
-            //     </div>
-            // </div>
 
         this.innerHTML = `
             <div class="ui segments">
@@ -75,9 +43,9 @@ class PhaseMetrics extends HTMLElement {
                         <a class="item" data-tab="co2">CO<sub>2</sub></a>
                     </div>
                     <h4 class="ui horizontal left aligned divider header">Hardware</h4>
-                    ${buildTab('power', true)}
-                    ${buildTab('energy', false)}
-                    ${buildTab('co2', false)}
+                    ${buildTab('power', true, 'orange')}
+                    ${buildTab('energy', false, 'blue')}
+                    ${buildTab('co2', false, 'black')}
                 </div>
             </div>
             <br>
@@ -293,14 +261,6 @@ const updateKeyMetric = (
 
     let selector = null;
 
-    //console.log(`Updating key metric for ${metric_name} in phase ${phase} with value ${value} ${unit}`);
-
-            //     { key: 'runtime', name: 'Phase Duration', icon: 'hourglass half', colour: 'green' },
-            // { key: 'network-data', name: 'Data Transferred', icon: 'exchange', colour: 'green' },
-            // { key: 'network', name: 'Network', icon: 'sitemap', colour: 'green' },
-            // { key: 'embodied-carbon', name: 'Embodied Carbon', icon: 'industry', colour: 'green' },
-            // { key: 'operational-carbon', name: 'Operational Carbon', icon: 'fire', colour: 'green' },
-            // { key: 'sci', name: 'SCI', icon: 'leaf', colour: 'green' },
 
 
     if (phase_time_metric_condition(metric_name)) {
@@ -310,7 +270,7 @@ const updateKeyMetric = (
     } else if (embodied_carbon_share_metric_condition(metric_name)) {
         selector = '.embodied-carbon';
     }else if (psu_machine_carbon_metric_condition(metric_name)) {
-        selector = '.operational-carbon';
+        selector = '.machine-co2';
     } else if (sci_metric_condition(metric_name)) {
         selector = '.sci';
     } else {
@@ -323,7 +283,7 @@ const updateKeyMetric = (
         else if (metric_name.includes('memory') || metric_name.includes('dram')) component = 'dram';
         else if (metric_name.includes('gpu')) component = 'gpu';
         else if (metric_name.includes('disk')) component = 'disk';
-        else if (metric_name.includes('psu') || metric_name.includes('machine')) component = 'machine';
+        else if (metric_name.includes('psu') && metric_name.includes('machine')) component = 'machine';
         else if (metric_name.includes('network')) component = 'network';
 
         if (component !== null) {
@@ -337,7 +297,7 @@ const updateKeyMetric = (
         return;
     }
 
-  const cards = document.querySelectorAll(selector);
+    const cards = document.querySelectorAll(`div.tab[data-tab='${phase}'] ${selector}`);
 
     if (cards.length === 0) {
         console.warn(`No card found for selector "${selector}" in phase "${phase}"`);
