@@ -268,8 +268,8 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_uJ, 'TOTAL', None, None, None, None, None, 'uJ'))
 
                 #power calculations
-                network_io_power_w = (network_io_in_kWh * Decimal('3600000') / Decimal(duration_in_s) * Decimal('1000'))
-                csv_buffer.write(generate_csv_line(run_id, 'network_power_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_power_w, 'TOTAL', None, None, None, None, None, 'mW'))
+                network_io_power_in_mW = (network_io_in_kWh * Decimal('3600000') / Decimal(duration_in_s) * Decimal('1000'))
+                csv_buffer.write(generate_csv_line(run_id, 'network_power_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_power_in_mW, 'TOTAL', None, None, None, None, None, 'mW'))
 
                 # co2 calculations
                 network_io_carbon_in_ug = network_io_in_kWh * Decimal(sci['I']) * 1_000_000
