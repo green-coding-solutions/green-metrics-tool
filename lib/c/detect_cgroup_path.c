@@ -85,6 +85,15 @@ char* detect_cgroup_path(const char* controller, int user_id, const char* id) {
         return path;
     }
 
+    // Try cgroups v2 with full cgroup name (typically used for debug purposes)
+    snprintf(path, PATH_MAX,
+             "/sys/fs/cgroup/%s/%s",
+             id, controller);
+    fd = fopen(path, "r");
+    if (fd != NULL) {
+        fclose(fd);
+        return path;
+    }
 
     // If no valid path is found, free the allocated memory and error
     free(path);
