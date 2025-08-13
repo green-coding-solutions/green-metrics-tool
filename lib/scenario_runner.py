@@ -803,12 +803,11 @@ class ScenarioRunner:
                         raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
                 # Check architecture compatibility after pull/verification
-                is_compatible, img_arch, host_arch, error_msg = self._check_image_architecture_compatibility(service['image'])
+                is_compatible, _, _, error_msg = self._check_image_architecture_compatibility(service['image'])
                 if not is_compatible:
                     print(TerminalColors.FAIL, f"ERROR: {error_msg}", TerminalColors.ENDC)
                     raise RuntimeError(error_msg)
 
-                print(f"Image {service['image']} architecture ({img_arch}) is compatible with host ({host_arch})")
 
                 # tagging must be done in pull and local case, so we can get the correct container later
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
