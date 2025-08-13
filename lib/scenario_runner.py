@@ -289,7 +289,12 @@ class ScenarioRunner:
 
             # Get host architecture
             host_arch = platform.machine()
-            # Normalize architecture names
+            # Normalize architecture names to match Docker's naming conventions
+            # Docker uses 'amd64', 'arm64', 'arm' while host systems use 'x86_64', 'aarch64', 'armv7l'
+            # These 3 mappings cover the vast majority of modern container deployments:
+            # - amd64: Dominant on servers/desktops
+            # - arm64: Apple Silicon, AWS Graviton, etc.
+            # - arm: Embedded/IoT devices, Raspberry Pi
             arch_mapping = {
                 'x86_64': 'amd64',
                 'aarch64': 'arm64',
