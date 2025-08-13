@@ -274,6 +274,40 @@ class ScenarioRunner:
             self.__warnings.append(warn)
 
 
+    def _check_image_architecture_compatibility(self, image_name):
+        """
+        Check if the Docker image architecture is compatible with the host platform.
+        Returns (is_compatible: bool, image_arch: str, host_arch: str, error_message: str)
+        """
+        try:
+            # Get image architecture
+            result = subprocess.run(
+                ['docker', 'inspect', '--type=image', '--format={{.Architecture}}', image_name],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=True
+            )
+            image_arch = result.stdout.strip()
+
+            # Get host architecture
+            host_arch = platform.machine()
+            # Normalize architecture names
+            arch_mapping = {
+                'x86_64': 'amd64',
+                'aarch64': 'arm64',
+                'armv7l': 'arm',
+            }
+            normalized_host_arch = arch_mapping.get(host_arch, host_arch)
+
+            is_compatible = image_arch == normalized_host_arch
+            if not is_compatible:
+                error_msg = (f"Architecture mismatch for image '{image_name}': "
+                            f"Image is built for {image_arch} but host platform is {normalized_host_arch}.")
+            else:
+                error_msg = ""
+
+            return is_compatible, image_arch, normalized_host_arch, error_msg
+        except subprocess.CalledProcessError as e:
+            return False, "unknown", "unknown", f"Failed to inspect image architecture: {e.stderr}"
+
     def _checkout_repository(self):
         print(TerminalColors.HEADER, '\nChecking out repository', TerminalColors.ENDC)
 
@@ -767,6 +801,14 @@ class ScenarioRunner:
                             raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
                     else:
                         raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
+
+                # Check architecture compatibility after pull/verification
+                is_compatible, img_arch, host_arch, error_msg = self._check_image_architecture_compatibility(service['image'])
+                if not is_compatible:
+                    print(TerminalColors.FAIL, f"ERROR: {error_msg}", TerminalColors.ENDC)
+                    raise RuntimeError(error_msg)
+
+                print(f"Image {service['image']} architecture ({img_arch}) is compatible with host ({host_arch})")
 
                 # tagging must be done in pull and local case, so we can get the correct container later
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
