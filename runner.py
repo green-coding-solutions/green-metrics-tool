@@ -237,10 +237,13 @@ if __name__ == '__main__':
         error_helpers.log_error('Base exception occured in runner.py', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
     finally:
         if args.print_logs and runner:
-            for container_id_outer, std_out in runner.get_logs().items():
-                print(f"Container logs of '{container_id_outer}':")
-                print(std_out)
-                print('\n-----------------------------\n')
+            logs = runner._get_logs()
+            if logs:
+                print("Container logs:")
+                for log_entry in logs:
+                    print(log_entry)
+                    print('-----------------------------')
+                print()
 
         # Last thing before we exit is to shutdown the DB Pool
         DB().shutdown()

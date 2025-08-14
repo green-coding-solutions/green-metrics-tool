@@ -497,3 +497,31 @@ def wip_test_verbose_provider_boot():
         diff = (notes[i+1][0] - notes[i][0])/1000000
         assert 9.9 <= diff <= 10.1, \
             Tests.assertion_info('10s apart', f"time difference of notes: {diff}s")
+
+## --print-logs
+def test_print_logs_flag():
+    """Test that --print-logs flag actually prints logs when they exist"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml',
+                          skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True,
+                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=True)
+
+    runner.run()
+
+    out = io.StringIO()
+    with redirect_stdout(out):
+        logs = runner._get_logs()
+        if logs:
+            print("Container logs:")
+            for log_entry in logs:
+                print(log_entry)
+                print('-----------------------------')
+            print()
+
+    output = out.getvalue()
+    logs = runner._get_logs()
+    assert logs, "No logs were captured from the scenario"
+    assert "Container logs:" in output
+    assert "test-container" in output
+    assert "Test log message" in output
+    assert "Test error message" in output
+    assert "-----------------------------" in output

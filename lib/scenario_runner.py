@@ -1893,8 +1893,10 @@ class ScenarioRunner:
             self.__start_measurement = None
             self.__start_measurement_seconds = None
             self.__notes_helper = Notes()
-
-        self.__stdout_logs.clear()
+        else:
+            # Only clear logs when continuing measurement (debugging mode)
+            # For normal completion, preserve logs for --print-logs functionality
+            self.__stdout_logs.clear()
         self.__phases.clear()
         self.__end_measurement = None
         self.__join_default_network = False
