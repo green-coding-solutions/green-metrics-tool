@@ -308,10 +308,18 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
     let stats = null;
     try {
         [measurements, stats] = await getMeasurementsAndStats(repo, branch, workflow_id, start_date, end_date); // iterates I
+        document.querySelectorAll('.container-no-data').forEach(el => el.style.display = '')
+        document.querySelector('#message-no-data').style.display = 'none';
 
     } catch (err) {
-        showNotification('Could not get data from API', err);
-        return; // abort
+        if (err instanceof APIEmptyResponse204) {
+            document.querySelectorAll('.container-no-data').forEach(el => el.style.display = 'none')
+            document.querySelector('#message-no-data').style.display = '';
+            return
+        } else {
+            showNotification('Could not get data from API', err);
+            return; // abort
+        }
     }
 
     history.pushState(null, '', `${window.location.origin}${window.location.pathname}?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`); // replace URL to bookmark!

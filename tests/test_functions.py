@@ -11,6 +11,7 @@ from metric_providers.cpu.utilization.cgroup.system.provider import CpuUtilizati
 from metric_providers.psu.energy.ac.mcp.machine.provider import PsuEnergyAcMcpMachineProvider
 from metric_providers.cpu.energy.rapl.msr.component.provider import CpuEnergyRaplMsrComponentProvider
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
+from metric_providers.network.io.cgroup.container.provider import NetworkIoCgroupContainerProvider
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -20,6 +21,14 @@ TEST_MEASUREMENT_END_TIME = 1735047660000000
 TEST_MEASUREMENT_DURATION = TEST_MEASUREMENT_END_TIME - TEST_MEASUREMENT_START_TIME
 TEST_MEASUREMENT_DURATION_S = TEST_MEASUREMENT_DURATION / 1_000_000
 TEST_MEASUREMENT_DURATION_H = TEST_MEASUREMENT_DURATION_S/60/60
+
+def shorten_sleep_times(duration_in_s):
+    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,pre_test_sleep}',%s,false)", params=(str(duration_in_s), ))
+    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,baseline_duration}',%s,false)", params=(str(duration_in_s), ))
+    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,idle_duration}',%s,false)", params=(str(duration_in_s), ))
+    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,post_test_sleep}',%s,false)", params=(str(duration_in_s), ))
+    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,phase_transition_time}',%s,false)", params=(str(duration_in_s), ))
+
 
 def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename', user_id=1, machine_id=1):
     # spoof time from the beginning of UNIX time until now.
@@ -127,6 +136,17 @@ def import_network_io_procfs(run_id):
 
     return df
 
+def import_network_io_cgroup_container(run_id):
+
+    obj = NetworkIoCgroupContainerProvider(99, skip_check=True)
+
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_cgroup_container.log')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'network_io_cgroup_container', run_id)
+
+    return df
+
 def import_cpu_energy(run_id):
 
     obj = CpuEnergyRaplMsrComponentProvider(99, skip_check=True)
@@ -153,12 +173,16 @@ def insert_user(user_id, token):
     sha256_hash = hashlib.sha256()
     sha256_hash.update(token.encode('UTF-8'))
 
-    # Reminder: because of f-string all {} braces are doubled to be escaped
-    DB().query(f"""
+    DB().query("""
         INSERT INTO "public"."users"("id", "name","token","capabilities","created_at")
         VALUES
-        (%s, %s, %s,E'{{"user":{{"visible_users":[{user_id}],"is_super_user": false}},"api":{{"quotas":{{}},"routes":["/v1/user/setting","/v1/user/settings","/v2/carbondb/add","/v2/carbondb/filters","/v2/carbondb","/v1/carbondb/add","/v1/ci/measurement/add","/v2/ci/measurement/add","/v1/software/add","/v1/hog/add"]}},"data":{{"runs":{{"retention":2678400}},"hog_tasks":{{"retention":2678400}},"measurements":{{"retention":2678400}},"hog_coalitions":{{"retention":2678400}},"ci_measurements":{{"retention":2678400}},"hog_measurements":{{"retention":2678400}}}},"jobs":{{"schedule_modes":["one-off","daily","weekly","commit","variance"]}},"machines":[1],"measurement":{{"quotas":{{}},"total_duration":86400,"flow_process_duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}}',E'2024-08-22 11:28:24.937262+00');
+        (%s, %s, %s, (SELECT capabilities FROM users WHERE id = 1), E'2024-08-22 11:28:24.937262+00')
     """, params=(user_id, token, sha256_hash.hexdigest()))
+    DB().query("""
+        UPDATE users SET capabilities = jsonb_set(capabilities, '{user,visible_users}', %s ,false)
+            WHERE id = %s
+    """, params=(str(user_id), user_id))
+
 
 def import_demo_data():
     config = GlobalConfig().config
@@ -220,7 +244,7 @@ def reset_db():
     pg_dbname = config['postgresql']['dbname']
     redis_port = config['redis']['port']
     subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} -c \'DROP schema "public" CASCADE\' '],
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} -c \'DROP SCHEMA IF EXISTS "public" CASCADE\' '],
         check=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -253,80 +277,70 @@ class RunUntilManager:
             raise RuntimeError("run_until must be used within the context")
 
         try:
-            config = GlobalConfig().config
-            self.__runner.start_measurement()
-            self.__runner.clear_caches()
-            self.__runner.check_system('start')
-            self.__runner.initialize_folder(self.__runner._tmp_folder)
-            self.__runner.checkout_repository()
-            self.__runner.load_yml_file()
-            self.__runner.initial_parse()
-            self.__runner.register_machine_id()
-            self.__runner.import_metric_providers()
+            self.__runner._start_measurement()
+            self.__runner._clear_caches()
+            self.__runner._check_system('start')
+            self.__runner._initialize_folder(self.__runner._tmp_folder)
+            self.__runner._checkout_repository()
+            self.__runner._load_yml_file()
+            self.__runner._initial_parse()
+            self.__runner._register_machine_id()
+            self.__runner._import_metric_providers()
             if step == 'import_metric_providers':
                 return
-            self.__runner.populate_image_names()
-            self.__runner.prepare_docker()
-            self.__runner.check_running_containers()
-            self.__runner.remove_docker_images()
-            self.__runner.download_dependencies()
-            self.__runner.initialize_run()
+            self.__runner._populate_image_names()
+            self.__runner._prepare_docker()
+            self.__runner._check_running_containers()
+            self.__runner._remove_docker_images()
+            self.__runner._download_dependencies()
+            self.__runner._initialize_run()
 
-            self.__runner.start_metric_providers(allow_other=True, allow_container=False)
-            self.__runner.custom_sleep(config['measurement']['pre_test_sleep'])
+            self.__runner._start_metric_providers(allow_other=True, allow_container=False)
+            self.__runner._custom_sleep(self.__runner._measurement_pre_test_sleep)
 
-            self.__runner.start_phase('[BASELINE]')
-            self.__runner.custom_sleep(config['measurement']['baseline_duration'])
-            self.__runner.end_phase('[BASELINE]')
+            self.__runner._start_phase('[BASELINE]')
+            self.__runner._custom_sleep(self.__runner._measurement_baseline_duration)
+            self.__runner._end_phase('[BASELINE]')
 
-            self.__runner.start_phase('[INSTALLATION]')
-            self.__runner.build_docker_images()
-            self.__runner.end_phase('[INSTALLATION]')
+            self.__runner._start_phase('[INSTALLATION]')
+            self.__runner._build_docker_images()
+            self.__runner._end_phase('[INSTALLATION]')
 
-            self.__runner.save_image_and_volume_sizes()
+            self.__runner._save_image_and_volume_sizes()
 
-            self.__runner.start_phase('[BOOT]')
-            self.__runner.setup_networks()
+            self.__runner._start_phase('[BOOT]')
+            self.__runner._setup_networks()
             if step == 'setup_networks':
                 return
-            self.__runner.setup_services()
+            self.__runner._setup_services()
             if step == 'setup_services':
                 return
-            self.__runner.end_phase('[BOOT]')
+            self.__runner._end_phase('[BOOT]')
 
-            self.__runner.add_containers_to_metric_providers()
-            self.__runner.start_metric_providers(allow_container=True, allow_other=False)
+            self.__runner._add_containers_to_metric_providers()
+            self.__runner._start_metric_providers(allow_container=True, allow_other=False)
 
-            self.__runner.start_phase('[IDLE]')
-            self.__runner.custom_sleep(config['measurement']['idle_duration'])
-            self.__runner.end_phase('[IDLE]')
+            self.__runner._start_phase('[IDLE]')
+            self.__runner._custom_sleep(self.__runner._measurement_idle_duration)
+            self.__runner._end_phase('[IDLE]')
 
-            self.__runner.start_phase('[RUNTIME]')
-            self.__runner.run_flows() # can trigger debug breakpoints;
-            self.__runner.end_phase('[RUNTIME]')
+            self.__runner._start_phase('[RUNTIME]')
+            self.__runner._run_flows() # can trigger debug breakpoints;
+            self.__runner._end_phase('[RUNTIME]')
 
-            self.__runner.start_phase('[REMOVE]')
-            self.__runner.custom_sleep(1)
-            self.__runner.end_phase('[REMOVE]')
+            self.__runner._start_phase('[REMOVE]')
+            self.__runner._custom_sleep(1)
+            self.__runner._end_phase('[REMOVE]')
 
-            self.__runner.end_measurement()
-            self.__runner.check_process_returncodes()
-            self.__runner.identify_invalid_run()
-            self.__runner.custom_sleep(config['measurement']['post_test_sleep'])
-            self.__runner.update_start_and_end_times()
-            self.__runner.store_phases()
-            self.__runner.read_container_logs()
-            self.__runner.stop_metric_providers()
-            self.__runner.read_and_cleanup_processes()
-            self.__runner.save_notes_runner()
-            self.__runner.save_stdout_logs()
-
-            if self.__runner._dev_no_phase_stats is False:
-                from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-                build_and_store_phase_stats(self.__runner._run_id, self.__runner._sci)
+            self.__runner._end_measurement()
+            self.__runner._check_process_returncodes()
+            self.__runner._check_system('end')
+            self.__runner._custom_sleep(self.__runner._measurement_post_test_sleep)
+            self.__runner._identify_invalid_run()
+            self.__runner._post_process(0)
 
         except BaseException as exc:
-            self.__runner.add_to_log(exc.__class__.__name__, str(exc))
+            self.__runner._add_to_log(exc.__class__.__name__, str(exc))
             raise exc
 
     def __exit__(self, exc_type, exc_value, traceback):

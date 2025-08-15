@@ -19,10 +19,6 @@ class DiskIoProcfsSystemProvider(BaseMetricProvider, DiskIoParseMixin):
 
     def _parse_metrics(self, df):
         df = super()._parse_metrics(df)
-        return self._parse_metrics_splitup_helper(df)
-
-    def _parse_metrics(self, df):
-        df = super()._parse_metrics(df)
 
         df['blocksize'] = df['device'].apply(self.get_blocksize)
         df['read_bytes'] = df['read_sectors']*df['blocksize']

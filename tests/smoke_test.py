@@ -2,7 +2,6 @@ import io
 import os
 import subprocess
 import re
-import platform
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -38,7 +37,7 @@ def setup_module(module):
         subprocess.run(['docker', 'compose', '-f', GMT_DIR+folder+'compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = ScenarioRunner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=False, dev_no_sleeps=False, dev_no_metrics=False, skip_system_checks=False)
+        runner = ScenarioRunner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=False, dev_no_sleeps=False, dev_no_metrics=False, skip_system_checks=False, measurement_pre_test_sleep=1, measurement_baseline_duration=1, measurement_idle_duration=1, measurement_post_test_sleep=1, measurement_phase_transition_time=1, measurement_wait_time_dependencies=5)
         runner.run()
 
     #pylint: disable=global-statement
@@ -130,16 +129,18 @@ def test_db_rows_are_written_and_presented():
     if not 'PowermetricsProvider' in metric_providers:
         assert len(metric_providers) == 0
 
-def test_run_is_not_invalidated():
-    if platform.system() == 'Darwin':
-        return
+def test_run_contains_warnings():
 
     run_id = utils.get_run_data(RUN_NAME)['id']
     query = """
-            SELECT id, invalid_run
-            FROM runs
-            WHERE id = %s
+            SELECT message
+            FROM warnings
+            WHERE run_id = %s
             """
-    data = DB().fetch_one(query, (run_id,))
-    assert data[0] == run_id
-    assert data[1] is None
+    data = DB().fetch_all(query, (run_id,))
+    assert len(data) >= 1 # should at least contain the warning about the containers
+    found_warning = False
+    for warning in data:
+        if warning[0].startswith('You have other containers running on the system. This is usually what you want in local development'):
+            found_warning = True
+    assert found_warning is True, 'Did not find "You have other containers running on the system. This is usually what you want in local development" in warning strings'

@@ -6,7 +6,7 @@ from fastapi.responses import ORJSONResponse
 from fastapi.exceptions import RequestValidationError
 
 from api.api_helpers import authenticate, html_escape_multi, get_connecting_ip, convert_value
-from api.object_specifications import CI_Measurement_Old, CI_Measurement
+from api.object_specifications import CI_Measurement
 
 import anybadge
 
@@ -19,68 +19,9 @@ from lib.db import DB
 router = APIRouter()
 
 
-@router.post('/v1/ci/measurement/add')
-async def post_ci_measurement_add_deprecated(
-    request: Request,
-    measurement: CI_Measurement_Old,
-    user: User = Depends(authenticate) # pylint: disable=unused-argument
-    ):
-
-    measurement = html_escape_multi(measurement)
-
-    used_client_ip = get_connecting_ip(request)
-
-    co2i_transformed = int(measurement.co2i) if measurement.co2i else None
-
-    co2eq_transformed = int(float(measurement.co2eq)*1000000) if measurement.co2eq else None
-
-    query = '''
-        INSERT INTO
-            ci_measurements (energy_uj,
-                            repo,
-                            branch,
-                            workflow_id,
-                            run_id,
-                            label,
-                            source,
-                            cpu,
-                            commit_hash,
-                            duration_us,
-                            cpu_util_avg,
-                            workflow_name,
-                            lat,
-                            lon,
-                            city,
-                            carbon_intensity_g,
-                            carbon_ug,
-                            filter_type,
-                            filter_project,
-                            filter_machine,
-                            filter_tags,
-                            user_id,
-                            ip_address
-                            )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        '''
-
-    params = ( measurement.energy_value*1000, measurement.repo, measurement.branch,
-            measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
-            measurement.commit_hash, measurement.duration*1000000, measurement.cpu_util_avg, measurement.workflow_name,
-            measurement.lat, measurement.lon, measurement.city, co2i_transformed, co2eq_transformed,
-            'machine.ci', 'CI/CD', 'unknown', [],
-            user._id, used_client_ip)
-
-
-    DB().query(query=query, params=params)
-
-    if measurement.energy_value <= 1 or (measurement.co2eq and co2eq_transformed <= 1):
-        error_helpers.log_error(
-            'Extremely small energy budget was submitted to old Eco CI API',
-            measurement=measurement
-        )
-
-    return Response(status_code=204)
-
+@router.post('/v1/ci/measurement/add', deprecated=True)
+def old_v1_measurement_add_endpoint():
+    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/ci/measurement/add'}, status_code=410)
 
 @router.post('/v2/ci/measurement/add')
 async def post_ci_measurement_add(

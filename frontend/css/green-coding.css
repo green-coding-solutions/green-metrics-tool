@@ -385,3 +385,7 @@ a {
 
 /* Allow clickable boxes for chart overlays */
 .statistics-chart div { pointer-events: all !important }
+
+#machines-table tr, #machines-table td {
+  font-size: 11px;
+}

@@ -14,6 +14,8 @@ def test_simple_cluster_run():
     branch = 'main'
     machine_id = 1
 
+    Tests.shorten_sleep_times(1)
+
     Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
 
     ps = subprocess.run(

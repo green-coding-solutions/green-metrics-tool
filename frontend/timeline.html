@@ -78,7 +78,7 @@
                         </div>
                         <div class="ui one column stackable grid">
                             <div class="column">
-                                <div class="ui yellow icon message floated right">
+                                <div class="ui yellow icon message floated right container-no-data">
                                     <i class="info circle icon"></i>
                                     <div class="content">
                                         <div class="header">
@@ -95,7 +95,7 @@
                         </div>
                     </div>
                     <div class="ui tab" data-tab="two">
-                        <div class="ui blue icon message floated right">
+                        <div class="ui blue icon message floated right container-no-data">
                             <i class="info circle icon"></i>
                             <div class="content">
                                 <div class="header">
@@ -245,9 +245,20 @@
             </div>
         </div><!-- end ui full-width-card card -->
 
+        <div id="message-no-data" class="ui icon message red container-no-data">
+            <i class="info circle icon"></i>
+            <div class="content">
+                <div class="header">
+                    No data for time frame
+                </div>
+                <p>In the selected time frame we have not seen any data :/</p>
+                <p>Try selecting a longer period reaching deeper into the past to see data for this repo.</p>
+            </div>
+        </div>
+
         <div class="ui full-width-card"></div>
 
-        <div class="ui blue icon message">
+        <div class="ui blue icon message container-no-data">
             <i class="info circle icon"></i>
             <div class="content">
                 <div class="header">
@@ -257,7 +268,7 @@
                 <p>To show details click on the bars! A new menu will appear.</p>
             </div>
         </div>
-        <div class="ui two cards" id="api-loader">
+        <div id="api-loader" class="ui two cards container-no-data">
             <div class="card" style="min-height: 300px">
                 <div class="ui active dimmer">
                     <div class="ui indeterminate text loader">Waiting for API data</div>
