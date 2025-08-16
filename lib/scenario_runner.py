@@ -176,9 +176,6 @@ class ScenarioRunner:
 
         self._check_all_durations()
 
-        # we currently do not use this variable
-        # self.__filename = self._original_filename # this can be changed later if working directory changes
-
 
     def _check_all_durations(self):
         if self._measurement_total_duration is None: # exit early if no max timeout specififed
@@ -393,7 +390,6 @@ class ScenarioRunner:
         if '/' in self._original_filename:
             self.__working_folder_rel = self._original_filename.rsplit('/', 1)[0]
             self.__working_folder = usage_scenario_file.rsplit('/', 1)[0]
-            #self.__filename = usage_scenario_file.rsplit('/', 1)[1] # we currently do not use this variable
             print("Working folder changed to ", self.__working_folder)
 
 
@@ -1893,14 +1889,13 @@ class ScenarioRunner:
             self.__start_measurement = None
             self.__start_measurement_seconds = None
             self.__notes_helper = Notes()
-        else:
-            # Only clear logs when continuing measurement (debugging mode)
-            # For normal completion, preserve logs for --print-logs functionality
-            self.__stdout_logs.clear()
+
+        # __stdout_logs is NOT cleared here on purpose.
+        # The logs are preserved for the --print-logs functionality
+        # and will be cleared at the start of the next run via _prepare_run().
         self.__phases.clear()
         self.__end_measurement = None
         self.__join_default_network = False
-        #self.__filename = self._original_filename # # we currently do not use this variable
         self.__services_to_pause_phase.clear()
         self.__join_default_network = False
         self.__docker_params.clear()
@@ -1912,6 +1907,15 @@ class ScenarioRunner:
 
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
+
+    def _prepare_run(self):
+        """Reset state for a new run - called at the beginning of run()"""
+        self._run_id = None
+        self.__stdout_logs.clear()
+
+    def set_filename(self, filename):
+        """Update filename for reusing ScenarioRunner with different files"""
+        self._original_filename = filename
 
     def run(self):
         '''
@@ -1925,6 +1929,7 @@ class ScenarioRunner:
 
         '''
         try:
+            self._prepare_run()
             self._start_measurement() # we start as early as possible to include initialization overhead
             self._clear_caches()
             self._check_system('start')
