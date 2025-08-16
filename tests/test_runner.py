@@ -525,3 +525,29 @@ def test_print_logs_flag():
     assert "Test log message" in output
     assert "Test error message" in output
     assert "-----------------------------" in output
+
+def test_print_logs_flag_with_iterations():
+    """Test that --print-logs flag prints logs from both iterations"""
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/capture_logs.yml',
+         '--iterations', '2', '--print-logs',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps',
+         '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    # Check that logs from both iterations are present in output
+    # The test should show logs from both runs
+    test_log_count = ps.stdout.count("Test log message")
+    test_error_count = ps.stdout.count("Test error message")
+
+    # We expect to see logs from both iterations (should be 2 of each)
+    assert test_log_count >= 2, f"Expected logs from both iterations, got {test_log_count} 'Test log message' occurrences"
+    assert test_error_count >= 2, f"Expected logs from both iterations, got {test_error_count} 'Test error message' occurrences"
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
