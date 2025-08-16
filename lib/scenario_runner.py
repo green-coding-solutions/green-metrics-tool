@@ -102,6 +102,7 @@ class ScenarioRunner:
         self._uri_type = uri_type
         self._original_filename = filename
         self._branch = branch
+        self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
         self._usage_scenario = {}
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
@@ -316,7 +317,7 @@ class ScenarioRunner:
             if problematic_symlink := utils.find_outside_symlinks(self._repo_folder):
                 raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
         else:
-            if self._branch:
+            if self._original_branch is not None:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
             # If the provided uri is a symlink we need to resolve it.

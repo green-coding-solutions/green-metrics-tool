@@ -244,6 +244,25 @@ def test_runner_filename_relative_to_local_uri():
 
 ## --iterations ITERATIONS
 #    Optionally specify the number of iterations the files should be executed
+def test_runner_with_iterations_and_save_to_database():
+    """Test that local URI with iterations works when results are stored to database"""
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
+         '--iterations', '2',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps',
+         '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    assert ps.stdout.count('Running:  tests/data/usage_scenarios/basic_stress.yml') == 2
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
 def test_runner_with_iterations_and_multiple_files():
     """Test that runner processes files in correct order with --iterations and allows duplicates"""
     ps = subprocess.run(
