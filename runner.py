@@ -239,7 +239,7 @@ if __name__ == '__main__':
         error_helpers.log_error('Base exception occured in runner.py', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
     finally:
         if args.print_logs and runner:
-            logs = runner._get_logs()
+            logs = runner._get_all_run_logs()
             if logs:
                 print("Container logs:")
                 for log_entry in logs:

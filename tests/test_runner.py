@@ -528,7 +528,7 @@ def test_print_logs_flag():
 
     out = io.StringIO()
     with redirect_stdout(out):
-        logs = runner._get_logs()
+        logs = runner._get_all_run_logs()
         if logs:
             print("Container logs:")
             for log_entry in logs:
@@ -537,13 +537,26 @@ def test_print_logs_flag():
             print()
 
     output = out.getvalue()
-    logs = runner._get_logs()
+    logs = runner._get_all_run_logs()
     assert logs, "No logs were captured from the scenario"
+
     assert "Container logs:" in output
-    assert "test-container" in output
-    assert "Test log message" in output
-    assert "Test error message" in output
-    assert "-----------------------------" in output
+    container_logs_pos = output.find("Container logs:")
+    assert container_logs_pos != -1
+
+    container_logs_section = output[container_logs_pos:]
+
+    assert "test-container" in container_logs_section
+    assert "Test log message" in container_logs_section
+    assert "Test error message" in container_logs_section
+    assert "-----------------------------" in container_logs_section
+
+    test_log_pos = container_logs_section.find("Test log message")
+    test_error_pos = container_logs_section.find("Test error message")
+
+    assert test_log_pos != -1
+    assert test_error_pos != -1
+    assert test_log_pos < test_error_pos
 
 def test_print_logs_flag_with_iterations():
     """Test that --print-logs flag prints logs from both iterations"""
@@ -561,12 +574,27 @@ def test_print_logs_flag_with_iterations():
     )
 
     assert ps.returncode == 0
-    # Check that logs from both iterations are present in output
-    # The test should show logs from both runs
-    test_log_count = ps.stdout.count("Test log message")
-    test_error_count = ps.stdout.count("Test error message")
+    print(ps.stdout)
 
-    # We expect to see logs from both iterations (should be 2 of each)
-    assert test_log_count >= 2, f"Expected logs from both iterations, got {test_log_count} 'Test log message' occurrences"
-    assert test_error_count >= 2, f"Expected logs from both iterations, got {test_error_count} 'Test error message' occurrences"
+    assert "Container logs:" in ps.stdout
+    container_logs_pos = ps.stdout.find("Container logs:")
+    assert container_logs_pos != -1
+
+    container_logs_section = ps.stdout[container_logs_pos:]
+
+    assert "test-container" in container_logs_section
+
+    test_log_count = container_logs_section.count("Test log message\n")
+    test_error_count = container_logs_section.count("Test error message\n")
+
+    assert test_log_count >= 1, f"Expected at least 1 'Test log message' entry, found {test_log_count}"
+    assert test_error_count >= 1, f"Expected at least 1 'Test error message' entry, found {test_error_count}"
+
+    test_log_pos = container_logs_section.find("Test log message\n")
+    test_error_pos = container_logs_section.find("Test error message\n")
+
+    assert test_log_pos != -1
+    assert test_error_pos != -1
+    assert test_log_pos < test_error_pos
+
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)

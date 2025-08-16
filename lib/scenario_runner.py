@@ -147,7 +147,7 @@ class ScenarioRunner:
                 ('_read_and_cleanup_processes', {}),
                 ('_store_phases', {}),
                 ('_save_notes_runner', {}),
-                ('_save_stdout_logs', {}),
+                ('_save_run_logs', {}),
                 ('_save_warnings', {}),
                 ('_process_phase_stats', {}),
             )
@@ -155,7 +155,8 @@ class ScenarioRunner:
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
         # They are __ as they should not be changed because this could break the state of the runner
-        self.__stdout_logs = []
+        self.__current_run_logs = []
+        self.__all_runs_logs = []
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
@@ -1309,13 +1310,22 @@ class ScenarioRunner:
 
         print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
 
-    # This method only exists to make logs read-only available outside of the self context
-    # Internally we are still using normal __stdout_logs access to read and not funnel through this method
-    def _get_logs(self):
-        return self.__stdout_logs
+    def _add_to_current_run_log(self, identifier, message):
+        self.__current_run_logs.append(f"{identifier}\n{message}")
 
-    def _add_to_log(self, identifier, message):
-        self.__stdout_logs.append(f"{identifier}\n{message}")
+    def _get_all_run_logs(self):
+        """
+        Returns accumulated logs from all runs in the current session.
+        
+        This method provides read-only access to logs collected across multiple runs
+        when using --iterations > 1 or multiple filenames. Each run's logs are preserved 
+        and accumulated to support the --print-logs functionality.
+        
+        Returns:
+            list: All log entries from current session, where each entry is a formatted
+                  string containing identifier and message content
+        """
+        return self.__all_runs_logs
 
     def _save_warnings(self):
         if not self._run_id or self._dev_no_save:
@@ -1637,7 +1647,7 @@ class ScenarioRunner:
 
             if stdout is not None:
                 print('stdout from process:', ps['cmd'], stdout)
-                self._add_to_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDOUT", stdout)
+                self._add_to_current_run_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDOUT", stdout)
 
                 if ps['read-notes-stdout']:
                     self.__notes_helper.parse_and_add_notes(ps['detail_name'], stdout)
@@ -1648,7 +1658,7 @@ class ScenarioRunner:
 
             if stderr is not None:
                 print('stderr from process:', ps['cmd'], stderr)
-                self._add_to_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDERR", stderr)
+                self._add_to_current_run_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDERR", stderr)
 
     def _check_process_returncodes(self):
         print(TerminalColors.HEADER, '\nChecking process return codes', TerminalColors.ENDC)
@@ -1750,7 +1760,7 @@ class ScenarioRunner:
             )
 
             if log.stdout is not None:
-                self._add_to_log(f"{container_info['name']} (STDOUT)", log.stdout)
+                self._add_to_current_run_log(f"{container_info['name']} (STDOUT)", log.stdout)
 
                 if container_info['read-notes-stdout']:
                     self.__notes_helper.parse_and_add_notes(container_info['name'], log.stdout)
@@ -1760,16 +1770,16 @@ class ScenarioRunner:
                         self._sci['R'] += int(match)
 
             if log.stderr is not None:
-                self._add_to_log(f"{container_info['name']} (STDERR)", log.stderr)
+                self._add_to_current_run_log(f"{container_info['name']} (STDERR)", log.stderr)
 
-    def _save_stdout_logs(self):
+    def _save_run_logs(self):
         print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
 
         if not self._run_id or self._dev_no_save:
             print('Skipping savings logs to DB due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        logs_as_str = '\n\n'.join(self.__stdout_logs)
+        logs_as_str = '\n\n'.join(self.__current_run_logs)
         logs_as_str = logs_as_str.replace('\x00','')
         if logs_as_str:
             DB().query("""
@@ -1840,7 +1850,7 @@ class ScenarioRunner:
                 getattr(self, method_name)(**args)
                 index += 1
         except BaseException as exc:
-            self._add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
+            self._add_to_current_run_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
             self._set_run_failed()
             self._post_process(index+1)
             raise exc
@@ -1891,9 +1901,16 @@ class ScenarioRunner:
             self.__start_measurement_seconds = None
             self.__notes_helper = Notes()
 
-        # __stdout_logs is NOT cleared here on purpose.
-        # The logs are preserved for the --print-logs functionality
-        # and will be cleared at the start of the next run via _prepare_run().
+        # Copy current run's logs to cumulative logs before clearing
+        # Add run separator to distinguish between different runs/iterations
+        # The cumulative logs are used by --print-logs to show logs from all runs
+        if self.__current_run_logs:
+            if self.__all_runs_logs:  # Only add separator if there are already logs
+                self.__all_runs_logs.append(f"=== END OF RUN: {self._original_filename} ===")
+            self.__all_runs_logs.extend(self.__current_run_logs)
+
+        # Clear current run logs now that they've been copied to cumulative
+        self.__current_run_logs.clear()
         self.__phases.clear()
         self.__end_measurement = None
         self.__join_default_network = False
@@ -1909,10 +1926,6 @@ class ScenarioRunner:
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
-    def _prepare_run(self):
-        """Reset state for a new run - called at the beginning of run()"""
-        self._run_id = None
-        self.__stdout_logs.clear()
 
     def set_filename(self, filename):
         """Update filename for reusing ScenarioRunner with different files"""
@@ -1930,7 +1943,7 @@ class ScenarioRunner:
 
         '''
         try:
-            self._prepare_run()
+            self._run_id = None  # Reset run ID for new run
             self._start_measurement() # we start as early as possible to include initialization overhead
             self._clear_caches()
             self._check_system('start')
@@ -2015,7 +2028,7 @@ class ScenarioRunner:
             self._identify_invalid_run()
 
         except BaseException as exc:
-            self._add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
+            self._add_to_current_run_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
             self._set_run_failed()
             raise exc
         finally:
