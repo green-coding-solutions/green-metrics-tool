@@ -85,6 +85,24 @@
                         </div>
                         <h3>Usage Scenario File</h3>
                         <div id="usage-scenario"></div>
+                        <h3>Usage Scenario Dependencies</h3>
+                        <div id="usage-scenario-dependencies">
+                            <div id="usage-scenario-dependencies-error" style="display: none;" class="ui negative message">
+                                <div class="header">Dependency Resolution Failed</div>
+                                <p>Dependencies could not be resolved for this run.</p>
+                            </div>
+                            <table id="usage-scenario-dependencies-table" class="ui celled table" style="display: none;">
+                                <thead>
+                                    <tr>
+                                        <th>Container</th>
+                                        <th>Image</th>
+                                        <th>Hash</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                     <div class="ui tab segment" data-tab="six">
                         <div id="logs"></div>
