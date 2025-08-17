@@ -104,6 +104,25 @@ const fetchAndFillRunData = async (url_params) => {
             } else {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
+        } else if(item == 'usage_scenario_dependencies') {
+            if (run_data[item] && Object.keys(run_data[item]).length > 0) {
+                const tableBody = document.querySelector("#usage-scenario-dependencies-table tbody");
+                for (const containerName in run_data[item]) {
+                    const containerInfo = run_data[item][containerName];
+                    const image = containerInfo.image || 'N/A';
+                    const hash = containerInfo.hash || 'N/A';
+                    tableBody.insertAdjacentHTML('beforeend', 
+                        `<tr>
+                            <td>${containerName}</td>
+                            <td>${image}</td>
+                            <td title="${hash}" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${hash}</td>
+                        </tr>`
+                    );
+                }
+                document.querySelector("#usage-scenario-dependencies-table").style.display = 'table';
+            } else if (run_data[item] === null) {
+                document.querySelector("#usage-scenario-dependencies-error").style.display = 'block';
+            }
 
         } else if(item == 'logs' && run_data?.[item] != null) {
             // textContent does escaping for us

@@ -22,6 +22,7 @@ import yaml
 from collections import OrderedDict
 from datetime import datetime
 import platform
+import asyncio
 
 GMT_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -175,6 +176,7 @@ class ScenarioRunner:
         self.__image_sizes = {}
         self.__volume_sizes = {}
         self.__warnings = []
+        self.__usage_scenario_dependencies = None
 
         self._check_all_durations()
 
@@ -569,14 +571,14 @@ class ScenarioRunner:
                     job_id, name, uri, branch, filename,
                     commit_hash, commit_timestamp, runner_arguments,
                     machine_specs, measurement_config,
-                    usage_scenario, usage_scenario_variables, gmt_hash,
+                    usage_scenario, usage_scenario_variables, usage_scenario_dependencies, gmt_hash,
                     machine_id, user_id, created_at
                 )
                 VALUES (
                     %s, %s, %s, %s, %s,
                     %s, %s, %s,
                     %s, %s,
-                    %s, %s, %s,
+                    %s, %s, %s, %s,
                     %s, %s, NOW()
                 )
                 RETURNING id
@@ -584,7 +586,9 @@ class ScenarioRunner:
                     self._job_id, self._name, self._uri, self._branch, self._original_filename,
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
-                    json.dumps(self._usage_scenario), json.dumps(self._usage_scenario_variables), gmt_hash,
+                    json.dumps(self._usage_scenario), json.dumps(self._usage_scenario_variables),
+                    json.dumps(self.__usage_scenario_dependencies) if self.__usage_scenario_dependencies else None,
+                    gmt_hash,
                     GlobalConfig().config['machine']['id'], self._user_id,
                 ))[0]
         return self._run_id
@@ -1337,6 +1341,85 @@ class ScenarioRunner:
         for message in self.__warnings:
             DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (self._run_id, message))
 
+    async def _execute_dependency_resolver_for_container(self, container_name):
+        """Execute dependency resolver for a single container."""
+        # TODO: Replace hardcoded path with PyPI package in future implementation  # pylint: disable=fixme
+        dependency_resolver_path = os.path.expanduser("$HOME/git/gcs/dependency-resolver/dependency_resolver.py")
+
+        cmd = ["python3", dependency_resolver_path, "docker", container_name, "--only-container-info"]
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=self.__working_folder,
+                env=os.environ.copy()
+            )
+
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10.0)
+            if process.returncode == 0:
+                result = json.loads(stdout.decode('utf-8'))
+                if '_container-info' in result:
+                    container_info = result['_container-info']
+                    # Remove the 'name' field as we use container name as key
+                    if 'name' in container_info:
+                        del container_info['name']
+                    return container_name, container_info
+                else:
+                    return container_name, None
+            else:
+                print(f"Dependency resolver failed for container {container_name}: {stderr.decode('utf-8')}")
+                return container_name, None
+        except asyncio.TimeoutError:
+            print(f"Dependency resolver timed out for container {container_name}")
+            return container_name, None
+        except json.JSONDecodeError as exc:
+            print(f"Failed to parse dependency resolver output for container {container_name}: {exc}")
+            return container_name, None
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            print(f"Error executing dependency resolver for container {container_name}: {exc}")
+            return container_name, None
+
+    def _collect_container_dependencies(self):
+        """Wrapper method to collect container dependencies with error handling."""
+        try:
+            asyncio.run(self._collect_dependency_info())
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            print(f"Failed to collect dependency information: {exc}")
+            self.__usage_scenario_dependencies = None
+
+    async def _collect_dependency_info(self):
+        """Collect dependency information for all containers."""
+        if not self.__containers:
+            print("No containers available for dependency resolution")
+            return
+
+        print(TerminalColors.HEADER, '\nCollecting dependency information...', TerminalColors.ENDC)
+        container_names = [container_info['name'] for container_info in self.__containers.values()]
+
+        # Execute dependency resolver for all containers in parallel
+        tasks = [self._execute_dependency_resolver_for_container(name) for name in container_names]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Process results and build aggregated structure
+        dependencies = {}
+        successful_containers = 0
+        total_containers = len(container_names)
+        for result in results:
+            if isinstance(result, tuple) and result[1] is not None:
+                container_name, container_info = result
+                dependencies[container_name] = container_info
+                successful_containers += 1
+            elif isinstance(result, Exception):
+                print(f"Exception occurred during dependency resolution: {result}")
+        # Only store results if all containers succeeded
+        if successful_containers == total_containers and total_containers > 0:
+            self.__usage_scenario_dependencies = dependencies
+            print(f"Successfully collected dependency information for {successful_containers} containers")
+        else:
+            print(f"Dependency resolution incomplete: {successful_containers}/{total_containers} containers succeeded. Not storing partial results.")
+            self.__usage_scenario_dependencies = None
+
     def _add_containers_to_metric_providers(self):
         for metric_provider in self.__metric_providers:
             if metric_provider._metric_name.endswith('_container'):
@@ -1994,9 +2077,13 @@ class ScenarioRunner:
             self._add_containers_to_metric_providers()
             self._start_metric_providers(allow_container=True, allow_other=False)
 
+            if self._debugger.active:
+                self._debugger.pause('Container providers started. Waiting to collect dependency information')
+
+            self._collect_container_dependencies()
 
             if self._debugger.active:
-                self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
+                self._debugger.pause('Dependency collection complete. Waiting to start idle phase')
 
             self._start_phase('[IDLE]')
             self._custom_sleep(self._measurement_idle_duration)
