@@ -1919,7 +1919,7 @@ class ScenarioRunner:
                 self.__phases['[RUNTIME]']['end'] = int(time.time_ns() / 1_000)
 
     def _process_phase_stats(self):
-        if not self._run_id or self._dev_no_phase_stats or self._dev_no_save:
+        if not self._run_id or self._dev_no_phase_stats or self._dev_no_metrics or self._dev_no_save:
             return
 
         # After every run, even if it failed, we want to generate phase stats.
