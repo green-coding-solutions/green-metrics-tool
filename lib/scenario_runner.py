@@ -1344,7 +1344,7 @@ class ScenarioRunner:
     async def _execute_dependency_resolver_for_container(self, container_name):
         """Execute dependency resolver for a single container."""
         # TODO: Replace hardcoded path with PyPI package in future implementation  # pylint: disable=fixme
-        dependency_resolver_path = os.path.expanduser("$HOME/git/gcs/dependency-resolver/dependency_resolver.py")
+        dependency_resolver_path = os.path.expanduser("~/git/green-coding-solutions/dependency-resolver/dependency_resolver.py")
 
         cmd = ["python3", dependency_resolver_path, "docker", container_name, "--only-container-info"]
         try:
@@ -1394,7 +1394,7 @@ class ScenarioRunner:
             print("No containers available for dependency resolution")
             return
 
-        print(TerminalColors.HEADER, '\nCollecting dependency information...', TerminalColors.ENDC)
+        print(TerminalColors.HEADER, '\nCollecting dependency information', TerminalColors.ENDC)
         container_names = [container_info['name'] for container_info in self.__containers.values()]
 
         # Execute dependency resolver for all containers in parallel
@@ -1415,7 +1415,11 @@ class ScenarioRunner:
         # Only store results if all containers succeeded
         if successful_containers == total_containers and total_containers > 0:
             self.__usage_scenario_dependencies = dependencies
-            print(f"Successfully collected dependency information for {successful_containers} containers")
+            print(f"Successfully collected dependency information for {successful_containers} containers:")
+            for container_name, container_info in dependencies.items():
+                image = container_info.get('image', 'unknown')
+                hash_version = container_info.get('hash', 'unknown')
+                print(f"  - {container_name}: {image} ({hash_version})")
         else:
             print(f"Dependency resolution incomplete: {successful_containers}/{total_containers} containers succeeded. Not storing partial results.")
             self.__usage_scenario_dependencies = {}
