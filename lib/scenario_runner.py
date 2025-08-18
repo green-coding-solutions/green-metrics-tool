@@ -571,14 +571,14 @@ class ScenarioRunner:
                     job_id, name, uri, branch, filename,
                     commit_hash, commit_timestamp, runner_arguments,
                     machine_specs, measurement_config,
-                    usage_scenario, usage_scenario_variables, usage_scenario_dependencies, gmt_hash,
+                    usage_scenario, usage_scenario_variables, gmt_hash,
                     machine_id, user_id, created_at
                 )
                 VALUES (
                     %s, %s, %s, %s, %s,
                     %s, %s, %s,
                     %s, %s,
-                    %s, %s, %s, %s,
+                    %s, %s, %s,
                     %s, %s, NOW()
                 )
                 RETURNING id
@@ -587,7 +587,6 @@ class ScenarioRunner:
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
                     json.dumps(self._usage_scenario), json.dumps(self._usage_scenario_variables),
-                    json.dumps(self.__usage_scenario_dependencies) if self.__usage_scenario_dependencies else None,
                     gmt_hash,
                     GlobalConfig().config['machine']['id'], self._user_id,
                 ))[0]
@@ -1387,6 +1386,13 @@ class ScenarioRunner:
         except Exception as exc:  # pylint: disable=broad-exception-caught
             print(f"Failed to collect dependency information: {exc}")
             self.__usage_scenario_dependencies = None
+
+        if self._run_id:
+            DB().query("""
+                UPDATE runs 
+                SET usage_scenario_dependencies = %s 
+                WHERE id = %s
+                """, params=(json.dumps(self.__usage_scenario_dependencies) if self.__usage_scenario_dependencies is not None else None, self._run_id))
 
     async def _collect_dependency_info(self):
         """Collect dependency information for all containers."""
