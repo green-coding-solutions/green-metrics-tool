@@ -107,6 +107,7 @@ class ScenarioRunner:
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
         self._usage_scenario = {}
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
+        self.__usage_scenario_dependencies = {}
         self._architecture = utils.get_architecture()
 
         self._sci = {'R_d': None, 'R': 0}
@@ -176,7 +177,6 @@ class ScenarioRunner:
         self.__image_sizes = {}
         self.__volume_sizes = {}
         self.__warnings = []
-        self.__usage_scenario_dependencies = None
 
         self._check_all_durations()
 
@@ -587,7 +587,7 @@ class ScenarioRunner:
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
                     json.dumps(self._usage_scenario), json.dumps(self._usage_scenario_variables),
-                    json.dumps(self.__usage_scenario_dependencies) if self.__usage_scenario_dependencies else None,
+                    json.dumps(self.__usage_scenario_dependencies),
                     gmt_hash,
                     GlobalConfig().config['machine']['id'], self._user_id,
                 ))[0]
@@ -1386,7 +1386,7 @@ class ScenarioRunner:
             asyncio.run(self._collect_dependency_info())
         except Exception as exc:  # pylint: disable=broad-exception-caught
             print(f"Failed to collect dependency information: {exc}")
-            self.__usage_scenario_dependencies = None
+            self.__usage_scenario_dependencies = {}
 
     async def _collect_dependency_info(self):
         """Collect dependency information for all containers."""
@@ -1418,7 +1418,7 @@ class ScenarioRunner:
             print(f"Successfully collected dependency information for {successful_containers} containers")
         else:
             print(f"Dependency resolution incomplete: {successful_containers}/{total_containers} containers succeeded. Not storing partial results.")
-            self.__usage_scenario_dependencies = None
+            self.__usage_scenario_dependencies = {}
 
     def _add_containers_to_metric_providers(self):
         for metric_provider in self.__metric_providers:
