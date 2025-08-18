@@ -3,5 +3,3 @@
 -- NULL = not attempted/failed, {} = no dependencies, {data} = dependencies found
 
 ALTER TABLE "runs" ADD COLUMN "usage_scenario_dependencies" jsonb;
-ALTER TABLE "jobs" ADD COLUMN "usage_scenario_dependencies" jsonb;
-ALTER TABLE "watchlist" ADD COLUMN "usage_scenario_dependencies" jsonb;
