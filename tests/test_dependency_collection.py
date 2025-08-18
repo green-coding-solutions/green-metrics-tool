@@ -11,7 +11,7 @@ from lib.db import DB
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
 
-class TestDependencyResolver:
+class TestDependencyCollection:
 
     @pytest.mark.asyncio
     async def test_execute_dependency_resolver_for_container_success(self):
@@ -23,7 +23,7 @@ class TestDependencyResolver:
             skip_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_metrics=True
+            dev_no_save=True
         )
 
         # Mock successful dependency resolver response
@@ -68,7 +68,7 @@ class TestDependencyResolver:
             skip_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_metrics=True
+            dev_no_save=True
         )
 
         with patch('asyncio.create_subprocess_exec') as mock_subprocess:
@@ -91,7 +91,7 @@ class TestDependencyResolver:
             skip_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_metrics=True
+            dev_no_save=True
         )
 
         with patch('asyncio.create_subprocess_exec') as mock_subprocess:
@@ -115,7 +115,7 @@ class TestDependencyResolver:
             skip_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_metrics=True
+            dev_no_save=True
         )
 
         with patch('asyncio.create_subprocess_exec') as mock_subprocess:
@@ -139,7 +139,7 @@ class TestDependencyResolver:
             skip_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_metrics=True
+            dev_no_save=True
         )
 
         # Mock container data
@@ -177,7 +177,7 @@ class TestDependencyResolver:
             skip_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_metrics=True
+            dev_no_save=True
         )
 
         # Mock container data
@@ -211,7 +211,7 @@ class TestDependencyResolver:
             skip_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_metrics=True
+            dev_no_save=True
         )
 
         # No containers
@@ -254,7 +254,9 @@ class TestDependencyResolver:
             skip_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_metrics=True
+            dev_no_metrics=True,
+            dev_no_phase_stats=True,
+            dev_no_optimizations=True
         )
 
         # Set mock dependencies
@@ -263,15 +265,14 @@ class TestDependencyResolver:
         }
         runner._ScenarioRunner__usage_scenario_dependencies = mock_dependencies
 
-        with Tests.RunUntilManager(runner) as context:
-            context.run_until('_save_run')
+        run_id = runner.run()
 
         # Verify run was created and dependencies were saved
-        assert runner._run_id is not None
+        assert run_id is not None
 
         result = DB().fetch_one(
             "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
-            (runner._run_id,)
+            (run_id,)
         )
 
         assert result[0] == mock_dependencies
@@ -285,21 +286,22 @@ class TestDependencyResolver:
             skip_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_metrics=True
+            dev_no_metrics=True,
+            dev_no_phase_stats=True,
+            dev_no_optimizations=True
         )
 
         # Set dependencies to None (failure case)
         runner._ScenarioRunner__usage_scenario_dependencies = None
 
-        with Tests.RunUntilManager(runner) as context:
-            context.run_until('_save_run')
+        run_id = runner.run()
 
         # Verify run was created and dependencies are null
-        assert runner._run_id is not None
+        assert run_id is not None
 
         result = DB().fetch_one(
             "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
-            (runner._run_id,)
+            (run_id,)
         )
 
         assert result[0] is None
