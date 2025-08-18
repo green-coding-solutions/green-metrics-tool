@@ -246,7 +246,7 @@ class TestDependencyCollection:
             mock_collect.assert_called_once()
 
     def test_database_insertion_with_dependencies(self):
-        """Test that dependencies are properly inserted into database"""
+        """Test that dependencies are properly stored in database when collection succeeds"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
             uri_type='folder',
@@ -259,26 +259,30 @@ class TestDependencyCollection:
             dev_no_optimizations=True
         )
 
-        # Set mock dependencies
-        mock_dependencies = {
-            "nginx-container": {"image": "nginx:latest", "hash": "sha256:nginx123"}
+        # Mock successful dependency collection
+        expected_dependencies = {
+            "test-container": {"image": "gcb_stress_gmt_run_tmp:latest", "hash": "sha256:mock123"}
         }
-        runner._ScenarioRunner__usage_scenario_dependencies = mock_dependencies
 
-        run_id = runner.run()
+        with patch.object(runner, '_collect_dependency_info') as mock_collect:
+            async def mock_successful_collection():
+                runner._ScenarioRunner__usage_scenario_dependencies = expected_dependencies
+            mock_collect.side_effect = mock_successful_collection
 
-        # Verify run was created and dependencies were saved
-        assert run_id is not None
+            run_id = runner.run()
 
-        result = DB().fetch_one(
-            "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
-            (run_id,)
-        )
+            # Verify run was created and dependencies were saved
+            assert run_id is not None
 
-        assert result[0] == mock_dependencies
+            result = DB().fetch_one(
+                "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
+                (run_id,)
+            )
+
+            assert result[0] == expected_dependencies
 
     def test_database_insertion_with_null_dependencies(self):
-        """Test that null dependencies are properly handled in database"""
+        """Test that null dependencies are stored when collection fails"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
             uri_type='folder',
@@ -291,17 +295,20 @@ class TestDependencyCollection:
             dev_no_optimizations=True
         )
 
-        # Set dependencies to None (failure case)
-        runner._ScenarioRunner__usage_scenario_dependencies = None
+        # Mock failed dependency collection
+        with patch.object(runner, '_collect_dependency_info') as mock_collect:
+            async def mock_failed_collection():
+                runner._ScenarioRunner__usage_scenario_dependencies = None
+            mock_collect.side_effect = mock_failed_collection
 
-        run_id = runner.run()
+            run_id = runner.run()
 
-        # Verify run was created and dependencies are null
-        assert run_id is not None
+            # Verify run was created and dependencies are null
+            assert run_id is not None
 
-        result = DB().fetch_one(
-            "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
-            (run_id,)
-        )
+            result = DB().fetch_one(
+                "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
+                (run_id,)
+            )
 
-        assert result[0] is None
+            assert result[0] is None
