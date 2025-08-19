@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ## Run git bisect beforehand with
 # $ git bisect start
