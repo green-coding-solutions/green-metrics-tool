@@ -22,7 +22,8 @@ import yaml
 from collections import OrderedDict
 from datetime import datetime
 import platform
-import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from dependency_resolver import resolve_docker_dependencies_as_dict
 
 GMT_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -1340,41 +1341,21 @@ class ScenarioRunner:
         for message in self.__warnings:
             DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (self._run_id, message))
 
-    async def _execute_dependency_resolver_for_container(self, container_name):
-        """Execute dependency resolver for a single container."""
-        # TODO: Replace hardcoded path with PyPI package in future implementation  # pylint: disable=fixme
-        dependency_resolver_path = os.path.expanduser("~/git/green-coding-solutions/dependency-resolver/dependency_resolver.py")
-
-        cmd = ["python3", dependency_resolver_path, "docker", container_name, "--only-container-info"]
+    def _execute_dependency_resolver_for_container(self, container_name):
+        """Execute dependency resolver for a single container using Python package."""
         try:
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=self.__working_folder,
-                env=os.environ.copy()
+            result = resolve_docker_dependencies_as_dict(
+                container_identifier=container_name,
+                only_container_info=True
             )
-
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10.0)
-            if process.returncode == 0:
-                result = json.loads(stdout.decode('utf-8'))
-                if '_container-info' in result:
-                    container_info = result['_container-info']
-                    # Remove the 'name' field as we use container name as key
-                    if 'name' in container_info:
-                        del container_info['name']
-                    return container_name, container_info
-                else:
-                    return container_name, None
+            if '_container-info' in result:
+                container_info = result['_container-info']
+                # Remove the 'name' field as we use container name as key
+                if 'name' in container_info:
+                    del container_info['name']
+                return container_name, container_info
             else:
-                print(f"Dependency resolver failed for container {container_name}: {stderr.decode('utf-8')}")
                 return container_name, None
-        except asyncio.TimeoutError:
-            print(f"Dependency resolver timed out for container {container_name}")
-            return container_name, None
-        except json.JSONDecodeError as exc:
-            print(f"Failed to parse dependency resolver output for container {container_name}: {exc}")
-            return container_name, None
         except Exception as exc:  # pylint: disable=broad-exception-caught
             print(f"Error executing dependency resolver for container {container_name}: {exc}")
             return container_name, None
@@ -1382,7 +1363,7 @@ class ScenarioRunner:
     def _collect_container_dependencies(self):
         """Wrapper method to collect container dependencies with error handling."""
         try:
-            asyncio.run(self._collect_dependency_info())
+            self._collect_dependency_info()
         except Exception as exc:  # pylint: disable=broad-exception-caught
             print(f"Failed to collect dependency information: {exc}")
             self.__usage_scenario_dependencies = None
@@ -1394,7 +1375,7 @@ class ScenarioRunner:
                 WHERE id = %s
                 """, params=(json.dumps(self.__usage_scenario_dependencies) if self.__usage_scenario_dependencies is not None else None, self._run_id))
 
-    async def _collect_dependency_info(self):
+    def _collect_dependency_info(self):
         """Collect dependency information for all containers."""
         if not self.__containers:
             print("No containers available for dependency resolution")
@@ -1403,9 +1384,9 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nCollecting dependency information', TerminalColors.ENDC)
         container_names = [container_info['name'] for container_info in self.__containers.values()]
 
-        # Execute dependency resolver for all containers in parallel
-        tasks = [self._execute_dependency_resolver_for_container(name) for name in container_names]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Execute dependency resolver for all containers in parallel using ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(len(container_names), 4)) as executor:
+            results = list(executor.map(self._execute_dependency_resolver_for_container, container_names))
 
         # Process results and build aggregated structure
         dependencies = {}
