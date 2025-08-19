@@ -1,8 +1,5 @@
-import asyncio
-import json
 import os
-import pytest
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 
 from lib.scenario_runner import ScenarioRunner
 from tests import test_functions as Tests
@@ -13,8 +10,7 @@ GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__
 
 class TestDependencyCollection:
 
-    @pytest.mark.asyncio
-    async def test_execute_dependency_resolver_for_container_success(self):
+    def test_execute_dependency_resolver_for_container_success(self):
         """Test successful dependency resolver execution for a single container"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
@@ -35,32 +31,22 @@ class TestDependencyCollection:
             }
         }
 
-        with patch('asyncio.create_subprocess_exec') as mock_subprocess:
-            mock_process = AsyncMock()
-            mock_process.returncode = 0
-            mock_process.communicate.return_value = (
-                json.dumps(mock_response).encode('utf-8'),
-                b''
-            )
-            mock_subprocess.return_value = mock_process
+        with patch('lib.scenario_runner.resolve_docker_dependencies_as_dict') as mock_resolver:
+            mock_resolver.return_value = mock_response
 
-            result = await runner._execute_dependency_resolver_for_container("test-container")
+            result = runner._execute_dependency_resolver_for_container("test-container")
 
             assert result[0] == "test-container"
             assert result[1] == {"image": "nginx:latest", "hash": "sha256:2cd1d97f893f"}
 
-            # Verify correct command was called
-            mock_subprocess.assert_called_once()
-            args = mock_subprocess.call_args[0]
-            assert args[0] == "python3"
-            assert "dependency_resolver.py" in args[1]
-            assert args[2] == "docker"
-            assert args[3] == "test-container"
-            assert args[4] == "--only-container-info"
+            # Verify correct function was called with correct parameters
+            mock_resolver.assert_called_once_with(
+                container_identifier="test-container",
+                only_container_info=True
+            )
 
-    @pytest.mark.asyncio
-    async def test_execute_dependency_resolver_for_container_timeout(self):
-        """Test dependency resolver timeout handling"""
+    def test_execute_dependency_resolver_for_container_exception(self):
+        """Test dependency resolver exception handling"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
             uri_type='folder',
@@ -71,19 +57,16 @@ class TestDependencyCollection:
             dev_no_save=True
         )
 
-        with patch('asyncio.create_subprocess_exec') as mock_subprocess:
-            mock_process = AsyncMock()
-            mock_process.communicate.side_effect = asyncio.TimeoutError()
-            mock_subprocess.return_value = mock_process
+        with patch('lib.scenario_runner.resolve_docker_dependencies_as_dict') as mock_resolver:
+            mock_resolver.side_effect = RuntimeError("Container not found")
 
-            result = await runner._execute_dependency_resolver_for_container("test-container")
+            result = runner._execute_dependency_resolver_for_container("test-container")
 
             assert result[0] == "test-container"
             assert result[1] is None
 
-    @pytest.mark.asyncio
-    async def test_execute_dependency_resolver_for_container_failure(self):
-        """Test dependency resolver execution failure"""
+    def test_execute_dependency_resolver_for_container_missing_container_info(self):
+        """Test dependency resolver with response missing container info"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
             uri_type='folder',
@@ -94,43 +77,18 @@ class TestDependencyCollection:
             dev_no_save=True
         )
 
-        with patch('asyncio.create_subprocess_exec') as mock_subprocess:
-            mock_process = AsyncMock()
-            mock_process.returncode = 1
-            mock_process.communicate.return_value = (b'', b'Error message')
-            mock_subprocess.return_value = mock_process
+        # Mock response missing _container-info
+        mock_response = {"some_other_key": "value"}
 
-            result = await runner._execute_dependency_resolver_for_container("test-container")
+        with patch('lib.scenario_runner.resolve_docker_dependencies_as_dict') as mock_resolver:
+            mock_resolver.return_value = mock_response
 
-            assert result[0] == "test-container"
-            assert result[1] is None
-
-    @pytest.mark.asyncio
-    async def test_execute_dependency_resolver_for_container_invalid_json(self):
-        """Test dependency resolver with invalid JSON response"""
-        runner = ScenarioRunner(
-            uri=GMT_DIR,
-            uri_type='folder',
-            filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
-            dev_cache_build=True,
-            dev_no_sleeps=True,
-            dev_no_save=True
-        )
-
-        with patch('asyncio.create_subprocess_exec') as mock_subprocess:
-            mock_process = AsyncMock()
-            mock_process.returncode = 0
-            mock_process.communicate.return_value = (b'invalid json', b'')
-            mock_subprocess.return_value = mock_process
-
-            result = await runner._execute_dependency_resolver_for_container("test-container")
+            result = runner._execute_dependency_resolver_for_container("test-container")
 
             assert result[0] == "test-container"
             assert result[1] is None
 
-    @pytest.mark.asyncio
-    async def test_collect_dependency_info_all_containers_succeed(self):
+    def test_collect_dependency_info_all_containers_succeed(self):
         """Test dependency collection when all containers succeed"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
@@ -157,7 +115,7 @@ class TestDependencyCollection:
         with patch.object(runner, '_execute_dependency_resolver_for_container') as mock_exec:
             mock_exec.side_effect = mock_responses
 
-            await runner._collect_dependency_info()
+            runner._collect_dependency_info()
 
             expected_dependencies = {
                 "nginx-container": {"image": "nginx:latest", "hash": "sha256:nginx123"},
@@ -167,8 +125,7 @@ class TestDependencyCollection:
             assert runner._ScenarioRunner__usage_scenario_dependencies == expected_dependencies
             assert mock_exec.call_count == 2
 
-    @pytest.mark.asyncio
-    async def test_collect_dependency_info_partial_failure(self):
+    def test_collect_dependency_info_partial_failure(self):
         """Test dependency collection when some containers fail"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
@@ -195,14 +152,13 @@ class TestDependencyCollection:
         with patch.object(runner, '_execute_dependency_resolver_for_container') as mock_exec:
             mock_exec.side_effect = mock_responses
 
-            await runner._collect_dependency_info()
+            runner._collect_dependency_info()
 
             # Should be None due to partial failure
             assert runner._ScenarioRunner__usage_scenario_dependencies is None
             assert mock_exec.call_count == 2
 
-    @pytest.mark.asyncio
-    async def test_collect_dependency_info_no_containers(self):
+    def test_collect_dependency_info_no_containers(self):
         """Test dependency collection when no containers are available"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
@@ -217,7 +173,7 @@ class TestDependencyCollection:
         # No containers
         runner._ScenarioRunner__containers = {}
 
-        await runner._collect_dependency_info()
+        runner._collect_dependency_info()
 
         # Should remain None
         assert runner._ScenarioRunner__usage_scenario_dependencies is None
@@ -265,7 +221,7 @@ class TestDependencyCollection:
         }
 
         with patch.object(runner, '_collect_dependency_info') as mock_collect:
-            async def mock_successful_collection():
+            def mock_successful_collection():
                 runner._ScenarioRunner__usage_scenario_dependencies = expected_dependencies
             mock_collect.side_effect = mock_successful_collection
 
@@ -297,7 +253,7 @@ class TestDependencyCollection:
 
         # Mock failed dependency collection
         with patch.object(runner, '_collect_dependency_info') as mock_collect:
-            async def mock_failed_collection():
+            def mock_failed_collection():
                 runner._ScenarioRunner__usage_scenario_dependencies = None
             mock_collect.side_effect = mock_failed_collection
 
