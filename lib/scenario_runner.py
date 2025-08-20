@@ -1548,15 +1548,17 @@ class ScenarioRunner:
 
             print(TerminalColors.OKCYAN, '\nTime Travel mode is active!\nWhat do you want to do?\n')
             print('0 -- Continue\n1 -- Restart current flow\n2 -- Restart all flows\n')
+            print('Note: Process logging, SCI calculations, and notes extraction may be incomplete in timetravel mode\n')
             print('9 / CTRL+C -- Abort', TerminalColors.ENDC)
 
-            self.__ps_to_read.clear() # clear, so we do not read old processes
-            for ps in ps_to_kill_tmp:
-                print(f"Trying to kill detached process '{ps['cmd']}'' of current flow")
-                try:
-                    process_helpers.kill_pg(ps['ps'], ps['cmd'])
-                except ProcessLookupError as process_exc: # Process might have done expected exit already. However all other errors shall bubble
-                    print(f"Could not kill {ps['cmd']}. Exception: {process_exc}")
+            def cleanup_processes():
+                self.__ps_to_read.clear() # clear old processes - may cause incomplete logging, SCI, and notes results
+                for ps in ps_to_kill_tmp:
+                    print(f"Trying to kill detached process '{ps['cmd']}'' of current flow")
+                    try:
+                        process_helpers.kill_pg(ps['ps'], ps['cmd'])
+                    except ProcessLookupError as process_exc: # Process might have done expected exit already. However all other errors shall bubble
+                        print(f"Could not kill {ps['cmd']}. Exception: {process_exc}")
 
             while True:
                 value = sys.stdin.readline().strip()
@@ -1564,10 +1566,12 @@ class ScenarioRunner:
                 if value == '0':
                     break
                 elif value == '1':
+                    cleanup_processes()
                     self.__phases.popitem(last=True)
                     flow_id -= 1
                     break
                 elif value == '2':
+                    cleanup_processes()
                     for _ in range(0,flow_id+1):
                         self.__phases.popitem(last=True)
                     flow_id = 0
