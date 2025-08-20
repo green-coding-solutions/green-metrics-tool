@@ -1547,7 +1547,7 @@ class ScenarioRunner:
                 continue
 
             print(TerminalColors.OKCYAN, '\nTime Travel mode is active!\nWhat do you want to do?\n')
-            print('0 -- Continue\n1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n')
+            print('0 -- Continue\n1 -- Restart current flow\n2 -- Restart all flows\n')
             print('9 / CTRL+C -- Abort', TerminalColors.ENDC)
 
             self.__ps_to_read.clear() # clear, so we do not read old processes
@@ -1570,12 +1570,6 @@ class ScenarioRunner:
                 elif value == '2':
                     for _ in range(0,flow_id+1):
                         self.__phases.popitem(last=True)
-                    flow_id = 0
-                    break
-                elif value == '3':
-                    self.cleanup(continue_measurement=True) # will reset self.__phases
-                    self._setup_networks()
-                    self._setup_services() #
                     flow_id = 0
                     break
                 elif value == '9':
@@ -1855,20 +1849,18 @@ class ScenarioRunner:
             self._post_process(index+1)
             raise exc
 
-    def cleanup(self, continue_measurement=False):
+    def cleanup(self):
         #https://github.com/green-coding-solutions/green-metrics-tool/issues/97
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
-        if continue_measurement is False:
-            print('Stopping metric providers')
-            for metric_provider in self.__metric_providers:
-                try:
-                    metric_provider.stop_profiling()
-                # pylint: disable=broad-exception-caught
-                except Exception as exc:
-                    error_helpers.log_error(f"Could not stop profiling on {metric_provider.__class__.__name__}", exception=exc)
-            self.__metric_providers.clear()
-
+        print('Stopping metric providers')
+        for metric_provider in self.__metric_providers:
+            try:
+                metric_provider.stop_profiling()
+            # pylint: disable=broad-exception-caught
+            except Exception as exc:
+                error_helpers.log_error(f"Could not stop profiling on {metric_provider.__class__.__name__}", exception=exc)
+        self.__metric_providers.clear()
 
         print('Stopping containers')
         for container_id in self.__containers:
@@ -1881,8 +1873,7 @@ class ScenarioRunner:
             subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
         self.__networks.clear()
 
-        if continue_measurement is False:
-            self._remove_docker_images()
+        self._remove_docker_images()
 
         for ps in self.__ps_to_kill:
             try:
@@ -1890,16 +1881,12 @@ class ScenarioRunner:
             except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
                 print(f"Could not kill {ps['cmd']}. Exception: {exc}")
 
-
-        print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
-
         self.__ps_to_kill.clear()
         self.__ps_to_read.clear()
 
-        if continue_measurement is False:
-            self.__start_measurement = None
-            self.__start_measurement_seconds = None
-            self.__notes_helper = Notes()
+        self.__start_measurement = None
+        self.__start_measurement_seconds = None
+        self.__notes_helper = Notes()
 
         # Copy current run's logs to cumulative logs before clearing
         # Add run separator to distinguish between different runs/iterations
@@ -1922,7 +1909,6 @@ class ScenarioRunner:
         self.__image_sizes.clear()
         self.__volume_sizes.clear()
         self.__warnings.clear()
-
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
