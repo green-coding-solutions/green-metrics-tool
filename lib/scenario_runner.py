@@ -1433,6 +1433,13 @@ class ScenarioRunner:
         else:
             self.__notes_helper.add_note( note=f"Ending phase {phase} [UNPADDED]", detail_name='[NOTES]', timestamp=phase_time)
 
+    def _clear_flow_phases_for_timetravel(self, up_to_flow_id):
+        """Clear only flow phases from the phases dictionary, preserving infrastructure phases."""
+        for i in range(up_to_flow_id + 1):
+            if i < len(self._usage_scenario['flow']):
+                flow_name = self._usage_scenario['flow'][i]['name']
+                self.__phases.pop(flow_name, None)
+
     def _run_flows(self):
         ps_to_kill_tmp = []
         ps_to_read_tmp = []
@@ -1572,8 +1579,7 @@ class ScenarioRunner:
                     break
                 elif value == '2':
                     cleanup_processes()
-                    for _ in range(0,flow_id+1):
-                        self.__phases.popitem(last=True)
+                    self._clear_flow_phases_for_timetravel(flow_id)
                     flow_id = 0
                     break
                 elif value == '9':
