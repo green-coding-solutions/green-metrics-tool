@@ -244,6 +244,25 @@ def test_runner_filename_relative_to_local_uri():
 
 ## --iterations ITERATIONS
 #    Optionally specify the number of iterations the files should be executed
+def test_runner_with_iterations_and_save_to_database():
+    """Test that local URI with iterations works when results are stored to database"""
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
+         '--iterations', '2',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps',
+         '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    assert ps.stdout.count('Running:  tests/data/usage_scenarios/basic_stress.yml') == 2
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
 def test_runner_with_iterations_and_multiple_files():
     """Test that runner processes files in correct order with --iterations and allows duplicates"""
     ps = subprocess.run(
@@ -497,3 +516,85 @@ def wip_test_verbose_provider_boot():
         diff = (notes[i+1][0] - notes[i][0])/1000000
         assert 9.9 <= diff <= 10.1, \
             Tests.assertion_info('10s apart', f"time difference of notes: {diff}s")
+
+## --print-logs
+def test_print_logs_flag():
+    """Test that --print-logs flag actually prints logs when they exist"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml',
+                          skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True,
+                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=True)
+
+    runner.run()
+
+    out = io.StringIO()
+    with redirect_stdout(out):
+        logs = runner._get_all_run_logs()
+        if logs:
+            print("Container logs:")
+            for log_entry in logs:
+                print(log_entry)
+                print('-----------------------------')
+            print()
+
+    output = out.getvalue()
+    logs = runner._get_all_run_logs()
+    assert logs, "No logs were captured from the scenario"
+
+    assert "Container logs:" in output
+    container_logs_pos = output.find("Container logs:")
+    assert container_logs_pos != -1
+
+    container_logs_section = output[container_logs_pos:]
+
+    assert "test-container" in container_logs_section
+    assert "Test log message" in container_logs_section
+    assert "Test error message" in container_logs_section
+    assert "-----------------------------" in container_logs_section
+
+    test_log_pos = container_logs_section.find("Test log message")
+    test_error_pos = container_logs_section.find("Test error message")
+
+    assert test_log_pos != -1
+    assert test_error_pos != -1
+    assert test_log_pos < test_error_pos
+
+def test_print_logs_flag_with_iterations():
+    """Test that --print-logs flag prints logs from both iterations"""
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/capture_logs.yml',
+         '--iterations', '2', '--print-logs',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps',
+         '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    print(ps.stdout)
+
+    assert "Container logs:" in ps.stdout
+    container_logs_pos = ps.stdout.find("Container logs:")
+    assert container_logs_pos != -1
+
+    container_logs_section = ps.stdout[container_logs_pos:]
+
+    assert "test-container" in container_logs_section
+
+    test_log_count = container_logs_section.count("Test log message\n")
+    test_error_count = container_logs_section.count("Test error message\n")
+
+    assert test_log_count >= 1, f"Expected at least 1 'Test log message' entry, found {test_log_count}"
+    assert test_error_count >= 1, f"Expected at least 1 'Test error message' entry, found {test_error_count}"
+
+    test_log_pos = container_logs_section.find("Test log message\n")
+    test_error_pos = container_logs_section.find("Test error message\n")
+
+    assert test_log_pos != -1
+    assert test_error_pos != -1
+    assert test_log_pos < test_error_pos
+
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)

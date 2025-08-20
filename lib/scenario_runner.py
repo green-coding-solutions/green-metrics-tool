@@ -102,6 +102,7 @@ class ScenarioRunner:
         self._uri_type = uri_type
         self._original_filename = filename
         self._branch = branch
+        self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
         self._usage_scenario = {}
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
@@ -146,7 +147,7 @@ class ScenarioRunner:
                 ('_read_and_cleanup_processes', {}),
                 ('_store_phases', {}),
                 ('_save_notes_runner', {}),
-                ('_save_stdout_logs', {}),
+                ('_save_run_logs', {}),
                 ('_save_warnings', {}),
                 ('_process_phase_stats', {}),
             )
@@ -154,7 +155,8 @@ class ScenarioRunner:
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
         # They are __ as they should not be changed because this could break the state of the runner
-        self.__stdout_logs = []
+        self.__current_run_logs = []
+        self.__all_runs_logs = []
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
@@ -175,9 +177,6 @@ class ScenarioRunner:
         self.__warnings = []
 
         self._check_all_durations()
-
-        # we currently do not use this variable
-        # self.__filename = self._original_filename # this can be changed later if working directory changes
 
 
     def _check_all_durations(self):
@@ -319,7 +318,7 @@ class ScenarioRunner:
             if problematic_symlink := utils.find_outside_symlinks(self._repo_folder):
                 raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
         else:
-            if self._branch:
+            if self._original_branch is not None:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
             # If the provided uri is a symlink we need to resolve it.
@@ -393,7 +392,6 @@ class ScenarioRunner:
         if '/' in self._original_filename:
             self.__working_folder_rel = self._original_filename.rsplit('/', 1)[0]
             self.__working_folder = usage_scenario_file.rsplit('/', 1)[0]
-            #self.__filename = usage_scenario_file.rsplit('/', 1)[1] # we currently do not use this variable
             print("Working folder changed to ", self.__working_folder)
 
 
@@ -1312,13 +1310,22 @@ class ScenarioRunner:
 
         print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
 
-    # This method only exists to make logs read-only available outside of the self context
-    # Internally we are still using normal __stdout_logs access to read and not funnel through this method
-    def _get_logs(self):
-        return self.__stdout_logs
+    def _add_to_current_run_log(self, identifier, message):
+        self.__current_run_logs.append(f"{identifier}\n{message}")
 
-    def _add_to_log(self, identifier, message):
-        self.__stdout_logs.append(f"{identifier}\n{message}")
+    def _get_all_run_logs(self):
+        """
+        Returns accumulated logs from all runs in the current session.
+        
+        This method provides read-only access to logs collected across multiple runs
+        when using --iterations > 1 or multiple filenames. Each run's logs are preserved 
+        and accumulated to support the --print-logs functionality.
+        
+        Returns:
+            list: All log entries from current session, where each entry is a formatted
+                  string containing identifier and message content
+        """
+        return self.__all_runs_logs
 
     def _save_warnings(self):
         if not self._run_id or self._dev_no_save:
@@ -1641,7 +1648,7 @@ class ScenarioRunner:
 
             if stdout is not None:
                 print('stdout from process:', ps['cmd'], stdout)
-                self._add_to_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDOUT", stdout)
+                self._add_to_current_run_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDOUT", stdout)
 
                 if ps['read-notes-stdout']:
                     self.__notes_helper.parse_and_add_notes(ps['detail_name'], stdout)
@@ -1653,18 +1660,13 @@ class ScenarioRunner:
                 if ps.get('sub-phase-expansion-pattern', None):
                     print('Pattern is', ps['sub-phase-expansion-pattern'])
 
-                    last_timestamp = 0
-                    for match in re.findall(ps['sub-phase-expansion-pattern'], stdout, re.MULTILINE):
-                        DB().query("INSERT INTO micro_phases (run_id, name, start_time, end_time) VALUES (%s, %s, %s, %s)", (self._run_id, match[1], last_timestamp, match[0]))
-                        self.__phases[match[1]] = {'start': int(last_timestamp), 'name': match[1], 'end': int(match[0]) }
-                        last_timestamp = match[0]
-                        print('Phase start is', match[0])
-                        print('Phase name is', match[1])
-                        print('Phase end is ', '????')
+                    for match in re.finditer(ps['sub-phase-expansion-pattern'], stdout, re.MULTILINE):
+                        self.__phases[match['phase_name']] = {'start': int(match['start_time']), 'name': match['phase_name'], 'end': int(match['end_time']) }
+                        DB().query("INSERT INTO micro_phases (run_id, name, start_time, end_time) VALUES (%s, %s, %s, %s)", (self._run_id, match['phase_name'], match['start_time'], match['end_time']))
 
             if stderr is not None:
                 print('stderr from process:', ps['cmd'], stderr)
-                self._add_to_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDERR", stderr)
+                self._add_to_current_run_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDERR", stderr)
 
     def _check_process_returncodes(self):
         print(TerminalColors.HEADER, '\nChecking process return codes', TerminalColors.ENDC)
@@ -1766,7 +1768,7 @@ class ScenarioRunner:
             )
 
             if log.stdout is not None:
-                self._add_to_log(f"{container_info['name']} (STDOUT)", log.stdout)
+                self._add_to_current_run_log(f"{container_info['name']} (STDOUT)", log.stdout)
 
                 if container_info['read-notes-stdout']:
                     self.__notes_helper.parse_and_add_notes(container_info['name'], log.stdout)
@@ -1776,16 +1778,16 @@ class ScenarioRunner:
                         self._sci['R'] += int(match)
 
             if log.stderr is not None:
-                self._add_to_log(f"{container_info['name']} (STDERR)", log.stderr)
+                self._add_to_current_run_log(f"{container_info['name']} (STDERR)", log.stderr)
 
-    def _save_stdout_logs(self):
+    def _save_run_logs(self):
         print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
 
         if not self._run_id or self._dev_no_save:
             print('Skipping savings logs to DB due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        logs_as_str = '\n\n'.join(self.__stdout_logs)
+        logs_as_str = '\n\n'.join(self.__current_run_logs)
         logs_as_str = logs_as_str.replace('\x00','')
         if logs_as_str:
             DB().query("""
@@ -1856,7 +1858,7 @@ class ScenarioRunner:
                 getattr(self, method_name)(**args)
                 index += 1
         except BaseException as exc:
-            self._add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
+            self._add_to_current_run_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
             self._set_run_failed()
             self._post_process(index+1)
             raise exc
@@ -1907,11 +1909,19 @@ class ScenarioRunner:
             self.__start_measurement_seconds = None
             self.__notes_helper = Notes()
 
-        self.__stdout_logs.clear()
+        # Copy current run's logs to cumulative logs before clearing
+        # Add run separator to distinguish between different runs/iterations
+        # The cumulative logs are used by --print-logs to show logs from all runs
+        if self.__current_run_logs:
+            if self.__all_runs_logs:  # Only add separator if there are already logs
+                self.__all_runs_logs.append(f"=== END OF RUN: {self._original_filename} ===")
+            self.__all_runs_logs.extend(self.__current_run_logs)
+
+        # Clear current run logs now that they've been copied to cumulative
+        self.__current_run_logs.clear()
         self.__phases.clear()
         self.__end_measurement = None
         self.__join_default_network = False
-        #self.__filename = self._original_filename # # we currently do not use this variable
         self.__services_to_pause_phase.clear()
         self.__join_default_network = False
         self.__docker_params.clear()
@@ -1923,6 +1933,11 @@ class ScenarioRunner:
 
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
+
+
+    def set_filename(self, filename):
+        """Update filename for reusing ScenarioRunner with different files"""
+        self._original_filename = filename
 
     def run(self):
         '''
@@ -1936,6 +1951,7 @@ class ScenarioRunner:
 
         '''
         try:
+            self._run_id = None  # Reset run ID for new run
             self._start_measurement() # we start as early as possible to include initialization overhead
             self._clear_caches()
             self._check_system('start')
@@ -2020,7 +2036,7 @@ class ScenarioRunner:
             self._identify_invalid_run()
 
         except BaseException as exc:
-            self._add_to_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
+            self._add_to_current_run_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
             self._set_run_failed()
             raise exc
         finally:

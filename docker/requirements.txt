@@ -7,13 +7,13 @@ uvicorn[standard]==0.35.0
 pandas==2.3.1
 PyYAML==6.0.2
 anybadge==1.16.0
-orjson==3.11.1
+orjson==3.11.2
 scipy==1.15.2
 schema==0.7.7
 deepdiff==8.6.0
 redis==6.4.0
 hiredis==3.2.1
-requests==2.32.4
+requests==2.32.5
 uvicorn-worker==0.3.0
 cachetools==6.1.0
 
