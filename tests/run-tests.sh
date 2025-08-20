@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 echo "Starting test containers..."
 ./start-test-containers.sh &>/dev/null &
 sleep 2
