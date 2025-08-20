@@ -1850,7 +1850,7 @@ class ScenarioRunner:
             raise exc
 
     def cleanup(self):
-        #https://github.com/green-coding-solutions/green-metrics-tool/issues/97
+        """Clean up all resources including containers, networks, processes, and metric providers."""
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
         print('Stopping metric providers')
