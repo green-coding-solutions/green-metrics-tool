@@ -27,6 +27,9 @@ jobs:
           submodules: 'false'
 
 
+      - name: 'Setup tmate session for debugging'
+        uses: mxschmitt/action-tmate@v3
+
       - name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
