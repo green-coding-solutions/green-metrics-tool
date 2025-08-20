@@ -387,7 +387,7 @@ def test_reporters_still_running():
 ## Using template
 def test_template_website():
     ps = subprocess.run(
-        ['sh', os.path.normpath(f"{GMT_DIR}/run-template.sh"), 'website', 'https://www.google.de', '--quick', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml"],
+        ['bash', os.path.normpath(f"{GMT_DIR}/run-template.sh"), 'website', 'https://www.google.de', '--quick', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml"],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
