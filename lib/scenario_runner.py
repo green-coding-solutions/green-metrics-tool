@@ -1416,7 +1416,9 @@ class ScenarioRunner:
             time.sleep(self._phase_padding_ms/1000) # no custom sleep here as even with dev_no_sleeps we must ensure phases don't overlap
 
         if phase not in self.__phases:
-            raise RuntimeError('Calling end_phase before start_phase. This is a developer error!')
+            raise RuntimeError(f'Phase "{phase}" not found in known phases: "{list(self.__phases.keys())}". '
+                              f'This could indicate calling end_phase before start_phase or an invalid phase name. '
+                              f'This is a developer error!')
 
         if phase in self.__services_to_pause_phase:
             for container_to_pause in self.__services_to_pause_phase[phase]:
