@@ -340,7 +340,7 @@ class RunUntilManager:
             self.__runner._post_process(0)
 
         except BaseException as exc:
-            self.__runner._add_to_log(exc.__class__.__name__, str(exc))
+            self.__runner._add_to_current_run_log(exc.__class__.__name__, str(exc))
             raise exc
 
     def __exit__(self, exc_type, exc_value, traceback):

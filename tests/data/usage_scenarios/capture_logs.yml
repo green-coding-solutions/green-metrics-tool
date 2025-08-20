@@ -1,0 +1,21 @@
+---
+name: Capture Logs
+author: David Kopp
+description: Capture logs from stdout and sterr
+
+services:
+  test-container:
+    type: container
+    image: alpine
+    log-stdout: true
+    log-stderr: true
+
+flow:
+  - name: Logging
+    container: test-container
+    commands:
+      - type: console
+        command: echo "Test log message" && echo "Test error message" >&2
+        shell: /bin/sh
+        log-stdout: true
+        log-stderr: true
