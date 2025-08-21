@@ -280,7 +280,7 @@ CREATE TABLE measurement_metrics (
     sampling_rate_configured int NOT NULL
 );
 
-CREATE UNIQUE INDEX measurement_metrics_get ON measurement_metrics(run_id,metric,detail_name); -- technically we could allow also different units, but we want to see the use case for that first
+CREATE UNIQUE INDEX measurement_metrics_get ON measurement_metrics(run_id,metric,detail_name); -- technically we could allow also different units, but we want to see the use case for that first. Also a lot of code relies on detail_name to be the final discriminator (e.g. metric providers .transform(utils.df_fill_mean) etc.m which then need to be rewritten)
 CREATE INDEX measurement_metrics_build_and_store_phase_stats ON measurement_metrics(run_id,metric,detail_name,unit);
 CREATE INDEX measurement_metrics_build_phases ON measurement_metrics(metric,detail_name,unit);
 

@@ -115,7 +115,7 @@ static void output_stats(container_t *containers, int length) {
 
 static int parse_containers(container_t** containers, char* containers_string) {
     if(containers_string == NULL) {
-        fprintf(stderr, "Please supply at least one container id with -s XXXX\n");
+        fprintf(stderr, "Please supply at least one container id or cgroup name with -s XXXX\n");
         exit(1);
     }
 
@@ -144,7 +144,7 @@ static int parse_containers(container_t** containers, char* containers_string) {
     }
 
     if(length == 0) {
-        fprintf(stderr, "Please supply at least one container id with -s XXXX\n");
+        fprintf(stderr, "Please supply at least one container id or cgroup name with -s XXXX\n");
         exit(1);
     }
     return length;
@@ -190,7 +190,7 @@ int main(int argc, char **argv) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
-            printf("\t-s      : string of container IDs separated by comma\n");
+            printf("\t-s      : string of container IDs or cgroup names separated by comma\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
             printf("\t-c      : check system and exit\n");
             printf("\n");
