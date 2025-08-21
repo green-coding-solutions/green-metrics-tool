@@ -8,13 +8,14 @@ class PhaseMetrics extends HTMLElement {
                 <div class="ui ${colourClass} card ${cardClass}">
                     <div class="content">
                         <i class="${icon} icon"></i><span class="metric-name">${name}</span>
-                        <div class="right floated meta si-unit"></div>
+                        <div class="right floated meta source"></div>
+
                     </div>
                     <div class="extra content">
                         <div class="description">
-                            <span class="value bold">N/A</span>
+                            <span class="value bold">N/A</span> <span class="si-unit"></span>
                             <div class="right floated meta help" data-tooltip="No data available" data-position="bottom right" data-inverted>
-                                <i class="question circle outline icon"></i>
+                                <span class="metric-type"></span><i class="question circle outline icon"></i>
                             </div>
                         </div>
                     </div>
@@ -312,6 +313,16 @@ const updateKeyMetric = (
         const unitNode = card.querySelector('.si-unit');
         if (unitNode) unitNode.innerText = unit;
 
+        const typeNode = card.querySelector('.metric-type');
+
+        if(std_dev_text != ''){
+            if (typeNode) typeNode.innerText = `(AVG + STD.DEV)`;
+        } else {
+            if(String(value).indexOf('%') !== -1) {
+                if (typeNode) typeNod.innerText = `(Diff. in %)`;
+            }
+        }
+
         const helpNode = card.querySelector('.help');
         if (helpNode) helpNode.setAttribute('data-tooltip', explanation || 'No data available');
 
@@ -319,7 +330,7 @@ const updateKeyMetric = (
         if (metricNameNode) metricNameNode.innerText = clean_name || '';
 
         const sourceNode = card.querySelector('.source');
-        if (sourceNode) sourceNode.innerText = source || '';
+        if (sourceNode) sourceNode.innerText = `via ${source}` || '';
     });
 
 
