@@ -1416,7 +1416,9 @@ class ScenarioRunner:
             time.sleep(self._phase_padding_ms/1000) # no custom sleep here as even with dev_no_sleeps we must ensure phases don't overlap
 
         if phase not in self.__phases:
-            raise RuntimeError('Calling end_phase before start_phase. This is a developer error!')
+            raise RuntimeError(f'Phase "{phase}" not found in known phases: "{list(self.__phases.keys())}". '
+                              f'This could indicate calling end_phase before start_phase or an invalid phase name. '
+                              f'This is a developer error!')
 
         if phase in self.__services_to_pause_phase:
             for container_to_pause in self.__services_to_pause_phase[phase]:
@@ -1547,16 +1549,18 @@ class ScenarioRunner:
                 continue
 
             print(TerminalColors.OKCYAN, '\nTime Travel mode is active!\nWhat do you want to do?\n')
-            print('0 -- Continue\n1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n')
+            print('0 -- Continue\n1 -- Restart current flow\n2 -- Restart all flows\n')
+            print('Note: Process logging, SCI calculations, and notes extraction may be incomplete in timetravel mode\n')
             print('9 / CTRL+C -- Abort', TerminalColors.ENDC)
 
-            self.__ps_to_read.clear() # clear, so we do not read old processes
-            for ps in ps_to_kill_tmp:
-                print(f"Trying to kill detached process '{ps['cmd']}'' of current flow")
-                try:
-                    process_helpers.kill_pg(ps['ps'], ps['cmd'])
-                except ProcessLookupError as process_exc: # Process might have done expected exit already. However all other errors shall bubble
-                    print(f"Could not kill {ps['cmd']}. Exception: {process_exc}")
+            def cleanup_processes():
+                self.__ps_to_read.clear() # clear old processes - may cause incomplete logging, SCI, and notes results
+                for ps in ps_to_kill_tmp:
+                    print(f"Trying to kill detached process '{ps['cmd']}'' of current flow")
+                    try:
+                        process_helpers.kill_pg(ps['ps'], ps['cmd'])
+                    except ProcessLookupError as process_exc: # Process might have done expected exit already. However all other errors shall bubble
+                        print(f"Could not kill {ps['cmd']}. Exception: {process_exc}")
 
             while True:
                 value = sys.stdin.readline().strip()
@@ -1564,18 +1568,14 @@ class ScenarioRunner:
                 if value == '0':
                     break
                 elif value == '1':
+                    cleanup_processes()
                     self.__phases.popitem(last=True)
                     flow_id -= 1
                     break
                 elif value == '2':
-                    for _ in range(0,flow_id+1):
+                    cleanup_processes()
+                    for _ in range(0,flow_id):
                         self.__phases.popitem(last=True)
-                    flow_id = 0
-                    break
-                elif value == '3':
-                    self.cleanup(continue_measurement=True) # will reset self.__phases
-                    self._setup_networks()
-                    self._setup_services() #
                     flow_id = 0
                     break
                 elif value == '9':
@@ -1855,20 +1855,18 @@ class ScenarioRunner:
             self._post_process(index+1)
             raise exc
 
-    def cleanup(self, continue_measurement=False):
-        #https://github.com/green-coding-solutions/green-metrics-tool/issues/97
+    def cleanup(self):
+        """Clean up all resources including containers, networks, processes, and metric providers."""
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
-        if continue_measurement is False:
-            print('Stopping metric providers')
-            for metric_provider in self.__metric_providers:
-                try:
-                    metric_provider.stop_profiling()
-                # pylint: disable=broad-exception-caught
-                except Exception as exc:
-                    error_helpers.log_error(f"Could not stop profiling on {metric_provider.__class__.__name__}", exception=exc)
-            self.__metric_providers.clear()
-
+        print('Stopping metric providers')
+        for metric_provider in self.__metric_providers:
+            try:
+                metric_provider.stop_profiling()
+            # pylint: disable=broad-exception-caught
+            except Exception as exc:
+                error_helpers.log_error(f"Could not stop profiling on {metric_provider.__class__.__name__}", exception=exc)
+        self.__metric_providers.clear()
 
         print('Stopping containers')
         for container_id in self.__containers:
@@ -1881,8 +1879,7 @@ class ScenarioRunner:
             subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
         self.__networks.clear()
 
-        if continue_measurement is False:
-            self._remove_docker_images()
+        self._remove_docker_images()
 
         for ps in self.__ps_to_kill:
             try:
@@ -1890,16 +1887,12 @@ class ScenarioRunner:
             except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
                 print(f"Could not kill {ps['cmd']}. Exception: {exc}")
 
-
-        print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
-
         self.__ps_to_kill.clear()
         self.__ps_to_read.clear()
 
-        if continue_measurement is False:
-            self.__start_measurement = None
-            self.__start_measurement_seconds = None
-            self.__notes_helper = Notes()
+        self.__start_measurement = None
+        self.__start_measurement_seconds = None
+        self.__notes_helper = Notes()
 
         # Copy current run's logs to cumulative logs before clearing
         # Add run separator to distinguish between different runs/iterations
@@ -1922,7 +1915,6 @@ class ScenarioRunner:
         self.__image_sizes.clear()
         self.__volume_sizes.clear()
         self.__warnings.clear()
-
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
