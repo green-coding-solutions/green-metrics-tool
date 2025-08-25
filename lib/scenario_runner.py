@@ -22,6 +22,8 @@ import yaml
 from collections import OrderedDict
 from datetime import datetime
 import platform
+from concurrent.futures import ThreadPoolExecutor
+from dependency_resolver import resolve_docker_dependencies_as_dict
 
 GMT_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -175,6 +177,7 @@ class ScenarioRunner:
         self.__image_sizes = {}
         self.__volume_sizes = {}
         self.__warnings = []
+        self.__usage_scenario_dependencies = None
 
         self._check_all_durations()
 
@@ -584,7 +587,8 @@ class ScenarioRunner:
                     self._job_id, self._name, self._uri, self._branch, self._original_filename,
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
-                    json.dumps(self._usage_scenario), json.dumps(self._usage_scenario_variables), gmt_hash,
+                    json.dumps(self._usage_scenario), json.dumps(self._usage_scenario_variables),
+                    gmt_hash,
                     GlobalConfig().config['machine']['id'], self._user_id,
                 ))[0]
         return self._run_id
@@ -1334,6 +1338,76 @@ class ScenarioRunner:
         for message in self.__warnings:
             DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (self._run_id, message))
 
+    def _execute_dependency_resolver_for_container(self, container_name):
+        """Execute dependency resolver for a single container using Python package."""
+        try:
+            result = resolve_docker_dependencies_as_dict(
+                container_identifier=container_name,
+                only_container_info=True
+            )
+            if '_container-info' in result:
+                container_info = result['_container-info']
+                # Remove the 'name' field as we use container name as key
+                if 'name' in container_info:
+                    del container_info['name']
+                return container_name, container_info
+            else:
+                return container_name, None
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            print(f"Error executing dependency resolver for container {container_name}: {exc}")
+            return container_name, None
+
+    def _collect_container_dependencies(self):
+        """Wrapper method to collect container dependencies with error handling."""
+        try:
+            self._collect_dependency_info()
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            print(f"Failed to collect dependency information: {exc}")
+            self.__usage_scenario_dependencies = None
+
+        if self._run_id:
+            DB().query("""
+                UPDATE runs 
+                SET usage_scenario_dependencies = %s 
+                WHERE id = %s
+                """, params=(json.dumps(self.__usage_scenario_dependencies) if self.__usage_scenario_dependencies is not None else None, self._run_id))
+
+    def _collect_dependency_info(self):
+        """Collect dependency information for all containers."""
+        if not self.__containers:
+            print("No containers available for dependency resolution")
+            return
+
+        print(TerminalColors.HEADER, '\nCollecting dependency information', TerminalColors.ENDC)
+        container_names = [container_info['name'] for container_info in self.__containers.values()]
+
+        # Execute dependency resolver for all containers in parallel using ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(len(container_names), 4)) as executor:
+            results = list(executor.map(self._execute_dependency_resolver_for_container, container_names))
+
+        # Process results and build aggregated structure
+        dependencies = {}
+        successful_containers = 0
+        total_containers = len(container_names)
+        for result in results:
+            if isinstance(result, tuple) and result[1] is not None:
+                container_name, container_info = result
+                dependencies[container_name] = container_info
+                successful_containers += 1
+            elif isinstance(result, Exception):
+                print(f"Exception occurred during dependency resolution: {result}")
+        # Only store results if all containers succeeded
+        if successful_containers == total_containers and total_containers > 0:
+            self.__usage_scenario_dependencies = dependencies
+            print(f"Successfully collected dependency information for {successful_containers} containers:")
+            for container_name, container_info in dependencies.items():
+                image = container_info.get('image', 'unknown')
+                hash_version = container_info.get('hash', 'unknown')
+                print(f"  - {container_name}: {image} ({hash_version})")
+        else:
+            print(f"Dependency resolution incomplete: {successful_containers}/{total_containers} containers succeeded. Not storing partial results.")
+            self.__usage_scenario_dependencies = None
+
     def _add_containers_to_metric_providers(self):
         for metric_provider in self.__metric_providers:
             if metric_provider._metric_name.endswith('_container'):
@@ -1830,7 +1904,7 @@ class ScenarioRunner:
                 self.__phases['[RUNTIME]']['end'] = int(time.time_ns() / 1_000)
 
     def _process_phase_stats(self):
-        if not self._run_id or self._dev_no_phase_stats or self._dev_no_save:
+        if not self._run_id or self._dev_no_phase_stats or self._dev_no_metrics or self._dev_no_save:
             return
 
         # After every run, even if it failed, we want to generate phase stats.
@@ -1988,9 +2062,13 @@ class ScenarioRunner:
             self._add_containers_to_metric_providers()
             self._start_metric_providers(allow_container=True, allow_other=False)
 
+            if self._debugger.active:
+                self._debugger.pause('Container providers started. Waiting to collect dependency information')
+
+            self._collect_container_dependencies()
 
             if self._debugger.active:
-                self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
+                self._debugger.pause('Dependency collection complete. Waiting to start idle phase')
 
             self._start_phase('[IDLE]')
             self._custom_sleep(self._measurement_idle_duration)
