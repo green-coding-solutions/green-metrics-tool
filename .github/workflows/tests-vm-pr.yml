@@ -27,11 +27,18 @@ jobs:
           submodules: 'false'
 
 
+      - name: Debug environment
+        run: |
+          echo "TERM: $TERM"
+          echo "Shell: $SHELL"
+          stty -a
+          
       - name: Setup upterm session
         uses: lhotari/action-upterm@v1
         with:
-          ## limits ssh access and adds the ssh public key for the user which triggered the workflow
           limit-access-to-actor: true
+          upterm-type: shell
+          timeout-minutes: 30
 
 
       - name: 'Setup, Run, and Teardown Tests'
