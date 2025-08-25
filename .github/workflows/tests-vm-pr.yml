@@ -27,13 +27,6 @@ jobs:
           submodules: 'false'
 
 
-      - name: Setup upterm session  
-        uses: lhotari/action-upterm@v1
-        with:
-          limit-access-to-actor: true
-          wait-timeout-minutes: 30
-
-
       - name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
