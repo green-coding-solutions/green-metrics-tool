@@ -67,3 +67,5 @@ cache_dir ufs /apps/squid/var/cache/squid 100 16 256
 refresh_pattern . 1000000 100% 1000000
 
 coredump_dir /apps/squid/var/cache
+
+max_filedescriptors 65536
