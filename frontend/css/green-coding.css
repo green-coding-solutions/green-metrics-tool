@@ -219,6 +219,16 @@ a,
     text-transform: none;
 }
 
+.source {
+    font-size: 0.9em;
+    color: #999;
+}
+
+.metric-type{
+    font-size: 0.7em;
+    color: #999;
+}
+
 .ui.fluid.image.menu-logo {
     width: 90%;
 }
