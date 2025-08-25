@@ -319,7 +319,7 @@ const updateKeyMetric = (
             if (typeNode) typeNode.innerText = `(AVG + STD.DEV)`;
         } else {
             if(String(value).indexOf('%') !== -1) {
-                if (typeNode) typeNod.innerText = `(Diff. in %)`;
+                if (typeNode) typeNode.innerText = `(Diff. in %)`;
             }
         }
 
