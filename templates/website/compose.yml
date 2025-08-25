@@ -10,7 +10,9 @@ services:
         condition: service_healthy
 
   squid:
-    image: greencoding/squid_reverse_proxy:v3
+    build:
+      context: .
+      dockerfile: Dockerfile
     healthcheck:
       test: [
         "CMD", "curl", "-fs", "--proxy", "http://squid:3128", "https://www.google.com", "--insecure"
