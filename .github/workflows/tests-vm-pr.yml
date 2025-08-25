@@ -27,16 +27,11 @@ jobs:
           submodules: 'false'
 
 
-      - name: Setup upterm session
-        run: |
-          # Install upterm
-          curl -sL https://github.com/owenthereal/upterm/releases/latest/download/upterm_linux_amd64.tar.gz | tar zxvf -
-          chmod +x upterm
-          
-          # Start upterm with shell (not tmux) and proper terminal
-          export TERM=xterm-256color
-          ./upterm host --server ssh://uptermd.upterm.dev:22 --authorized-keys <(curl -s https://github.com/${{ github.actor }}.keys) -- bash -l
-        timeout-minutes: 30
+      - name: Setup upterm session  
+        uses: lhotari/action-upterm@v1
+        with:
+          limit-access-to-actor: true
+          wait-timeout-minutes: 30
 
 
       - name: 'Setup, Run, and Teardown Tests'
