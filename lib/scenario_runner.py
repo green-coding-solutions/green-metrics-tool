@@ -368,7 +368,7 @@ class ScenarioRunner:
                 except RuntimeError as exc:
                     raise ValueError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
-                with open(filename, 'r', encoding='utf-8') as f:
+                with open(filename, 'r', encoding='UTF-8') as f:
                     # We want to enable a deep search for keys
                     def recursive_lookup(k, d):
                         if k in d:
@@ -725,9 +725,9 @@ class ScenarioRunner:
                 print(' '.join(docker_build_command))
 
                 if self._measurement_total_duration:
-                    ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', timeout=self._measurement_total_duration, check=False)
+                    ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', timeout=self._measurement_total_duration, check=False)
                 else:
-                    ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+                    ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
@@ -1204,7 +1204,7 @@ class ScenarioRunner:
                                 if ps.returncode != 0 or health == '<nil>':
                                     raise RuntimeError(f"Health check for service '{dependent_service}' was requested by '{service_name}', but service has no healthcheck implemented! (Output was: {health})")
                                 if health == 'unhealthy':
-                                    healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8')
+                                    healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8', errors='replace')
                                     raise RuntimeError(f'Health check of container "{dependent_container_name}" failed terminally with status "unhealthy" after {time_waited}s. Health check errors: {healthcheck_errors}')
                             elif condition == 'service_started':
                                 pass
@@ -1220,7 +1220,7 @@ class ScenarioRunner:
                     if state != 'running':
                         raise RuntimeError(f"State check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not running but '{state}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
                     if health != 'healthy':
-                        healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8')
+                        healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8', errors='replace')
                         raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec!\nHealth check errors: {healthcheck_errors}")
 
 
@@ -1243,7 +1243,8 @@ class ScenarioRunner:
                 check=False,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                encoding='UTF-8'
+                encoding='UTF-8',
+                errors='replace'
             )
 
             if ps.returncode != 0:
@@ -1282,6 +1283,7 @@ class ScenarioRunner:
                         stdout=subprocess.DEVNULL,
                         preexec_fn=os.setsid,
                         encoding='UTF-8',
+                        errors='replace',
                     )
 
                     self.__ps_to_kill.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
@@ -1294,7 +1296,8 @@ class ScenarioRunner:
                         check=True,
                         stderr=subprocess.PIPE,
                         stdout=subprocess.PIPE,
-                        encoding='UTF-8'
+                        encoding='UTF-8',
+                        errors='replace',
                     )
 
                 self.__ps_to_read.append({
@@ -1491,6 +1494,7 @@ class ScenarioRunner:
                                 stdout=stdout_behaviour,
                                 preexec_fn=os.setsid,
                                 encoding='UTF-8',
+                                errors='replace',
                             )
                             if stderr_behaviour == subprocess.PIPE:
                                 os.set_blocking(ps.stderr.fileno(), False)
@@ -1508,6 +1512,7 @@ class ScenarioRunner:
                                 stderr=stderr_behaviour,
                                 stdout=stdout_behaviour,
                                 encoding='UTF-8',
+                                errors='replace',
                                 check=False, # cause it will be checked later and also ignore-errors checked
                                 timeout=self._measurement_flow_process_duration,
                             )
@@ -1755,6 +1760,7 @@ class ScenarioRunner:
                 ['docker', 'logs', container_id],
                 check=True,
                 encoding='UTF-8',
+                errors='replace',
                 stdout=stdout_behaviour,
                 stderr=stderr_behaviour,
             )
