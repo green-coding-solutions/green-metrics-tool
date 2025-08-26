@@ -462,23 +462,14 @@ def test_architecture_compatibility_check_compatible():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
-    # Mock subprocess.run and platform.machine to avoid Docker and platform detection issues
-    # In GitHub Actions, docker inspect may fail due to missing images or network restrictions,
-    # and platform.machine() may return unexpected values in virtualized CI environments
-    mock_docker_inspect_result = unittest.mock.MagicMock()
-    mock_docker_inspect_result.stdout = 'amd64'
-    mock_docker_inspect_result.stderr = ''
+    # Test with a compatible architecture (this should match the current host)
+    is_compatible, img_arch, host_arch, error_msg = runner._check_image_architecture_compatibility('ubuntu:20.04')
 
-    with unittest.mock.patch('subprocess.run', return_value=mock_docker_inspect_result), \
-         unittest.mock.patch('platform.machine', return_value='x86_64'):
-
-        is_compatible, img_arch, host_arch, error_msg = runner._check_image_architecture_compatibility('ubuntu:20.04')
-
-        # Verify that the mocked compatible architectures work correctly
-        assert is_compatible, Tests.assertion_info('Architecture should be compatible', f"img_arch: {img_arch}, host_arch: {host_arch}")
-        assert error_msg == "", Tests.assertion_info('No error message for compatible architectures', error_msg)
-        assert img_arch == "amd64", Tests.assertion_info('Image architecture should be amd64', img_arch)
-        assert host_arch == "amd64", Tests.assertion_info('Host architecture should be amd64', host_arch)
+    # Since we're testing on the same architecture as ubuntu:20.04, this should be compatible
+    assert is_compatible, Tests.assertion_info('Architecture should be compatible', f"img_arch: {img_arch}, host_arch: {host_arch}")
+    assert error_msg == "", Tests.assertion_info('No error message for compatible architectures', error_msg)
+    assert img_arch is not None and img_arch != "unknown", Tests.assertion_info('Image architecture should be detected', img_arch)
+    assert host_arch is not None and host_arch != "unknown", Tests.assertion_info('Host architecture should be detected', host_arch)
 
 def test_architecture_compatibility_check_incompatible():
     """Test that architecture check fails appropriately with incompatible architectures"""
