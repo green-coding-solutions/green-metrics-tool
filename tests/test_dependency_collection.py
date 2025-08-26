@@ -259,3 +259,57 @@ class TestDependencyCollection:
             # The entire run should fail with RuntimeError
             with pytest.raises(RuntimeError, match="Dependency resolution failed"):
                 runner.run()
+
+    def test_integration_dependency_collection_with_real_containers(self):
+        """Integration test using real containers and dependency resolver (no mocking)"""
+        runner = ScenarioRunner(
+            uri=GMT_DIR,
+            uri_type='folder',
+            filename='tests/data/web-application/usage_scenario.yml',
+            skip_unsafe=True,
+            skip_system_checks=True,
+            dev_cache_build=True,
+            dev_no_sleeps=True,
+            dev_no_save=True
+        )
+
+        try:
+            with Tests.RunUntilManager(runner) as context:
+                # Run until after the dependency collection point
+                context.run_until('collect_container_dependencies')
+
+            # Verify dependencies were collected successfully
+            dependencies = runner._ScenarioRunner__usage_scenario_dependencies
+            assert dependencies is not None
+            assert isinstance(dependencies, dict)
+
+            # Should have dependencies for both containers in docker-compose
+            assert len(dependencies) >= 2
+
+            # Verify we have the expected containers
+            container_names = set(dependencies.keys())
+
+            # Check that we have some expected containers (names may vary slightly)
+            assert any('web' in name for name in container_names), f"No web container found in: {container_names}"
+            assert any('db' in name for name in container_names), f"No db container found in: {container_names}"
+
+            # Verify each dependency has required fields
+            for container_name, info in dependencies.items():
+                assert 'image' in info, f"Missing 'image' for container {container_name}"
+                assert 'hash' in info, f"Missing 'hash' for container {container_name}"
+                assert info['image'] is not None, f"Image is None for container {container_name}"
+                assert info['hash'] is not None, f"Hash is None for container {container_name}"
+                assert info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {container_name}"
+
+            # Verify GMT-transformed images (GMT changes postgres:13 to postgres13_gmt_run_tmp:latest)
+            images = [info['image'] for info in dependencies.values()]
+            assert any('postgres13_gmt_run_tmp' in image for image in images), f"postgres13_gmt_run_tmp not found in images: {images}"
+            assert any('web_gmt_run_tmp' in image for image in images), f"web_gmt_run_tmp not found in images: {images}"
+
+        except Exception as exc:
+            # Clean up on any failure
+            try:
+                runner.cleanup()
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
+            raise exc
