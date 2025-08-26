@@ -108,7 +108,8 @@ const fetchAndFillRunData = async (url_params) => {
             if (run_data[item] && Object.keys(run_data[item]).length > 0) {
                 const tableBody = document.querySelector("#usage-scenario-dependencies-table tbody");
                 for (const containerName in run_data[item]) {
-                    const containerInfo = run_data[item][containerName];
+                    const containerData = run_data[item][containerName];
+                    const containerInfo = containerData._container_info || containerData['_container-info'] || {};
                     const image = containerInfo.image || 'N/A';
                     const hash = containerInfo.hash || 'N/A';
                     tableBody.insertAdjacentHTML('beforeend', 

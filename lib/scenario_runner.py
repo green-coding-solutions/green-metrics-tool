@@ -1341,21 +1341,48 @@ class ScenarioRunner:
         for message in self.__warnings:
             DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (self._run_id, message))
 
+    def _needs_full_dependency_resolution(self, container_name):
+        """Determine if container needs full dependency resolution based on whether it was built."""
+        services = self._usage_scenario.get('services', {})
+
+        # Find the service that corresponds to this container
+        for service_name, service in services.items():
+            # Check if this service matches the container (by name or container_name)
+            service_container_name = service.get('container_name', service_name)
+            if service_container_name == container_name or service_name in container_name:
+                # Check if service has build configuration
+                return 'build' in service
+
+        # Default to container-info-only for containers we can't match to services
+        return False
+
     def _execute_dependency_resolver_for_container(self, container_name):
         """Execute dependency resolver for a single container using Python package."""
         try:
+            # Determine resolution type based on whether container was built
+            only_container_info = not self._needs_full_dependency_resolution(container_name)
+
             result = resolve_docker_dependencies_as_dict(
                 container_identifier=container_name,
-                only_container_info=True
+                only_container_info=only_container_info
             )
-            if '_container-info' in result:
-                container_info = result['_container-info']
-                # Remove the 'name' field as we use container name as key
-                if 'name' in container_info:
-                    del container_info['name']
-                return container_name, container_info
+
+            if only_container_info:
+                # Container-info-only mode: extract and return just the container info
+                if '_container-info' in result:
+                    container_info = result['_container-info']
+                    # Remove the 'name' field as we use container name as key
+                    if 'name' in container_info:
+                        del container_info['name']
+                    return container_name, {'_container-info': container_info}
+                else:
+                    return container_name, None
             else:
-                return container_name, None
+                # Full resolution mode: return complete structure but remove name from _container-info
+                if '_container-info' in result and 'name' in result['_container-info']:
+                    del result['_container-info']['name']
+                return container_name, result if result else None
+
         except Exception as exc:  # pylint: disable=broad-exception-caught
             print(f"Error executing dependency resolver for container {container_name}: {exc}")
             return container_name, None
@@ -1398,14 +1425,22 @@ class ScenarioRunner:
                 container_name = result[0] if isinstance(result, tuple) else "unknown"
                 raise RuntimeError(f"Dependency resolution failed for container '{container_name}'. Aborting GMT run.")
 
-        # All containers succeeded
+        # Dependency resolution succeeded
         if dependencies:
             self.__usage_scenario_dependencies = dependencies
             print("Successfully collected dependency information:")
-            for container_name, container_info in dependencies.items():
-                image = container_info.get('image', 'unknown')
-                hash_version = container_info.get('hash', 'unknown')
-                print(f"  - {container_name}: {image} ({hash_version})")
+            for container_name, container_data in dependencies.items():
+                # Extract container info from either structure (container-info-only or full resolution)
+                if '_container-info' in container_data:
+                    container_info = container_data['_container-info']
+                    image = container_info.get('image', 'unknown')
+                    hash_version = container_info.get('hash', 'unknown')
+                    # Check if this was full resolution
+                    has_full_deps = any(key != '_container-info' for key in container_data.keys())
+                    deps_info = " (full dependencies)" if has_full_deps else ""
+                    print(f"  - {container_name}: {image} ({hash_version}){deps_info}")
+                else:
+                    raise RuntimeError(f"Invalid dependency data structure for container '{container_name}': missing '_container-info' section")
 
     def _add_containers_to_metric_providers(self):
         for metric_provider in self.__metric_providers:
