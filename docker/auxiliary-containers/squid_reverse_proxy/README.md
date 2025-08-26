@@ -19,5 +19,5 @@ This is the command we us to update the container on Docker Hub
 Details how to setup the build infrastructure here: https://docs.docker.com/build/building/multi-platform/
 
 ```bash
-buildx build --platform linux/amd64,linux/arm64 --push -t greencoding/squid_reverse_proxy:vX
+docker buildx build --platform linux/amd64,linux/arm64 --push -t greencoding/squid_reverse_proxy:vX .
 ```
