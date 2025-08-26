@@ -120,8 +120,6 @@ const fetchAndFillRunData = async (url_params) => {
                     );
                 }
                 document.querySelector("#usage-scenario-dependencies-table").style.display = 'table';
-            } else if (run_data[item] === null) {
-                document.querySelector("#usage-scenario-dependencies-error").style.display = 'block';
             }
 
         } else if(item == 'logs' && run_data?.[item] != null) {

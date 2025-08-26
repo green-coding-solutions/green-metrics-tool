@@ -1361,12 +1361,8 @@ class ScenarioRunner:
             return container_name, None
 
     def _collect_container_dependencies(self):
-        """Wrapper method to collect container dependencies with error handling."""
-        try:
-            self._collect_dependency_info()
-        except Exception as exc:  # pylint: disable=broad-exception-caught
-            print(f"Failed to collect dependency information: {exc}")
-            self.__usage_scenario_dependencies = None
+        """Wrapper method to collect container dependencies."""
+        self._collect_dependency_info()
 
         if self._run_id:
             DB().query("""
@@ -1388,28 +1384,28 @@ class ScenarioRunner:
         with ThreadPoolExecutor(max_workers=min(len(container_names), 4)) as executor:
             results = list(executor.map(self._execute_dependency_resolver_for_container, container_names))
 
-        # Process results and build aggregated structure
+        # Process results - abort on any failure
+        # Each result is either: (container_name, container_info), (container_name, None), or Exception
         dependencies = {}
-        successful_containers = 0
-        total_containers = len(container_names)
         for result in results:
             if isinstance(result, tuple) and result[1] is not None:
                 container_name, container_info = result
                 dependencies[container_name] = container_info
-                successful_containers += 1
             elif isinstance(result, Exception):
-                print(f"Exception occurred during dependency resolution: {result}")
-        # Only store results if all containers succeeded
-        if successful_containers == total_containers and total_containers > 0:
+                raise RuntimeError(f"Dependency resolution failed: {result}. Aborting GMT run.")
+            else:
+                # Dependency resolution failed for this container
+                container_name = result[0] if isinstance(result, tuple) else "unknown"
+                raise RuntimeError(f"Dependency resolution failed for container '{container_name}'. Aborting GMT run.")
+
+        # All containers succeeded
+        if dependencies:
             self.__usage_scenario_dependencies = dependencies
-            print(f"Successfully collected dependency information for {successful_containers} containers:")
+            print("Successfully collected dependency information:")
             for container_name, container_info in dependencies.items():
                 image = container_info.get('image', 'unknown')
                 hash_version = container_info.get('hash', 'unknown')
                 print(f"  - {container_name}: {image} ({hash_version})")
-        else:
-            print(f"Dependency resolution incomplete: {successful_containers}/{total_containers} containers succeeded. Not storing partial results.")
-            self.__usage_scenario_dependencies = None
 
     def _add_containers_to_metric_providers(self):
         for metric_provider in self.__metric_providers:

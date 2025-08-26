@@ -1,5 +1,6 @@
 import os
 from unittest.mock import patch
+import pytest
 
 from lib.scenario_runner import ScenarioRunner
 from tests import test_functions as Tests
@@ -152,10 +153,10 @@ class TestDependencyCollection:
         with patch.object(runner, '_execute_dependency_resolver_for_container') as mock_exec:
             mock_exec.side_effect = mock_responses
 
-            runner._collect_dependency_info()
+            # Should raise RuntimeError due to partial failure
+            with pytest.raises(RuntimeError, match="Dependency resolution failed"):
+                runner._collect_dependency_info()
 
-            # Should be None due to partial failure
-            assert runner._ScenarioRunner__usage_scenario_dependencies is None
             assert mock_exec.call_count == 2
 
     def test_collect_dependency_info_no_containers(self):
@@ -237,8 +238,8 @@ class TestDependencyCollection:
 
             assert result[0] == expected_dependencies
 
-    def test_database_insertion_with_null_dependencies(self):
-        """Test that null dependencies are stored when collection fails"""
+    def test_whole_run_fails_when_dependency_collection_fails(self):
+        """Test that the entire GMT run fails when dependency collection fails"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
             uri_type='folder',
@@ -251,20 +252,10 @@ class TestDependencyCollection:
             dev_no_optimizations=True
         )
 
-        # Mock failed dependency collection
+        # Mock failed dependency collection that raises exception
         with patch.object(runner, '_collect_dependency_info') as mock_collect:
-            def mock_failed_collection():
-                runner._ScenarioRunner__usage_scenario_dependencies = None
-            mock_collect.side_effect = mock_failed_collection
+            mock_collect.side_effect = RuntimeError("Dependency resolution failed for container 'postgres-container'. Aborting GMT run.")
 
-            run_id = runner.run()
-
-            # Verify run was created and dependencies are null
-            assert run_id is not None
-
-            result = DB().fetch_one(
-                "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
-                (run_id,)
-            )
-
-            assert result[0] is None
+            # The entire run should fail with RuntimeError
+            with pytest.raises(RuntimeError, match="Dependency resolution failed"):
+                runner.run()
