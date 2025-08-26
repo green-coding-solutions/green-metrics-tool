@@ -6,6 +6,7 @@ import re
 import os
 import platform
 import subprocess
+import time
 import unittest.mock
 import yaml
 
@@ -457,19 +458,46 @@ def test_runner_run_invalidated():
 
 
 ## Architecture compatibility check
+def get_compatible_test_image():
+    """
+    Get a Docker image that's compatible with the current host architecture.
+    Returns the image name suitable for architecture compatibility testing.
+    """
+    host_arch = platform.machine()
+    arch_mapping = {
+        'x86_64': 'amd64',
+        'aarch64': 'arm64', 
+        'armv7l': 'arm',
+    }
+    normalized_host_arch = arch_mapping.get(host_arch, host_arch)
+
+    # Select compatible image based on host architecture
+    compatible_images = {
+        'amd64': 'ubuntu:20.04',
+        'arm64': 'ubuntu:20.04', 
+        'arm': 'alpine:latest'
+    }
+    return compatible_images.get(normalized_host_arch, 'ubuntu:20.04')
+
 def test_architecture_compatibility_check_compatible():
     """Test that architecture check passes when image and host architectures match"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
-    # Test with a compatible architecture (this should match the current host)
-    is_compatible, img_arch, host_arch, error_msg = runner._check_image_architecture_compatibility('ubuntu:20.04')
+    # Get a compatible image for the current host architecture
+    test_image = get_compatible_test_image()
 
-    # Since we're testing on the same architecture as ubuntu:20.04, this should be compatible
-    assert is_compatible, Tests.assertion_info('Architecture should be compatible', f"img_arch: {img_arch}, host_arch: {host_arch}")
+    # Pull the image to ensure it exists before testing
+    subprocess.run(['docker', 'pull', test_image], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+
+    # Test with a compatible architecture (this should match the current host)
+    is_compatible, img_arch, host_arch_detected, error_msg = runner._check_image_architecture_compatibility(test_image)
+
+    # Since we selected a compatible image for the current architecture, this should be compatible
+    assert is_compatible, Tests.assertion_info('Architecture should be compatible', f"img_arch: {img_arch}, host_arch: {host_arch_detected}, test_image: {test_image}")
     assert error_msg == "", Tests.assertion_info('No error message for compatible architectures', error_msg)
     assert img_arch is not None and img_arch != "unknown", Tests.assertion_info('Image architecture should be detected', img_arch)
-    assert host_arch is not None and host_arch != "unknown", Tests.assertion_info('Host architecture should be detected', host_arch)
+    assert host_arch_detected is not None and host_arch_detected != "unknown", Tests.assertion_info('Host architecture should be detected', host_arch_detected)
 
 def test_architecture_compatibility_check_incompatible():
     """Test that architecture check fails appropriately with incompatible architectures"""
@@ -493,13 +521,19 @@ def test_architecture_compatibility_check_nonexistent_image():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
-    # Test with a nonexistent image
-    is_compatible, img_arch, host_arch, error_msg = runner._check_image_architecture_compatibility('nonexistent_image_12345')
+    # Generate a guaranteed unique nonexistent image name using timestamp and random string
+    nonexistent_image = f"nonexistent_test_image_{int(time.time())}_{utils.randomword(8)}"
 
-    assert not is_compatible, Tests.assertion_info('Nonexistent image should be incompatible', is_compatible)
+    # Test with a nonexistent image
+    is_compatible, img_arch, host_arch, error_msg = runner._check_image_architecture_compatibility(nonexistent_image)
+
+    assert not is_compatible, Tests.assertion_info('Nonexistent image should be incompatible', f"image: {nonexistent_image}")
     assert img_arch == "unknown", Tests.assertion_info('Image architecture should be unknown', img_arch)
     assert host_arch == "unknown", Tests.assertion_info('Host architecture should be unknown', host_arch)
     assert "Failed to inspect image architecture" in error_msg, Tests.assertion_info('Error should mention inspection failure', error_msg)
+    # Should contain typical Docker error messages for nonexistent images
+    error_msg_lower = error_msg.lower()
+    assert any(phrase in error_msg_lower for phrase in ["no such image", "manifest unknown", "not found", "pull access denied"]), Tests.assertion_info('Error should indicate image not found', error_msg)
 
     ## rethink this one
 def wip_test_verbose_provider_boot():
