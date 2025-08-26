@@ -1,6 +1,6 @@
 services:
   gcb-playwright:
-    image: greencoding/gcb_playwright:v18
+    image: greencoding/gcb_playwright:v20
 #    volumes:
 #       - /tmp/.X11-unix:/tmp/.X11-unix # for debugging in non-headless mode
     environment:
