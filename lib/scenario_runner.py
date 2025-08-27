@@ -274,7 +274,6 @@ class ScenarioRunner:
             self.__warnings.append(warn)
 
 
-
     def _checkout_repository(self):
         print(TerminalColors.HEADER, '\nChecking out repository', TerminalColors.ENDC)
 
