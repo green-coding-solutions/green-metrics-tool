@@ -274,44 +274,6 @@ class ScenarioRunner:
             self.__warnings.append(warn)
 
 
-    def _check_image_architecture_compatibility(self, image_name):
-        """
-        Check if the Docker image architecture is compatible with the host platform.
-        Returns (is_compatible: bool, image_arch: str, host_arch: str, error_message: str)
-        """
-        try:
-            # Get image architecture
-            result = subprocess.run(
-                ['docker', 'inspect', '--type=image', '--format={{.Architecture}}', image_name],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=True
-            )
-            image_arch = result.stdout.strip()
-
-            # Get host architecture
-            host_arch = platform.machine()
-            # Normalize architecture names to match Docker's naming conventions
-            # Docker uses 'amd64', 'arm64', 'arm' while host systems use 'x86_64', 'aarch64', 'armv7l'
-            # These 3 mappings cover the vast majority of modern container deployments:
-            # - amd64: Dominant on servers/desktops
-            # - arm64: Apple Silicon, AWS Graviton, etc.
-            # - arm: Embedded/IoT devices, Raspberry Pi
-            arch_mapping = {
-                'x86_64': 'amd64',
-                'aarch64': 'arm64',
-                'armv7l': 'arm',
-            }
-            normalized_host_arch = arch_mapping.get(host_arch, host_arch)
-
-            is_compatible = image_arch == normalized_host_arch
-            if not is_compatible:
-                error_msg = (f"Architecture mismatch for image '{image_name}': "
-                            f"Image is built for {image_arch} but host platform is {normalized_host_arch}.")
-            else:
-                error_msg = ""
-
-            return is_compatible, image_arch, normalized_host_arch, error_msg
-        except subprocess.CalledProcessError as e:
-            return False, "unknown", "unknown", f"Failed to inspect image architecture: {e.stderr}"
 
     def _checkout_repository(self):
         print(TerminalColors.HEADER, '\nChecking out repository', TerminalColors.ENDC)
@@ -790,6 +752,27 @@ class ScenarioRunner:
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
+
+                    # Check if it's an architecture mismatch error
+                    stderr_lower = ps.stderr.lower()
+                    if "no matching manifest" in stderr_lower:
+                        # This is definitely an architecture mismatch - create appropriate error
+                        host_arch = platform.machine()
+                        # Normalize architecture names to match Docker's naming conventions
+                        # Docker uses 'amd64', 'arm64', 'arm' while host systems use 'x86_64', 'aarch64', 'armv7l'
+                        # These 3 mappings cover the vast majority of modern container deployments:
+                        # - amd64: Dominant on servers/desktops
+                        # - arm64: Apple Silicon, AWS Graviton, etc.
+                        # - arm: Embedded/IoT devices, Raspberry Pi
+                        arch_mapping = {
+                            'x86_64': 'amd64',
+                            'aarch64': 'arm64',
+                            'armv7l': 'arm',
+                        }
+                        normalized_host_arch = arch_mapping.get(host_arch, host_arch)
+                        raise RuntimeError(f"Architecture incompatibility detected: Docker image '{service['image']}' is not available for host architecture '{normalized_host_arch}'. The error was: {ps.stderr.strip()}")
+
+                    # Handle other Docker pull failures
                     if __name__ == '__main__':
                         print(TerminalColors.OKCYAN, '\nThe docker image could not be pulled. Since you are working locally we can try looking in your local images. Do you want that? (y/N).', TerminalColors.ENDC)
                         if sys.stdin.readline().strip().lower() == 'y':
@@ -800,19 +783,12 @@ class ScenarioRunner:
                                                          encoding='UTF-8',
                                                          check=True)
                                 print('Docker image found locally. Tagging now for use in cached runs ...')
-                            except subprocess.CalledProcessError:
-                                raise OSError(f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}") from subprocess.CalledProcessError
+                            except subprocess.CalledProcessError as e:
+                                raise OSError(f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}") from e
                         else:
                             raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
                     else:
                         raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
-
-                # Check architecture compatibility after pull/verification
-                is_compatible, _, _, error_msg = self._check_image_architecture_compatibility(service['image'])
-                if not is_compatible:
-                    print(TerminalColors.FAIL, f"ERROR: {error_msg}", TerminalColors.ENDC)
-                    raise RuntimeError(error_msg)
-
 
                 # tagging must be done in pull and local case, so we can get the correct container later
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)

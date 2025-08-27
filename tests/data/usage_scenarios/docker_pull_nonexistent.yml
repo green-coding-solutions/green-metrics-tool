@@ -1,0 +1,15 @@
+name: Test Nonexistent Image
+author: Test
+description: Test docker pull with nonexistent image
+
+services:
+  test_service:
+    image: NONEXISTENT_IMAGE
+    
+flow:
+  - name: test
+    container: test_service
+    commands:
+      - type: console
+        command: echo "test"
+        note: test command
