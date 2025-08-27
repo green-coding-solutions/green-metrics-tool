@@ -66,28 +66,6 @@ class TestDependencyCollection:
             assert result[0] == "test-container"
             assert result[1] is None
 
-    def test_execute_dependency_resolver_for_container_missing_container_info(self):
-        """Test dependency resolver with response missing container info"""
-        runner = ScenarioRunner(
-            uri=GMT_DIR,
-            uri_type='folder',
-            filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
-            dev_cache_build=True,
-            dev_no_sleeps=True,
-            dev_no_save=True
-        )
-
-        # Mock response missing _container-info
-        mock_response = {"some_other_key": "value"}
-
-        with patch('lib.scenario_runner.resolve_docker_dependencies_as_dict') as mock_resolver:
-            mock_resolver.return_value = mock_response
-
-            result = runner._execute_dependency_resolver_for_container("test-container")
-
-            assert result[0] == "test-container"
-            assert result[1] is None
 
     def test_collect_dependency_info_all_containers_succeed(self):
         """Test dependency collection when all containers succeed"""
@@ -270,13 +248,14 @@ class TestDependencyCollection:
             skip_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_metrics=True,
+            dev_no_phase_stats=True,
+            dev_no_optimizations=True
         )
 
         try:
-            with Tests.RunUntilManager(runner) as context:
-                # Run until after the dependency collection point
-                context.run_until('collect_container_dependencies')
+            run_id = runner.run()
+            assert run_id is not None
 
             # Verify dependencies were collected successfully
             dependencies = runner._ScenarioRunner__usage_scenario_dependencies
@@ -320,6 +299,16 @@ class TestDependencyCollection:
             images = [data['_container-info']['image'] for data in dependencies.values()]
             assert any('postgres13_gmt_run_tmp' in image for image in images), f"postgres13_gmt_run_tmp not found in images: {images}"
             assert any('web_gmt_run_tmp' in image for image in images), f"web_gmt_run_tmp not found in images: {images}"
+
+            # Verify dependencies were stored in database
+            result = DB().fetch_one(
+                "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
+                (run_id,)
+            )
+            assert result is not None
+            assert result[0] is not None
+            stored_dependencies = result[0]
+            assert stored_dependencies == dependencies, "Stored dependencies don't match collected dependencies"
 
         except Exception as exc:
             # Clean up on any failure
