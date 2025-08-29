@@ -749,6 +749,27 @@ class ScenarioRunner:
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
+
+                    # Check if it's an architecture mismatch error
+                    stderr_lower = ps.stderr.lower()
+                    if "no matching manifest" in stderr_lower:
+                        # This is definitely an architecture mismatch - create appropriate error
+                        host_arch = platform.machine()
+                        # Normalize architecture names to match Docker's naming conventions
+                        # Docker uses 'amd64', 'arm64', 'arm' while host systems use 'x86_64', 'aarch64', 'armv7l'
+                        # These 3 mappings cover the vast majority of modern container deployments:
+                        # - amd64: Dominant on servers/desktops
+                        # - arm64: Apple Silicon, AWS Graviton, etc.
+                        # - arm: Embedded/IoT devices, Raspberry Pi
+                        arch_mapping = {
+                            'x86_64': 'amd64',
+                            'aarch64': 'arm64',
+                            'armv7l': 'arm',
+                        }
+                        normalized_host_arch = arch_mapping.get(host_arch, host_arch)
+                        raise RuntimeError(f"Architecture incompatibility detected: Docker image '{service['image']}' is not available for host architecture '{normalized_host_arch}'. The error was: {ps.stderr.strip()}")
+
+                    # Handle other Docker pull failures
                     if __name__ == '__main__':
                         print(TerminalColors.OKCYAN, '\nThe docker image could not be pulled. Since you are working locally we can try looking in your local images. Do you want that? (y/N).', TerminalColors.ENDC)
                         if sys.stdin.readline().strip().lower() == 'y':
@@ -759,8 +780,8 @@ class ScenarioRunner:
                                                          encoding='UTF-8',
                                                          check=True)
                                 print('Docker image found locally. Tagging now for use in cached runs ...')
-                            except subprocess.CalledProcessError:
-                                raise OSError(f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}") from subprocess.CalledProcessError
+                            except subprocess.CalledProcessError as e:
+                                raise OSError(f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}") from e
                         else:
                             raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
                     else:
