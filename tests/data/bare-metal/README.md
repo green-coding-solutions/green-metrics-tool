@@ -22,3 +22,11 @@ Example:
             },
     ...
 ```
+
+Alternatively the `sysbox-runc` runtime can be set as the default runtime for the machine. This is the current setup that we are using.
+
+## Caveats
+
+The `Dockerfile` can currently not be built with the GMT as our build isolation layer *kaniko* has some issues with removing certain files. It sets certain paths as read-only and thus the build fails.
+
+Thus we are using `greencoding/ubuntu-systemd-docker` as the image to pull, which is effectively the Dockerfile.

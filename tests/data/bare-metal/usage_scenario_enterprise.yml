@@ -17,6 +17,22 @@ flow:
         command: git clone https://github.com/green-coding-solutions/green-metrics-tool --depth 1 --single-branch --recurse-submodules --shallow-submodules
         log-stdout: true
 
+  - name: Setup SSH keys
+    container: ubuntu-systemd-docker
+    commands:
+      - type: console
+        command: |
+          cd ~/green-metrics-tool
+          sed -i "s#git@github.com:green-coding-solutions/gmt-enterprise.git#git@github-custom:green-coding-solutions/gmt-enterprise.git#" .gitmodules
+          git submodule sync
+          mkdir -p ~/.ssh
+          echo '__GMT_VAR_SSH_PRIVATE_KEY__' > ~/.ssh/id_github
+          chmod 0600 ~/.ssh/id_github
+          echo -e '\nHost github-custom\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/id_github' >> ~/.ssh/config
+        shell: bash
+        log-stdout: true
+
+
   - name: Install GMT base
     container: ubuntu-systemd-docker
     commands:
@@ -24,9 +40,10 @@ flow:
         # we set here --nvidia-gpu altough the M4 machine does not have any. We want to test if the headers can be correctly downloaded
         command: |
           cd ~/green-metrics-tool
-          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -T -L -z -f -j -d -g --nvidia-gpu
+          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -T -L -z -f -j -d -g -e bare-metal-M4-tests --no-ai --nvidia-gpu
         shell: bash
         log-stdout: true
+
 
   - name: Install GMT dev requirements
     container: ubuntu-systemd-docker
@@ -48,7 +65,7 @@ flow:
         command: |
           source venv/bin/activate
           cd ~/green-metrics-tool/tests
-          python3 setup-test-env.py
+          python3 setup-test-env.py --ee
         shell: bash
         log-stdout: true
 
@@ -64,6 +81,7 @@ flow:
         shell: bash
         log-stdout: true
 
+
   - name: Run Tests
     container: ubuntu-systemd-docker
     commands:
@@ -73,7 +91,7 @@ flow:
           python3 -m pytest -vv -rA
         shell: bash
         log-stdout: true
-        log-stdout: true
+
 
   - name: Stop Test Containers
     container: ubuntu-systemd-docker
