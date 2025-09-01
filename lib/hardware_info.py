@@ -25,7 +25,7 @@ linux_info_list = [
     [rfwr, 'Cpu Info', '/proc/cpuinfo', r'model name.*:\s(?P<o>.*)'],
     [rfwr, 'Memory Total', '/proc/meminfo', r'MemTotal:\s*(?P<o>.*)'],
     [rpwr, 'Kernel Version', 'uname -srv', r'(?P<o>.*)'],
-    [rfwr, 'Operating System', '/etc/os-release', r'VERSION=(["\'])(?P<o>.*)\1'],
+    [rfwr, 'Operating System', '/etc/os-release', r'^(?:NAME|VERSION_ID)=(["\'])(?P<o>.+)\1$[\n.]*^(?:NAME|VERSION_ID)=(["\'])(?P<o2>.*)\3$', re.MULTILINE, ('o', 'o2')],
     [rpwr, 'Hostname', 'uname -n', r'(?P<o>.*)'],
     [rpwr, 'Architecture', 'uname -m', r'(?P<o>.*)'],
     [rpwr, 'Kernel Modules', 'lsmod | sort', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
