@@ -76,7 +76,7 @@ mac_info_list = [
     [rpwr, 'Mac Version', 'sw_vers -productVersion', r'(?P<o>.*)'],
     [rpwr, 'Hostname', 'uname -n', r'(?P<o>.*)'],
     [rpwr, 'Build Version', 'sw_vers -buildVersion', r'(?P<o>.*)'],
-    [rpwr, 'Kerne Version', 'uname -srv', r'(?P<o>.*)'],
+    [rpwr, 'Kernel Version', 'uname -srv', r'(?P<o>.*)'],
     [rpwr, 'Kernel Modules', 'kextstat', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
     [cf, 'Free Memory', psutil.virtual_memory, [], 'available'],
