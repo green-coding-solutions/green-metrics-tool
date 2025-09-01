@@ -456,7 +456,7 @@ def test_runner_run_invalidated():
 
 
 ## Docker pull logic tests
-def test_docker_pull_multiarch_image():
+def test_docker_pull_multiarch_image_succeeds():
     """Test successful Docker pull with multi-architecture image"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_multiarch_image.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
@@ -464,10 +464,10 @@ def test_docker_pull_multiarch_image():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
 
-    assert runner._usage_scenario['services']['test_service']['image'] == 'alpine:latest'
+    assert runner._usage_scenario['services']['test_service']['image'] == 'alpine:3.22.1'
 
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
-def test_docker_pull_arm64_image_on_amd64_host():
+def test_docker_pull_arm64_image_on_amd64_host_fails():
     """Test Docker pull fails when trying to use ARM64 image on AMD64 host"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_arm64_image.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
@@ -480,8 +480,22 @@ def test_docker_pull_arm64_image_on_amd64_host():
     assert "not available for host architecture" in str(e.value)
     assert "amd64" in str(e.value)
 
+@pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
+def test_docker_pull_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
+    """Test Docker pull fails when trying to use ARM64 manifest digest from multi-arch image on AMD64 host"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_multiarch_image_arm64_digest.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert "Architecture incompatibility detected" in str(e.value)
+    assert "not available for host architecture" in str(e.value)
+    assert "amd64" in str(e.value)
+
 @pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
-def test_docker_pull_amd64_image_on_arm64_host():
+def test_docker_pull_amd64_image_on_arm64_host_fails():
     """Test Docker pull fails when trying to use AMD64 image on ARM64 host"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_amd64_image.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
@@ -494,7 +508,21 @@ def test_docker_pull_amd64_image_on_arm64_host():
     assert "not available for host architecture" in str(e.value)
     assert "arm64" in str(e.value)
 
-def test_docker_pull_nonexistent_image_non_interactive():
+@pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
+def test_docker_pull_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
+    """Test Docker pull fails when trying to use amd64 manifest digest from multi-arch image on arm64 host"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_multiarch_image_amd64_digest.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert "Architecture incompatibility detected" in str(e.value)
+    assert "not available for host architecture" in str(e.value)
+    assert "arm64" in str(e.value)
+
+def test_docker_pull_nonexistent_image_non_interactive_fails():
     """Test Docker pull fails due to nonexistent image in non-interactive mode"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_nonexistent.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)

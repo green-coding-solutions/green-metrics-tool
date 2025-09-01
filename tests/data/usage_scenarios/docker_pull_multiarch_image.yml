@@ -4,7 +4,7 @@ description: Test docker pull with multi-architecture image (compatible on all p
 
 services:
   test_service:
-    image: alpine:latest
+    image: alpine:3.22.1
     
 flow:
   - name: test

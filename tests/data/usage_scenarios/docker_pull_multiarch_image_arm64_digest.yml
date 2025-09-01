@@ -1,0 +1,15 @@
+name: Test Docker Pull Multi-Arch Image with forced arm64
+author: Test
+description: Test docker pull with multi-architecture image, but with forced arm64 image using manifest digest
+
+services:
+  test_service:
+    image: alpine@sha256:4562b419adf48c5f3c763995d6014c123b3ce1d2e0ef2613b189779caa787192
+    
+flow:
+  - name: test
+    container: test_service
+    commands:
+      - type: console
+        command: echo "test"
+        note: test command

@@ -44,6 +44,23 @@ from lib import metric_importer
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
+def map_host_to_docker_arch(host_arch=None):
+    """Map host architecture to Docker architecture format."""
+    if host_arch is None:
+        host_arch = platform.machine()
+
+    # Docker architecture mapping: host platform.machine() -> Docker architecture
+    # These mappings cover the vast majority of modern container deployments:
+    # - amd64: Dominant on servers/desktops
+    # - arm64: Apple Silicon, AWS Graviton, etc.
+    # - arm: Embedded/IoT devices, Raspberry Pi
+    mapping = {
+        'x86_64': 'amd64',
+        'aarch64': 'arm64',
+        'armv7l': 'arm',
+    }
+    return mapping.get(host_arch, host_arch)
+
 def validate_usage_scenario_variables(usage_scenario_variables):
     for key, _ in usage_scenario_variables.items():
         if not re.fullmatch(r'__GMT_VAR_[\w]+__', key):
@@ -240,7 +257,21 @@ class ScenarioRunner:
 
         raise FileNotFoundError(f"{path2} in {path} not found")
 
+    def _validate_image_architecture(self, image_name: str) -> None:
+        """Validate that the pulled Docker image architecture is compatible with the host."""
+        ps = subprocess.run(
+            ['docker', 'image', 'inspect', image_name, '--format', '{{.Architecture}}'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False
+        )
 
+        if ps.returncode != 0:
+            raise RuntimeError(f"Failed to inspect Docker image architecture for '{image_name}': {ps.stderr}")
+
+        image_arch = ps.stdout.strip()
+        normalized_host_arch = map_host_to_docker_arch()
+
+        if image_arch != normalized_host_arch:
+            raise RuntimeError(f"Architecture incompatibility detected: Docker image '{image_name}' is not available for host architecture '{normalized_host_arch}'. Image architecture is '{image_arch}'")
 
     def _initialize_folder(self, path):
         shutil.rmtree(path, ignore_errors=True)
@@ -756,20 +787,8 @@ class ScenarioRunner:
                     stderr_lower = ps.stderr.lower()
                     if "no matching manifest" in stderr_lower:
                         # This is definitely an architecture mismatch - create appropriate error
-                        host_arch = platform.machine()
-                        # Normalize architecture names to match Docker's naming conventions
-                        # Docker uses 'amd64', 'arm64', 'arm' while host systems use 'x86_64', 'aarch64', 'armv7l'
-                        # These 3 mappings cover the vast majority of modern container deployments:
-                        # - amd64: Dominant on servers/desktops
-                        # - arm64: Apple Silicon, AWS Graviton, etc.
-                        # - arm: Embedded/IoT devices, Raspberry Pi
-                        arch_mapping = {
-                            'x86_64': 'amd64',
-                            'aarch64': 'arm64',
-                            'armv7l': 'arm',
-                        }
-                        normalized_host_arch = arch_mapping.get(host_arch, host_arch)
-                        raise RuntimeError(f"Architecture incompatibility detected: Docker image '{service['image']}' is not available for host architecture '{normalized_host_arch}'. The error was: {ps.stderr.strip()}")
+                        normalized_host_arch = map_host_to_docker_arch()
+                        raise RuntimeError(f"Architecture incompatibility detected: Docker image '{service['image']}' is not available for host architecture '{normalized_host_arch}'")
 
                     # Handle other Docker pull failures
                     if __name__ == '__main__':
@@ -788,6 +807,9 @@ class ScenarioRunner:
                             raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
                     else:
                         raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
+
+                # Docker pull succeeded - validate architecture compatibility
+                self._validate_image_architecture(service['image'])
 
                 # tagging must be done in pull and local case, so we can get the correct container later
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
