@@ -25,7 +25,7 @@ linux_info_list = [
     [rfwr, 'Cpu Info', '/proc/cpuinfo', r'model name.*:\s(?P<o>.*)'],
     [rfwr, 'Memory Total', '/proc/meminfo', r'MemTotal:\s*(?P<o>.*)'],
     [rpwr, 'Linux Version', 'uname -a', r'(?P<o>.*)'],
-    [rfwr, 'Operating System', 'cat /etc/os-release', r'VERSION=["\']\s*(?P<o>.*)["\']'],
+    [rfwr, 'Operating System', '/etc/os-release', r'VERSION=(["\'])(?P<o>.*)\1'],
     [rpwr, 'Architecture', 'uname -m', r'(?P<o>.*)'],
     [rpwr, 'Kernel Modules', 'lsmod | sort', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
