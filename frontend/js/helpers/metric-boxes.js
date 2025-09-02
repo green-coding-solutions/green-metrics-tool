@@ -3,7 +3,7 @@ class PhaseMetrics extends HTMLElement {
 
         const createCard = ({ key, name, icon, variable }, suffix = '', colour) => {
             const cardClass = variable ? `${key}-${suffix}` : key;
-            const colourClass = variable ? colour : 'green';
+            const colourClass = variable ? colour : 'teal';
             return `
                 <div class="ui ${colourClass} card ${cardClass}">
                     <div class="content">
@@ -22,7 +22,7 @@ class PhaseMetrics extends HTMLElement {
                 </div>`;
         };
 
-        const buildTab = (tab, active = false, colour='green') => `
+        const buildTab = (tab, active = false, colour='teal') => `
             <div class="ui tab ${active ? 'active' : ''}" data-tab="${tab}">
                 <div class="ui five cards stackable">
                     ${HARDWARECARDS.map(card => createCard(card, tab, colour)).join('')}
@@ -308,7 +308,9 @@ const updateKeyMetric = (
     cards.forEach(card => {
         const valueNode = card.querySelector('.value');
         valueNode.innerText = `${value} ${std_dev_text}`;
-        valueNode.setAttribute('title', `${raw_value} [${raw_unit}]`);
+        if (raw_value != null && raw_unit != null){
+            valueNode.setAttribute('title', `${raw_value} [${raw_unit}]`);
+        }
 
         const unitNode = card.querySelector('.si-unit');
         if (unitNode) unitNode.innerText = unit;
