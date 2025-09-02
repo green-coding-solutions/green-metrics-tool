@@ -137,8 +137,6 @@ function prepare_config() {
     eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS|$db_pw|\" docker/compose.yml"
 
     print_message "Updating config.yml with new password ..."
-
-
     copy_backup config.yml
     eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS|$db_pw|\" config.yml"
 
