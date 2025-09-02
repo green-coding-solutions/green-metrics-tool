@@ -199,7 +199,7 @@ def create_frontend_config_file(ee=False, ai=False):
         file.write(content)
 
 def edit_etc_hosts():
-    subprocess.run(['./edit-etc-hosts.sh'], check=False)
+    subprocess.run(['./edit-etc-hosts.sh'], check=True)
 
 
 def build_test_docker_image():
