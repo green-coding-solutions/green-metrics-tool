@@ -179,7 +179,13 @@ def create_frontend_config_file(ee=False, ai=False):
         file.write(content)
 
 def edit_etc_hosts():
-    subprocess.run(['./edit-etc-hosts.sh'], check=True)
+    print('Updating /etc/hosts...')
+    try:
+        res = subprocess.run(['./edit-etc-hosts.sh'], check=False)
+        if res.returncode != 0:
+            raise RuntimeError("Failed to update /etc/hosts; run: sudo ./tests/edit-etc-hosts.sh and then rerun this script.")
+    except KeyboardInterrupt:
+        raise RuntimeError("Failed to update /etc/hosts; run: sudo ./tests/edit-etc-hosts.sh and then rerun this script.")
 
 def build_test_docker_image():
     subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build'], check=True)
