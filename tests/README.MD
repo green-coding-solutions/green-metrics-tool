@@ -15,6 +15,9 @@ python3 -m pip install -r ../requirements-dev.txt
 playwright install --with-deps firefox
 ```
 
+playwrite might fail with `BEWARE: your OS is not officially supported by Playwright; installing dependencies for ubuntu20.04-x64 as a fallback.
+` under non Ubuntu distros like Fedora as some libs are not installed. In this case remove the `-with-deps` and ignore the following warning as we only use firefox which should work.
+
 We assume that your green-metrics-tool is already set up to work on your machine.
 
 Tests will always run for *ScenarioRunner* and *Eco CI* even if you have this deactivated in your GMT installation.
