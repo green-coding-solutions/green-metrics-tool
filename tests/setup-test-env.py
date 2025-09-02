@@ -199,7 +199,6 @@ def create_frontend_config_file(ee=False, ai=False):
         file.write(content)
 
 def edit_etc_hosts():
-    print('Updating /etc/hosts...')
     subprocess.run(['./edit-etc-hosts.sh'], check=False)
 
 
