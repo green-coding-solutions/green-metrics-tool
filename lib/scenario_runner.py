@@ -808,9 +808,6 @@ class ScenarioRunner:
                     else:
                         raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
-                # Docker pull succeeded - validate architecture compatibility
-                self._validate_image_architecture(service['image'])
-
                 # tagging must be done in pull and local case, so we can get the correct container later
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
 
@@ -1303,6 +1300,34 @@ class ScenarioRunner:
                 'read-notes-stdout': service.get('read-notes-stdout', False),
                 'read-sci-stdout': service.get('read-sci-stdout', False),
             }
+
+            # Check if detached container failed immediately after startup
+            # Docker run -d returns exit code 0 (success) even when containers fail moments later
+            # Common causes: architecture mismatch, missing dependencies, invalid entrypoints
+            time.sleep(1)
+            check_ps = subprocess.run(
+                    ['docker', 'ps', '-q', '-f', f'name={container_name}'],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+            if not check_ps.stdout.strip():
+                # Container not running anymore!
+                logs_ps = subprocess.run(
+                    ['docker', 'logs', container_name],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                inspect_ps = subprocess.run(
+                    ['docker', 'inspect', '--format={{.State.ExitCode}}', container_name],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
+
+                raise OSError(f"Container '{container_name}' failed immediately after start (exit code: {exit_code}). This often indicates architecture mismatch or other startup issues.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
 
             print('Stdout:', container_id)
 

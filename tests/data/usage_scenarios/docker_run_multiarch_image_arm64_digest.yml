@@ -1,6 +1,6 @@
-name: Test Docker Pull Multi-Arch Image with forced arm64
+name: Test Docker Run Multi-Arch Image with forced arm64
 author: Test
-description: Test docker pull with multi-architecture image, but with forced arm64 image using manifest digest
+description: Test docker run with multi-architecture image, but with forced arm64 image using manifest digest
 
 services:
   test_service:

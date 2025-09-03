@@ -480,38 +480,10 @@ def test_docker_pull_arm64_image_on_amd64_host_fails():
     assert "not available for host architecture" in str(e.value)
     assert "amd64" in str(e.value)
 
-@pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
-def test_docker_pull_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
-    """Test Docker pull fails when trying to use ARM64 manifest digest from multi-arch image on AMD64 host"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_multiarch_image_arm64_digest.yml',
-                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
-
-    with pytest.raises(RuntimeError) as e:
-        with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
-
-    assert "Architecture incompatibility detected" in str(e.value)
-    assert "not available for host architecture" in str(e.value)
-    assert "amd64" in str(e.value)
-
 @pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
 def test_docker_pull_amd64_image_on_arm64_host_fails():
     """Test Docker pull fails when trying to use AMD64 image on ARM64 host"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_amd64_image.yml',
-                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
-
-    with pytest.raises(RuntimeError) as e:
-        with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
-
-    assert "Architecture incompatibility detected" in str(e.value)
-    assert "not available for host architecture" in str(e.value)
-    assert "arm64" in str(e.value)
-
-@pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
-def test_docker_pull_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
-    """Test Docker pull fails when trying to use amd64 manifest digest from multi-arch image on arm64 host"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_multiarch_image_amd64_digest.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
     with pytest.raises(RuntimeError) as e:
@@ -533,6 +505,36 @@ def test_docker_pull_nonexistent_image_non_interactive_fails():
 
     assert "Docker pull failed. Is your image name correct and are you connected to the internet" in str(e.value)
     assert "NONEXISTENT_IMAGE" in str(e.value)
+
+
+## Architecture mismatch tests after docker run
+@pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
+def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
+    """Test Docker run fails when trying to run ARM64 manifest digest from multi-arch image on AMD64 host"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with pytest.raises(OSError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert "failed immediately after start" in str(e.value)
+    assert "architecture mismatch" in str(e.value)
+    assert "exit code:" in str(e.value)
+
+@pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
+def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
+    """Test Docker run fails when trying to run amd64 manifest digest from multi-arch image on arm64 host"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with pytest.raises(OSError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert "failed immediately after start" in str(e.value)
+    assert "architecture mismatch" in str(e.value)
+    assert "exit code:" in str(e.value)
 
 
     ## rethink this one
