@@ -1,7 +1,7 @@
 .DS_Store
 __pycache__
 /config.yml
-/config.yml.backup
+*.backup
 /docker/nginx/api.conf
 /docker/nginx/frontend.conf
 /docker/nginx/block.conf
@@ -48,5 +48,3 @@ tools/sgx_enable
 /frontend/hog-details.html
 /frontend/hog.html
 /frontend/carbondb.html
-docker/nginx/block.conf.backup
-frontend/js/helpers/config.js.backup
