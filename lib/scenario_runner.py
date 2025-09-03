@@ -257,21 +257,34 @@ class ScenarioRunner:
 
         raise FileNotFoundError(f"{path2} in {path} not found")
 
-    def _validate_image_architecture(self, image_name: str) -> None:
-        """Validate that the pulled Docker image architecture is compatible with the host."""
+    def _validate_image_architecture(self, image_name: str, raise_on_mismatch: bool = True) -> tuple[str, str, bool]:
+        """Validate that the pulled Docker image architecture is compatible with the host.
+
+        Args:
+            image_name: The Docker image name to check
+            raise_on_mismatch: If True, raises RuntimeError on architecture mismatch
+
+        Returns:
+            Tuple of (image_arch, host_arch, is_compatible)
+        """
         ps = subprocess.run(
             ['docker', 'image', 'inspect', image_name, '--format', '{{.Architecture}}'],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False
         )
 
         if ps.returncode != 0:
-            raise RuntimeError(f"Failed to inspect Docker image architecture for '{image_name}': {ps.stderr}")
+            if raise_on_mismatch:
+                raise RuntimeError(f"Failed to inspect Docker image architecture for '{image_name}': {ps.stderr}")
+            return "", "", False
 
         image_arch = ps.stdout.strip()
         normalized_host_arch = map_host_to_docker_arch()
+        is_compatible = image_arch == normalized_host_arch
 
-        if image_arch != normalized_host_arch:
+        if not is_compatible and raise_on_mismatch:
             raise RuntimeError(f"Architecture incompatibility detected: Docker image '{image_name}' is not available for host architecture '{normalized_host_arch}'. Image architecture is '{image_arch}'")
+
+        return image_arch, normalized_host_arch, is_compatible
 
     def _initialize_folder(self, path):
         shutil.rmtree(path, ignore_errors=True)
@@ -1327,7 +1340,12 @@ class ScenarioRunner:
                 )
                 exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
 
-                raise OSError(f"Container '{container_name}' failed immediately after start (exit code: {exit_code}). This often indicates architecture mismatch or other startup issues.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                # Check for architecture mismatch to provide more specific error message
+                image_arch, host_arch, is_compatible = self._validate_image_architecture(service['image'], raise_on_mismatch=False)
+                if image_arch and host_arch and not is_compatible:
+                    raise RuntimeError(f"Container '{container_name}' failed immediately after start, probably due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{image_arch}' but host architecture is '{host_arch}'.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                else:
+                    raise RuntimeError(f"Container '{container_name}' failed immediately after start (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
 
             print('Stdout:', container_id)
 

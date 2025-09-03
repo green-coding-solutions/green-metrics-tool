@@ -514,12 +514,12 @@ def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
-    with pytest.raises(OSError) as e:
+    with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
     assert "failed immediately after start" in str(e.value)
-    assert "architecture mismatch" in str(e.value)
+    assert "architecture incompatibility" in str(e.value)
     assert "exit code:" in str(e.value)
 
 @pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
@@ -528,12 +528,12 @@ def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
-    with pytest.raises(OSError) as e:
+    with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
     assert "failed immediately after start" in str(e.value)
-    assert "architecture mismatch" in str(e.value)
+    assert "architecture incompatibility" in str(e.value)
     assert "exit code:" in str(e.value)
 
 
