@@ -309,6 +309,8 @@ const updateKeyMetric = (
         const valueNode = card.querySelector('.value');
         valueNode.innerText = `${value} ${std_dev_text}`;
         if (raw_value != null && raw_unit != null){
+            // this check can be improved in the future once we see missing tooltips to only skip
+            // if a "repeated run" comparison is done, as this is the only case where we want no tooltips
             valueNode.setAttribute('title', `${raw_value} [${raw_unit}]`);
         }
 
