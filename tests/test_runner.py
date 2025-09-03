@@ -19,6 +19,16 @@ from tests import test_functions as Tests
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
+def is_docker_desktop():
+    """Check if running Docker Desktop which supports emulation."""
+    try:
+        ps = subprocess.run(['docker', 'info', '--format', '{{.OperatingSystem}}'],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          encoding='UTF-8', check=True)
+        return 'Docker Desktop' in ps.stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
 ### Tests for the runner options/flags
 
 ## --uri URI
@@ -507,8 +517,9 @@ def test_docker_pull_nonexistent_image_non_interactive_fails():
     assert "NONEXISTENT_IMAGE" in str(e.value)
 
 
-## Architecture mismatch tests after docker run
+## Docker run architecture mismatch tests on native Docker
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
+@pytest.mark.skipif(is_docker_desktop(), reason="Docker Desktop supports emulation, test not applicable")
 def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
     """Test Docker run fails when trying to run ARM64 manifest digest from multi-arch image on AMD64 host"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml',
@@ -523,6 +534,7 @@ def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
     assert "exit code:" in str(e.value)
 
 @pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
+@pytest.mark.skipif(is_docker_desktop(), reason="Docker Desktop supports emulation, test not applicable")
 def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
     """Test Docker run fails when trying to run amd64 manifest digest from multi-arch image on arm64 host"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml',
@@ -535,6 +547,29 @@ def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
     assert "failed immediately after start" in str(e.value)
     assert "architecture incompatibility" in str(e.value)
     assert "exit code:" in str(e.value)
+
+## Docker run emulation tests on Docker Desktop
+@pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
+@pytest.mark.skipif(not is_docker_desktop(), reason="Test requires Docker Desktop with emulation support")
+def test_docker_desktop_runs_arm64_image_with_emulation_on_amd64_host():
+    """Test Docker Desktop successfully runs ARM64 images on AMD64 host using emulation"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        # Test should complete successfully without raising exceptions
+
+@pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
+@pytest.mark.skipif(not is_docker_desktop(), reason="Test requires Docker Desktop with emulation support")
+def test_docker_desktop_runs_amd64_image_with_emulation_on_arm64_host():
+    """Test Docker Desktop successfully runs AMD64 images on ARM64 host using emulation"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        # Test should complete successfully without raising exceptions
 
 
     ## rethink this one
