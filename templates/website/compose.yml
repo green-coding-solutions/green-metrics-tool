@@ -1,6 +1,6 @@
 services:
   gcb-playwright:
-    image: greencoding/gcb_playwright:v18
+    image: greencoding/gcb_playwright:v20
 #    volumes:
 #       - /tmp/.X11-unix:/tmp/.X11-unix # for debugging in non-headless mode
     environment:
@@ -10,7 +10,7 @@ services:
         condition: service_healthy
 
   squid:
-    image: greencoding/squid_reverse_proxy:v3
+    image: greencoding/squid_reverse_proxy:v4
     healthcheck:
       test: [
         "CMD", "curl", "-fs", "--proxy", "http://squid:3128", "https://www.google.com", "--insecure"
