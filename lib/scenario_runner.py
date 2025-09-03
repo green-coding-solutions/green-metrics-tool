@@ -1340,12 +1340,21 @@ class ScenarioRunner:
                 )
                 exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
 
-                # Check for architecture mismatch to provide more specific error message
-                image_arch, host_arch, is_compatible = self._validate_image_architecture(service['image'], raise_on_mismatch=False)
-                if image_arch and host_arch and not is_compatible:
-                    raise RuntimeError(f"Container '{container_name}' failed immediately after start, probably due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{image_arch}' but host architecture is '{host_arch}'.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                if exit_code == "0":
+                    # Container exited successfully but immediately - unexpected behavior, log but continue
+                    error_helpers.log_error(f"Container '{container_name}' exited immediately after start with success code",
+                                          container_name=container_name,
+                                          exit_code=exit_code,
+                                          reason="Container completed and exited immediately (e.g., hello-world, simple commands) or due to configuration issues (invalid/missing entrypoint, incorrect command)",
+                                          container_logs_stdout=logs_ps.stdout,
+                                          container_logs_stderr=logs_ps.stderr)
                 else:
-                    raise RuntimeError(f"Container '{container_name}' failed immediately after start (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                    # Container failed with non-zero or unknown exit code - this is a real failure
+                    image_arch, host_arch, is_compatible = self._validate_image_architecture(service['image'], raise_on_mismatch=False)
+                    if image_arch and host_arch and not is_compatible:
+                        raise RuntimeError(f"Container '{container_name}' failed immediately after start, probably due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{image_arch}' but host architecture is '{host_arch}'.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                    else:
+                        raise RuntimeError(f"Container '{container_name}' failed immediately after start (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
 
             print('Stdout:', container_id)
 

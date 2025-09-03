@@ -588,7 +588,7 @@ def test_cmd_entrypoint():
     o = out.getvalue()
     assert '--entrypoint echo alpine_gmt_run_tmp A $0 echo B $0' in o
     assert '--entrypoint env alpine_gmt_run_tmp env' in o
-    assert '--entrypoint env alpine_gmt_run_tmp -h' in o
+    assert '--entrypoint env alpine_gmt_run_tmp -0' in o
     assert '--entrypoint echo alpine_gmt_run_tmp A $0 echo B $0' in o
     assert 'alpine_gmt_run_tmp ash -c env' in o
     assert 'alpine_gmt_run_tmp env' in o
@@ -598,7 +598,27 @@ def test_cmd_entrypoint():
     assert '--entrypoint echo alpine_gmt_run_tmp A $0' in o
     assert 'alpine_gmt_run_tmp echo $0' in o
 
-    assert err.getvalue() == '', Tests.assertion_info('stderr should be empty', err.getvalue())
+    # With immediate exit detection, containers that exit with code 0 will generate warnings to stderr
+    # This is expected behavior for containers like echo commands that complete immediately
+    err_output = err.getvalue()
+    assert 'exited immediately after start with success code' in err_output, \
+        Tests.assertion_info('Expected warning messages about containers exiting immediately', err_output)
+
+def test_container_immediate_exit_with_error():
+    """Test that containers exiting immediately with non-zero exit codes raise RuntimeError"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/container_immediate_exit_with_error.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    error_message = str(e.value)
+    assert "failed immediately after start" in error_message, \
+        Tests.assertion_info("Expected immediate exit with error message", error_message)
+    assert "exit code: 1" in error_message, \
+        Tests.assertion_info("Expected non-zero exit code in error message", error_message)
+    assert "failing-container" in error_message, \
+        Tests.assertion_info("Expected container name in error message", error_message)
 
 # command: [str] (optional)
 #    Command to be executed when container is started.
