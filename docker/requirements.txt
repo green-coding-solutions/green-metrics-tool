@@ -7,7 +7,7 @@ uvicorn[standard]==0.35.0
 pandas==2.3.2
 PyYAML==6.0.2
 anybadge==1.16.0
-orjson==3.11.2
+orjson==3.11.3
 scipy==1.15.2
 schema==0.7.7
 deepdiff==8.6.0
@@ -15,6 +15,6 @@ redis==6.4.0
 hiredis==3.2.1
 requests==2.32.5
 uvicorn-worker==0.3.0
-cachetools==6.1.0
+cachetools==6.2.0
 
 pytest==8.4.1 # needed because we need to exit in db.py if tests run with wrong config

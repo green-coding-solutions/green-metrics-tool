@@ -234,7 +234,15 @@ def check_if_container_running(container_name):
     return True
 
 def build_image_fixture():
-    subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/data/stress-application/compose.yml", 'build'], check=True)
+    subprocess.run([
+        'docker', 'compose', '-f', f"{CURRENT_DIR}/data/stress-application/compose.yml", 'build',
+        '--build-arg', f'HTTP_PROXY={os.environ.get("HTTP_PROXY")}',
+        '--build-arg', f'HTTPS_PROXY={os.environ.get("HTTPS_PROXY")}',
+        '--build-arg', f'NO_PROXY={os.environ.get("NO_PROXY")}',
+        '--build-arg', f'http_proxy={os.environ.get("http_proxy")}',
+        '--build-arg', f'https_proxy={os.environ.get("https_proxy")}',
+        '--build-arg', f'no_proxy={os.environ.get("no_proxy")}',
+    ], check=True)
 
 # should be preceded by a yield statement and on autouse
 def reset_db():
