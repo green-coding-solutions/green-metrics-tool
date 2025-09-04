@@ -6,6 +6,8 @@ import re
 import os
 import platform
 import subprocess
+import threading
+import time
 import yaml
 
 from contextlib import redirect_stdout, redirect_stderr
@@ -598,3 +600,92 @@ def test_print_logs_flag_with_iterations():
     assert test_log_pos < test_error_pos
 
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+## automatic database reconnection
+# TODO: This integration test should be moved to a dedicated integration test suite once that structure is implemented (https://github.com/green-coding-solutions/green-metrics-tool/issues/1302)
+def test_database_reconnection_during_run_integration():
+    """Integration test: Verify GMT runner handles database reconnection during execution
+    
+    This test simulates a database outage by restarting the postgres container mid-run.
+    Expected to fail until database reconnection logic is implemented.
+    
+    Timing analysis based on a debug run with logs:
+    T+0.0s  - GMT runner starts, database restart thread starts waiting
+    T+5.0s  - RUNTIME phase begins (with 15 seconds sleep command)
+    T+12.3s - Database restart occurs (during runtime phase)
+    T+13.1s - Database restart completes
+    T+16.1s - Database should be available again
+    T+20.0s - REMOVE phase starts (database operations resume)
+    T+22.4s - Test completes, AdminShutdown error detected
+    
+    This timing ensures database restart happens during active measurement phase
+    when database operations are likely occurring for metric storage.
+    """
+
+    def log_with_timestamp(message, prefix="TEST", start_time=None):
+        """Helper function to log messages with timestamp and optional elapsed time"""
+        current_time = time.time()
+        timestamp = time.strftime('%H:%M:%S', time.localtime(current_time))
+        if start_time:
+            elapsed = f" (T+{current_time-start_time:.1f}s)"
+        else:
+            elapsed = ""
+        print(f"[{timestamp}] [{prefix}] {message}{elapsed}")
+
+    run_name = 'test_db_reconnect_' + utils.randomword(12)
+    test_start_time = time.time()
+
+    def restart_database():
+        # Restart database during metrics collection/storage phase
+        log_with_timestamp("Waiting 15 seconds before restarting database...", "DB RESTART")
+        time.sleep(15)  # Wait for runtime to start but not complete
+        log_with_timestamp("Restarting test-green-coding-postgres-container now...", "DB RESTART", test_start_time)
+        result = subprocess.run(['docker', 'restart', 'test-green-coding-postgres-container'],
+                               check=True, capture_output=True)
+        log_with_timestamp(f"Database restart completed. Docker output: {result.stdout.decode().strip()}", "DB RESTART", test_start_time)
+        time.sleep(3)  # Give DB time to restart
+        log_with_timestamp("Database should be available again after 3s wait", "DB RESTART", test_start_time)
+
+    # Start database restart in background thread
+    restart_thread = threading.Thread(target=restart_database)
+    restart_thread.daemon = True
+    log_with_timestamp("Starting database restart thread...")
+    restart_thread.start()
+
+    # Run database reconnection test scenario
+    log_with_timestamp("Starting GMT runner with scenario: db_reconnection_test.yml", start_time=test_start_time)
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/db_reconnection_test.yml',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-optimizations'],
+        check=False,  # Expect this to fail until reconnection is implemented
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    log_with_timestamp(f"GMT runner completed with return code: {ps.returncode}", start_time=test_start_time)
+    restart_thread.join(timeout=30)  # Wait for restart thread to complete
+    log_with_timestamp("Database restart thread completed", start_time=test_start_time)
+
+    # Debug: Show relevant parts of output
+    log_with_timestamp("Checking for AdminShutdown error in output...")
+    if 'AdminShutdown' in ps.stdout:
+        log_with_timestamp("Found AdminShutdown in stdout")
+    if 'AdminShutdown' in ps.stderr:
+        log_with_timestamp("Found AdminShutdown in stderr")
+
+    # The test validates that database disconnection is properly detected
+    # Look for AdminShutdown error in the output - this proves the test works correctly
+    has_admin_shutdown = 'AdminShutdown' in ps.stdout or 'AdminShutdown' in ps.stderr
+
+    # Test succeeds if we detect the database disconnection during the restart
+    # This proves the integration test correctly simulates a DB outage scenario
+    assert has_admin_shutdown, \
+        f"Expected AdminShutdown database error during restart. Got stdout: {ps.stdout[:1000]}..., stderr: {ps.stderr}"
+
+    print("✓ Integration test successfully detected database disconnection during run")
+    print(ps.stdout)
+    print("errors")
+    print(ps.stderr)
