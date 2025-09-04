@@ -257,12 +257,11 @@ class ScenarioRunner:
 
         raise FileNotFoundError(f"{path2} in {path} not found")
 
-    def _validate_image_architecture(self, image_name: str, raise_on_mismatch: bool = True) -> tuple[str, str, bool]:
-        """Validate that the pulled Docker image architecture is compatible with the host.
+    def _check_image_architecture_compatibility(self, image_name: str) -> tuple[str, str, bool]:
+        """Validate that a Docker image architecture is compatible with the host.
 
         Args:
             image_name: The Docker image name to check
-            raise_on_mismatch: If True, raises RuntimeError on architecture mismatch
 
         Returns:
             Tuple of (image_arch, host_arch, is_compatible)
@@ -273,16 +272,11 @@ class ScenarioRunner:
         )
 
         if ps.returncode != 0:
-            if raise_on_mismatch:
-                raise RuntimeError(f"Failed to inspect Docker image architecture for '{image_name}': {ps.stderr}")
-            return "", "", False
+            raise RuntimeError(f"Failed to inspect Docker image architecture for '{image_name}': {ps.stderr.strip()}")
 
         image_arch = ps.stdout.strip()
         normalized_host_arch = map_host_to_docker_arch()
         is_compatible = image_arch == normalized_host_arch
-
-        if not is_compatible and raise_on_mismatch:
-            raise RuntimeError(f"Architecture incompatibility detected: Docker image '{image_name}' is not available for host architecture '{normalized_host_arch}'. Image architecture is '{image_arch}'")
 
         return image_arch, normalized_host_arch, is_compatible
 
@@ -1320,41 +1314,41 @@ class ScenarioRunner:
             time.sleep(1)
             check_ps = subprocess.run(
                     ['docker', 'ps', '-q', '-f', f'name={container_name}'],
+                    check=False,
                     capture_output=True,
-                    text=True,
-                    check=False
+                    encoding='UTF-8'
                 )
             if not check_ps.stdout.strip():
-                # Container not running anymore!
+                # Container not running anymore - this is an error condition that requires raising an exception
                 logs_ps = subprocess.run(
                     ['docker', 'logs', container_name],
+                    check=False,
                     capture_output=True,
-                    text=True,
-                    check=False
+                    encoding='UTF-8'
                 )
                 inspect_ps = subprocess.run(
                     ['docker', 'inspect', '--format={{.State.ExitCode}}', container_name],
+                    check=False,
                     capture_output=True,
-                    text=True,
-                    check=False
+                    encoding='UTF-8'
                 )
                 exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
 
                 if exit_code == "0":
-                    # Container exited successfully but immediately - unexpected behavior, log but continue
-                    error_helpers.log_error(f"Container '{container_name}' exited immediately after start with success code",
-                                          container_name=container_name,
-                                          exit_code=exit_code,
-                                          reason="Container completed and exited immediately (e.g., hello-world, simple commands) or due to configuration issues (invalid/missing entrypoint, incorrect command)",
-                                          container_logs_stdout=logs_ps.stdout,
-                                          container_logs_stderr=logs_ps.stderr)
+                    # Container exited successfully but immediately
+                    raise RuntimeError(f"Container '{container_name}' exited immediately after start (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
                 else:
-                    # Container failed with non-zero or unknown exit code - this is a real failure
-                    image_arch, host_arch, is_compatible = self._validate_image_architecture(service['image'], raise_on_mismatch=False)
+                    # Container failed with non-zero or unknown exit code
+                    image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(service['image'])
                     if image_arch and host_arch and not is_compatible:
                         raise RuntimeError(f"Container '{container_name}' failed immediately after start, probably due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{image_arch}' but host architecture is '{host_arch}'.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
                     else:
                         raise RuntimeError(f"Container '{container_name}' failed immediately after start (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+
+            # Container is running - check for architecture mismatch that might indicate emulation
+            image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(service['image'])
+            if image_arch and host_arch and not is_compatible:
+                self.__warnings.append(f"Container '{container_name}' is running with architecture emulation. Image architecture is '{image_arch}' but host architecture is '{host_arch}'. This may impact performance.")
 
             print('Stdout:', container_id)
 
