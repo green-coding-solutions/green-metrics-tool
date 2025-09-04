@@ -395,7 +395,7 @@ def test_depends_on_huge():
     assert_order(out.getvalue(), 'test-container-1', 'test-container-2')
 
 def test_depends_on_error_not_running():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_not_running.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=10, enable_successful_container_start_check=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_not_running.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=10, enable_detached_container_start_check=False)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -578,7 +578,7 @@ def test_network_alias_added():
 
 
 def test_cmd_entrypoint():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, enable_successful_container_start_check=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, enable_detached_container_start_check=False)
 
     out = io.StringIO()
     err = io.StringIO()

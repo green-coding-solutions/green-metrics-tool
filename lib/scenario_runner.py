@@ -89,7 +89,7 @@ class ScenarioRunner:
         skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None, phase_padding=True,
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
-        measurement_wait_time_dependencies=60, enable_successful_container_start_check=True):
+        measurement_wait_time_dependencies=60, enable_detached_container_start_check=True):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -147,7 +147,7 @@ class ScenarioRunner:
         self._measurement_post_test_sleep = measurement_post_test_sleep
         self._measurement_phase_transition_time = measurement_phase_transition_time
         self._measurement_wait_time_dependencies = measurement_wait_time_dependencies
-        self._enable_successful_container_start_check = enable_successful_container_start_check
+        self._enable_detached_container_start_check = enable_detached_container_start_check
         self._last_measurement_duration = 0
         self._phase_padding = phase_padding
         self._phase_padding_ms = max(
@@ -1313,7 +1313,7 @@ class ScenarioRunner:
             # Check if detached container failed immediately after startup
             # Docker run -d returns exit code 0 (success) even when containers fail moments later
             # Common causes: architecture mismatch, missing dependencies, invalid entrypoints
-            if self._enable_successful_container_start_check:
+            if self._enable_detached_container_start_check:
                 time.sleep(1)
                 check_ps = subprocess.run(
                         ['docker', 'ps', '-q', '-f', f'name={container_name}'],
