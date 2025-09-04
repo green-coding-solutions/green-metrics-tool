@@ -1206,7 +1206,8 @@ class ScenarioRunner:
                     # empty entrypoint -> default entrypoint will be ignored
                     docker_run_string.append('--entrypoint=')
 
-            docker_run_string.append(self._clean_image_name(service['image']))
+            clean_image_name = self._clean_image_name(service['image'])
+            docker_run_string.append(clean_image_name)
 
             # This is because only the first argument in the list is the command, the rest are arguments which need to come after
             # the service name but before the commands
@@ -1341,14 +1342,14 @@ class ScenarioRunner:
                         raise RuntimeError(f"Container '{container_name}' exited immediately after start (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
                     else:
                         # Container failed with non-zero or unknown exit code
-                        image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(service['image'])
+                        image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(clean_image_name)
                         if image_arch and host_arch and not is_compatible:
                             raise RuntimeError(f"Container '{container_name}' failed immediately after start, probably due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{image_arch}' but host architecture is '{host_arch}'.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
                         else:
                             raise RuntimeError(f"Container '{container_name}' failed immediately after start (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
 
             # Container is running - check for architecture mismatch that might indicate emulation
-            image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(service['image'])
+            image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(clean_image_name)
             if image_arch and host_arch and not is_compatible:
                 self.__warnings.append(f"Container '{container_name}' is running with architecture emulation. Image architecture is '{image_arch}' but host architecture is '{host_arch}'. This may impact performance.")
 
