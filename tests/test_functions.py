@@ -2,6 +2,7 @@ import os
 import subprocess
 import hashlib
 import json
+import time
 
 from lib.db import DB
 from lib.global_config import GlobalConfig
@@ -354,3 +355,13 @@ class RunUntilManager:
     def __exit__(self, exc_type, exc_value, traceback):
         self._active = False
         self.__runner.cleanup()
+
+def log_with_timestamp(message, prefix="TEST", start_time=None):
+    """Helper function to log messages with timestamp and optional elapsed time"""
+    current_time = time.time()
+    timestamp = time.strftime('%H:%M:%S', time.localtime(current_time))
+    if start_time:
+        elapsed = f" (T+{current_time-start_time:.1f}s)"
+    else:
+        elapsed = ""
+    print(f"[{timestamp}] [{prefix}] {message}{elapsed}")

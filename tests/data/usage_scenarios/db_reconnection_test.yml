@@ -1,0 +1,16 @@
+---
+name: Database Reconnection Integration Test
+author: Integration Test
+description: Test scenario for database reconnection integration testing
+
+services:
+  test-container:
+    type: container
+    image: alpine
+
+flow:
+  - name: 15 seconds sleep
+    container: test-container
+    commands:
+      - type: console
+        command: sleep 15
