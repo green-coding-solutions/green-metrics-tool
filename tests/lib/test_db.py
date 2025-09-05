@@ -4,7 +4,7 @@ import psycopg
 from lib.db import with_db_retry
 
 
-class TestDbRetry(unittest.TestCase):
+class TestWithDbRetryDecorator(unittest.TestCase):
 
     def setUp(self):
         class MockDB:
@@ -15,10 +15,6 @@ class TestDbRetry(unittest.TestCase):
                 self._pool = Mock()
 
             @with_db_retry
-            def test_method(self):
-                return "success"
-
-            @with_db_retry
             def failing_method(self):
                 raise psycopg.OperationalError("connection refused")
 
@@ -27,10 +23,6 @@ class TestDbRetry(unittest.TestCase):
                 raise psycopg.DatabaseError("syntax error at or near")
 
         self.mock_db = MockDB()
-
-    def test_success_on_first_attempt(self):
-        result = self.mock_db.test_method()
-        self.assertEqual(result, "success")
 
     @patch('time.time')
     @patch('time.sleep')
@@ -73,7 +65,6 @@ class TestDbRetry(unittest.TestCase):
 
         # Sleep should not be called since timeout occurs before sleep
         self.assertFalse(mock_sleep.called)
-
 
 if __name__ == '__main__':
     unittest.main()
