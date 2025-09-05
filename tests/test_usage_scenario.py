@@ -395,7 +395,7 @@ def test_depends_on_huge():
     assert_order(out.getvalue(), 'test-container-1', 'test-container-2')
 
 def test_depends_on_error_not_running():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_not_running.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=10, enable_detached_container_start_check=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_not_running.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=10)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -578,7 +578,7 @@ def test_network_alias_added():
 
 
 def test_cmd_entrypoint():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, enable_detached_container_start_check=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -598,7 +598,11 @@ def test_cmd_entrypoint():
     assert '--entrypoint echo alpine_gmt_run_tmp A $0' in o
     assert 'alpine_gmt_run_tmp echo $0' in o
 
-    assert err.getvalue() == '', Tests.assertion_info('stderr should be empty', err.getvalue())
+    # With immediate exit detection, containers that exit with code 0 will generate warnings to stderr
+    # This is expected behavior for containers like echo commands that complete immediately
+    err_output = err.getvalue()
+    assert 'exited immediately after start with success code' in err_output, \
+        Tests.assertion_info('Expected warning messages about containers exiting immediately', err_output)
 
 def test_container_immediate_exit_with_error():
     """Test that containers exiting immediately with non-zero exit codes raise RuntimeError"""
