@@ -1,0 +1,17 @@
+---
+name: Test container immediate exit with error
+author: Test
+description: Test containers that exit immediately with non-zero exit codes
+
+services:
+  failing-container:
+    image: alpine
+    command: sh -c 'echo "This container will exit with error code 1"; exit 1'
+
+flow:
+  - name: Test
+    container: failing-container
+    commands:
+      - type: console
+        command: echo "This should not run"
+        note: This command should not execute

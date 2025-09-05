@@ -19,8 +19,8 @@ services:
   short-entrypoint-short-command-env-with-param:
     image: alpine
     entrypoint: env
-    command: -h
-  # -> As proven here
+    command: "-0"
+  # -> As proven here - using -0 which is a valid env option in BusyBox
 
 # Now we want to check if long forms make a difference
 

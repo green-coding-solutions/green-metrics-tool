@@ -257,21 +257,28 @@ class ScenarioRunner:
 
         raise FileNotFoundError(f"{path2} in {path} not found")
 
-    def _validate_image_architecture(self, image_name: str) -> None:
-        """Validate that the pulled Docker image architecture is compatible with the host."""
+    def _check_image_architecture_compatibility(self, image_name: str) -> tuple[str, str, bool]:
+        """Validate that a Docker image architecture is compatible with the host.
+
+        Args:
+            image_name: The Docker image name to check
+
+        Returns:
+            Tuple of (image_arch, host_arch, is_compatible)
+        """
         ps = subprocess.run(
             ['docker', 'image', 'inspect', image_name, '--format', '{{.Architecture}}'],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False
         )
 
         if ps.returncode != 0:
-            raise RuntimeError(f"Failed to inspect Docker image architecture for '{image_name}': {ps.stderr}")
+            raise RuntimeError(f"Failed to inspect Docker image architecture for '{image_name}': {ps.stderr.strip()}")
 
         image_arch = ps.stdout.strip()
         normalized_host_arch = map_host_to_docker_arch()
+        is_compatible = image_arch == normalized_host_arch
 
-        if image_arch != normalized_host_arch:
-            raise RuntimeError(f"Architecture incompatibility detected: Docker image '{image_name}' is not available for host architecture '{normalized_host_arch}'. Image architecture is '{image_arch}'")
+        return image_arch, normalized_host_arch, is_compatible
 
     def _initialize_folder(self, path):
         shutil.rmtree(path, ignore_errors=True)
@@ -808,9 +815,6 @@ class ScenarioRunner:
                     else:
                         raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
-                # Docker pull succeeded - validate architecture compatibility
-                self._validate_image_architecture(service['image'])
-
                 # tagging must be done in pull and local case, so we can get the correct container later
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
 
@@ -1201,7 +1205,8 @@ class ScenarioRunner:
                     # empty entrypoint -> default entrypoint will be ignored
                     docker_run_string.append('--entrypoint=')
 
-            docker_run_string.append(self._clean_image_name(service['image']))
+            clean_image_name = self._clean_image_name(service['image'])
+            docker_run_string.append(clean_image_name)
 
             # This is because only the first argument in the list is the command, the rest are arguments which need to come after
             # the service name but before the commands
@@ -1303,6 +1308,48 @@ class ScenarioRunner:
                 'read-notes-stdout': service.get('read-notes-stdout', False),
                 'read-sci-stdout': service.get('read-sci-stdout', False),
             }
+
+            # Check if detached container failed immediately after startup
+            # Docker run -d returns exit code 0 (success) even when containers fail moments later
+            # Common causes: architecture mismatch, missing dependencies, invalid entrypoints
+            time.sleep(1)
+            check_ps = subprocess.run(
+                    ['docker', 'ps', '-q', '-f', f'name={container_name}'],
+                    check=False,
+                    capture_output=True,
+                    encoding='UTF-8'
+                )
+            if not check_ps.stdout.strip():
+                # Container not running anymore - this is an error condition that requires raising an exception
+                logs_ps = subprocess.run(
+                    ['docker', 'logs', container_name],
+                    check=False,
+                    capture_output=True,
+                    encoding='UTF-8'
+                )
+                inspect_ps = subprocess.run(
+                    ['docker', 'inspect', '--format={{.State.ExitCode}}', container_name],
+                    check=False,
+                    capture_output=True,
+                    encoding='UTF-8'
+                )
+                exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
+
+                if exit_code == "0":
+                    # Container exited successfully but immediately
+                    raise RuntimeError(f"Container '{container_name}' exited immediately after start (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                else:
+                    # Container failed with non-zero or unknown exit code
+                    image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(service['image'])
+                    if image_arch and host_arch and not is_compatible:
+                        raise RuntimeError(f"Container '{container_name}' failed immediately after start, probably due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{image_arch}' but host architecture is '{host_arch}'.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                    else:
+                        raise RuntimeError(f"Container '{container_name}' failed immediately after start (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+
+            # Container is running - check for architecture mismatch that might indicate emulation
+            image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(clean_image_name)
+            if image_arch and host_arch and not is_compatible:
+                self.__warnings.append(f"Container '{container_name}' is running with architecture emulation. Image architecture is '{image_arch}' but host architecture is '{host_arch}'. This may impact performance.")
 
             print('Stdout:', container_id)
 
