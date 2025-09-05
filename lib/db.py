@@ -145,6 +145,7 @@ class DB:
     def fetch_all(self, query, params=None, fetch_mode=None):
         return self.__query(query, params=params, return_type='all', fetch_mode=fetch_mode)
 
+    @with_db_retry
     def import_csv(self, filename):
         raise NotImplementedError('Code still flakes on ; in data. Please rework')
         # pylint: disable=unreachable
@@ -158,6 +159,7 @@ class DB:
                         cur.execute(statement)
         conn.autocommit = False
 
+    @with_db_retry
     def copy_from(self, file, table, columns, sep=','):
         with self._pool.connection() as conn:
             conn.autocommit = False # is implicit default
