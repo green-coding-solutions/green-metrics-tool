@@ -17,7 +17,7 @@ def with_db_retry(func):
     def wrapper(self, *args, **kwargs):
         config = GlobalConfig().config
         retry_timeout = config.get('postgresql', {}).get('retry_timeout', 300)
-        retry_interval = config.get('postgresql', {}).get('retry_interval', 1)
+        retry_interval = 1  # Base interval for exponential backoff
 
         start_time = time.time()
         attempt = 0
