@@ -602,12 +602,13 @@ def test_print_logs_flag_with_iterations():
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 ## automatic database reconnection
-# TODO: This integration test should be moved to a dedicated integration test suite once that structure is implemented (https://github.com/green-coding-solutions/green-metrics-tool/issues/1302)
+# TODO: This integration test should be moved to a dedicated integration test suite once that structure is implemented (https://github.com/green-coding-solutions/green-metrics-tool/issues/1302) # pylint: disable=fixme
 def test_database_reconnection_during_run_integration():
     """Integration test: Verify GMT runner handles database reconnection during execution
     
     This test simulates a database outage by restarting the postgres container mid-run.
-    Expected to fail until database reconnection logic is implemented.
+    With database retry logic implemented, the test should succeed by automatically
+    reconnecting when the database becomes available again.
     
     Timing analysis based on a debug run with logs:
     T+0.0s  - GMT runner starts, database restart thread starts waiting
@@ -615,8 +616,8 @@ def test_database_reconnection_during_run_integration():
     T+12.3s - Database restart occurs (during runtime phase)
     T+13.1s - Database restart completes
     T+16.1s - Database should be available again
-    T+20.0s - REMOVE phase starts (database operations resume)
-    T+22.4s - Test completes, AdminShutdown error detected
+    T+20.0s - REMOVE phase starts (database operations resume with retry logic)
+    T+22.4s - Test completes successfully with database reconnection
     
     This timing ensures database restart happens during active measurement phase
     when database operations are likely occurring for metric storage.
@@ -659,7 +660,7 @@ def test_database_reconnection_during_run_integration():
          '--filename', 'tests/data/usage_scenarios/db_reconnection_test.yml',
          '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-optimizations'],
-        check=False,  # Expect this to fail until reconnection is implemented
+        check=False,  # Allow non-zero exit codes to check what happened
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
         encoding='UTF-8'
@@ -669,23 +670,35 @@ def test_database_reconnection_during_run_integration():
     restart_thread.join(timeout=30)  # Wait for restart thread to complete
     log_with_timestamp("Database restart thread completed", start_time=test_start_time)
 
-    # Debug: Show relevant parts of output
-    log_with_timestamp("Checking for AdminShutdown error in output...")
-    if 'AdminShutdown' in ps.stdout:
-        log_with_timestamp("Found AdminShutdown in stdout")
-    if 'AdminShutdown' in ps.stderr:
-        log_with_timestamp("Found AdminShutdown in stderr")
-
-    # The test validates that database disconnection is properly detected
-    # Look for AdminShutdown error in the output - this proves the test works correctly
+    # Analyze output for database reconnection evidence
+    has_retry_messages = ('Database connection error' in ps.stderr or 'Retrying in' in ps.stderr or
+                          'Database connection error' in ps.stdout or 'Retrying in' in ps.stdout)
     has_admin_shutdown = 'AdminShutdown' in ps.stdout or 'AdminShutdown' in ps.stderr
+    if has_retry_messages:
+        log_with_timestamp("Found database retry messages in stderr - retry logic was triggered")
+    if has_admin_shutdown:
+        log_with_timestamp("Found AdminShutdown in output - retry logic may not have worked")
 
-    # Test succeeds if we detect the database disconnection during the restart
-    # This proves the integration test correctly simulates a DB outage scenario
-    assert has_admin_shutdown, \
-        f"Expected AdminShutdown database error during restart. Got stdout: {ps.stdout[:1000]}..., stderr: {ps.stderr}"
+    # Assertions for database reconnection functionality
 
-    print("✓ Integration test successfully detected database disconnection during run")
-    print(ps.stdout)
-    print("errors")
-    print(ps.stderr)
+    # 1. GMT must complete successfully despite database restart
+    assert ps.returncode == 0, \
+        f"GMT runner must succeed when database reconnection is implemented. Return code: {ps.returncode}"
+
+    # 2. Should NOT see AdminShutdown errors (indicates retry logic failed)
+    assert not has_admin_shutdown, \
+        "AdminShutdown error found in output - database retry logic failed to handle disconnection properly"
+
+    # 3. Should see evidence of retry attempts (proves database was actually interrupted)
+    assert has_retry_messages, \
+        "No database retry messages found - test may not have properly simulated database outage during critical operations"
+
+    # 4. Verify restart thread completed (ensures test timing was correct)
+    restart_thread.join(timeout=5)
+    assert not restart_thread.is_alive(), \
+        "Database restart thread did not complete - test timing may be incorrect"
+
+    print("✓ All assertions passed - GMT successfully handled database reconnection")
+    print(f"✓ GMT completed successfully (return code: {ps.returncode})")
+    print(f"✓ Database retry logic triggered: {has_retry_messages}")
+    print(f"✓ No AdminShutdown errors: {not has_admin_shutdown}")

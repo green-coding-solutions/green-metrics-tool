@@ -4,6 +4,8 @@ postgresql:
   dbname: green-coding
   password: PLEASE_CHANGE_THIS
   port: 9573
+  retry_timeout: 300  # Total time to retry in seconds (5 minutes)
+  retry_interval: 1   # Base interval between retries in seconds
 
 redis:
   host: green-coding-redis-container
