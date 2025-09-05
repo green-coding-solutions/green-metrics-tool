@@ -1,0 +1,303 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.1, pluggy-1.5.0 -- /home/david/green-metrics-tool/venv/bin/python3
+cachedir: .pytest_cache
+Using --randomly-seed=14605630
+rootdir: /home/david/green-metrics-tool
+plugins: anyio-4.8.0, cov-6.2.1, base-url-2.1.0, asyncio-0.24.0, randomly-3.16.0, playwright-0.7.0
+asyncio: mode=Mode.STRICT, default_loop_scope=None
+collecting ... collected 1 item
+
+tests/test_dependency_collection.py::TestDependencyCollection::test_integration_dependency_collection_with_real_containers bd64f508fc5c19875a08a4ac9b91bf95d0d186b754cb4a12c1425bd36c49aac3
+[95m 
+Checking system [0m
+Skipping check system due to --skip-system-checks
+[95m 
+Checking out repository [0m
+Working folder changed to  /home/david/green-metrics-tool/tests/data/web-application
+[95m 
+Having Usage Scenario  Django Web Application [0m
+From:  David Kopp
+Description:  Test 
+
+[95m 
+Importing metric providers [0m
+Skipping import of metric providers due to --dev-no-save or --dev-no-metrics
+[95m 
+Removing all temporary GMT images [0m
+Skipping removing of all temporary GMT images skipped due to --dev-cache-build
+[95m 
+Downloading dependencies [0m
+Skipping downloading dependencies due to --dev-cache-build
+[95m 
+Initializing run [0m
+[95m 
+Starting metric providers [0m
+Skipping start of metric providers due to --dev-no-metrics or --dev-no-save
+[95m 
+Starting phase [BASELINE]. [0m
+
+Force-sleeping for 1s
+[95m 
+Starting phase [INSTALLATION]. [0m
+
+Force-sleeping for 1s
+[95m 
+Building Docker images [0m
+Image postgres:13 exists in build cache. Skipping build ...
+Image web exists in build cache. Skipping build ...
+Image curlimages/curl:8.10.1 exists in build cache. Skipping build ...
+[95m 
+Saving image and volume sizes [0m
+[95m 
+Starting phase [BOOT]. [0m
+
+Force-sleeping for 1s
+[95m 
+No network found. Creating default network [0m
+Creating network:  GMT_default_tmp_network_6723694
+[95m 
+Setting up services [0m
+Startup order:  ['db', 'web', 'curl']
+[95m 
+Setting up container for service: db [0m
+Container name: db
+Resetting container
+Creating container
+Running docker run with: docker run -it -d --name db -v /home/david/green-metrics-tool:/tmp/repo:ro -e POSTGRES_DB=postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres --net GMT_default_tmp_network_6723694 postgres13_gmt_run_tmp
+Stdout: 37b8426388b281922a3ca13262376103b707dd3b0e1383500d3d655447ecf8b4
+Running commands
+[95m 
+Setting up container for service: web [0m
+Container name: web
+Resetting container
+Creating container
+[93m 
+
+>>>> Found ports entry but not running in unsafe mode. Skipping <<<<
+
+ [0m
+Container state of dependent service 'db': running
+Running docker run with: docker run -it -d --name web -v /home/david/green-metrics-tool:/tmp/repo:ro --mount type=bind,source=/home/david/green-metrics-tool/tests/data/web-application,target=/code,readonly -e POSTGRES_NAME=postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres --net GMT_default_tmp_network_6723694 web_gmt_run_tmp python manage.py runserver 0.0.0.0:8000
+Stdout: e4d1bf9624616b81ac3c865b1b11e5041644c0174399f7f27cc2a0ef80630c34
+Running commands
+[95m 
+Setting up container for service: curl [0m
+Container name: curl
+Resetting container
+Creating container
+Running docker run with: docker run -it -d --name curl -v /home/david/green-metrics-tool:/tmp/repo:ro --net GMT_default_tmp_network_6723694 --entrypoint sleep curlimagescurl8101_gmt_run_tmp infinity
+Stdout: b84382e93f54b42465706c72562aa1f9dd2fdd8b6dbea780620293cc586329bd
+Running commands
+Running command:  docker exec curl sleep 5
+[95m 
+Current known containers:  {'37b8426388b281922a3ca13262376103b707dd3b0e1383500d3d655447ecf8b4': {'name': 'db', 'log-stdout': False, 'log-stderr': True, 'read-notes-stdout': False, 'read-sci-stdout': False}, 'e4d1bf9624616b81ac3c865b1b11e5041644c0174399f7f27cc2a0ef80630c34': {'name': 'web', 'log-stdout': False, 'log-stderr': True, 'read-notes-stdout': False, 'read-sci-stdout': False}, 'b84382e93f54b42465706c72562aa1f9dd2fdd8b6dbea780620293cc586329bd': {'name': 'curl', 'log-stdout': False, 'log-stderr': True, 'read-notes-stdout': False, 'read-sci-stdout': False}} [0m
+[95m 
+Checking process return codes [0m
+[95m 
+Starting metric providers [0m
+Skipping start of metric providers due to --dev-no-metrics or --dev-no-save
+[95m 
+Collecting dependency information [0m
+Performing full dependency resolution for container: web (built container)
+Result:
+{'db': {'_container-info': {'image': 'postgres13_gmt_run_tmp:latest', 'hash': 'sha256:645e932c27f7053bda80391da99f0f9d1edda8808ede7c6d742ae4263638ec1a'}}, 'web': {'_container-info': {'image': 'web_gmt_run_tmp:latest', 'hash': 'sha256:4e524551c7a63b41e9e5eb49fbdefae3ac6264f201c6588d98fa104fa44eef13'}, 'dpkg': {'scope': 'system', 'dependencies': {'adduser': {'version': '3.152 all', 'hash': 'dab8af11919ddbbd643630c7194a1d56ed45a6b85d1c520e6bd049769b6174a7'}, 'apt': {'version': '3.0.3 amd64', 'hash': 'f2d367ee53b8e2f9758cbfbb0fbc9be138c165ac9b4bc471920da51b8be69fcd'}, 'base-files': {'version': '13.8 amd64', 'hash': 'a4a8761283722a37724d89b2beb65323495bf6a727eeec63372151d0d027e781'}, 'base-passwd': {'version': '3.6.7 amd64', 'hash': '57250bbdcf6041fae5a6ea51b2c5a05533389f69d6772687e21a2af09235fd1c'}, 'bash': {'version': '5.2.37-2+b5 amd64', 'hash': 'bd17cfcd76388087939174850e1fd26ff1368b6070288b296e44b013ef56a3bb'}, 'bsdutils': {'version': '1:2.41-5 amd64', 'hash': '2680f1b2d66c4c50c4c36c89b19f5db576caacd8489cbd544bc76d6e1c11640d'}, 'ca-certificates': {'version': '20250419 all', 'hash': '21d2d34292a1809791db509dcbc71b8ab0e1a98803172cc9df5592cf22822d0c'}, 'coreutils': {'version': '9.7-3 amd64', 'hash': '2cec343c08f93ac8221a3751ebc0cbfb1b75db504c178dbc8b4aec1defae06f2'}, 'dash': {'version': '0.5.12-12 amd64', 'hash': 'f1e4c09ed70c6dd9c5193bdf7f3c61dcaa48e05ce7688576de5e8caae75501ae'}, 'debconf': {'version': '1.5.91 all', 'hash': '08b5a647bdfe8d5d5bb5876bc109d1dd3e8f690c84ae52e598f24acbeef28e99'}, 'debian-archive-keyring': {'version': '2025.1 all', 'hash': '5fc553ff45d250020a8e3e8b359fff165d237f578459b5d95f6b6a56d835cf41'}, 'debianutils': {'version': '5.23.2 amd64', 'hash': '41b404279d6b85a8935138fe3c50c598af5c1a8151afd77d67fc40e0ed2c0dae'}, 'diffutils': {'version': '1:3.10-4 amd64', 'hash': '9510a8deac13a3747aa45ed7334f19b54f28c0c9d7fc2bcce09118064bd731f3'}, 'dpkg': {'version': '1.22.21 amd64', 'hash': 'a12807423335f98b7f895257f5bc191633f214c25c9d785c399beccfd1dbc265'}, 'findutils': {'version': '4.10.0-3 amd64', 'hash': '3c5871c751428fd37e2c4d8f785a1871a749961924cb5290d49964c527de45b6'}, 'gcc-14-base': {'version': '14.2.0-19 amd64', 'hash': 'a9c72c8c255e227b3f6d5b2cd68d33eefb503d0bc5c94e4c58bd4d9497449231'}, 'grep': {'version': '3.11-4 amd64', 'hash': '22253428e32223438b07a4d6b25cead2c14208953b8882bfc7ef90f1eb58521a'}, 'gzip': {'version': '1.13-1 amd64', 'hash': '22d326581f10fa793ae0f961afaa5803922b7c28bcd37f4e170afb740e9276d5'}, 'hostname': {'version': '3.25 amd64', 'hash': 'ff0ebf84c2b0d76b691e1c8badd35bb6a88f4871ec39379d22226fd6b844b873'}, 'init-system-helpers': {'version': '1.68 all', 'hash': '22650cdf71d6dc19d0708f7b64bdcf34309fc1bbbda916d5d4fe54e18312b1f1'}, 'libacl1': {'version': '2.3.2-2+b1 amd64', 'hash': '84e87fc421141881484ecf61ce1bf22943bdfefa8a28d073490d3d84d52d17e2'}, 'libapt-pkg7.0': {'version': '3.0.3 amd64', 'hash': '3485819fd3071b7e12649ffcb5eb9a6e37215d314f21c56aa214e462161e5c4b'}, 'libattr1': {'version': '1:2.5.2-3 amd64', 'hash': 'bcb4224a596145c56a1d29654958be232326f028cdd2d0f42c721d790a59f74a'}, 'libaudit-common': {'version': '1:4.0.2-2 all', 'hash': '8e001939003464d51dec2ed29943dde606b47f3cef8d7eef1e67d9351697c858'}, 'libaudit1': {'version': '1:4.0.2-2+b2 amd64', 'hash': '831e5bf1b32a38f7aaa25f56fc151f662c5f6dac036432d41978e443331761ec'}, 'libblkid1': {'version': '2.41-5 amd64', 'hash': '8adfa601fc8589c56ed4aeb729b573efc546a7e47657d9056f28fa16b08c8364'}, 'libbsd0': {'version': '0.12.2-2 amd64', 'hash': 'e72905385f671b16b05c7e55741822953afb5af7bd6009b8a7f3023009dcf401'}, 'libbz2-1.0': {'version': '1.0.8-6 amd64', 'hash': '0ef440a363cd53c705a94ad5ea2eca6aec7c80ae1df0f3d4d8468d5cd6e852ce'}, 'libc-bin': {'version': '2.41-12 amd64', 'hash': '8d6ad7d2cc05269cd336d618f3be131c5517a5c291c4ada562574cb07200c561'}, 'libc6': {'version': '2.41-12 amd64', 'hash': 'b70fcfae09f1bce3ed8725384517cf8ed39e5a73e1bb3754e309deaac74eca16'}, 'libcap-ng0': {'version': '0.8.5-4+b1 amd64', 'hash': '33bcb55ac393dbb9a73dd29a1d25fd7adab5b7135ef160ee90bc932d08d19c59'}, 'libcap2': {'version': '1:2.75-10+b1 amd64', 'hash': 'b053c50710e40ab409f47a4ed5e872bbe2ebda4fef25c6479c708c48bca725b2'}, 'libcrypt1': {'version': '1:4.4.38-1 amd64', 'hash': '39d2eb3ff2cbdfa4c0429f22f7ba0378605b8d36ba2575ddc135db2544f15eba'}, 'libdb5.3t64': {'version': '5.3.28+dfsg2-9 amd64', 'hash': '543ee0e3535053455c70ff58c694fc4413b3cd9ca80ecbac58f80aea67fedff8'}, 'libdebconfclient0': {'version': '0.280 amd64', 'hash': '8ecf0b8fd4d7133dcc0c66967b21c62306e9dc5c953e88d43c82ce9e3d89c2a4'}, 'libffi8': {'version': '3.4.8-2 amd64', 'hash': '1b0a61abd24c4724afa46499d3b2d0f70e45ae007aaa4f25d0d4e4c50fd953d0'}, 'libgcc-s1': {'version': '14.2.0-19 amd64', 'hash': '1ae2806b8bb0d5f1a1ea7c8d8adea2295b7dca1ca92650b298e86c3b727667f4'}, 'libgdbm6t64': {'version': '1.24-2 amd64', 'hash': '22a2acbda54081a702bb61fdcc86da8f33ce431664faab63d7310ccfa9b26744'}, 'libgmp10': {'version': '2:6.3.0+dfsg-3 amd64', 'hash': 'b59ffaa8962e3bd37f5e8df41d63e17821c88c60607854c50a787833217e544a'}, 'libhogweed6t64': {'version': '3.10.1-1 amd64', 'hash': '3bd225fb74ccf42826fe3a4586882e4c746f48930c04065de9078902ed04f25b'}, 'liblastlog2-2': {'version': '2.41-5 amd64', 'hash': '8d4b10a6a838653aa795508e6dee8e1371c98ba6c1d88e036822a7eeee2b2d42'}, 'liblz4-1': {'version': '1.10.0-4 amd64', 'hash': '0f42fcdd2110684171d831f7d7f46d034e06ed4faf92360c39aa7698ff868967'}, 'liblzma5': {'version': '5.8.1-1 amd64', 'hash': '003694d4683cf866495a7711630d3334b86377ba702b257b9e3450629305e513'}, 'libmd0': {'version': '1.1.0-2+b1 amd64', 'hash': '59e9c37a49e7673e9c0aa4b3f7a7182f252810b51f85d8bd0ee7fb1c5d2f1325'}, 'libmount1': {'version': '2.41-5 amd64', 'hash': '422c95513011f016fab78bd86a449044a7c69c8050669cf6519a365c92d3c5b3'}, 'libncursesw6': {'version': '6.5+20250216-2 amd64', 'hash': '9d339ce4340e13d1aab779e2291ba9796a39a126a0297a9148660d80b71cf56c'}, 'libnettle8t64': {'version': '3.10.1-1 amd64', 'hash': '83936995331c1d9289f4ed99b7650d66f1066cd3f518819d3893952ca878608f'}, 'libpam-modules': {'version': '1.7.0-5 amd64', 'hash': '032a47628e48a06369dda491f9c05508ceeeff8884ede131db7b00a180667d4a'}, 'libpam-modules-bin': {'version': '1.7.0-5 amd64', 'hash': '8e15b1a4aca6d54cfec1c4589fc835a74d041a21f7ac58b9dcec7b0c8462d7d8'}, 'libpam-runtime': {'version': '1.7.0-5 all', 'hash': 'fdecbe23ff3ef6b49490d22df2c926f58c0961f6dd9e2b184c8be6d18e8b6c0f'}, 'libpam0g': {'version': '1.7.0-5 amd64', 'hash': '0b41e1e49a9e6e9a0fa1b7298e099ff72697f33f7628a1358cd78d3630992351'}, 'libpcre2-8-0': {'version': '10.45-1 amd64', 'hash': '9d4b62b91714692b08c3a21f8741c59636926bd9593f0409cf87c08221920544'}, 'libreadline8t64': {'version': '8.2-6 amd64', 'hash': 'ac501344a5554278fdbe5ee2a937bb95751908f6e479f3f9f6a7340d31523260'}, 'libseccomp2': {'version': '2.6.0-2 amd64', 'hash': '10c3ce7d836c6e5301affc482201a7156de27b8fd485cfc423648aa731eb99c6'}, 'libselinux1': {'version': '3.8.1-1 amd64', 'hash': 'ffffba71cdc5557f0b2c434fd436063dc532c84610472b04e5b021b62501d16b'}, 'libsemanage-common': {'version': '3.8.1-1 all', 'hash': '1eb6c68bfc4cf9aa479174cc8be99d647dc89f560a49004efbe1d2d4a9930eec'}, 'libsemanage2': {'version': '3.8.1-1 amd64', 'hash': 'c0352b98aa053ea0d6d6f79d883dcc695d186aac764ec413aac636623ec84411'}, 'libsepol2': {'version': '3.8.1-1 amd64', 'hash': '476f8e845e394657c563de4b3f2ea6d093436d693f0ba478dea8b88503fb395c'}, 'libsmartcols1': {'version': '2.41-5 amd64', 'hash': '6729a12f5ed762d312bfad2e41285df2f448988e320e46f29ae6d344cbe61ee4'}, 'libsqlite3-0': {'version': '3.46.1-7 amd64', 'hash': '24026159a3ce6e9299a958c31bba7848da4cca10ff42602ff54ab92027b820aa'}, 'libssl3t64': {'version': '3.5.1-1 amd64', 'hash': 'cdd4f8d1f6a9b9ce5f0e45eb68d6a3344bfc3fd0bf2d23566598ba1520220cc9'}, 'libstdc++6': {'version': '14.2.0-19 amd64', 'hash': 'f83283d9c1ac7dd7041e1314786c54dca28d47724014234a422fa6d8249d0f58'}, 'libsystemd0': {'version': '257.7-1 amd64', 'hash': '843e1a60225af15b0765d2ace1900d861a2e29bf92be2047f9f281969903055c'}, 'libtinfo6': {'version': '6.5+20250216-2 amd64', 'hash': 'f850a332fa0b76ee7936d57f72bc1d04881b105fc74ff04a235f5f7b2ce4f160'}, 'libudev1': {'version': '257.7-1 amd64', 'hash': 'e6e28757285ca525630249b8cb4358bdbdd9e2d398257db65fd8dc6e0e10e5e0'}, 'libuuid1': {'version': '2.41-5 amd64', 'hash': '2fbadce2af5f4a1644157f0f563e964c9821e7e0fe6feea3bb3cda8801d2b86b'}, 'libxxhash0': {'version': '0.8.3-2 amd64', 'hash': '3462571ce27f483f526de5df30f7ce1a387554d8840ae0622425677a99e4dd53'}, 'libzstd1': {'version': '1.5.7+dfsg-1 amd64', 'hash': '5bdcf66b165836624a6ec6a6e7a2ba0755396d9697a1b07c4ee056ed59a07f52'}, 'login': {'version': '1:4.16.0-2+really2.41-5 amd64', 'hash': 'ba2cf1b305ac965622d5a926ea1f6ea12935bc68ad589d997240abed6080d63d'}, 'login.defs': {'version': '1:4.17.4-2 all', 'hash': '19be7d66db3aa3934870466281de57b106b331665c4543c899eb2312e0f3cb2b'}, 'mawk': {'version': '1.3.4.20250131-1 amd64', 'hash': 'c33b150a65abe18b571c0cb76076bb23a99de588b58546f5a84184a63362114f'}, 'mount': {'version': '2.41-5 amd64', 'hash': '4ac7f17e6f1fc79042ad67ec61895490a0903033d9ecdb240530b991abfbd1c0'}, 'ncurses-base': {'version': '6.5+20250216-2 all', 'hash': 'b030dbb21927aa3a264763fcd067742c7f7e503baa5d1dcd442ac45752e51bdb'}, 'ncurses-bin': {'version': '6.5+20250216-2 amd64', 'hash': 'd7b20c99ffb4177fe1f0fee27598a98425d019eaee2552a84507595463d40cea'}, 'netbase': {'version': '6.5 all', 'hash': '119efc6f8da46ed8ade98e92d9effb06830c83a9865279f551171a37c0979582'}, 'openssl': {'version': '3.5.1-1 amd64', 'hash': '5d9d09adec5be0b01cf72957efd050255f1f0b02fc38d51b579d842ab768e47e'}, 'openssl-provider-legacy': {'version': '3.5.1-1 amd64', 'hash': '8298960bddc1b9e48ea6b7e04ef63453e25b5957574e00b3839a8e49f3e4da72'}, 'passwd': {'version': '1:4.17.4-2 amd64', 'hash': '277ed2d24d10ae75fcb9be92f2f89e877390f577291653196170685f7c566382'}, 'perl-base': {'version': '5.40.1-6 amd64', 'hash': '97a9ce8688a82a42ede1f935385a06e791e2b95d46ac76300aabf47f1bc0148f'}, 'readline-common': {'version': '8.2-6 all', 'hash': '27d9ff6b75a6000494ad0ec605303751c44a3b2b8d8b609d0474181cb5722461'}, 'sed': {'version': '4.9-2 amd64', 'hash': '91eac91ef165eb49e9daa55d9f59dfe7ba8a66a97ced73ed32b6ee6351ef7256'}, 'sqv': {'version': '1.3.0-3 amd64', 'hash': '20ce1c48d5faf67fb4e0e71958003aae46a1b89dae0c8a5598624be5463ee610'}, 'sysvinit-utils': {'version': '3.14-4 amd64', 'hash': '6da2b8c0a7ad1462bb975e3b7e6f8723c4096e12fb3035cb91c2f97e5c3c18f3'}, 'tar': {'version': '1.35+dfsg-3.1 amd64', 'hash': 'f2d6b7b064869e164915e7c87fbb704f33ecd11563b5b7a16c4dc88c05c6a20b'}, 'tzdata': {'version': '2025b-4 all', 'hash': '89040bd06fcb89a0daa58150a9816a5c34b91eceefcb727e1add9643ab4a96b0'}, 'util-linux': {'version': '2.41-5 amd64', 'hash': '82441950f40a2bb583262452f5556952b084a0cae7dc75cd405a0f3c51be0f9a'}, 'zlib1g': {'version': '1:1.3.dfsg+really1.3.1-1+b1 amd64', 'hash': '1e9d7f79936e3af3b7e5d857645f552f35ed9024e8caad38ce7323abc05f0e75'}}}, 'pip': {'scope': 'project', 'location': '/usr/local/lib/python3.13/site-packages', 'hash': 'dbade344a4ac42d19e7cba11a74c27a0ff1d80d863878825753bdfbe0e6d51de', 'dependencies': {'asgiref': {'version': '3.9.1'}, 'Django': {'version': '4.2.23'}, 'pip': {'version': '25.2'}, 'psycopg2-binary': {'version': '2.9.10'}, 'sqlparse': {'version': '0.5.3'}}}}, 'curl': {'_container-info': {'image': 'curl:8.10.1', 'hash': 'sha256:fb8656c965b90e3b1001717e567e4e908d58656fa90706b6539b8c3ba488a9ac'}}}
+test 1
+test 2
+test 3
+DEBUG: Original dependencies keys order: ['db', 'web', 'curl']
+DEBUG: JSON string: {"db": {"_container-info": {"image": "postgres13_gmt_run_tmp:latest", "hash": "sha256:645e932c27f7053bda80391da99f0f9d1edda8808ede7c6d742ae4263638ec1a"}}, "web": {"_container-info": {"image": "web_gmt_run_tmp:latest", "hash": "sha256:4e524551c7a63b41e9e5eb49fbdefae3ac6264f201c6588d98fa104fa44eef13"}, "dpkg": {"scope": "system", "dependencies": {"adduser": {"version": "3.152 all", "hash": "dab8af11919ddbbd643630c7194a1d56ed45a6b85d1c520e6bd049769b6174a7"}, "apt": {"version": "3.0.3 amd64", "hash": "f2d367ee53b8e2f9758cbfbb0fbc9be138c165ac9b4bc471920da51b8be69fcd"}, "base-files": {"version": "13.8 amd64", "hash": "a4a8761283722a37724d89b2beb65323495bf6a727eeec63372151d0d027e781"}, "base-passwd": {"version": "3.6.7 amd64", "hash": "57250bbdcf6041fae5a6ea51b2c5a05533389f69d6772687e21a2af09235fd1c"}, "bash": {"version": "5.2.37-2+b5 amd64", "hash": "bd17cfcd76388087939174850e1fd26ff1368b6070288b296e44b013ef56a3bb"}, "bsdutils": {"version": "1:2.41-5 amd64", "hash": "2680f1b2d66c4c50c4c36c89b19f5db576caacd8489cbd544bc76d6e1c11640d"}, "ca-certificates": {"version": "20250419 all", "hash": "21d2d34292a1809791db509dcbc71b8ab0e1a98803172cc9df5592cf22822d0c"}, "coreutils": {"version": "9.7-3 amd64", "hash": "2cec343c08f93ac8221a3751ebc0cbfb1b75db504c178dbc8b4aec1defae06f2"}, "dash": {"version": "0.5.12-12 amd64", "hash": "f1e4c09ed70c6dd9c5193bdf7f3c61dcaa48e05ce7688576de5e8caae75501ae"}, "debconf": {"version": "1.5.91 all", "hash": "08b5a647bdfe8d5d5bb5876bc109d1dd3e8f690c84ae52e598f24acbeef28e99"}, "debian-archive-keyring": {"version": "2025.1 all", "hash": "5fc553ff45d250020a8e3e8b359fff165d237f578459b5d95f6b6a56d835cf41"}, "debianutils": {"version": "5.23.2 amd64", "hash": "41b404279d6b85a8935138fe3c50c598af5c1a8151afd77d67fc40e0ed2c0dae"}, "diffutils": {"version": "1:3.10-4 amd64", "hash": "9510a8deac13a3747aa45ed7334f19b54f28c0c9d7fc2bcce09118064bd731f3"}, "dpkg": {"version": "1.22.21 amd64", "hash": "a12807423335f98b7f895257f5bc191633f214c25c9d785c399beccfd1dbc265"}, "findutils": {"version": "4.10.0-3 amd64", "hash": "3c5871c751428fd37e2c4d8f785a1871a749961924cb5290d49964c527de45b6"}, "gcc-14-base": {"version": "14.2.0-19 amd64", "hash": "a9c72c8c255e227b3f6d5b2cd68d33eefb503d0bc5c94e4c58bd4d9497449231"}, "grep": {"version": "3.11-4 amd64", "hash": "22253428e32223438b07a4d6b25cead2c14208953b8882bfc7ef90f1eb58521a"}, "gzip": {"version": "1.13-1 amd64", "hash": "22d326581f10fa793ae0f961afaa5803922b7c28bcd37f4e170afb740e9276d5"}, "hostname": {"version": "3.25 amd64", "hash": "ff0ebf84c2b0d76b691e1c8badd35bb6a88f4871ec39379d22226fd6b844b873"}, "init-system-helpers": {"version": "1.68 all", "hash": "22650cdf71d6dc19d0708f7b64bdcf34309fc1bbbda916d5d4fe54e18312b1f1"}, "libacl1": {"version": "2.3.2-2+b1 amd64", "hash": "84e87fc421141881484ecf61ce1bf22943bdfefa8a28d073490d3d84d52d17e2"}, "libapt-pkg7.0": {"version": "3.0.3 amd64", "hash": "3485819fd3071b7e12649ffcb5eb9a6e37215d314f21c56aa214e462161e5c4b"}, "libattr1": {"version": "1:2.5.2-3 amd64", "hash": "bcb4224a596145c56a1d29654958be232326f028cdd2d0f42c721d790a59f74a"}, "libaudit-common": {"version": "1:4.0.2-2 all", "hash": "8e001939003464d51dec2ed29943dde606b47f3cef8d7eef1e67d9351697c858"}, "libaudit1": {"version": "1:4.0.2-2+b2 amd64", "hash": "831e5bf1b32a38f7aaa25f56fc151f662c5f6dac036432d41978e443331761ec"}, "libblkid1": {"version": "2.41-5 amd64", "hash": "8adfa601fc8589c56ed4aeb729b573efc546a7e47657d9056f28fa16b08c8364"}, "libbsd0": {"version": "0.12.2-2 amd64", "hash": "e72905385f671b16b05c7e55741822953afb5af7bd6009b8a7f3023009dcf401"}, "libbz2-1.0": {"version": "1.0.8-6 amd64", "hash": "0ef440a363cd53c705a94ad5ea2eca6aec7c80ae1df0f3d4d8468d5cd6e852ce"}, "libc-bin": {"version": "2.41-12 amd64", "hash": "8d6ad7d2cc05269cd336d618f3be131c5517a5c291c4ada562574cb07200c561"}, "libc6": {"version": "2.41-12 amd64", "hash": "b70fcfae09f1bce3ed8725384517cf8ed39e5a73e1bb3754e309deaac74eca16"}, "libcap-ng0": {"version": "0.8.5-4+b1 amd64", "hash": "33bcb55ac393dbb9a73dd29a1d25fd7adab5b7135ef160ee90bc932d08d19c59"}, "libcap2": {"version": "1:2.75-10+b1 amd64", "hash": "b053c50710e40ab409f47a4ed5e872bbe2ebda4fef25c6479c708c48bca725b2"}, "libcrypt1": {"version": "1:4.4.38-1 amd64", "hash": "39d2eb3ff2cbdfa4c0429f22f7ba0378605b8d36ba2575ddc135db2544f15eba"}, "libdb5.3t64": {"version": "5.3.28+dfsg2-9 amd64", "hash": "543ee0e3535053455c70ff58c694fc4413b3cd9ca80ecbac58f80aea67fedff8"}, "libdebconfclient0": {"version": "0.280 amd64", "hash": "8ecf0b8fd4d7133dcc0c66967b21c62306e9dc5c953e88d43c82ce9e3d89c2a4"}, "libffi8": {"version": "3.4.8-2 amd64", "hash": "1b0a61abd24c4724afa46499d3b2d0f70e45ae007aaa4f25d0d4e4c50fd953d0"}, "libgcc-s1": {"version": "14.2.0-19 amd64", "hash": "1ae2806b8bb0d5f1a1ea7c8d8adea2295b7dca1ca92650b298e86c3b727667f4"}, "libgdbm6t64": {"version": "1.24-2 amd64", "hash": "22a2acbda54081a702bb61fdcc86da8f33ce431664faab63d7310ccfa9b26744"}, "libgmp10": {"version": "2:6.3.0+dfsg-3 amd64", "hash": "b59ffaa8962e3bd37f5e8df41d63e17821c88c60607854c50a787833217e544a"}, "libhogweed6t64": {"version": "3.10.1-1 amd64", "hash": "3bd225fb74ccf42826fe3a4586882e4c746f48930c04065de9078902ed04f25b"}, "liblastlog2-2": {"version": "2.41-5 amd64", "hash": "8d4b10a6a838653aa795508e6dee8e1371c98ba6c1d88e036822a7eeee2b2d42"}, "liblz4-1": {"version": "1.10.0-4 amd64", "hash": "0f42fcdd2110684171d831f7d7f46d034e06ed4faf92360c39aa7698ff868967"}, "liblzma5": {"version": "5.8.1-1 amd64", "hash": "003694d4683cf866495a7711630d3334b86377ba702b257b9e3450629305e513"}, "libmd0": {"version": "1.1.0-2+b1 amd64", "hash": "59e9c37a49e7673e9c0aa4b3f7a7182f252810b51f85d8bd0ee7fb1c5d2f1325"}, "libmount1": {"version": "2.41-5 amd64", "hash": "422c95513011f016fab78bd86a449044a7c69c8050669cf6519a365c92d3c5b3"}, "libncursesw6": {"version": "6.5+20250216-2 amd64", "hash": "9d339ce4340e13d1aab779e2291ba9796a39a126a0297a9148660d80b71cf56c"}, "libnettle8t64": {"version": "3.10.1-1 amd64", "hash": "83936995331c1d9289f4ed99b7650d66f1066cd3f518819d3893952ca878608f"}, "libpam-modules": {"version": "1.7.0-5 amd64", "hash": "032a47628e48a06369dda491f9c05508ceeeff8884ede131db7b00a180667d4a"}, "libpam-modules-bin": {"version": "1.7.0-5 amd64", "hash": "8e15b1a4aca6d54cfec1c4589fc835a74d041a21f7ac58b9dcec7b0c8462d7d8"}, "libpam-runtime": {"version": "1.7.0-5 all", "hash": "fdecbe23ff3ef6b49490d22df2c926f58c0961f6dd9e2b184c8be6d18e8b6c0f"}, "libpam0g": {"version": "1.7.0-5 amd64", "hash": "0b41e1e49a9e6e9a0fa1b7298e099ff72697f33f7628a1358cd78d3630992351"}, "libpcre2-8-0": {"version": "10.45-1 amd64", "hash": "9d4b62b91714692b08c3a21f8741c59636926bd9593f0409cf87c08221920544"}, "libreadline8t64": {"version": "8.2-6 amd64", "hash": "ac501344a5554278fdbe5ee2a937bb95751908f6e479f3f9f6a7340d31523260"}, "libseccomp2": {"version": "2.6.0-2 amd64", "hash": "10c3ce7d836c6e5301affc482201a7156de27b8fd485cfc423648aa731eb99c6"}, "libselinux1": {"version": "3.8.1-1 amd64", "hash": "ffffba71cdc5557f0b2c434fd436063dc532c84610472b04e5b021b62501d16b"}, "libsemanage-common": {"version": "3.8.1-1 all", "hash": "1eb6c68bfc4cf9aa479174cc8be99d647dc89f560a49004efbe1d2d4a9930eec"}, "libsemanage2": {"version": "3.8.1-1 amd64", "hash": "c0352b98aa053ea0d6d6f79d883dcc695d186aac764ec413aac636623ec84411"}, "libsepol2": {"version": "3.8.1-1 amd64", "hash": "476f8e845e394657c563de4b3f2ea6d093436d693f0ba478dea8b88503fb395c"}, "libsmartcols1": {"version": "2.41-5 amd64", "hash": "6729a12f5ed762d312bfad2e41285df2f448988e320e46f29ae6d344cbe61ee4"}, "libsqlite3-0": {"version": "3.46.1-7 amd64", "hash": "24026159a3ce6e9299a958c31bba7848da4cca10ff42602ff54ab92027b820aa"}, "libssl3t64": {"version": "3.5.1-1 amd64", "hash": "cdd4f8d1f6a9b9ce5f0e45eb68d6a3344bfc3fd0bf2d23566598ba1520220cc9"}, "libstdc++6": {"version": "14.2.0-19 amd64", "hash": "f83283d9c1ac7dd7041e1314786c54dca28d47724014234a422fa6d8249d0f58"}, "libsystemd0": {"version": "257.7-1 amd64", "hash": "843e1a60225af15b0765d2ace1900d861a2e29bf92be2047f9f281969903055c"}, "libtinfo6": {"version": "6.5+20250216-2 amd64", "hash": "f850a332fa0b76ee7936d57f72bc1d04881b105fc74ff04a235f5f7b2ce4f160"}, "libudev1": {"version": "257.7-1 amd64", "hash": "e6e28757285ca525630249b8cb4358bdbdd9e2d398257db65fd8dc6e0e10e5e0"}, "libuuid1": {"version": "2.41-5 amd64", "hash": "2fbadce2af5f4a1644157f0f563e964c9821e7e0fe6feea3bb3cda8801d2b86b"}, "libxxhash0": {"version": "0.8.3-2 amd64", "hash": "3462571ce27f483f526de5df30f7ce1a387554d8840ae0622425677a99e4dd53"}, "libzstd1": {"version": "1.5.7+dfsg-1 amd64", "hash": "5bdcf66b165836624a6ec6a6e7a2ba0755396d9697a1b07c4ee056ed59a07f52"}, "login": {"version": "1:4.16.0-2+really2.41-5 amd64", "hash": "ba2cf1b305ac965622d5a926ea1f6ea12935bc68ad589d997240abed6080d63d"}, "login.defs": {"version": "1:4.17.4-2 all", "hash": "19be7d66db3aa3934870466281de57b106b331665c4543c899eb2312e0f3cb2b"}, "mawk": {"version": "1.3.4.20250131-1 amd64", "hash": "c33b150a65abe18b571c0cb76076bb23a99de588b58546f5a84184a63362114f"}, "mount": {"version": "2.41-5 amd64", "hash": "4ac7f17e6f1fc79042ad67ec61895490a0903033d9ecdb240530b991abfbd1c0"}, "ncurses-base": {"version": "6.5+20250216-2 all", "hash": "b030dbb21927aa3a264763fcd067742c7f7e503baa5d1dcd442ac45752e51bdb"}, "ncurses-bin": {"version": "6.5+20250216-2 amd64", "hash": "d7b20c99ffb4177fe1f0fee27598a98425d019eaee2552a84507595463d40cea"}, "netbase": {"version": "6.5 all", "hash": "119efc6f8da46ed8ade98e92d9effb06830c83a9865279f551171a37c0979582"}, "openssl": {"version": "3.5.1-1 amd64", "hash": "5d9d09adec5be0b01cf72957efd050255f1f0b02fc38d51b579d842ab768e47e"}, "openssl-provider-legacy": {"version": "3.5.1-1 amd64", "hash": "8298960bddc1b9e48ea6b7e04ef63453e25b5957574e00b3839a8e49f3e4da72"}, "passwd": {"version": "1:4.17.4-2 amd64", "hash": "277ed2d24d10ae75fcb9be92f2f89e877390f577291653196170685f7c566382"}, "perl-base": {"version": "5.40.1-6 amd64", "hash": "97a9ce8688a82a42ede1f935385a06e791e2b95d46ac76300aabf47f1bc0148f"}, "readline-common": {"version": "8.2-6 all", "hash": "27d9ff6b75a6000494ad0ec605303751c44a3b2b8d8b609d0474181cb5722461"}, "sed": {"version": "4.9-2 amd64", "hash": "91eac91ef165eb49e9daa55d9f59dfe7ba8a66a97ced73ed32b6ee6351ef7256"}, "sqv": {"version": "1.3.0-3 amd64", "hash": "20ce1c48d5faf67fb4e0e71958003aae46a1b89dae0c8a5598624be5463ee610"}, "sysvinit-utils": {"version": "3.14-4 amd64", "hash": "6da2b8c0a7ad1462bb975e3b7e6f8723c4096e12fb3035cb91c2f97e5c3c18f3"}, "tar": {"version": "1.35+dfsg-3.1 amd64", "hash": "f2d6b7b064869e164915e7c87fbb704f33ecd11563b5b7a16c4dc88c05c6a20b"}, "tzdata": {"version": "2025b-4 all", "hash": "89040bd06fcb89a0daa58150a9816a5c34b91eceefcb727e1add9643ab4a96b0"}, "util-linux": {"version": "2.41-5 amd64", "hash": "82441950f40a2bb583262452f5556952b084a0cae7dc75cd405a0f3c51be0f9a"}, "zlib1g": {"version": "1:1.3.dfsg+really1.3.1-1+b1 amd64", "hash": "1e9d7f79936e3af3b7e5d857645f552f35ed9024e8caad38ce7323abc05f0e75"}}}, "pip": {"scope": "project", "location": "/usr/local/lib/python3.13/site-packages", "hash": "dbade344a4ac42d19e7cba11a74c27a0ff1d80d863878825753bdfbe0e6d51de", "dependencies": {"asgiref": {"version": "3.9.1"}, "Django": {"version": "4.2.23"}, "pip": {"version": "25.2"}, "psycopg2-binary": {"version": "2.9.10"}, "sqlparse": {"version": "0.5.3"}}}}, "curl": {"_container-info": {"image": "curl:8.10.1", "hash": "sha256:fb8656c965b90e3b1001717e567e4e908d58656fa90706b6539b8c3ba488a9ac"}}}
+DEBUG: Parsed back keys order: ['db', 'web', 'curl']
+DEBUG: Stored JSON in DB: {'db': {'_container-info': {'hash': 'sha256:645e932c27f7053bda80391da99f0f9d1edda8808ede7c6d742ae4263638ec1a', 'image': 'postgres13_gmt_run_tmp:latest'}}, 'web': {'pip': {'hash': 'dbade344a4ac42d19e7cba11a74c27a0ff1d80d863878825753bdfbe0e6d51de', 'scope': 'project', 'location': '/usr/local/lib/python3.13/site-packages', 'dependencies': {'pip': {'version': '25.2'}, 'Django': {'version': '4.2.23'}, 'asgiref': {'version': '3.9.1'}, 'sqlparse': {'version': '0.5.3'}, 'psycopg2-binary': {'version': '2.9.10'}}}, 'dpkg': {'scope': 'system', 'dependencies': {'apt': {'hash': 'f2d367ee53b8e2f9758cbfbb0fbc9be138c165ac9b4bc471920da51b8be69fcd', 'version': '3.0.3 amd64'}, 'sed': {'hash': '91eac91ef165eb49e9daa55d9f59dfe7ba8a66a97ced73ed32b6ee6351ef7256', 'version': '4.9-2 amd64'}, 'sqv': {'hash': '20ce1c48d5faf67fb4e0e71958003aae46a1b89dae0c8a5598624be5463ee610', 'version': '1.3.0-3 amd64'}, 'tar': {'hash': 'f2d6b7b064869e164915e7c87fbb704f33ecd11563b5b7a16c4dc88c05c6a20b', 'version': '1.35+dfsg-3.1 amd64'}, 'bash': {'hash': 'bd17cfcd76388087939174850e1fd26ff1368b6070288b296e44b013ef56a3bb', 'version': '5.2.37-2+b5 amd64'}, 'dash': {'hash': 'f1e4c09ed70c6dd9c5193bdf7f3c61dcaa48e05ce7688576de5e8caae75501ae', 'version': '0.5.12-12 amd64'}, 'dpkg': {'hash': 'a12807423335f98b7f895257f5bc191633f214c25c9d785c399beccfd1dbc265', 'version': '1.22.21 amd64'}, 'grep': {'hash': '22253428e32223438b07a4d6b25cead2c14208953b8882bfc7ef90f1eb58521a', 'version': '3.11-4 amd64'}, 'gzip': {'hash': '22d326581f10fa793ae0f961afaa5803922b7c28bcd37f4e170afb740e9276d5', 'version': '1.13-1 amd64'}, 'mawk': {'hash': 'c33b150a65abe18b571c0cb76076bb23a99de588b58546f5a84184a63362114f', 'version': '1.3.4.20250131-1 amd64'}, 'libc6': {'hash': 'b70fcfae09f1bce3ed8725384517cf8ed39e5a73e1bb3754e309deaac74eca16', 'version': '2.41-12 amd64'}, 'login': {'hash': 'ba2cf1b305ac965622d5a926ea1f6ea12935bc68ad589d997240abed6080d63d', 'version': '1:4.16.0-2+really2.41-5 amd64'}, 'mount': {'hash': '4ac7f17e6f1fc79042ad67ec61895490a0903033d9ecdb240530b991abfbd1c0', 'version': '2.41-5 amd64'}, 'libmd0': {'hash': '59e9c37a49e7673e9c0aa4b3f7a7182f252810b51f85d8bd0ee7fb1c5d2f1325', 'version': '1.1.0-2+b1 amd64'}, 'passwd': {'hash': '277ed2d24d10ae75fcb9be92f2f89e877390f577291653196170685f7c566382', 'version': '1:4.17.4-2 amd64'}, 'tzdata': {'hash': '89040bd06fcb89a0daa58150a9816a5c34b91eceefcb727e1add9643ab4a96b0', 'version': '2025b-4 all'}, 'zlib1g': {'hash': '1e9d7f79936e3af3b7e5d857645f552f35ed9024e8caad38ce7323abc05f0e75', 'version': '1:1.3.dfsg+really1.3.1-1+b1 amd64'}, 'adduser': {'hash': 'dab8af11919ddbbd643630c7194a1d56ed45a6b85d1c520e6bd049769b6174a7', 'version': '3.152 all'}, 'debconf': {'hash': '08b5a647bdfe8d5d5bb5876bc109d1dd3e8f690c84ae52e598f24acbeef28e99', 'version': '1.5.91 all'}, 'libacl1': {'hash': '84e87fc421141881484ecf61ce1bf22943bdfefa8a28d073490d3d84d52d17e2', 'version': '2.3.2-2+b1 amd64'}, 'libbsd0': {'hash': 'e72905385f671b16b05c7e55741822953afb5af7bd6009b8a7f3023009dcf401', 'version': '0.12.2-2 amd64'}, 'libcap2': {'hash': 'b053c50710e40ab409f47a4ed5e872bbe2ebda4fef25c6479c708c48bca725b2', 'version': '1:2.75-10+b1 amd64'}, 'libffi8': {'hash': '1b0a61abd24c4724afa46499d3b2d0f70e45ae007aaa4f25d0d4e4c50fd953d0', 'version': '3.4.8-2 amd64'}, 'netbase': {'hash': '119efc6f8da46ed8ade98e92d9effb06830c83a9865279f551171a37c0979582', 'version': '6.5 all'}, 'openssl': {'hash': '5d9d09adec5be0b01cf72957efd050255f1f0b02fc38d51b579d842ab768e47e', 'version': '3.5.1-1 amd64'}, 'bsdutils': {'hash': '2680f1b2d66c4c50c4c36c89b19f5db576caacd8489cbd544bc76d6e1c11640d', 'version': '1:2.41-5 amd64'}, 'hostname': {'hash': 'ff0ebf84c2b0d76b691e1c8badd35bb6a88f4871ec39379d22226fd6b844b873', 'version': '3.25 amd64'}, 'libattr1': {'hash': 'bcb4224a596145c56a1d29654958be232326f028cdd2d0f42c721d790a59f74a', 'version': '1:2.5.2-3 amd64'}, 'libc-bin': {'hash': '8d6ad7d2cc05269cd336d618f3be131c5517a5c291c4ada562574cb07200c561', 'version': '2.41-12 amd64'}, 'libgmp10': {'hash': 'b59ffaa8962e3bd37f5e8df41d63e17821c88c60607854c50a787833217e544a', 'version': '2:6.3.0+dfsg-3 amd64'}, 'liblz4-1': {'hash': '0f42fcdd2110684171d831f7d7f46d034e06ed4faf92360c39aa7698ff868967', 'version': '1.10.0-4 amd64'}, 'liblzma5': {'hash': '003694d4683cf866495a7711630d3334b86377ba702b257b9e3450629305e513', 'version': '5.8.1-1 amd64'}, 'libpam0g': {'hash': '0b41e1e49a9e6e9a0fa1b7298e099ff72697f33f7628a1358cd78d3630992351', 'version': '1.7.0-5 amd64'}, 'libudev1': {'hash': 'e6e28757285ca525630249b8cb4358bdbdd9e2d398257db65fd8dc6e0e10e5e0', 'version': '257.7-1 amd64'}, 'libuuid1': {'hash': '2fbadce2af5f4a1644157f0f563e964c9821e7e0fe6feea3bb3cda8801d2b86b', 'version': '2.41-5 amd64'}, 'libzstd1': {'hash': '5bdcf66b165836624a6ec6a6e7a2ba0755396d9697a1b07c4ee056ed59a07f52', 'version': '1.5.7+dfsg-1 amd64'}, 'coreutils': {'hash': '2cec343c08f93ac8221a3751ebc0cbfb1b75db504c178dbc8b4aec1defae06f2', 'version': '9.7-3 amd64'}, 'diffutils': {'hash': '9510a8deac13a3747aa45ed7334f19b54f28c0c9d7fc2bcce09118064bd731f3', 'version': '1:3.10-4 amd64'}, 'findutils': {'hash': '3c5871c751428fd37e2c4d8f785a1871a749961924cb5290d49964c527de45b6', 'version': '4.10.0-3 amd64'}, 'libaudit1': {'hash': '831e5bf1b32a38f7aaa25f56fc151f662c5f6dac036432d41978e443331761ec', 'version': '1:4.0.2-2+b2 amd64'}, 'libblkid1': {'hash': '8adfa601fc8589c56ed4aeb729b573efc546a7e47657d9056f28fa16b08c8364', 'version': '2.41-5 amd64'}, 'libcrypt1': {'hash': '39d2eb3ff2cbdfa4c0429f22f7ba0378605b8d36ba2575ddc135db2544f15eba', 'version': '1:4.4.38-1 amd64'}, 'libgcc-s1': {'hash': '1ae2806b8bb0d5f1a1ea7c8d8adea2295b7dca1ca92650b298e86c3b727667f4', 'version': '14.2.0-19 amd64'}, 'libmount1': {'hash': '422c95513011f016fab78bd86a449044a7c69c8050669cf6519a365c92d3c5b3', 'version': '2.41-5 amd64'}, 'libsepol2': {'hash': '476f8e845e394657c563de4b3f2ea6d093436d693f0ba478dea8b88503fb395c', 'version': '3.8.1-1 amd64'}, 'libtinfo6': {'hash': 'f850a332fa0b76ee7936d57f72bc1d04881b105fc74ff04a235f5f7b2ce4f160', 'version': '6.5+20250216-2 amd64'}, 'perl-base': {'hash': '97a9ce8688a82a42ede1f935385a06e791e2b95d46ac76300aabf47f1bc0148f', 'version': '5.40.1-6 amd64'}, 'base-files': {'hash': 'a4a8761283722a37724d89b2beb65323495bf6a727eeec63372151d0d027e781', 'version': '13.8 amd64'}, 'libbz2-1.0': {'hash': '0ef440a363cd53c705a94ad5ea2eca6aec7c80ae1df0f3d4d8468d5cd6e852ce', 'version': '1.0.8-6 amd64'}, 'libcap-ng0': {'hash': '33bcb55ac393dbb9a73dd29a1d25fd7adab5b7135ef160ee90bc932d08d19c59', 'version': '0.8.5-4+b1 amd64'}, 'libssl3t64': {'hash': 'cdd4f8d1f6a9b9ce5f0e45eb68d6a3344bfc3fd0bf2d23566598ba1520220cc9', 'version': '3.5.1-1 amd64'}, 'libstdc++6': {'hash': 'f83283d9c1ac7dd7041e1314786c54dca28d47724014234a422fa6d8249d0f58', 'version': '14.2.0-19 amd64'}, 'libxxhash0': {'hash': '3462571ce27f483f526de5df30f7ce1a387554d8840ae0622425677a99e4dd53', 'version': '0.8.3-2 amd64'}, 'login.defs': {'hash': '19be7d66db3aa3934870466281de57b106b331665c4543c899eb2312e0f3cb2b', 'version': '1:4.17.4-2 all'}, 'util-linux': {'hash': '82441950f40a2bb583262452f5556952b084a0cae7dc75cd405a0f3c51be0f9a', 'version': '2.41-5 amd64'}, 'base-passwd': {'hash': '57250bbdcf6041fae5a6ea51b2c5a05533389f69d6772687e21a2af09235fd1c', 'version': '3.6.7 amd64'}, 'debianutils': {'hash': '41b404279d6b85a8935138fe3c50c598af5c1a8151afd77d67fc40e0ed2c0dae', 'version': '5.23.2 amd64'}, 'gcc-14-base': {'hash': 'a9c72c8c255e227b3f6d5b2cd68d33eefb503d0bc5c94e4c58bd4d9497449231', 'version': '14.2.0-19 amd64'}, 'libdb5.3t64': {'hash': '543ee0e3535053455c70ff58c694fc4413b3cd9ca80ecbac58f80aea67fedff8', 'version': '5.3.28+dfsg2-9 amd64'}, 'libgdbm6t64': {'hash': '22a2acbda54081a702bb61fdcc86da8f33ce431664faab63d7310ccfa9b26744', 'version': '1.24-2 amd64'}, 'libseccomp2': {'hash': '10c3ce7d836c6e5301affc482201a7156de27b8fd485cfc423648aa731eb99c6', 'version': '2.6.0-2 amd64'}, 'libselinux1': {'hash': 'ffffba71cdc5557f0b2c434fd436063dc532c84610472b04e5b021b62501d16b', 'version': '3.8.1-1 amd64'}, 'libsystemd0': {'hash': '843e1a60225af15b0765d2ace1900d861a2e29bf92be2047f9f281969903055c', 'version': '257.7-1 amd64'}, 'ncurses-bin': {'hash': 'd7b20c99ffb4177fe1f0fee27598a98425d019eaee2552a84507595463d40cea', 'version': '6.5+20250216-2 amd64'}, 'libncursesw6': {'hash': '9d339ce4340e13d1aab779e2291ba9796a39a126a0297a9148660d80b71cf56c', 'version': '6.5+20250216-2 amd64'}, 'libpcre2-8-0': {'hash': '9d4b62b91714692b08c3a21f8741c59636926bd9593f0409cf87c08221920544', 'version': '10.45-1 amd64'}, 'libsemanage2': {'hash': 'c0352b98aa053ea0d6d6f79d883dcc695d186aac764ec413aac636623ec84411', 'version': '3.8.1-1 amd64'}, 'libsqlite3-0': {'hash': '24026159a3ce6e9299a958c31bba7848da4cca10ff42602ff54ab92027b820aa', 'version': '3.46.1-7 amd64'}, 'ncurses-base': {'hash': 'b030dbb21927aa3a264763fcd067742c7f7e503baa5d1dcd442ac45752e51bdb', 'version': '6.5+20250216-2 all'}, 'libapt-pkg7.0': {'hash': '3485819fd3071b7e12649ffcb5eb9a6e37215d314f21c56aa214e462161e5c4b', 'version': '3.0.3 amd64'}, 'liblastlog2-2': {'hash': '8d4b10a6a838653aa795508e6dee8e1371c98ba6c1d88e036822a7eeee2b2d42', 'version': '2.41-5 amd64'}, 'libnettle8t64': {'hash': '83936995331c1d9289f4ed99b7650d66f1066cd3f518819d3893952ca878608f', 'version': '3.10.1-1 amd64'}, 'libsmartcols1': {'hash': '6729a12f5ed762d312bfad2e41285df2f448988e320e46f29ae6d344cbe61ee4', 'version': '2.41-5 amd64'}, 'libhogweed6t64': {'hash': '3bd225fb74ccf42826fe3a4586882e4c746f48930c04065de9078902ed04f25b', 'version': '3.10.1-1 amd64'}, 'libpam-modules': {'hash': '032a47628e48a06369dda491f9c05508ceeeff8884ede131db7b00a180667d4a', 'version': '1.7.0-5 amd64'}, 'libpam-runtime': {'hash': 'fdecbe23ff3ef6b49490d22df2c926f58c0961f6dd9e2b184c8be6d18e8b6c0f', 'version': '1.7.0-5 all'}, 'sysvinit-utils': {'hash': '6da2b8c0a7ad1462bb975e3b7e6f8723c4096e12fb3035cb91c2f97e5c3c18f3', 'version': '3.14-4 amd64'}, 'ca-certificates': {'hash': '21d2d34292a1809791db509dcbc71b8ab0e1a98803172cc9df5592cf22822d0c', 'version': '20250419 all'}, 'libaudit-common': {'hash': '8e001939003464d51dec2ed29943dde606b47f3cef8d7eef1e67d9351697c858', 'version': '1:4.0.2-2 all'}, 'libreadline8t64': {'hash': 'ac501344a5554278fdbe5ee2a937bb95751908f6e479f3f9f6a7340d31523260', 'version': '8.2-6 amd64'}, 'readline-common': {'hash': '27d9ff6b75a6000494ad0ec605303751c44a3b2b8d8b609d0474181cb5722461', 'version': '8.2-6 all'}, 'libdebconfclient0': {'hash': '8ecf0b8fd4d7133dcc0c66967b21c62306e9dc5c953e88d43c82ce9e3d89c2a4', 'version': '0.280 amd64'}, 'libpam-modules-bin': {'hash': '8e15b1a4aca6d54cfec1c4589fc835a74d041a21f7ac58b9dcec7b0c8462d7d8', 'version': '1.7.0-5 amd64'}, 'libsemanage-common': {'hash': '1eb6c68bfc4cf9aa479174cc8be99d647dc89f560a49004efbe1d2d4a9930eec', 'version': '3.8.1-1 all'}, 'init-system-helpers': {'hash': '22650cdf71d6dc19d0708f7b64bdcf34309fc1bbbda916d5d4fe54e18312b1f1', 'version': '1.68 all'}, 'debian-archive-keyring': {'hash': '5fc553ff45d250020a8e3e8b359fff165d237f578459b5d95f6b6a56d835cf41', 'version': '2025.1 all'}, 'openssl-provider-legacy': {'hash': '8298960bddc1b9e48ea6b7e04ef63453e25b5957574e00b3839a8e49f3e4da72', 'version': '3.5.1-1 amd64'}}}, '_container-info': {'hash': 'sha256:4e524551c7a63b41e9e5eb49fbdefae3ac6264f201c6588d98fa104fa44eef13', 'image': 'web_gmt_run_tmp:latest'}}, 'curl': {'_container-info': {'hash': 'sha256:fb8656c965b90e3b1001717e567e4e908d58656fa90706b6539b8c3ba488a9ac', 'image': 'curl:8.10.1'}}}37b8426388b281922a3ca13262376103b707dd3b0e1383500d3d655447ecf8b4
+e4d1bf9624616b81ac3c865b1b11e5041644c0174399f7f27cc2a0ef80630c34
+b84382e93f54b42465706c72562aa1f9dd2fdd8b6dbea780620293cc586329bd
+GMT_default_tmp_network_6723694
+
+[95m 
+Marking run as failed [0m
+[95m 
+Updating start and end measurement times [0m
+[95m 
+Capturing container logs [0m
+[95m Stopping metric providers and parsing measurements [0m
+Skipping stop of metric providers due to --dev-no-metrics or --dev-no-save
+[95m 
+Reading process stdout/stderr (if selected) and cleaning them up [0m
+stdout from process: ['docker', 'exec', 'curl', 'sleep', '5'] 
+stderr from process: ['docker', 'exec', 'curl', 'sleep', '5'] 
+[95m 
+Updating phases in DB [0m
+[95m 
+Saving notes:  [0m [{'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': 1756287810545495}, {'note': 'Starting phase [BASELINE]', 'detail_name': '[NOTES]', 'timestamp': 1756287815491149}, {'note': 'Ending phase [BASELINE] [UNPADDED]', 'detail_name': '[NOTES]', 'timestamp': 1756287815491163}, {'note': 'Ending phase [BASELINE] [PADDED]', 'detail_name': '[NOTES]', 'timestamp': 1756287815590163}, {'note': 'Starting phase [INSTALLATION]', 'detail_name': '[NOTES]', 'timestamp': 1756287815592285}, {'note': 'Ending phase [INSTALLATION] [UNPADDED]', 'detail_name': '[NOTES]', 'timestamp': 1756287815725737}, {'note': 'Ending phase [INSTALLATION] [PADDED]', 'detail_name': '[NOTES]', 'timestamp': 1756287815824737}, {'note': 'Starting phase [BOOT]', 'detail_name': '[NOTES]', 'timestamp': 1756287815978194}, {'note': 'Ending phase [BOOT] [UNPADDED]', 'detail_name': '[NOTES]', 'timestamp': 1756287821698683}, {'note': 'Ending phase [BOOT] [PADDED]', 'detail_name': '[NOTES]', 'timestamp': 1756287821797683}, {'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': 1756287826759351}]
+[95m 
+Saving logs to DB [0m
+[96m 
+Starting cleanup routine [0m
+Stopping metric providers
+Stopping containers
+Removing network
+[95m 
+Removing all temporary GMT images [0m
+Skipping removing of all temporary GMT images skipped due to --dev-cache-build
+[94m -Cleanup gracefully completed [0m
+[96m 
+Starting cleanup routine [0m
+Stopping metric providers
+Stopping containers
+Removing network
+[95m 
+Removing all temporary GMT images [0m
+Skipping removing of all temporary GMT images skipped due to --dev-cache-build
+[94m -Cleanup gracefully completed [0m
+FAILED
+
+=================================== FAILURES ===================================
+_ TestDependencyCollection.test_integration_dependency_collection_with_real_containers _
+
+self = <test_dependency_collection.TestDependencyCollection object at 0x79543d9dc770>
+
+    def test_integration_dependency_collection_with_real_containers(self):
+        """Integration test using real containers and dependency resolver (no mocking)"""
+        runner = ScenarioRunner(
+            uri=GMT_DIR,
+            uri_type='folder',
+            filename='tests/data/web-application/usage_scenario.yml',
+            skip_unsafe=True,
+            skip_system_checks=True,
+            dev_cache_build=True,
+            dev_no_sleeps=True,
+            dev_no_metrics=True,
+            dev_no_phase_stats=True,
+            dev_no_optimizations=True
+        )
+    
+        try:
+            run_id = runner.run()
+            assert run_id is not None
+    
+            # Verify dependencies were collected successfully
+            dependencies = runner._ScenarioRunner__usage_scenario_dependencies
+            assert dependencies is not None
+            assert isinstance(dependencies, dict)
+    
+            # Should have dependencies for both containers in docker-compose
+            assert len(dependencies) >= 2
+    
+            # Verify we have the expected containers
+            container_names = set(dependencies.keys())
+    
+            # Check that we have some expected containers (names may vary slightly)
+            assert any('web' in name for name in container_names), f"No web container found in: {container_names}"
+            assert any('db' in name for name in container_names), f"No db container found in: {container_names}"
+    
+            # Verify each dependency has required fields and correct structure
+            for container_name, container_data in dependencies.items():
+                # All containers should have _container-info section
+                assert '_container-info' in container_data, f"Missing '_container-info' for container {container_name}"
+    
+                container_info = container_data['_container-info']
+                assert 'image' in container_info, f"Missing 'image' for container {container_name}"
+                assert 'hash' in container_info, f"Missing 'hash' for container {container_name}"
+                assert container_info['image'] is not None, f"Image is None for container {container_name}"
+                assert container_info['hash'] is not None, f"Hash is None for container {container_name}"
+                assert container_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {container_name}"
+    
+                # Check for full dependency resolution on built containers
+                if 'web' in container_name:
+                    # Built containers should have additional dependency sections (dpkg, pip, etc.)
+                    has_full_deps = any(key != '_container-info' for key in container_data)
+                    assert has_full_deps, f"Built container {container_name} should have full dependency data beyond _container-info"
+                    print(f"✓ Built container {container_name} has full dependency data: {list(container_data.keys())}")
+                else:
+                    # Pre-built containers should only have _container-info
+                    assert len(container_data) == 1, f"Pre-built container {container_name} should only have _container-info but has: {list(container_data.keys())}"
+                    print(f"✓ Pre-built container {container_name} has container-info only")
+    
+            # Verify GMT-transformed images (GMT changes postgres:13 to postgres13_gmt_run_tmp:latest)
+            images = [data['_container-info']['image'] for data in dependencies.values()]
+            assert any('postgres13_gmt_run_tmp' in image for image in images), f"postgres13_gmt_run_tmp not found in images: {images}"
+            assert any('web_gmt_run_tmp' in image for image in images), f"web_gmt_run_tmp not found in images: {images}"
+    
+            # Verify dependencies were stored in database
+            result = DB().fetch_one(
+                "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
+                (run_id,)
+            )
+            assert result is not None
+            assert result[0] is not None
+            stored_dependencies = result[0]
+            assert stored_dependencies == dependencies, "Stored dependencies don't match collected dependencies"
+    
+        except Exception as exc:
+            # Clean up on any failure
+            try:
+                runner.cleanup()
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
+>           raise exc
+
+tests/test_dependency_collection.py:341: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_dependency_collection.py:279: in test_integration_dependency_collection_with_real_containers
+    run_id = runner.run()
+             ^^^^^^^^^^^^
+lib/scenario_runner.py:2154: in run
+    raise exc
+lib/scenario_runner.py:2119: in run
+    self._collect_container_dependencies()
+lib/scenario_runner.py:1423: in _collect_container_dependencies
+    stored_parsed = json.loads(stored_json)
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+s = {'curl': {'_container-info': {'hash': 'sha256:fb8656c965b90e3b1001717e567e4e908d58656fa90706b6539b8c3ba488a9ac', 'imag...a74c27a0ff1d80d863878825753bdfbe0e6d51de', 'location': '/usr/local/lib/python3.13/site-packages', 'scope': 'project'}}}
+cls = None, object_hook = None, parse_float = None, parse_int = None
+parse_constant = None, object_pairs_hook = None, kw = {}
+
+    def loads(s, *, cls=None, object_hook=None, parse_float=None,
+            parse_int=None, parse_constant=None, object_pairs_hook=None, **kw):
+        """Deserialize ``s`` (a ``str``, ``bytes`` or ``bytearray`` instance
+        containing a JSON document) to a Python object.
+    
+        ``object_hook`` is an optional function that will be called with the
+        result of any object literal decode (a ``dict``). The return value of
+        ``object_hook`` will be used instead of the ``dict``. This feature
+        can be used to implement custom decoders (e.g. JSON-RPC class hinting).
+    
+        ``object_pairs_hook`` is an optional function that will be called with the
+        result of any object literal decoded with an ordered list of pairs.  The
+        return value of ``object_pairs_hook`` will be used instead of the ``dict``.
+        This feature can be used to implement custom decoders.  If ``object_hook``
+        is also defined, the ``object_pairs_hook`` takes priority.
+    
+        ``parse_float``, if specified, will be called with the string
+        of every JSON float to be decoded. By default this is equivalent to
+        float(num_str). This can be used to use another datatype or parser
+        for JSON floats (e.g. decimal.Decimal).
+    
+        ``parse_int``, if specified, will be called with the string
+        of every JSON int to be decoded. By default this is equivalent to
+        int(num_str). This can be used to use another datatype or parser
+        for JSON integers (e.g. float).
+    
+        ``parse_constant``, if specified, will be called with one of the
+        following strings: -Infinity, Infinity, NaN.
+        This can be used to raise an exception if invalid JSON numbers
+        are encountered.
+    
+        To use a custom ``JSONDecoder`` subclass, specify it with the ``cls``
+        kwarg; otherwise ``JSONDecoder`` is used.
+        """
+        if isinstance(s, str):
+            if s.startswith('\ufeff'):
+                raise JSONDecodeError("Unexpected UTF-8 BOM (decode using utf-8-sig)",
+                                      s, 0)
+        else:
+            if not isinstance(s, (bytes, bytearray)):
+>               raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+                                f'not {s.__class__.__name__}')
+E               TypeError: the JSON object must be str, bytes or bytearray, not dict
+
+/usr/lib/python3.12/json/__init__.py:339: TypeError
+=========================== short test summary info ============================
+FAILED tests/test_dependency_collection.py::TestDependencyCollection::test_integration_dependency_collection_with_real_containers
+============================== 1 failed in 21.18s ==============================
