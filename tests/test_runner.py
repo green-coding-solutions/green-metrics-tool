@@ -623,38 +623,28 @@ def test_database_reconnection_during_run_integration():
     when database operations are likely occurring for metric storage.
     """
 
-    def log_with_timestamp(message, prefix="TEST", start_time=None):
-        """Helper function to log messages with timestamp and optional elapsed time"""
-        current_time = time.time()
-        timestamp = time.strftime('%H:%M:%S', time.localtime(current_time))
-        if start_time:
-            elapsed = f" (T+{current_time-start_time:.1f}s)"
-        else:
-            elapsed = ""
-        print(f"[{timestamp}] [{prefix}] {message}{elapsed}")
-
     run_name = 'test_db_reconnect_' + utils.randomword(12)
     test_start_time = time.time()
 
     def restart_database():
         # Restart database during metrics collection/storage phase
-        log_with_timestamp("Waiting 15 seconds before restarting database...", "DB RESTART")
+        Tests.log_with_timestamp("Waiting 15 seconds before restarting database...", "DB RESTART")
         time.sleep(15)  # Wait for runtime to start but not complete
-        log_with_timestamp("Restarting test-green-coding-postgres-container now...", "DB RESTART", test_start_time)
+        Tests.log_with_timestamp("Restarting test-green-coding-postgres-container now...", "DB RESTART", test_start_time)
         result = subprocess.run(['docker', 'restart', 'test-green-coding-postgres-container'],
                                check=True, capture_output=True)
-        log_with_timestamp(f"Database restart completed. Docker output: {result.stdout.decode().strip()}", "DB RESTART", test_start_time)
+        Tests.log_with_timestamp(f"Database restart completed. Docker output: {result.stdout.decode().strip()}", "DB RESTART", test_start_time)
         time.sleep(3)  # Give DB time to restart
-        log_with_timestamp("Database should be available again after 3s wait", "DB RESTART", test_start_time)
+        Tests.log_with_timestamp("Database should be available again after 3s wait", "DB RESTART", test_start_time)
 
     # Start database restart in background thread
     restart_thread = threading.Thread(target=restart_database)
     restart_thread.daemon = True
-    log_with_timestamp("Starting database restart thread...")
+    Tests.log_with_timestamp("Starting database restart thread...")
     restart_thread.start()
 
     # Run database reconnection test scenario
-    log_with_timestamp("Starting GMT runner with scenario: db_reconnection_test.yml", start_time=test_start_time)
+    Tests.log_with_timestamp("Starting GMT runner with scenario: db_reconnection_test.yml", start_time=test_start_time)
     ps = subprocess.run(
         ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR,
          '--filename', 'tests/data/usage_scenarios/db_reconnection_test.yml',
@@ -666,18 +656,18 @@ def test_database_reconnection_during_run_integration():
         encoding='UTF-8'
     )
 
-    log_with_timestamp(f"GMT runner completed with return code: {ps.returncode}", start_time=test_start_time)
+    Tests.log_with_timestamp(f"GMT runner completed with return code: {ps.returncode}", start_time=test_start_time)
     restart_thread.join(timeout=30)  # Wait for restart thread to complete
-    log_with_timestamp("Database restart thread completed", start_time=test_start_time)
+    Tests.log_with_timestamp("Database restart thread completed", start_time=test_start_time)
 
     # Analyze output for database reconnection evidence
     has_retry_messages = ('Database connection error' in ps.stderr or 'Retrying in' in ps.stderr or
                           'Database connection error' in ps.stdout or 'Retrying in' in ps.stdout)
     has_admin_shutdown = 'AdminShutdown' in ps.stdout or 'AdminShutdown' in ps.stderr
     if has_retry_messages:
-        log_with_timestamp("Found database retry messages in stderr - retry logic was triggered")
+        Tests.log_with_timestamp("Found database retry messages in stderr - retry logic was triggered")
     if has_admin_shutdown:
-        log_with_timestamp("Found AdminShutdown in output - retry logic may not have worked")
+        Tests.log_with_timestamp("Found AdminShutdown in output - retry logic may not have worked")
 
     # Assertions for database reconnection functionality
 
