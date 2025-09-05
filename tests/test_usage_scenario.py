@@ -576,6 +576,22 @@ def test_network_alias_added():
     assert '--network-alias test-alias' in docker_run_command
 
 
+def test_network_host_join_blocked():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_host_join.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with pytest.raises(ValueError) as e,Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+
+    assert "Docker network host is restricted in GMT and cannot be joined. If running in CLI mode or if you have cluster capabilities try again with --allow-unsafe." in str(e.value)
+
+
+def test_network_host_creation_blocked():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_host_create.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with pytest.raises(ValueError) as e,Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_networks')
+
+    assert "Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined." in str(e.value)
+
+
 
 def test_cmd_entrypoint():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
