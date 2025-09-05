@@ -599,11 +599,7 @@ def test_cmd_entrypoint():
     assert '--entrypoint echo alpine_gmt_run_tmp A $0' in o
     assert 'alpine_gmt_run_tmp echo $0' in o
 
-    # With immediate exit detection, containers that exit with code 0 will generate warnings to stderr
-    # This is expected behavior for containers like echo commands that complete immediately
-    err_output = err.getvalue()
-    assert 'exited immediately after start with success code' in err_output, \
-        Tests.assertion_info('Expected warning messages about containers exiting immediately', err_output)
+    assert err.getvalue() == '', Tests.assertion_info('stderr should be empty', err.getvalue())
 
 def test_container_immediate_exit_with_error():
     """Test that containers exiting immediately with non-zero exit codes raise RuntimeError"""
