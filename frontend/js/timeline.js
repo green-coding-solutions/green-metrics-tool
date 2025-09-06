@@ -178,25 +178,25 @@ const loadCharts = async () => {
         let badge = `
                 <div class="field">
                     <div class="header title">
-                        <strong>${getPretty(series[my_series].metric_name, 'clean_name')}</strong> via
-                        <strong>${getPretty(series[my_series].metric_name, 'source')}</strong>
-                         - ${series[my_series].detail_name}
-                        <i data-tooltip="${getPretty(series[my_series].metric_name, 'explanation')}" data-position="bottom center" data-inverted>
+                        <strong>${escapeString(getPretty(series[my_series].metric_name, 'clean_name'))}</strong> via
+                        <strong>${escapeString(getPretty(series[my_series].metric_name, 'source'))}</strong>
+                         - ${escapeString(series[my_series].detail_name)}
+                        <i data-tooltip="${escapeString(getPretty(series[my_series].metric_name, 'explanation'))}" data-position="bottom center" data-inverted>
                             <i class="question circle icon link"></i>
                         </i>
                     </div>
-                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams()}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(skip_dates=false,metric_override=series[my_series].metric_name,detail_name=series[my_series].detail_name)}&unit=joules"></a></span>
+                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams()}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(skip_dates=false,metric_override=series[my_series].metric_name,detail_name=series[my_series].detail_name)}"&unit=joules"></a></span>
                     <a class="copy-badge"><i class="copy icon"></i></a>
                 </div>
                 <p></p>`
         document.querySelector("#badge-container").innerHTML += badge;
 
 
-        const element = createChartContainer("#chart-container", `${getPretty(series[my_series].metric_name, 'clean_name')} via ${getPretty(series[my_series].metric_name, 'source')} - ${series[my_series].detail_name} <i data-tooltip="${getPretty(series[my_series].metric_name, 'explanation')}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
+        const element = createChartContainer("#chart-container", `${escapeString(getPretty(series[my_series].metric_name, 'clean_name'))} via ${escapeString(getPretty(series[my_series].metric_name, 'source'))} - ${escapeString(series[my_series].detail_name)} <i data-tooltip="${escapeString(getPretty(series[my_series].metric_name, 'explanation'))}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
 
         const chart_instance = echarts.init(element);
 
-        const my_values = generateColoredValues(series[my_series].values, $('.radio-coloring:checked').val());
+        const my_values = generateColoredValues(series[my_series].values, $(".radio-coloring:checked").val());
 
         let data_series = [{
             name: my_series,
@@ -207,7 +207,7 @@ const loadCharts = async () => {
             data: my_values,
             markLine: {
                 precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
-                data: [ {type: "average",label: {formatter: "AVG:\n{c}"}}]
+                data: [ {type: "average",label: {formatter: "AVG:\n{c}"}}] 
             }
         }]
 
@@ -217,15 +217,15 @@ const loadCharts = async () => {
             triggerOn: 'click',
             formatter: function (params, ticket, callback) {
                 if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
-                return `<strong>${series[params.seriesName].notes[params.dataIndex].run_name}</strong><br>
+                return `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong><br>
                         run_id: <a href="/stats.html?id=${series[params.seriesName].notes[params.dataIndex].run_id}"  target="_blank">${series[params.seriesName].notes[params.dataIndex].run_id}</a><br>
                         date: ${series[params.seriesName].notes[params.dataIndex].created_at}<br>
-                        metric_name: ${params.seriesName}<br>
-                        phase: ${series[params.seriesName].notes[params.dataIndex].phase}<br>
+                        metric_name: ${escapeString(params.seriesName)}<br>
+                        phase: ${escapeString(series[params.seriesName].notes[params.dataIndex].phase)}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
                         commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
-                        commit_hash: <a href="${$("#uri").text()}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}" target="_blank">${series[params.seriesName].notes[params.dataIndex].commit_hash}</a><br>
-                        gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}" target="_blank">${series[params.seriesName].notes[params.dataIndex].gmt_hash}</a><br>
+                        commit_hash: <a href="${escapeString($("#uri").text())}/commit/${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
+                        gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${escapeString(series[params.seriesName].notes[params.dataIndex].gmt_hash)}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].gmt_hash)}</a><br>
 
                         <br>
                         👉 <a href="/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}" target="_blank">Diff with previous run</a>

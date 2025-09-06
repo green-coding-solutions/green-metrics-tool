@@ -43,7 +43,7 @@ const fillWarnings = (warnings) => {
     const container = document.querySelector('#run-warnings');
     const ul = container.querySelector('ul');
     unique_warnings.forEach(w => {
-        ul.insertAdjacentHTML('beforeend', `<li>${w}</li>`);
+        ul.insertAdjacentHTML('beforeend', `<li>${escapeString(w)}</li>`);
     });
     container.classList.remove('hidden');
 };
@@ -78,7 +78,7 @@ $(document).ready( (e) => {
 
         let comparison_identifiers = phase_stats_data.comparison_identifiers.map((el) => replaceRepoIcon(el));
         comparison_identifiers = comparison_identifiers.join(' vs. ')
-        document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${phase_stats_data.comparison_case}</td></tr>`)
+        document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${escapeString(phase_stats_data.comparison_case)}</td></tr>`)
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Number of runs compared</strong></td><td>${run_count}</td></tr>`)
         if (phase_stats_data.comparison_case == 'Machine') {
             const regex = /(\d+)\s+vs\.\s+(\d+)/;
@@ -87,15 +87,15 @@ $(document).ready( (e) => {
             if (match) {
                 const num1 = parseInt(match[1], 10); // First number
                 const num2 = parseInt(match[2], 10); // Second number
-                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${num1} (${GMT_MACHINES[num1]}) vs. ${num2} (${GMT_MACHINES[num2]})</td></tr>`)
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${num1} (${escapeString(GMT_MACHINES[num1])}) vs. ${num2} (${escapeString(GMT_MACHINES[num2])})</td></tr>`)
             } else {
-                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${GMT_MACHINES[comparison_identifiers] || comparison_identifiers}</td></tr>`)
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${escapeString(GMT_MACHINES[comparison_identifiers] || comparison_identifiers)}</td></tr>`)
             }
         } else {
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${comparison_identifiers}</td></tr>`)
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${comparison_identifiers}</td></tr>`)
         }
         Object.keys(phase_stats_data['common_info']).forEach(function(key) {
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${key}</strong></td><td>${phase_stats_data['common_info'][key]}</td></tr>`)
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(key)}</strong></td><td>${escapeString(phase_stats_data['common_info'][key])}</td></tr>`)
           });
 
         document.querySelector('#loader-compare-meta').remove();
