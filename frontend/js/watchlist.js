@@ -18,24 +18,24 @@ $(document).ready(function () {
             chart_node.classList.add('ui')
             chart_node.classList.add("card");
 
-            const url_link = `${replaceRepoIcon(repo_url)} <a href="${repo_url}" target="_blank"><i class="icon external alternate"></i></a>`;
+            const url_link = `${replaceRepoIcon(repo_url)} <a href="${escapeString(repo_url)}" target="_blank"><i class="icon external alternate"></i></a>`;
             let chart_node_html = `
                 <div class="image">
                     <img src="${escapeString(image_url)}" onerror="this.src='/images/placeholder.webp'" loading="lazy">
                 </div>
                 <div class="content">
-                    <div class="header">${name}</div>
+                    <div class="header">${escapeString(name)}</div>
                     <div class="meta">
                         <span>${url_link}</span>
                     </div>
                 </div>
                 <div class="content">
-                    <p title="${created_at}"><b>Monitoring since: </b>${dateToYMD(new Date(created_at), true)}</p>
-                    <p title="${branch}"><b>Branch: </b> ${branch == '' ? '-': branch}</p>
-                    <p title="${filename}"><b>Filename: </b> ${filename == '' ? '-': filename}</p>
-                    <p title="${machine_description}"><b>Machine: </b>${machine_description}</p>
-                    <p title="${schedule_mode}"><b>Schedule Mode: </b>${schedule_mode}</p>
-                    <p title="${last_run}"><b>Last Run: </b>${last_run == '' ? '-' : dateToYMD(new Date(last_run), false, true)}</p>
+                    <p title="${escapeString(created_at)}"><b>Monitoring since: </b>${dateToYMD(new Date(created_at), true)}</p>
+                    <p title="${escapeString(branch)}"><b>Branch: </b> ${branch == '' ? '-': escapeString(branch)}</p>
+                    <p title="${escapeString(filename)}"><b>Filename: </b> ${filename == '' ? '-': escapeString(filename)}</p>
+                    <p title="${escapeString(machine_description)}"><b>Machine: </b>${escapeString(machine_description)}</p>
+                    <p title="${escapeString(schedule_mode)}"><b>Schedule Mode: </b>${escapeString(schedule_mode)}</p>
+                    <p title="${escapeString(last_run)}"><b>Last Run: </b>${last_run == '' ? '-' : dateToYMD(new Date(last_run), false, true)}</p>
 
                     `
 
@@ -43,21 +43,21 @@ $(document).ready(function () {
                 const [metric_name, detail_name] = metric
                 chart_node_html = `${chart_node_html}
                         <div class="field">
-                            <strong>${getPretty(metric_name, 'clean_name')}</strong>
-                            <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted>
+                            <strong>${escapeString(getPretty(metric_name, 'clean_name'))}</strong>
+                            <i data-tooltip="${escapeString(getPretty(metric_name, 'explanation'))}" data-position="bottom center" data-inverted>
                                 <i class="question circle icon link"></i>
                             </i><br>
-                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${repo_url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${repo_url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metric=${metric_name}&detail_name=${detail_name}&unit=joules" alt="${metric_name} badge" onerror="this.closest('.field').style.display='none'" loading="lazy"></a></span>
+                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${escapeString(repo_url)}&branch=${escapeString(branch)}&filename=${escapeString(filename)}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${escapeString(repo_url)}&branch=${escapeString(branch)}&filename=${escapeString(filename)}&machine_id=${machine_id}&metric=${escapeString(metric_name)}&detail_name=${escapeString(detail_name)}&unit=joules" alt="${escapeString(metric_name)} badge" onerror="this.closest('.field').style.display='none'" loading="lazy"></a></span>
                         </div>`
             })
 
             chart_node_html = `${chart_node_html}
                 </div>
-                <a class="ui button blue" href="/timeline.html?uri=${repo_url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
+                <a class="ui button blue" href="/timeline.html?uri=${escapeString(repo_url)}&filename=${escapeString(filename)}&branch=${escapeString(branch)}&machine_id=${machine_id}" target="_blank">
                     Show Timeline <i class="external alternate icon"></i>
                 </a>
                 <hr>
-                <a class="ui button grey" href="/runs.html?uri=${repo_url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
+                <a class="ui button grey" href="/runs.html?uri=${escapeString(repo_url)}&filename=${escapeString(filename)}&branch=${escapeString(branch)}&machine_id=${machine_id}" target="_blank">
                     Show All Measurements <i class="external alternate icon"></i>
                 </a>`
             chart_node.innerHTML = chart_node_html;

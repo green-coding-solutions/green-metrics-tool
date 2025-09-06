@@ -81,7 +81,7 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
     const columns = [
         {
             data: 0, title: 'Workflow', render: function(el,type,row) {
-                return `<a href="/ci.html?repo=${row[0]}&branch=${row[1]}&workflow=${row[2]}">${row[5]}</a>`;
+                return `<a href="/ci.html?repo=${escapeString(row[0])}&branch=${escapeString(row[1])}&workflow=${escapeString(row[2])}">${escapeString(row[5])}</a>`;
             }
         },
         {data : 1, title: 'Branch'},
@@ -94,7 +94,7 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
         },
         {
             title: 'Carbon', render: function(el,type,row) {
-                return `<img src="${API_URL}/v1/ci/badge/get?repo=${row[0]}&branch=${row[1]}&workflow=${row[2]}&mode=totals&metric=carbon&duration_days=30" onerror="this.src='/images/no-data-badge.webp'">`;
+                return `<img src="${API_URL}/v1/ci/badge/get?repo=${escapeString(row[0])}&branch=${escapeString(row[1])}&workflow=${escapeString(row[2])}&mode=totals&metric=carbon&duration_days=30" onerror="this.src='/images/no-data-badge.webp'">`;
             }
         },
 

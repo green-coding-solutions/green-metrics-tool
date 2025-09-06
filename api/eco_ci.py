@@ -5,7 +5,7 @@ from fastapi import Request, Response, Depends
 from fastapi.responses import ORJSONResponse
 from fastapi.exceptions import RequestValidationError
 
-from api.api_helpers import authenticate, html_escape_multi, get_connecting_ip, convert_value
+from api.api_helpers import authenticate, get_connecting_ip, convert_value
 from api.object_specifications import CI_Measurement
 
 import anybadge
@@ -29,8 +29,6 @@ async def post_ci_measurement_add(
     measurement: CI_Measurement,
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
-
-    measurement = html_escape_multi(measurement)
 
     params = [measurement.energy_uj, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,

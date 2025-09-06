@@ -14,7 +14,7 @@ from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.datastructures import Headers as StarletteHeaders
 
-from api.api_helpers import authenticate, html_escape_multi
+from api.api_helpers import authenticate
 
 from lib.global_config import GlobalConfig
 from lib import error_helpers
@@ -144,7 +144,6 @@ async def get_user_settings(user: User = Depends(authenticate)):
 
 @app.put('/v1/user/setting')
 async def update_user_setting(setting: UserSetting, user: User = Depends(authenticate)):
-    setting = html_escape_multi(setting)
 
     try:
         user.change_setting(setting.name, setting.value)
