@@ -817,6 +817,8 @@ class ScenarioRunner:
         if 'networks' in self._usage_scenario:
             print(TerminalColors.HEADER, '\nSetting up networks', TerminalColors.ENDC)
             for network in self._usage_scenario['networks']:
+                if network in ('host', 'bridge', 'none'):
+                    raise ValueError('Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined.')
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
@@ -1058,11 +1060,15 @@ class ScenarioRunner:
 
             if 'networks' in service:
                 for network in service['networks']:
+                    if network == 'host' and not self._allow_unsafe:
+                        raise ValueError('Docker network host is restricted in GMT and cannot be joined. If running in CLI mode or if you have cluster capabilities try again with --allow-unsafe.')
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
                     if isinstance(service['networks'], dict) and service['networks'][network]:
                         if service['networks'][network].get('aliases', None):
                             for alias in service['networks'][network]['aliases']:
+                                if alias == 'host' and not self._allow_unsafe:
+                                    raise ValueError('Docker network host is restricted in GMT and cannot be aliased. If running in CLI mode or if you have cluster capabilities try again with --allow-unsafe.')
                                 docker_run_string.append('--network-alias')
                                 docker_run_string.append(alias)
                                 print(f"Adding network alias {alias} for network {network} in service {service_name}")
