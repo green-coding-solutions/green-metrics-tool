@@ -271,3 +271,6 @@ if __name__ == '__main__':
         pass
     except BaseException as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception_context=exc.__context__, last_exception=exc, machine=config['machine']['description'])
+
+    DB().shutdown()
+
