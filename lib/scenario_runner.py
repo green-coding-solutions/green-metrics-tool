@@ -664,6 +664,8 @@ class ScenarioRunner:
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
+        config = GlobalConfig().config
+
         # Create directory /tmp/green-metrics-tool/docker_images
         temp_dir = f"{self._tmp_folder}/docker_images"
         self._initialize_folder(temp_dir)
@@ -710,8 +712,14 @@ class ScenarioRunner:
                     '--context', f'dir:///tmp/repo/{self.__working_folder_rel}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
+                    '--registry-mirror', config['container_registry']['hostname'],
                     '--cleanup=true',
                     '--no-push']
+
+                if config['container_registry']['insecure']:
+                    docker_build_command.append('--insecure-pull')
+                    docker_build_command.append('--insecure-registry')
+                    docker_build_command.append(config['container_registry']['hostname'])
 
                 if self.__docker_params:
                     docker_build_command[2:2] = self.__docker_params
@@ -739,7 +747,13 @@ class ScenarioRunner:
             else:
                 print(f"Pulling {service['image']}")
                 self.__notes_helper.add_note( note="Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
-                ps = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+
+                if '/' in service['image']:
+                    container_registry_uri = f"{config['container_registry']['hostname']}/{service['image']}"
+                else:
+                    container_registry_uri = f"{config['container_registry']['hostname']}/{config['container_registry']['default_namespace']}/{service['image']}"
+
+                ps = subprocess.run(['docker', 'pull', container_registry_uri], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
