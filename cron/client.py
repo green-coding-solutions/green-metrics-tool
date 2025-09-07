@@ -170,6 +170,9 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         parser.add_argument('--testing', action='store_true', help='End after processing one run for testing')
         parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
+        parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
+        parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
+
 
         args = parser.parse_args()
 
@@ -213,7 +216,7 @@ if __name__ == '__main__':
             if job:
                 set_status('job_start', run_id=job._run_id)
                 try:
-                    job.process(docker_prune=True)
+                    job.process(docker_prune=args.docker_prune, full_docker_prune=args.full_docker_prune)
                     set_status('job_end', run_id=job._run_id)
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
                     set_status('job_error', data=str(exc), run_id=job._run_id)
