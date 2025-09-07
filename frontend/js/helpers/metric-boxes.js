@@ -275,9 +275,6 @@ const updateKeyMetric = (
     } else if (sci_metric_condition(metric_name)) {
         selector = '.sci';
     } else {
-        const isPower = metric_name.includes('_power_');
-        const isEnergy = metric_name.includes('_energy_');
-        const isCO2 = metric_name.includes('_carbon_');
 
         let component = null;
         if (metric_name.includes('cpu')) component = 'cpu';
@@ -286,16 +283,14 @@ const updateKeyMetric = (
         else if (metric_name.includes('disk')) component = 'disk';
         else if (metric_name.includes('psu') && metric_name.includes('machine')) component = 'machine';
         else if (metric_name.includes('network')) component = 'network';
+        else return; // no selector found, which means this is no currently configured key metric
 
         if (component !== null) {
-            if (isPower) selector = `.${component}-power`;
-            else if (isEnergy) selector = `.${component}-energy`;
-            else if (isCO2) selector = `.${component}-co2`;
+            if (metric_name.startsWith(`${component}_power_`)) selector = `.${component}-power`;
+            else if (metric_name.startsWith(`${component}_energy_`)) selector = `.${component}-energy`;
+            else if (metric_name.startsWith(`${component}_carbon_`)) selector = `.${component}-co2`;
+            else return; // no selector found, which means this is no currently configured key metric
         }
-    }
-
-    if (selector === null) {
-        return;
     }
 
     const cards = document.querySelectorAll(`div.tab[data-tab='${phase}'] ${selector}`);
