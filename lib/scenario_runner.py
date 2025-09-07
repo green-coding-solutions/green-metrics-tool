@@ -749,11 +749,11 @@ class ScenarioRunner:
                 self.__notes_helper.add_note( note="Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
 
                 if '/' in service['image']:
-                    container_registry_uri = f"{config['container_registry']['hostname']}/{service['image']}"
+                    container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{service['image']}"
                 else:
-                    container_registry_uri = f"{config['container_registry']['hostname']}/{config['container_registry']['default_namespace']}/{service['image']}"
+                    container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{config['container_registry']['default_namespace']}/{service['image']}"
 
-                ps = subprocess.run(['docker', 'pull', container_registry_uri], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+                ps = subprocess.run(['docker', 'pull', container_registry_uri_with_image], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
@@ -775,7 +775,7 @@ class ScenarioRunner:
                         raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
                 # tagging must be done in pull and local case, so we can get the correct container later
-                subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
+                subprocess.run(['docker', 'tag', container_registry_uri_with_image, tmp_img_name], check=True)
 
 
         # Delete the directory /tmp/gmt_docker_images
