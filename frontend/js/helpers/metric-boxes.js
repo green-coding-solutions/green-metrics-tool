@@ -270,27 +270,40 @@ const updateKeyMetric = (
         selector = '.network-data';
     } else if (embodied_carbon_share_metric_condition(metric_name)) {
         selector = '.embodied-carbon';
-    }else if (psu_machine_carbon_metric_condition(metric_name)) {
+    } else if (psu_machine_carbon_metric_condition(metric_name)) {
         selector = '.machine-co2';
+    } else if (psu_machine_energy_metric_condition(metric_name)) {
+        selector = '.machine-energy';
+    } else if (psu_machine_power_metric_condition(metric_name)) {
+        selector = '.machine-power';
+    } else if (cpu_carbon_metric_condition(metric_name)) {
+        selector = '.cpu-co2';
+    } else if (cpu_energy_metric_condition(metric_name)) {
+        selector = '.cpu-energy';
+    } else if (cpu_power_metric_condition(metric_name)) {
+        selector = '.cpu-power';
+    } else if (gpu_carbon_metric_condition(metric_name)) {
+        selector = '.gpu-co2';
+    } else if (gpu_energy_metric_condition(metric_name)) {
+        selector = '.gpu-energy';
+    } else if (gpu_power_metric_condition(metric_name)) {
+        selector = '.gpu-power';
+    } else if (disk_carbon_metric_condition(metric_name)) {
+        selector = '.disk-power';
+    } else if (disk_energy_metric_condition(metric_name)) {
+        selector = '.disk-energy';
+    } else if (disk_power_metric_condition(metric_name)) {
+        selector = '.disk-power';
+    } else if (dram_carbon_metric_condition(metric_name)) {
+        selector = '.dram-co2';
+    } else if (dram_energy_metric_condition(metric_name)) {
+        selector = '.dram-energy';
+    } else if (dram_power_metric_condition(metric_name)) {
+        selector = '.dram-power';
     } else if (sci_metric_condition(metric_name)) {
         selector = '.sci';
     } else {
-
-        let component = null;
-        if (metric_name.includes('cpu')) component = 'cpu';
-        else if (metric_name.includes('memory') || metric_name.includes('dram')) component = 'dram';
-        else if (metric_name.includes('gpu')) component = 'gpu';
-        else if (metric_name.includes('disk')) component = 'disk';
-        else if (metric_name.includes('psu') && metric_name.includes('machine')) component = 'machine';
-        else if (metric_name.includes('network')) component = 'network';
-        else return; // no selector found, which means this is no currently configured key metric
-
-        if (component !== null) {
-            if (metric_name.startsWith(`${component}_power_`)) selector = `.${component}-power`;
-            else if (metric_name.startsWith(`${component}_energy_`)) selector = `.${component}-energy`;
-            else if (metric_name.startsWith(`${component}_carbon_`)) selector = `.${component}-co2`;
-            else return; // no selector found, which means this is no currently configured key metric
-        }
+        return // no selector found, which means this is no currently configured key metric
     }
 
     const cards = document.querySelectorAll(`div.tab[data-tab='${phase}'] ${selector}`);
