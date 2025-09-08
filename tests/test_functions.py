@@ -278,7 +278,7 @@ class RunUntilManager:
         
         Args:
             step (str): The step name to stop at. Valid values include:
-                       'import_metric_providers', 'initialize_run', 'setup_networks', 'setup_services'
+                       'import_metric_providers', 'initialize_run', 'setup_networks', 'setup_services', 'runtime_complete'
         
         Raises:
             RuntimeError: If called outside of the context manager.
@@ -297,7 +297,7 @@ class RunUntilManager:
         Args:
             stop_at (str, optional): If provided, stops execution after reaching this pause point.
                                    Valid pause points: 'import_metric_providers', 'initialize_run',
-                                   'setup_networks', 'setup_services'
+                                   'setup_networks', 'setup_services', 'runtime_complete'
         
         Yields:
             str: The name of the pause point that was just reached, allowing for inspection
@@ -336,7 +336,7 @@ class RunUntilManager:
                 return
             self.__runner._populate_image_names()
             self.__runner._prepare_docker()
-            self.__runner._check_running_containers()
+            self.__runner._check_running_containers_before_start()
             self.__runner._remove_docker_images()
             self.__runner._download_dependencies()
             self.__runner._initialize_run()
@@ -367,6 +367,9 @@ class RunUntilManager:
                 return
             self.__runner._end_phase('[BOOT]')
 
+            self.__runner._check_running_containers_after_boot_phase()
+            self.__runner._check_process_returncodes()
+
             self.__runner._add_containers_to_metric_providers()
             self.__runner._start_metric_providers(allow_container=True, allow_other=False)
 
@@ -377,6 +380,11 @@ class RunUntilManager:
             self.__runner._start_phase('[RUNTIME]')
             self.__runner._run_flows() # can trigger debug breakpoints;
             self.__runner._end_phase('[RUNTIME]')
+            yield 'runtime_complete'
+            if stop_at == 'runtime_complete':
+                return
+
+            self.__runner._check_running_containers_after_runtime_phase()
 
             self.__runner._start_phase('[REMOVE]')
             self.__runner._custom_sleep(1)

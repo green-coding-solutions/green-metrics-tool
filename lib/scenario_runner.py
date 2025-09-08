@@ -258,7 +258,7 @@ class ScenarioRunner:
         raise FileNotFoundError(f"{path2} in {path} not found")
 
     def _check_image_architecture_compatibility(self, image_name: str) -> tuple[str, str, bool]:
-        """Validate that a Docker image architecture is compatible with the host.
+        """Validate that the Docker image architecture is compatible with the host.
 
         Args:
             image_name: The Docker image name to check
@@ -501,7 +501,7 @@ class ScenarioRunner:
         # Disable Docker CLI hints (e.g. "What's Next? ...")
         os.environ['DOCKER_CLI_HINTS'] = 'false'
 
-    def _check_running_containers(self):
+    def _check_running_containers_before_start(self):
         result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
@@ -516,6 +516,57 @@ class ScenarioRunner:
 
                     if running_container == container_name:
                         raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
+
+    def _check_container_is_running(self, container_name: str, step_description: str, image_name: str | None = None):
+        check_ps = subprocess.run(['docker', 'ps', '-q', '-f', f'name={container_name}'],
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE,
+                                  check=False, encoding='UTF-8')
+        if not check_ps.stdout.strip():
+            # Container not running - this is an error condition that requires raising an exception
+            logs_ps = subprocess.run(
+                ['docker', 'logs', container_name],
+                check=False,
+                capture_output=True,
+                encoding='UTF-8'
+            )
+            inspect_ps = subprocess.run(
+                ['docker', 'inspect', '--format={{.State.ExitCode}}', container_name],
+                check=False,
+                capture_output=True,
+                encoding='UTF-8'
+            )
+            exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
+
+            if exit_code == "0":
+                # Container exited with a successful exit code
+                raise RuntimeError(f"Container '{container_name}' exited during {step_description} (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+            else:
+                # Container failed with non-zero or unknown exit code
+                if not image_name:
+                    image_ps = subprocess.run(
+                        ['docker', 'inspect', '--format={{.Config.Image}}', container_name],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False
+                        )
+                    if image_ps.returncode != 0:
+                        raise RuntimeError(f"Container '{container_name}' failed during {step_description} but could not retrieve image information for architecture compatibility check. Docker inspect error: {image_ps.stderr.strip()}")
+                    image_name = image_ps.stdout.strip()
+
+                image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(image_name)
+                if image_arch and host_arch and not is_compatible:
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description}, probably due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{image_arch}' but host architecture is '{host_arch}'.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                else:
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+
+    def _check_running_containers_after_boot_phase(self):
+        self._check_running_containers("boot phase")
+
+    def _check_running_containers_after_runtime_phase(self):
+        self._check_running_containers("runtime phase")
+
+    def _check_running_containers(self, step_description: str):
+        for container_info in self.__containers.values():
+            self._check_container_is_running(container_info['name'], step_description)
 
     def _populate_image_names(self):
         for service_name, service in self._usage_scenario.get('services', {}).items():
@@ -1310,41 +1361,10 @@ class ScenarioRunner:
             }
 
             # Check if detached container failed immediately after startup
-            # Docker run -d returns exit code 0 (success) even when containers fail moments later
+            # This is necessary, because 'docker run -d' returns exit code 0 (success) even when containers fail moments later
             # Common causes: architecture mismatch, missing dependencies, invalid entrypoints
             time.sleep(1)
-            check_ps = subprocess.run(
-                    ['docker', 'ps', '-q', '-f', f'name={container_name}'],
-                    check=False,
-                    capture_output=True,
-                    encoding='UTF-8'
-                )
-            if not check_ps.stdout.strip():
-                # Container not running anymore - this is an error condition that requires raising an exception
-                logs_ps = subprocess.run(
-                    ['docker', 'logs', container_name],
-                    check=False,
-                    capture_output=True,
-                    encoding='UTF-8'
-                )
-                inspect_ps = subprocess.run(
-                    ['docker', 'inspect', '--format={{.State.ExitCode}}', container_name],
-                    check=False,
-                    capture_output=True,
-                    encoding='UTF-8'
-                )
-                exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
-
-                if exit_code == "0":
-                    # Container exited successfully but immediately
-                    raise RuntimeError(f"Container '{container_name}' exited immediately after start (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
-                else:
-                    # Container failed with non-zero or unknown exit code
-                    image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(service['image'])
-                    if image_arch and host_arch and not is_compatible:
-                        raise RuntimeError(f"Container '{container_name}' failed immediately after start, probably due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{image_arch}' but host architecture is '{host_arch}'.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
-                    else:
-                        raise RuntimeError(f"Container '{container_name}' failed immediately after start (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+            self._check_container_is_running(container_name, "startup", clean_image_name)
 
             # Container is running - check for architecture mismatch that might indicate emulation
             image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(clean_image_name)
@@ -2024,7 +2044,7 @@ class ScenarioRunner:
             self._import_metric_providers()
             self._populate_image_names()
             self._prepare_docker()
-            self._check_running_containers()
+            self._check_running_containers_before_start()
             self._remove_docker_images()
             self._download_dependencies()
             self._initialize_run() # have this as close to the start of measurement
@@ -2057,6 +2077,8 @@ class ScenarioRunner:
             self._setup_networks()
             self._setup_services()
             self._end_phase('[BOOT]')
+
+            self._check_running_containers_after_boot_phase()
             self._check_process_returncodes()
 
             if self._debugger.active:
@@ -2079,6 +2101,8 @@ class ScenarioRunner:
             self._start_phase('[RUNTIME]')
             self._run_flows() # can trigger debug breakpoints;
             self._end_phase('[RUNTIME]')
+
+            self._check_running_containers_after_runtime_phase()
 
             if self._debugger.active:
                 self._debugger.pause('Container flows complete. Waiting to start remove phase')

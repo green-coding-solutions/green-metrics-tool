@@ -529,9 +529,7 @@ def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "failed immediately after start" in str(e.value)
-    assert "architecture incompatibility" in str(e.value)
-    assert "exit code:" in str(e.value)
+    assert "Container 'test_service' failed during startup, probably due to architecture incompatibility (exit code: 255)" in str(e.value)
 
 @pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
 @pytest.mark.skipif(is_docker_desktop(), reason="Docker Desktop supports emulation, test not applicable")
@@ -544,9 +542,7 @@ def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "failed immediately after start" in str(e.value)
-    assert "architecture incompatibility" in str(e.value)
-    assert "exit code:" in str(e.value)
+    assert "Container 'test_service' failed during startup, probably due to architecture incompatibility (exit code: 255)" in str(e.value)
 
 ## Docker run emulation tests on Docker Desktop
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
@@ -574,6 +570,37 @@ def test_docker_desktop_runs_amd64_image_with_emulation_on_arm64_host():
         # Test should complete successfully without raising exceptions AND generate emulation warning
         warnings = runner._ScenarioRunner__warnings
         assert any("architecture emulation" in warning for warning in warnings), f"Expected architecture emulation warning not found in: {warnings}"
+
+## Container running verification
+def test_container_running_verification_after_boot_phase():
+    """Test that container verification catches containers that exit during boot phase"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder',
+                          filename='tests/data/usage_scenarios/basic_stress.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            for step in context.run_steps():
+                if step == 'setup_services':
+                    # Simulate container failure by stopping it manually
+                    subprocess.run(['docker', 'stop', 'test-container'], check=False)
+
+    assert "Container 'test-container' failed during boot phase (exit code: 137)" in str(e.value)
+
+def test_container_running_verification_after_runtime_phase():
+    """Test that container verification catches containers that exit during runtime phase"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder',
+                          filename='tests/data/usage_scenarios/basic_stress.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            for step in context.run_steps():
+                if step == 'runtime_complete':
+                    # Simulate container failure by stopping it manually
+                    subprocess.run(['docker', 'stop', 'test-container'], check=False)
+
+    assert "Container 'test-container' failed during runtime phase (exit code: 137)" in str(e.value)
 
 
     ## rethink this one
