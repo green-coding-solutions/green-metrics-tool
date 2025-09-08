@@ -313,7 +313,7 @@ def test_file_cleanup():
 #pylint: disable=unused-variable
 def test_skip_and_allow_unsafe_both_true():
 
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(ValueError) as e:
         ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, skip_unsafe=True, allow_unsafe=True)
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, Tests.assertion_info('', str(e.value))
