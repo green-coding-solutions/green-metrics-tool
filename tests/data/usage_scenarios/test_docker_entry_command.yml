@@ -1,99 +1,66 @@
 
 services:
 
-### This discusses how the entrypoint and command work together
+### This demonstrates how ENTRYPOINT and COMMAND work together
 
-  # Short ENTRYPOINT + Short COMMAND
-  short-entrypoint-short-command:
+  # 1. Shell ENTRYPOINT + COMMAND
+  shell-entrypoint-with-command:
     image: alpine
-    entrypoint: echo "A $0"
-    command: echo "B $0"
-  # -> This executes echo and then "A $0" 'echo' "B $0"
+    entrypoint: ["/bin/sh", "-c"]
+    command: "echo 'Hello from command'"
+  # -> Executes: /bin/sh -c "echo 'Hello from command'"
 
-  short-entrypoint-short-command-env:
+  # 2. Exec ENTRYPOINT + Arguments as COMMAND
+  exec-entrypoint-with-args:
     image: alpine
-    entrypoint: env
-    command: env
-  # -> This executes env with the parameter env
+    entrypoint: ["echo", "Hello"]
+    command: ["World", "from", "command"]
+  # -> Executes: echo Hello World from command
 
-  short-entrypoint-short-command-env-with-param:
+  # 3. Command ENTRYPOINT + Parameters
+  tool-entrypoint-with-params:
     image: alpine
-    entrypoint: env
-    command: "-0"
-  # -> As proven here - using -0 which is a valid env option in BusyBox
+    entrypoint: ["env"]
+    command: ["-0"]
+  # -> Executes: env -0 (shows environment with null separators)
 
-# Now we want to check if long forms make a difference
-
-  # Short ENTRYPOINT + Long COMMAND
-  short-entrypoint-long-command:
+  # 4. No ENTRYPOINT + Shell COMMAND
+  no-entrypoint-shell-command:
     image: alpine
-    entrypoint: echo "A $0"
-    command:
-      - echo
-      - "B $0"
-  # -> This is the same output as the short form
+    command: ["/bin/sh", "-c", "echo 'Running in shell'; env | head -5"]
+  # -> Uses default Alpine entrypoint, runs shell command
 
-  # Long ENTRYPOINT + Short COMMAND
-  long-entrypoint-short-command:
+  # 5. No ENTRYPOINT + Simple COMMAND
+  no-entrypoint-simple-command:
     image: alpine
-    entrypoint:
-      - echo
-      - "A $0"
-    command: echo "B $0"
-  # -> same here
+    command: ["echo", "Simple command execution"]
+  # -> Uses default Alpine entrypoint with exec form
 
-  # Long ENTRYPOINT + Long COMMAND
-  long-entrypoint-long-command:
+  # 6. ENTRYPOINT only (no COMMAND)
+  entrypoint-only:
     image: alpine
-    entrypoint:
-      - echo
-      - "A $0"
-    command:
-      - echo
-      - "B $0"
-  # -> This again executes echo and puts the rest as commands output is  'A $0 echo B $0'
+    entrypoint: ["echo", "Only entrypoint, no command"]
 
-  # Now we want to see how env looks like in a shell
-  no-entrypoint-short-command:
+  # 7. Simple string ENTRYPOINT only
+  string-entrypoint-only:
     image: alpine
-    command: ash -c 'env'
+    entrypoint: echo
 
-  no-entrypoint-short-command2:
+  # 8. Shell variable testing in ENTRYPOINT + COMMAND
+  shell-variable-test:
     image: alpine
-    command: env
-  # -> We can see that the ash shell (default in alpine) adds some vars
+    entrypoint: ["echo", "A $0"]
+    command: ["echo", "B $0"]
+  # -> Tests shell variable behavior: echo "A $0" echo "B $0"
 
-
-  # No ENTRYPOINT + Long COMMAND
-  no-entrypoint-long-command:
+  # 9. Default shell command (Alpine ash)
+  default-shell-command:
     image: alpine
-    command:
-      - echo
-      - $0
-  # -> This also doesn't create a shell. It calls shell with '$0'
+    command: ["ash", "-c", "env"]
+  # -> Tests Alpine's default shell behavior
 
-  # No ENTRYPOINT + Long COMMAND
-  no-entrypoint-long-command-escaped:
+  # 10. Shell variable escaping test
+  shell-variable-escape-test:
     image: alpine
-    command:
-      - echo
-      - $$0
-  # -> Maybe there is some escaping going on. No the output is the same
-
-  # Short ENTRYPOINT + No COMMAND Just checking
-  short-entrypoint-no-command:
-    image: alpine
-    entrypoint: echo $0
-
-  # 8) Long ENTRYPOINT + No COMMAND
-  long-entrypoint-no-command:
-    image: alpine
-    entrypoint:
-      - echo
-      - "A $0"
-
-  # Finally maybe you need to create a string
-  no-entrypoint-short-command-string:
-    image: alpine
-    command: 'echo $0'
-  # -> This is split (output is $0). So echo is executed and $0 is the param
+    command: ["echo", "$$0"]
+  # -> Tests shell variable escaping: echo $$0
