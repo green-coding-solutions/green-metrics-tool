@@ -240,13 +240,16 @@ def build_and_store_phase_stats(run_id, sci=None):
                 power_min = (min_value * 10**3) / (duration / value_count)
                 csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg, 'MEAN', power_max, power_min, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
 
-                if metric.endswith('_machine') and sci.get('I', None) is not None:
-                    machine_carbon_ug = (value_sum / 3_600_000) * Decimal(sci['I'])
-                    if '[' not in phase['name']: # only for runtime sub phases
-                        software_carbon_intensity_global['machine_carbon_ug'] = software_carbon_intensity_global.get('machine_carbon_ug', 0) + machine_carbon_ug
+                if sci.get('I', None) is not None:
+                    value_carbon_ug = (value_sum / 3_600_000) * Decimal(sci['I'])
 
                     csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", machine_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
 
+                    if '[' not in phase['name'] and metric.endswith('_machine'): # only for runtime sub phases to not double count ... needs refactor ... see comment at beginning of file
+                        software_carbon_intensity_global['machine_carbon_ug'] = software_carbon_intensity_global.get('machine_carbon_ug', 0) + value_carbon_ug
+
+
+                if metric.endswith('_machine'):
                     if phase['name'] == '[BASELINE]':
                         machine_power_baseline = power_avg
                     else: # this will effectively happen for all subsequent phases where energy data is available
