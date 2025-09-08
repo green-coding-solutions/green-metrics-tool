@@ -20,7 +20,7 @@ const TOTAL_CHART_BOTTOM_TITLE = 'Total energy consumption';
 const TOTAL_CHART_BOTTOM_LABEL = 'Machine Energy';
 // function must return boolean
 const total_chart_bottom_condition = (metric) => {
-    return metric.match(/^.*_energy.*_machine$/) !== null;
+    return metric.indexOf('_energy_') !== -1 && metric.endsWith('_machine');
 }
 
 // title and filter function for the top left most chart in the Detailed Metrics / Compare view
@@ -42,7 +42,63 @@ const phase_time_metric_condition = (metric) => {
 }
 
 const psu_machine_carbon_metric_condition = (metric) => {
-    return metric.match(/^psu_carbon_.*_machine$/) !== null;
+    return metric.startsWith('psu_carbon_') && metric.endsWith('_machine');
+}
+
+const psu_machine_energy_metric_condition = (metric) => {
+    return metric.startsWith('psu_energy_') && metric.endsWith('_machine');
+}
+
+const psu_machine_power_metric_condition = (metric) => {
+    return metric.startsWith('psu_power_') && metric.endsWith('_machine');
+}
+
+const cpu_carbon_metric_condition = (metric) => {
+    return metric.startsWith('cpu_carbon_') && metric.endsWith('_component');
+}
+
+const cpu_energy_metric_condition = (metric) => {
+    return metric.startsWith('cpu_energy_') && metric.endsWith('_component');
+}
+
+const cpu_power_metric_condition = (metric) => {
+    return metric.startsWith('cpu_power_') && metric.endsWith('_component');
+}
+
+const disk_carbon_metric_condition = (metric) => {
+    return metric.startsWith('disk_carbon_') && metric.endsWith('_component');
+}
+
+const disk_energy_metric_condition = (metric) => {
+    return metric.startsWith('disk_energy_') && metric.endsWith('_component');
+}
+
+const disk_power_metric_condition = (metric) => {
+    return metric.startsWith('disk_power_') && metric.endsWith('_component');
+}
+
+const dram_carbon_metric_condition = (metric) => {
+    return metric.startsWith('memory_carbon_') && metric.endsWith('_component');
+}
+
+const dram_energy_metric_condition = (metric) => {
+    return metric.startsWith('memory_energy_') && metric.endsWith('_component');
+}
+
+const dram_power_metric_condition = (metric) => {
+    return metric.startsWith('memory_power_') && metric.endsWith('_component');
+}
+
+const gpu_carbon_metric_condition = (metric) => {
+    return metric.startsWith('gpu_carbon_') && metric.endsWith('_component');
+}
+
+const gpu_energy_metric_condition = (metric) => {
+    return metric.startsWith('gpu_energy_') && metric.endsWith('_component');
+}
+
+const gpu_power_metric_condition = (metric) => {
+    return metric.startsWith('gpu_power_') && metric.endsWith('_component');
 }
 
 const network_carbon_metric_condition = (metric) => {
@@ -55,14 +111,6 @@ const network_energy_metric_condition = (metric) => {
 
 const network_io_metric_condition = (metric) => {
     return metric == 'network_io_cgroup_container';
-}
-
-const machine_power_metric_condition = (metric) => {
-   return metric.match(/^.*_power_.*_machine$/) !== null;
-}
-
-const machine_energy_metric_condition = (metric) => {
-    return metric.match(/^.*_energy_.*_machine$/) !== null;
 }
 
 const sci_metric_condition = (metric) => {

@@ -74,10 +74,19 @@ class ScenarioRunner:
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
         measurement_wait_time_dependencies=60):
 
-        if skip_unsafe is True and allow_unsafe is True:
-            raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
-
         config = GlobalConfig().config
+
+        # sanity checks
+        if skip_unsafe is True and allow_unsafe is True:
+            raise ValueError('Cannot specify both --skip-unsafe and --allow-unsafe')
+
+        if dev_cache_build and (docker_prune or full_docker_prune):
+            raise ValueError('--dev-cache-build blocks pruning docker images. Combination is not allowed')
+
+        if full_docker_prune and \
+            config['postgresql']['host'] in ('green-coding-postgres-container', 'test-green-coding-postgres-container') :
+            raise ValueError('--full-docker-prune is set while your database host is "(test)-green-coding-postgres-container".\nThe switch is only for remote measuring machines. It would stop the GMT images itself when running locally')
+
         # variables that should not change if you call run multiple times
         if name:
             self._name = name
@@ -502,7 +511,14 @@ class ScenarioRunner:
         if self._full_docker_prune:
             print(TerminalColors.HEADER, '\nStopping and removing all containers, build caches, volumes and images on the system', TerminalColors.ENDC)
             subprocess.run('docker ps -aq | xargs docker stop', shell=True, check=False)
-            subprocess.run('docker images --format "{{.ID}}" | xargs docker rmi -f', shell=True, check=False)
+            # Prune all images except Kaniko.
+            # It will be downloaded again anyway, so no need to prune it
+            subprocess.run("""
+                docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" \
+                | grep -v "gcr.io/kaniko-project/executor" \
+                | awk '{print $2}' \
+                | xargs docker rmi -f
+                """, shell=True, check=False)
             subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
         elif self._docker_prune:
             print(TerminalColors.HEADER, '\nRemoving all unassociated build caches, networks volumes and stopped containers on the system', TerminalColors.ENDC)
