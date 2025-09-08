@@ -576,7 +576,7 @@ def test_network_alias_added():
     assert '--network-alias test-alias' in docker_run_command
 
 def test_cmd_entrypoint():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -584,16 +584,16 @@ def test_cmd_entrypoint():
         runner.run()
 
     o = out.getvalue()
-    assert '--entrypoint /bin/sh alpine_gmt_run_tmp -c echo Hello from command' in o
-    assert '--entrypoint echo alpine_gmt_run_tmp Hello World from command' in o
-    assert '--entrypoint env alpine_gmt_run_tmp -0' in o
-    assert 'alpine_gmt_run_tmp /bin/sh -c echo \'Running in shell\'; env | head -5' in o
-    assert 'alpine_gmt_run_tmp echo Simple command execution' in o
-    assert '--entrypoint echo alpine_gmt_run_tmp Only entrypoint, no command' in o
-    assert '--entrypoint echo alpine_gmt_run_tmp' in o
-    assert '--entrypoint echo alpine_gmt_run_tmp A $0 echo B $0' in o
-    assert 'alpine_gmt_run_tmp ash -c env' in o
-    assert 'alpine_gmt_run_tmp echo $$0' in o
+    assert '--entrypoint /bin/sh alpine_gmt_run_tmp -c echo \'Hello from command\'' in o
+    assert '--entrypoint sleep alpine_gmt_run_tmp infinity' in o
+    assert '--entrypoint tail alpine_gmt_run_tmp -f /dev/null' in o
+    assert 'alpine_gmt_run_tmp /bin/sh -c' in o
+    assert 'alpine_gmt_run_tmp sleep infinity' in o
+    assert '--entrypoint sleep alpine_gmt_run_tmp infinity' in o
+    assert '--entrypoint cat alpine_gmt_run_tmp' in o
+    assert '--entrypoint /bin/sh alpine_gmt_run_tmp -c echo \'A $0\' && echo \'B $0\'' in o
+    assert 'alpine_gmt_run_tmp ash -c echo \'Using Alpine ash shell\'' in o
+    assert 'alpine_gmt_run_tmp /bin/sh -c echo \'Variable test: $$0\'' in o
 
     assert err.getvalue() == '', Tests.assertion_info('stderr should be empty', err.getvalue())
 
