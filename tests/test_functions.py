@@ -286,8 +286,9 @@ class RunUntilManager:
         Execute the runner pipeline until the specified step.
         
         Args:
-            step (str): The step name to stop at. Valid values include:
-                       'import_metric_providers', 'initialize_run', 'setup_networks', 'setup_services'
+            step (str): The step name to stop at. Valid pause points:
+                        'import_metric_providers', 'initialize_run', 'save_image_and_volume_sizes', 
+                        'setup_networks', 'setup_services'
         
         Raises:
             RuntimeError: If called outside of the context manager.
@@ -305,8 +306,8 @@ class RunUntilManager:
         
         Args:
             stop_at (str, optional): If provided, stops execution after reaching this pause point.
-                                   Valid pause points: 'import_metric_providers', 'initialize_run',
-                                   'setup_networks', 'setup_services'
+                                   Valid pause points: 'import_metric_providers', 'initialize_run', 
+                                   'save_image_and_volume_sizes', 'setup_networks', 'setup_services'
         
         Yields:
             str: The name of the pause point that was just reached, allowing for inspection
@@ -364,7 +365,9 @@ class RunUntilManager:
             self.__runner._end_phase('[INSTALLATION]')
 
             self.__runner._save_image_and_volume_sizes()
-
+            yield 'save_image_and_volume_sizes'
+            if stop_at == 'save_image_and_volume_sizes':
+                return
             self.__runner._start_phase('[BOOT]')
             self.__runner._setup_networks()
             yield 'setup_networks'

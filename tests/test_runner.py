@@ -6,7 +6,6 @@ import re
 import os
 import platform
 import subprocess
-import threading
 import time
 import yaml
 
@@ -602,93 +601,53 @@ def test_print_logs_flag_with_iterations():
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 ## automatic database reconnection
-# TODO: This integration test should be moved to a dedicated integration test suite once that structure is implemented (https://github.com/green-coding-solutions/green-metrics-tool/issues/1302) # pylint: disable=fixme
 def test_database_reconnection_during_run_integration():
     """Integration test: Verify GMT runner handles database reconnection during execution
     
-    This test simulates a database outage by restarting the postgres container mid-run.
-    With database retry logic implemented, the test should succeed by automatically
-    reconnecting when the database becomes available again.
-    
-    Timing analysis based on a debug run with logs:
-    T+0.0s  - GMT runner starts, database restart thread starts waiting
-    T+5.0s  - RUNTIME phase begins (with 15 seconds sleep command)
-    T+12.3s - Database restart occurs (during runtime phase)
-    T+13.1s - Database restart completes
-    T+16.1s - Database should be available again
-    T+20.0s - REMOVE phase starts (database operations resume with retry logic)
-    T+22.4s - Test completes successfully with database reconnection
-    
-    This timing ensures database restart happens during active measurement phase
-    when database operations are likely occurring for metric storage.
+    This test simulates a database outage scenario:
+    1. A first succesful database query occurs at step 'initialize_run'
+    2. After this step, a database restart is triggered to simulate an outage
+    3. The next database query occurs at step 'save_image_and_volume_sizes':
+       Initially it fails due to the outage, but the retry mechanism should recover it
     """
 
-    run_name = 'test_db_reconnect_' + utils.randomword(12)
     test_start_time = time.time()
 
     def restart_database():
-        # Restart database during metrics collection/storage phase
-        Tests.log_with_timestamp("Waiting 15 seconds before restarting database...", "DB RESTART")
-        time.sleep(15)  # Wait for runtime to start but not complete
         Tests.log_with_timestamp("Restarting test-green-coding-postgres-container now...", "DB RESTART", test_start_time)
-        result = subprocess.run(['docker', 'restart', 'test-green-coding-postgres-container'],
+        result = subprocess.run(['docker', 'restart', '-t', '0', 'test-green-coding-postgres-container'],
                                check=True, capture_output=True)
         Tests.log_with_timestamp(f"Database restart completed. Docker output: {result.stdout.decode().strip()}", "DB RESTART", test_start_time)
-        time.sleep(3)  # Give DB time to restart
-        Tests.log_with_timestamp("Database should be available again after 3s wait", "DB RESTART", test_start_time)
 
-    # Start database restart in background thread
-    restart_thread = threading.Thread(target=restart_database)
-    restart_thread.daemon = True
-    Tests.log_with_timestamp("Starting database restart thread...")
-    restart_thread.start()
-
-    # Run database reconnection test scenario
+    out = io.StringIO()
+    err = io.StringIO()
     Tests.log_with_timestamp("Starting GMT runner with scenario: db_reconnection_test.yml", start_time=test_start_time)
-    ps = subprocess.run(
-        ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR,
-         '--filename', 'tests/data/usage_scenarios/db_reconnection_test.yml',
-         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-optimizations'],
-        check=False,  # Allow non-zero exit codes to check what happened
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/db_reconnection_test.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_optimizations=True)
 
-    Tests.log_with_timestamp(f"GMT runner completed with return code: {ps.returncode}", start_time=test_start_time)
-    restart_thread.join(timeout=30)  # Wait for restart thread to complete
-    Tests.log_with_timestamp("Database restart thread completed", start_time=test_start_time)
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            for pause_point in context.run_steps(stop_at='save_image_and_volume_sizes'):
+                Tests.log_with_timestamp(f"Reached pause point {pause_point}", start_time=test_start_time)
+                if pause_point == 'initialize_run':
+                    # Restart database after initilizing of the run
+                    restart_database()
+
+    print(f"Out: {out.getvalue()}")
+    print(f"Err: {err.getvalue()}")
 
     # Analyze output for database reconnection evidence
-    has_retry_messages = ('Database connection error' in ps.stderr or 'Retrying in' in ps.stderr or
-                          'Database connection error' in ps.stdout or 'Retrying in' in ps.stdout)
-    has_admin_shutdown = 'AdminShutdown' in ps.stdout or 'AdminShutdown' in ps.stderr
+    has_retry_messages = ('Database connection error' in err.getvalue() or 'Retrying in' in err.getvalue() or
+                          'Database connection error' in out.getvalue() or 'Retrying in' in out.getvalue())
+    has_admin_shutdown = 'AdminShutdown' in out.getvalue() or 'AdminShutdown' in err.getvalue()
     if has_retry_messages:
         Tests.log_with_timestamp("Found database retry messages in stderr - retry logic was triggered")
     if has_admin_shutdown:
         Tests.log_with_timestamp("Found AdminShutdown in output - retry logic may not have worked")
 
-    # Assertions for database reconnection functionality
-
-    # 1. GMT must complete successfully despite database restart
-    assert ps.returncode == 0, \
-        f"GMT runner must succeed when database reconnection is implemented. Return code: {ps.returncode}"
-
-    # 2. Should NOT see AdminShutdown errors (indicates retry logic failed)
+    # Assertion 1: Should NOT see AdminShutdown errors (indicates retry logic failed)
     assert not has_admin_shutdown, \
         "AdminShutdown error found in output - database retry logic failed to handle disconnection properly"
 
-    # 3. Should see evidence of retry attempts (proves database was actually interrupted)
+    # Assertion 2: Should see evidence of retry attempts (proves database was actually interrupted)
     assert has_retry_messages, \
         "No database retry messages found - test may not have properly simulated database outage during critical operations"
-
-    # 4. Verify restart thread completed (ensures test timing was correct)
-    restart_thread.join(timeout=5)
-    assert not restart_thread.is_alive(), \
-        "Database restart thread did not complete - test timing may be incorrect"
-
-    print("✓ All assertions passed - GMT successfully handled database reconnection")
-    print(f"✓ GMT completed successfully (return code: {ps.returncode})")
-    print(f"✓ Database retry logic triggered: {has_retry_messages}")
-    print(f"✓ No AdminShutdown errors: {not has_admin_shutdown}")
