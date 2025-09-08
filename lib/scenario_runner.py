@@ -748,10 +748,14 @@ class ScenarioRunner:
                 print(f"Pulling {service['image']}")
                 self.__notes_helper.add_note( note="Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
 
-                if '/' in service['image']:
+                slash_splitted_image_name = service['image'].split('/')
+                if '.' in slash_splitted_image_name[0]: # we have already a set registry
+                    container_registry_uri_with_image = service['image']
+                elif len(slash_splitted_image_name) > 1: # we have a namespace in the image
                     container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{service['image']}"
-                else:
+                else: # we have no registry or namespace and need to add the defaults of our configured registry
                     container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{config['container_registry']['default_namespace']}/{service['image']}"
+                print(['docker', 'pull', container_registry_uri_with_image])
 
                 ps = subprocess.run(['docker', 'pull', container_registry_uri_with_image], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
