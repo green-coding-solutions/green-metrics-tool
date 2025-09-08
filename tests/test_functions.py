@@ -282,8 +282,53 @@ class RunUntilManager:
         return self
 
     def run_until(self, step):
+        """
+        Execute the runner pipeline until the specified step.
+        
+        Args:
+            step (str): The step name to stop at. Valid values include:
+                       'import_metric_providers', 'initialize_run', 'setup_networks', 'setup_services'
+        
+        Raises:
+            RuntimeError: If called outside of the context manager.
+            
+        Note:
+            This is a convenience wrapper around run_steps(stop_at=step).
+            For more control and inspection capabilities, use run_steps() directly.
+        """
+        for _ in self.run_steps(stop_at=step):
+            pass
+
+    def run_steps(self, stop_at=None):
+        """
+        Generator that executes the runner pipeline, yielding at predefined pause points.
+        
+        Args:
+            stop_at (str, optional): If provided, stops execution after reaching this pause point.
+                                   Valid pause points: 'import_metric_providers', 'initialize_run',
+                                   'setup_networks', 'setup_services'
+        
+        Yields:
+            str: The name of the pause point that was just reached, allowing for inspection
+                 before continuing execution.
+        
+        Raises:
+            RuntimeError: If called outside of the context manager.
+        
+        Example:
+            # Run with inspection at all pause points:
+            with RunUntilManager(runner) as context:
+                for pause_point in context.run_steps():
+                    print(f"Reached pause point: {pause_point}")
+
+            # Run until specific pause point (with inspection at all pause points along the way):
+            with RunUntilManager(runner) as context:
+                for pause_point in context.run_steps(stop_at='initialize_run'):
+                    print(f"Reached pause point: {pause_point}")
+                    # This will print both 'import_metric_providers' and 'initialize_run'
+        """
         if not getattr(self, '_active', False):
-            raise RuntimeError("run_until must be used within the context")
+            raise RuntimeError("run_steps must be used within the context")
 
         try:
             self.__runner._start_measurement()
@@ -295,7 +340,8 @@ class RunUntilManager:
             self.__runner._initial_parse()
             self.__runner._register_machine_id()
             self.__runner._import_metric_providers()
-            if step == 'import_metric_providers':
+            yield 'import_metric_providers'
+            if stop_at == 'import_metric_providers':
                 return
             self.__runner._populate_image_names()
             self.__runner._prepare_docker()
@@ -303,7 +349,9 @@ class RunUntilManager:
             self.__runner._remove_docker_images()
             self.__runner._download_dependencies()
             self.__runner._initialize_run()
-
+            yield 'initialize_run'
+            if stop_at == 'initialize_run':
+                return
             self.__runner._start_metric_providers(allow_other=True, allow_container=False)
             self.__runner._custom_sleep(self.__runner._measurement_pre_test_sleep)
 
@@ -319,10 +367,12 @@ class RunUntilManager:
 
             self.__runner._start_phase('[BOOT]')
             self.__runner._setup_networks()
-            if step == 'setup_networks':
+            yield 'setup_networks'
+            if stop_at == 'setup_networks':
                 return
             self.__runner._setup_services()
-            if step == 'setup_services':
+            yield 'setup_services'
+            if stop_at == 'setup_services':
                 return
             self.__runner._end_phase('[BOOT]')
 
