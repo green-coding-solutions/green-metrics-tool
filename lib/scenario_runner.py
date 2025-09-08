@@ -511,7 +511,14 @@ class ScenarioRunner:
         if self._full_docker_prune:
             print(TerminalColors.HEADER, '\nStopping and removing all containers, build caches, volumes and images on the system', TerminalColors.ENDC)
             subprocess.run('docker ps -aq | xargs docker stop', shell=True, check=False)
-            subprocess.run('docker images --format "{{.ID}}" | xargs docker rmi -f', shell=True, check=False)
+            # Prune all images except Kaniko.
+            # It will be downloaded again anyway, so no need to prune it
+            subprocess.run("""
+                docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" \
+                | grep -v "gcr.io/kaniko-project/executor" \
+                | awk '{print $2}' \
+                | xargs docker rmi -f
+                """, shell=True, check=False)
             subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
         elif self._docker_prune:
             print(TerminalColors.HEADER, '\nRemoving all unassociated build caches, networks volumes and stopped containers on the system', TerminalColors.ENDC)
