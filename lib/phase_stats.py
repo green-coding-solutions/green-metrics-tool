@@ -113,7 +113,6 @@ def build_and_store_phase_stats(run_id, sci=None):
 
         cpu_utilization_containers = {} # reset
         cpu_utilization_machine = None
-        machine_carbon_ug = None # reset
         network_io_carbon_in_ug = None
 
         select_query = """
@@ -243,7 +242,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                 if sci.get('I', None) is not None:
                     value_carbon_ug = (value_sum / 3_600_000) * Decimal(sci['I'])
 
-                    csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", machine_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
+                    csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", value_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
 
                     if '[' not in phase['name'] and metric.endswith('_machine'): # only for runtime sub phases to not double count ... needs refactor ... see comment at beginning of file
                         software_carbon_intensity_global['machine_carbon_ug'] = software_carbon_intensity_global.get('machine_carbon_ug', 0) + value_carbon_ug
