@@ -19,16 +19,6 @@ from tests import test_functions as Tests
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
-def is_docker_desktop():
-    """Check if running Docker Desktop which supports emulation."""
-    try:
-        ps = subprocess.run(['docker', 'info', '--format', '{{.OperatingSystem}}'],
-                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                          encoding='UTF-8', check=True)
-        return 'Docker Desktop' in ps.stdout
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
-
 ### Tests for the runner options/flags
 
 ## --uri URI
@@ -517,11 +507,19 @@ def test_docker_pull_nonexistent_image_non_interactive_fails():
     assert "NONEXISTENT_IMAGE" in str(e.value)
 
 
+def has_docker_emulation():
+    """Check if Docker supports emulation for foreign architectures."""
+    from lib.docker_emulation_detector import DockerEmulationDetector  # pylint: disable=import-outside-toplevel
+    detector = DockerEmulationDetector()
+    emulation_info = detector.detect_emulation_support()
+    return emulation_info['emulation_available']
+
+
 ## Docker run architecture mismatch tests on native Docker
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
-@pytest.mark.skipif(is_docker_desktop(), reason="Docker Desktop supports emulation, test not applicable")
+@pytest.mark.skipif(has_docker_emulation(), reason="Docker has emulation support, test not applicable")
 def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
-    """Test Docker run fails when trying to run ARM64 manifest digest from multi-arch image on AMD64 host"""
+    """Test Docker run fails immediately when trying to run ARM64 image on AMD64 host without emulation"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
@@ -529,12 +527,15 @@ def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "Container 'test_service' failed during startup, probably due to architecture incompatibility (exit code: 255)" in str(e.value)
+    error_msg = str(e.value)
+    assert "cannot run due to architecture incompatibility" in error_msg
+    assert "arm64" in error_msg and "amd64" in error_msg
+    assert "emulation is not available" in error_msg
 
 @pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
-@pytest.mark.skipif(is_docker_desktop(), reason="Docker Desktop supports emulation, test not applicable")
+@pytest.mark.skipif(has_docker_emulation(), reason="Docker has emulation support, test not applicable")
 def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
-    """Test Docker run fails when trying to run amd64 manifest digest from multi-arch image on arm64 host"""
+    """Test Docker run fails immediately when trying to run amd64 image on arm64 host without emulation"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
@@ -542,13 +543,16 @@ def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "Container 'test_service' failed during startup, probably due to architecture incompatibility (exit code: 255)" in str(e.value)
+    error_msg = str(e.value)
+    assert "cannot run due to architecture incompatibility" in error_msg
+    assert "amd64" in error_msg and "arm64" in error_msg
+    assert "emulation is not available" in error_msg
 
-## Docker run emulation tests on Docker Desktop
+## Docker run emulation tests
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
-@pytest.mark.skipif(not is_docker_desktop(), reason="Test requires Docker Desktop with emulation support")
-def test_docker_desktop_runs_arm64_image_with_emulation_on_amd64_host():
-    """Test Docker Desktop successfully runs ARM64 images on AMD64 host using emulation and generates warning"""
+@pytest.mark.skipif(not has_docker_emulation(), reason="Test requires Docker with emulation support")
+def test_docker_runs_arm64_image_with_emulation_on_amd64_host():
+    """Test Docker successfully runs ARM64 images on AMD64 host using emulation and generates warning"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
@@ -556,12 +560,15 @@ def test_docker_desktop_runs_arm64_image_with_emulation_on_amd64_host():
         context.run_until('setup_services')
         # Test should complete successfully without raising exceptions AND generate emulation warning
         warnings = runner._ScenarioRunner__warnings
-        assert any("architecture emulation" in warning for warning in warnings), f"Expected architecture emulation warning not found in: {warnings}"
+        assert any("will run with architecture emulation" in warning for warning in warnings), f"Expected architecture emulation warning not found in: {warnings}"
+        emulation_warnings = [w for w in warnings if "emulation" in w.lower()]
+        assert len(emulation_warnings) > 0, f"No emulation warnings found in: {warnings}"
+        assert any("arm64" in warning and "amd64" in warning for warning in emulation_warnings), f"Warning should mention both architectures: {emulation_warnings}"
 
 @pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
-@pytest.mark.skipif(not is_docker_desktop(), reason="Test requires Docker Desktop with emulation support")
-def test_docker_desktop_runs_amd64_image_with_emulation_on_arm64_host():
-    """Test Docker Desktop successfully runs AMD64 images on ARM64 host using emulation and generates warning"""
+@pytest.mark.skipif(not has_docker_emulation(), reason="Test requires Docker with emulation support")
+def test_docker_runs_amd64_image_with_emulation_on_arm64_host():
+    """Test Docker successfully runs AMD64 images on ARM64 host using emulation and generates warning"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
@@ -569,7 +576,96 @@ def test_docker_desktop_runs_amd64_image_with_emulation_on_arm64_host():
         context.run_until('setup_services')
         # Test should complete successfully without raising exceptions AND generate emulation warning
         warnings = runner._ScenarioRunner__warnings
-        assert any("architecture emulation" in warning for warning in warnings), f"Expected architecture emulation warning not found in: {warnings}"
+        assert any("will run with architecture emulation" in warning for warning in warnings), f"Expected architecture emulation warning not found in: {warnings}"
+        emulation_warnings = [w for w in warnings if "emulation" in w.lower()]
+        assert len(emulation_warnings) > 0, f"No emulation warnings found in: {warnings}"
+        assert any("amd64" in warning and "arm64" in warning for warning in emulation_warnings), f"Warning should mention both architectures: {emulation_warnings}"
+
+## Architecture compatibility detection tests
+def test_docker_emulation_detector_initialization():
+    """Test that DockerEmulationDetector can be initialized and provides basic info"""
+    from lib.docker_emulation_detector import DockerEmulationDetector  # pylint: disable=import-outside-toplevel
+
+    detector = DockerEmulationDetector()
+    assert detector.os_type in ['linux', 'wsl2', 'darwin', 'windows']
+    assert detector.native_arch in ['amd64', 'arm64', 'arm', '386']
+
+    # Test emulation support detection
+    emulation_info = detector.detect_emulation_support()
+    assert isinstance(emulation_info, dict)
+    assert 'supported_platforms' in emulation_info
+    assert 'native_platform' in emulation_info
+    assert 'emulation_available' in emulation_info
+    assert 'emulated_platforms' in emulation_info
+    assert 'detection_method' in emulation_info
+
+def test_architecture_compatibility_check_native_image():
+    """Test architecture compatibility checking with native architecture image"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    # Test with hello-world which should be native amd64 on most systems
+    compat_info = runner._check_image_architecture_compatibility('hello-world')
+
+    assert isinstance(compat_info, dict)
+    assert 'image_arch' in compat_info
+    assert 'host_arch' in compat_info
+    assert 'can_run' in compat_info
+    assert 'needs_emulation' in compat_info
+
+    # On native architecture, these should be true
+    if compat_info['image_arch'] == compat_info['host_arch']:
+        assert compat_info['is_native_compatible'] is True
+        assert compat_info['needs_emulation'] is False
+        assert compat_info['can_run'] is True
+
+@pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
+def test_architecture_compatibility_check_arm64_image_on_x86_64_host():
+    """Test architecture compatibility checking with ARM64 image on x86_64 host"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    # Use ARM64 alpine image on x86_64 host
+    compat_info = runner._check_image_architecture_compatibility('alpine@sha256:4562b419adf48c5f3c763995d6014c123b3ce1d2e0ef2613b189779caa787192')
+
+    assert compat_info['image_arch'] == 'arm64'
+    assert compat_info['host_arch'] == 'amd64'
+    assert compat_info['is_native_compatible'] is False
+    assert compat_info['image_platform'] == 'linux/arm64'
+
+    # can_run and needs_emulation depend on emulation availability
+    if compat_info['emulation_available']:
+        # If emulation is available, container can run but needs emulation
+        if compat_info['can_run']:
+            assert compat_info['needs_emulation'] is True
+    else:
+        # If no emulation, container cannot run
+        assert compat_info['can_run'] is False
+        assert compat_info['needs_emulation'] is False
+
+@pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
+def test_architecture_compatibility_check_amd64_image_on_arm64_host():
+    """Test architecture compatibility checking with AMD64 image on ARM64 host"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    # Use AMD64 alpine image on ARM64 host
+    compat_info = runner._check_image_architecture_compatibility('alpine@sha256:eafc1edb577d2e9b458664a15f23ea1c370214193226069eb22921169fc7e43f')
+
+    assert compat_info['image_arch'] == 'amd64'
+    assert compat_info['host_arch'] == 'arm64'
+    assert compat_info['is_native_compatible'] is False
+    assert compat_info['image_platform'] == 'linux/amd64'
+
+    # can_run and needs_emulation depend on emulation availability
+    if compat_info['emulation_available']:
+        # If emulation is available, container can run but needs emulation
+        if compat_info['can_run']:
+            assert compat_info['needs_emulation'] is True
+    else:
+        # If no emulation, container cannot run
+        assert compat_info['can_run'] is False
+        assert compat_info['needs_emulation'] is False
 
 ## Container running verification
 def test_container_running_verification_after_boot_phase():

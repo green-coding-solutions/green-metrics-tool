@@ -40,6 +40,7 @@ from lib.notes import Notes
 from lib import system_checks
 from lib.machine import Machine
 from lib import metric_importer
+from lib.docker_emulation_detector import DockerEmulationDetector
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -149,6 +150,7 @@ class ScenarioRunner:
         self._measurement_wait_time_dependencies = measurement_wait_time_dependencies
         self._last_measurement_duration = 0
         self._phase_padding = phase_padding
+        self._emulation_detector = None  # Lazily initialized when needed
         self._phase_padding_ms = max(
             utils.get_metric_providers(config, self._disabled_metric_providers).values(),
             key=lambda x: x.get('sampling_rate', 0) if x else 0
@@ -257,15 +259,29 @@ class ScenarioRunner:
 
         raise FileNotFoundError(f"{path2} in {path} not found")
 
-    def _check_image_architecture_compatibility(self, image_name: str) -> tuple[str, str, bool]:
-        """Validate that the Docker image architecture is compatible with the host.
+    def _check_image_architecture_compatibility(self, image_name: str):
+        """Check if Docker image can run on host, with emulation detection and platform support analysis.
+
+        Performs comprehensive architecture compatibility checking by:
+        - Inspecting image architecture via Docker
+        - Detecting host emulation capabilities (binfmt_misc, buildx, etc.)
+        - Determining if image can run natively, via emulation, or not at all
 
         Args:
             image_name: The Docker image name to check
 
         Returns:
-            Tuple of (image_arch, host_arch, is_compatible)
+            Dict containing:
+                - image_arch: Architecture of the Docker image
+                - host_arch: Native architecture of the host
+                - image_platform: Full platform string (e.g., 'linux/arm64')
+                - is_native_compatible: True if architectures match exactly
+                - can_run: True if image can execute (natively or via emulation)
+                - needs_emulation: True if emulation is required to run
+                - emulation_available: True if host supports emulation
+                - detection_method: How emulation support was detected
         """
+        # Get image architecture
         ps = subprocess.run(
             ['docker', 'image', 'inspect', image_name, '--format', '{{.Architecture}}'],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False
@@ -275,10 +291,27 @@ class ScenarioRunner:
             raise RuntimeError(f"Failed to inspect Docker image architecture for '{image_name}': {ps.stderr.strip()}")
 
         image_arch = ps.stdout.strip()
-        normalized_host_arch = map_host_to_docker_arch()
-        is_compatible = image_arch == normalized_host_arch
+        host_arch = map_host_to_docker_arch()
+        image_platform = f"linux/{image_arch}"
 
-        return image_arch, normalized_host_arch, is_compatible
+        # Check emulation capabilities (lazy initialization)
+        if self._emulation_detector is None:
+            self._emulation_detector = DockerEmulationDetector()
+
+        emulation_info = self._emulation_detector.detect_emulation_support()
+        can_run = image_platform in emulation_info['supported_platforms']
+        needs_emulation = image_arch != host_arch and can_run
+
+        return {
+            'image_arch': image_arch,
+            'host_arch': host_arch,
+            'image_platform': image_platform,
+            'is_native_compatible': image_arch == host_arch,
+            'can_run': can_run,
+            'needs_emulation': needs_emulation,
+            'emulation_available': emulation_info['emulation_available'],
+            'detection_method': emulation_info['detection_method']
+        }
 
     def _initialize_folder(self, path):
         shutil.rmtree(path, ignore_errors=True)
@@ -552,9 +585,11 @@ class ScenarioRunner:
                         raise RuntimeError(f"Container '{container_name}' failed during {step_description} but could not retrieve image information for architecture compatibility check. Docker inspect error: {image_ps.stderr.strip()}")
                     image_name = image_ps.stdout.strip()
 
-                image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(image_name)
-                if image_arch and host_arch and not is_compatible:
-                    raise RuntimeError(f"Container '{container_name}' failed during {step_description}, probably due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{image_arch}' but host architecture is '{host_arch}'.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                arch_compatibility = self._check_image_architecture_compatibility(image_name)
+                if not arch_compatibility['can_run']:
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{arch_compatibility['image_arch']}' but host architecture is '{arch_compatibility['host_arch']}' and emulation is not available.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                elif not arch_compatibility['is_native_compatible']:
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description}, possibly due to emulation issues (exit code: {exit_code}). Image architecture is '{arch_compatibility['image_arch']}' but host architecture is '{arch_compatibility['host_arch']}'. Container was running via emulation.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
                 else:
                     raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
 
@@ -1257,6 +1292,22 @@ class ScenarioRunner:
                     docker_run_string.append('--entrypoint=')
 
             clean_image_name = self._clean_image_name(service['image'])
+
+            # Pre-run architecture compatibility check and platform parameter logic
+            print('Checking image architecture compatibility...')
+            arch_compatibility = self._check_image_architecture_compatibility(clean_image_name)
+
+            if not arch_compatibility['can_run']:
+                # Image cannot run at all - fail immediately with clear error
+                raise RuntimeError(f"Container '{container_name}' cannot run due to architecture incompatibility. Image architecture is '{arch_compatibility['image_arch']}' but host architecture is '{arch_compatibility['host_arch']}' and emulation is not available.")
+            elif arch_compatibility['needs_emulation']:
+                # Image can run via emulation - add warning but allow Docker to handle it
+                self.__warnings.append(f"Container '{container_name}' will run with architecture emulation. Image architecture is '{arch_compatibility['image_arch']}' but host architecture is '{arch_compatibility['host_arch']}'. This may impact performance. Detected via: {arch_compatibility['detection_method']}")
+                print(f"Warning: Container will use emulation (image: {arch_compatibility['image_arch']}, host: {arch_compatibility['host_arch']})")
+            else:
+                # Native compatibility - no action needed
+                print(f"Architecture compatible: {arch_compatibility['image_arch']} (native)")
+
             docker_run_string.append(clean_image_name)
 
             # This is because only the first argument in the list is the command, the rest are arguments which need to come after
@@ -1366,10 +1417,6 @@ class ScenarioRunner:
             time.sleep(1)
             self._check_container_is_running(container_name, "startup", clean_image_name)
 
-            # Container is running - check for architecture mismatch that might indicate emulation
-            image_arch, host_arch, is_compatible = self._check_image_architecture_compatibility(clean_image_name)
-            if image_arch and host_arch and not is_compatible:
-                self.__warnings.append(f"Container '{container_name}' is running with architecture emulation. Image architecture is '{image_arch}' but host architecture is '{host_arch}'. This may impact performance.")
 
             print('Stdout:', container_id)
 
