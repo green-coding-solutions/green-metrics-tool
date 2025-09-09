@@ -164,9 +164,9 @@ def _get_supported_platforms():
 
     # Final fallback to native platform
     native_platform = get_native_platform()
-    result = [native_platform]
-    _platform_cache[cache_key] = result
-    return result
+    platforms = [native_platform]
+    _platform_cache[cache_key] = platforms
+    return platforms
 
 
 def _can_run_natively(target_platform, host_platform):
@@ -234,7 +234,10 @@ def get_platform_compatibility_status(platform=None):
         
     Returns:
         If platform specified: CompatibilityStatus (NATIVE, EMULATED, or INCOMPATIBLE)
-        If platform is None: Dict with detailed platform compatibility information
+        If platform is None: Dict with detailed platform compatibility information containing:
+            - platform_compatibility: Dict mapping platforms to CompatibilityStatus
+            - native_platform: String of the host's native platform
+            - emulated_platforms: List of platforms that require emulation
     """
     cache_key = 'emulation_support_detailed'
     if cache_key in _platform_cache:
@@ -297,6 +300,8 @@ def check_image_architecture_compatibility(image_name):
             - status: CompatibilityStatus enum (NATIVE, EMULATED, or INCOMPATIBLE)
             - can_run: True if image can execute (natively or via emulation)
             - needs_emulation: True if emulation is required to run
+            - is_native_compatible: True if image runs natively without emulation
+            - error: Error message if compatibility check failed, None otherwise
     """
     try:
         # Get image architecture
@@ -351,6 +356,6 @@ if __name__ == '__main__':
         print(f'  {platform_name}: {status.value}')
 
     if compatibility_status['emulated_platforms']:
-        print('Emulated platforms available:', ', '.join(compatibility_status['emulated_platforms']))
+        print('Emulation supported:', ', '.join(compatibility_status['emulated_platforms']))
     else:
-        print('No emulated platforms available')
+        print('No emulation supported')
