@@ -301,16 +301,16 @@ def check_image_architecture_compatibility(image_name):
         # Docker images are typically Linux-based containers
         image_platform = f"linux/{image_arch}"
 
-        compatibility_status = get_platform_compatibility_status(image_platform)
-        can_run = compatibility_status in [CompatibilityStatus.NATIVE, CompatibilityStatus.EMULATED]
-        needs_emulation = compatibility_status == CompatibilityStatus.EMULATED
-        is_native = compatibility_status == CompatibilityStatus.NATIVE
+        image_compatibility_status = get_platform_compatibility_status(image_platform)
+        can_run = image_compatibility_status in [CompatibilityStatus.NATIVE, CompatibilityStatus.EMULATED]
+        needs_emulation = image_compatibility_status == CompatibilityStatus.EMULATED
+        is_native = image_compatibility_status == CompatibilityStatus.NATIVE
 
         return {
             'image_arch': image_arch,
             'host_arch': get_native_architecture(),
             'image_platform': image_platform,
-            'status': compatibility_status,
+            'status': image_compatibility_status,
             'can_run': can_run,
             'needs_emulation': needs_emulation,
             'is_native_compatible': is_native,
@@ -328,3 +328,18 @@ def check_image_architecture_compatibility(image_name):
             'is_native_compatible': False,
             'error': str(e)
         }
+
+
+if __name__ == '__main__':
+    compatibility_status = get_platform_compatibility_status()
+
+    print('Native platform:', compatibility_status['native_platform'])
+    print('Platform compatibility:')
+
+    for platform_name, status in compatibility_status['platform_compatibility'].items():
+        print(f'  {platform_name}: {status.value}')
+
+    if compatibility_status['emulated_platforms']:
+        print('Emulated platforms available:', ', '.join(compatibility_status['emulated_platforms']))
+    else:
+        print('No emulated platforms available')
