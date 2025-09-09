@@ -606,7 +606,7 @@ def test_container_immediate_exit_with_error():
             context.run_until('setup_services')
 
     error_message = str(e.value)
-    assert "failed immediately after start" in error_message, \
+    assert "failed during startup" in error_message, \
         Tests.assertion_info("Expected immediate exit with error message", error_message)
     assert "exit code: 1" in error_message, \
         Tests.assertion_info("Expected non-zero exit code in error message", error_message)
