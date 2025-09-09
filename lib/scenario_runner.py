@@ -1270,7 +1270,7 @@ class ScenarioRunner:
             container_id = ps.stdout.strip()
             self.__containers[container_id] = {
                 'name': container_name,
-                'log-stdout': service.get('log-stdout', False),
+                'log-stdout': service.get('log-stdout', True),
                 'log-stderr': service.get('log-stderr', True),
                 'read-notes-stdout': service.get('read-notes-stdout', False),
                 'read-sci-stdout': service.get('read-sci-stdout', False),
@@ -1309,12 +1309,15 @@ class ScenarioRunner:
                     # injection of unwawnted params
                     ps = subprocess.run(
                         d_command,
-                        check=True,
+                        check=False,
                         stderr=subprocess.PIPE,
                         stdout=subprocess.PIPE,
                         encoding='UTF-8',
                         errors='replace',
                     )
+
+                    if ps.returncode != 0:
+                        raise RuntimeError(f"Process {d_command} failed.\n\nStdout: {ps.stdout}\nStderr: {ps.stderr}")
 
                 self.__ps_to_read.append({
                     'cmd': d_command,
@@ -1495,7 +1498,7 @@ class ScenarioRunner:
                         # behavior
 
                         stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
-                        if cmd_obj.get('log-stdout', False):
+                        if cmd_obj.get('log-stdout', True):
                             stdout_behaviour = subprocess.PIPE
                         if cmd_obj.get('log-stderr', True):
                             stderr_behaviour = subprocess.PIPE
