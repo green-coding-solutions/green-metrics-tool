@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import json
+import time
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
@@ -599,14 +600,18 @@ def test_cmd_entrypoint():
 
 def test_container_immediate_exit_with_error():
     """Test that containers exiting immediately with non-zero exit codes raise RuntimeError"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/container_immediate_exit_with_error.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/container_immediate_exit_with_error.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
+            for step in context.run_steps():
+                if step == 'setup_services':
+                    # Race condition fix: Container exits with error code 1, but takes time to execute the command.
+                    # Adding delay ensures container has time to exit before the running container check.
+                    time.sleep(0.5)
 
     error_message = str(e.value)
-    assert "failed during startup" in error_message, \
+    assert "failed during boot phase" in error_message, \
         Tests.assertion_info("Expected immediate exit with error message", error_message)
     assert "exit code: 1" in error_message, \
         Tests.assertion_info("Expected non-zero exit code in error message", error_message)
