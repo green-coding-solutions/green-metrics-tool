@@ -205,17 +205,17 @@ METRIC_MAPPINGS = {
     },
     "disk_total_cgroup_container": {
         "clean_name": "Disk Data",
-        "source": "formula",
+        "source": "procfs",
         "explanation": "Disk I/O Totals accumulated per container via cgroup"
     },
     "disk_total_read_procfs_system": {
         "clean_name": "Disk Data (Read)",
-        "source": "formula",
+        "source": "procfs",
         "explanation": "Disk read bytes totals for whole system accumulated via procfs"
     },
     "disk_total_write_procfs_system": {
         "clean_name": "Disk Data (Write)",
-        "source": "formula",
+        "source": "procfs",
         "explanation": "Disk written bytes totals for whole system accumulated via procfs"
     },
     "psu_energy_cgroup_container": {
@@ -239,9 +239,9 @@ METRIC_MAPPINGS = {
         "explanation": "Container power estimated via CPU-% share incl. Idle"
     },
     "psu_carbon_dc_rapl_msr_machine": {
-        "clean_name": "Machine CO₂",
-        "source": "RAPL",
-        "explanation": "Machine CO₂ calculated by formula via RAPL PSYS Domain"
+        "clean_name": "Machine CO₂ (operational)",
+        "source": "Formula (RAPL)",
+        "explanation": "Machine operational CO₂ calculated by formula via RAPL PSYS Domain"
     },
     "psu_energy_dc_rapl_msr_machine": {
         "clean_name": "Machine Energy",
@@ -254,9 +254,9 @@ METRIC_MAPPINGS = {
         "explanation": "Full machine power (DC) as reported by RAPL PSYS Domain"
     },
     "psu_carbon_ac_mcp_machine": {
-        "clean_name": "Machine CO₂",
-        "source": "mcp",
-        "explanation": "Machine CO₂ calculated by formula via mcp"
+        "clean_name": "Machine CO₂ (operational)",
+        "source": "Formula (mcp)",
+        "explanation": "Machine operational CO₂ calculated by formula via mcp"
     },
     "psu_energy_ac_mcp_machine": {
         "clean_name": "Machine Energy",
@@ -269,13 +269,13 @@ METRIC_MAPPINGS = {
         "explanation": "Full machine power (AC) as reported by mcp"
     },
     "embodied_carbon_share_machine": {
-        "clean_name": "Embodied Carbon",
-        "source": "formula",
+        "clean_name": "Machine Embodied Carbon",
+        "source": "Formula",
         "explanation": "Embodied carbon attributed by time share of the life-span and total embodied carbon"
     },
     "software_carbon_intensity_global": {
         "clean_name": "SCI",
-        "source": "formula",
+        "source": "Formula",
         "explanation": "SCI metric by the Green Software Foundation"
     },
     "phase_time_syscall_system": {
@@ -284,24 +284,24 @@ METRIC_MAPPINGS = {
         "explanation": "Duration of the phase measured by GMT through a syscall"
     },
     "psu_carbon_ac_ipmi_machine": {
-        "clean_name": "Machine CO₂",
+        "clean_name": "Machine CO₂ (operational)",
         "source": "Formula (IPMI)",
-        "explanation": "Machine CO₂ calculated by formula via IPMI measurement"
+        "explanation": "Machine operational CO₂ calculated by formula via IPMI measurement"
     },
     "psu_carbon_dc_picolog_mainboard": {
-        "clean_name": "Machine CO₂",
+        "clean_name": "Machine CO₂ (operational)",
         "source": "Formula (PicoLog)",
-        "explanation": "Machine CO₂ calculated by formula via PicoLog HRDL ADC-24 measurement"
+        "explanation": "Machine operational CO₂ calculated by formula via PicoLog HRDL ADC-24 measurement"
     },
     "psu_carbon_ac_powerspy2_machine": {
-        "clean_name": "Machine CO₂",
-        "source": "PowerSpy2",
-        "explanation": "Machine CO₂ calculated by formula via PowerSpy2 measurement"
+        "clean_name": "Machine CO₂ (operational)",
+        "source": "Formula (PowerSpy2)",
+        "explanation": "Machine operational CO₂ calculated by formula via PowerSpy2 measurement"
     },
     "psu_carbon_ac_xgboost_machine": {
-        "clean_name": "Machine CO₂",
+        "clean_name": "Machine CO₂ (operational)",
         "source": "Formula (XGBoost)",
-        "explanation": "Machine CO₂ calculated by formula via XGBoost estimation"
+        "explanation": "Machine operational CO₂ calculated by formula via XGBoost estimation"
     },
     "network_energy_formula_global": {
         "clean_name": "Network Transmission",
@@ -498,15 +498,25 @@ METRIC_MAPPINGS = {
         "source": "NVIDIA NVML",
         "explanation": "NVIDIA NVML based GPU power"
     },
+    "gpu_carbon_nvidia_nvml_component": {
+        "clean_name": "GPU CO₂ (operational)",
+        "source": "Formula (NVIDIA NVML)",
+        "explanation": "GPU operational CO₂ calculated by formula via NVIDIA NVML"
+    },
     "cpu_energy_rapl_msr_component": {
-        "clean_name": "CPU Energy (Package)",
+        "clean_name": "CPU Package Energy",
         "source": "RAPL",
         "explanation": "RAPL based CPU energy of package domain"
     },
     "cpu_power_rapl_msr_component": {
-        "clean_name": "CPU Power (Package)",
+        "clean_name": "CPU Package Power",
         "source": "RAPL",
         "explanation": "Derived RAPL based CPU energy of package domain"
+    },
+    "cpu_carbon_rapl_msr_component": {
+        "clean_name": "CPU Package CO₂ (operational)",
+        "source": "Formula (RAPL)",
+        "explanation": "Derived RAPL based CPU operational CO₂ via formula of package domain"
     },
     "cpu_utilization_procfs_system": {
         "clean_name": "CPU %",
@@ -518,13 +528,18 @@ METRIC_MAPPINGS = {
         "source": "mach",
         "explanation": "CPU Utilization of total system"
     },
+    "memory_carbon_rapl_msr_component": {
+        "clean_name": "DRAM CO₂ (operational)",
+        "source": "RAPL",
+        "explanation": "RAPL based memory operational CO₂ of DRAM domain"
+    },
     "memory_energy_rapl_msr_component": {
-        "clean_name": "Memory Energy (DRAM)",
+        "clean_name": "DRAM Energy",
         "source": "RAPL",
         "explanation": "RAPL based memory energy of DRAM domain"
     },
     "memory_power_rapl_msr_component": {
-        "clean_name": "Memory Power (DRAM)",
+        "clean_name": "DRAM Power",
         "source": "RAPL",
         "explanation": "Derived RAPL based memory energy of DRAM domain"
     },
@@ -535,12 +550,12 @@ METRIC_MAPPINGS = {
     },
     "psu_energy_ac_sdia_machine": {
         "clean_name": "Machine Energy",
-        "source": "SDIA",
+        "source": "Formula (SDIA)",
         "explanation": "Full machine energy (AC) as estimated by SDIA model"
     },
     "psu_power_ac_sdia_machine": {
         "clean_name": "Machine Power",
-        "source": "SDIA",
+        "source": "Formula (SDIA)",
         "explanation": "Full machine power (AC) as estimated by SDIA model"
     },
     "disk_io_read_cgroup_container": {
