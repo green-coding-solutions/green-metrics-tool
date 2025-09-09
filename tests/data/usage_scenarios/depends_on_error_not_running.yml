@@ -12,12 +12,12 @@ services:
   test-container-2:
     image: alpine
     setup-commands:
-      - command: sleep 1.5 # pause so the test-container-3 has time to fail
+      - command: sleep 0.5 # pause so the test-container-3 has time to fail
     depends_on:
       - test-container-3
   test-container-3:
     image: alpine
-    command: sh -c "sleep 1.5 && exit 1" # simulate a container stop that happens after the detached container start check (waits for only 1 second)
+    command: sh -c "sleep 0.5 && exit 1" # simulate a container outage after container start
 
 flow:
   - name: Stress

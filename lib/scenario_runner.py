@@ -1344,13 +1344,6 @@ class ScenarioRunner:
                 'read-sci-stdout': service.get('read-sci-stdout', False),
             }
 
-            # Check if detached container failed immediately after startup
-            # This is necessary, because 'docker run -d' returns exit code 0 (success) even when containers fail moments later
-            # Common causes: architecture mismatch, missing dependencies, invalid entrypoints
-            time.sleep(1)
-            self._check_container_is_running(container_name, "startup", clean_image_name)
-
-
             print('Stdout:', container_id)
 
             print('Running commands')
