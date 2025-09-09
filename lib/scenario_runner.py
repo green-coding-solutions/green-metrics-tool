@@ -1225,21 +1225,30 @@ class ScenarioRunner:
 
             clean_image_name = self._clean_image_name(service['image'])
 
-            # Pre-run architecture compatibility check and platform parameter logic
+            # Architecture compatibility must be checked before docker run execution.
+            # While docker pull has an architecture check, it only catches images with no
+            # compatible manifest at all - the architecture of the used tag or hash digest
+            # may still be incompatible.
+            # Docker run exits with 0 even on incompatible architectures without '--platform',
+            # requiring post-run checks with pauses to detect failures. Using '--platform'
+            # prevents Docker emulation support, so we check compatibility upfront to fail
+            # fast on incompatible images while allowing emulated execution when supported.
             print('Checking image architecture compatibility...')
             compatibility_info = container_compatibility.check_image_architecture_compatibility(clean_image_name)
             compatibility_status = compatibility_info['status']
+            image_arch = compatibility_info['image_arch']
+            host_arch = compatibility_info['host_arch']
 
             if compatibility_status == CompatibilityStatus.INCOMPATIBLE:
                 # Image cannot run at all - fail immediately with clear error
-                raise RuntimeError(f"Container '{container_name}' cannot run due to architecture incompatibility. Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}' and emulation is not available.")
+                raise RuntimeError(f"Container '{container_name}' cannot run due to architecture incompatibility. Image architecture is '{image_arch}' but host architecture is '{host_arch}' and emulation is not available.")
             elif compatibility_status == CompatibilityStatus.EMULATED:
                 # Image can run via emulation - add warning but allow Docker to handle it
-                self.__warnings.append(f"Container '{container_name}' will run with architecture emulation. Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}'. This may impact performance.")
-                print(f"Warning: Container will use emulation (image: {compatibility_info['image_arch']}, host: {compatibility_info['host_arch']})")
+                self.__warnings.append(f"Container '{container_name}' will run with architecture emulation. Image architecture is '{image_arch}' but host architecture is '{host_arch}'. This may impact performance.")
+                print(f"Warning: Container will use emulation (image: {image_arch}, host: {host_arch})")
             elif compatibility_status == CompatibilityStatus.NATIVE:
                 # Native compatibility - no action needed
-                print(f"Architecture compatible: {compatibility_info['image_arch']} (native)")
+                print(f"Architecture compatible: {image_arch} (native)")
 
             docker_run_string.append(clean_image_name)
 
