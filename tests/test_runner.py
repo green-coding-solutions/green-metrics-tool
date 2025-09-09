@@ -509,14 +509,6 @@ def test_docker_pull_nonexistent_image_non_interactive_fails():
 
 
 ## Docker run architecture mismatch tests
-def can_run_amd64_images_natively():
-    """Check if this host can run AMD64 Docker images natively (without emulation)."""
-    return container_compatibility.get_platform_compatibility_status('linux/amd64') == container_compatibility.CompatibilityStatus.NATIVE
-
-def can_run_arm64_images_natively():
-    """Check if this host can run ARM64 Docker images natively (without emulation)."""
-    return container_compatibility.get_platform_compatibility_status('linux/arm64') == container_compatibility.CompatibilityStatus.NATIVE
-
 def can_emulate_amd64_images():
     """Check if this host can run AMD64 Docker images via emulation."""
     return container_compatibility.get_platform_compatibility_status('linux/amd64') == container_compatibility.CompatibilityStatus.EMULATED
@@ -526,7 +518,7 @@ def can_emulate_arm64_images():
     return container_compatibility.get_platform_compatibility_status('linux/arm64') == container_compatibility.CompatibilityStatus.EMULATED
 
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
-@pytest.mark.skipif(not can_run_amd64_images_natively(), reason="Test only valid when AMD64 is native (so ARM64 images fail)")
+@pytest.mark.skipif(can_emulate_arm64_images(), reason="Test is only valid when arm64 can't be emulated")
 def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
     """Test Docker run fails immediately when trying to run ARM64 image on AMD64 host without emulation"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml',
@@ -542,7 +534,7 @@ def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
     assert "emulation is not available" in error_msg
 
 @pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
-@pytest.mark.skipif(not can_run_arm64_images_natively(), reason="Test only valid when ARM64 is native (so AMD64 images fail)")
+@pytest.mark.skipif(can_emulate_amd64_images(), reason="Test is only valid when amd64 can't be emulated")
 def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
     """Test Docker run fails immediately when trying to run amd64 image on arm64 host without emulation"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml',
