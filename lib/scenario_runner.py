@@ -1543,6 +1543,7 @@ class ScenarioRunner:
                             'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
                             'ignore-errors': cmd_obj.get('ignore-errors', False),
                             'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
+                            'sub-phase-expansion-pattern': cmd_obj.get('sub-phase-expansion-pattern', None),
                             'detail_name': flow['container'],
                             'detach': cmd_obj.get('detach', False),
                         })
@@ -1679,6 +1680,13 @@ class ScenarioRunner:
                 if ps['read-sci-stdout']:
                     for match in re.findall(r'^GMT_SCI_R=(\d+)$', stdout, re.MULTILINE):
                         self._sci['R'] += int(match)
+
+                if ps.get('sub-phase-expansion-pattern', None):
+                    print('Pattern is', ps['sub-phase-expansion-pattern'])
+
+                    for match in re.finditer(ps['sub-phase-expansion-pattern'], stdout, re.MULTILINE):
+                        self.__phases[match['phase_name']] = {'start': int(match['start_time']), 'name': match['phase_name'], 'end': int(match['end_time']) }
+                        DB().query("INSERT INTO micro_phases (run_id, name, start_time, end_time) VALUES (%s, %s, %s, %s)", (self._run_id, match['phase_name'], match['start_time'], match['end_time']))
 
             if stderr is not None:
                 print('stderr from process:', ps['cmd'], stderr)

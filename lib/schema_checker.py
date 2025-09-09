@@ -187,6 +187,7 @@ class SchemaChecker():
                     Optional("shell"): And(str, Use(self.not_empty)),
                     Optional("log-stdout"): bool,
                     Optional("log-stderr"): bool,
+                    Optional("sub-phase-expansion-pattern"): And(str, Use(self.not_empty)),
                 }],
 
             }],
