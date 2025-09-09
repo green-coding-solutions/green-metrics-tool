@@ -169,43 +169,54 @@ def _get_supported_platforms():
     return result
 
 
-def _is_compatible_architecture_variant(candidate_platform, host_platform):
-    """Check if a candidate platform is a variant of the host architecture.
+def _can_run_natively(target_platform, host_platform):
+    """Check if a target platform can run natively on the host architecture.
     
-    Architecture variants like linux/amd64/v2, linux/amd64/v3, linux/amd64/v4
-    are native instruction set variants, not emulated platforms.
+    Considers two types of native compatibility:
+    1. Architecture variants: linux/amd64/v2, linux/amd64/v3, linux/amd64/v4
+       are native instruction set variants that run without emulation
+    2. Backward compatibility: Newer architectures can run older instruction sets
+       natively due to hardware backward compatibility (e.g., amd64 can run 386)
     
     Args:
-        candidate_platform: Platform string to check (e.g., 'linux/amd64/v2')
+        target_platform: Platform string to check (e.g., 'linux/amd64/v2')
         host_platform: Host's native platform string (e.g., 'linux/amd64')
     
     Returns:
-        True if candidate_platform is a native variant, False if it requires emulation
+        True if target_platform can run natively, False if it requires emulation
     """
-    if candidate_platform == host_platform:
+    if target_platform == host_platform:
         return True
 
     # Extract base architecture from both platforms for comparison
     # Format: linux/architecture[/variant]
-    if '/' not in candidate_platform or '/' not in host_platform:
+    if '/' not in target_platform or '/' not in host_platform:
         return False
 
-    candidate_parts = candidate_platform.split('/')
+    target_parts = target_platform.split('/')
     host_parts = host_platform.split('/')
 
-    # Must have same OS (typically 'linux')
-    if len(candidate_parts) < 2 or len(host_parts) < 2:
+    # Ensure both platforms have at least OS and architecture parts (e.g., 'linux/amd64')
+    if len(target_parts) < 2 or len(host_parts) < 2:
         return False
 
-    if candidate_parts[0] != host_parts[0]:  # Different OS
+    if target_parts[0] != host_parts[0]:  # Different OS
         return False
 
-    if candidate_parts[1] != host_parts[1]:  # Different base architecture
+    target_arch = target_parts[1]
+    host_arch = host_parts[1]
+
+    # Handle native backward compatibility cases
+    if host_arch == 'amd64' and target_arch == '386':
+        # 32-bit x86 runs natively on amd64 without emulation
+        return True
+
+    if target_arch != host_arch:  # Different base architecture
         return False
 
     # Same base architecture - check if this is a variant
     # Variants have additional parts (e.g., linux/amd64/v2 vs linux/amd64)
-    if len(candidate_parts) > len(host_parts):
+    if len(target_parts) > len(host_parts):
         # This is a variant of the native architecture
         return True
 
@@ -243,11 +254,11 @@ def get_platform_compatibility_status(platform=None):
         emulated_platforms = []
 
         for p in all_platforms:
-            if _is_compatible_architecture_variant(p, native_platform):
-                # Native or native variant
+            if _can_run_natively(p, native_platform):
+                # Can run natively (exact match, variant, or backward compatible)
                 platform_compatibility[p] = CompatibilityStatus.NATIVE
             else:
-                # Emulated
+                # Requires emulation
                 platform_compatibility[p] = CompatibilityStatus.EMULATED
                 emulated_platforms.append(p)
 

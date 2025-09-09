@@ -11,7 +11,7 @@ ALPINE_AMD64_IMAGE = 'alpine@sha256:eafc1edb577d2e9b458664a15f23ea1c370214193226
 ALPINE_ARM64_IMAGE = 'alpine@sha256:4562b419adf48c5f3c763995d6014c123b3ce1d2e0ef2613b189779caa787192'
 
 from lib.container_compatibility import CompatibilityStatus
-from lib.container_compatibility import _is_compatible_architecture_variant
+from lib.container_compatibility import _can_run_natively
 from lib.container_compatibility import check_image_architecture_compatibility
 from lib.container_compatibility import _clear_platform_cache
 from lib.container_compatibility import get_platform_compatibility_status
@@ -22,14 +22,14 @@ def clear_platform_cache():
     """Automatically clear platform cache before each test to ensure isolation."""
     _clear_platform_cache()
 
-class TestCompatibleArchitectureVariants:
-    """Test suite for _is_compatible_architecture_variant function."""
+class TestNativeCompatibility:
+    """Test suite for _can_run_natively function."""
 
     def test_exact_match(self):
         """Test exact platform matches are considered native."""
-        assert _is_compatible_architecture_variant("linux/amd64", "linux/amd64") is True
-        assert _is_compatible_architecture_variant("linux/arm64", "linux/arm64") is True
-        assert _is_compatible_architecture_variant("linux/arm", "linux/arm") is True
+        assert _can_run_natively("linux/amd64", "linux/amd64") is True
+        assert _can_run_natively("linux/arm64", "linux/arm64") is True
+        assert _can_run_natively("linux/arm", "linux/arm") is True
 
     @pytest.mark.parametrize("host_platform,variant_platforms", [
         ("linux/amd64", [
@@ -46,15 +46,15 @@ class TestCompatibleArchitectureVariants:
             "linux/386/custom"
         ]),
     ])
-    def test_architecture_variants_are_native(self, host_platform, variant_platforms):
-        """Test that architecture variants are correctly identified as native."""
+    def test_architecture_variants_can_run_natively(self, host_platform, variant_platforms):
+        """Test that architecture variants can run natively on their base architecture."""
         for variant in variant_platforms:
-            assert _is_compatible_architecture_variant(variant, host_platform) is True, \
-                f"{variant} should be native variant of {host_platform}"
+            assert _can_run_natively(variant, host_platform) is True, \
+                f"{variant} should run natively on {host_platform}"
 
     @pytest.mark.parametrize("host_platform,emulated_platforms", [
         ("linux/amd64", [
-            "linux/arm64", "linux/386", "linux/arm", "linux/s390x", "linux/ppc64le"
+            "linux/arm64", "linux/arm", "linux/s390x", "linux/ppc64le"
         ]),
         ("linux/arm64", [
             "linux/amd64", "linux/386", "linux/arm", "linux/s390x"
@@ -63,52 +63,52 @@ class TestCompatibleArchitectureVariants:
             "linux/amd64", "linux/arm64", "linux/386", "linux/s390x"
         ]),
     ])
-    def test_different_architectures_require_emulation(self, host_platform, emulated_platforms):
-        """Test that different architectures are correctly identified as requiring emulation."""
+    def test_different_architectures_cannot_run_natively(self, host_platform, emulated_platforms):
+        """Test that different architectures cannot run natively and require emulation."""
         for emulated in emulated_platforms:
-            assert _is_compatible_architecture_variant(emulated, host_platform) is False, \
-                f"{emulated} should require emulation on {host_platform}"
+            assert _can_run_natively(emulated, host_platform) is False, \
+                f"{emulated} cannot run natively on {host_platform}"
 
-    def test_different_os_requires_emulation(self):
-        """Test that different operating systems require emulation."""
+    def test_different_os_cannot_run_natively(self):
+        """Test that different operating systems cannot run natively."""
         host_platform = "linux/amd64"
 
         different_os_platforms = [
             "windows/amd64", "darwin/amd64", "freebsd/amd64"
         ]
 
-        for candidate_platform in different_os_platforms:
-            assert _is_compatible_architecture_variant(candidate_platform, host_platform) is False
+        for target_platform in different_os_platforms:
+            assert _can_run_natively(target_platform, host_platform) is False
 
-    @pytest.mark.parametrize("candidate_platform", [
+    @pytest.mark.parametrize("target_platform", [
         "invalid", "linux", "amd64", "", "/", "linux/", "/amd64"
     ])
-    def test_invalid_formats_return_false(self, candidate_platform):
+    def test_invalid_formats_return_false(self, target_platform):
         """Test that invalid platform formats return False."""
         host_platform = "linux/amd64"
-        assert _is_compatible_architecture_variant(candidate_platform, host_platform) is False
+        assert _can_run_natively(target_platform, host_platform) is False
 
     def test_variant_hierarchy_edge_cases(self):
         """Test edge cases with variant hierarchies."""
         # Base platform is NOT a variant of its own variant
-        assert _is_compatible_architecture_variant("linux/amd64", "linux/amd64/v2") is False
+        assert _can_run_natively("linux/amd64", "linux/amd64/v2") is False
 
         # Variants of variants should not be considered native to base
         # (though this is unlikely in practice)
-        assert _is_compatible_architecture_variant("linux/amd64/v2/custom", "linux/amd64") is True
+        assert _can_run_natively("linux/amd64/v2/custom", "linux/amd64") is True
 
         # Cross-architecture variants
-        assert _is_compatible_architecture_variant("linux/arm64/v8", "linux/amd64") is False
-        assert _is_compatible_architecture_variant("linux/amd64/v2", "linux/arm64") is False
+        assert _can_run_natively("linux/arm64/v8", "linux/amd64") is False
+        assert _can_run_natively("linux/amd64/v2", "linux/arm64") is False
 
     def test_case_sensitivity(self):
         """Test that platform comparison handles case correctly."""
         host_platform = "linux/amd64"
 
         # These should be False as Docker platforms are case-sensitive
-        assert _is_compatible_architecture_variant("Linux/amd64", host_platform) is False
-        assert _is_compatible_architecture_variant("linux/AMD64", host_platform) is False
-        assert _is_compatible_architecture_variant("LINUX/AMD64", host_platform) is False
+        assert _can_run_natively("Linux/amd64", host_platform) is False
+        assert _can_run_natively("linux/AMD64", host_platform) is False
+        assert _can_run_natively("LINUX/AMD64", host_platform) is False
 
     def test_real_world_docker_platforms(self):
         """Test with actual Docker platform strings seen in the wild."""
@@ -117,21 +117,33 @@ class TestCompatibleArchitectureVariants:
         amd64_variants = ["linux/amd64/v2", "linux/amd64/v3", "linux/amd64/v4"]
 
         for variant in amd64_variants:
-            assert _is_compatible_architecture_variant(variant, host_amd64) is True
+            assert _can_run_natively(variant, host_amd64) is True
 
         # ARM variants
         host_arm64 = "linux/arm64"
-        assert _is_compatible_architecture_variant("linux/arm64/v8", host_arm64) is True
+        assert _can_run_natively("linux/arm64/v8", host_arm64) is True
 
         host_arm = "linux/arm"
         arm_variants = ["linux/arm/v6", "linux/arm/v7"]
 
         for variant in arm_variants:
-            assert _is_compatible_architecture_variant(variant, host_arm) is True
+            assert _can_run_natively(variant, host_arm) is True
 
         # Cross-architecture should be False
-        assert _is_compatible_architecture_variant("linux/arm64", host_amd64) is False
-        assert _is_compatible_architecture_variant("linux/amd64", host_arm64) is False
+        assert _can_run_natively("linux/arm64", host_amd64) is False
+        assert _can_run_natively("linux/amd64", host_arm64) is False
+
+    def test_native_backward_compatibility(self):
+        """Test native backward compatibility cases."""
+        # linux/386 (32-bit x86) should run natively on linux/amd64
+        assert _can_run_natively("linux/386", "linux/amd64") is True
+
+        # But not the reverse - linux/amd64 cannot run on linux/386
+        assert _can_run_natively("linux/amd64", "linux/386") is False
+
+        # And linux/386 should still require emulation on other architectures
+        assert _can_run_natively("linux/386", "linux/arm64") is False
+        assert _can_run_natively("linux/386", "linux/arm") is False
 
 
 class TestArchitectureCompatibility:
@@ -400,7 +412,7 @@ class TestPlatformCompatibilityStatus:
                 'linux/amd64',      # Native
                 'linux/amd64/v2',   # Native variant
                 'linux/arm64',      # Emulated
-                'linux/386'         # Emulated
+                'linux/386'         # Native on amd64 (backward compatibility)
             ]
 
             _clear_platform_cache()
@@ -413,7 +425,7 @@ class TestPlatformCompatibilityStatus:
 
             # Test emulated platforms
             assert get_platform_compatibility_status('linux/arm64') == CompatibilityStatus.EMULATED
-            assert get_platform_compatibility_status('linux/386') == CompatibilityStatus.EMULATED
+            assert get_platform_compatibility_status('linux/386') == CompatibilityStatus.NATIVE
 
             # Test unsupported platform
             assert get_platform_compatibility_status('linux/unsupported') == CompatibilityStatus.INCOMPATIBLE
