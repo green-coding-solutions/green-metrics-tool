@@ -738,6 +738,10 @@ def test_user_input_xss_protection():
             'var1': '<script>alert("XSS_VAR1")</script>value1',
             'var2': '<script>alert("XSS_VAR2")</script>value2'
         }
+        malicious_usage_scenario = {
+            "name": "xss test",
+            "description": "<script>alert(\"XSS_USAGE_SCENARIO\")</script>"
+        }
 
         # Insert test data with malicious content in multiple fields
         run_id = str(uuid.uuid4())
@@ -755,7 +759,7 @@ def test_user_input_xss_protection():
             malicious_uri,
             malicious_branch,
             'deadbeef123456789abcdef',
-            '{"name": "xss test"}',
+            json.dumps(malicious_usage_scenario),
             json.dumps(malicious_variables),
             malicious_filename,
             1,
@@ -770,7 +774,7 @@ def test_user_input_xss_protection():
             malicious_uri,  # Share the malicious URI for comparison
             malicious_branch,
             'deadbeef123456789abcdef',  # Same commit hash
-            '{"name": "xss test"}',     # Same usage scenario
+            json.dumps(malicious_usage_scenario),  # Same usage scenario
             json.dumps(malicious_variables),  # Same usage scenario variables
             malicious_filename,
             1,
@@ -815,7 +819,8 @@ def test_user_input_xss_protection():
             '<script>alert("XSS_FILENAME")</script>',
             '<script>alert("XSS_URI")</script>',
             '<script>alert("XSS_VAR1")</script>',
-            '<script>alert("XSS_VAR2")</script>'
+            '<script>alert("XSS_VAR2")</script>',
+            '<script>alert("XSS_USAGE_SCENARIO")</script>'
         ]
 
         # Test 1: Runs page
@@ -846,7 +851,7 @@ def test_user_input_xss_protection():
             assert script not in stats_content, \
                 f"XSS vulnerability detected on stats page: malicious script '{script}' found unescaped"
 
-        stats_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI']
+        stats_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI', 'XSS_VAR1', 'XSS_VAR2', 'XSS_USAGE_SCENARIO']
         for content in stats_safe_checks:
             assert content in stats_content, \
                 f"Content '{content}' should be visible on stats page (but safely escaped)"
