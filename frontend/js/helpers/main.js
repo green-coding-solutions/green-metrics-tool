@@ -300,7 +300,7 @@ async function makeAPICall(path, values=null, force_authentication_token=null, f
 };
 
 /* Menu toggling */
-let openMenu = function(e){
+let openMenu = function(){
     $(this).removeClass('closed').addClass('opened');
     $('#menu').removeClass('closed').addClass('opened');
     $('#main').removeClass('closed').addClass('opened');
@@ -309,7 +309,7 @@ let openMenu = function(e){
 
 }
 
-let closeMenu = function(e){
+let closeMenu = function(){
     $(this).removeClass('opened').addClass('closed');
     $('#menu').removeClass('opened').addClass('closed');
     $('#main').removeClass('opened').addClass('closed');

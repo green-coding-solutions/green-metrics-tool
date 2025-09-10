@@ -9,6 +9,7 @@ $(document).ready(function () {
             return;
         }
         measurements.data.forEach(measurement => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             let [id, name, image_url, repo_url, categories, branch, filename, machine_id, machine_description, schedule_mode, last_scheduled, created_at, updated_at, last_run, metrics] = measurement
             filename = filename == null ? '': filename
             branch = branch == null ? '': branch

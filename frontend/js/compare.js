@@ -48,7 +48,7 @@ const fillWarnings = (warnings) => {
     container.classList.remove('hidden');
 };
 
-$(document).ready( (e) => {
+$(document).ready( () => {
     (async () => {
         const url_params = getURLParams();
 
