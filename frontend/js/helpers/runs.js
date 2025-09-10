@@ -186,14 +186,16 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             title: 'Name',
             render: function(el, type, row) {
 
-                // only show Failed OR in Progress
+                el = escapeString(el);
+
+                // Show status labels based on run state
                 if(row[11] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
                 else if(row[10] == null) el = `${el} (in progress 🔥)`;
 
+                // Show warning label if warnings exist
+                if(row[5] != 0) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">Warnings</span>`;
 
-                if(row[5] != 0) el = `${el} <span class="ui yellow horizontal label" title="${escapeString(row[5])}">Warnings</span>`;
-
-                return `<a href="/stats.html?id=${row[0]}" target="_blank">${escapeString(el)}</a>`
+                return `<a href="/stats.html?id=${row[0]}" target="_blank">${el}</a>`
             },
         },
     ]
