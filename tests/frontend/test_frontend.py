@@ -735,8 +735,12 @@ def test_user_input_xss_protection():
         malicious_filename = '<script>alert("XSS_FILENAME")</script>test.yml'
         malicious_uri = 'http://evil.com<script>alert("XSS_URI")</script>'
         malicious_usage_scenario = {
-            "name": "xss test",
-            "description": "<script>alert(\"XSS_USAGE_SCENARIO\")</script>"
+            "name": "<script>alert(\"XSS_USAGE_SCENARIO\")</script>",
+            "flow": [
+                {
+                    "name": "<script>alert(\"XSS_FLOW_NAME\")</script>Malicious Flow"
+                }
+            ]
         }
         malicious_variables = {
             'var1': '<script>alert("XSS_VAR1")</script>value1',
@@ -786,16 +790,29 @@ def test_user_input_xss_protection():
         ))
 
         # Insert phase_stats for the two runs (needed for the compare view)
+        # Include both baseline and flow phases to make the flow visible
         run_query = """
         INSERT INTO phase_stats ("id","run_id","metric","detail_name","phase","value","type","max_value","min_value","sampling_rate_avg","sampling_rate_max","sampling_rate_95p","unit","created_at","updated_at")
         VALUES
         (778,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
-        (779,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[BASELINE]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL);
+        (779,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[BASELINE]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
+        (780,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_<script>alert("XSS_FLOW_NAME")</script>Malicious Flow',5306934,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (781,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<script>alert("XSS_FLOW_NAME")</script>Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
+        (782,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (783,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[BASELINE]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
+        (784,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_<script>alert("XSS_FLOW_NAME")</script>Malicious Flow',5306934,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (785,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<script>alert("XSS_FLOW_NAME")</script>Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL);
         """
 
         DB().query(run_query, params=(
-            run_id,
-            run_id2
+            run_id,      # 778 - baseline phase_time for run_id
+            run_id,      # 779 - baseline cpu_energy for run_id
+            run_id,      # 780 - flow phase_time for run_id
+            run_id,      # 781 - flow cpu_energy for run_id
+            run_id2,     # 782 - baseline phase_time for run_id2
+            run_id2,     # 783 - baseline cpu_energy for run_id2
+            run_id2,     # 784 - flow phase_time for run_id2
+            run_id2      # 785 - flow cpu_energy for run_id2
         ))
 
         # Insert malicious watchlist data
@@ -824,7 +841,8 @@ def test_user_input_xss_protection():
             '<script>alert("XSS_USAGE_SCENARIO")</script>',
             '<script>alert("XSS_VAR1")</script>',
             '<script>alert("XSS_VAR2")</script>',
-            '<script>alert("XSS_LOGS")</script>'
+            '<script>alert("XSS_LOGS")</script>',
+            '<script>alert("XSS_FLOW_NAME")</script>'
         ]
 
         # Test 1: Runs page
@@ -855,7 +873,7 @@ def test_user_input_xss_protection():
             assert script not in stats_content, \
                 f"XSS vulnerability detected on stats page: malicious script '{script}' found unescaped"
 
-        stats_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI', 'XSS_VAR1', 'XSS_VAR2', 'XSS_USAGE_SCENARIO', 'XSS_LOGS']
+        stats_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI', 'XSS_VAR1', 'XSS_VAR2', 'XSS_USAGE_SCENARIO', 'XSS_LOGS', 'XSS_FLOW_NAME']
         for content in stats_safe_checks:
             assert content in stats_content, \
                 f"Content '{content}' should be visible on stats page (but safely escaped)"
@@ -888,7 +906,7 @@ def test_user_input_xss_protection():
             assert script not in compare_content, \
                 f"XSS vulnerability detected on compare page: malicious script '{script}' found unescaped"
 
-        compare_safe_checks = ['XSS_FILENAME', 'XSS_URI']
+        compare_safe_checks = ['XSS_FILENAME', 'XSS_URI', 'XSS_FLOW_NAME']
         for content in compare_safe_checks:
             assert content in compare_content, \
                 f"Content '{content}' should be visible on compare page (but safely escaped)"
