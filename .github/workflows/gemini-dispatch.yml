@@ -14,9 +14,9 @@ on:
 #    types:
 #      - 'opened'
 #      - 'reopened'
-#  issue_comment:
-#    types:
-#      - 'created'
+  issue_comment:
+    types:
+      - 'created'
 
 defaults:
   run:
