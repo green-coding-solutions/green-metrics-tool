@@ -726,6 +726,8 @@ def test_user_input_xss_protection():
     """
     Tests.reset_db()
 
+    base_url = GlobalConfig().config['cluster']['metrics_url']
+
     try:
         # Create malicious payloads for all user-provided fields
         malicious_name = '<script>alert("XSS_NAME")</script>Safe Name'
@@ -753,7 +755,7 @@ def test_user_input_xss_protection():
             malicious_uri,
             malicious_branch,
             'deadbeef123456789abcdef',
-            '{"test": "scenario"}',
+            '{"name": "xss test"}',
             json.dumps(malicious_variables),
             malicious_filename,
             1,
@@ -768,12 +770,25 @@ def test_user_input_xss_protection():
             malicious_uri,  # Share the malicious URI for comparison
             malicious_branch,
             'deadbeef123456789abcdef',  # Same commit hash
-            '{"test": "scenario"}',     # Same usage scenario
+            '{"name": "xss test"}',     # Same usage scenario
             json.dumps(malicious_variables),  # Same usage scenario variables
             malicious_filename,
             1,
             1,
             False
+        ))
+
+        # Insert phase_stats for the two runs (needed for the compare view)
+        run_query = """
+        INSERT INTO phase_stats ("id","run_id","metric","detail_name","phase","value","type","max_value","min_value","sampling_rate_avg","sampling_rate_max","sampling_rate_95p","unit","created_at","updated_at")
+        VALUES
+        (778,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (779,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[BASELINE]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL);
+        """
+
+        DB().query(run_query, params=(
+            run_id,
+            run_id2
         ))
 
         # Insert malicious watchlist data
@@ -794,7 +809,6 @@ def test_user_input_xss_protection():
             1
         ))
 
-        # Test malicious scripts across all pages
         malicious_scripts = [
             '<script>alert("XSS_NAME")</script>',
             '<script>alert("XSS_BRANCH")</script>',
@@ -804,11 +818,9 @@ def test_user_input_xss_protection():
             '<script>alert("XSS_VAR2")</script>'
         ]
 
-        # Test 1: Runs page XSS protection
-        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/runs.html')
-        page.wait_for_load_state("networkidle")  # Wait for network requests to complete
-
-        # Wait for the malicious content to appear in the DataTable
+        # Test 1: Runs page
+        page.goto(base_url + '/runs.html')
+        page.wait_for_load_state("networkidle")
         page.wait_for_function("() => document.body.innerText.includes('XSS_NAME')", timeout=10000)
 
         runs_content = page.content()
@@ -817,17 +829,31 @@ def test_user_input_xss_protection():
             assert script not in runs_content, \
                 f"XSS vulnerability detected on runs page: malicious script '{script}' found unescaped"
 
-        # Verify content appears safely on runs page (all fields displayed)
         runs_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI', 'XSS_VAR1', 'XSS_VAR2']
         for content in runs_safe_checks:
             assert content in runs_content, \
                 f"Content '{content}' should be visible on runs page (but safely escaped)"
 
-        # Test 2: Watchlist page XSS protection
-        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/watchlist.html')
-        page.wait_for_load_state("networkidle")  # Wait for network requests to complete
+        # Test 2: Stats page
+        stats_url = f"{base_url}/stats.html?id={run_id}"
+        page.goto(stats_url)
+        page.wait_for_load_state("networkidle")
+        page.wait_for_function("() => document.body.innerText.includes('XSS_NAME')", timeout=10000)
 
-        # Wait for the malicious content to appear in the watchlist cards
+        stats_content = page.content()
+
+        for script in malicious_scripts:
+            assert script not in stats_content, \
+                f"XSS vulnerability detected on stats page: malicious script '{script}' found unescaped"
+
+        stats_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI']
+        for content in stats_safe_checks:
+            assert content in stats_content, \
+                f"Content '{content}' should be visible on stats page (but safely escaped)"
+
+        # Test 3: Watchlist page
+        page.goto(base_url + '/watchlist.html')
+        page.wait_for_load_state("networkidle")
         page.wait_for_function("() => document.body.innerText.includes('XSS_NAME')", timeout=10000)
 
         watchlist_content = page.content()
@@ -836,30 +862,28 @@ def test_user_input_xss_protection():
             assert script not in watchlist_content, \
                 f"XSS vulnerability detected on watchlist page: malicious script '{script}' found unescaped"
 
-        # Verify content appears safely on watchlist page (only name, branch, filename, URI are displayed)
         watchlist_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI']
         for content in watchlist_safe_checks:
             assert content in watchlist_content, \
                 f"Content '{content}' should be visible on watchlist page (but safely escaped)"
 
-        # Test 3: Compare page XSS protection (basic test - just verify scripts are escaped)
-        compare_url = f"{GlobalConfig().config['cluster']['metrics_url']}/compare.html?ids={run_id},{run_id2}"
+        # Test 4: Compare page
+        compare_url = f"{base_url}/compare.html?ids={run_id},{run_id2}"
         page.goto(compare_url)
-        page.wait_for_load_state("networkidle")  # Wait for network requests to complete
-
-        # Wait for either content to load or error message to appear
-        page.wait_for_function("() => document.body.innerText.includes('Could not get') || document.body.innerText.includes('XSS_')", timeout=10000)
+        page.wait_for_load_state("networkidle")
+        page.wait_for_function("() => document.body.innerText.includes('XSS_FILENAME')", timeout=10000)
 
         compare_content = page.content()
 
-        # Primary XSS test: Ensure malicious scripts are not present unescaped
         for script in malicious_scripts:
             assert script not in compare_content, \
                 f"XSS vulnerability detected on compare page: malicious script '{script}' found unescaped"
 
-        # Note: The compare page may show API errors due to missing measurement data,
-        # but the important test is that any user-provided data that does appear is properly escaped
+        compare_safe_checks = ['XSS_FILENAME', 'XSS_URI']
+        for content in compare_safe_checks:
+            assert content in compare_content, \
+                f"Content '{content}' should be visible on compare page (but safely escaped)"
 
-    finally:
+    finally: # reset state to expectation of this file
         Tests.reset_db()
         Tests.import_demo_data()
