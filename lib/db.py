@@ -104,6 +104,9 @@ class DB:
             min_size=1,
             max_size=2,
             open=True,
+            # Explicitly disabled (default) to prevent measurement interference
+            # from conn.execute("") calls, using @with_db_retry instead
+            check=None
         )
 
     def shutdown(self):
