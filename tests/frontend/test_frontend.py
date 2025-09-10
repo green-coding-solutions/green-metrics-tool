@@ -720,8 +720,8 @@ def test_settings_measurement():
 def test_user_input_xss_protection():
     """
     Test that user-provided fields are properly escaped to prevent XSS attacks across multiple pages.
-    Tests run name, branch, filename, URI, and usage_scenario_variables for XSS vulnerabilities
-    on runs, watchlist, and compare pages.
+    Tests run name, branch, filename, URI, usage_scenario, usage_scenario_variables, and logs for XSS vulnerabilities
+    on runs, stats (including logs view), watchlist, and compare pages.
     This test should FAIL when vulnerabilities exist and PASS when they're fixed.
     """
     Tests.reset_db()
@@ -734,14 +734,15 @@ def test_user_input_xss_protection():
         malicious_branch = '<script>alert("XSS_BRANCH")</script>main'
         malicious_filename = '<script>alert("XSS_FILENAME")</script>test.yml'
         malicious_uri = 'http://evil.com<script>alert("XSS_URI")</script>'
-        malicious_variables = {
-            'var1': '<script>alert("XSS_VAR1")</script>value1',
-            'var2': '<script>alert("XSS_VAR2")</script>value2'
-        }
         malicious_usage_scenario = {
             "name": "xss test",
             "description": "<script>alert(\"XSS_USAGE_SCENARIO\")</script>"
         }
+        malicious_variables = {
+            'var1': '<script>alert("XSS_VAR1")</script>value1',
+            'var2': '<script>alert("XSS_VAR2")</script>value2'
+        }
+        malicious_logs = '<script>alert("XSS_LOGS")</script>Error in container\nStacktrace here'
 
         # Insert test data with malicious content in multiple fields
         run_id = str(uuid.uuid4())
@@ -749,8 +750,8 @@ def test_user_input_xss_protection():
 
         # Insert malicious run data
         run_query = """
-        INSERT INTO "runs"("id","name","uri","branch","commit_hash","commit_timestamp","usage_scenario","usage_scenario_variables","filename","machine_id","user_id","failed","created_at","updated_at")
-        VALUES (%s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        INSERT INTO "runs"("id","name","uri","branch","commit_hash","commit_timestamp","usage_scenario","usage_scenario_variables","filename","machine_id","user_id","failed","logs","created_at","updated_at")
+        VALUES (%s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
         """
 
         DB().query(run_query, params=(
@@ -764,7 +765,8 @@ def test_user_input_xss_protection():
             malicious_filename,
             1,
             1,
-            False
+            False,
+            malicious_logs
         ))
 
         # Insert second run for compare functionality (same params except name to enable comparison)
@@ -779,7 +781,8 @@ def test_user_input_xss_protection():
             malicious_filename,
             1,
             1,
-            False
+            False,
+            malicious_logs  # Same logs for both runs
         ))
 
         # Insert phase_stats for the two runs (needed for the compare view)
@@ -818,9 +821,10 @@ def test_user_input_xss_protection():
             '<script>alert("XSS_BRANCH")</script>',
             '<script>alert("XSS_FILENAME")</script>',
             '<script>alert("XSS_URI")</script>',
+            '<script>alert("XSS_USAGE_SCENARIO")</script>',
             '<script>alert("XSS_VAR1")</script>',
             '<script>alert("XSS_VAR2")</script>',
-            '<script>alert("XSS_USAGE_SCENARIO")</script>'
+            '<script>alert("XSS_LOGS")</script>'
         ]
 
         # Test 1: Runs page
@@ -851,7 +855,7 @@ def test_user_input_xss_protection():
             assert script not in stats_content, \
                 f"XSS vulnerability detected on stats page: malicious script '{script}' found unescaped"
 
-        stats_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI', 'XSS_VAR1', 'XSS_VAR2', 'XSS_USAGE_SCENARIO']
+        stats_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI', 'XSS_VAR1', 'XSS_VAR2', 'XSS_USAGE_SCENARIO', 'XSS_LOGS']
         for content in stats_safe_checks:
             assert content in stats_content, \
                 f"Content '{content}' should be visible on stats page (but safely escaped)"
