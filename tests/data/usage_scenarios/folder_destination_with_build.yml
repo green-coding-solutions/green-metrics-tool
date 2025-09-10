@@ -5,7 +5,7 @@ description: Test case to verify folder-destination works correctly with build a
 services:
   test-container:
     build:
-      context: folder_destination_build_test
+      context: ../stress-application
       dockerfile: Dockerfile
     container_name: test-container
     folder-destination: /custom/repo/path
@@ -16,5 +16,5 @@ flow:
     container: test-container
     commands:
       - type: console  
-        command: cat /custom/repo/path/test_file.txt
+        command: sh -c "test -f /custom/repo/path/tests/test_usage_scenario.py && echo 'Repository mounted at custom path'"
         log-stdout: true

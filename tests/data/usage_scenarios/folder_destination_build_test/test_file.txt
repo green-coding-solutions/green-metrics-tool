@@ -1,2 +1,0 @@
-This is a test file for folder-destination build test.
-It should be accessible during both build and runtime phases.

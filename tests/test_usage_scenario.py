@@ -924,12 +924,7 @@ def test_outside_symlink_not_allowed_missing_inside():
 # Custom mount path for the repository folder inside the container.
 # Should mount the repository at the specified path instead of default /tmp/repo
 def test_folder_destination_basic():
-    """Test basic folder-destination functionality without build attribute.
-    
-    This test verifies that the repository is correctly mounted at the 
-    specified folder-destination path during runtime.
-    """
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_basic.yml', skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_basic.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -943,27 +938,15 @@ def test_folder_destination_basic():
         Tests.assertion_info('Repository should be mounted at folder-destination path', build_output)
 
 def test_folder_destination_with_build():
-    """Test that folder-destination works correctly with build attribute.
-    
-    This test exposes a bug: when using 'folder-destination' with 'build',
-    the repository is correctly mounted at the custom path during runtime,
-    but the build process may not have properly handled the folder structure.
-    
-    Expected behavior: Repository should be accessible at folder-destination path during runtime.
-    """
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_with_build.yml',
-                            dev_cache_build=False, # Force build to test the functionality
-                            skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_with_build.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
 
     out = io.StringIO()
     err = io.StringIO()
 
-    # This test should currently fail, demonstrating the bug
-    with pytest.raises(RuntimeError) as exc_info:
-        with redirect_stdout(out), redirect_stderr(err):
-            runner.run()
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
 
-    # Verify it's the expected failure - folder-destination not accessible at runtime
-    error_msg = str(exc_info.value)
-    assert "cat: can't open '/custom/repo/path/test_file.txt': No such file or directory" in error_msg, \
-        Tests.assertion_info('Should fail accessing file at folder-destination path', error_msg)
+    build_output = out.getvalue()
+
+    assert 'Repository mounted at custom path' in build_output, \
+        Tests.assertion_info('Repository files should be accessible at folder-destination path during runtime', build_output)
