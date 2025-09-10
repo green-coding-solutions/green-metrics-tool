@@ -2,11 +2,14 @@ import os
 import pytest
 import time
 import requests
+import uuid
+import json
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
 
 from lib.global_config import GlobalConfig
 from lib.user import User
+from lib.db import DB
 
 from tests import test_functions as Tests
 from playwright.sync_api import sync_playwright
@@ -712,3 +715,151 @@ def test_settings_measurement():
     assert user._capabilities['measurement']['phase_transition_time'] == 2
     assert user._capabilities['measurement']['wait_time_dependencies'] == 120
     assert user._capabilities['measurement']['skip_volume_inspect'] is True
+
+# XSS Security tests
+def test_user_input_xss_protection():
+    """
+    Test that user-provided fields are properly escaped to prevent XSS attacks across multiple pages.
+    Tests run name, branch, filename, URI, and usage_scenario_variables for XSS vulnerabilities
+    on runs, watchlist, and compare pages.
+    This test should FAIL when vulnerabilities exist and PASS when they're fixed.
+    """
+    Tests.reset_db()
+
+    try:
+        # Create malicious payloads for all user-provided fields
+        malicious_name = '<script>alert("XSS_NAME")</script>Safe Name'
+        malicious_branch = '<script>alert("XSS_BRANCH")</script>main'
+        malicious_filename = '<script>alert("XSS_FILENAME")</script>test.yml'
+        malicious_uri = 'http://evil.com<script>alert("XSS_URI")</script>'
+        malicious_variables = {
+            'var1': '<script>alert("XSS_VAR1")</script>value1',
+            'var2': '<script>alert("XSS_VAR2")</script>value2'
+        }
+
+        # Insert test data with malicious content in multiple fields
+        run_id = str(uuid.uuid4())
+        run_id2 = str(uuid.uuid4())
+
+        # Insert malicious run data
+        run_query = """
+        INSERT INTO "runs"("id","name","uri","branch","commit_hash","commit_timestamp","usage_scenario","usage_scenario_variables","filename","machine_id","user_id","failed","created_at","updated_at")
+        VALUES (%s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        """
+
+        DB().query(run_query, params=(
+            run_id,
+            malicious_name,
+            malicious_uri,
+            malicious_branch,
+            'deadbeef123456789abcdef',
+            '{"test": "scenario"}',
+            json.dumps(malicious_variables),
+            malicious_filename,
+            1,
+            1,
+            False
+        ))
+
+        # Insert second run for compare functionality (same params except name to enable comparison)
+        DB().query(run_query, params=(
+            run_id2,
+            'Safe Run Name',
+            malicious_uri,  # Share the malicious URI for comparison
+            malicious_branch,
+            'deadbeef123456789abcdef',  # Same commit hash
+            '{"test": "scenario"}',     # Same usage scenario
+            json.dumps(malicious_variables),  # Same usage scenario variables
+            malicious_filename,
+            1,
+            1,
+            False
+        ))
+
+        # Insert malicious watchlist data
+        watchlist_query = """
+        INSERT INTO "watchlist"("name","image_url","repo_url","branch","filename","usage_scenario_variables","machine_id","schedule_mode","user_id","created_at","updated_at")
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        """
+
+        DB().query(watchlist_query, params=(
+            malicious_name,
+            'http://example.com/image.png',
+            malicious_uri,
+            malicious_branch,
+            malicious_filename,
+            json.dumps(malicious_variables),
+            1,
+            'daily',
+            1
+        ))
+
+        # Test malicious scripts across all pages
+        malicious_scripts = [
+            '<script>alert("XSS_NAME")</script>',
+            '<script>alert("XSS_BRANCH")</script>',
+            '<script>alert("XSS_FILENAME")</script>',
+            '<script>alert("XSS_URI")</script>',
+            '<script>alert("XSS_VAR1")</script>',
+            '<script>alert("XSS_VAR2")</script>'
+        ]
+
+        # Test 1: Runs page XSS protection
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/runs.html')
+        page.wait_for_load_state("networkidle")  # Wait for network requests to complete
+
+        # Wait for the malicious content to appear in the DataTable
+        page.wait_for_function("() => document.body.innerText.includes('XSS_NAME')", timeout=10000)
+
+        runs_content = page.content()
+
+        for script in malicious_scripts:
+            assert script not in runs_content, \
+                f"XSS vulnerability detected on runs page: malicious script '{script}' found unescaped"
+
+        # Verify content appears safely on runs page (all fields displayed)
+        runs_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI', 'XSS_VAR1', 'XSS_VAR2']
+        for content in runs_safe_checks:
+            assert content in runs_content, \
+                f"Content '{content}' should be visible on runs page (but safely escaped)"
+
+        # Test 2: Watchlist page XSS protection
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/watchlist.html')
+        page.wait_for_load_state("networkidle")  # Wait for network requests to complete
+
+        # Wait for the malicious content to appear in the watchlist cards
+        page.wait_for_function("() => document.body.innerText.includes('XSS_NAME')", timeout=10000)
+
+        watchlist_content = page.content()
+
+        for script in malicious_scripts:
+            assert script not in watchlist_content, \
+                f"XSS vulnerability detected on watchlist page: malicious script '{script}' found unescaped"
+
+        # Verify content appears safely on watchlist page (only name, branch, filename, URI are displayed)
+        watchlist_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI']
+        for content in watchlist_safe_checks:
+            assert content in watchlist_content, \
+                f"Content '{content}' should be visible on watchlist page (but safely escaped)"
+
+        # Test 3: Compare page XSS protection (basic test - just verify scripts are escaped)
+        compare_url = f"{GlobalConfig().config['cluster']['metrics_url']}/compare.html?ids={run_id},{run_id2}"
+        page.goto(compare_url)
+        page.wait_for_load_state("networkidle")  # Wait for network requests to complete
+
+        # Wait for either content to load or error message to appear
+        page.wait_for_function("() => document.body.innerText.includes('Could not get') || document.body.innerText.includes('XSS_')", timeout=10000)
+
+        compare_content = page.content()
+
+        # Primary XSS test: Ensure malicious scripts are not present unescaped
+        for script in malicious_scripts:
+            assert script not in compare_content, \
+                f"XSS vulnerability detected on compare page: malicious script '{script}' found unescaped"
+
+        # Note: The compare page may show API errors due to missing measurement data,
+        # but the important test is that any user-provided data that does appear is properly escaped
+
+    finally:
+        Tests.reset_db()
+        Tests.import_demo_data()

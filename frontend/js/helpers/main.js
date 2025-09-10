@@ -158,9 +158,15 @@ const calculateStatistics = (data, object_access=false) => {
 const replaceRepoIcon = (uri) => {
 
   uri = String(uri)
-  if(!uri.startsWith('http')) return uri; // ignore filesystem paths
+  if(!uri.startsWith('http')) return escapeString(uri); // ignore filesystem paths, but escape them for HTML
 
-  const url = new URL(uri);
+  let url;
+  try {
+    url = new URL(uri);
+  } catch (error) {
+    // If URL parsing fails (malicious or malformed URI), safely escape and return
+    return escapeString(uri);
+  }
 
   let iconClass = "";
   switch (url.host) {
@@ -177,9 +183,9 @@ const replaceRepoIcon = (uri) => {
       iconClass = "gitlab";
       break;
     default:
-      return uri;
+      return escapeString(uri);
   }
-  return `<i class="icon ${iconClass}"></i>` + uri.substring(url.origin.length);
+  return `<i class="icon ${iconClass}"></i>` + escapeString(uri.substring(url.origin.length));
 };
 
 const showNotification = (message_title, message_text, type='error') => {
