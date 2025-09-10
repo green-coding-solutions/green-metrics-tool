@@ -138,7 +138,7 @@ const EXTRACARDS = [
     { key: 'runtime', name: 'Phase Duration', icon: 'hourglass half', variable:false },
     { key: 'network-data', name: 'Data Transferred', icon: 'exchange', variable:false },
     { key: 'network', name: 'Network', icon: 'sitemap', variable:true },
-    { key: 'embodied-carbon', name: 'Embodied Carbon', icon: 'industry', variable:false },
+    { key: 'embodied-carbon', name: 'Machine CO₂ (embodied)', icon: 'industry', variable:false },
     { key: 'sci', name: 'SCI', icon: 'leaf', variable:false },
 ];
 
@@ -269,7 +269,7 @@ METRIC_MAPPINGS = {
         "explanation": "Full machine power (AC) as reported by mcp"
     },
     "embodied_carbon_share_machine": {
-        "clean_name": "Machine Embodied Carbon",
+        "clean_name": "Machine CO₂ (embodied)",
         "source": "Formula",
         "explanation": "Embodied carbon attributed by time share of the life-span and total embodied carbon"
     },
