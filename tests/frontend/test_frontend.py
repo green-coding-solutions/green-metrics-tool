@@ -914,3 +914,56 @@ def test_user_input_xss_protection():
     finally: # reset state to expectation of this file
         Tests.reset_db()
         Tests.import_demo_data()
+
+def test_notes_xss_protection_via_echarts():
+    """
+    Test that malicious JavaScript in notes does not execute.
+    Verifies XSS protection by checking if malicious script runs.
+    ECharts handles XSS protection internally for formatter properties.
+    """
+
+    try:
+        malicious_note = '<script>window.XSS_EXECUTED = true; alert("XSS_NOTES")</script>Legitimate note content'
+
+        # Get an existing run ID from demo data
+        existing_runs = DB().fetch_all("SELECT id FROM runs LIMIT 1")
+        assert existing_runs, "No demo data available - test setup failed"
+
+        run_id = existing_runs[0][0]
+
+        # Update an existing note with malicious content for XSS testing
+        existing_notes = DB().fetch_all("SELECT id FROM notes WHERE run_id = %s LIMIT 1", params=(run_id,))
+        assert existing_notes, f"No existing notes found for run_id {run_id} - demo data incomplete"
+
+        # Update existing note with malicious content
+        update_notes_query = """
+        UPDATE "notes" SET "note" = %s WHERE "id" = %s
+        """
+        DB().query(update_notes_query, params=(malicious_note, existing_notes[0][0]))
+
+        # Set up XSS detection
+        page.evaluate("window.XSS_EXECUTED = false")
+
+        # Navigate to stats page
+        base_url = GlobalConfig().config['cluster']['metrics_url']
+        stats_url = f"{base_url}/stats.html?id={run_id}"
+
+        page.goto(stats_url)
+        page.wait_for_load_state("networkidle")
+
+        # Click fetch time series to load notes (if button exists)
+        fetch_button = page.locator('button#fetch-time-series')
+        if fetch_button.count() > 0:
+            fetch_button.click()
+            # Wait for charts to load
+            page.wait_for_timeout(3000)
+
+        # Check if malicious script executed
+        xss_executed = page.evaluate("window.XSS_EXECUTED")
+
+        # Verify XSS protection worked - script should NOT execute
+        assert xss_executed is not True, "XSS vulnerability detected: malicious script executed"
+
+    finally:
+        Tests.reset_db()
+        Tests.import_demo_data()
