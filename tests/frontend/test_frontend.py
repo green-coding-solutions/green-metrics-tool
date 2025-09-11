@@ -13,7 +13,6 @@ from lib.db import DB
 
 from tests import test_functions as Tests
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
-import urllib.parse
 from datetime import datetime, timedelta
 
 from api.object_specifications import CI_Measurement
@@ -846,7 +845,6 @@ class TestXssSecurity:
             1
         ))
 
-        # Set up XSS detection
         page.evaluate("window.IMG_XSS_EXECUTED = false")
 
         # Test 1: Runs page
@@ -854,7 +852,6 @@ class TestXssSecurity:
         page.wait_for_load_state("networkidle")
         page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
 
-        # Check if XSS executed
         runs_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert runs_xss_executed is not True, "XSS vulnerability detected on runs page: malicious code executed"
 
@@ -864,7 +861,6 @@ class TestXssSecurity:
         page.wait_for_load_state("networkidle")
         page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
 
-        # Check if XSS executed
         stats_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert stats_xss_executed is not True, "XSS vulnerability detected on stats page: malicious code executed"
 
@@ -873,7 +869,6 @@ class TestXssSecurity:
         page.wait_for_load_state("networkidle")
         page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
 
-        # Check if XSS executed
         watchlist_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert watchlist_xss_executed is not True, "XSS vulnerability detected on watchlist page: malicious code executed"
 
@@ -883,12 +878,11 @@ class TestXssSecurity:
         page.wait_for_load_state("networkidle")
         page.wait_for_function("() => document.body.innerText.includes('deadbeef123456789abcdef')", timeout=10000)
 
-        # Check if XSS executed
         compare_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert compare_xss_executed is not True, "XSS vulnerability detected on compare page: malicious code executed"
 
     @pytest.mark.usefixtures('use_demo_data')
-    def test_xss_protection_of_notes_via_echarts(self):
+    def test_xss_protection_of_notes(self):
         """
         Test that malicious JavaScript in notes does not execute.
         Verifies XSS protection by checking if malicious script runs.
@@ -906,31 +900,24 @@ class TestXssSecurity:
         # Update an existing note with malicious content for XSS testing
         existing_notes = DB().fetch_all("SELECT id FROM notes WHERE run_id = %s LIMIT 1", params=(run_id,))
         assert existing_notes, f"No existing notes found for run_id {run_id} - demo data incomplete"
-
-        # Update existing note with malicious content
         update_notes_query = """
         UPDATE "notes" SET "note" = %s WHERE "id" = %s
         """
         DB().query(update_notes_query, params=(malicious_note, existing_notes[0][0]))
 
-        # Set up XSS detection
         page.evaluate("window.IMG_XSS_EXECUTED = false")
 
-        # Navigate to stats page
         base_url = GlobalConfig().config['cluster']['metrics_url']
         stats_url = f"{base_url}/stats.html?id={run_id}"
 
         page.goto(stats_url)
         page.wait_for_load_state("networkidle")
 
-        # Click fetch time series to load notes (if button exists)
         fetch_button = page.locator('button#fetch-time-series')
-        if fetch_button.count() > 0:
-            fetch_button.click()
-        # Wait for charts to load
+        assert fetch_button.count() > 0, "fetch-time-series button not found - test setup failed"
+        fetch_button.click()
         page.wait_for_timeout(3000)
 
-        # Check if malicious script executed
         xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
 
         # Verify XSS protection worked - script should NOT execute
@@ -939,45 +926,20 @@ class TestXssSecurity:
     @pytest.mark.usefixtures('use_clean_db')
     def test_xss_protection_of_eco_ci_data(self):
         """
-        Test that eco-ci related user-provided fields are properly escaped to prevent XSS attacks.
-        Tests repository name, branch, workflow, label, and other CI fields for XSS vulnerabilities
-        on ci-index.html and ci.html pages.
-        This test should FAIL when vulnerabilities exist and PASS when they're fixed.
+        Test XSS protection on ci-index.html and ci.html pages.
         """
         Tests.reset_db()
-
         base_url = GlobalConfig().config['cluster']['metrics_url']
-
-        # Create two test entries to test both pages comprehensively
         xss_payload = '<img src=x onerror="window.IMG_XSS_EXECUTED=true">'
 
-        # Entry 1: Malicious repo identifiers for testing ci-index.html XSS protection
         malicious_repo = f'{xss_payload}evil/repo'
         malicious_branch = f'{xss_payload}main'
         malicious_workflow = f'{xss_payload}workflow-456'
-
-        # Entry 2: Clean repo identifiers for testing ci.html XSS protection
         clean_repo = 'clean/repo'
         clean_branch = 'main'
         clean_workflow = 'workflow-789'
-
-        # Display fields: malicious content where possible, clean only where needed for functionality
-        malicious_run_id = f'{xss_payload}run-456'
-        malicious_label = f'{xss_payload}build'
-        clean_source = 'github'  # Keep clean for URL generation
-        malicious_cpu = f'{xss_payload}intel-cpu'
-        malicious_commit = f'{xss_payload}abc123def'
-        malicious_workflow_name = f'{xss_payload}Test Workflow'
-        clean_filter_type = 'machine.ci'  # Keep clean for functionality
-        clean_filter_project = 'CI/CD'
-        clean_filter_machine = 'test-machine'
         malicious_filter_tags = [f'{xss_payload}tag1', f'{xss_payload}tag2']
-        clean_lat = '52.5200'  # Keep clean for functionality
-        clean_lon = '13.4050'
-        malicious_city = f'{xss_payload}Berlin'
-        malicious_note = f'{xss_payload}Test note'
 
-        # Insert two CI measurement entries to test both pages
         filter_tags_sql = f"ARRAY[{','.join(['%s']*len(malicious_filter_tags))}]"
         ci_query = f"""
         INSERT INTO ci_measurements (
@@ -990,134 +952,60 @@ class TestXssSecurity:
         )
         """
 
-        # Entry 1: Malicious repo identifiers (for ci-index.html XSS testing)
+        # Two entries needed:
+        # - malicious repo identifiers test ci-index.html,
+        # - clean repo identifiers test ci.html (API requires valid identifiers for queries)
         params_malicious_repo = [
-            1000000,  # energy_uj
-            malicious_repo,  # repo - contains XSS payload for ci-index.html testing
-            malicious_branch,  # branch - contains XSS payload
-            malicious_workflow,  # workflow_id - contains XSS payload
-            malicious_run_id,  # run_id
-            malicious_label,  # label
-            clean_source,  # source - keep clean for functionality
-            malicious_cpu,  # cpu
-            malicious_commit,  # commit_hash
-            5000000,  # duration_us
-            85.5,  # cpu_util_avg
-            malicious_workflow_name,  # workflow_name
-            clean_lat,  # lat
-            clean_lon,  # lon
-            malicious_city,  # city
-            400,  # carbon_intensity_g
-            500000,  # carbon_ug
-            clean_filter_type,  # filter_type
-            clean_filter_project,  # filter_project
-            clean_filter_machine,  # filter_machine
-        ] + malicious_filter_tags + [
-            '127.0.0.1',  # ip_address
-            1,  # user_id
-            malicious_note  # note
-        ]
+            1000000, malicious_repo, malicious_branch, malicious_workflow,
+            f'{xss_payload}run-456', f'{xss_payload}build', 'github',
+            f'{xss_payload}intel-cpu', f'{xss_payload}abc123def', 5000000, 85.5,
+            f'{xss_payload}Test Workflow', '52.5200', '13.4050', f'{xss_payload}Berlin',
+            400, 500000, 'machine.ci', 'CI/CD', 'test-machine'
+        ] + malicious_filter_tags + ['127.0.0.1', 1, f'{xss_payload}Test note']
 
-        # Entry 2: Clean repo identifiers (for ci.html XSS testing)
         params_clean_repo = [
-            2000000,  # energy_uj (different value)
-            clean_repo,  # repo - clean for API queries
-            clean_branch,  # branch - clean for API queries
-            clean_workflow,  # workflow_id - clean for API queries
-            f'{xss_payload}run-789',  # run_id - different malicious content
-            f'{xss_payload}deploy',  # label - different malicious content
-            clean_source,  # source
-            f'{xss_payload}amd-cpu',  # cpu - different malicious content
-            f'{xss_payload}def456ghi',  # commit_hash - different malicious content
-            7000000,  # duration_us (different value)
-            75.0,  # cpu_util_avg (different value)
-            f'{xss_payload}Deploy Workflow',  # workflow_name - different malicious content
-            clean_lat,  # lat
-            clean_lon,  # lon
-            f'{xss_payload}Munich',  # city - different malicious content
-            350,  # carbon_intensity_g (different value)
-            600000,  # carbon_ug (different value)
-            clean_filter_type,  # filter_type
-            clean_filter_project,  # filter_project
-            clean_filter_machine,  # filter_machine
-        ] + [f'{xss_payload}tag3', f'{xss_payload}tag4'] + [
-            '127.0.0.1',  # ip_address
-            1,  # user_id
-            f'{xss_payload}Deploy note'  # note - different malicious content
-        ]
+            2000000, clean_repo, clean_branch, clean_workflow,
+            f'{xss_payload}run-789', f'{xss_payload}deploy', 'github',
+            f'{xss_payload}amd-cpu', f'{xss_payload}def456ghi', 7000000, 75.0,
+            f'{xss_payload}Deploy Workflow', '52.5200', '13.4050', f'{xss_payload}Munich',
+            350, 600000, 'machine.ci', 'CI/CD', 'test-machine'
+        ] + [f'{xss_payload}tag3', f'{xss_payload}tag4'] + ['127.0.0.1', 1, f'{xss_payload}Deploy note']
 
         DB().query(ci_query, params=params_malicious_repo)
         DB().query(ci_query, params=params_clean_repo)
 
-        # Verify both test entries were inserted correctly
-        malicious_verify = "SELECT repo, branch, workflow_id FROM ci_measurements WHERE repo LIKE '%evil/repo%' LIMIT 1"
-        malicious_data = DB().fetch_one(malicious_verify)
-        assert malicious_data is not None, "Malicious test data was not inserted into database"
-
-        clean_verify = "SELECT repo, branch, workflow_id FROM ci_measurements WHERE repo LIKE '%clean/repo%' LIMIT 1"
-        clean_data = DB().fetch_one(clean_verify)
-        assert clean_data is not None, "Clean test data was not inserted into database"
-        assert clean_data[0] == clean_repo, f"Expected clean repo '{clean_repo}' but got '{clean_data[0]}'"
-
-        # Test ci-index.html page for XSS
-        ci_index_url = f"{base_url}/ci-index.html"
-        page.goto(ci_index_url)
+        page.goto(f"{base_url}/ci-index.html")
         page.wait_for_load_state("networkidle")
-
-        # Wait for the malicious repository data to load (contains XSS payload)
         page.wait_for_function("() => document.body.innerText.includes('evil/repo')", timeout=10000)
 
-        # Check if XSS executed via event handler (more reliable than script tags)
         img_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
+        assert img_xss_executed is not True, "XSS vulnerability detected on ci-index.html"
 
-        # Verify XSS vulnerability is fixed - malicious code should NOT execute
-        assert img_xss_executed is not True, "XSS vulnerability detected on ci-index.html: malicious code executed via img onerror"
+        now = datetime.now()
+        start_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+        end_date = now.strftime('%Y-%m-%d')
+        ci_url = f"{base_url}/ci.html?repo={clean_repo}&branch={clean_branch}&workflow={clean_workflow}&start_date={start_date}&end_date={end_date}"
 
-        # Test ci.html page - use clean URL params but malicious data will come from API
-        # Use clean URL params that will match our database query identifiers
-        # The malicious content will come from the API response data, not URL params
-
-        # Add date parameters to ensure we get recent data
-        end_date = datetime.now().strftime('%Y-%m-%d')
-        start_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-
-        ci_url = f"{base_url}/ci.html?repo={urllib.parse.quote(clean_repo)}&branch={urllib.parse.quote(clean_branch)}&workflow={urllib.parse.quote(clean_workflow)}&start_date={start_date}&end_date={end_date}"
         page.goto(ci_url)
-        # Force browser to reload JavaScript by doing a hard refresh
         page.reload()
         page.wait_for_load_state("networkidle")
 
-        # Wait for the clean CI data to load - should find the clean repo name
         try:
             page.wait_for_function("() => document.body.innerText.includes('clean/repo')", timeout=10000)
         except PlaywrightTimeoutError:
-            # If data doesn't load, check why and provide meaningful error
             page_text = page.evaluate("() => document.body.innerText")
             if 'No data for time frame' in page_text:
-                assert False, "CI data not loaded: API returned 'No data for time frame' - check date range or data insertion"
+                assert False, "CI data not loaded: No data for time frame"
             elif 'error' in page_text.lower():
-                assert False, f"CI data not loaded: Page shows error - {page_text[:200]}"
+                assert False, f"CI data not loaded: {page_text[:200]}"
             else:
-                assert False, f"CI data not loaded: Unknown reason - Page content: {page_text[:200]}"
+                assert False, f"CI data not loaded: {page_text[:200]}"
 
-        # Check if XSS executed on ci.html page - the malicious payload should be in the API response but escaped
         ci_img_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
-        assert ci_img_xss_executed is not True, "XSS vulnerability detected on ci.html: malicious code executed from API data"
+        assert ci_img_xss_executed is not True, "XSS vulnerability detected on ci.html"
 
-        # Verify the malicious content was properly escaped in the page HTML
         page_content = page.content()
-
-        # Check if malicious content is properly escaped
-        # Look for dangerous unescaped patterns that could execute
-        dangerous_patterns = [
-            '<img src=x onerror="window.IMG_XSS_EXECUTED=true">',  # Fully unescaped and executable
-            "data-tooltip='<img src=x onerror=\"window.IMG_XSS_EXECUTED=true\">",  # Unescaped in single quotes
-            "><img src=x onerror=",  # Breaking out of elements
-        ]
-
-        for pattern in dangerous_patterns:
-            assert pattern not in page_content, f"XSS vulnerability: dangerous unescaped pattern found: {pattern}"
-
-        # Verify that the content IS present but safely escaped
-        assert '&lt;img src=x onerror=' in page_content, "Malicious content should be present but safely escaped"
-        assert 'onerror=&quot;window.IMG_XSS_EXECUTED=true&quot;' in page_content, "Quotes should be properly escaped in attributes"
+        assert '<img src=x onerror="window.IMG_XSS_EXECUTED=true">' not in page_content
+        assert "data-tooltip='<img src=x onerror=\"window.IMG_XSS_EXECUTED=true\">" not in page_content
+        assert '&lt;img src=x onerror=' in page_content
+        assert 'onerror=&quot;window.IMG_XSS_EXECUTED=true&quot;' in page_content
