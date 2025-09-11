@@ -1,3 +1,41 @@
+function createPythonDictTable(dataArray, labelPrefix = 'Item', keyHeader = 'Key') {
+    // Parse Python dictionary data into a comparison table
+    const items = Array.isArray(dataArray) ? dataArray : [dataArray];
+    
+    // Collect all unique keys
+    const allKeys = new Set();
+    const parsedItems = items.map(item => {
+        const vars = {};
+        const matches = item.match(/'([^']+)':\s*'([^']*)'/g);
+        if (matches) {
+            matches.forEach(match => {
+                const [, key, value] = match.match(/'([^']+)':\s*'([^']*)'/);
+                vars[key] = value;
+                allKeys.add(key);
+            });
+        }
+        return vars;
+    });
+    
+    // Build simple table
+    let tableContent = `<table><tr><th>${keyHeader}</th>`;
+    items.forEach((_, index) => {
+        tableContent += `<th style="text-align: center;">${labelPrefix} ${index + 1}</th>`;
+    });
+    tableContent += '</tr>';
+    
+    allKeys.forEach(key => {
+        tableContent += `<tr><td><strong>${escapeString(key)}</strong></td>`;
+        parsedItems.forEach(item => {
+            tableContent += `<td style="text-align: center;">${escapeString(item[key] || '-')}</td>`;
+        });
+        tableContent += '</tr>';
+    });
+    tableContent += '</table>';
+    
+    return tableContent;
+}
+
 async function fetchDiff() {
     document.querySelector('#diff-question').remove();
     document.querySelector('#loader-diff').style.display = '';
@@ -80,7 +118,7 @@ $(document).ready( () => {
         comparison_identifiers = comparison_identifiers.join(' vs. ')
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${escapeString(phase_stats_data.comparison_case)}</td></tr>`)
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Number of runs compared</strong></td><td>${run_count}</td></tr>`)
-        if (phase_stats_data.comparison_case == 'Machine') {
+        if (phase_stats_data.comparison_case === 'Machine') {
             const regex = /(\d+)\s+vs\.\s+(\d+)/;
             const match = comparison_identifiers.match(regex);
 
@@ -91,6 +129,9 @@ $(document).ready( () => {
             } else {
                 document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${escapeString(GMT_MACHINES[comparison_identifiers] || comparison_identifiers)}</td></tr>`)
             }
+        } else if (phase_stats_data.comparison_case === 'Usage Scenario Variables') {
+            const tableContent = createPythonDictTable(phase_stats_data.comparison_identifiers || comparison_identifiers.split(' vs. '), 'Scenario', 'Variable');
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${tableContent}</td></tr>`)
         } else {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${escapeString(comparison_identifiers)}</td></tr>`)
         }
