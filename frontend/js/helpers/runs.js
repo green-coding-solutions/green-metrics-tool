@@ -235,7 +235,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         }
     });
     columns.push({ data: 8, title: '<i class="icon laptop code"></i>Machine</th>', render: (el, type, row) => escapeString(el) });
-    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (el, type, row) => el == null ? '-' : `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${escapeString(row[2])}&branch=${escapeString(row[3])}&machine_id=${row[12]}&filename=${escapeString(row[6])}&metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>` });
+    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (el, type, row) => el == null ? '-' : `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${encodeURIComponent(row[2])}&branch=${encodeURIComponent(row[3])}&machine_id=${row[12]}&filename=${encodeURIComponent(row[6])}&metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>` });
 
     columns.push({
         data: 0,

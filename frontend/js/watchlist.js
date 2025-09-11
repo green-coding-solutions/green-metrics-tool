@@ -48,17 +48,17 @@ $(document).ready(function () {
                             <i data-tooltip="${escapeString(getPretty(metric_name, 'explanation'))}" data-position="bottom center" data-inverted>
                                 <i class="question circle icon link"></i>
                             </i><br>
-                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${escapeString(repo_url)}&branch=${escapeString(branch)}&filename=${escapeString(filename)}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${escapeString(repo_url)}&branch=${escapeString(branch)}&filename=${escapeString(filename)}&machine_id=${machine_id}&metric=${escapeString(metric_name)}&detail_name=${escapeString(detail_name)}&unit=joules" alt="${escapeString(metric_name)} badge" onerror="this.closest('.field').style.display='none'" loading="lazy"></a></span>
+                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${encodeURIComponent(repo_url)}&branch=${encodeURIComponent(branch)}&filename=${encodeURIComponent(filename)}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${encodeURIComponent(repo_url)}&branch=${encodeURIComponent(branch)}&filename=${encodeURIComponent(filename)}&machine_id=${machine_id}&metric=${encodeURIComponent(metric_name)}&detail_name=${encodeURIComponent(detail_name)}&unit=joules" alt="${escapeString(metric_name)} badge" onerror="this.closest('.field').style.display='none'" loading="lazy"></a></span>
                         </div>`
             })
 
             chart_node_html = `${chart_node_html}
                 </div>
-                <a class="ui button blue" href="/timeline.html?uri=${escapeString(repo_url)}&filename=${escapeString(filename)}&branch=${escapeString(branch)}&machine_id=${machine_id}" target="_blank">
+                <a class="ui button blue" href="/timeline.html?uri=${encodeURIComponent(repo_url)}&filename=${encodeURIComponent(filename)}&branch=${encodeURIComponent(branch)}&machine_id=${machine_id}" target="_blank">
                     Show Timeline <i class="external alternate icon"></i>
                 </a>
                 <hr>
-                <a class="ui button grey" href="/runs.html?uri=${escapeString(repo_url)}&filename=${escapeString(filename)}&branch=${escapeString(branch)}&machine_id=${machine_id}" target="_blank">
+                <a class="ui button grey" href="/runs.html?uri=${encodeURIComponent(repo_url)}&filename=${encodeURIComponent(filename)}&branch=${encodeURIComponent(branch)}&machine_id=${machine_id}" target="_blank">
                     Show All Measurements <i class="external alternate icon"></i>
                 </a>`
             chart_node.innerHTML = chart_node_html;

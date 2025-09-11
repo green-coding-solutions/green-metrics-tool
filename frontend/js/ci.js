@@ -232,9 +232,9 @@ const getBadges = async (repo, branch, workflow_id) => {
     try {
         const link_node = document.createElement("a")
         const img_node = document.createElement("img")
-        img_node.src = `${API_URL}/v1/ci/badge/get?repo=${escapeString(repo)}&branch=${escapeString(branch)}&workflow=${escapeString(workflow_id)}`
+        img_node.src = `${API_URL}/v1/ci/badge/get?repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}&workflow=${encodeURIComponent(workflow_id)}`
         img_node.onerror = function() {this.src='/images/no-data-badge.webp'}
-        link_node.href = `${METRICS_URL}/ci.html?repo=${escapeString(repo)}&branch=${escapeString(branch)}&workflow=${escapeString(workflow_id)}`
+        link_node.href = `${METRICS_URL}/ci.html?repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}&workflow=${encodeURIComponent(workflow_id)}`
         link_node.rel = 'noopener'
         link_node.target = '_blank'
 
