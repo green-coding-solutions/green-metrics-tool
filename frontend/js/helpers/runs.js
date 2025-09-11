@@ -140,9 +140,7 @@ async function getRepositories(sort_by = 'date') {
         const last_run = el[1];
         let uri_link = replaceRepoIcon(uri);
 
-        if (uri.startsWith("http")) {
-            uri_link = `${uri_link} <a href="${escapeString(uri)}"><i class="icon external alternate"></i></a>`;
-        }
+        uri_link = `${uri_link} ${createExternalIconLink(uri)}`;
 
         let row = table_body.insertRow()
         row.innerHTML = `
@@ -207,9 +205,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 render: function(el, type, row) {
                     let uri_link = replaceRepoIcon(el);
 
-                    if (el.startsWith("http")) {
-                        uri_link = `${uri_link} <a href="${escapeString(el)}"><i class="icon external alternate"></i></a>`;
-                    }
+                    uri_link = `${uri_link} ${createExternalIconLink(el)}`;
                     return uri_link
                 },
         })

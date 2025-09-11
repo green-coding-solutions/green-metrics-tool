@@ -115,7 +115,7 @@ const fetchAndFillRunData = async (url_params) => {
         }  else if(item == 'commit_hash') {
             if (run_data?.[item] == null) continue; // some old runs did not save it
             let commit_link = buildCommitLink(run_data);
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${escapeString(commit_link)}" target="_blank">${escapeString(run_data?.[item])}</a></td></tr>`)
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data?.[item])}</a></td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])}</td></tr>`)
         } else if(item == 'failed' && run_data?.[item] == true) {
@@ -125,11 +125,18 @@ const fetchAndFillRunData = async (url_params) => {
         } else if(item == 'created_at' ) {
             document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data?.[item])}">${new Date(run_data?.[item])}</td></tr>`)
         } else if(item == 'gmt_hash') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${escapeString(run_data?.[item])}">${escapeString(run_data?.[item])}</a></td></tr>`);
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data?.[item]}">${escapeString(run_data?.[item])}</a></td></tr>`);
         } else if(item == 'uri') {
-            let entry = escapeString(run_data?.[item]);
-            if(run_data?.[item].indexOf('http') === 0) entry = `<a href="${escapeString(run_data?.[item])}">${escapeString(run_data?.[item])}</a>`;
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${entry}</td></tr>`);
+            const uri = run_data?.[item];
+            let uriDisplay;
+            if(uri.startsWith('http')) {
+                // URI is safe for href attribute: validated to have http/https protocol prevents XSS
+                // HTML escaping not needed here and would break URLs (e.g., & would become &amp;)
+                uriDisplay = `<a href="${uri}">${escapeString(uri)}</a>`;
+            } else {
+                uriDisplay = escapeString(uri);
+            }
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
         } else {
             document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])}</td></tr>`)
         }

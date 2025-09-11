@@ -188,6 +188,15 @@ const replaceRepoIcon = (uri) => {
   return `<i class="icon ${iconClass}"></i>` + escapeString(uri.substring(url.origin.length));
 };
 
+const createExternalIconLink = (url) => {
+    // Creates a safe external icon link with protocol validation to prevent XSS attacks
+    // Only allows http/https protocols, returns empty string for non-HTTP URLs
+    if (url && url.startsWith('http')) {
+        return `<a href="${url}" target="_blank"><i class="icon external alternate"></i></a>`;
+    }
+    return '';
+}
+
 const showNotification = (message_title, message_text, type='error') => {
     if (typeof message_text === 'object') console.log(message_text); // this is most likey an error. We need it in the console
 

@@ -193,13 +193,13 @@ const displayRunDetailsTable = (measurements, repo) => {
 
         let run_link = '';
 
-        const run_id_esc = escapeString(run_id)
+        const run_id_esc = encodeURIComponent(run_id)
 
         if(source == 'github') {
-            run_link = `https://github.com/${escapeString(repo)}/actions/runs/${run_id_esc}`;
+            run_link = `https://github.com/${encodeURIComponent(repo)}/actions/runs/${run_id_esc}`;
         }
         else if (source == 'gitlab') {
-            run_link = `https://gitlab.com/${escapeString(repo)}/-/pipelines/${run_id_esc}`
+            run_link = `https://gitlab.com/${encodeURIComponent(repo)}/-/pipelines/${run_id_esc}`
         }
 
         const run_link_node = `<a href="${run_link}" target="_blank">${run_id_esc}</a>`
@@ -367,10 +367,10 @@ const populateRunInfos = async (repo, branch, source, workflow_name, workflow_id
 
     let repo_link = ''
     if(source == 'github') {
-        repo_link = `https://github.com/${escapeString(repo)}`;
+        repo_link = `https://github.com/${encodeURIComponent(repo)}`;
     }
     else if(source == 'gitlab') {
-        repo_link = `https://gitlab.com/${escapeString(repo)}`;
+        repo_link = `https://gitlab.com/${encodeURIComponent(repo)}`;
     }
 
     const repo_link_node = `<a href="${repo_link}" target="_blank">${escapeString(repo)}</a>`

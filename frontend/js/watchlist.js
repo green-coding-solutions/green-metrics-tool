@@ -19,7 +19,7 @@ $(document).ready(function () {
             chart_node.classList.add('ui')
             chart_node.classList.add("card");
 
-            const url_link = `${replaceRepoIcon(repo_url)} <a href="${escapeString(repo_url)}" target="_blank"><i class="icon external alternate"></i></a>`;
+            const url_link = `${replaceRepoIcon(repo_url)} ${createExternalIconLink(repo_url)}`;
             let chart_node_html = `
                 <div class="image">
                     <img src="${escapeString(image_url)}" onerror="this.src='/images/placeholder.webp'" loading="lazy">
