@@ -716,14 +716,16 @@ class ScenarioRunner:
                 context_path = self._join_paths(self.__working_folder, context)
                 self._join_paths(context_path, dockerfile)
 
+                repo_mount_path = service.get('folder-destination', '/tmp/repo')
+
                 docker_build_command = ['docker', 'run', '--rm',
                     '-v', '/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                    '-v', f"{self._repo_folder}:/tmp/repo:ro", # this is the folder where the usage_scenario is!
+                    '-v', f"{self._repo_folder}:{repo_mount_path}:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
-                    f"--dockerfile=/tmp/repo/{self.__working_folder_rel}/{context}/{dockerfile}",
-                    '--context', f'dir:///tmp/repo/{self.__working_folder_rel}/{context}',
+                    f"--dockerfile={repo_mount_path}/{self.__working_folder_rel}/{context}/{dockerfile}",
+                    '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--cleanup=true',
@@ -918,12 +920,10 @@ class ScenarioRunner:
             docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
 
             docker_run_string.append('-v')
-            if 'folder-destination' in service:
-                 # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                docker_run_string.append(f"{self._repo_folder}:{service['folder-destination']}:ro")
-            else:
-                 # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                docker_run_string.append(f"{self._repo_folder}:/tmp/repo:ro")
+
+            repo_mount_path = service.get('folder-destination', '/tmp/repo')
+            # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
+            docker_run_string.append(f"{self._repo_folder}:{repo_mount_path}:ro")
 
             if self.__docker_params:
                 docker_run_string[2:2] = self.__docker_params
