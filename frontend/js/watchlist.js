@@ -90,14 +90,14 @@ $(document).ready(function () {
                 data: 0,
                 title: 'Timeline Link',
                 render: function(name, type, row) {
-                    return `<a href="/timeline.html?uri=${row[1]}&filename=${row[4]}&branch=${row[3]}&machine_id=${row[5]}">Show Timeline</a>`
+                    return `<a href="/timeline.html?uri=${encodeURIComponent(row[1])}&filename=${encodeURIComponent(row[4])}&branch=${encodeURIComponent(row[3])}&machine_id=${row[5]}">Show Timeline</a>`
                 },
             },
             {
                 data: 0,
                 title: 'Show all measurements',
                 render: function(name, type, row) {
-                    return `<a href="/index.html?uri=${row[1]}&filename=${row[4]}&branch=${row[3]}&machine_id=${row[5]}">Show all measurements</a>`
+                    return `<a href="/index.html?uri=${encodeURIComponent(row[1])}&filename=${encodeURIComponent(row[4])}&branch=${encodeURIComponent(row[3])}&machine_id=${row[5]}">Show all measurements</a>`
                 },
             },
             {
@@ -114,7 +114,7 @@ $(document).ready(function () {
                                     <i class="question circle icon link"></i>
                                 </i>
                             </div>
-                            <span class="energy-badge-container"><a href="/timeline.html?uri=${row[1]}&branch=${row[3] == null ? '': row[3]}&filename=${row[4] == null ? '': row[4]}&machine_id=${row[5]}"><img src="${API_URL}/v1/badge/timeline?uri=${row[1]}&branch=${row[3] == null ? '': row[3]}&filename=${row[4] == null ? '': row[4]}&machine_id=${row[5]}&metrics=${`cores_energy_powermetrics_component`}&detail_name=${`[COMPONENT]`}"></a></span>
+                            <span class="energy-badge-container"><a href="/timeline.html?uri=${encodeURIComponent(row[1])}&branch=${encodeURIComponent(row[3] == null ? '': row[3])}&filename=${encodeURIComponent(row[4] == null ? '': row[4])}&machine_id=${row[5]}"><img src="${API_URL}/v1/badge/timeline?uri=${encodeURIComponent(row[1])}&branch=${encodeURIComponent(row[3] == null ? '': row[3])}&filename=${encodeURIComponent(row[4] == null ? '': row[4])}&machine_id=${row[5]}&metrics=${`cores_energy_powermetrics_component`}&detail_name=${`[COMPONENT]`}"></a></span>
                             <a class="copy-badge"><i class="copy icon"></i></a>
                         </div>
                         <p></p>`
