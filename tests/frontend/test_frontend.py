@@ -741,24 +741,25 @@ class TestXssSecurity:
 
         base_url = GlobalConfig().config['cluster']['metrics_url']
 
-        # Create malicious payloads for all user-provided fields
-        malicious_name = '<script>alert("XSS_NAME")</script>Safe Name'
-        malicious_branch = '<script>alert("XSS_BRANCH")</script>main'
-        malicious_filename = '<script>alert("XSS_FILENAME")</script>test.yml'
-        malicious_uri = 'http://evil.com<script>alert("XSS_URI")</script>'
+        # Create malicious payloads using IMG_XSS_EXECUTED approach for all user-provided fields
+        xss_payload = '<img src=x onerror="window.IMG_XSS_EXECUTED=true">'
+        malicious_name = f'{xss_payload}Safe Name'
+        malicious_branch = f'{xss_payload}main'
+        malicious_filename = f'{xss_payload}test.yml'
+        malicious_uri = f'http://evil.com{xss_payload}'
         malicious_usage_scenario = {
-            "name": "<script>alert(\"XSS_USAGE_SCENARIO\")</script>",
+            "name": f"{xss_payload}Scenario",
             "flow": [
                 {
-                    "name": "<script>alert(\"XSS_FLOW_NAME\")</script>Malicious Flow"
+                    "name": f"{xss_payload}Malicious Flow"
                 }
             ]
         }
         malicious_variables = {
-            'var1': '<script>alert("XSS_VAR1")</script>value1',
-            'var2': '<script>alert("XSS_VAR2")</script>value2'
+            'var1': f'{xss_payload}value1',
+            'var2': f'{xss_payload}value2'
         }
-        malicious_logs = '<script>alert("XSS_LOGS")</script>Error in container\nStacktrace here'
+        malicious_logs = f'{xss_payload}Error in container\nStacktrace here'
 
         # Insert test data with malicious content in multiple fields
         run_id = str(uuid.uuid4())
@@ -808,12 +809,12 @@ class TestXssSecurity:
         VALUES
         (778,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
         (779,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[BASELINE]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
-        (780,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_<script>alert("XSS_FLOW_NAME")</script>Malicious Flow',5306934,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
-        (781,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<script>alert("XSS_FLOW_NAME")</script>Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
+        (780,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',5306934,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (781,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
         (782,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
         (783,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[BASELINE]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
-        (784,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_<script>alert("XSS_FLOW_NAME")</script>Malicious Flow',5306934,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
-        (785,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<script>alert("XSS_FLOW_NAME")</script>Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL);
+        (784,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',5306934,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (785,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL);
         """
 
         DB().query(run_query, params=(
@@ -845,33 +846,17 @@ class TestXssSecurity:
             1
         ))
 
-        malicious_scripts = [
-            '<script>alert("XSS_NAME")</script>',
-            '<script>alert("XSS_BRANCH")</script>',
-            '<script>alert("XSS_FILENAME")</script>',
-            '<script>alert("XSS_URI")</script>',
-            '<script>alert("XSS_USAGE_SCENARIO")</script>',
-            '<script>alert("XSS_VAR1")</script>',
-            '<script>alert("XSS_VAR2")</script>',
-            '<script>alert("XSS_LOGS")</script>',
-            '<script>alert("XSS_FLOW_NAME")</script>'
-        ]
+        # Set up XSS detection
+        page.evaluate("window.IMG_XSS_EXECUTED = false")
 
         # Test 1: Runs page
         page.goto(base_url + '/runs.html')
         page.wait_for_load_state("networkidle")
         page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
 
-        runs_content = page.content()
-
-        for script in malicious_scripts:
-            assert script not in runs_content, \
-                f"XSS vulnerability detected on runs page: malicious script '{script}' found unescaped"
-
-        runs_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI', 'XSS_VAR1', 'XSS_VAR2']
-        for content in runs_safe_checks:
-            assert content in runs_content, \
-                f"Content '{content}' should be visible on runs page (but safely escaped)"
+        # Check if XSS executed
+        runs_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
+        assert runs_xss_executed is not True, "XSS vulnerability detected on runs page: malicious code executed"
 
         # Test 2: Stats page
         stats_url = f"{base_url}/stats.html?id={run_id}"
@@ -879,32 +864,18 @@ class TestXssSecurity:
         page.wait_for_load_state("networkidle")
         page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
 
-        stats_content = page.content()
-
-        for script in malicious_scripts:
-            assert script not in stats_content, \
-                f"XSS vulnerability detected on stats page: malicious script '{script}' found unescaped"
-
-        stats_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI', 'XSS_VAR1', 'XSS_VAR2', 'XSS_USAGE_SCENARIO', 'XSS_LOGS', 'XSS_FLOW_NAME']
-        for content in stats_safe_checks:
-            assert content in stats_content, \
-                f"Content '{content}' should be visible on stats page (but safely escaped)"
+        # Check if XSS executed
+        stats_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
+        assert stats_xss_executed is not True, "XSS vulnerability detected on stats page: malicious code executed"
 
         # Test 3: Watchlist page
         page.goto(base_url + '/watchlist.html')
         page.wait_for_load_state("networkidle")
         page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
 
-        watchlist_content = page.content()
-
-        for script in malicious_scripts:
-            assert script not in watchlist_content, \
-                f"XSS vulnerability detected on watchlist page: malicious script '{script}' found unescaped"
-
-        watchlist_safe_checks = ['XSS_NAME', 'XSS_BRANCH', 'XSS_FILENAME', 'XSS_URI']
-        for content in watchlist_safe_checks:
-            assert content in watchlist_content, \
-                f"Content '{content}' should be visible on watchlist page (but safely escaped)"
+        # Check if XSS executed
+        watchlist_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
+        assert watchlist_xss_executed is not True, "XSS vulnerability detected on watchlist page: malicious code executed"
 
         # Test 4: Compare page (repeated runs)
         compare_url = f"{base_url}/compare.html?ids={run_id},{run_id2}"
@@ -912,16 +883,9 @@ class TestXssSecurity:
         page.wait_for_load_state("networkidle")
         page.wait_for_function("() => document.body.innerText.includes('deadbeef123456789abcdef')", timeout=10000)
 
-        compare_content = page.content()
-
-        for script in malicious_scripts:
-            assert script not in compare_content, \
-                f"XSS vulnerability detected on compare page: malicious script '{script}' found unescaped"
-
-        compare_safe_checks = ['XSS_FILENAME', 'XSS_URI', 'XSS_FLOW_NAME']
-        for content in compare_safe_checks:
-            assert content in compare_content, \
-                f"Content '{content}' should be visible on compare page (but safely escaped)"
+        # Check if XSS executed
+        compare_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
+        assert compare_xss_executed is not True, "XSS vulnerability detected on compare page: malicious code executed"
 
     @pytest.mark.usefixtures('use_demo_data')
     def test_xss_protection_of_notes_via_echarts(self):
@@ -931,7 +895,7 @@ class TestXssSecurity:
         ECharts handles XSS protection internally for formatter properties.
         """
 
-        malicious_note = '<script>window.XSS_EXECUTED = true; alert("XSS_NOTES")</script>Legitimate note content'
+        malicious_note = '<img src=x onerror="window.IMG_XSS_EXECUTED=true">Legitimate note content'
 
         # Get an existing run ID from demo data
         existing_runs = DB().fetch_all("SELECT id FROM runs LIMIT 1")
@@ -950,7 +914,7 @@ class TestXssSecurity:
         DB().query(update_notes_query, params=(malicious_note, existing_notes[0][0]))
 
         # Set up XSS detection
-        page.evaluate("window.XSS_EXECUTED = false")
+        page.evaluate("window.IMG_XSS_EXECUTED = false")
 
         # Navigate to stats page
         base_url = GlobalConfig().config['cluster']['metrics_url']
@@ -967,7 +931,7 @@ class TestXssSecurity:
         page.wait_for_timeout(3000)
 
         # Check if malicious script executed
-        xss_executed = page.evaluate("window.XSS_EXECUTED")
+        xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
 
         # Verify XSS protection worked - script should NOT execute
         assert xss_executed is not True, "XSS vulnerability detected: malicious script executed"
