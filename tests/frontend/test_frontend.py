@@ -70,6 +70,7 @@ def handle_page_error(exception):
 @pytest.fixture()
 def use_demo_data():
     """Import demo data for standard frontend tests"""
+    Tests.reset_db()
     Tests.import_demo_data()
     yield
     Tests.reset_db()
@@ -739,8 +740,6 @@ class TestXssSecurity:
         on runs, stats (including logs view), watchlist, and compare pages.
         This test should FAIL when vulnerabilities exist and PASS when they're fixed.
         """
-        Tests.reset_db()
-
         base_url = GlobalConfig().config['cluster']['metrics_url']
 
         # Create malicious payloads using IMG_XSS_EXECUTED approach for all user-provided fields
@@ -954,7 +953,6 @@ class TestXssSecurity:
         """
         Test XSS protection on ci-index.html and ci.html pages.
         """
-        Tests.reset_db()
         base_url = GlobalConfig().config['cluster']['metrics_url']
         xss_payload = '<img src=x onerror="window.IMG_XSS_EXECUTED=true">'
 
