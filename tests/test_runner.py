@@ -598,3 +598,29 @@ def test_print_logs_flag_with_iterations():
     assert test_log_pos < test_error_pos
 
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+## automatic database reconnection
+def test_database_reconnection_during_run():
+    """Verify GMT runner handles database reconnection during execution
+    
+    This test simulates a database outage scenario:
+    1. A first succesful database query occurs at step 'initialize_run'
+    2. After this step, a database restart is triggered to simulate an outage
+    3. The next database query occurs at step 'save_image_and_volume_sizes':
+       Initially it fails due to the outage, but the retry mechanism should recover it
+    """
+
+    out = io.StringIO()
+    err = io.StringIO()
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_optimizations=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            for pause_point in context.run_steps(stop_at='save_image_and_volume_sizes'):
+                if pause_point == 'initialize_run':
+                    # Simulate short db outage
+                    result = subprocess.run(['docker', 'restart', '-t', '0', 'test-green-coding-postgres-container'],
+                                            check=True, capture_output=True)
+
+    assert ('Database connection error' in out.getvalue() and 'Retrying in' in out.getvalue()), \
+        "No database retry messages found - test may not have properly simulated database outage"
