@@ -74,10 +74,19 @@ class ScenarioRunner:
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
         measurement_wait_time_dependencies=60):
 
-        if skip_unsafe is True and allow_unsafe is True:
-            raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
-
         config = GlobalConfig().config
+
+        # sanity checks
+        if skip_unsafe is True and allow_unsafe is True:
+            raise ValueError('Cannot specify both --skip-unsafe and --allow-unsafe')
+
+        if dev_cache_build and (docker_prune or full_docker_prune):
+            raise ValueError('--dev-cache-build blocks pruning docker images. Combination is not allowed')
+
+        if full_docker_prune and \
+            config['postgresql']['host'] in ('green-coding-postgres-container', 'test-green-coding-postgres-container') :
+            raise ValueError('--full-docker-prune is set while your database host is "(test)-green-coding-postgres-container".\nThe switch is only for remote measuring machines. It would stop the GMT images itself when running locally')
+
         # variables that should not change if you call run multiple times
         if name:
             self._name = name
@@ -502,7 +511,14 @@ class ScenarioRunner:
         if self._full_docker_prune:
             print(TerminalColors.HEADER, '\nStopping and removing all containers, build caches, volumes and images on the system', TerminalColors.ENDC)
             subprocess.run('docker ps -aq | xargs docker stop', shell=True, check=False)
-            subprocess.run('docker images --format "{{.ID}}" | xargs docker rmi -f', shell=True, check=False)
+            # Prune all images except Kaniko.
+            # It will be downloaded again anyway, so no need to prune it
+            subprocess.run("""
+                docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" \
+                | grep -v "gcr.io/kaniko-project/executor" \
+                | awk '{print $2}' \
+                | xargs docker rmi -f
+                """, shell=True, check=False)
             subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
         elif self._docker_prune:
             print(TerminalColors.HEADER, '\nRemoving all unassociated build caches, networks volumes and stopped containers on the system', TerminalColors.ENDC)
@@ -664,6 +680,8 @@ class ScenarioRunner:
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
+        config = GlobalConfig().config
+
         # Create directory /tmp/green-metrics-tool/docker_images
         temp_dir = f"{self._tmp_folder}/docker_images"
         self._initialize_folder(temp_dir)
@@ -700,18 +718,26 @@ class ScenarioRunner:
                 context_path = self._join_paths(self.__working_folder, context)
                 self._join_paths(context_path, dockerfile)
 
+                repo_mount_path = service.get('folder-destination', '/tmp/repo')
+
                 docker_build_command = ['docker', 'run', '--rm',
                     '-v', '/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                    '-v', f"{self._repo_folder}:/tmp/repo:ro", # this is the folder where the usage_scenario is!
+                    '-v', f"{self._repo_folder}:{repo_mount_path}:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
-                    f"--dockerfile=/tmp/repo/{self.__working_folder_rel}/{context}/{dockerfile}",
-                    '--context', f'dir:///tmp/repo/{self.__working_folder_rel}/{context}',
+                    f"--dockerfile={repo_mount_path}/{self.__working_folder_rel}/{context}/{dockerfile}",
+                    '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
+                    '--registry-mirror', config['container_registry']['hostname'],
                     '--cleanup=true',
                     '--no-push']
+
+                if config['container_registry']['insecure']:
+                    docker_build_command.append('--insecure-pull')
+                    docker_build_command.append('--insecure-registry')
+                    docker_build_command.append(config['container_registry']['hostname'])
 
                 if self.__docker_params:
                     docker_build_command[2:2] = self.__docker_params
@@ -739,7 +765,17 @@ class ScenarioRunner:
             else:
                 print(f"Pulling {service['image']}")
                 self.__notes_helper.add_note( note="Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
-                ps = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+
+                slash_splitted_image_name = service['image'].split('/')
+                if '.' in slash_splitted_image_name[0]: # we have already a set registry
+                    container_registry_uri_with_image = service['image']
+                elif len(slash_splitted_image_name) > 1: # we have a namespace in the image
+                    container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{service['image']}"
+                else: # we have no registry or namespace and need to add the defaults of our configured registry
+                    container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{config['container_registry']['default_namespace']}/{service['image']}"
+                print(['docker', 'pull', container_registry_uri_with_image])
+
+                ps = subprocess.run(['docker', 'pull', container_registry_uri_with_image], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
@@ -761,7 +797,7 @@ class ScenarioRunner:
                         raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
                 # tagging must be done in pull and local case, so we can get the correct container later
-                subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
+                subprocess.run(['docker', 'tag', container_registry_uri_with_image, tmp_img_name], check=True)
 
 
         # Delete the directory /tmp/gmt_docker_images
@@ -817,6 +853,8 @@ class ScenarioRunner:
         if 'networks' in self._usage_scenario:
             print(TerminalColors.HEADER, '\nSetting up networks', TerminalColors.ENDC)
             for network in self._usage_scenario['networks']:
+                if network in ('host', 'bridge', 'none'):
+                    raise ValueError('Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined.')
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
@@ -900,12 +938,10 @@ class ScenarioRunner:
             docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
 
             docker_run_string.append('-v')
-            if 'folder-destination' in service:
-                 # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                docker_run_string.append(f"{self._repo_folder}:{service['folder-destination']}:ro")
-            else:
-                 # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                docker_run_string.append(f"{self._repo_folder}:/tmp/repo:ro")
+
+            repo_mount_path = service.get('folder-destination', '/tmp/repo')
+            # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
+            docker_run_string.append(f"{self._repo_folder}:{repo_mount_path}:ro")
 
             if self.__docker_params:
                 docker_run_string[2:2] = self.__docker_params
@@ -1058,11 +1094,15 @@ class ScenarioRunner:
 
             if 'networks' in service:
                 for network in service['networks']:
+                    if network == 'host' and not self._allow_unsafe:
+                        raise ValueError('Docker network host is restricted in GMT and cannot be joined. If running in CLI mode or if you have cluster capabilities try again with --allow-unsafe.')
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
                     if isinstance(service['networks'], dict) and service['networks'][network]:
                         if service['networks'][network].get('aliases', None):
                             for alias in service['networks'][network]['aliases']:
+                                if alias == 'host' and not self._allow_unsafe:
+                                    raise ValueError('Docker network host is restricted in GMT and cannot be aliased. If running in CLI mode or if you have cluster capabilities try again with --allow-unsafe.')
                                 docker_run_string.append('--network-alias')
                                 docker_run_string.append(alias)
                                 print(f"Adding network alias {alias} for network {network} in service {service_name}")
@@ -1248,7 +1288,7 @@ class ScenarioRunner:
             container_id = ps.stdout.strip()
             self.__containers[container_id] = {
                 'name': container_name,
-                'log-stdout': service.get('log-stdout', False),
+                'log-stdout': service.get('log-stdout', True),
                 'log-stderr': service.get('log-stderr', True),
                 'read-notes-stdout': service.get('read-notes-stdout', False),
                 'read-sci-stdout': service.get('read-sci-stdout', False),
@@ -1287,12 +1327,15 @@ class ScenarioRunner:
                     # injection of unwawnted params
                     ps = subprocess.run(
                         d_command,
-                        check=True,
+                        check=False,
                         stderr=subprocess.PIPE,
                         stdout=subprocess.PIPE,
                         encoding='UTF-8',
                         errors='replace',
                     )
+
+                    if ps.returncode != 0:
+                        raise RuntimeError(f"Process {d_command} failed.\n\nStdout: {ps.stdout}\nStderr: {ps.stderr}")
 
                 self.__ps_to_read.append({
                     'cmd': d_command,
@@ -1473,7 +1516,7 @@ class ScenarioRunner:
                         # behavior
 
                         stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
-                        if cmd_obj.get('log-stdout', False):
+                        if cmd_obj.get('log-stdout', True):
                             stdout_behaviour = subprocess.PIPE
                         if cmd_obj.get('log-stderr', True):
                             stderr_behaviour = subprocess.PIPE

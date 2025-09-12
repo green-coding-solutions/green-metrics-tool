@@ -213,9 +213,8 @@ def test_stats():
     new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
     new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
-    energy_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.four.cards.stackable > div.ui.card.machine-energy > div > div.description > div.ui.fluid.mini.statistic > div > span").text_content()
-    phase_duration = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.four.cards.stackable > div.ui.card.phase-duration > div > div.description > div.ui.fluid.mini.statistic > div > span").text_content()
-
+    energy_value = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="energy"] div.ui.blue.card.machine-energy > div.extra.content span.value.bold').text_content()
+    phase_duration = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.runtime > div.extra.content span.value.bold').text_content()
 
     assert energy_value.strip() == '21.14'
     assert phase_duration.strip() == '5.20'
@@ -291,7 +290,7 @@ def test_stats():
     new_page.locator('div[data-tab="[BASELINE]"] .ui.accordion .title > a').click()
 
     first_metric = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(8) > td:nth-child(1)").text_content()
-    assert first_metric.strip() == 'Embodied Carbon'
+    assert first_metric.strip() == 'Machine CO₂ (embodied)'
 
     first_value = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(8) > td:nth-child(6)").text_content()
     assert first_value.strip() == '0.01'
@@ -390,7 +389,7 @@ def test_repositories_and_compare_repeated_run():
     new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
     first_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(1)").text_content()
-    assert first_metric.strip() == 'CPU Power (Package)'
+    assert first_metric.strip() == 'CPU Package Power'
 
     first_type = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(5)")
     assert first_type.text_content().strip() == 'MEAN'
@@ -416,7 +415,7 @@ def test_repositories_and_compare_repeated_run():
     new_page.locator('div[data-tab="[BASELINE]"] .ui.accordion a').click()
 
     first_metric = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(1)").text_content()
-    assert first_metric.strip() == 'CPU Energy (Package)'
+    assert first_metric.strip() == 'CPU Package Energy'
 
     first_value = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(6)").text_content()
     assert first_value.strip() == '2.62'

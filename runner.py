@@ -106,21 +106,6 @@ if __name__ == '__main__':
             key, value = var.split('=', maxsplit=1)
             variables_dict[key] = value
 
-    if args.allow_unsafe and args.skip_unsafe:
-        parser.print_help()
-        error_helpers.log_error('--allow-unsafe and skip--unsafe in conjuction is not possible')
-        sys.exit(1)
-
-    if args.dev_cache_build and (args.docker_prune or args.full_docker_prune):
-        parser.print_help()
-        error_helpers.log_error('--dev-cache-build blocks pruning docker images. Combination is not allowed')
-        sys.exit(1)
-
-    if args.full_docker_prune and GlobalConfig().config['postgresql']['host'] == 'green-coding-postgres-container':
-        parser.print_help()
-        error_helpers.log_error('--full-docker-prune is set while your database host is "green-coding-postgres-container".\nThe switch is only for remote measuring machines. It would stop the GMT images itself when running locally')
-        sys.exit(1)
-
     if args.config_override is not None:
         if args.config_override[-4:] != '.yml':
             parser.print_help()
