@@ -50,7 +50,7 @@ def setup_browser(setup_playwright): #pylint: disable=unused-argument,redefined-
     global browser #pylint: disable=global-statement
 
     browser = playwright.firefox.launch(
-        headless=True,
+        headless=True, # True is default, set to False to use the browser in headful mode
         # slow_mo=50,
     )
     context = browser.new_context(viewport={"width": 1920, "height": 5600})
