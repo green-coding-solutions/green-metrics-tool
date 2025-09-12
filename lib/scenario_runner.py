@@ -1567,8 +1567,7 @@ class ScenarioRunner:
                                 stderr=subprocess.PIPE,
                                 timeout=60, # 60 seconds should be reasonable for any playwright command we know
                             )
-                            print("stdout", ps.stdout)
-                            print("stderr", ps.stderr)
+
 
                     if self._debugger.active:
                         self._debugger.pause('Waiting to start next command in flow')
