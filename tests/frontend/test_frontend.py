@@ -895,7 +895,7 @@ class TestXssSecurity:
         # Test 6: Compare page (usage scenario variables)
         compare_url = f"{base_url}/compare.html?ids={run_id},{run_id2}&force_mode=usage_scenario_variables"
 
-        # Temporarily remove the page error handler for this compare test since there's a JS error I don't know how to fix
+        # Temporarily remove the page error handler for this compare test since there's a JS error due to missing phase_stats data
         page.remove_listener("pageerror", handle_page_error)
 
         page.goto(compare_url)
