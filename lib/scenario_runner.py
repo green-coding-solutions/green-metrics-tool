@@ -1545,28 +1545,28 @@ class ScenarioRunner:
                             timeout=self._measurement_flow_process_duration,
                         )
 
-                        ps_to_read_tmp.append({
-                            'cmd': docker_exec_command,
-                            'ps': ps,
-                            'container_name': flow['container'],
-                            'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
-                            'ignore-errors': cmd_obj.get('ignore-errors', False),
-                            'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
-                            'detail_name': flow['container'],
-                            'detach': cmd_obj.get('detach', False),
-                        })
+                    ps_to_read_tmp.append({
+                        'cmd': docker_exec_command,
+                        'ps': ps,
+                        'container_name': flow['container'],
+                        'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
+                        'ignore-errors': cmd_obj.get('ignore-errors', False),
+                        'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
+                        'detail_name': flow['container'],
+                        'detach': cmd_obj.get('detach', False),
+                    })
 
-                        # we need to check the ready IPC endpoint to find out if the process is done
-                        # this command will block until something is received
-                        if cmd_obj['type'] == 'playwright':
-                            print("Awaiting Playwright function return")
-                            ps = subprocess.run(
-                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
-                                check=True,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                timeout=60, # 60 seconds should be reasonable for any playwright command we know
-                            )
+                    # we need to check the ready IPC endpoint to find out if the process is done
+                    # this command will block until something is received
+                    if cmd_obj['type'] == 'playwright':
+                        print("Awaiting Playwright function return")
+                        ps = subprocess.run(
+                            ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
+                            check=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            timeout=60, # 60 seconds should be reasonable for any playwright command we know
+                        )
 
 
                     if self._debugger.active:
