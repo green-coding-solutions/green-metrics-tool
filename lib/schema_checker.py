@@ -177,7 +177,7 @@ class SchemaChecker():
                 'name': And(str, Use(self.not_empty), Regex(r'^[\.\s0-9a-zA-Z_\(\)-]+$')),
                 'container': And(str, Use(self.not_empty), Use(self.contains_no_invalid_chars)),
                 'commands': [{
-                    'type': 'console',
+                    'type': Or('console', 'playwright'),
                     'command': And(str, Use(self.not_empty)),
                     Optional('detach'): bool,
                     Optional('note'): And(str, Use(self.not_empty)),

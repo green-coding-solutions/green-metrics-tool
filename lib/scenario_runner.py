@@ -1479,62 +1479,71 @@ class ScenarioRunner:
                     if 'note' in cmd_obj:
                         self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=flow['container'], timestamp=int(time.time_ns() / 1_000))
 
-                    if cmd_obj['type'] == 'console':
-                        print(TerminalColors.HEADER, '\nConsole command', cmd_obj['command'], 'on container', flow['container'], TerminalColors.ENDC)
+                    print(TerminalColors.HEADER, '\n', cmd_obj['type'], 'command:', cmd_obj['command'], 'on container', flow['container'], TerminalColors.ENDC)
 
-                        docker_exec_command = ['docker', 'exec']
+                    docker_exec_command = ['docker', 'exec']
+                    docker_exec_command.append(flow['container'])
+                    stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
+                    if cmd_obj.get('log-stdout', True):
+                        stdout_behaviour = subprocess.PIPE
+                    if cmd_obj.get('log-stderr', True):
+                        stderr_behaviour = subprocess.PIPE
 
-                        docker_exec_command.append(flow['container'])
+                    if cmd_obj['type'] == 'playwright':
+                        docker_exec_command.append(cmd_obj.get('shell', 'sh'))
+                        docker_exec_command.append('-c')
+                        escaped_command = cmd_obj['command'].replace("'", "\\'")
+                        docker_exec_command.append(f"echo '{escaped_command}' > /tmp/playwright-ipc-commands")
+
+                    elif cmd_obj['type'] == 'console':
+
                         if shell := cmd_obj.get('shell', False):
                             docker_exec_command.append(shell)
                             docker_exec_command.append('-c')
                             docker_exec_command.append(cmd_obj['command'])
                         else:
                             docker_exec_command.extend(shlex.split(cmd_obj['command']))
+                    else:
+                        raise RuntimeError('Unknown command type in flow: ', cmd_obj['type'])
 
+
+                    if cmd_obj.get('detach', False) is True and cmd_obj['type'] == 'playwright':
+                        raise ValueError('Playwright commands cannot be executed detached, as they must be awaited')
+                    elif cmd_obj.get('detach', False) is True:
+                        print('Executing process asynchronously and detaching ...')
                         # Note: In case of a detach wish in the usage_scenario.yml:
                         # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
-                        # Since Popen always make the process asynchronous we can leverage this to emulate a detached
-                        # behavior
+                        # Since Popen always make the process asynchronous we can leverage this to emulate a detached behavior
 
-                        stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
-                        if cmd_obj.get('log-stdout', True):
-                            stdout_behaviour = subprocess.PIPE
-                        if cmd_obj.get('log-stderr', True):
-                            stderr_behaviour = subprocess.PIPE
+                        #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
+                        ps = subprocess.Popen(
+                            docker_exec_command,
+                            stderr=stderr_behaviour,
+                            stdout=stdout_behaviour,
+                            preexec_fn=os.setsid,
+                            encoding='UTF-8',
+                            errors='replace',
+                        )
+                        if stderr_behaviour == subprocess.PIPE:
+                            os.set_blocking(ps.stderr.fileno(), False)
+                        if  stdout_behaviour == subprocess.PIPE:
+                            os.set_blocking(ps.stdout.fileno(), False)
 
+                        ps_to_kill_tmp.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
+                    else:
+                        print('Executing process synchronously.')
+                        if self._measurement_flow_process_duration:
+                            print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
 
-                        if cmd_obj.get('detach', False) is True:
-                            print('Executing process asynchronously and detaching ...')
-                            #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
-                            ps = subprocess.Popen(
-                                docker_exec_command,
-                                stderr=stderr_behaviour,
-                                stdout=stdout_behaviour,
-                                preexec_fn=os.setsid,
-                                encoding='UTF-8',
-                                errors='replace',
-                            )
-                            if stderr_behaviour == subprocess.PIPE:
-                                os.set_blocking(ps.stderr.fileno(), False)
-                            if  stdout_behaviour == subprocess.PIPE:
-                                os.set_blocking(ps.stdout.fileno(), False)
-
-                            ps_to_kill_tmp.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
-                        else:
-                            print('Executing process synchronously.')
-                            if self._measurement_flow_process_duration:
-                                print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
-
-                            ps = subprocess.run(
-                                docker_exec_command,
-                                stderr=stderr_behaviour,
-                                stdout=stdout_behaviour,
-                                encoding='UTF-8',
-                                errors='replace',
-                                check=False, # cause it will be checked later and also ignore-errors checked
-                                timeout=self._measurement_flow_process_duration,
-                            )
+                        ps = subprocess.run(
+                            docker_exec_command,
+                            stderr=stderr_behaviour,
+                            stdout=stdout_behaviour,
+                            encoding='UTF-8',
+                            errors='replace',
+                            check=False, # cause it will be checked later and also ignore-errors checked
+                            timeout=self._measurement_flow_process_duration,
+                        )
 
                         ps_to_read_tmp.append({
                             'cmd': docker_exec_command,
@@ -1547,9 +1556,19 @@ class ScenarioRunner:
                             'detach': cmd_obj.get('detach', False),
                         })
 
-
-                    else:
-                        raise RuntimeError('Unknown command type in flow: ', cmd_obj['type'])
+                        # we need to check the ready IPC endpoint to find out if the process is done
+                        # this command will block until something is received
+                        if cmd_obj['type'] == 'playwright':
+                            print("Awaiting Playwright function return")
+                            ps = subprocess.run(
+                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
+                                check=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                timeout=60, # 60 seconds should be reasonable for any playwright command we know
+                            )
+                            print("stdout", ps.stdout)
+                            print("stderr", ps.stderr)
 
                     if self._debugger.active:
                         self._debugger.pause('Waiting to start next command in flow')
