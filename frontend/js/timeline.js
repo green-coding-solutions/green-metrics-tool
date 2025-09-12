@@ -1,4 +1,5 @@
 let chart_instances = [];
+let repository_uri = null; // Store unescaped URI for URL construction
 
 window.onresize = function() { // set callback when ever the user changes the viewport
     chart_instances.forEach(chart_instance => {
@@ -58,15 +59,19 @@ const populateMachines = async () => {
 
 const fillInputsFromURL = (url_params) => {
 
-
-    if(url_params['uri'] == null
-        || url_params['uri'] == ''
-        || url_params['uri'] == 'null') {
+    repository_uri = url_params['uri']; // Store the unescaped value globally for URL construction later
+    if(repository_uri == null
+        || repository_uri == ''
+        || repository_uri == 'null') {
         showNotification('No uri', 'uri parameter in URL is empty or not present. Did you follow a correct URL?');
         throw "Error";
     }
-    $('input[name="uri"]').val(escapeString(url_params['uri']));
-    $('#uri').text(escapeString(url_params['uri']));
+    if(!repository_uri.startsWith('http') && !repository_uri.startsWith('/')) {
+        showNotification('Invalid URI', 'URI must be a valid HTTP/HTTPS URL or absolute file path');
+        throw "Error";
+    }
+    $('input[name="uri"]').val(escapeString(repository_uri));
+    $('#uri').text(escapeString(repository_uri));
 
     // all variables can be set via URL initially
     if(url_params['branch'] != null) {
@@ -88,7 +93,7 @@ const fillInputsFromURL = (url_params) => {
 }
 
 const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null) => {
-    let api_url = `uri=${encodeURIComponent($('input[name="uri"]').val())}`;
+    let api_url = `uri=${encodeURIComponent(repository_uri)}`;
 
     // however, the form takes precendence
     if($('input[name="branch"]').val() !== '') api_url = `${api_url}&branch=${encodeURIComponent($('input[name="branch"]').val())}`
@@ -224,7 +229,7 @@ const loadCharts = async () => {
                         phase: ${escapeString(series[params.seriesName].notes[params.dataIndex].phase)}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
                         commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
-                        commit_hash: <a href="${$("#uri").text()}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
+                        commit_hash: <a href="${encodeURIComponent(repository_uri)}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
                         gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].gmt_hash)}</a><br>
 
                         <br>

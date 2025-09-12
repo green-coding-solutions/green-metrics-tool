@@ -875,7 +875,16 @@ class TestXssSecurity:
         watchlist_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert watchlist_xss_executed is not True, "XSS vulnerability detected on watchlist page: malicious code executed"
 
-        # Test 4: Compare page (commit hashes comparison view includes repository uri, filename and usage scenario)
+        # Test 4: Timeline page
+        timeline_url = f"{base_url}/timeline.html?uri={malicious_uri}&branch={malicious_branch}&filename={malicious_filename}&machine_id=1"
+        page.goto(timeline_url)
+        page.wait_for_load_state("networkidle")
+        page.wait_for_function("() => document.querySelector('input[name=\"uri\"]')?.value.includes('evil.com')", timeout=10000)
+
+        timeline_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
+        assert timeline_xss_executed is not True, "XSS vulnerability detected on timeline page: malicious code executed"
+
+        # Test 5: Compare page (commit hashes comparison view includes repository uri, filename and usage scenario)
         compare_url = f"{base_url}/compare.html?ids={run_id},{run_id2}&force_mode=commit_hashes"
         page.goto(compare_url)
         page.wait_for_load_state("networkidle")
@@ -884,7 +893,7 @@ class TestXssSecurity:
         compare_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert compare_xss_executed is not True, "XSS vulnerability detected on compare page: malicious code executed"
 
-        # Test 5: Compare page (usage scenario variables)
+        # Test 6: Compare page (usage scenario variables)
         compare_url = f"{base_url}/compare.html?ids={run_id},{run_id2}&force_mode=usage_scenario_variables"
 
         # Temporarily remove the page error handler for this compare test since there's a JS error I don't know how to fix
