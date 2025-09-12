@@ -57,6 +57,11 @@ machine:
   base_temperature_chip: "asd"
   base_temperature_feature: "asd"
 
+container_registry:
+  hostname: index.docker.io
+  default_namespace: library
+  insecure: False
+
 measurement:
   metric_providers:
     linux:
