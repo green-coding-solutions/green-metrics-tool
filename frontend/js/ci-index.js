@@ -10,20 +10,20 @@ async function getRepositories(sort_by = 'date') {
     table_body.innerHTML = '';
 
     api_data.data.forEach(el => {
-        const repo = el[0]; // escaping not needed, as done in API ingest
-        const source = el[1]; // escaping not needed, as done in API ingest
-        const last_run = el[2]; // escaping not needed, as done in API ingest
+        const repo = el[0];
+        const source = el[1];
+        const last_run = el[2];
 
         let row = table_body.insertRow()
         row.innerHTML = `
             <td>
                 <div class="ui accordion" style="width: 100%;">
                   <div class="title">
-                    <i class="dropdown icon"></i> ${getRepoLink(repo, source)}
+                    <i class="dropdown icon"></i> ${getRepoLink(repo, source)} <!-- raw values: function handles escaping internally -->
                     <span class="ui label right icon" style="float: right;">${dateToYMD(new Date(last_run), short=true)}<i class="clock icon"></i></span>
                   </div>
 
-                  <div class="content" data-uri="${repo}">
+                  <div class="content" data-uri="${escapeString(repo)}">
                       <table class="ui celled striped table"></table>
                   </div>
                 </div>
@@ -53,18 +53,17 @@ function getRepoLink(repo, source) {
         iconClass = 'bitbucket';
     }
 
-    // Assumes the repo var is sanitized before being sent to this function
-    return `<i class="icon ${iconClass}"></i>${repo} <a href="${getRepoUri(repo, source)}"><i class="icon external alternate"></i></a>`;
+    return `<i class="icon ${iconClass}"></i>${escapeString(repo)} <a href="${getRepoUri(repo, source)}"><i class="icon external alternate"></i></a>`;
 }
 
 // Function to generate the repository URI
 function getRepoUri(repo, source) {
     if (source.startsWith('github')) {
-        return `https://www.github.com/${repo}`;
+        return `https://www.github.com/${encodeURIComponent(repo)}`;
     } else if (source.startsWith('gitlab')) {
-        return `https://www.gitlab.com/${repo}`;
+        return `https://www.gitlab.com/${encodeURIComponent(repo)}`;
     } else if (source.startsWith('bitbucket')) {
-        return `https://bitbucket.com/${repo}`;
+        return `https://bitbucket.com/${encodeURIComponent(repo)}`;
     }
 }
 
@@ -81,7 +80,7 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
     const columns = [
         {
             data: 0, title: 'Workflow', render: function(el,type,row) {
-                return `<a href="/ci.html?repo=${escapeString(row[0])}&branch=${escapeString(row[1])}&workflow=${escapeString(row[2])}">${escapeString(row[5])}</a>`;
+                return `<a href="/ci.html?repo=${encodeURIComponent(row[0])}&branch=${encodeURIComponent(row[1])}&workflow=${encodeURIComponent(row[2])}">${escapeString(row[5])}</a>`;
             }
         },
         {data : 1, title: 'Branch'},
@@ -94,7 +93,7 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
         },
         {
             title: 'Carbon', render: function(el,type,row) {
-                return `<img src="${API_URL}/v1/ci/badge/get?repo=${escapeString(row[0])}&branch=${escapeString(row[1])}&workflow=${escapeString(row[2])}&mode=totals&metric=carbon&duration_days=30" onerror="this.src='/images/no-data-badge.webp'">`;
+                return `<img src="${API_URL}/v1/ci/badge/get?repo=${encodeURIComponent(row[0])}&branch=${encodeURIComponent(row[1])}&workflow=${encodeURIComponent(row[2])}&mode=totals&metric=carbon&duration_days=30" onerror="this.src='/images/no-data-badge.webp'">`;
             }
         },
 

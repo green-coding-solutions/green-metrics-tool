@@ -9,6 +9,7 @@ $(document).ready(function () {
             return;
         }
         measurements.data.forEach(measurement => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             let [id, name, image_url, repo_url, categories, branch, filename, machine_id, machine_description, schedule_mode, last_scheduled, created_at, updated_at, last_run, metrics] = measurement
             filename = filename == null ? '': filename
             branch = branch == null ? '': branch
@@ -18,7 +19,7 @@ $(document).ready(function () {
             chart_node.classList.add('ui')
             chart_node.classList.add("card");
 
-            const url_link = `${replaceRepoIcon(repo_url)} <a href="${escapeString(repo_url)}" target="_blank"><i class="icon external alternate"></i></a>`;
+            const url_link = `${replaceRepoIcon(repo_url)} ${createExternalIconLink(repo_url)}`;
             let chart_node_html = `
                 <div class="image">
                     <img src="${escapeString(image_url)}" onerror="this.src='/images/placeholder.webp'" loading="lazy">
@@ -47,17 +48,17 @@ $(document).ready(function () {
                             <i data-tooltip="${escapeString(getPretty(metric_name, 'explanation'))}" data-position="bottom center" data-inverted>
                                 <i class="question circle icon link"></i>
                             </i><br>
-                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${escapeString(repo_url)}&branch=${escapeString(branch)}&filename=${escapeString(filename)}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${escapeString(repo_url)}&branch=${escapeString(branch)}&filename=${escapeString(filename)}&machine_id=${machine_id}&metric=${escapeString(metric_name)}&detail_name=${escapeString(detail_name)}&unit=joules" alt="${escapeString(metric_name)} badge" onerror="this.closest('.field').style.display='none'" loading="lazy"></a></span>
+                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${encodeURIComponent(repo_url)}&branch=${encodeURIComponent(branch)}&filename=${encodeURIComponent(filename)}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${encodeURIComponent(repo_url)}&branch=${encodeURIComponent(branch)}&filename=${encodeURIComponent(filename)}&machine_id=${machine_id}&metric=${encodeURIComponent(metric_name)}&detail_name=${encodeURIComponent(detail_name)}&unit=joules" alt="${escapeString(metric_name)} badge" onerror="this.closest('.field').style.display='none'" loading="lazy"></a></span>
                         </div>`
             })
 
             chart_node_html = `${chart_node_html}
                 </div>
-                <a class="ui button blue" href="/timeline.html?uri=${escapeString(repo_url)}&filename=${escapeString(filename)}&branch=${escapeString(branch)}&machine_id=${machine_id}" target="_blank">
+                <a class="ui button blue" href="/timeline.html?uri=${encodeURIComponent(repo_url)}&filename=${encodeURIComponent(filename)}&branch=${encodeURIComponent(branch)}&machine_id=${machine_id}" target="_blank">
                     Show Timeline <i class="external alternate icon"></i>
                 </a>
                 <hr>
-                <a class="ui button grey" href="/runs.html?uri=${escapeString(repo_url)}&filename=${escapeString(filename)}&branch=${escapeString(branch)}&machine_id=${machine_id}" target="_blank">
+                <a class="ui button grey" href="/runs.html?uri=${encodeURIComponent(repo_url)}&filename=${encodeURIComponent(filename)}&branch=${encodeURIComponent(branch)}&machine_id=${machine_id}" target="_blank">
                     Show All Measurements <i class="external alternate icon"></i>
                 </a>`
             chart_node.innerHTML = chart_node_html;
@@ -89,14 +90,14 @@ $(document).ready(function () {
                 data: 0,
                 title: 'Timeline Link',
                 render: function(name, type, row) {
-                    return `<a href="/timeline.html?uri=${row[1]}&filename=${row[4]}&branch=${row[3]}&machine_id=${row[5]}">Show Timeline</a>`
+                    return `<a href="/timeline.html?uri=${encodeURIComponent(row[1])}&filename=${encodeURIComponent(row[4])}&branch=${encodeURIComponent(row[3])}&machine_id=${row[5]}">Show Timeline</a>`
                 },
             },
             {
                 data: 0,
                 title: 'Show all measurements',
                 render: function(name, type, row) {
-                    return `<a href="/index.html?uri=${row[1]}&filename=${row[4]}&branch=${row[3]}&machine_id=${row[5]}">Show all measurements</a>`
+                    return `<a href="/index.html?uri=${encodeURIComponent(row[1])}&filename=${encodeURIComponent(row[4])}&branch=${encodeURIComponent(row[3])}&machine_id=${row[5]}">Show all measurements</a>`
                 },
             },
             {
@@ -113,7 +114,7 @@ $(document).ready(function () {
                                     <i class="question circle icon link"></i>
                                 </i>
                             </div>
-                            <span class="energy-badge-container"><a href="/timeline.html?uri=${row[1]}&branch=${row[3] == null ? '': row[3]}&filename=${row[4] == null ? '': row[4]}&machine_id=${row[5]}"><img src="${API_URL}/v1/badge/timeline?uri=${row[1]}&branch=${row[3] == null ? '': row[3]}&filename=${row[4] == null ? '': row[4]}&machine_id=${row[5]}&metrics=${`cores_energy_powermetrics_component`}&detail_name=${`[COMPONENT]`}"></a></span>
+                            <span class="energy-badge-container"><a href="/timeline.html?uri=${encodeURIComponent(row[1])}&branch=${encodeURIComponent(row[3] == null ? '': row[3])}&filename=${encodeURIComponent(row[4] == null ? '': row[4])}&machine_id=${row[5]}"><img src="${API_URL}/v1/badge/timeline?uri=${encodeURIComponent(row[1])}&branch=${encodeURIComponent(row[3] == null ? '': row[3])}&filename=${encodeURIComponent(row[4] == null ? '': row[4])}&machine_id=${row[5]}&metrics=${`cores_energy_powermetrics_component`}&detail_name=${`[COMPONENT]`}"></a></span>
                             <a class="copy-badge"><i class="copy icon"></i></a>
                         </div>
                         <p></p>`
