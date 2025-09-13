@@ -273,7 +273,7 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at,
             (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = r.id) as invalid_run,
-            r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
+            r.filename, r.usage_scenario_variables, r.usage_scenario_dependencies, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
