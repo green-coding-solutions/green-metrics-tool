@@ -32,6 +32,10 @@ flow:
         command: context.close()
       - type: playwright
         command: page.close()
+      - type: playwright
+        command: context = await browser.newContext(contextOptions);
+      - type: playwright
+        command: page = await context.newPage()
 
   - name: Dump Log (Warmup)
     container: squid
@@ -47,10 +51,6 @@ flow:
   - name: Load and idle
     container: playwright-nodejs
     commands:
-      - type: playwright
-        command: context = await browser.newContext(contextOptions);
-      - type: playwright
-        command: page = await context.newPage()
       - type: playwright
         command: await page.goto("__GMT_VAR_PAGE__");
       - type: console
