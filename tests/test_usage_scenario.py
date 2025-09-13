@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import json
+import time
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
@@ -401,8 +402,8 @@ def test_depends_on_error_not_running():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "State check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not running but 'exited' after waiting for 10 sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container." == str(e.value) , \
-        Tests.assertion_info("State check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not running but 'exited' after waiting for 10 sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.", str(e.value))
+    assert "State check of dependent services of 'test-container-1' failed! Container 'test-container-3' is not running but 'exited' after waiting for 10 sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container." == str(e.value) , \
+        Tests.assertion_info("State check of dependent services of 'test-container-1' failed! Container 'test-container-3' is not running but 'exited' after waiting for 10 sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.", str(e.value))
 
 def test_depends_on_error_cyclic_dependency():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_cycle.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
@@ -575,7 +576,6 @@ def test_network_alias_added():
     docker_run_command = re.search(r"docker run with: (.*)", out.getvalue()).group(1)
     assert '--network-alias test-alias' in docker_run_command
 
-
 def test_network_host_join_blocked():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_host_join.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     with pytest.raises(ValueError) as e,Tests.RunUntilManager(runner) as context:
@@ -592,9 +592,8 @@ def test_network_host_creation_blocked():
     assert "Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined." in str(e.value)
 
 
-
 def test_cmd_entrypoint():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -602,19 +601,38 @@ def test_cmd_entrypoint():
         runner.run()
 
     o = out.getvalue()
-    assert '--entrypoint echo alpine_gmt_run_tmp A $0 echo B $0' in o
-    assert '--entrypoint env alpine_gmt_run_tmp env' in o
-    assert '--entrypoint env alpine_gmt_run_tmp -h' in o
-    assert '--entrypoint echo alpine_gmt_run_tmp A $0 echo B $0' in o
-    assert 'alpine_gmt_run_tmp ash -c env' in o
-    assert 'alpine_gmt_run_tmp env' in o
-    assert 'alpine_gmt_run_tmp echo $0' in o
-    assert 'alpine_gmt_run_tmp echo $$0' in o
-    assert '--entrypoint echo alpine_gmt_run_tmp $0' in o
-    assert '--entrypoint echo alpine_gmt_run_tmp A $0' in o
-    assert 'alpine_gmt_run_tmp echo $0' in o
+    assert '--entrypoint /bin/sh alpine_gmt_run_tmp -c echo \'Hello from command\'' in o
+    assert '--entrypoint sleep alpine_gmt_run_tmp infinity' in o
+    assert '--entrypoint tail alpine_gmt_run_tmp -f /dev/null' in o
+    assert 'alpine_gmt_run_tmp /bin/sh -c' in o
+    assert 'alpine_gmt_run_tmp sleep infinity' in o
+    assert '--entrypoint sleep alpine_gmt_run_tmp infinity' in o
+    assert '--entrypoint cat alpine_gmt_run_tmp' in o
+    assert '--entrypoint /bin/sh alpine_gmt_run_tmp -c echo \'A $0\' && echo \'B $0\'' in o
+    assert 'alpine_gmt_run_tmp ash -c echo \'Using Alpine ash shell\'' in o
+    assert 'alpine_gmt_run_tmp /bin/sh -c echo \'Variable test: $$0\'' in o
 
     assert err.getvalue() == '', Tests.assertion_info('stderr should be empty', err.getvalue())
+
+def test_container_immediate_exit_with_error():
+    """Test that containers exiting immediately with non-zero exit codes raise RuntimeError"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/container_immediate_exit_with_error.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            for step in context.run_steps():
+                if step == 'setup_services':
+                    # Race condition fix: Container exits with error code 1, but takes time to execute the command.
+                    # Adding delay ensures container has time to exit before the running container check.
+                    time.sleep(0.5)
+
+    error_message = str(e.value)
+    assert "failed during boot phase" in error_message, \
+        Tests.assertion_info("Expected immediate exit with error message", error_message)
+    assert "exit code: 1" in error_message, \
+        Tests.assertion_info("Expected non-zero exit code in error message", error_message)
+    assert "failing-container" in error_message, \
+        Tests.assertion_info("Expected container name in error message", error_message)
 
 # command: [str] (optional)
 #    Command to be executed when container is started.
@@ -919,3 +937,34 @@ def test_outside_symlink_not_allowed_missing_inside():
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
+
+# folder-destination: [str] (optional)
+# Custom mount path for the repository folder inside the container.
+# Should mount the repository at the specified path instead of default /tmp/repo
+def test_folder_destination_basic():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_basic.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+
+    build_output = out.getvalue()
+
+    assert 'Test file found at custom path' in build_output, \
+        Tests.assertion_info('Repository should be mounted at folder-destination path', build_output)
+
+def test_folder_destination_with_build():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_with_build.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+
+    build_output = out.getvalue()
+
+    assert 'Repository mounted at custom path' in build_output, \
+        Tests.assertion_info('Repository files should be accessible at folder-destination path during runtime', build_output)

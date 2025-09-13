@@ -40,6 +40,8 @@ from lib.notes import Notes
 from lib import system_checks
 from lib.machine import Machine
 from lib import metric_importer
+from lib import container_compatibility
+from lib.container_compatibility import CompatibilityStatus
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -247,7 +249,6 @@ class ScenarioRunner:
             return filename
 
         raise FileNotFoundError(f"{path2} in {path} not found")
-
 
 
     def _initialize_folder(self, path):
@@ -470,7 +471,7 @@ class ScenarioRunner:
         # Disable Docker CLI hints (e.g. "What's Next? ...")
         os.environ['DOCKER_CLI_HINTS'] = 'false'
 
-    def _check_running_containers(self):
+    def _check_running_containers_before_start(self):
         result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
@@ -485,6 +486,61 @@ class ScenarioRunner:
 
                     if running_container == container_name:
                         raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
+
+    def _check_container_is_running(self, container_name: str, step_description: str, image_name: str | None = None):
+        check_ps = subprocess.run(['docker', 'ps', '-q', '-f', f'name={container_name}'],
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE,
+                                  check=False, encoding='UTF-8')
+        if not check_ps.stdout.strip():
+            # Container not running - this is an error condition that requires raising an exception
+            logs_ps = subprocess.run(
+                ['docker', 'logs', container_name],
+                check=False,
+                capture_output=True,
+                encoding='UTF-8'
+            )
+            inspect_ps = subprocess.run(
+                ['docker', 'inspect', '--format={{.State.ExitCode}}', container_name],
+                check=False,
+                capture_output=True,
+                encoding='UTF-8'
+            )
+            exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
+
+            if exit_code == "0":
+                # Container exited with a successful exit code
+                raise RuntimeError(f"Container '{container_name}' exited during {step_description} (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+            else:
+                # Container failed with non-zero or unknown exit code
+                if not image_name:
+                    image_ps = subprocess.run(
+                        ['docker', 'inspect', '--format={{.Config.Image}}', container_name],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False
+                        )
+                    if image_ps.returncode != 0:
+                        raise RuntimeError(f"Container '{container_name}' failed during {step_description} but could not retrieve image information for architecture compatibility check. Docker inspect error: {image_ps.stderr.strip()}")
+                    image_name = image_ps.stdout.strip()
+
+                compatibility_info = container_compatibility.check_image_architecture_compatibility(image_name)
+                compatibility_status = compatibility_info['status']
+
+                if compatibility_status == CompatibilityStatus.INCOMPATIBLE:
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}' and emulation is not available.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                elif compatibility_status == CompatibilityStatus.EMULATED:
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description}, possibly due to emulation issues (exit code: {exit_code}). Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}'. Container was running via emulation.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                else:
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+
+    def _check_running_containers_after_boot_phase(self):
+        self._check_running_containers("boot phase")
+
+    def _check_running_containers_after_runtime_phase(self):
+        self._check_running_containers("runtime phase")
+
+    def _check_running_containers(self, step_description: str):
+        for container_info in self.__containers.values():
+            self._check_container_is_running(container_info['name'], step_description)
 
     def _populate_image_names(self):
         for service_name, service in self._usage_scenario.get('services', {}).items():
@@ -680,6 +736,8 @@ class ScenarioRunner:
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
+        config = GlobalConfig().config
+
         # Create directory /tmp/green-metrics-tool/docker_images
         temp_dir = f"{self._tmp_folder}/docker_images"
         self._initialize_folder(temp_dir)
@@ -716,18 +774,26 @@ class ScenarioRunner:
                 context_path = self._join_paths(self.__working_folder, context)
                 self._join_paths(context_path, dockerfile)
 
+                repo_mount_path = service.get('folder-destination', '/tmp/repo')
+
                 docker_build_command = ['docker', 'run', '--rm',
                     '-v', '/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                    '-v', f"{self._repo_folder}:/tmp/repo:ro", # this is the folder where the usage_scenario is!
+                    '-v', f"{self._repo_folder}:{repo_mount_path}:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
-                    f"--dockerfile=/tmp/repo/{self.__working_folder_rel}/{context}/{dockerfile}",
-                    '--context', f'dir:///tmp/repo/{self.__working_folder_rel}/{context}',
+                    f"--dockerfile={repo_mount_path}/{self.__working_folder_rel}/{context}/{dockerfile}",
+                    '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
+                    '--registry-mirror', config['container_registry']['hostname'],
                     '--cleanup=true',
                     '--no-push']
+
+                if config['container_registry']['insecure']:
+                    docker_build_command.append('--insecure-pull')
+                    docker_build_command.append('--insecure-registry')
+                    docker_build_command.append(config['container_registry']['hostname'])
 
                 if self.__docker_params:
                     docker_build_command[2:2] = self.__docker_params
@@ -755,10 +821,29 @@ class ScenarioRunner:
             else:
                 print(f"Pulling {service['image']}")
                 self.__notes_helper.add_note( note="Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
-                ps = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+
+                slash_splitted_image_name = service['image'].split('/')
+                if '.' in slash_splitted_image_name[0]: # we have already a set registry
+                    container_registry_uri_with_image = service['image']
+                elif len(slash_splitted_image_name) > 1: # we have a namespace in the image
+                    container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{service['image']}"
+                else: # we have no registry or namespace and need to add the defaults of our configured registry
+                    container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{config['container_registry']['default_namespace']}/{service['image']}"
+                print(['docker', 'pull', container_registry_uri_with_image])
+
+                ps = subprocess.run(['docker', 'pull', container_registry_uri_with_image], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
+
+                    # Check if it's an architecture mismatch error
+                    stderr_lower = ps.stderr.lower()
+                    if "no matching manifest" in stderr_lower:
+                        # This is definitely an architecture mismatch - create appropriate error
+                        host_arch = container_compatibility.get_native_architecture()
+                        raise RuntimeError(f"Architecture incompatibility detected: Docker image '{service['image']}' is not available for host architecture '{host_arch}'")
+
+                    # Handle other Docker pull failures
                     if __name__ == '__main__':
                         print(TerminalColors.OKCYAN, '\nThe docker image could not be pulled. Since you are working locally we can try looking in your local images. Do you want that? (y/N).', TerminalColors.ENDC)
                         if sys.stdin.readline().strip().lower() == 'y':
@@ -769,15 +854,15 @@ class ScenarioRunner:
                                                          encoding='UTF-8',
                                                          check=True)
                                 print('Docker image found locally. Tagging now for use in cached runs ...')
-                            except subprocess.CalledProcessError:
-                                raise OSError(f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}") from subprocess.CalledProcessError
+                            except subprocess.CalledProcessError as e:
+                                raise OSError(f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}") from e
                         else:
                             raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
                     else:
                         raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
                 # tagging must be done in pull and local case, so we can get the correct container later
-                subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
+                subprocess.run(['docker', 'tag', container_registry_uri_with_image, tmp_img_name], check=True)
 
 
         # Delete the directory /tmp/gmt_docker_images
@@ -918,12 +1003,10 @@ class ScenarioRunner:
             docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
 
             docker_run_string.append('-v')
-            if 'folder-destination' in service:
-                 # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                docker_run_string.append(f"{self._repo_folder}:{service['folder-destination']}:ro")
-            else:
-                 # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                docker_run_string.append(f"{self._repo_folder}:/tmp/repo:ro")
+
+            repo_mount_path = service.get('folder-destination', '/tmp/repo')
+            # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
+            docker_run_string.append(f"{self._repo_folder}:{repo_mount_path}:ro")
 
             if self.__docker_params:
                 docker_run_string[2:2] = self.__docker_params
@@ -1172,7 +1255,34 @@ class ScenarioRunner:
                     # empty entrypoint -> default entrypoint will be ignored
                     docker_run_string.append('--entrypoint=')
 
-            docker_run_string.append(self._clean_image_name(service['image']))
+            clean_image_name = self._clean_image_name(service['image'])
+
+            # Architecture compatibility must be checked before docker run execution.
+            # While docker pull has an architecture check, it only catches images with no
+            # compatible manifest at all - the architecture of the used tag or hash digest
+            # may still be incompatible.
+            # Docker run exits with 0 even on incompatible architectures without '--platform',
+            # requiring post-run checks with pauses to detect failures. Using '--platform'
+            # prevents Docker emulation support, so we check compatibility upfront to fail
+            # fast on incompatible images while allowing emulated execution when supported.
+            print('Checking image architecture compatibility...')
+            compatibility_info = container_compatibility.check_image_architecture_compatibility(clean_image_name)
+            compatibility_status = compatibility_info['status']
+            image_arch = compatibility_info['image_arch']
+            host_arch = compatibility_info['host_arch']
+
+            if compatibility_status == CompatibilityStatus.INCOMPATIBLE:
+                # Image cannot run at all - fail immediately with clear error
+                raise RuntimeError(f"Container '{container_name}' cannot run due to architecture incompatibility. Image architecture is '{image_arch}' but host architecture is '{host_arch}' and emulation is not available.")
+            elif compatibility_status == CompatibilityStatus.EMULATED:
+                # Image can run via emulation - add warning but allow Docker to handle it
+                self.__warnings.append(f"Container '{container_name}' will run with architecture emulation. Image architecture is '{image_arch}' but host architecture is '{host_arch}'. This may impact performance.")
+                print(f"Warning: Container will use emulation (image: {image_arch}, host: {host_arch})")
+            elif compatibility_status == CompatibilityStatus.NATIVE:
+                # Native compatibility - no action needed
+                print(f"Architecture compatible: {image_arch} (native)")
+
+            docker_run_string.append(clean_image_name)
 
             # This is because only the first argument in the list is the command, the rest are arguments which need to come after
             # the service name but before the commands
@@ -1990,7 +2100,7 @@ class ScenarioRunner:
             self._import_metric_providers()
             self._populate_image_names()
             self._prepare_docker()
-            self._check_running_containers()
+            self._check_running_containers_before_start()
             self._remove_docker_images()
             self._download_dependencies()
             self._initialize_run() # have this as close to the start of measurement
@@ -2023,6 +2133,8 @@ class ScenarioRunner:
             self._setup_networks()
             self._setup_services()
             self._end_phase('[BOOT]')
+
+            self._check_running_containers_after_boot_phase()
             self._check_process_returncodes()
 
             if self._debugger.active:
@@ -2045,6 +2157,8 @@ class ScenarioRunner:
             self._start_phase('[RUNTIME]')
             self._run_flows() # can trigger debug breakpoints;
             self._end_phase('[RUNTIME]')
+
+            self._check_running_containers_after_runtime_phase()
 
             if self._debugger.active:
                 self._debugger.pause('Container flows complete. Waiting to start remove phase')
