@@ -56,9 +56,7 @@ async function run(browserName, headless, proxy) {
 
   await startFifoReader("/tmp/playwright-ipc-commands", async (data) => {
       if (data == 'end') {
-          browser.close()
-          context.close()
-          page.close()
+          await browser.close()
           fs.writeFileSync("/tmp/playwright-ipc-ready", "ready", "utf-8");   // signal that browser is ready although
           process.exit(0)
       } else {

@@ -29,9 +29,7 @@ flow:
       - type: console
         command: sleep '__GMT_VAR_SLEEP__'
       - type: playwright
-        command: context.close()
-      - type: playwright
-        command: page.close()
+        command: await context.close()
       - type: playwright
         command: context = await browser.newContext(contextOptions);
       - type: playwright
