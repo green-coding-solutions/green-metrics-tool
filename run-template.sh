@@ -1,4 +1,4 @@
-# we are omitting the shebang as we want just the shell of the user to execute it and not limit to bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 if [ -z "${1-}" ]; then

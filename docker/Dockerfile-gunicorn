@@ -1,5 +1,12 @@
-FROM python:3.13.6-slim-bookworm
+FROM python:3.13.7-slim-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
+
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
 
 WORKDIR /var/www/startup/
 COPY requirements.txt requirements.txt

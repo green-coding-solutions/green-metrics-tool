@@ -234,7 +234,15 @@ def check_if_container_running(container_name):
     return True
 
 def build_image_fixture():
-    subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/data/stress-application/compose.yml", 'build'], check=True)
+    subprocess.run([
+        'docker', 'compose', '-f', f"{CURRENT_DIR}/data/stress-application/compose.yml", 'build',
+        '--build-arg', f'HTTP_PROXY={os.environ.get("HTTP_PROXY")}',
+        '--build-arg', f'HTTPS_PROXY={os.environ.get("HTTPS_PROXY")}',
+        '--build-arg', f'NO_PROXY={os.environ.get("NO_PROXY")}',
+        '--build-arg', f'http_proxy={os.environ.get("http_proxy")}',
+        '--build-arg', f'https_proxy={os.environ.get("https_proxy")}',
+        '--build-arg', f'no_proxy={os.environ.get("no_proxy")}',
+    ], check=True)
 
 # should be preceded by a yield statement and on autouse
 def reset_db():
@@ -275,13 +283,6 @@ class RunUntilManager:
     def run_until(self, step):
         """
         Execute the runner pipeline until the specified step.
-        
-        Args:
-            step (str): The step name to stop at. Valid values include:
-                       'import_metric_providers', 'initialize_run', 'setup_networks', 'setup_services', 'runtime_complete'
-        
-        Raises:
-            RuntimeError: If called outside of the context manager.
             
         Note:
             This is a convenience wrapper around run_steps(stop_at=step).
@@ -292,19 +293,7 @@ class RunUntilManager:
 
     def run_steps(self, stop_at=None):
         """
-        Generator that executes the runner pipeline, yielding at predefined pause points.
-        
-        Args:
-            stop_at (str, optional): If provided, stops execution after reaching this pause point.
-                                   Valid pause points: 'import_metric_providers', 'initialize_run',
-                                   'setup_networks', 'setup_services', 'runtime_complete'
-        
-        Yields:
-            str: The name of the pause point that was just reached, allowing for inspection
-                 before continuing execution.
-        
-        Raises:
-            RuntimeError: If called outside of the context manager.
+        Generator that executes the runner pipeline, yielding at predefined pause points.        
         
         Example:
             # Run with inspection at all pause points:
@@ -355,7 +344,9 @@ class RunUntilManager:
             self.__runner._end_phase('[INSTALLATION]')
 
             self.__runner._save_image_and_volume_sizes()
-
+            yield 'save_image_and_volume_sizes'
+            if stop_at == 'save_image_and_volume_sizes':
+                return
             self.__runner._start_phase('[BOOT]')
             self.__runner._setup_networks()
             yield 'setup_networks'
@@ -398,7 +389,7 @@ class RunUntilManager:
             self.__runner._post_process(0)
 
         except BaseException as exc:
-            self.__runner._add_to_log(exc.__class__.__name__, str(exc))
+            self.__runner._add_to_current_run_log(exc.__class__.__name__, str(exc))
             raise exc
 
     def __exit__(self, exc_type, exc_value, traceback):

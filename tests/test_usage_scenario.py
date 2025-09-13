@@ -576,6 +576,22 @@ def test_network_alias_added():
     docker_run_command = re.search(r"docker run with: (.*)", out.getvalue()).group(1)
     assert '--network-alias test-alias' in docker_run_command
 
+def test_network_host_join_blocked():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_host_join.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with pytest.raises(ValueError) as e,Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+
+    assert "Docker network host is restricted in GMT and cannot be joined. If running in CLI mode or if you have cluster capabilities try again with --allow-unsafe." in str(e.value)
+
+
+def test_network_host_creation_blocked():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_host_create.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with pytest.raises(ValueError) as e,Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_networks')
+
+    assert "Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined." in str(e.value)
+
+
 def test_cmd_entrypoint():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
 
@@ -921,3 +937,34 @@ def test_outside_symlink_not_allowed_missing_inside():
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
+
+# folder-destination: [str] (optional)
+# Custom mount path for the repository folder inside the container.
+# Should mount the repository at the specified path instead of default /tmp/repo
+def test_folder_destination_basic():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_basic.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+
+    build_output = out.getvalue()
+
+    assert 'Test file found at custom path' in build_output, \
+        Tests.assertion_info('Repository should be mounted at folder-destination path', build_output)
+
+def test_folder_destination_with_build():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_with_build.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+
+    build_output = out.getvalue()
+
+    assert 'Repository mounted at custom path' in build_output, \
+        Tests.assertion_info('Repository files should be accessible at folder-destination path during runtime', build_output)

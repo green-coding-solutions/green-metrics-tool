@@ -40,7 +40,7 @@ To see the the documentation and how to install and use the tool please go to [G
 # Comparison with other tools
 
 ## What GMT is not
-- GMT is not a real time monitoring system -> Use [CodeCarbon](https://codecarbon.io/) for this
+- GMT is not a real time monitoring system -> Use [ProcPower](https://github.com/green-kernel/procpower) for this
 - GMT is not a LoC optimization system -> Use classic debuggers for this
 
 ## What GMT is great at
@@ -78,7 +78,9 @@ Details: [Energy ID project page](https://www.green-coding.io/products/energy-id
 ![](https://www.green-coding.io/img/products/gmt-screenshot-5.webp)
 ![](https://www.green-coding.io/img/products/gmt-screenshot-6.webp)
 
-
+# Supporting Repos
+- A collection of tools we often use to set things up or debug: https://github.com/green-coding-solutions/tools
+- Littel scripts that make working with the GMT easier: https://github.com/green-coding-solutions/gmt-helpers
 
 
 ## License and Copyright
