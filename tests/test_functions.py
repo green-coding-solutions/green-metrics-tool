@@ -283,14 +283,6 @@ class RunUntilManager:
     def run_until(self, step):
         """
         Execute the runner pipeline until the specified step.
-        
-        Args:
-            step (str): The step name to stop at. Valid pause points:
-                        'import_metric_providers', 'initialize_run', 'save_image_and_volume_sizes', 
-                        'setup_networks', 'setup_services'
-        
-        Raises:
-            RuntimeError: If called outside of the context manager.
             
         Note:
             This is a convenience wrapper around run_steps(stop_at=step).
@@ -301,19 +293,7 @@ class RunUntilManager:
 
     def run_steps(self, stop_at=None):
         """
-        Generator that executes the runner pipeline, yielding at predefined pause points.
-        
-        Args:
-            stop_at (str, optional): If provided, stops execution after reaching this pause point.
-                                   Valid pause points: 'import_metric_providers', 'initialize_run', 
-                                   'save_image_and_volume_sizes', 'setup_networks', 'setup_services'
-        
-        Yields:
-            str: The name of the pause point that was just reached, allowing for inspection
-                 before continuing execution.
-        
-        Raises:
-            RuntimeError: If called outside of the context manager.
+        Generator that executes the runner pipeline, yielding at predefined pause points.        
         
         Example:
             # Run with inspection at all pause points:
@@ -345,7 +325,7 @@ class RunUntilManager:
                 return
             self.__runner._populate_image_names()
             self.__runner._prepare_docker()
-            self.__runner._check_running_containers()
+            self.__runner._check_running_containers_before_start()
             self.__runner._remove_docker_images()
             self.__runner._download_dependencies()
             self.__runner._initialize_run()
@@ -378,6 +358,9 @@ class RunUntilManager:
                 return
             self.__runner._end_phase('[BOOT]')
 
+            self.__runner._check_running_containers_after_boot_phase()
+            self.__runner._check_process_returncodes()
+
             self.__runner._add_containers_to_metric_providers()
             self.__runner._start_metric_providers(allow_container=True, allow_other=False)
 
@@ -388,6 +371,11 @@ class RunUntilManager:
             self.__runner._start_phase('[RUNTIME]')
             self.__runner._run_flows() # can trigger debug breakpoints;
             self.__runner._end_phase('[RUNTIME]')
+            yield 'runtime_complete'
+            if stop_at == 'runtime_complete':
+                return
+
+            self.__runner._check_running_containers_after_runtime_phase()
 
             self.__runner._start_phase('[REMOVE]')
             self.__runner._custom_sleep(1)

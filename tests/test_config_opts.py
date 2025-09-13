@@ -98,7 +98,7 @@ def test_phase_padding_inactive():
     assert notes[-6][1] == 'Starting phase Testing Noop'
     assert notes[-5][1] == 'Ending phase Testing Noop [UNPADDED]'
     assert notes[-4][1] == 'Ending phase [RUNTIME] [UNPADDED]' # this implictely means we have no PADDED entries
-    assert notes[-4][0] > notes[-3][0] - 300 # end times of reconstructed runtime and last sub-runtime are very close, but not exact, bc we only reconstruct phase_stats but not measurements table. 300 microseconds is a good cutoff
+    assert notes[-4][0] > notes[-5][0] - 300 # end times of reconstructed runtime and last sub-runtime are very close, but not exact, bc we only reconstruct phase_stats but not measurements table. 300 microseconds is a good cutoff
 
 def test_phase_padding_active():
     out = io.StringIO()

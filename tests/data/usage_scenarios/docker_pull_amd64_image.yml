@@ -1,0 +1,15 @@
+name: Test Docker Pull AMD64 Image
+author: Test
+description: Test docker pull with AMD64-specific image (compatible on amd64, incompatible on arm64)
+
+services:
+  test_service:
+    image: greencoding/ubuntu_forced_amd64
+    
+flow:
+  - name: test
+    container: test_service
+    commands:
+      - type: console
+        command: echo "test"
+        note: test command
