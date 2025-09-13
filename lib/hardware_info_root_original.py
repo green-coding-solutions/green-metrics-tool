@@ -15,6 +15,18 @@ import os
 
 REGEX_PARAMS = re.MULTILINE | re.IGNORECASE
 
+def process_capture_groups(match, capture_groups):
+    if match is None:
+        return 'Unknown'
+    elif capture_groups is None:
+        return match.group('o')
+    else:
+        returned_catpure_groups = match.group(*capture_groups)
+        if isinstance(returned_catpure_groups, str):
+            return returned_catpure_groups
+        else:
+            return ' '.join(returned_catpure_groups)
+
 def call_function(func, arguments=None, attribute=None):
     if arguments is None:
         arguments = []
@@ -22,7 +34,7 @@ def call_function(func, arguments=None, attribute=None):
         return getattr(func(*arguments), attribute)
     return func(*arguments)
 
-def read_file_with_regex(file, regex, params=REGEX_PARAMS):
+def read_file_with_regex(file, regex, params=REGEX_PARAMS, capture_groups=None):
     '''Reads the content of a file and then tries to match the regex and returns the match described by 'o' '''
 
     try:
@@ -33,10 +45,10 @@ def read_file_with_regex(file, regex, params=REGEX_PARAMS):
 
     match = re.search(regex, file_data, params)
 
-    return match.group('o') if match is not None else 'Unknown'
+    return process_capture_groups(match, capture_groups)
 
 
-def read_process_with_regex(path, regex, params=REGEX_PARAMS):
+def read_process_with_regex(path, regex, params=REGEX_PARAMS, capture_groups=None):
     '''Reads the data from a process and then matches the output. The process must terminate and not require user
        input! The matching character for the regex is a 'o'. If the process fails (exit val not 0) an exception
        is thrown.'''
@@ -47,7 +59,7 @@ def read_process_with_regex(path, regex, params=REGEX_PARAMS):
 
     match = re.search(regex, result.stdout, params)
 
-    return match.group('o') if match is not None else 'Unknown'
+    return process_capture_groups(match, capture_groups)
 
 
 def read_directory_recursive(directory):

@@ -1,0 +1,15 @@
+name: Test Docker Run Multi-Arch Image with forced amd64
+author: Test
+description: Test docker run with multi-architecture image, but with forced amd64 image using manifest digest
+
+services:
+  test_service:
+    image: alpine@sha256:eafc1edb577d2e9b458664a15f23ea1c370214193226069eb22921169fc7e43f
+    
+flow:
+  - name: test
+    container: test_service
+    commands:
+      - type: console
+        command: echo "test"
+        note: test command

@@ -47,3 +47,9 @@ tools/sgx_enable
 /frontend/hog-details.html
 /frontend/hog.html
 /frontend/carbondb.html
+
+# gemini-cli settings
+.gemini/
+
+# GitHub App credentials
+gha-creds-*.json

@@ -1,7 +1,17 @@
 # Inspiration for the config docker build and config file from: https://github.com/salrashid123/squid_proxy
 # The image is pushed to greencoding/squid_proxy for downloading
 FROM ubuntu
+
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get -y update && apt-get install -y curl squid-openssl
+
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
 
 WORKDIR /apps/
 

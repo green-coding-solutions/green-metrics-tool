@@ -87,7 +87,7 @@ const fetchAndFillRunData = async (url_params) => {
 
     for (const item in run_data) {
         if (item == 'machine_id') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]} (${GMT_MACHINES[run_data?.[item]] || run_data?.[item]})</td></tr>`);
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])} (${escapeString(GMT_MACHINES[run_data?.[item]] || run_data?.[item])})</td></tr>`);
         } else if (item == 'runner_arguments') {
             fillRunTab('#runner-arguments', run_data[item]); // recurse
         } else if (item == 'machine_specs') {
@@ -99,7 +99,7 @@ const fetchAndFillRunData = async (url_params) => {
             if (Object.keys(run_data[item]).length > 0) {
                 const container = document.querySelector("#usage-scenario-variables ul");
                 for (const key in run_data[item]) {
-                    container.insertAdjacentHTML('beforeend', `<li><span class="ui label">${key}=${run_data[item][key]}</span></li>`)
+                    container.insertAdjacentHTML('beforeend', `<li><span class="ui label">${escapeString(key)}=${escapeString(run_data[item][key])}</span></li>`)
                 }
             } else {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
@@ -281,23 +281,30 @@ const fetchAndFillRunData = async (url_params) => {
         }  else if(item == 'commit_hash') {
             if (run_data?.[item] == null) continue; // some old runs did not save it
             let commit_link = buildCommitLink(run_data);
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${commit_link}" target="_blank">${run_data?.[item]}</a></td></tr>`)
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data?.[item])}</a></td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]}</td></tr>`)
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])}</td></tr>`)
         } else if(item == 'failed' && run_data?.[item] == true) {
             document.querySelector('#run-failed').classList.remove('hidden');
         } else if(item == 'start_measurement' || item == 'end_measurement') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td title="${run_data?.[item]}">${new Date(run_data?.[item] / 1e3)}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data?.[item])}">${new Date(run_data?.[item] / 1e3)}</td></tr>`)
         } else if(item == 'created_at' ) {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td title="${run_data?.[item]}">${new Date(run_data?.[item])}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data?.[item])}">${new Date(run_data?.[item])}</td></tr>`)
         } else if(item == 'gmt_hash') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data?.[item]}">${run_data?.[item]}</a></td></tr>`);
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data?.[item]}">${escapeString(run_data?.[item])}</a></td></tr>`);
         } else if(item == 'uri') {
-            let entry = run_data?.[item];
-            if(run_data?.[item].indexOf('http') === 0) entry = `<a href="${run_data?.[item]}">${run_data?.[item]}</a>`;
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${entry}</td></tr>`);
+            const uri = run_data?.[item];
+            let uriDisplay;
+            if(uri.startsWith('http')) {
+                // URI is safe for href attribute: validated to have http/https protocol prevents XSS
+                // HTML escaping not needed here and would break URLs (e.g., & would become &amp;)
+                uriDisplay = `<a href="${uri}">${escapeString(uri)}</a>`;
+            } else {
+                uriDisplay = escapeString(uri);
+            }
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
         } else {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])}</td></tr>`)
         }
     }
 
@@ -329,11 +336,11 @@ const fillRunTab = async (selector, data, parent = '') => {
 
         if(data[item] != null && typeof data[item] == 'object') {
             if (parent == '') {
-                document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${item}</h2></strong></td><td></td></tr>`)
+                document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(item)}</h2></strong></td><td></td></tr>`)
             }
             fillRunTab(selector, data[item], `${item}.`)
         } else {
-            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${parent}${item}</strong></td><td>${data?.[item]}</td></tr>`)
+            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data?.[item])}</td></tr>`)
         }
     }
 }
@@ -450,7 +457,7 @@ const displayTimelineCharts = async (metrics, notes) => {
         let inner_counter = 0;
         if (notes != null) {
             notes.forEach(note => {
-                notes_labels.push({xAxis: note[3]/1000, label: {formatter: note[2], position: note_positions[inner_counter%2]}})
+                notes_labels.push({xAxis: note[3]/1000, label: {formatter: escapeString(note[2]), position: note_positions[inner_counter%2]}})
                 inner_counter++;
             });
         }
@@ -503,11 +510,11 @@ const renderBadges = async (url_params, phase_stats) => {
         badge_container.innerHTML += `
             <div class="inline field">
                 <a href="${METRICS_URL}/stats.html?id=${url_params['id']}">
-                    <img src="${API_URL}/v1/badge/single/${url_params['id']}?metric=${metric_name}" loading="lazy">
+                    <img src="${API_URL}/v1/badge/single/${url_params['id']}?metric=${encodeURIComponent(metric_name)}" loading="lazy">
                 </a>
                 <a class="copy-badge"><i class="copy icon"></i></a>
                 <div class="ui left pointing blue basic label">
-                    ${METRIC_MAPPINGS[metric_name]['explanation']}
+                    ${escapeString(METRIC_MAPPINGS[metric_name]['explanation'])}
                 </div>
             </div>
             <hr class="ui divider"></hr>`;
@@ -557,7 +564,7 @@ const fetchAndFillNetworkIntercepts = async (url_params) => {
     } else {
         for (const item of network.data) {
             const date = (new Date(Number(item[2]))).toLocaleString();
-            document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${date}</strong></td><td>${item[3]}</td><td>${item[4]}</td></tr>`)
+            document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(date)}</strong></td><td>${escapeString(item[3])}</td><td>${escapeString(item[4])}</td></tr>`)
         }
     }
 }
@@ -594,16 +601,16 @@ const fetchAndFillOptimizationsData = async (url_params) => {
 
     optimizations.data.forEach(optimization => {
         let optimizationHTML = optimizationTemplate
-            .replace("{{header}}", optimization[0])
-            .replace("{{label}}", optimization[1])
-            .replace("{{label_colour}}", optimization[2])
-            .replace("{{description}}", optimization[5])
-            .replace("{{subsystem}}", optimization[3])
-            .replace("{{subsystem_icon}}", optimization[4])
+            .replace("{{header}}", escapeString(optimization[0]))
+            .replace("{{label}}", escapeString(optimization[1]))
+            .replace("{{label_colour}}", escapeString(optimization[2]))
+            .replace("{{description}}", escapeString(optimization[5]))
+            .replace("{{subsystem}}", escapeString(optimization[3]))
+            .replace("{{subsystem_icon}}", escapeString(optimization[4]))
 
         if (optimization[6]){
             optimizationHTML = optimizationHTML.replace("{{link}}", `
-            <a class="ui mini icon primary basic button" href="${optimization[6]}">
+            <a class="ui mini icon primary basic button" href="${escapeString(optimization[6])}">
                 <i class="angle right icon"></i>
             </a>`);
         }else{
@@ -687,12 +694,12 @@ const fetchAndFillAIData = async (url_params) => {
 
     ai_data.forEach(d => {
         let optimizationHTML = aiTemplate
-            .replace("{{function_name}}", d.name)
-            .replace("{{rating}}", d.rating)
-            .replace("{{filename}}", d.filename)
-            .replace("{{code}}", d.code)
-            .replace("{{model}}", d.model)
-            .replace("{{color}}", d.color)
+            .replace("{{function_name}}", escapeString(d.name))
+            .replace("{{rating}}", escapeString(d.rating))
+            .replace("{{filename}}", escapeString(d.filename))
+            .replace("{{code}}", escapeString(d.code))
+            .replace("{{model}}", escapeString(d.model))
+            .replace("{{color}}", escapeString(d.color))
             .replace("{{ret_val}}", (d.ret_val || '').replace(/\n/g, '<br>'))
 
         const optimizationElement = document.createElement("div");
@@ -771,7 +778,7 @@ const fetchAndFillWarnings = async (url_params) => {
     const container = document.querySelector('#run-warnings');
     const ul = container.querySelector('ul');
     warnings.data.forEach(w => {
-        ul.insertAdjacentHTML('beforeend', `<li>${w[1]}</li>`);
+        ul.insertAdjacentHTML('beforeend', `<li>${escapeString(w[1])}</li>`);
     });
     container.classList.remove('hidden');
 }
