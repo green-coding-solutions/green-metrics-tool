@@ -268,7 +268,15 @@ const updateKeyMetric = (
         selector = '.runtime';
     } else if (network_io_metric_condition(metric_name)) {
         selector = '.network-data';
-    } else if (embodied_carbon_share_metric_condition(metric_name)) {
+    } else if (network_total_metric_condition(metric_name)) {
+        selector = '.network-traffic';
+    }
+    /*else if (network_carbon_metric_condition(metric_name)) {
+        selector = '.network-carbon';
+    } else if (network_energy_metric_condition(metric_name)) {
+        selector = '.network-energy';
+    } */
+    else if (embodied_carbon_share_metric_condition(metric_name)) {
         selector = '.embodied-carbon';
     } else if (psu_machine_carbon_metric_condition(metric_name)) {
         selector = '.machine-co2';

@@ -113,6 +113,10 @@ const network_io_metric_condition = (metric) => {
     return metric == 'network_io_cgroup_container';
 }
 
+const network_total_metric_condition = (metric) => {
+    return metric == 'network_total_cgroup_container';
+}
+
 const sci_metric_condition = (metric) => {
     return metric == 'software_carbon_intensity_global';
 }
@@ -137,7 +141,7 @@ const HARDWARECARDS = [
 const EXTRACARDS = [
     { key: 'runtime', name: 'Phase Duration', icon: 'hourglass half', variable:false },
     { key: 'network-data', name: 'Data Transferred', icon: 'exchange', variable:false },
-    { key: 'network', name: 'Network', icon: 'sitemap', variable:true },
+    { key: 'network-traffic', name: 'Network', icon: 'sitemap', variable:false },
     { key: 'embodied-carbon', name: 'Machine CO₂ (embodied)', icon: 'industry', variable:false },
     { key: 'sci', name: 'SCI', icon: 'leaf', variable:false },
 ];
