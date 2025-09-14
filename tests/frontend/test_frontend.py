@@ -225,11 +225,19 @@ class TestFrontendFunctionality:
         new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
         new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
-        energy_value = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="energy"] div.ui.blue.card.machine-energy > div.extra.content span.value.bold').text_content()
+        machine_energy_value = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="energy"] div.ui.blue.card.machine-energy > div.extra.content span.value.bold').text_content()
         phase_duration = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.runtime > div.extra.content span.value.bold').text_content()
+        cpu_package_power = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.orange.card.cpu-power > div.extra.content span.value.bold').text_content()
+        embodied_carbon = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.embodied-carbon > div.extra.content span.value.bold').text_content()
+        network_traffic = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.network-traffic > div.extra.content span.value.bold').text_content()
+        network_data = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.network-data > div.extra.content span.value.bold').text_content()
 
-        assert energy_value.strip() == '21.14'
+        assert machine_energy_value.strip() == '21.14'
         assert phase_duration.strip() == '5.20'
+        assert cpu_package_power.strip() == '8.66'
+        assert embodied_carbon.strip() == '0.01'
+        assert network_traffic.strip() == '0.37'
+        assert network_data.strip() == '0.07'
 
         # fetch time series
         new_page.locator('button#fetch-time-series').click()
@@ -332,6 +340,22 @@ class TestFrontendFunctionality:
 
         new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
+        # compare key metrics
+        machine_energy_value = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="energy"] div.ui.blue.card.machine-energy > div.extra.content span.value.bold').text_content()
+        phase_duration = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.runtime > div.extra.content span.value.bold').text_content()
+        cpu_package_power = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.orange.card.cpu-power > div.extra.content span.value.bold').text_content()
+        embodied_carbon = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.embodied-carbon > div.extra.content span.value.bold').text_content()
+        network_traffic = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.network-traffic > div.extra.content span.value.bold').text_content()
+        network_data = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.network-data > div.extra.content span.value.bold').text_content()
+
+        assert machine_energy_value.strip() == '+ 8.19 %'
+        assert phase_duration.strip() == '+ 4.80 %'
+        assert cpu_package_power.strip() == '+ 4.99 %'
+        assert embodied_carbon.strip() == '+ 4.80 %'
+        assert network_traffic.strip() == '+ 8.94 %'
+        assert network_data.strip() == '+ 4.87 %'
+
+        # compare detailed metrics table
         first_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(1)")
         assert first_metric.text_content().strip() == 'Phase Duration'
         assert first_metric.inner_html().strip() == '<i class="question circle icon"></i>Phase Duration'
