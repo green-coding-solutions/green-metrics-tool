@@ -390,42 +390,62 @@ METRIC_MAPPINGS = {
     "ane_power_powermetrics_component": {
         "clean_name": "ANE Power",
         "source": "powermetrics",
-        "explanation": "Apple Neural Engine"
+        "explanation": "Apple M-Series Neural Engine Power"
     },
     "ane_energy_powermetrics_component": {
         "clean_name": "ANE Energy",
         "source": "powermetrics",
-        "explanation": "Apple Neural Engine"
+        "explanation": "Apple M-Series Neural Engine Energy"
+    },
+    "ane_carbon_powermetrics_component": {
+        "clean_name": "ANE CO₂ (operational)",
+        "source": "Formula (powermetrics)",
+        "explanation": "Apple M-Series Neural Engine operational CO₂ calculated by formula via powermetrics"
     },
     "gpu_power_powermetrics_component": {
         "clean_name": "GPU Power",
         "source": "powermetrics",
-        "explanation": "Apple M1 GPU / Intel GPU"
+        "explanation": "Apple M-Series GPU / Intel GPU"
     },
     "gpu_energy_powermetrics_component": {
         "clean_name": "GPU Energy",
         "source": "powermetrics",
-        "explanation": "Apple M1 GPU / Intel GPU"
+        "explanation": "Apple M-Series GPU / Intel GPU"
+    },
+    "gpu_carbon_powermetrics_component": {
+        "clean_name": "GPU CO₂ (operational)",
+        "source": "Formula (powermetrics)",
+        "explanation": "Apple M-Series GPU / Intel GPU operational CO₂ calculated by formula via powermetrics"
     },
     "cores_power_powermetrics_component": {
-        "clean_name": "CPU Power (Cores)",
+        "clean_name": "CPU Cores Power",
         "source": "powermetrics",
-        "explanation": "Power of the cores (M1) only without GPU, ANE, GPU, DRAM etc."
+        "explanation": "Power of the CPU cores (M-Series) only without GPU, ANE, GPU, DRAM etc."
     },
     "cores_energy_powermetrics_component": {
-        "clean_name": "CPU Energy (Cores)",
+        "clean_name": "CPU Cores Energy",
         "source": "powermetrics",
-        "explanation": "Energy of the cores (M1) only without GPU, ANE, GPU, DRAM etc."
+        "explanation": "Energy of the CPU cores (M-Series) only without GPU, ANE, GPU, DRAM etc."
+    },
+    "cores_carbon_powermetrics_component": {
+        "clean_name": "CPU Cores CO₂ (operational)",
+        "source": "Formula (powermetrics)",
+        "explanation": "Operational CO₂ of the CPU cores (M-Series) only without GPU, ANE, GPU, DRAM etc. calcuated by formula via powermetrics"
     },
     "cpu_energy_powermetrics_component": {
-        "clean_name": "CPU Energy (Package)",
+        "clean_name": "CPU Package Energy",
         "source": "powermetrics",
-        "explanation": "Energy of the Package (Intel) only without GPU, ANE, GPU, DRAM etc."
+        "explanation": "Energy of the CPU Package (Intel) only without GPU, ANE, GPU, DRAM etc."
     },
     "cpu_power_powermetrics_component": {
-        "clean_name": "CPU Power (Package)",
+        "clean_name": "CPU Package Power",
         "source": "powermetrics",
-        "explanation": "Power of the Package (Intel) only without GPU, ANE, GPU, DRAM etc."
+        "explanation": "Power of the CPU Package (Intel) only without GPU, ANE, GPU, DRAM etc."
+    },
+    "cpu_carbon_powermetrics_component": {
+        "clean_name": "CPU Package CO₂ (operational)",
+        "source": "Formula (powermetrics)",
+        "explanation": "Operational CO₂ of the CPU Package (Intel) only without GPU, ANE, GPU, DRAM etc. calcuated by formula via powermetrics"
     },
     "cpu_time_powermetrics_vm": {
         "clean_name": "CPU time",
