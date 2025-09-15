@@ -7,15 +7,19 @@ services:
   test-container:
     type: container
     image: alpine
+    setup-commands:
+      - command: echo "Test log from setup-commands"
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["echo 'Test log from container'; sleep infinity"]
     log-stdout: true
     log-stderr: true
 
 flow:
-  - name: Logging
+  - name: Flow Name
     container: test-container
     commands:
       - type: console
-        command: echo "Test log message" && echo "Test error message" >&2
+        command: echo "Test log message from flow" && echo "Test error message from flow" >&2
         shell: /bin/sh
         log-stdout: true
         log-stderr: true

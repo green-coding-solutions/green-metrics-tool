@@ -227,8 +227,14 @@ if __name__ == '__main__':
             logs = runner._get_all_run_logs()
             if logs:
                 print("Container logs:")
-                for log_entry in logs:
-                    print(log_entry)
+                for container_name, log_entries in logs.items():
+                    print(f"=== {container_name} ===")
+                    for log_entry in log_entries:
+                        log_type = log_entry.get('type', 'unknown')
+                        if "stdout" in log_entry:
+                            print(f"STDOUT ({log_type}):\n{log_entry['stdout']}")
+                        if "stderr" in log_entry:
+                            print(f"STDERR ({log_type}):\n{log_entry['stderr']}")
                     print('-----------------------------')
                 print()
 
