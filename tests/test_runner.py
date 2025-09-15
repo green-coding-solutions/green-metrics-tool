@@ -7,6 +7,7 @@ import os
 import platform
 import subprocess
 import yaml
+import json
 
 from contextlib import redirect_stdout, redirect_stderr
 
@@ -676,58 +677,20 @@ def wip_test_verbose_provider_boot():
         assert 9.9 <= diff <= 10.1, \
             Tests.assertion_info('10s apart', f"time difference of notes: {diff}s")
 
-## --print-logs
-def test_print_logs_flag_with_iterations():
-    """Test that --print-logs flag prints logs from both iterations"""
-    ps = subprocess.run(
-        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
-         '--filename', 'tests/data/usage_scenarios/capture_logs.yml',
-         '--iterations', '2', '--print-logs',
-         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps',
-         '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
-        check=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
-
-    assert ps.returncode == 0
-    print(ps.stdout)
-
-    assert "Container logs:" in ps.stdout
-    container_logs_pos = ps.stdout.find("Container logs:")
-    assert container_logs_pos != -1
-
-    container_logs_section = ps.stdout[container_logs_pos:]
-
-    assert "test-container" in container_logs_section
-
-    test_log_count = container_logs_section.count("Test log message from flow")
-    test_error_count = container_logs_section.count("Test error message from flow")
-
-    assert test_log_count >= 1, f"Expected at least 1 'Test log message from flow' entry, found {test_log_count}"
-    assert test_error_count >= 1, f"Expected at least 1 'Test error message from flow' entry, found {test_error_count}"
-
-    test_log_pos = container_logs_section.find("Test log message from flow")
-    test_error_pos = container_logs_section.find("Test error message from flow")
-
-    assert test_log_pos != -1
-    assert test_error_pos != -1
-    assert test_log_pos < test_error_pos
-
-    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
-
-## internal log structure
-def test_json_log_structure():
-    """Test that logs are structured in JSON format with proper metadata"""
-
+## Logging
+def test_logs_structure():
+    """Test that logs stored in database are structured in JSON format with proper metadata"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml',
                           skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True,
-                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=True)
+                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
 
-    runner.run()
-    logs = runner._get_all_run_logs()
+    run_id = runner.run()
+
+    logs_json = DB().fetch_one("SELECT logs FROM runs WHERE id = %s", params=(run_id,))
+    assert logs_json is not None, "Should have logs stored in database"
+    assert logs_json[0] is not None, "Logs field should not be null"
+
+    logs = json.loads(logs_json[0])
 
     assert isinstance(logs, dict), "Logs should be in dictionary format"
     assert "test-container" in logs, "Should have logs for test-container"
@@ -797,6 +760,69 @@ def test_json_log_structure():
     assert found_flow_stderr, "Should find the test flow stderr message"
     assert found_setup_command, "Should find the setup command log"
     assert found_container_execution, "Should find the container execution log"
+
+def test_all_run_logs():
+    """Test that _get_all_run_logs() returns logs in correct basic format"""
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml',
+                          skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True,
+                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=True)
+
+    runner.run()
+    logs = runner._get_all_run_logs()
+
+    assert isinstance(logs, dict), "Logs should be in dictionary format"
+    assert "test-container" in logs, "Should have logs for test-container"
+
+    container_logs = logs["test-container"]
+    assert isinstance(container_logs, list), "Container logs should be a list"
+    assert len(container_logs) > 0, "Should have at least one log entry"
+
+    for log_entry in container_logs:
+        assert isinstance(log_entry, dict), "Each log entry should be a dictionary"
+        assert "type" in log_entry, "Log entry should have 'type' field"
+        assert "stdout" in log_entry or "stderr" in log_entry, "Log entry should have stdout or stderr"
+
+def test_print_logs_flag_with_iterations():
+    """Test that --print-logs flag prints logs from both iterations"""
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/capture_logs.yml',
+         '--iterations', '2', '--print-logs',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps',
+         '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    print(ps.stdout)
+
+    assert "Container logs:" in ps.stdout
+    container_logs_pos = ps.stdout.find("Container logs:")
+    assert container_logs_pos != -1
+
+    container_logs_section = ps.stdout[container_logs_pos:]
+
+    assert "test-container" in container_logs_section
+
+    test_log_count = container_logs_section.count("Test log message from flow")
+    test_error_count = container_logs_section.count("Test error message from flow")
+
+    assert test_log_count >= 1, f"Expected at least 1 'Test log message from flow' entry, found {test_log_count}"
+    assert test_error_count >= 1, f"Expected at least 1 'Test error message from flow' entry, found {test_error_count}"
+
+    test_log_pos = container_logs_section.find("Test log message from flow")
+    test_error_pos = container_logs_section.find("Test error message from flow")
+
+    assert test_log_pos != -1
+    assert test_error_pos != -1
+    assert test_log_pos < test_error_pos
+
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 ## automatic database reconnection
 def test_database_reconnection_during_run():
