@@ -106,8 +106,20 @@ const fetchAndFillRunData = async (url_params) => {
             }
 
         } else if(item == 'logs' && run_data?.[item] != null) {
-            // textContent does escaping for us
-            document.querySelector("#logs").textContent = run_data[item];
+            const isJsonString = typeof run_data[item] === 'string' &&
+                                 (run_data[item].startsWith('{') || run_data[item].startsWith('['));
+            if (isJsonString) {
+                try {
+                    const logsData = JSON.parse(run_data[item]);
+                    renderLogsInterface(logsData);
+                } catch (e) {
+                    // Fallback to original text if JSON parsing fails
+                    document.querySelector("#logs").textContent = run_data[item];
+                }
+            } else {
+                // Display as plain text for backward compatibility (historically logs were plain strings)
+                document.querySelector("#logs").textContent = run_data[item];
+            }
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
         } else if(item == 'phases' || item == 'id') {
@@ -177,6 +189,95 @@ const fillRunTab = async (selector, data, parent = '') => {
             document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data?.[item])}</td></tr>`)
         }
     }
+}
+
+const renderLogsInterface = (logsData) => {
+    const logsElement = document.querySelector("#logs");
+
+    let accordionHTML = '<div class="ui styled accordion">';
+    Object.keys(logsData).forEach(containerName => {
+        const containerLogs = logsData[containerName];
+
+        accordionHTML += `
+            <div class="title">
+                <i class="dropdown icon"></i><i class="server icon"></i> ${escapeString(containerName)}
+                <div class="ui mini label">${containerLogs.length} log${containerLogs.length === 1 ? '' : 's'}</div>
+            </div>
+            <div class="content">
+        `;
+        const logsByType = {};
+        containerLogs.forEach(log => {
+            if (!logsByType[log.type]) {
+                logsByType[log.type] = [];
+            }
+            logsByType[log.type].push(log);
+        });
+
+        Object.keys(logsByType).forEach(logType => {
+            const typeIcon = logType === 'container_execution' ? 'cog' : 'play';
+            const typeTitle = escapeString(logType.replace('_', ' '));
+
+            accordionHTML += `
+                <h4 class="ui header">
+                    <i class="${typeIcon} icon"></i>
+                    <div class="content">${typeTitle}</div>
+                </h4>
+            `;
+
+            logsByType[logType].forEach(logEntry => {
+                accordionHTML += `
+                    <div class="ui card fluid">
+                        <div class="content">
+                            <div class="header">
+                                <div class="ui small labels">
+                                    <div class="ui label" data-tooltip="Unique identifier for this log entry" data-position="top center"><i class="hashtag icon"></i> ID: ${escapeString(logEntry.id)}</div>
+                                    ${logEntry.phase ? `<div class="ui blue label" data-tooltip="Execution phase when this command was run" data-position="top center"><i class="clock icon"></i> ${escapeString(logEntry.phase)}</div>` : ''}
+                                    ${logEntry.flow ? `<div class="ui green label" data-tooltip="Flow this command belongs to" data-position="top center"><i class="sitemap icon"></i> ${escapeString(logEntry.flow)}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="content">
+                            <h5 class="ui header"><i class="terminal icon"></i> Command</h5>
+                            <div class="ui segment">
+                                <code>${escapeString(logEntry.cmd)}</code>
+                            </div>
+                        </div>
+                `;
+
+                if (logEntry.stdout || logEntry.stderr) {
+                    if (logEntry.stdout) {
+                        accordionHTML += `
+                            <div class="content">
+                                <h5 class="ui header"><i class="file text outline icon"></i> Standard Output</h5>
+                                <div class="ui segment stdout">
+                                    <div>${escapeString(logEntry.stdout)}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    if (logEntry.stderr) {
+                        accordionHTML += `
+                            <div class="content">
+                                <h5 class="ui header"><i class="exclamation triangle icon"></i> Standard Error</h5>
+                                <div class="ui segment stderr">
+                                    <div>${escapeString(logEntry.stderr)}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                accordionHTML += '</div>';
+            });
+        });
+
+        accordionHTML += '</div>';
+    });
+
+    accordionHTML += '</div>';
+    logsElement.innerHTML = accordionHTML;
+    $('.ui.accordion').accordion();
 }
 
 

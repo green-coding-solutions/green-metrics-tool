@@ -316,11 +316,43 @@ a,
     vertical-align: top;
 }
 
-#usage-scenario, #logs {
+#usage-scenario {
     white-space: pre;
     word-wrap: break-word;
     overflow: auto;
     font-family: monospace;
+}
+
+#logs .ui.accordion,
+#logs .ui.card {
+    width: 100%;
+    max-width: none;
+}
+
+#logs .ui.segment.stdout,
+#logs .ui.segment.stderr {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+#logs .ui.segment.stdout {
+    background-color: #f8f8f9;
+}
+
+#logs .ui.segment.stderr {
+    background-color: #fff6f6;
+    border-color: #e0b4b4;
+}
+
+#logs .ui.segment > div:last-child {
+    font-family: monospace;
+    font-size: 0.9em;
+    white-space: pre-wrap;
+    color: rgba(0,0,0,0.8);
+}
+
+#logs h4.ui.header {
+    text-transform: uppercase;
 }
 
 #machine-specs, #machine-specs-tab {
