@@ -1818,6 +1818,37 @@ class ScenarioRunner:
         if errors:
             raise RuntimeError("\n".join(errors))
 
+    def _handle_process_output(self, stdout, stderr, container_name, log_type,
+                              process_id, cmd, phase, flow=None,
+                              read_notes_stdout=False, read_sci_stdout=False,
+                              detail_name=None):
+        # Only create log entries if there's actual content
+        has_stdout = stdout is not None and stdout.strip()
+        has_stderr = stderr is not None and stderr.strip()
+
+        if has_stdout or has_stderr:
+            if has_stdout:
+                print('stdout from process:', cmd, stdout)
+            if has_stderr:
+                print('stderr from process:', cmd, stderr)
+
+            self._add_to_current_run_log(
+                container_name=container_name,
+                log_type=log_type,
+                process_id=process_id,
+                cmd=cmd,
+                phase=phase,
+                stdout=stdout if has_stdout else None,
+                stderr=stderr if has_stderr else None,
+                flow=flow
+            )
+
+            if has_stdout and read_notes_stdout:
+                self.__notes_helper.parse_and_add_notes(detail_name or container_name, stdout)
+
+            if has_stdout and read_sci_stdout:
+                for match in re.findall(r'^GMT_SCI_R=(\d+)$', stdout, re.MULTILINE):
+                    self._sci['R'] += int(match)
 
     def _read_and_cleanup_processes(self):
         print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
@@ -1838,35 +1869,23 @@ class ScenarioRunner:
                 stdout = ps['ps'].stdout
                 stderr = ps['ps'].stderr
 
-            # Only create log entries if there's actual content
-            has_stdout = stdout is not None and stdout.strip()
-            has_stderr = stderr is not None and stderr.strip()
+            log_type = LogType.FLOW_COMMAND if ps.get('flow_name') else LogType.SETUP_COMMAND
+            phase = "[RUNTIME]" if ps.get('flow_name') else "[BOOT]"
+            cmd = ' '.join(ps['cmd']) if isinstance(ps['cmd'], list) else ps['cmd']
 
-            if has_stdout or has_stderr:
-                if has_stdout:
-                    print('stdout from process:', ps['cmd'], stdout)
-                if has_stderr:
-                    print('stderr from process:', ps['cmd'], stderr)
-
-                log_type = LogType.FLOW_COMMAND if ps.get('flow_name') else LogType.SETUP_COMMAND
-                phase = "[RUNTIME]" if ps.get('flow_name') else "[BOOT]"
-                self._add_to_current_run_log(
-                    container_name=ps['container_name'],
-                    log_type=log_type,
-                    process_id=id(ps['ps']),
-                    cmd=' '.join(ps['cmd']) if isinstance(ps['cmd'], list) else ps['cmd'],
-                    phase=phase,
-                    stdout=stdout if has_stdout else None,
-                    stderr=stderr if has_stderr else None,
-                    flow=ps.get('flow_name')
-                )
-
-                if has_stdout and ps['read-notes-stdout']:
-                    self.__notes_helper.parse_and_add_notes(ps['detail_name'], stdout)
-
-                if has_stdout and ps['read-sci-stdout']:
-                    for match in re.findall(r'^GMT_SCI_R=(\d+)$', stdout, re.MULTILINE):
-                        self._sci['R'] += int(match)
+            self._handle_process_output(
+                stdout=stdout,
+                stderr=stderr,
+                container_name=ps['container_name'],
+                log_type=log_type,
+                process_id=id(ps['ps']),
+                cmd=cmd,
+                phase=phase,
+                flow=ps.get('flow_name'),
+                read_notes_stdout=ps['read-notes-stdout'],
+                read_sci_stdout=ps['read-sci-stdout'],
+                detail_name=ps['detail_name']
+            )
 
     def _check_process_returncodes(self):
         print(TerminalColors.HEADER, '\nChecking process return codes', TerminalColors.ENDC)
@@ -1968,27 +1987,17 @@ class ScenarioRunner:
                 stderr=stderr_behaviour,
             )
 
-            # Only create log entries if there's actual content
-            has_stdout = log.stdout is not None and log.stdout.strip()
-            has_stderr = log.stderr is not None and log.stderr.strip()
-
-            if has_stdout or has_stderr:
-                self._add_to_current_run_log(
-                    container_name=container_info['name'],
-                    log_type=LogType.CONTAINER_EXECUTION,
-                    process_id=id(log),
-                    cmd=' '.join(container_info['docker_run_cmd']),
-                    phase="[BOOT]",
-                    stdout=log.stdout if has_stdout else None,
-                    stderr=log.stderr if has_stderr else None
-                )
-
-                if has_stdout and container_info['read-notes-stdout']:
-                    self.__notes_helper.parse_and_add_notes(container_info['name'], log.stdout)
-
-                if has_stdout and container_info['read-sci-stdout']:
-                    for match in re.findall(r'^GMT_SCI_R=(\d+)$', log.stdout, re.MULTILINE):
-                        self._sci['R'] += int(match)
+            self._handle_process_output(
+                stdout=log.stdout,
+                stderr=log.stderr,
+                container_name=container_info['name'],
+                log_type=LogType.CONTAINER_EXECUTION,
+                process_id=id(log),
+                cmd=' '.join(container_info['docker_run_cmd']),
+                phase="[BOOT]",
+                read_notes_stdout=container_info['read-notes-stdout'],
+                read_sci_stdout=container_info['read-sci-stdout']
+            )
 
     def _save_run_logs(self):
         print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
