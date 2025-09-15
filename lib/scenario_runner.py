@@ -174,7 +174,7 @@ class ScenarioRunner:
         # these are accessed and processed on cleanup and then reset
         # They are __ as they should not be changed because this could break the state of the runner
         self.__current_run_logs = {}  # Dict with container names as keys, lists of log entries as values
-        self.__all_runs_logs = {}     # Same structure but for all runs
+        self.__all_runs_logs = []  # List of runs, each containing iteration, filename, and containers with their logs
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
@@ -1489,13 +1489,17 @@ class ScenarioRunner:
     def _get_all_run_logs(self):
         """
         Returns accumulated logs from all runs in the current session.
-        
+
         This method provides read-only access to logs collected across multiple runs
-        when using --iterations > 1 or multiple filenames. Each run's logs are preserved 
+        when using --iterations > 1 or multiple filenames. Each run's logs are preserved
         and accumulated to support the --print-logs functionality.
-        
+
         Returns:
-            dict: All log entries from current session in JSON structure with container names as keys
+            list: All log entries from current session in enhanced structure.
+                  Each list item is a run object containing:
+                    - "iteration": iteration number for this filename
+                    - "filename": the scenario filename that was executed
+                    - "containers": dict with container names as keys and log lists as values
         """
         return self.__all_runs_logs
 
@@ -2129,14 +2133,23 @@ class ScenarioRunner:
         self.__start_measurement_seconds = None
         self.__notes_helper = Notes()
 
-        # Copy current run's logs to cumulative logs before clearing
-        # Merge container logs from current run into all runs logs
-        # The cumulative logs are used by --print-logs to show logs from all runs
-        if self.__current_run_logs:
-            for container_name, logs in self.__current_run_logs.items():
-                if container_name not in self.__all_runs_logs:
-                    self.__all_runs_logs[container_name] = []
-                self.__all_runs_logs[container_name].extend(logs)
+        # Store current run in cumulative logs with iteration and filename tracking
+        # All runs are tracked regardless of log generation for consistent --print-logs output
+        filename = self._original_filename
+        iteration = 1
+        for existing_run in self.__all_runs_logs:
+            if existing_run["filename"] == filename:
+                iteration = max(iteration, existing_run["iteration"] + 1)
+
+        run_entry = {
+            "iteration": iteration,
+            "filename": filename,
+            "containers": {}
+        }
+
+        for container_name, logs in self.__current_run_logs.items():
+            run_entry["containers"][container_name] = logs.copy()
+        self.__all_runs_logs.append(run_entry)
 
         # Clear current run logs now that they've been copied to cumulative
         self.__current_run_logs.clear()

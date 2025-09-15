@@ -761,20 +761,33 @@ def test_logs_structure():
     assert found_setup_command, "Should find the setup command log"
     assert found_container_execution, "Should find the container execution log"
 
-def test_all_run_logs():
-    """Test that _get_all_run_logs() returns logs in correct basic format"""
+def test_all_run_logs_comprehensive():
+    """Comprehensive test of _get_all_run_logs() method covering single runs, iterations, and different files"""
 
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml',
-                          skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True,
-                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=True)
+                          skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True)
 
+    # Test 1: Single run - basic structure
     runner.run()
     logs = runner._get_all_run_logs()
 
-    assert isinstance(logs, dict), "Logs should be in dictionary format"
-    assert "test-container" in logs, "Should have logs for test-container"
+    assert isinstance(logs, list), "Logs should be a list"
+    assert len(logs) == 1, "Should have one run entry after first run"
 
-    container_logs = logs["test-container"]
+    run_entry = logs[0]
+    assert isinstance(run_entry, dict), "Run entry should be a dictionary"
+    assert "iteration" in run_entry, "Run entry should have 'iteration' field"
+    assert "filename" in run_entry, "Run entry should have 'filename' field"
+    assert "containers" in run_entry, "Run entry should have 'containers' field"
+
+    assert run_entry["iteration"] == 1, "First run should be iteration 1"
+    assert run_entry["filename"] == 'tests/data/usage_scenarios/capture_logs.yml', "Filename should match"
+    assert isinstance(run_entry["containers"], dict), "Containers should be a dictionary"
+
+    # Test container logs structure
+    containers = run_entry["containers"]
+    assert "test-container" in containers, "Should have logs for test-container"
+    container_logs = containers["test-container"]
     assert isinstance(container_logs, list), "Container logs should be a list"
     assert len(container_logs) > 0, "Should have at least one log entry"
 
@@ -783,15 +796,39 @@ def test_all_run_logs():
         assert "type" in log_entry, "Log entry should have 'type' field"
         assert "stdout" in log_entry or "stderr" in log_entry, "Log entry should have stdout or stderr"
 
-def test_print_logs_flag_with_iterations():
-    """Test that --print-logs flag prints logs from both iterations"""
+    # Test 2: Multiple iterations of same file
+    runner.run()  # Second run of same file
+    logs = runner._get_all_run_logs()
+
+    assert len(logs) == 2, "Should have two run entries after second run"
+
+    run1, run2 = logs[0], logs[1]
+    assert run1["iteration"] == 1, "First run should be iteration 1"
+    assert run2["iteration"] == 2, "Second run should be iteration 2"
+    assert run1["filename"] == run2["filename"], "Both runs should have same filename"
+    assert "test-container" in run1["containers"], "First run should have container logs"
+    assert "test-container" in run2["containers"], "Second run should have container logs"
+
+    # Test 3: Different filename (reset iteration count)
+    runner.set_filename('tests/data/usage_scenarios/basic_stress.yml')
+    runner.run()  # Third run with different file
+    logs = runner._get_all_run_logs()
+
+    assert len(logs) == 3, "Should have three run entries after third run"
+
+    run3 = logs[2]
+    assert run3["iteration"] == 1, "First run of different file should be iteration 1"
+    assert run3["filename"] == 'tests/data/usage_scenarios/basic_stress.yml', "Third run should have different filename"
+    assert isinstance(run3["containers"], dict), "Third run should have containers dict"
+
+def test_print_logs_integration():
+    """Integration test for --print-logs CLI flag with iterations"""
     ps = subprocess.run(
         ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
          '--filename', 'tests/data/usage_scenarios/capture_logs.yml',
          '--iterations', '2', '--print-logs',
          '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps',
-         '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
