@@ -784,7 +784,26 @@ class TestXssSecurity:
             'var1': f'{xss_payload}value1',
             'var2': f'{xss_payload}value2'
         }
-        malicious_logs = f'{xss_payload}Error in container\nStacktrace here'
+        malicious_logs_json = {
+            "malicious-container": [
+                {
+                    "type": "container_execution",
+                    "id": "131377540004848",
+                    "cmd": f"docker run -it -d --name malicious-container {xss_payload}",
+                    "phase": "[BOOT]",
+                    "stdout": f"{xss_payload}Container started with malicious output\nStacktrace here"
+                },
+                {
+                    "type": "flow_command",
+                    "id": "131377540003888",
+                    "cmd": f"docker exec malicious-container {xss_payload}",
+                    "phase": "[RUNTIME]",
+                    "stdout": f"{xss_payload}Application executed malicious command\nError output here",
+                    "flow": f"{xss_payload}Malicious Flow Scenario"
+                }
+            ]
+        }
+        malicious_logs = json.dumps(malicious_logs_json)
 
         # Insert test data with malicious content in multiple fields
         run_id = str(uuid.uuid4())
