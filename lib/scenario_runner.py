@@ -1451,13 +1451,13 @@ class ScenarioRunner:
         container_names = [container_info['name'] for container_info in self.__containers.values()]
         print(TerminalColors.HEADER, '\nStarted containers: ', container_names, TerminalColors.ENDC)
 
-    def _add_to_current_run_log(self, container_name, log_type, process_id, cmd, phase, stdout=None, stderr=None, flow=None, exception_class=None):
+    def _add_to_current_run_log(self, container_name, log_type, log_id, cmd, phase, stdout=None, stderr=None, flow=None, exception_class=None):
         """Add a structured log entry to the current run logs.
         
         Args:
             container_name: Name of the container or '[SYSTEM]' for system logs
             log_type: LogType enum value
-            process_id: ID of the process (from id(ps) or id(exception))
+            log_id: ID of the process (from id(ps) or id(exception))
             cmd: Command that was executed
             phase: Phase like '[BOOT]', '[RUNTIME]', etc.
             stdout: Standard output (optional)
@@ -1470,7 +1470,7 @@ class ScenarioRunner:
 
         log_entry = {
             "type": log_type.value,
-            "id": str(process_id),
+            "id": str(log_id),
             "cmd": cmd,
             "phase": phase
         }
@@ -1819,7 +1819,7 @@ class ScenarioRunner:
             raise RuntimeError("\n".join(errors))
 
     def _handle_process_output(self, stdout, stderr, container_name, log_type,
-                              process_id, cmd, phase, flow=None,
+                              log_id, cmd, phase, flow=None,
                               read_notes_stdout=False, read_sci_stdout=False,
                               detail_name=None):
         # Only create log entries if there's actual content
@@ -1835,7 +1835,7 @@ class ScenarioRunner:
             self._add_to_current_run_log(
                 container_name=container_name,
                 log_type=log_type,
-                process_id=process_id,
+                log_id=log_id,
                 cmd=cmd,
                 phase=phase,
                 stdout=stdout if has_stdout else None,
@@ -1878,7 +1878,7 @@ class ScenarioRunner:
                 stderr=stderr,
                 container_name=ps['container_name'],
                 log_type=log_type,
-                process_id=id(ps['ps']),
+                log_id=id(ps['ps']),
                 cmd=cmd,
                 phase=phase,
                 flow=ps.get('flow_name'),
@@ -1992,7 +1992,7 @@ class ScenarioRunner:
                 stderr=log.stderr,
                 container_name=container_info['name'],
                 log_type=LogType.CONTAINER_EXECUTION,
-                process_id=id(log),
+                log_id=id(log),
                 cmd=' '.join(container_info['docker_run_cmd']),
                 phase="[BOOT]",
                 read_notes_stdout=container_info['read-notes-stdout'],
@@ -2080,7 +2080,7 @@ class ScenarioRunner:
             self._add_to_current_run_log(
                 container_name="[SYSTEM]",
                 log_type=LogType.EXCEPTION,
-                process_id=id(exc),
+                log_id=id(exc),
                 cmd="post_process",
                 phase="[CLEANUP]",
                 stderr=str(exc),
@@ -2263,7 +2263,7 @@ class ScenarioRunner:
             self._add_to_current_run_log(
                 container_name="[SYSTEM]",
                 log_type=LogType.EXCEPTION,
-                process_id=id(exc),
+                log_id=id(exc),
                 cmd="run_scenario",
                 phase="[RUNTIME]",
                 stderr=str(exc),
