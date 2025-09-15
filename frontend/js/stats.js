@@ -200,21 +200,15 @@ const renderLogsInterface = (logsData) => {
         <div class="content">{{content}}</div>
     `;
 
-    const typeHeaderTemplate = `
-        <h4 class="ui header">
-            <i class="{{typeIcon}} icon"></i>
-            <div class="content">{{typeTitle}}</div>
-        </h4>
-    `;
-
     const logCardTemplate = `
         <div class="ui card fluid">
             <div class="content">
                 <div class="header">
                     <div class="ui small labels">
-                        <div class="ui label" data-tooltip="Unique identifier for this log entry" data-position="top center"><i class="hashtag icon"></i> ID: {{logId}}</div>
-                        {{phaseLabel}}
                         {{flowLabel}}
+                        {{typeLabel}}
+                        {{phaseLabel}}
+                        {{idLabel}}
                     </div>
                 </div>
             </div>
@@ -252,41 +246,52 @@ const renderLogsInterface = (logsData) => {
 
     Object.keys(logsData).forEach(containerName => {
         const containerLogs = logsData[containerName];
-        const logsByType = containerLogs.reduce((acc, log) => {
-            (acc[log.type] ||= []).push(log);
-            return acc;
-        }, {});
 
         let contentHTML = '';
-        Object.entries(logsByType).forEach(([logType, logs]) => {
-            const typeIcon = logType === 'container_execution' ? 'cog' : 'play';
-            const typeTitle = escapeString(logType.replace('_', ' '));
+        containerLogs.forEach(logEntry => {
+            const typeIcon = logEntry.type === 'container_execution' ? 'cog' : 'play';
+            const typeTitle = escapeString(logEntry.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+            let typeTooltip;
+            switch (logEntry.type) {
+                case 'container_execution':
+                    typeTooltip = 'Logs from the entire container execution process';
+                    break;
+                case 'setup_commands':
+                    typeTooltip = 'Logs from setup commands before flow execution';
+                    break;
+                case 'flow_command':
+                    typeTooltip = 'Logs from a specific flow execution';
+                    break;
+                case 'exception':
+                    typeTooltip = 'An error occurred during execution';
+                    break;
+                default:
+                    typeTooltip = 'Logs from an unknown or custom execution type';
+            }
+            const typeLabel = `<div class="ui purple label" data-tooltip="${typeTooltip}" data-position="top center"><i class="${typeIcon} icon"></i> ${typeTitle}</div>`;
 
-            contentHTML += typeHeaderTemplate
-                .replace('{{typeIcon}}', typeIcon)
-                .replace('{{typeTitle}}', typeTitle);
+            const phaseLabel = logEntry.phase ?
+                `<div class="ui blue label" data-tooltip="Execution phase when this command was run" data-position="top center"><i class="clock icon"></i> ${escapeString(logEntry.phase)}</div>` : '';
 
-            logs.forEach(logEntry => {
-                const phaseLabel = logEntry.phase ?
-                    `<div class="ui blue label" data-tooltip="Execution phase when this command was run" data-position="top center"><i class="clock icon"></i> ${escapeString(logEntry.phase)}</div>` : '';
+            const flowLabel = logEntry.flow ?
+                `<div class="ui green label" data-tooltip="Flow this command belongs to" data-position="top center"><i class="sitemap icon"></i> ${escapeString(logEntry.flow)}</div>` : '';
 
-                const flowLabel = logEntry.flow ?
-                    `<div class="ui green label" data-tooltip="Flow this command belongs to" data-position="top center"><i class="sitemap icon"></i> ${escapeString(logEntry.flow)}</div>` : '';
+            const idLabel = `<div class="ui label" data-tooltip="Unique identifier for this log entry" data-position="top center"><i class="hashtag icon"></i> ID: ${escapeString(logEntry.id)}</div>`;
 
-                const stdoutContent = logEntry.stdout ?
-                    stdoutTemplate.replace('{{stdout}}', escapeString(logEntry.stdout)) : '';
+            const stdoutContent = logEntry.stdout ?
+                stdoutTemplate.replace('{{stdout}}', escapeString(logEntry.stdout)) : '';
 
-                const stderrContent = logEntry.stderr ?
-                    stderrTemplate.replace('{{stderr}}', escapeString(logEntry.stderr)) : '';
+            const stderrContent = logEntry.stderr ?
+                stderrTemplate.replace('{{stderr}}', escapeString(logEntry.stderr)) : '';
 
-                contentHTML += logCardTemplate
-                    .replace('{{logId}}', escapeString(logEntry.id))
-                    .replace('{{phaseLabel}}', phaseLabel)
-                    .replace('{{flowLabel}}', flowLabel)
-                    .replace('{{command}}', escapeString(logEntry.cmd))
-                    .replace('{{stdoutContent}}', stdoutContent)
-                    .replace('{{stderrContent}}', stderrContent);
-            });
+            contentHTML += logCardTemplate
+                .replace('{{typeLabel}}', typeLabel)
+                .replace('{{flowLabel}}', flowLabel)
+                .replace('{{phaseLabel}}', phaseLabel)
+                .replace('{{idLabel}}', idLabel)
+                .replace('{{command}}', escapeString(logEntry.cmd))
+                .replace('{{stdoutContent}}', stdoutContent)
+                .replace('{{stderrContent}}', stderrContent);
         });
 
         accordionHTML += containerTemplate
