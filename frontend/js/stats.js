@@ -115,10 +115,12 @@ const fetchAndFillRunData = async (url_params) => {
                 } catch (e) {
                     // Fallback to original text if JSON parsing fails
                     document.querySelector("#logs").textContent = run_data[item];
+                    document.querySelector("#logs").classList.add("plain-text");
                 }
             } else {
                 // Display as plain text for backward compatibility (historically logs were plain strings)
                 document.querySelector("#logs").textContent = run_data[item];
+                document.querySelector("#logs").classList.add("plain-text");
             }
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
@@ -327,6 +329,7 @@ const renderLogsInterface = (logsData) => {
 
     accordionHTML += '</div>';
     logsElement.innerHTML = accordionHTML;
+    logsElement.classList.remove("plain-text");
     $('.ui.accordion').accordion();
 }
 
