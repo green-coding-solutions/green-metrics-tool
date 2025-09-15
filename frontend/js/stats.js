@@ -207,17 +207,13 @@ const renderLogsInterface = (logsData) => {
                     <div class="ui small labels">
                         {{flowLabel}}
                         {{typeLabel}}
+                        {{operationLabel}}
                         {{phaseLabel}}
                         {{idLabel}}
                     </div>
                 </div>
             </div>
-            <div class="content">
-                <h5 class="ui header"><i class="terminal icon"></i> Command</h5>
-                <div class="ui segment">
-                    <code>{{command}}</code>
-                </div>
-            </div>
+            {{commandContent}}
             {{stdoutContent}}
             {{stderrContent}}
         </div>
@@ -284,12 +280,40 @@ const renderLogsInterface = (logsData) => {
             const stderrContent = logEntry.stderr ?
                 stderrTemplate.replace('{{stderr}}', escapeString(logEntry.stderr)) : '';
 
+            // Add operation label for exceptions with specific tooltips
+            let operationLabel = '';
+            if (logEntry.type === 'exception') {
+                let operationTooltip;
+                switch (logEntry.cmd) {
+                    case 'run_scenario':
+                        operationTooltip = 'Exception occurred during main scenario execution runtime';
+                        break;
+                    case 'post_process':
+                        operationTooltip = 'Exception occurred during cleanup and post-processing phase';
+                        break;
+                    default:
+                        operationTooltip = `Exception occurred during ${logEntry.cmd} operation`;
+                }
+                const operationTitle = escapeString(logEntry.cmd.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+                operationLabel = `<div class="ui red label" data-tooltip="${operationTooltip}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
+            }
+
+            // For exceptions, don't show the command section since it's now a label
+            const commandContent = logEntry.type === 'exception' ? '' :
+                `<div class="content">
+                    <h5 class="ui header"><i class="terminal icon"></i> Command</h5>
+                    <div class="ui segment">
+                        <code>${escapeString(logEntry.cmd)}</code>
+                    </div>
+                </div>`;
+
             contentHTML += logCardTemplate
                 .replace('{{typeLabel}}', typeLabel)
                 .replace('{{flowLabel}}', flowLabel)
                 .replace('{{phaseLabel}}', phaseLabel)
+                .replace('{{operationLabel}}', operationLabel)
                 .replace('{{idLabel}}', idLabel)
-                .replace('{{command}}', escapeString(logEntry.cmd))
+                .replace('{{commandContent}}', commandContent)
                 .replace('{{stdoutContent}}', stdoutContent)
                 .replace('{{stderrContent}}', stderrContent);
         });
