@@ -192,87 +192,108 @@ const fillRunTab = async (selector, data, parent = '') => {
 }
 
 const renderLogsInterface = (logsData) => {
-    const logsElement = document.querySelector("#logs");
+    const containerTemplate = `
+        <div class="title">
+            <i class="dropdown icon"></i><i class="server icon"></i> {{containerName}}
+            <div class="ui mini label">{{logCount}} log{{logPlural}}</div>
+        </div>
+        <div class="content">{{content}}</div>
+    `;
 
-    let accordionHTML = '<div class="ui styled accordion">';
-    Object.keys(logsData).forEach(containerName => {
-        const containerLogs = logsData[containerName];
+    const typeHeaderTemplate = `
+        <h4 class="ui header">
+            <i class="{{typeIcon}} icon"></i>
+            <div class="content">{{typeTitle}}</div>
+        </h4>
+    `;
 
-        accordionHTML += `
-            <div class="title">
-                <i class="dropdown icon"></i><i class="server icon"></i> ${escapeString(containerName)}
-                <div class="ui mini label">${containerLogs.length} log${containerLogs.length === 1 ? '' : 's'}</div>
+    const logCardTemplate = `
+        <div class="ui card fluid">
+            <div class="content">
+                <div class="header">
+                    <div class="ui small labels">
+                        <div class="ui label" data-tooltip="Unique identifier for this log entry" data-position="top center"><i class="hashtag icon"></i> ID: {{logId}}</div>
+                        {{phaseLabel}}
+                        {{flowLabel}}
+                    </div>
+                </div>
             </div>
             <div class="content">
-        `;
-        const logsByType = {};
-        containerLogs.forEach(log => {
-            if (!logsByType[log.type]) {
-                logsByType[log.type] = [];
-            }
-            logsByType[log.type].push(log);
-        });
+                <h5 class="ui header"><i class="terminal icon"></i> Command</h5>
+                <div class="ui segment">
+                    <code>{{command}}</code>
+                </div>
+            </div>
+            {{stdoutContent}}
+            {{stderrContent}}
+        </div>
+    `;
 
-        Object.keys(logsByType).forEach(logType => {
+    const stdoutTemplate = `
+        <div class="content">
+            <h5 class="ui header"><i class="file text outline icon"></i> Standard Output</h5>
+            <div class="ui segment stdout">
+                <div>{{stdout}}</div>
+            </div>
+        </div>
+    `;
+
+    const stderrTemplate = `
+        <div class="content">
+            <h5 class="ui header"><i class="exclamation triangle icon"></i> Standard Error</h5>
+            <div class="ui segment stderr">
+                <div>{{stderr}}</div>
+            </div>
+        </div>
+    `;
+
+    const logsElement = document.querySelector("#logs");
+    let accordionHTML = '<div class="ui styled accordion">';
+
+    Object.keys(logsData).forEach(containerName => {
+        const containerLogs = logsData[containerName];
+        const logsByType = containerLogs.reduce((acc, log) => {
+            (acc[log.type] ||= []).push(log);
+            return acc;
+        }, {});
+
+        let contentHTML = '';
+        Object.entries(logsByType).forEach(([logType, logs]) => {
             const typeIcon = logType === 'container_execution' ? 'cog' : 'play';
             const typeTitle = escapeString(logType.replace('_', ' '));
 
-            accordionHTML += `
-                <h4 class="ui header">
-                    <i class="${typeIcon} icon"></i>
-                    <div class="content">${typeTitle}</div>
-                </h4>
-            `;
+            contentHTML += typeHeaderTemplate
+                .replace('{{typeIcon}}', typeIcon)
+                .replace('{{typeTitle}}', typeTitle);
 
-            logsByType[logType].forEach(logEntry => {
-                accordionHTML += `
-                    <div class="ui card fluid">
-                        <div class="content">
-                            <div class="header">
-                                <div class="ui small labels">
-                                    <div class="ui label" data-tooltip="Unique identifier for this log entry" data-position="top center"><i class="hashtag icon"></i> ID: ${escapeString(logEntry.id)}</div>
-                                    ${logEntry.phase ? `<div class="ui blue label" data-tooltip="Execution phase when this command was run" data-position="top center"><i class="clock icon"></i> ${escapeString(logEntry.phase)}</div>` : ''}
-                                    ${logEntry.flow ? `<div class="ui green label" data-tooltip="Flow this command belongs to" data-position="top center"><i class="sitemap icon"></i> ${escapeString(logEntry.flow)}</div>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="content">
-                            <h5 class="ui header"><i class="terminal icon"></i> Command</h5>
-                            <div class="ui segment">
-                                <code>${escapeString(logEntry.cmd)}</code>
-                            </div>
-                        </div>
-                `;
+            logs.forEach(logEntry => {
+                const phaseLabel = logEntry.phase ?
+                    `<div class="ui blue label" data-tooltip="Execution phase when this command was run" data-position="top center"><i class="clock icon"></i> ${escapeString(logEntry.phase)}</div>` : '';
 
-                if (logEntry.stdout || logEntry.stderr) {
-                    if (logEntry.stdout) {
-                        accordionHTML += `
-                            <div class="content">
-                                <h5 class="ui header"><i class="file text outline icon"></i> Standard Output</h5>
-                                <div class="ui segment stdout">
-                                    <div>${escapeString(logEntry.stdout)}</div>
-                                </div>
-                            </div>
-                        `;
-                    }
+                const flowLabel = logEntry.flow ?
+                    `<div class="ui green label" data-tooltip="Flow this command belongs to" data-position="top center"><i class="sitemap icon"></i> ${escapeString(logEntry.flow)}</div>` : '';
 
-                    if (logEntry.stderr) {
-                        accordionHTML += `
-                            <div class="content">
-                                <h5 class="ui header"><i class="exclamation triangle icon"></i> Standard Error</h5>
-                                <div class="ui segment stderr">
-                                    <div>${escapeString(logEntry.stderr)}</div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                }
+                const stdoutContent = logEntry.stdout ?
+                    stdoutTemplate.replace('{{stdout}}', escapeString(logEntry.stdout)) : '';
 
-                accordionHTML += '</div>';
+                const stderrContent = logEntry.stderr ?
+                    stderrTemplate.replace('{{stderr}}', escapeString(logEntry.stderr)) : '';
+
+                contentHTML += logCardTemplate
+                    .replace('{{logId}}', escapeString(logEntry.id))
+                    .replace('{{phaseLabel}}', phaseLabel)
+                    .replace('{{flowLabel}}', flowLabel)
+                    .replace('{{command}}', escapeString(logEntry.cmd))
+                    .replace('{{stdoutContent}}', stdoutContent)
+                    .replace('{{stderrContent}}', stderrContent);
             });
         });
 
-        accordionHTML += '</div>';
+        accordionHTML += containerTemplate
+            .replace('{{containerName}}', escapeString(containerName))
+            .replace('{{logCount}}', containerLogs.length)
+            .replace('{{logPlural}}', containerLogs.length === 1 ? '' : 's')
+            .replace('{{content}}', contentHTML);
     });
 
     accordionHTML += '</div>';
