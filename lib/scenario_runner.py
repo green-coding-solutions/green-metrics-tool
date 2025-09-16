@@ -1468,10 +1468,12 @@ class ScenarioRunner:
         if container_name not in self.__current_run_logs:
             self.__current_run_logs[container_name] = []
 
+        command_string = ' '.join(cmd) if isinstance(cmd, list) else str(cmd)
+
         log_entry = {
             'type': log_type.value,
             'id': str(log_id),
-            'cmd': cmd,
+            'cmd': command_string,
             'phase': phase
         }
 
@@ -1831,9 +1833,9 @@ class ScenarioRunner:
         has_stderr = stderr is not None and stderr.strip()
 
         if has_stdout or has_stderr:
-            if has_stdout:
+            if has_stdout and log_type != LogType.CONTAINER_EXECUTION:
                 print('stdout from process:', cmd, stdout)
-            if has_stderr:
+            if has_stderr and log_type != LogType.CONTAINER_EXECUTION:
                 print('stderr from process:', cmd, stderr)
 
             self._add_to_current_run_log(
@@ -1875,7 +1877,6 @@ class ScenarioRunner:
 
             log_type = LogType.FLOW_COMMAND if ps.get('flow_name') else LogType.SETUP_COMMAND
             phase = "[RUNTIME]" if ps.get('flow_name') else "[BOOT]"
-            cmd = ' '.join(ps['cmd']) if isinstance(ps['cmd'], list) else ps['cmd']
 
             self._handle_process_output(
                 stdout=stdout,
@@ -1883,7 +1884,7 @@ class ScenarioRunner:
                 container_name=ps['container_name'],
                 log_type=log_type,
                 log_id=id(ps['ps']),
-                cmd=cmd,
+                cmd=ps['cmd'],
                 phase=phase,
                 flow=ps.get('flow_name'),
                 read_notes_stdout=ps['read-notes-stdout'],
@@ -1997,7 +1998,7 @@ class ScenarioRunner:
                 container_name=container_info['name'],
                 log_type=LogType.CONTAINER_EXECUTION,
                 log_id=id(log),
-                cmd=' '.join(container_info['docker_run_cmd']),
+                cmd=container_info['docker_run_cmd'],
                 phase="[BOOT]",
                 read_notes_stdout=container_info['read-notes-stdout'],
                 read_sci_stdout=container_info['read-sci-stdout']
