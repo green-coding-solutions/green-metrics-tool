@@ -106,19 +106,20 @@ const fetchAndFillRunData = async (url_params) => {
             }
 
         } else if(item == 'logs' && run_data?.[item] != null) {
-            const isJsonString = typeof run_data[item] === 'string' &&
-                                 (run_data[item].startsWith('{') || run_data[item].startsWith('['));
-            if (isJsonString) {
-                try {
-                    const logsData = JSON.parse(run_data[item]);
+            const logsData = run_data[item];
+            if (typeof logsData === 'object' && logsData !== null) {
+                // Check if any logs have type 'legacy' - if so, render as simple text instead of structured interface
+                const hasLegacyLogs = Object.values(logsData).some(containerLogs =>
+                    Array.isArray(containerLogs) && containerLogs.some(log => log.type === 'legacy')
+                );
+                if (!hasLegacyLogs) {
                     renderLogsInterface(logsData);
-                } catch (e) {
-                    // Fallback to original text if JSON parsing fails
-                    document.querySelector("#logs").textContent = run_data[item];
+                } else {
+                    renderLegacyLogsFromJson(logsData);
                 }
             } else {
-                // Display as plain text for backward compatibility (historically logs were plain strings)
-                document.querySelector("#logs").textContent = run_data[item];
+                // Handle legacy plain text logs (pre-JSON structure)
+                displayLegacyLogs(run_data[item]);
             }
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
@@ -191,6 +192,38 @@ const fillRunTab = async (selector, data, parent = '') => {
     }
 }
 
+const displayLegacyLogs = (logData) => {
+    const logsElement = document.querySelector("#logs");
+    logsElement.innerHTML = `<pre>${escapeString(logData)}</pre>`;
+};
+
+const renderLegacyLogsFromJson = (logsData) => {
+    const legacyLogTemplate = `
+        <div class="ui segment">
+            <h4 class="ui header">{{containerName}}</h4>
+            <pre>{{stdout}}</pre>
+        </div>
+    `;
+
+    const logsElement = document.querySelector("#logs");
+    let contentHTML = '';
+
+    // actually, in the legacy case there is only one 'container' called "unified (legacy)"
+    // but to be on the safe side, still use loops for all lists in the JSON structure
+    Object.keys(logsData).forEach(containerName => {
+        const containerLogs = logsData[containerName];
+        containerLogs.forEach(logEntry => {
+            if (logEntry.stdout) {
+                contentHTML += legacyLogTemplate
+                    .replace('{{containerName}}', escapeString(containerName))
+                    .replace('{{stdout}}', escapeString(logEntry.stdout));
+            }
+        });
+    });
+
+    logsElement.innerHTML = contentHTML;
+};
+
 const renderLogsInterface = (logsData) => {
     const containerTemplate = `
         <div class="title">
@@ -202,20 +235,33 @@ const renderLogsInterface = (logsData) => {
 
     const logCardTemplate = `
         <div class="ui card fluid">
-            <div class="content">
-                <div class="header">
-                    <div class="ui small labels">
-                        {{flowLabel}}
-                        {{typeLabel}}
-                        {{operationLabel}}
-                        {{phaseLabel}}
-                        {{idLabel}}
-                    </div>
-                </div>
-            </div>
+            {{metadataContent}}
             {{commandContent}}
             {{stdoutContent}}
             {{stderrContent}}
+        </div>
+    `;
+
+    const metadataTemplate = `
+        <div class="content">
+            <div class="header">
+                <div class="ui small labels">
+                    {{typeLabel}}
+                    {{flowLabel}}
+                    {{operationLabel}}
+                    {{phaseLabel}}
+                    {{idLabel}}
+                </div>
+            </div>
+        </div>
+    `;
+
+    const commandTemplate = `
+        <div class="content">
+            <h5 class="ui header"><i class="terminal icon"></i> Command</h5>
+            <div class="ui segment">
+                <code>{{command}}</code>
+            </div>
         </div>
     `;
 
@@ -245,26 +291,32 @@ const renderLogsInterface = (logsData) => {
 
         let contentHTML = '';
         containerLogs.forEach(logEntry => {
-            const typeIcon = logEntry.type === 'container_execution' ? 'cog' : 'play';
-            // Make the type name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
-            const typeTitle = escapeString(logEntry.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
-            let typeTooltip;
+            let typeIcon, typeTooltip;
             switch (logEntry.type) {
                 case 'container_execution':
+                    typeIcon = 'cog';
                     typeTooltip = 'Logs from the entire container execution process';
                     break;
                 case 'setup_commands':
+                    typeIcon = 'wrench';
                     typeTooltip = 'Logs from setup commands before flow execution';
                     break;
                 case 'flow_command':
+                    typeIcon = 'play';
                     typeTooltip = 'Logs from a specific flow execution';
                     break;
                 case 'exception':
+                    typeIcon = 'exclamation triangle';
                     typeTooltip = 'An error occurred during execution';
                     break;
                 default:
+                    typeIcon = 'question';
                     typeTooltip = 'Logs from an unknown or custom execution type';
+                    break;
             }
+
+            // Make the type name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
+            const typeTitle = escapeString(logEntry.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
             const typeLabel = `<div class="ui purple label" data-tooltip="${typeTooltip}" data-position="top center"><i class="${typeIcon} icon"></i> ${typeTitle}</div>`;
 
             const phaseLabel = logEntry.phase ?
@@ -300,21 +352,19 @@ const renderLogsInterface = (logsData) => {
                 operationLabel = `<div class="ui red label" data-tooltip="${operationTooltip}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
             }
 
-            // For exceptions, don't show the command section since it's now a label
-            const commandContent = logEntry.type === 'exception' ? '' :
-                `<div class="content">
-                    <h5 class="ui header"><i class="terminal icon"></i> Command</h5>
-                    <div class="ui segment">
-                        <code>${escapeString(logEntry.cmd)}</code>
-                    </div>
-                </div>`;
-
-            contentHTML += logCardTemplate
-                .replace('{{typeLabel}}', typeLabel)
+            const metadataContent = metadataTemplate
                 .replace('{{flowLabel}}', flowLabel)
-                .replace('{{phaseLabel}}', phaseLabel)
+                .replace('{{typeLabel}}', typeLabel)
                 .replace('{{operationLabel}}', operationLabel)
-                .replace('{{idLabel}}', idLabel)
+                .replace('{{phaseLabel}}', phaseLabel)
+                .replace('{{idLabel}}', idLabel);
+
+            // For exceptions, don't show the command section
+            const commandContent = logEntry.type === 'exception' ? '' :
+                commandTemplate.replace('{{command}}', escapeString(logEntry.cmd));
+
+                contentHTML += logCardTemplate
+                .replace('{{metadataContent}}', metadataContent)
                 .replace('{{commandContent}}', commandContent)
                 .replace('{{stdoutContent}}', stdoutContent)
                 .replace('{{stderrContent}}', stderrContent);
@@ -329,8 +379,6 @@ const renderLogsInterface = (logsData) => {
 
     accordionHTML += '</div>';
     logsElement.innerHTML = accordionHTML;
-    // CSS class 'plain-text' is used to display text-only logs as it was done in the past
-    logsElement.classList.remove("plain-text");
     $('.ui.accordion').accordion();
 }
 

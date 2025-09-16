@@ -2022,7 +2022,7 @@ class ScenarioRunner:
             logs_as_json = logs_as_json.replace('\x00','')
             DB().query("""
                 UPDATE runs
-                SET logs = COALESCE(logs, '') || %s -- append
+                SET logs = %s::jsonb
                 WHERE id = %s
                 """, params=(logs_as_json, self._run_id))
 

@@ -316,7 +316,7 @@ a,
     vertical-align: top;
 }
 
-#usage-scenario, #logs.plain-text {
+#usage-scenario {
     white-space: pre;
     word-wrap: break-word;
     overflow: auto;
