@@ -7,7 +7,6 @@ import os
 import platform
 import subprocess
 import yaml
-import json
 
 from contextlib import redirect_stdout, redirect_stderr
 
@@ -686,11 +685,11 @@ def test_logs_structure():
 
     run_id = runner.run()
 
-    logs_json = DB().fetch_one("SELECT logs FROM runs WHERE id = %s", params=(run_id,))
-    assert logs_json is not None, "Should have logs stored in database"
-    assert logs_json[0] is not None, "Logs field should not be null"
+    logs_result = DB().fetch_one("SELECT logs FROM runs WHERE id = %s", params=(run_id,))
+    assert logs_result is not None, "Should have logs stored in database"
+    assert logs_result[0] is not None, "Logs field should not be null"
 
-    logs = json.loads(logs_json[0])
+    logs = logs_result[0]
 
     assert isinstance(logs, dict), "Logs should be in dictionary format"
     assert "test-container" in logs, "Should have logs for test-container"
