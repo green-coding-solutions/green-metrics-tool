@@ -8,8 +8,8 @@ const createTableHeader = (phase, comparison_keys, comparison_case, comparison_a
             <th>Scope</th>
             <th>Detail Name</th>
             <th>Type</th>
-            <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${comparison_keys[0]}">${replaceRepoIcon(comparison_keys[0])}</span></th>
-            <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${comparison_keys[1]}">${replaceRepoIcon(comparison_keys[1])}</span></th>
+            <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${escapeString(comparison_keys[0])}">${replaceRepoIcon(comparison_keys[0])}</span></th>
+            <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${escapeString(comparison_keys[1])}">${replaceRepoIcon(comparison_keys[1])}</span></th>
             <th>Unit</th>
             <th>Change</th>
             <th>Significant (T-Test)</th>

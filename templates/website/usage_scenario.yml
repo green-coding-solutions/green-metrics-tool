@@ -8,42 +8,51 @@ sci:
 
 compose-file: !include compose.yml
 
-services:
-  gcb-playwright:
-    setup-commands:
-      - command: mkfifo /tmp/my_fifo
-      - command: python3 /tmp/repo/templates/website/visit.py --browser chromium
-        detach: true
-      - command: until [ -f "/tmp/browser_ready" ]; do sleep 1; done && echo "Browser ready!"
-        shell: bash
-      - command: echo '__GMT_VAR_PAGE__' > /tmp/my_fifo # warmup
-        shell: bash
-      - command: sleep '__GMT_VAR_SLEEP__' # we need same sleep as later as some resources might only be fetched from the website after staying on the page for a while
-
 flow:
+  - name: Starting browser IPC
+    container: playwright-nodejs
+    commands:
+      - type: console
+        command: node /tmp/energy-tests/templates/website/playwright-ipc.js --headless true --browser firefox
+        note: Starting browser in background process with IPC
+        detach: true
+      - type: console
+        command: until [ -p "/tmp/playwright-ipc-ready" ]; do sleep 1; done && echo "Browser ready!"
+        shell: bash
+        note: Waiting for website stepper loop to start by monitoring rendevous file endpoint
+
+  - name: Warmup and Caching
+    container: playwright-nodejs
+    commands:
+      - type: playwright
+        command: await page.goto("__GMT_VAR_PAGE__");
+      - type: console
+        command: sleep '__GMT_VAR_SLEEP__'
+      - type: playwright
+        command: await context.close()
+      - type: playwright
+        command: context = await browser.newContext(contextOptions);
+      - type: playwright
+        command: page = await context.newPage()
+
   - name: Dump Log (Warmup)
     container: squid
     commands:
       - type: console
         command: cat /apps/squid/var/logs/access.log
-        log-stdout: true
-        log-stderr: true
       - type: console
         command: grep 'TCP_MISS/' /apps/squid/var/logs/access.log #validate that TCP_MISSes present
       - type: console
         command: echo > /apps/squid/var/logs/access.log
         shell: bash
-        log-stdout: true
-        log-stderr: true
+
   - name: Load and idle
-    container: gcb-playwright
+    container: playwright-nodejs
     commands:
+      - type: playwright
+        command: await page.goto("__GMT_VAR_PAGE__");
       - type: console
-        shell: bash
-        command: "echo '__GMT_VAR_PAGE__' > /tmp/my_fifo && sleep __GMT_VAR_SLEEP__"
-        read-notes-stdout: true
-        log-stdout: true
-        log-stderr: true
+        command: sleep '__GMT_VAR_SLEEP__'
 
   - name: Dump Log (Load and idle)
     container: squid
@@ -51,8 +60,6 @@ flow:
       - type: console
         command: cat /apps/squid/var/logs/access.log
         read-notes-stdout: true
-        log-stdout: true
-        log-stderr: true
       - type: console
         command: grep 'TCP_MEM_HIT/' /apps/squid/var/logs/access.log #validate that TCP_MEM_HITs present
         # This is sadly too strict. Pages fingerprint you all the time and a new request might get a new fingerprint that will not be cached

@@ -168,12 +168,12 @@ def test_get_badge():
 
     response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=cpu_energy_rapl_msr_component", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
-    assert 'CPU Energy (Package)' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
+    assert 'CPU Package Energy' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
     assert '12.99 mWh' in response.text, Tests.assertion_info('success', response.text)
 
     response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=cpu_energy_rapl_msr_component&unit=joules", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
-    assert 'CPU Energy (Package)' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
+    assert 'CPU Package Energy' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
     assert '46.77 J' in response.text, Tests.assertion_info('success', response.text)
 
     response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=phase_time_syscall_system", timeout=15)
