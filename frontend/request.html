@@ -19,6 +19,7 @@
     <script src="/js/request.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
+    <script src="/dist/js/popup.min.js" defer></script>
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
@@ -89,6 +90,10 @@
                             <input type="text" placeholder="Branch (optional - default: main)" name="branch">
                         </div>
                         <div class="ui fluid icon input">
+                            <input type="text" placeholder="GMT vars (optional)" name="usage_scenario_variables">
+                            <i class="question circle link icon" id="vars-help"></i>
+                        </div>
+                        <div class="ui fluid icon input">
                             <select name="machine_id" class="ui fluid dropdown" required>
                                 <option value=''>-- Select hardware for testing --</option>
                             </select>
@@ -115,5 +120,14 @@
         </div>
         <div class="clearing" style="display:block; height: 10px;"></div>
     </div>
+<div class="ui flowing popup" id="vars-popup">
+    <p>
+        Add variables as <b>key=value</b> pairs, separated by spaces.<br/>
+        Example: "<code>__GMT_VAR_DURATION__=1 __GMT_VAR_NUMBER__=0</code>"
+    </p>
+    <p>
+        See the <a href="https://docs.green-coding.io/docs/measuring/usage-scenario/#variables" target="_blank">documentation</a> for more information.
+    </p>
+</div>
 </body>
 </html>

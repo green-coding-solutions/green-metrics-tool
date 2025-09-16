@@ -1,5 +1,22 @@
 (async () => {
 
+    function parseKV(input) {
+        if (!input || !input.trim()) return {};
+        const out = {};
+        const regex = /^__GMT_VAR_\w+__$/;
+
+        input.trim().split(/\s+/).forEach(pair => {
+            const [k, v] = pair.split("=", 2);
+            if (!k) throw new Error(`Invalid key in "${pair}"`);
+            if (!regex.test(k)) {
+                throw new Error(`Key "${k}" must match __GMT_VAR_[\\w]+__`);
+            }
+            out[k] = v
+        });
+
+        return out;
+    }
+
     function populateFieldsFromURL() {
         const urlParams = new URLSearchParams(window.location.search);
 
@@ -46,7 +63,6 @@
         showNotification('Could not get machines data from API', err);
     }
 
-
     document.forms[0].onsubmit = async (event) => {
         event.preventDefault();
 
@@ -61,6 +77,13 @@
         }
 
         try {
+            values.usage_scenario_variables = parseKV(values.usage_scenario_variables);
+        } catch (e) {
+            showNotification('Invalid GMT vars', e.message);
+            return;
+        }
+
+        try {
             await makeAPICall('/v1/software/add', values);
             form.reset()
             showNotification('Success', 'Save successful. Check your mail in 10-15 minutes', 'success');
@@ -70,5 +93,9 @@
 
     }
 
+    $('#vars-help').popup({
+        popup: $('#vars-popup'),
+        on: 'click' // or 'click' if you prefer
+    });
 
 })();
