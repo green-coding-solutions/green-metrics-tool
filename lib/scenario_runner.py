@@ -45,10 +45,10 @@ from lib import container_compatibility
 from lib.container_compatibility import CompatibilityStatus
 
 class LogType(Enum):
-    CONTAINER_EXECUTION = "container_execution"
-    SETUP_COMMAND = "setup_command"
-    FLOW_COMMAND = "flow_command"
-    EXCEPTION = "exception"
+    CONTAINER_EXECUTION = 'container_execution'
+    SETUP_COMMAND = 'setup_command'
+    FLOW_COMMAND = 'flow_command'
+    EXCEPTION = 'exception'
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -202,7 +202,7 @@ class ScenarioRunner:
             return
 
         durations = {
-            "measurement_flow_process_duration": self._measurement_flow_process_duration,
+            'measurement_flow_process_duration': self._measurement_flow_process_duration,
             'pre_test_sleep': self._measurement_pre_test_sleep,
             'post_test_sleep': self._measurement_post_test_sleep,
             'idle_duration': self._measurement_idle_duration,
@@ -1469,20 +1469,20 @@ class ScenarioRunner:
             self.__current_run_logs[container_name] = []
 
         log_entry = {
-            "type": log_type.value,
-            "id": str(log_id),
-            "cmd": cmd,
-            "phase": phase
+            'type': log_type.value,
+            'id': str(log_id),
+            'cmd': cmd,
+            'phase': phase
         }
 
         if stdout is not None:
-            log_entry["stdout"] = stdout
+            log_entry['stdout'] = stdout
         if stderr is not None:
-            log_entry["stderr"] = stderr
+            log_entry['stderr'] = stderr
         if flow is not None:
-            log_entry["flow"] = flow
+            log_entry['flow'] = flow
         if exception_class is not None:
-            log_entry["class"] = exception_class
+            log_entry['class'] = exception_class
 
         self.__current_run_logs[container_name].append(log_entry)
 
@@ -1497,9 +1497,9 @@ class ScenarioRunner:
         Returns:
             list: All log entries from current session in enhanced structure.
                   Each list item is a run object containing:
-                    - "iteration": iteration number for this filename
-                    - "filename": the scenario filename that was executed
-                    - "containers": dict with container names as keys and log lists as values
+                    - 'iteration': iteration number for this filename
+                    - 'filename': the scenario filename that was executed
+                    - 'containers': dict with container names as keys and log lists as values
         """
         return self.__all_runs_logs
 
@@ -2085,7 +2085,7 @@ class ScenarioRunner:
                 container_name="[SYSTEM]",
                 log_type=LogType.EXCEPTION,
                 log_id=id(exc),
-                cmd="post_process",
+                cmd='post_process',
                 phase="[CLEANUP]",
                 stderr=str(exc),
                 exception_class=exc.__class__.__name__
@@ -2138,17 +2138,17 @@ class ScenarioRunner:
         filename = self._original_filename
         iteration = 1
         for existing_run in self.__all_runs_logs:
-            if existing_run["filename"] == filename:
-                iteration = max(iteration, existing_run["iteration"] + 1)
+            if existing_run['filename'] == filename:
+                iteration = max(iteration, existing_run['iteration'] + 1)
 
         run_entry = {
-            "iteration": iteration,
-            "filename": filename,
-            "containers": {}
+            'iteration': iteration,
+            'filename': filename,
+            'containers': {}
         }
 
         for container_name, logs in self.__current_run_logs.items():
-            run_entry["containers"][container_name] = logs.copy()
+            run_entry['containers'][container_name] = logs.copy()
         self.__all_runs_logs.append(run_entry)
 
         # Clear current run logs now that they've been copied to cumulative
@@ -2277,7 +2277,7 @@ class ScenarioRunner:
                 container_name="[SYSTEM]",
                 log_type=LogType.EXCEPTION,
                 log_id=id(exc),
-                cmd="run_scenario",
+                cmd='run_scenario',
                 phase="[RUNTIME]",
                 stderr=str(exc),
                 exception_class=exc.__class__.__name__

@@ -115,12 +115,10 @@ const fetchAndFillRunData = async (url_params) => {
                 } catch (e) {
                     // Fallback to original text if JSON parsing fails
                     document.querySelector("#logs").textContent = run_data[item];
-                    document.querySelector("#logs").classList.add("plain-text");
                 }
             } else {
                 // Display as plain text for backward compatibility (historically logs were plain strings)
                 document.querySelector("#logs").textContent = run_data[item];
-                document.querySelector("#logs").classList.add("plain-text");
             }
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
@@ -248,6 +246,7 @@ const renderLogsInterface = (logsData) => {
         let contentHTML = '';
         containerLogs.forEach(logEntry => {
             const typeIcon = logEntry.type === 'container_execution' ? 'cog' : 'play';
+            // Make the type name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
             const typeTitle = escapeString(logEntry.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
             let typeTooltip;
             switch (logEntry.type) {
@@ -296,6 +295,7 @@ const renderLogsInterface = (logsData) => {
                     default:
                         operationTooltip = `Exception occurred during ${logEntry.cmd} operation`;
                 }
+                // Make the operation name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
                 const operationTitle = escapeString(logEntry.cmd.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
                 operationLabel = `<div class="ui red label" data-tooltip="${operationTooltip}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
             }
@@ -329,6 +329,7 @@ const renderLogsInterface = (logsData) => {
 
     accordionHTML += '</div>';
     logsElement.innerHTML = accordionHTML;
+    // CSS class 'plain-text' is used to display text-only logs as it was done in the past
     logsElement.classList.remove("plain-text");
     $('.ui.accordion').accordion();
 }
