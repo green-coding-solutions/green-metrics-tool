@@ -105,10 +105,14 @@ const fetchAndFillRunData = async (url_params) => {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
 
-        } else if(item == 'logs' && run_data?.[item] != null) {
+        } else if(item == 'logs') {
             const logsData = run_data[item];
-            if (typeof logsData === 'object' && logsData !== null) {
-                // Check if any logs have type 'legacy' - if so, render as simple text instead of structured interface
+            if (logsData === null) {
+                // Display message when no logs were collected
+                document.querySelector("#logs").innerHTML = '<p>No logs were collected for this run.</p>';
+            } else if (typeof logsData === 'object' && logsData !== null) {
+                // Handle JSON structure logs
+                // Check first if any logs have type 'legacy' - if so, render as simple text instead of structured interface
                 const hasLegacyLogs = Object.values(logsData).some(containerLogs =>
                     Array.isArray(containerLogs) && containerLogs.some(log => log.type === 'legacy')
                 );
