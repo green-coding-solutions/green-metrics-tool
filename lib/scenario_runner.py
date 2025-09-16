@@ -49,6 +49,7 @@ class LogType(Enum):
     SETUP_COMMAND = 'setup_command'
     FLOW_COMMAND = 'flow_command'
     EXCEPTION = 'exception'
+    NETWORK_STATS = 'network_stats'  # Used in metric_importer.py (avoid circular import)
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -2022,7 +2023,7 @@ class ScenarioRunner:
             logs_as_json = logs_as_json.replace('\x00','')
             DB().query("""
                 UPDATE runs
-                SET logs = %s::jsonb
+                SET logs = COALESCE(logs, '{}'::jsonb) || %s::jsonb
                 WHERE id = %s
                 """, params=(logs_as_json, self._run_id))
 

@@ -286,7 +286,15 @@ const renderLogsInterface = (logsData) => {
     const logsElement = document.querySelector("#logs");
     let accordionHTML = '<div class="ui styled accordion">';
 
-    Object.keys(logsData).forEach(containerName => {
+    const containerNames = Object.keys(logsData);
+    // Display [SYSTEM] logs first
+    const systemIndex = containerNames.indexOf('[SYSTEM]');
+    if (systemIndex > -1) {
+        containerNames.splice(systemIndex, 1);
+        containerNames.unshift('[SYSTEM]');
+    }
+
+    containerNames.forEach(containerName => {
         const containerLogs = logsData[containerName];
 
         let contentHTML = '';
@@ -304,6 +312,10 @@ const renderLogsInterface = (logsData) => {
                 case 'flow_command':
                     typeIcon = 'play';
                     typeTooltip = 'Logs from a specific flow execution';
+                    break;
+                case 'network_stats':
+                    typeIcon = 'wifi';
+                    typeTooltip = 'Network connection statistics from tcpdump';
                     break;
                 case 'exception':
                     typeIcon = 'exclamation triangle';
@@ -359,8 +371,8 @@ const renderLogsInterface = (logsData) => {
                 .replace('{{phaseLabel}}', phaseLabel)
                 .replace('{{idLabel}}', idLabel);
 
-            // For exceptions, don't show the command section
-            const commandContent = logEntry.type === 'exception' ? '' :
+            // For exceptions or empty/null commands, don't show the command section
+            const commandContent = (logEntry.type === 'exception' || !logEntry.cmd) ? '' :
                 commandTemplate.replace('{{command}}', escapeString(logEntry.cmd));
 
                 contentHTML += logCardTemplate
