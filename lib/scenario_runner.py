@@ -1459,7 +1459,7 @@ class ScenarioRunner:
             log_type: LogType enum value
             log_id: ID of the process (from id(ps) or id(exception))
             cmd: Command that was executed
-            phase: Phase like '[BOOT]', '[RUNTIME]', etc.
+            phase: Phase like '[BOOT]', '[RUNTIME]', etc. '[MULTIPLE]', if the logs were collected over multiple phases. [UNKNOWN] is unknown.
             stdout: Standard output (optional)
             stderr: Standard error (optional)
             flow: Flow name for flow_command type (optional)
@@ -1876,7 +1876,13 @@ class ScenarioRunner:
                 stderr = ps['ps'].stderr
 
             log_type = LogType.FLOW_COMMAND if ps.get('flow_name') else LogType.SETUP_COMMAND
-            phase = "[RUNTIME]" if ps.get('flow_name') else "[BOOT]"
+            match log_type:
+                case LogType.FLOW_COMMAND:
+                    phase = "[RUNTIME]"
+                case LogType.SETUP_COMMAND:
+                    phase = "[BOOT]"
+                case _:
+                    phase = "[UNKNOWN]"
 
             self._handle_process_output(
                 stdout=stdout,
@@ -1999,7 +2005,7 @@ class ScenarioRunner:
                 log_type=LogType.CONTAINER_EXECUTION,
                 log_id=id(log),
                 cmd=container_info['docker_run_cmd'],
-                phase="[BOOT]",
+                phase="[MULTIPLE]", # the container logs were collected usually over multiple phases: [BOOT], [IDLE], [RUNTIME]
                 read_notes_stdout=container_info['read-notes-stdout'],
                 read_sci_stdout=container_info['read-sci-stdout']
             )

@@ -790,7 +790,7 @@ class TestXssSecurity:
                     "type": "container_execution",
                     "id": "131377540004848",
                     "cmd": f"docker run -it -d --name malicious-container {xss_payload}",
-                    "phase": "[BOOT]",
+                    "phase": "[MULTIPLE]",
                     "stdout": f"{xss_payload}Container started with malicious output\nStacktrace here"
                 },
                 {

@@ -753,7 +753,7 @@ def test_logs_structure():
         if "stdout" in log_entry and "Test log from container" in log_entry["stdout"]:
             found_container_execution = True
             assert log_entry["type"] == LogType.CONTAINER_EXECUTION.value, "Should be container execution"
-            assert log_entry["phase"] == "[BOOT]", "Should be in BOOT phase"
+            assert log_entry["phase"] == "[MULTIPLE]", "Container logs should be collected over multiple phases"
             assert log_entry["cmd"].startswith("docker run"), "Container execution should start with 'docker run'"
 
     assert found_flow_stdout, "Should find the test flow stdout message"
