@@ -1879,11 +1879,11 @@ class ScenarioRunner:
             log_type = LogType.FLOW_COMMAND if ps.get('flow_name') else LogType.SETUP_COMMAND
             match log_type:
                 case LogType.FLOW_COMMAND:
-                    phase = "[RUNTIME]"
+                    phase = '[RUNTIME]'
                 case LogType.SETUP_COMMAND:
-                    phase = "[BOOT]"
+                    phase = '[BOOT]'
                 case _:
-                    phase = "[UNKNOWN]"
+                    phase = '[UNKNOWN]'
 
             self._handle_process_output(
                 stdout=stdout,
@@ -2006,7 +2006,7 @@ class ScenarioRunner:
                 log_type=LogType.CONTAINER_EXECUTION,
                 log_id=id(log),
                 cmd=container_info['docker_run_cmd'],
-                phase="[MULTIPLE]", # the container logs were collected usually over multiple phases: [BOOT], [IDLE], [RUNTIME]
+                phase='[MULTIPLE]', # the container logs were collected usually over multiple phases: [BOOT], [IDLE], [RUNTIME]
                 read_notes_stdout=container_info['read-notes-stdout'],
                 read_sci_stdout=container_info['read-sci-stdout']
             )
@@ -2090,11 +2090,11 @@ class ScenarioRunner:
                 index += 1
         except BaseException as exc:
             self._add_to_current_run_log(
-                container_name="[SYSTEM]",
+                container_name='[SYSTEM]',
                 log_type=LogType.EXCEPTION,
                 log_id=id(exc),
                 cmd='post_process',
-                phase="[CLEANUP]",
+                phase='[CLEANUP]',
                 stderr=str(exc),
                 exception_class=exc.__class__.__name__
             )
@@ -2282,11 +2282,11 @@ class ScenarioRunner:
 
         except BaseException as exc:
             self._add_to_current_run_log(
-                container_name="[SYSTEM]",
+                container_name='[SYSTEM]',
                 log_type=LogType.EXCEPTION,
                 log_id=id(exc),
                 cmd='run_scenario',
-                phase="[RUNTIME]",
+                phase='[RUNTIME]',
                 stderr=str(exc),
                 exception_class=exc.__class__.__name__
             )
