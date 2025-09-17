@@ -10,7 +10,7 @@ import yaml
 
 from contextlib import redirect_stdout, redirect_stderr
 
-from lib.scenario_runner import LogType
+from lib.log_types import LogType
 from lib.scenario_runner import ScenarioRunner
 from lib.global_config import GlobalConfig
 from lib.db import DB

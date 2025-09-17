@@ -5,7 +5,7 @@ import json
 
 from lib.db import DB
 from lib.global_config import GlobalConfig
-from lib.scenario_runner import LogType
+from lib.log_types import LogType
 from lib import metric_importer
 from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtilizationCgroupContainerProvider
 from metric_providers.cpu.utilization.cgroup.system.provider import CpuUtilizationCgroupSystemProvider

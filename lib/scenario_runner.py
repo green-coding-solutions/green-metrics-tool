@@ -22,7 +22,6 @@ import yaml
 from collections import OrderedDict
 from datetime import datetime
 import platform
-from enum import Enum
 
 GMT_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -43,13 +42,7 @@ from lib.machine import Machine
 from lib import metric_importer
 from lib import container_compatibility
 from lib.container_compatibility import CompatibilityStatus
-
-class LogType(Enum):
-    CONTAINER_EXECUTION = 'container_execution'
-    SETUP_COMMAND = 'setup_command'
-    FLOW_COMMAND = 'flow_command'
-    EXCEPTION = 'exception'
-    NETWORK_STATS = 'network_stats'  # Used in metric_importer.py (avoid circular import)
+from lib.log_types import LogType
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"

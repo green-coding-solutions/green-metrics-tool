@@ -2,6 +2,7 @@ import json
 from io import StringIO
 
 from lib.db import DB
+from lib.log_types import LogType
 from metric_providers.network.connections.tcpdump.system.provider import generate_stats_string
 
 
@@ -19,7 +20,7 @@ def import_measurements(df, metric_name, run_id):
 
         log_entry = {
             '[SYSTEM]': [{
-                'type': 'network_stats',
+                'type': LogType.NETWORK_STATS.value,
                 'id': str(id(stats_string)),
                 'cmd': None,
                 'phase': '[MULTIPLE]',
