@@ -1470,39 +1470,18 @@ class ScenarioRunner:
         for message in self.__warnings:
             DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (self._run_id, message))
 
-    def _needs_full_dependency_resolution(self, container_name):
-        """Determine if container needs full dependency resolution based on whether it was built."""
-        services = self._usage_scenario.get('services', {})
-
-        # Find the service that corresponds to this container
-        for service_name, service in services.items():
-            # Check if this service matches the container (by name or container_name)
-            service_container_name = service.get('container_name', service_name)
-            if service_container_name == container_name or service_name in container_name:
-                # Check if service has build configuration
-                return 'build' in service
-
-        # Default to container-info-only for containers we can't match to services
-        return False
 
     def _execute_dependency_resolver_for_container(self, container_name):
-        """Execute dependency resolver for a single container using Python package."""
         try:
-            needs_full_resolution = self._needs_full_dependency_resolution(container_name)
-            only_container_info = not needs_full_resolution
-
-            if needs_full_resolution:
-                print(f"Built container '{container_name}' requires full dependency resolution")
-                start_time = time.perf_counter()
+            print(f"Performing dependency resolution for container '{container_name}'")
+            start_time = time.perf_counter()
 
             result = resolve_docker_dependencies_as_dict(
-                container_identifier=container_name,
-                only_container_info=only_container_info
+                container_identifier=container_name
             )
 
-            if needs_full_resolution:
-                duration = time.perf_counter() - start_time
-                print(f"Full dependency resolution for container '{container_name}' completed in {duration:.2f} s")
+            duration = time.perf_counter() - start_time
+            print(f"Dependency resolution for container '{container_name}' completed in {duration:.2f} s")
 
             # Remove the 'name' field from _container-info as we use container name as key
             if result and 'name' in result.get('_container-info', {}):
