@@ -71,7 +71,14 @@ if (not os.path.exists('/var/log/apt/history.log')) or ((now - os.path.getmtime(
         apt_packages_upgrade = None
 
     ps = subprocess.run(
-        ['sudo', 'apt', '-o', 'Dpkg::Options::=--force-confdef', '-o', 'Dpkg::Options::=--force-confold', 'full-upgrade', '-y'],
+        [
+            'sudo', 'apt-get',
+            '-o', 'APT::Get::Always-Include-Phased-Updates=true',
+            '-o', 'Dpkg::Options::=--force-confdef',
+            '-o', 'Dpkg::Options::=--force-confold',
+            '-o', 'Acquire::Retries=3',
+            'full-upgrade', '-y'
+        ],
         check=False,
         env={'DEBIAN_FRONTEND': 'noninteractive'},
         stdout=subprocess.PIPE,
