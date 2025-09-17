@@ -1,6 +1,8 @@
 import os
 from copy import deepcopy
 import subprocess
+import sys
+from time import sleep
 import yaml
 import shutil
 import re
@@ -30,6 +32,24 @@ base_frontend_config_path = os.path.join(current_dir, f'../{BASE_FRONTEND_CONFIG
 test_frontend_config_path = os.path.join(current_dir, TEST_FRONTEND_CONFIG_NAME)
 
 DB_PW = 'testpw'
+
+def check_sudo():
+    print('Checking sudo...')
+    process = None
+    try:
+        process = subprocess.Popen(['sudo', 'echo', 'ok'])
+        process.wait()
+        if process.returncode != 0:
+            raise RuntimeError("Failed to run sudo. Please run `sudo echo 'ok'` to get the sudo token and then rerun this script.")
+    except KeyboardInterrupt:
+        if process is not None:
+            process.terminate()
+        print('Interrupted by user. You might get some sudo message in your shell. Ignore it! Sleeping for 5 seconds to let sudo finish writing to terminal.')
+        print("Failed to run sudo. Please run `sudo echo 'ok'` to get the sudo token and then rerun this script.")
+
+        sleep(5) # We need to sleep here to give sudo time to write to terminal
+
+        sys.exit(1)
 
 def copy_sql_structure(ee=False):
     print('Copying SQL structure...')
@@ -181,6 +201,7 @@ def create_frontend_config_file(ee=False, ai=False):
 def edit_etc_hosts():
     subprocess.run(['./edit-etc-hosts.sh'], check=True)
 
+
 def build_test_docker_image():
     subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build'], check=True)
 
@@ -198,6 +219,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    check_sudo()
     copy_sql_structure(args.ee)
     create_test_config_file(args.ee, args.ai)
     create_frontend_config_file(args.ee, args.ai)

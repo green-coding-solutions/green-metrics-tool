@@ -142,7 +142,7 @@ async def update_job(
 
     status_message = DB().query(query, params)
     if status_message == 'UPDATE 1':
-        return Response(status_code=204) # No-Content
+        return Response(status_code=202) # Accepted - Further processing happening internally. Not technically correct, but processing in frontend easier.
     else:
         error_helpers.log_error('Job update did return unexpected result', params=params, status_message=status_message)
         raise RuntimeError('Could not update job due to database error')

@@ -259,7 +259,7 @@ CREATE TABLE runs (
     start_measurement bigint,
     end_measurement bigint,
     phases JSON,
-    logs text,
+    logs jsonb,
     invalid_run text,
     failed boolean DEFAULT false,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
