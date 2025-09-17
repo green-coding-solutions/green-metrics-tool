@@ -844,7 +844,7 @@ class ScenarioRunner:
                         raise RuntimeError(f"Architecture incompatibility detected: Docker image '{service['image']}' is not available for host architecture '{host_arch}'")
 
                     # Handle other Docker pull failures
-                    if __name__ == '__main__':
+                    if sys.stdin.isatty():
                         print(TerminalColors.OKCYAN, '\nThe docker image could not be pulled. Since you are working locally we can try looking in your local images. Do you want that? (y/N).', TerminalColors.ENDC)
                         if sys.stdin.readline().strip().lower() == 'y':
                             try:
