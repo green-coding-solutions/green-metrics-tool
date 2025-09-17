@@ -207,13 +207,16 @@ async def get_network(run_id: str, user: User = Depends(authenticate)):
         raise HTTPException(status_code=404, detail="Run not found")
 
     query = '''
-        SELECT ni.*
-        FROM network_intercepts as ni
-        JOIN runs as r on r.id = ni.run_id
-        WHERE ni.run_id = %s
-        ORDER BY ni.time
-    '''
-    data = DB().fetch_all(query, params=(run_id,))
+            SELECT ni.*
+            FROM network_intercepts as ni
+            JOIN runs as r on r.id = ni.run_id
+            WHERE
+                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                AND ni.run_id = %s
+            ORDER BY ni.time
+        '''
+    params = (user.is_super_user(), user.visible_users(), run_id)
+    data = DB().fetch_all(query, params=params)
 
     if not data:
         raise HTTPException(status_code=403, detail="You do not have access to this run")
