@@ -1478,7 +1478,7 @@ class ScenarioRunner:
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:
-            log_entry['class'] = exception_class
+            log_entry['exception_class'] = exception_class
 
         self.__current_run_logs[container_name].append(log_entry)
 

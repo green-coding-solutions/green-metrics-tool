@@ -369,8 +369,8 @@ const renderLogsInterface = (logsData) => {
                 const operationTitle = escapeString(logEntry.cmd.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
                 operationLabel = `<div class="ui orange label" data-tooltip="${operationTooltip}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
 
-                if (logEntry.class) {
-                    classLabel = `<div class="ui red label" data-tooltip="Exception class type" data-position="top center"><i class="exclamation triangle icon"></i> ${escapeString(logEntry.class)}</div>`;
+                if (logEntry.exception_class) {
+                    classLabel = `<div class="ui red label" data-tooltip="Exception class type" data-position="top center"><i class="exclamation triangle icon"></i> ${escapeString(logEntry.exception_class)}</div>`;
                 }
             }
 
