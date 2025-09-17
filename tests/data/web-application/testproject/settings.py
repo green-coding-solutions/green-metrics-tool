@@ -2,6 +2,7 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# Django requires a SECRET_KEY for cryptographic signing (sessions, CSRF tokens, etc.)
 SECRET_KEY = "test-secret-key-for-dependency-resolver-testing"
 
 DEBUG = True

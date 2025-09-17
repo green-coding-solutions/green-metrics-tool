@@ -134,9 +134,7 @@ const fetchAndFillRunData = async (url_params) => {
                     containerSection.appendChild(containerInfoDiv);
                     
                     // Get package managers and group by scope
-                    const packageManagers = Object.keys(containerData).filter(key => 
-                        key !== '_container_info' && key !== '_container-info'
-                    );
+                    const packageManagers = Object.keys(containerData).filter(key => key !== '_container-info');
                     
                     if (packageManagers.length > 0) {
                         // Group package managers by scope

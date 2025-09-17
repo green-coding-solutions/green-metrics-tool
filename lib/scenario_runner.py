@@ -1488,23 +1488,24 @@ class ScenarioRunner:
     def _execute_dependency_resolver_for_container(self, container_name):
         """Execute dependency resolver for a single container using Python package."""
         try:
-            only_container_info = not self._needs_full_dependency_resolution(container_name)
+            needs_full_resolution = self._needs_full_dependency_resolution(container_name)
+            only_container_info = not needs_full_resolution
 
-            if not only_container_info:
+            if needs_full_resolution:
                 print(f"Built container '{container_name}' requires full dependency resolution")
-                start_time = time.time()
+                start_time = time.perf_counter()
 
             result = resolve_docker_dependencies_as_dict(
                 container_identifier=container_name,
                 only_container_info=only_container_info
             )
 
-            if not only_container_info:
-                duration = time.time() - start_time
+            if needs_full_resolution:
+                duration = time.perf_counter() - start_time
                 print(f"Full dependency resolution for container '{container_name}' completed in {duration:.2f} s")
 
             # Remove the 'name' field from _container-info as we use container name as key
-            if result and '_container-info' in result and 'name' in result['_container-info']:
+            if result and 'name' in result.get('_container-info', {}):
                 del result['_container-info']['name']
 
             return container_name, result if result else None
