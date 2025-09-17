@@ -252,6 +252,7 @@ const renderLogsInterface = (logsData) => {
                 <div class="ui small labels">
                     {{typeLabel}}
                     {{flowLabel}}
+                    {{classLabel}}
                     {{operationLabel}}
                     {{phaseLabel}}
                     {{idLabel}}
@@ -349,8 +350,9 @@ const renderLogsInterface = (logsData) => {
             const stderrContent = logEntry.stderr ?
                 stderrTemplate.replace('{{stderr}}', escapeString(logEntry.stderr)) : '';
 
-            // Add operation label for exceptions with specific tooltips
+            // Show different information if the type is exception
             let operationLabel = '';
+            let classLabel = '';
             if (logEntry.type === 'exception') {
                 let operationTooltip;
                 switch (logEntry.cmd) {
@@ -361,17 +363,22 @@ const renderLogsInterface = (logsData) => {
                         operationTooltip = 'Exception occurred during cleanup and post-processing phase';
                         break;
                     default:
-                        operationTooltip = `Exception occurred during ${logEntry.cmd} operation`;
+                        operationTooltip = `Exception occurred during '${logEntry.cmd}' operation`;
                 }
                 // Make the operation name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
                 const operationTitle = escapeString(logEntry.cmd.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
-                operationLabel = `<div class="ui red label" data-tooltip="${operationTooltip}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
+                operationLabel = `<div class="ui orange label" data-tooltip="${operationTooltip}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
+
+                if (logEntry.class) {
+                    classLabel = `<div class="ui red label" data-tooltip="Exception class type" data-position="top center"><i class="exclamation triangle icon"></i> ${escapeString(logEntry.class)}</div>`;
+                }
             }
 
             const metadataContent = metadataTemplate
                 .replace('{{flowLabel}}', flowLabel)
                 .replace('{{typeLabel}}', typeLabel)
                 .replace('{{operationLabel}}', operationLabel)
+                .replace('{{classLabel}}', classLabel)
                 .replace('{{phaseLabel}}', phaseLabel)
                 .replace('{{idLabel}}', idLabel);
 
