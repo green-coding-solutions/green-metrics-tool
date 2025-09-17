@@ -42,6 +42,7 @@ from lib.machine import Machine
 from lib import metric_importer
 from lib import container_compatibility
 from lib.container_compatibility import CompatibilityStatus
+from lib.log_types import LogType
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -166,8 +167,8 @@ class ScenarioRunner:
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
         # They are __ as they should not be changed because this could break the state of the runner
-        self.__current_run_logs = []
-        self.__all_runs_logs = []
+        self.__current_run_logs = {}  # Dict with container names as keys, lists of log entries as values
+        self.__all_runs_logs = []  # List of runs, each containing iteration, filename, and containers with their logs
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
@@ -195,7 +196,7 @@ class ScenarioRunner:
             return
 
         durations = {
-            "measurement_flow_process_duration": self._measurement_flow_process_duration,
+            'measurement_flow_process_duration': self._measurement_flow_process_duration,
             'pre_test_sleep': self._measurement_pre_test_sleep,
             'post_test_sleep': self._measurement_post_test_sleep,
             'idle_duration': self._measurement_idle_duration,
@@ -1384,6 +1385,7 @@ class ScenarioRunner:
                 'log-stderr': service.get('log-stderr', True),
                 'read-notes-stdout': service.get('read-notes-stdout', False),
                 'read-sci-stdout': service.get('read-sci-stdout', False),
+                'docker_run_cmd': docker_run_string,
             }
 
             print('Stdout:', container_id)
@@ -1440,22 +1442,60 @@ class ScenarioRunner:
                     'detach': cmd_obj.get('detach', False),
                 })
 
-        print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
+        container_names = [container_info['name'] for container_info in self.__containers.values()]
+        print(TerminalColors.HEADER, '\nStarted containers: ', container_names, TerminalColors.ENDC)
 
-    def _add_to_current_run_log(self, identifier, message):
-        self.__current_run_logs.append(f"{identifier}\n{message}")
+    def _add_to_current_run_log(self, container_name, log_type, log_id, cmd, phase, stdout=None, stderr=None, flow=None, exception_class=None):
+        """Add a structured log entry to the current run logs.
+        
+        Args:
+            container_name: Name of the container or '[SYSTEM]' for system logs
+            log_type: LogType enum value
+            log_id: ID of the process (from id(ps) or id(exception))
+            cmd: Command that was executed
+            phase: Phase like '[BOOT]', '[RUNTIME]', etc. '[MULTIPLE]', if the logs were collected over multiple phases. [UNKNOWN] is unknown.
+            stdout: Standard output (optional)
+            stderr: Standard error (optional)
+            flow: Flow name for flow_command type (optional)
+            exception_class: Exception class name for exception type (optional)
+        """
+        if container_name not in self.__current_run_logs:
+            self.__current_run_logs[container_name] = []
+
+        command_string = ' '.join(cmd) if isinstance(cmd, list) else str(cmd)
+
+        log_entry = {
+            'type': log_type.value,
+            'id': str(log_id),
+            'cmd': command_string,
+            'phase': phase
+        }
+
+        if stdout is not None:
+            log_entry['stdout'] = stdout
+        if stderr is not None:
+            log_entry['stderr'] = stderr
+        if flow is not None:
+            log_entry['flow'] = flow
+        if exception_class is not None:
+            log_entry['exception_class'] = exception_class
+
+        self.__current_run_logs[container_name].append(log_entry)
 
     def _get_all_run_logs(self):
         """
         Returns accumulated logs from all runs in the current session.
-        
+
         This method provides read-only access to logs collected across multiple runs
-        when using --iterations > 1 or multiple filenames. Each run's logs are preserved 
+        when using --iterations > 1 or multiple filenames. Each run's logs are preserved
         and accumulated to support the --print-logs functionality.
-        
+
         Returns:
-            list: All log entries from current session, where each entry is a formatted
-                  string containing identifier and message content
+            list: All log entries from current session in enhanced structure.
+                  Each list item is a run object containing:
+                    - 'iteration': iteration number for this filename
+                    - 'filename': the scenario filename that was executed
+                    - 'containers': dict with container names as keys and log lists as values
         """
         return self.__all_runs_logs
 
@@ -1664,6 +1704,7 @@ class ScenarioRunner:
                         'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
                         'detail_name': flow['container'],
                         'detach': cmd_obj.get('detach', False),
+                        'flow_name': flow['name'],
                     })
 
                     # we need to check the ready IPC endpoint to find out if the process is done
@@ -1777,6 +1818,37 @@ class ScenarioRunner:
         if errors:
             raise RuntimeError("\n".join(errors))
 
+    def _handle_process_output(self, stdout, stderr, container_name, log_type,
+                              log_id, cmd, phase, flow=None,
+                              read_notes_stdout=False, read_sci_stdout=False,
+                              detail_name=None):
+        # Only create log entries if there's actual content
+        has_stdout = stdout is not None and stdout.strip()
+        has_stderr = stderr is not None and stderr.strip()
+
+        if has_stdout or has_stderr:
+            if has_stdout and log_type != LogType.CONTAINER_EXECUTION:
+                print('stdout from process:', cmd, stdout)
+            if has_stderr and log_type != LogType.CONTAINER_EXECUTION:
+                print('stderr from process:', cmd, stderr)
+
+            self._add_to_current_run_log(
+                container_name=container_name,
+                log_type=log_type,
+                log_id=log_id,
+                cmd=cmd,
+                phase=phase,
+                stdout=stdout if has_stdout else None,
+                stderr=stderr if has_stderr else None,
+                flow=flow
+            )
+
+            if has_stdout and read_notes_stdout:
+                self.__notes_helper.parse_and_add_notes(detail_name or container_name, stdout)
+
+            if has_stdout and read_sci_stdout:
+                for match in re.findall(r'^GMT_SCI_R=(\d+)$', stdout, re.MULTILINE):
+                    self._sci['R'] += int(match)
 
     def _read_and_cleanup_processes(self):
         print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
@@ -1797,20 +1869,28 @@ class ScenarioRunner:
                 stdout = ps['ps'].stdout
                 stderr = ps['ps'].stderr
 
-            if stdout is not None:
-                print('stdout from process:', ps['cmd'], stdout)
-                self._add_to_current_run_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDOUT", stdout)
+            log_type = LogType.FLOW_COMMAND if ps.get('flow_name') else LogType.SETUP_COMMAND
+            match log_type:
+                case LogType.FLOW_COMMAND:
+                    phase = '[RUNTIME]'
+                case LogType.SETUP_COMMAND:
+                    phase = '[BOOT]'
+                case _:
+                    phase = '[UNKNOWN]'
 
-                if ps['read-notes-stdout']:
-                    self.__notes_helper.parse_and_add_notes(ps['detail_name'], stdout)
-
-                if ps['read-sci-stdout']:
-                    for match in re.findall(r'^GMT_SCI_R=(\d+)$', stdout, re.MULTILINE):
-                        self._sci['R'] += int(match)
-
-            if stderr is not None:
-                print('stderr from process:', ps['cmd'], stderr)
-                self._add_to_current_run_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDERR", stderr)
+            self._handle_process_output(
+                stdout=stdout,
+                stderr=stderr,
+                container_name=ps['container_name'],
+                log_type=log_type,
+                log_id=id(ps['ps']),
+                cmd=ps['cmd'],
+                phase=phase,
+                flow=ps.get('flow_name'),
+                read_notes_stdout=ps['read-notes-stdout'],
+                read_sci_stdout=ps['read-sci-stdout'],
+                detail_name=ps['detail_name']
+            )
 
     def _check_process_returncodes(self):
         print(TerminalColors.HEADER, '\nChecking process return codes', TerminalColors.ENDC)
@@ -1912,18 +1992,17 @@ class ScenarioRunner:
                 stderr=stderr_behaviour,
             )
 
-            if log.stdout is not None:
-                self._add_to_current_run_log(f"{container_info['name']} (STDOUT)", log.stdout)
-
-                if container_info['read-notes-stdout']:
-                    self.__notes_helper.parse_and_add_notes(container_info['name'], log.stdout)
-
-                if container_info['read-sci-stdout']:
-                    for match in re.findall(r'^GMT_SCI_R=(\d+)$', log.stdout, re.MULTILINE):
-                        self._sci['R'] += int(match)
-
-            if log.stderr is not None:
-                self._add_to_current_run_log(f"{container_info['name']} (STDERR)", log.stderr)
+            self._handle_process_output(
+                stdout=log.stdout,
+                stderr=log.stderr,
+                container_name=container_info['name'],
+                log_type=LogType.CONTAINER_EXECUTION,
+                log_id=id(log),
+                cmd=container_info['docker_run_cmd'],
+                phase='[MULTIPLE]', # the container logs were collected usually over multiple phases: [BOOT], [IDLE], [RUNTIME]
+                read_notes_stdout=container_info['read-notes-stdout'],
+                read_sci_stdout=container_info['read-sci-stdout']
+            )
 
     def _save_run_logs(self):
         print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
@@ -1932,14 +2011,14 @@ class ScenarioRunner:
             print('Skipping savings logs to DB due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        logs_as_str = '\n\n'.join(self.__current_run_logs)
-        logs_as_str = logs_as_str.replace('\x00','')
-        if logs_as_str:
+        if self.__current_run_logs:
+            logs_as_json = json.dumps(self.__current_run_logs, separators=(',', ':'))  # Compact JSON for efficient storage
+            logs_as_json = logs_as_json.replace('\x00','')
             DB().query("""
                 UPDATE runs
-                SET logs = COALESCE(logs, '') || %s -- append
+                SET logs = COALESCE(logs, '{}'::jsonb) || %s::jsonb
                 WHERE id = %s
-                """, params=(logs_as_str, self._run_id))
+                """, params=(logs_as_json, self._run_id))
 
 
     # This function will be extended in the future to have more conditions
@@ -2003,7 +2082,15 @@ class ScenarioRunner:
                 getattr(self, method_name)(**args)
                 index += 1
         except BaseException as exc:
-            self._add_to_current_run_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
+            self._add_to_current_run_log(
+                container_name='[SYSTEM]',
+                log_type=LogType.EXCEPTION,
+                log_id=id(exc),
+                cmd='post_process',
+                phase='[CLEANUP]',
+                stderr=str(exc),
+                exception_class=exc.__class__.__name__
+            )
             self._set_run_failed()
             self._post_process(index+1)
             raise exc
@@ -2047,13 +2134,23 @@ class ScenarioRunner:
         self.__start_measurement_seconds = None
         self.__notes_helper = Notes()
 
-        # Copy current run's logs to cumulative logs before clearing
-        # Add run separator to distinguish between different runs/iterations
-        # The cumulative logs are used by --print-logs to show logs from all runs
-        if self.__current_run_logs:
-            if self.__all_runs_logs:  # Only add separator if there are already logs
-                self.__all_runs_logs.append(f"=== END OF RUN: {self._original_filename} ===")
-            self.__all_runs_logs.extend(self.__current_run_logs)
+        # Store current run in cumulative logs with iteration and filename tracking
+        # All runs are tracked regardless of log generation for consistent --print-logs output
+        filename = self._original_filename
+        iteration = 1
+        for existing_run in self.__all_runs_logs:
+            if existing_run['filename'] == filename:
+                iteration = max(iteration, existing_run['iteration'] + 1)
+
+        run_entry = {
+            'iteration': iteration,
+            'filename': filename,
+            'containers': {}
+        }
+
+        for container_name, logs in self.__current_run_logs.items():
+            run_entry['containers'][container_name] = logs.copy()
+        self.__all_runs_logs.append(run_entry)
 
         # Clear current run logs now that they've been copied to cumulative
         self.__current_run_logs.clear()
@@ -2177,7 +2274,15 @@ class ScenarioRunner:
             self._identify_invalid_run()
 
         except BaseException as exc:
-            self._add_to_current_run_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
+            self._add_to_current_run_log(
+                container_name='[SYSTEM]',
+                log_type=LogType.EXCEPTION,
+                log_id=id(exc),
+                cmd='run_scenario',
+                phase='[RUNTIME]',
+                stderr=str(exc),
+                exception_class=exc.__class__.__name__
+            )
             self._set_run_failed()
             raise exc
         finally:

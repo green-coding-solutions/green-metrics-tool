@@ -10,6 +10,7 @@ import yaml
 
 from contextlib import redirect_stdout, redirect_stderr
 
+from lib.log_types import LogType
 from lib.scenario_runner import ScenarioRunner
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -675,56 +676,158 @@ def wip_test_verbose_provider_boot():
         assert 9.9 <= diff <= 10.1, \
             Tests.assertion_info('10s apart', f"time difference of notes: {diff}s")
 
-## --print-logs
-def test_print_logs_flag():
-    """Test that --print-logs flag actually prints logs when they exist"""
+## Logging
+def test_logs_structure():
+    """Test that logs stored in database are structured in JSON format with proper metadata"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml',
                           skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True,
-                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=True)
+                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
 
+    run_id = runner.run()
+
+    logs_result = DB().fetch_one("SELECT logs FROM runs WHERE id = %s", params=(run_id,))
+    assert logs_result is not None, "Should have logs stored in database"
+    assert logs_result[0] is not None, "Logs field should not be null"
+
+    logs = logs_result[0]
+
+    assert isinstance(logs, dict), "Logs should be in dictionary format"
+    assert "test-container" in logs, "Should have logs for test-container"
+
+    container_logs = logs["test-container"]
+    assert isinstance(container_logs, list), "Container logs should be a list"
+    assert len(container_logs) == 3, f"Should have exactly 3 log entries (container stdout, setup stdout, flow stdout+stderr), found {len(container_logs)}"
+
+    # First check the structure
+    for log_entry in container_logs:
+        assert isinstance(log_entry, dict), "Each log entry should be a dictionary"
+        assert "type" in log_entry, "Log entry should have 'type' field"
+        assert "id" in log_entry, "Log entry should have 'id' field"
+        assert "cmd" in log_entry, "Log entry should have 'cmd' field"
+        assert "phase" in log_entry, "Log entry should have 'phase' field"
+
+        # Check that type is a valid LogType value
+        assert log_entry["type"] in [lt.value for lt in LogType], f"Invalid log type: {log_entry['type']}"
+
+        # If it's a flow command, it should have a flow field
+        if log_entry["type"] == LogType.FLOW_COMMAND.value:
+            assert "flow" in log_entry, "Flow commands should have 'flow' field"
+
+        # Should have either stdout or stderr (or both)
+        assert "stdout" in log_entry or "stderr" in log_entry, "Log entry should have stdout or stderr"
+
+        # Should not have both empty - if both are present, at least one should have content
+        if "stdout" in log_entry and "stderr" in log_entry:
+            assert log_entry["stdout"].strip() or log_entry["stderr"].strip(), "At least one of stdout/stderr should have non-empty content"
+        elif "stdout" in log_entry:
+            assert log_entry["stdout"].strip(), "stdout should have non-empty content"
+        elif "stderr" in log_entry:
+            assert log_entry["stderr"].strip(), "stderr should have non-empty content"
+
+    # Now check for specific expected log content
+    found_flow_stdout = False
+    found_flow_stderr = False
+    found_setup_command = False
+    found_container_execution = False
+
+    for log_entry in container_logs:
+        # Flow command logs
+        if "stdout" in log_entry and "Test log message from flow" in log_entry["stdout"]:
+            found_flow_stdout = True
+            assert log_entry["type"] == LogType.FLOW_COMMAND.value, "Should be a flow command"
+            assert log_entry["phase"] == "[RUNTIME]", "Should be in RUNTIME phase"
+            assert log_entry["cmd"].startswith("docker exec"), "Flow commands should start with 'docker exec'"
+            assert log_entry["flow"] == "Flow Name", "Should have flow name"
+        if "stderr" in log_entry and "Test error message from flow" in log_entry["stderr"]:
+            found_flow_stderr = True
+
+        # Setup command logs
+        if "stdout" in log_entry and "Test log from setup-commands" in log_entry["stdout"]:
+            found_setup_command = True
+            assert log_entry["type"] == LogType.SETUP_COMMAND.value, "Should be a setup command"
+            assert log_entry["phase"] == "[BOOT]", "Should be in BOOT phase"
+            assert log_entry["cmd"].startswith("docker exec"), "Setup commands should start with 'docker exec'"
+
+        # Container execution logs
+        if "stdout" in log_entry and "Test log from container" in log_entry["stdout"]:
+            found_container_execution = True
+            assert log_entry["type"] == LogType.CONTAINER_EXECUTION.value, "Should be container execution"
+            assert log_entry["phase"] == "[MULTIPLE]", "Container logs should be collected over multiple phases"
+            assert log_entry["cmd"].startswith("docker run"), "Container execution should start with 'docker run'"
+
+    assert found_flow_stdout, "Should find the test flow stdout message"
+    assert found_flow_stderr, "Should find the test flow stderr message"
+    assert found_setup_command, "Should find the setup command log"
+    assert found_container_execution, "Should find the container execution log"
+
+def test_all_run_logs_comprehensive():
+    """Comprehensive test of _get_all_run_logs() method covering single runs, iterations, and different files"""
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml',
+                          skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True)
+
+    # Test 1: Single run - basic structure
     runner.run()
-
-    out = io.StringIO()
-    with redirect_stdout(out):
-        logs = runner._get_all_run_logs()
-        if logs:
-            print("Container logs:")
-            for log_entry in logs:
-                print(log_entry)
-                print('-----------------------------')
-            print()
-
-    output = out.getvalue()
     logs = runner._get_all_run_logs()
-    assert logs, "No logs were captured from the scenario"
 
-    assert "Container logs:" in output
-    container_logs_pos = output.find("Container logs:")
-    assert container_logs_pos != -1
+    assert isinstance(logs, list), "Logs should be a list"
+    assert len(logs) == 1, "Should have one run entry after first run"
 
-    container_logs_section = output[container_logs_pos:]
+    run_entry = logs[0]
+    assert isinstance(run_entry, dict), "Run entry should be a dictionary"
+    assert "iteration" in run_entry, "Run entry should have 'iteration' field"
+    assert "filename" in run_entry, "Run entry should have 'filename' field"
+    assert "containers" in run_entry, "Run entry should have 'containers' field"
 
-    assert "test-container" in container_logs_section
-    assert "Test log message" in container_logs_section
-    assert "Test error message" in container_logs_section
-    assert "-----------------------------" in container_logs_section
+    assert run_entry["iteration"] == 1, "First run should be iteration 1"
+    assert run_entry["filename"] == 'tests/data/usage_scenarios/capture_logs.yml', "Filename should match"
+    assert isinstance(run_entry["containers"], dict), "Containers should be a dictionary"
 
-    test_log_pos = container_logs_section.find("Test log message")
-    test_error_pos = container_logs_section.find("Test error message")
+    # Test container logs structure
+    containers = run_entry["containers"]
+    assert "test-container" in containers, "Should have logs for test-container"
+    container_logs = containers["test-container"]
+    assert isinstance(container_logs, list), "Container logs should be a list"
+    assert len(container_logs) > 0, "Should have at least one log entry"
 
-    assert test_log_pos != -1
-    assert test_error_pos != -1
-    assert test_log_pos < test_error_pos
+    for log_entry in container_logs:
+        assert isinstance(log_entry, dict), "Each log entry should be a dictionary"
+        assert "type" in log_entry, "Log entry should have 'type' field"
+        assert "stdout" in log_entry or "stderr" in log_entry, "Log entry should have stdout or stderr"
 
-def test_print_logs_flag_with_iterations():
-    """Test that --print-logs flag prints logs from both iterations"""
+    # Test 2: Multiple iterations of same file
+    runner.run()  # Second run of same file
+    logs = runner._get_all_run_logs()
+
+    assert len(logs) == 2, "Should have two run entries after second run"
+
+    run1, run2 = logs[0], logs[1]
+    assert run1["iteration"] == 1, "First run should be iteration 1"
+    assert run2["iteration"] == 2, "Second run should be iteration 2"
+    assert run1["filename"] == run2["filename"], "Both runs should have same filename"
+    assert "test-container" in run1["containers"], "First run should have container logs"
+    assert "test-container" in run2["containers"], "Second run should have container logs"
+
+    # Test 3: Different filename (reset iteration count)
+    runner.set_filename('tests/data/usage_scenarios/basic_stress.yml')
+    runner.run()  # Third run with different file
+    logs = runner._get_all_run_logs()
+
+    assert len(logs) == 3, "Should have three run entries after third run"
+
+    run3 = logs[2]
+    assert run3["iteration"] == 1, "First run of different file should be iteration 1"
+    assert run3["filename"] == 'tests/data/usage_scenarios/basic_stress.yml', "Third run should have different filename"
+    assert isinstance(run3["containers"], dict), "Third run should have containers dict"
+
+def test_print_logs_integration():
+    """Integration test for --print-logs CLI flag with iterations"""
     ps = subprocess.run(
         ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
          '--filename', 'tests/data/usage_scenarios/capture_logs.yml',
          '--iterations', '2', '--print-logs',
          '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps',
-         '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -742,14 +845,14 @@ def test_print_logs_flag_with_iterations():
 
     assert "test-container" in container_logs_section
 
-    test_log_count = container_logs_section.count("Test log message\n")
-    test_error_count = container_logs_section.count("Test error message\n")
+    test_log_count = container_logs_section.count("Test log message from flow")
+    test_error_count = container_logs_section.count("Test error message from flow")
 
-    assert test_log_count >= 1, f"Expected at least 1 'Test log message' entry, found {test_log_count}"
-    assert test_error_count >= 1, f"Expected at least 1 'Test error message' entry, found {test_error_count}"
+    assert test_log_count >= 1, f"Expected at least 1 'Test log message from flow' entry, found {test_log_count}"
+    assert test_error_count >= 1, f"Expected at least 1 'Test error message from flow' entry, found {test_error_count}"
 
-    test_log_pos = container_logs_section.find("Test log message\n")
-    test_error_pos = container_logs_section.find("Test error message\n")
+    test_log_pos = container_logs_section.find("Test log message from flow")
+    test_error_pos = container_logs_section.find("Test error message from flow")
 
     assert test_log_pos != -1
     assert test_error_pos != -1
