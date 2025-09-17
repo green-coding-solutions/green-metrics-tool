@@ -5,7 +5,7 @@ from xml.sax.saxutils import escape as xml_escape
 from datetime import date, datetime, timedelta
 import pprint
 
-from fastapi import APIRouter, Response, Depends
+from fastapi import APIRouter, HTTPException, Response, Depends
 from fastapi.responses import ORJSONResponse
 from fastapi.exceptions import RequestValidationError
 
@@ -195,21 +195,28 @@ async def get_warnings(run_id, user: User = Depends(authenticate)):
 
 
 @router.get('/v1/network/{run_id}')
-async def get_network(run_id, user: User = Depends(authenticate)):
+async def get_network(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail="Run ID is not a valid UUID or empty")
+
+    run_exists = DB().fetch_one(
+        "SELECT 1 FROM runs WHERE id = %s",
+        params=(run_id,)
+    )
+    if not run_exists:
+        raise HTTPException(status_code=404, detail="Run not found")
 
     query = '''
-            SELECT ni.*
-            FROM network_intercepts as ni
-            JOIN runs as r on r.id = ni.run_id
-            WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
-                AND ni.run_id = %s
-            ORDER BY ni.time
+        SELECT ni.*
+        FROM network_intercepts as ni
+        JOIN runs as r on r.id = ni.run_id
+        WHERE ni.run_id = %s
+        ORDER BY ni.time
     '''
-    params = (user.is_super_user(), user.visible_users(), run_id)
-    data = DB().fetch_all(query, params=params)
+    data = DB().fetch_all(query, params=(run_id,))
+
+    if not data:
+        raise HTTPException(status_code=403, detail="You do not have access to this run")
 
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
