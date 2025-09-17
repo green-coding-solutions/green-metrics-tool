@@ -108,8 +108,8 @@ const fetchAndFillRunData = async (url_params) => {
         } else if(item == 'logs') {
             const logsData = run_data[item];
             if (logsData === null) {
-                // Display message when no logs were collected
-                document.querySelector("#logs").innerHTML = '<p>No logs were collected for this run.</p>';
+                // Display simple message indicating no output was produced
+                document.querySelector("#logs").innerHTML = '<pre>run did not produce any output</pre>';
             } else if (typeof logsData === 'object' && logsData !== null) {
                 // Handle JSON structure logs
                 // Check first if any logs have type 'legacy' - if so, render as simple text instead of structured interface
