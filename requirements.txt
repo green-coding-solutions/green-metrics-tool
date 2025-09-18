@@ -3,7 +3,7 @@ pandas==2.3.2
 psycopg[binary]==3.2.10
 psycopg_pool==3.2.6
 pyserial==3.5
-psutil==7.0.0
+psutil==7.1.0
 schema==0.7.7
 aiohttp==3.12.15
 
