@@ -5,6 +5,7 @@ import ipaddress
 # import netifaces # netifaces has been abandoned. Find new implementation TODO
 
 from metric_providers.base import BaseMetricProvider
+from lib import error_helpers
 
 class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
     def __init__(self, *_, split_ports=True, skip_check=False):
@@ -171,7 +172,9 @@ def parse_tcpdump(lines, split_ports=False):
         elif line.startswith('    ') or line.startswith('\t'): # these are all detail infos for specific control packets. 4-6 indents indicate deep detail infos
             continue
         else:
-            raise ValueError('Unmatched tcpdump line: ', line)
+            error_helpers.log_error('Unmatched tcpdump line', line=line, all_lines=lines)
+            # this was an exception before. However it seems that tcpdump comes up with unexpected lines ones in a while
+            # we have never seen before. Thus this was moved to a log only and will be expanded over time
 
         # reset
         packet_length = None
