@@ -105,169 +105,7 @@ const fetchAndFillRunData = async (url_params) => {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
         } else if(item == 'usage_scenario_dependencies') {
-            if (run_data[item] && Object.keys(run_data[item]).length > 0) {
-                const dependenciesSection = document.querySelector("#usage-scenario-dependencies");
-                
-                for (const containerName in run_data[item]) {
-                    const containerData = run_data[item][containerName];
-                    const containerInfo = containerData._container_info || containerData['_container-info'] || {};
-                    
-                    // Create container section
-                    const containerSection = document.createElement('div');
-                    containerSection.className = 'ui segment';
-                    containerSection.style.marginBottom = '20px';
-                    
-                    // Container header
-                    containerSection.innerHTML = `<h4 class="ui dividing header">Container: ${containerName}</h4>`;
-                    
-                    // Container info
-                    const image = containerInfo.image || 'N/A';
-                    const hash = containerInfo.hash || 'N/A';
-                    
-                    const containerInfoDiv = document.createElement('div');
-                    containerInfoDiv.className = 'ui secondary segment';
-                    containerInfoDiv.style.marginLeft = '0px';
-                    containerInfoDiv.innerHTML = `
-                        <strong>Image:</strong> ${image}<br>
-                        <strong>Hash:</strong> <code style="font-family: monospace; word-break: break-all;">${hash}</code>
-                    `;
-                    containerSection.appendChild(containerInfoDiv);
-                    
-                    // Get package managers and group by scope
-                    const packageManagers = Object.keys(containerData).filter(key => key !== '_container-info');
-                    
-                    if (packageManagers.length > 0) {
-                        // Group package managers by scope
-                        const scopeGroups = {};
-                        packageManagers.forEach(pmType => {
-                            const pmData = containerData[pmType];
-                            const scope = pmData.scope || 'unknown';
-                            
-                            if (!scopeGroups[scope]) {
-                                scopeGroups[scope] = [];
-                            }
-                            scopeGroups[scope].push({ type: pmType, data: pmData });
-                        });
-                        
-                        // Create accordion for scopes
-                        const accordion = document.createElement('div');
-                        accordion.className = 'ui accordion';
-                        accordion.style.marginLeft = '20px';
-                        
-                        for (const scope in scopeGroups) {
-                            const scopeData = scopeGroups[scope];
-                            const totalDeps = scopeData.reduce((sum, pm) => {
-                                return sum + (pm.data.dependencies ? Object.keys(pm.data.dependencies).length : 0);
-                            }, 0);
-                            
-                            // Capitalize scope name for display
-                            const scopeDisplayName = scope.charAt(0).toUpperCase() + scope.slice(1);
-                            
-                            // Create accordion title
-                            const title = document.createElement('div');
-                            title.className = 'title';
-                            title.innerHTML = `
-                                <i class="dropdown icon"></i>
-                                ${scopeDisplayName} Packages (${totalDeps} packages)
-                            `;
-                            
-                            // Create accordion content
-                            const content = document.createElement('div');
-                            content.className = 'content';
-                            
-                            // Add scope-level metadata
-                            const scopeMetadata = document.createElement('div');
-                            scopeMetadata.style.marginBottom = '10px';
-                            
-                            let metadataHtml = '';
-                            // Check for location (project scope specific)
-                            const pmWithLocation = scopeData.find(pm => pm.data.location);
-                            if (pmWithLocation) {
-                                metadataHtml += `<strong>Location:</strong> ${pmWithLocation.data.location}<br>`;
-                            }
-                            
-                            // Check for scope-level hash (location-specific)
-                            const pmWithHash = scopeData.find(pm => pm.data.hash);
-                            if (pmWithHash) {
-                                const scopeHash = pmWithHash.data.hash;
-                                metadataHtml += `<strong>Hash:</strong> <code style="font-family: monospace; word-break: break-all;">${scopeHash}</code><br>`;
-                            }
-                            
-                            if (metadataHtml) {
-                                scopeMetadata.innerHTML = metadataHtml;
-                                content.appendChild(scopeMetadata);
-                            }
-                            
-                            // Create dependencies table
-                            if (totalDeps > 0) {
-                                const depsTable = document.createElement('table');
-                                depsTable.className = 'ui celled compact table';
-                                depsTable.innerHTML = `
-                                    <thead>
-                                        <tr>
-                                            <th>Type</th>
-                                            <th>Name</th>
-                                            <th>Version</th>
-                                            <th>Hash</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                `;
-                                
-                                const tbody = depsTable.querySelector('tbody');
-                                
-                                // Add all dependencies from this scope
-                                scopeData.forEach(({ type: pmType, data: pmData }) => {
-                                    if (pmData.dependencies && Object.keys(pmData.dependencies).length > 0) {
-                                        for (const depName in pmData.dependencies) {
-                                            const dep = pmData.dependencies[depName];
-                                            const version = dep.version || 'N/A';
-                                            const depHash = dep.hash || 'N/A';
-                                            const depTruncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
-                                            
-                                            tbody.insertAdjacentHTML('beforeend', 
-                                                `<tr>
-                                                    <td>${pmType}</td>
-                                                    <td>${depName}</td>
-                                                    <td>${version}</td>
-                                                    <td><code title="${depHash}" style="font-family: monospace;">${depTruncatedHash}</code></td>
-                                                </tr>`
-                                            );
-                                        }
-                                    }
-                                });
-                                
-                                content.appendChild(depsTable);
-                            } else {
-                                const noDepsMsg = document.createElement('p');
-                                noDepsMsg.innerHTML = '<em>No dependencies found in this scope</em>';
-                                noDepsMsg.style.color = '#666';
-                                content.appendChild(noDepsMsg);
-                            }
-                            
-                            accordion.appendChild(title);
-                            accordion.appendChild(content);
-                        }
-                        
-                        containerSection.appendChild(accordion);
-                        
-                        // Initialize accordion after adding to DOM
-                        setTimeout(() => {
-                            $(accordion).accordion();
-                        }, 0);
-                        
-                    } else {
-                        const noDepsMsg = document.createElement('p');
-                        noDepsMsg.innerHTML = '<em>No package dependencies found</em>';
-                        noDepsMsg.style.color = '#666';
-                        containerSection.appendChild(noDepsMsg);
-                    }
-                    
-                    dependenciesSection.appendChild(containerSection);
-                }
-            } else {
-                document.querySelector("#usage-scenario-dependencies").insertAdjacentHTML('beforeend', `<p><em>No dependency information available</em></p>`)
-            }
+            renderUsageScenarioDependencies(run_data[item]);
 
         } else if(item == 'logs') {
             const logsData = run_data[item];
@@ -1007,6 +845,212 @@ const fetchAndFillWarnings = async (url_params) => {
     container.classList.remove('hidden');
 }
 
+
+
+// Templates for usage scenario dependencies
+const dependenciesTemplates = {
+    container: `
+        <div class="ui segment">
+            <h4 class="ui dividing header">Container: {{containerName}}</h4>
+            <div class="ui secondary segment">
+                <strong>Image:</strong> {{image}}<br>
+                <strong>Hash:</strong> <code>{{hash}}</code>
+            </div>
+            {{scopeContent}}
+        </div>
+    `,
+
+    scopeAccordion: `
+        <div class="ui accordion">
+            {{accordionItems}}
+        </div>
+    `,
+
+    accordionItem: `
+        <div class="title">
+            <i class="dropdown icon"></i>
+            {{scopeDisplayName}} Packages ({{totalDeps}} packages)
+        </div>
+        <div class="content">
+            {{scopeMetadata}}
+            {{depsTable}}
+        </div>
+    `,
+
+    scopeMetadata: `
+        <div>
+            {{metadataContent}}
+        </div>
+    `,
+
+    depsTable: `
+        <table class="ui celled compact table">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Name</th>
+                    <th>Version</th>
+                    <th>Hash</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{tableRows}}
+            </tbody>
+        </table>
+    `,
+
+    depsTableRow: `
+        <tr>
+            <td>{{pmType}}</td>
+            <td>{{depName}}</td>
+            <td>{{version}}</td>
+            <td><code title="{{fullHash}}">{{truncatedHash}}</code></td>
+        </tr>
+    `,
+
+    noDepsMessage: `<div class="ui message">{{message}}</div>`
+};
+
+function renderUsageScenarioDependencies(dependenciesData) {
+    const dependenciesSection = document.querySelector("#usage-scenario-dependencies");
+
+    if (!dependenciesData || Object.keys(dependenciesData).length === 0) {
+        dependenciesSection.insertAdjacentHTML('beforeend',
+            dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependency information available</em>')
+        );
+        return;
+    }
+
+    let containersHTML = '';
+
+    for (const containerName in dependenciesData) {
+        const containerData = dependenciesData[containerName];
+        const containerInfo = containerData['_container-info'] || {};
+
+        const image = escapeString(containerInfo.image || 'N/A');
+        const hash = escapeString(containerInfo.hash || 'N/A');
+
+        const packageManagers = Object.keys(containerData).filter(key => key !== '_container-info');
+
+        let scopeContent = '';
+
+        if (packageManagers.length > 0) {
+            const scopeGroups = groupPackageManagersByScope(packageManagers, containerData);
+            const accordionItems = buildScopeAccordionItems(scopeGroups);
+
+            scopeContent = dependenciesTemplates.scopeAccordion.replace('{{accordionItems}}', accordionItems);
+        } else {
+            scopeContent = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
+        }
+
+        const containerHTML = dependenciesTemplates.container
+            .replace('{{containerName}}', escapeString(containerName))
+            .replace('{{image}}', image)
+            .replace('{{hash}}', hash)
+            .replace('{{scopeContent}}', scopeContent);
+
+        containersHTML += containerHTML;
+    }
+
+    dependenciesSection.insertAdjacentHTML('beforeend', containersHTML);
+
+    // Initialize accordions
+    setTimeout(() => {
+        dependenciesSection.querySelectorAll('.ui.accordion').forEach(accordion => {
+            $(accordion).accordion();
+        });
+    }, 0);
+}
+
+function groupPackageManagersByScope(packageManagers, containerData) {
+    const scopeGroups = {};
+
+    packageManagers.forEach(pmType => {
+        const pmData = containerData[pmType];
+        const scope = pmData.scope || 'unknown';
+
+        if (!scopeGroups[scope]) {
+            scopeGroups[scope] = [];
+        }
+        scopeGroups[scope].push({ type: pmType, data: pmData });
+    });
+
+    return scopeGroups;
+}
+
+function buildScopeAccordionItems(scopeGroups) {
+    let accordionItems = '';
+
+    for (const scope in scopeGroups) {
+        const scopeData = scopeGroups[scope];
+        const totalDeps = scopeData.reduce((sum, pm) => {
+            return sum + (pm.data.dependencies ? Object.keys(pm.data.dependencies).length : 0);
+        }, 0);
+
+        const scopeDisplayName = scope.charAt(0).toUpperCase() + scope.slice(1);
+
+        // Build metadata
+        let metadataContent = '';
+        const pmWithLocation = scopeData.find(pm => pm.data.location);
+        if (pmWithLocation) {
+            metadataContent += `<strong>Location:</strong> ${escapeString(pmWithLocation.data.location)}<br>`;
+        }
+
+        const pmWithHash = scopeData.find(pm => pm.data.hash);
+        if (pmWithHash) {
+            const scopeHash = escapeString(pmWithHash.data.hash);
+            metadataContent += `<strong>Hash:</strong> <code>${scopeHash}</code><br>`;
+        }
+
+        const scopeMetadata = metadataContent ?
+            dependenciesTemplates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
+
+        // Build dependencies table
+        let depsTable = '';
+        if (totalDeps > 0) {
+            const tableRows = buildDependencyTableRows(scopeData);
+            depsTable = dependenciesTemplates.depsTable.replace('{{tableRows}}', tableRows);
+        } else {
+            depsTable = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependencies found in this scope</em>');
+        }
+
+        const accordionItem = dependenciesTemplates.accordionItem
+            .replace('{{scopeDisplayName}}', escapeString(scopeDisplayName))
+            .replace('{{totalDeps}}', totalDeps)
+            .replace('{{scopeMetadata}}', scopeMetadata)
+            .replace('{{depsTable}}', depsTable);
+
+        accordionItems += accordionItem;
+    }
+
+    return accordionItems;
+}
+
+function buildDependencyTableRows(scopeData) {
+    let tableRows = '';
+
+    scopeData.forEach(({ type: pmType, data: pmData }) => {
+        if (pmData.dependencies && Object.keys(pmData.dependencies).length > 0) {
+            for (const depName in pmData.dependencies) {
+                const dep = pmData.dependencies[depName];
+                const version = escapeString(dep.version || 'N/A');
+                const depHash = dep.hash || 'N/A';
+                const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
+
+                const row = dependenciesTemplates.depsTableRow
+                    .replace('{{pmType}}', escapeString(pmType))
+                    .replace('{{depName}}', escapeString(depName))
+                    .replace('{{version}}', version)
+                    .replace('{{fullHash}}', escapeString(depHash))
+                    .replace('{{truncatedHash}}', escapeString(truncatedHash));
+
+                tableRows += row;
+            }
+        }
+    });
+
+    return tableRows;
+}
 
 
 /* Chart starting code*/
