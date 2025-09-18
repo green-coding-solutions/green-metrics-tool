@@ -1521,7 +1521,15 @@ class ScenarioRunner:
             )
 
             duration = time.perf_counter() - start_time
-            print(f"Dependency resolution for container '{container_name}' completed in {duration:.2f} s")
+
+            # Count total packages found across all package managers
+            total_packages = 0
+            if result:
+                for key, value in result.items():
+                    if key != '_container-info' and isinstance(value, dict) and 'dependencies' in value:
+                        total_packages += len(value['dependencies'])
+
+            print(f"Dependency resolution for container '{container_name}' found {total_packages} packages in {duration:.2f} s")
 
             # Remove the 'name' field from _container-info as we use container name as key
             if result and 'name' in result.get('_container-info', {}):
@@ -1573,7 +1581,6 @@ class ScenarioRunner:
 
         if dependencies:
             self.__usage_scenario_dependencies = dependencies
-            print(f"Result:\n{dependencies}")
         else:
             raise RuntimeError("No dependency information collected. This indicates no containers were processed or all dependency resolution attempts failed.")
 
