@@ -925,18 +925,17 @@ function renderUsageScenarioDependencies(dependenciesData) {
 
     for (const containerName in dependenciesData) {
         const containerData = dependenciesData[containerName];
-        const containerInfo = containerData['_container-info'] || {};
+        const containerInfo = containerData['source'] || {};
 
         const image = escapeString(containerInfo.image || 'N/A');
         const hash = escapeString(containerInfo.hash || 'N/A');
 
-        const packageManagers = Object.keys(containerData).filter(key => key !== '_container-info');
+        const scopes = Object.keys(containerData).filter(key => key === 'project' || key === 'system');
 
         let scopeContent = '';
 
-        if (packageManagers.length > 0) {
-            const scopeGroups = groupPackageManagersByScope(packageManagers, containerData);
-            const accordionItems = buildScopeAccordionItems(scopeGroups);
+        if (scopes.length > 0) {
+            const accordionItems = buildScopeAccordionItems(scopes, containerData);
 
             scopeContent = dependenciesTemplates.scopeAccordion.replace('{{accordionItems}}', accordionItems);
         } else {
@@ -962,53 +961,39 @@ function renderUsageScenarioDependencies(dependenciesData) {
     }, 0);
 }
 
-function groupPackageManagersByScope(packageManagers, containerData) {
-    const scopeGroups = {};
-
-    packageManagers.forEach(pmType => {
-        const pmData = containerData[pmType];
-        const scope = pmData.scope || 'unknown';
-
-        if (!scopeGroups[scope]) {
-            scopeGroups[scope] = [];
-        }
-        scopeGroups[scope].push({ type: pmType, data: pmData });
-    });
-
-    return scopeGroups;
-}
-
-function buildScopeAccordionItems(scopeGroups) {
+function buildScopeAccordionItems(scopes, containerData) {
     let accordionItems = '';
 
-    for (const scope in scopeGroups) {
-        const scopeData = scopeGroups[scope];
-        const totalDeps = scopeData.reduce((sum, pm) => {
-            return sum + (pm.data.dependencies ? Object.keys(pm.data.dependencies).length : 0);
-        }, 0);
+    scopes.forEach(scope => {
+        const scopeData = containerData[scope];
+        const packages = scopeData.packages || [];
+        const totalDeps = packages.length;
 
         const scopeDisplayName = scope.charAt(0).toUpperCase() + scope.slice(1);
 
-        // Build metadata
+        // Build package manager metadata if its given
         let metadataContent = '';
-        const pmWithLocation = scopeData.find(pm => pm.data.location);
-        if (pmWithLocation) {
-            metadataContent += `<strong>Location:</strong> ${escapeString(pmWithLocation.data.location)}<br>`;
-        }
-
-        const pmWithHash = scopeData.find(pm => pm.data.hash);
-        if (pmWithHash) {
-            const scopeHash = escapeString(pmWithHash.data.hash);
-            metadataContent += `<strong>Hash:</strong> <code>${scopeHash}</code><br>`;
+        if (scopeData['package-management']) {
+            const packageManagers = scopeData['package-management'];
+            Object.keys(packageManagers).forEach(pmType => {
+                const pmMetadata = packageManagers[pmType];
+                if (pmMetadata && typeof pmMetadata === 'object') {
+                    if (pmMetadata.location) {
+                        metadataContent += `<strong>${escapeString(pmType)} Location:</strong> ${escapeString(pmMetadata.location)}<br>`;
+                    }
+                    if (pmMetadata.hash) {
+                        metadataContent += `<strong>${escapeString(pmType)} Hash:</strong> <code>${escapeString(pmMetadata.hash)}</code><br>`;
+                    }
+                }
+            });
         }
 
         const scopeMetadata = metadataContent ?
             dependenciesTemplates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
 
-        // Build dependencies table
         let depsTable = '';
         if (totalDeps > 0) {
-            const tableRows = buildDependencyTableRows(scopeData);
+            const tableRows = buildDependencyTableRows(packages);
             depsTable = dependenciesTemplates.depsTable.replace('{{tableRows}}', tableRows);
         } else {
             depsTable = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependencies found in this scope</em>');
@@ -1021,32 +1006,27 @@ function buildScopeAccordionItems(scopeGroups) {
             .replace('{{depsTable}}', depsTable);
 
         accordionItems += accordionItem;
-    }
+    });
 
     return accordionItems;
 }
 
-function buildDependencyTableRows(scopeData) {
+function buildDependencyTableRows(packages) {
     let tableRows = '';
 
-    scopeData.forEach(({ type: pmType, data: pmData }) => {
-        if (pmData.dependencies && Object.keys(pmData.dependencies).length > 0) {
-            for (const depName in pmData.dependencies) {
-                const dep = pmData.dependencies[depName];
-                const version = escapeString(dep.version || 'N/A');
-                const depHash = dep.hash || 'N/A';
-                const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
+    packages.forEach(pkg => {
+        const version = escapeString(pkg.version || 'N/A');
+        const depHash = pkg.hash || 'N/A';
+        const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
 
-                const row = dependenciesTemplates.depsTableRow
-                    .replace('{{pmType}}', escapeString(pmType))
-                    .replace('{{depName}}', escapeString(depName))
-                    .replace('{{version}}', version)
-                    .replace('{{fullHash}}', escapeString(depHash))
-                    .replace('{{truncatedHash}}', escapeString(truncatedHash));
+        const row = dependenciesTemplates.depsTableRow
+            .replace('{{pmType}}', escapeString(pkg.type || 'N/A'))
+            .replace('{{depName}}', escapeString(pkg.name || 'N/A'))
+            .replace('{{version}}', version)
+            .replace('{{fullHash}}', escapeString(depHash))
+            .replace('{{truncatedHash}}', escapeString(truncatedHash));
 
-                tableRows += row;
-            }
-        }
+        tableRows += row;
     });
 
     return tableRows;

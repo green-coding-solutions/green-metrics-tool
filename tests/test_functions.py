@@ -366,7 +366,7 @@ class RunUntilManager:
             self.__runner._start_metric_providers(allow_container=True, allow_other=False)
 
             self.__runner._collect_container_dependencies()
-            if step == 'collect_container_dependencies':
+            if stop_at == 'collect_container_dependencies':
                 return
 
             self.__runner._start_phase('[IDLE]')
