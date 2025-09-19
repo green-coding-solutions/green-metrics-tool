@@ -517,7 +517,7 @@ const displayTimelineCharts = async (metrics, notes) => {
         let inner_counter = 0;
         if (notes != null) {
             notes.forEach(note => {
-                notes_labels.push({xAxis: note[3]/1000, label: {formatter: escapeString(note[2]), position: note_positions[inner_counter%2]}})
+                notes_labels.push({xAxis: note[3]/1000, label: {formatter: note[2], position: note_positions[inner_counter%2]}})
                 inner_counter++;
             });
         }
