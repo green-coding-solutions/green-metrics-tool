@@ -821,7 +821,7 @@ class ScenarioRunner:
 
             else:
                 print(f"Pulling {service['image']}")
-                self.__notes_helper.add_note( note="Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
+                self.__notes_helper.add_note( note=f"Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
 
                 slash_splitted_image_name = service['image'].split('/')
                 if '.' in slash_splitted_image_name[0]: # we have already a set registry
