@@ -54,6 +54,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile-gunicorn
+      cache_from:
+        - type=local,src=$HOME/.cache/buildkit-gmt/
+      cache_to:
+        - type=local,dest=$HOME/.cache/buildkit-gmt/
     container_name: green-coding-gunicorn-container
     init: true
     depends_on:
