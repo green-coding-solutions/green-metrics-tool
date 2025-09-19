@@ -17,3 +17,4 @@ flow:
       - type: console
         command: stress-ng -c 1 -t 1 -q
         note: Starting Stress
+        stream-stdout: True

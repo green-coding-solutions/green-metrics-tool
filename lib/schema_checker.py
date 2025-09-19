@@ -186,7 +186,9 @@ class SchemaChecker():
                     Optional('ignore-errors'): bool,
                     Optional('shell'): And(str, Use(self.not_empty)),
                     Optional('log-stdout'): bool,
+                    Optional('stream-stdout'): bool,
                     Optional('log-stderr'): bool,
+                    Optional('stream-stderr'): bool,
                 }],
 
             }],
@@ -247,9 +249,8 @@ class SchemaChecker():
             known_flow_names.append(flow['name'])
 
             for command in flow['commands']:
-                if  'read-sci-stdout' in command and 'log-stdout' not in command:
+                if command.get('read-sci-stdout', False) and  command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
                     raise SchemaError(f"You have specified `read-sci-stdout` in flow {flow['name']} but not set `log-stdout` to True.")
-
 
 
 # if __name__ == '__main__':
