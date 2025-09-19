@@ -76,7 +76,7 @@ flow:
         command: |
           cd ~/green-metrics-tool/tests
           source ../venv/bin/activate
-          python3 -m pytest -vv -rA
+          python3 -m pytest --durations=0 -vv -rA
         shell: bash
 
   - name: Stop Test Containers
