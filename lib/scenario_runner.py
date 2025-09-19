@@ -1634,8 +1634,14 @@ class ScenarioRunner:
                     docker_exec_command = ['docker', 'exec']
                     docker_exec_command.append(flow['container'])
                     stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
-                    if cmd_obj.get('log-stdout', True):
+                    if cmd_obj.get('stream-stdout', False):
+                        stdout_behaviour = None
+                        self.__warnings.append('Stdout for a command was be streamed. This can create significant overhead and also means it cannot be captured to the logs. Only use this in local development')
+                    elif cmd_obj.get('log-stdout', True):
                         stdout_behaviour = subprocess.PIPE
+                    if cmd_obj.get('stream-stderr', False):
+                        stderr_behaviour = None
+                        self.__warnings.append('Stderr for a command was be streamed. This can create significant overhead and also means it cannot be captured to the logs. Only use this in local development')
                     if cmd_obj.get('log-stderr', True):
                         stderr_behaviour = subprocess.PIPE
 

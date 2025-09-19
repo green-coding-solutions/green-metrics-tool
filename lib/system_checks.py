@@ -95,6 +95,10 @@ def check_docker_daemon(*_, **__):
 def check_utf_encoding(*_, **__):
     return locale.getpreferredencoding().lower() == sys.getdefaultencoding().lower() == 'utf-8'
 
+def check_tty_attached(*_, **__):
+    return not sys.stdin.isatty()
+
+
 # This text we compare with indicates that no swap is used
 #pylint: disable=no-else-return
 def check_swap_disabled(*_, **__):
@@ -146,6 +150,7 @@ start_checks = (
     (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
     (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
     (check_swap_disabled, Status.WARN, 'swap disabled', 'Your system uses a swap filesystem. This can lead to very instable measurements. Please disable swap.'),
+    (check_tty_attached, Status.WARN, 'tty attached', 'GMT runs with a TTY attached. This will create relevant overhead. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
 )
 
 end_checks = (
