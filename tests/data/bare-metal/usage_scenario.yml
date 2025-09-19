@@ -8,6 +8,15 @@ services:
   ubuntu-systemd-docker:
     type: container
     image: greencoding/ubuntu-systemd-docker
+    networks:
+     - bridge
+    volumes:
+      - gmt-tests-pip-cache:/root/.cache/pip/
+      - gmt-tests-apt-package-cache:/var/cache/apt/
+      - gmt-tests-apt-list-cache:/var/lib/apt/lists/
+      - gmt-tests-buildkit-cache:/root/.cache/buildkit-gmt/
+    setup-commands:
+      - command: rm /etc/apt/apt.conf.d/docker-clean # the image comes with a script that deletes all apt packages after install. we do not want that
 
 flow:
   - name: Pull GMT
