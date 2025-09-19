@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 etc_hosts_line_1="127.0.0.1 test-green-coding-postgres-container test-green-coding-redis-container"

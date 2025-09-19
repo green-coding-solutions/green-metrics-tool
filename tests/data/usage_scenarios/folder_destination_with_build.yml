@@ -1,0 +1,20 @@
+name: Test folder-destination with build
+author: David Kopp
+description: Test case to verify folder-destination works correctly with build attribute
+
+services:
+  test-container:
+    build:
+      context: ../stress-application
+      dockerfile: Dockerfile
+    container_name: test-container
+    folder-destination: /custom/repo/path
+    command: sh
+
+flow:
+  - name: Verify folder-destination is accessible at runtime
+    container: test-container
+    commands:
+      - type: console  
+        command: sh -c "test -f /custom/repo/path/tests/test_usage_scenario.py && echo 'Repository mounted at custom path'"
+        log-stdout: true

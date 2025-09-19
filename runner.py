@@ -106,21 +106,6 @@ if __name__ == '__main__':
             key, value = var.split('=', maxsplit=1)
             variables_dict[key] = value
 
-    if args.allow_unsafe and args.skip_unsafe:
-        parser.print_help()
-        error_helpers.log_error('--allow-unsafe and skip--unsafe in conjuction is not possible')
-        sys.exit(1)
-
-    if args.dev_cache_build and (args.docker_prune or args.full_docker_prune):
-        parser.print_help()
-        error_helpers.log_error('--dev-cache-build blocks pruning docker images. Combination is not allowed')
-        sys.exit(1)
-
-    if args.full_docker_prune and GlobalConfig().config['postgresql']['host'] == 'green-coding-postgres-container':
-        parser.print_help()
-        error_helpers.log_error('--full-docker-prune is set while your database host is "green-coding-postgres-container".\nThe switch is only for remote measuring machines. It would stop the GMT images itself when running locally')
-        sys.exit(1)
-
     if args.config_override is not None:
         if args.config_override[-4:] != '.yml':
             parser.print_help()
@@ -162,7 +147,29 @@ if __name__ == '__main__':
     # Execute the given usage scenarios multiple times (if iterations > 1)
     filenames = filenames * args.iterations
 
-    runner = None
+    # Create ScenarioRunner once and reuse it for all files
+    runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filenames[0],
+                    branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
+                    skip_system_checks=args.skip_system_checks,
+                    skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
+                    full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
+                    dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics, dev_no_save=args.dev_no_save,
+                    dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
+                    docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
+                    skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder,
+                    usage_scenario_variables=variables_dict, phase_padding=not args.no_phase_padding,
+                    measurement_system_check_threshold=args.measurement_system_check_threshold,
+                    measurement_pre_test_sleep=args.measurement_pre_test_sleep,
+                    measurement_idle_duration=args.measurement_idle_duration,
+                    measurement_baseline_duration=args.measurement_baseline_duration,
+                    measurement_post_test_sleep=args.measurement_post_test_sleep,
+                    measurement_phase_transition_time=args.measurement_phase_transition_time,
+                    measurement_wait_time_dependencies=args.measurement_wait_time_dependencies,
+                    measurement_flow_process_duration=args.measurement_flow_process_duration,
+                    measurement_total_duration=args.measurement_total_duration,
+                    #disabled_metric_providers # this is intentionally not supported as the user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
+                    #allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] # this is intentionally not supported as the user can just enter --allow-unsafe in CLI mode and using another args="+" for parsing CLI is flaky
+                    )
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
@@ -170,28 +177,8 @@ if __name__ == '__main__':
         for filename in filenames:
             print(TerminalColors.OKBLUE, '\nRunning: ', filename, TerminalColors.ENDC)
 
-            runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filename,
-                            branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
-                            skip_system_checks=args.skip_system_checks,
-                            skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
-                            full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
-                            dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics, dev_no_save=args.dev_no_save,
-                            dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
-                            docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
-                            skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder,
-                            usage_scenario_variables=variables_dict, phase_padding=not args.no_phase_padding,
-                            measurement_system_check_threshold=args.measurement_system_check_threshold,
-                            measurement_pre_test_sleep=args.measurement_pre_test_sleep,
-                            measurement_idle_duration=args.measurement_idle_duration,
-                            measurement_baseline_duration=args.measurement_baseline_duration,
-                            measurement_post_test_sleep=args.measurement_post_test_sleep,
-                            measurement_phase_transition_time=args.measurement_phase_transition_time,
-                            measurement_wait_time_dependencies=args.measurement_wait_time_dependencies,
-                            measurement_flow_process_duration=args.measurement_flow_process_duration,
-                            measurement_total_duration=args.measurement_total_duration,
-                            #disabled_metric_providers # this is intentionally not supported as the user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
-                            #allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] # this is intentionally not supported as the user can just enter --allow-unsafe in CLI mode and using another args="+" for parsing CLI is flaky
-                            )
+            # Update filename for reused runner (no-op for first file)
+            runner.set_filename(filename)
 
             run_id = runner.run()  # Start main code
 
@@ -237,10 +224,26 @@ if __name__ == '__main__':
         error_helpers.log_error('Base exception occured in runner.py', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
     finally:
         if args.print_logs and runner:
-            for container_id_outer, std_out in runner.get_logs().items():
-                print(f"Container logs of '{container_id_outer}':")
-                print(std_out)
-                print('\n-----------------------------\n')
+            logs = runner._get_all_run_logs()
+            if logs:
+                print("Container logs:")
+                for run_index, run_data in enumerate(logs):
+                    iteration = run_data.get('iteration', 'unknown')
+                    filename = run_data.get('filename', 'unknown')
+                    containers = run_data.get('containers', {})
+
+                    print(f"=== Run {run_index + 1}: {filename} (iteration {iteration}) ===")
+
+                    for container_name, log_entries in containers.items():
+                        print(f"--- Container: {container_name} ---")
+                        for log_entry in log_entries:
+                            log_type = log_entry.get('type', 'unknown')
+                            if "stdout" in log_entry:
+                                print(f"STDOUT ({log_type}):\n{log_entry['stdout']}")
+                            if "stderr" in log_entry:
+                                print(f"STDERR ({log_type}):\n{log_entry['stderr']}")
+                    print('-----------------------------')
+                print()
 
         # Last thing before we exit is to shutdown the DB Pool
         DB().shutdown()

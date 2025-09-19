@@ -10,11 +10,13 @@ import yaml
 
 from contextlib import redirect_stdout, redirect_stderr
 
+from lib.log_types import LogType
 from lib.scenario_runner import ScenarioRunner
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import utils
 from lib.system_checks import ConfigurationCheckError
+from lib import container_compatibility
 from tests import test_functions as Tests
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
@@ -244,6 +246,25 @@ def test_runner_filename_relative_to_local_uri():
 
 ## --iterations ITERATIONS
 #    Optionally specify the number of iterations the files should be executed
+def test_runner_with_iterations_and_save_to_database():
+    """Test that local URI with iterations works when results are stored to database"""
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
+         '--iterations', '2',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps',
+         '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    assert ps.stdout.count('Running:  tests/data/usage_scenarios/basic_stress.yml') == 2
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
 def test_runner_with_iterations_and_multiple_files():
     """Test that runner processes files in correct order with --iterations and allows duplicates"""
     ps = subprocess.run(
@@ -294,7 +315,7 @@ def test_file_cleanup():
 #pylint: disable=unused-variable
 def test_skip_and_allow_unsafe_both_true():
 
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(ValueError) as e:
         ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, skip_unsafe=True, allow_unsafe=True)
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, Tests.assertion_info('', str(e.value))
@@ -455,6 +476,163 @@ def test_runner_run_invalidated():
         assert 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n' in messages
 
 
+## Docker pull logic tests
+def test_docker_pull_multiarch_image_succeeds():
+    """Test successful Docker pull with multi-architecture image"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_multiarch_image.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+
+    assert runner._usage_scenario['services']['test_service']['image'] == 'alpine:3.22.1'
+
+@pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
+def test_docker_pull_arm64_image_on_amd64_host_fails():
+    """Test Docker pull fails when trying to use ARM64 image on AMD64 host"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_arm64_image.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert "Architecture incompatibility detected" in str(e.value)
+    assert "not available for host architecture" in str(e.value)
+    assert "amd64" in str(e.value)
+
+@pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
+def test_docker_pull_amd64_image_on_arm64_host_fails():
+    """Test Docker pull fails when trying to use AMD64 image on ARM64 host"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_amd64_image.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert "Architecture incompatibility detected" in str(e.value)
+    assert "not available for host architecture" in str(e.value)
+    assert "arm64" in str(e.value)
+
+def test_docker_pull_nonexistent_image_non_interactive_fails():
+    """Test Docker pull fails due to nonexistent image in non-interactive mode"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_nonexistent.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with pytest.raises(OSError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert "Docker pull failed. Is your image name correct and are you connected to the internet" in str(e.value)
+    assert "NONEXISTENT_IMAGE" in str(e.value)
+
+
+## Docker run architecture mismatch tests
+def can_emulate_amd64_images():
+    """Check if this host can run AMD64 Docker images via emulation."""
+    return container_compatibility.get_platform_compatibility_status('linux/amd64') == container_compatibility.CompatibilityStatus.EMULATED
+
+def can_emulate_arm64_images():
+    """Check if this host can run ARM64 Docker images via emulation."""
+    return container_compatibility.get_platform_compatibility_status('linux/arm64') == container_compatibility.CompatibilityStatus.EMULATED
+
+@pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
+@pytest.mark.skipif(can_emulate_arm64_images(), reason="Test is only valid when arm64 can't be emulated")
+def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
+    """Test Docker run fails immediately when trying to run ARM64 image on AMD64 host without emulation"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    error_msg = str(e.value)
+    assert "cannot run due to architecture incompatibility" in error_msg
+    assert "arm64" in error_msg and "amd64" in error_msg
+    assert "emulation is not available" in error_msg
+
+@pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
+@pytest.mark.skipif(can_emulate_amd64_images(), reason="Test is only valid when amd64 can't be emulated")
+def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
+    """Test Docker run fails immediately when trying to run amd64 image on arm64 host without emulation"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    error_msg = str(e.value)
+    assert "cannot run due to architecture incompatibility" in error_msg
+    assert "amd64" in error_msg and "arm64" in error_msg
+    assert "emulation is not available" in error_msg
+
+@pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
+@pytest.mark.skipif(not can_emulate_arm64_images(), reason="Test requires Docker with emulation support for arm64 images")
+def test_docker_runs_arm64_image_with_emulation_on_amd64_host():
+    """Test Docker successfully runs ARM64 images on AMD64 host using emulation and generates warning"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        # Test should complete successfully without raising exceptions AND generate emulation warning
+        warnings = runner._ScenarioRunner__warnings
+        assert any("will run with architecture emulation" in warning for warning in warnings), f"Expected architecture emulation warning not found in: {warnings}"
+        emulation_warnings = [w for w in warnings if "emulation" in w.lower()]
+        assert len(emulation_warnings) > 0, f"No emulation warnings found in: {warnings}"
+        assert any("arm64" in warning and "amd64" in warning for warning in emulation_warnings), f"Warning should mention both architectures: {emulation_warnings}"
+
+@pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
+@pytest.mark.skipif(not can_emulate_amd64_images(), reason="Test requires Docker with emulation support for amd64 images")
+def test_docker_runs_amd64_image_with_emulation_on_arm64_host():
+    """Test Docker successfully runs AMD64 images on ARM64 host using emulation and generates warning"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        # Test should complete successfully without raising exceptions AND generate emulation warning
+        warnings = runner._ScenarioRunner__warnings
+        assert any("will run with architecture emulation" in warning for warning in warnings), f"Expected architecture emulation warning not found in: {warnings}"
+        emulation_warnings = [w for w in warnings if "emulation" in w.lower()]
+        assert len(emulation_warnings) > 0, f"No emulation warnings found in: {warnings}"
+        assert any("amd64" in warning and "arm64" in warning for warning in emulation_warnings), f"Warning should mention both architectures: {emulation_warnings}"
+
+## Container running verification
+def test_container_running_verification_after_boot_phase():
+    """Test that container verification catches containers that exit during boot phase"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder',
+                          filename='tests/data/usage_scenarios/basic_stress.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            for step in context.run_steps():
+                if step == 'setup_services':
+                    # Simulate container failure by stopping it manually
+                    subprocess.run(['docker', 'stop', 'test-container'], check=False)
+
+    assert "Container 'test-container' failed during boot phase (exit code: 137)" in str(e.value)
+
+def test_container_running_verification_after_runtime_phase():
+    """Test that container verification catches containers that exit during runtime phase"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder',
+                          filename='tests/data/usage_scenarios/basic_stress.yml',
+                          skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            for step in context.run_steps():
+                if step == 'runtime_complete':
+                    # Simulate container failure by stopping it manually
+                    subprocess.run(['docker', 'stop', 'test-container'], check=False)
+
+    assert "Container 'test-container' failed during runtime phase (exit code: 137)" in str(e.value)
+
+
     ## rethink this one
 def wip_test_verbose_provider_boot():
     run_name = 'test_' + utils.randomword(12)
@@ -497,3 +675,213 @@ def wip_test_verbose_provider_boot():
         diff = (notes[i+1][0] - notes[i][0])/1000000
         assert 9.9 <= diff <= 10.1, \
             Tests.assertion_info('10s apart', f"time difference of notes: {diff}s")
+
+## Logging
+def test_logs_structure():
+    """Test that logs stored in database are structured in JSON format with proper metadata"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml',
+                          skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True,
+                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
+
+    run_id = runner.run()
+
+    logs_result = DB().fetch_one("SELECT logs FROM runs WHERE id = %s", params=(run_id,))
+    assert logs_result is not None, "Should have logs stored in database"
+    assert logs_result[0] is not None, "Logs field should not be null"
+
+    logs = logs_result[0]
+
+    assert isinstance(logs, dict), "Logs should be in dictionary format"
+    assert "test-container" in logs, "Should have logs for test-container"
+
+    container_logs = logs["test-container"]
+    assert isinstance(container_logs, list), "Container logs should be a list"
+    assert len(container_logs) == 3, f"Should have exactly 3 log entries (container stdout, setup stdout, flow stdout+stderr), found {len(container_logs)}"
+
+    # First check the structure
+    for log_entry in container_logs:
+        assert isinstance(log_entry, dict), "Each log entry should be a dictionary"
+        assert "type" in log_entry, "Log entry should have 'type' field"
+        assert "id" in log_entry, "Log entry should have 'id' field"
+        assert "cmd" in log_entry, "Log entry should have 'cmd' field"
+        assert "phase" in log_entry, "Log entry should have 'phase' field"
+
+        # Check that type is a valid LogType value
+        assert log_entry["type"] in [lt.value for lt in LogType], f"Invalid log type: {log_entry['type']}"
+
+        # If it's a flow command, it should have a flow field
+        if log_entry["type"] == LogType.FLOW_COMMAND.value:
+            assert "flow" in log_entry, "Flow commands should have 'flow' field"
+
+        # Should have either stdout or stderr (or both)
+        assert "stdout" in log_entry or "stderr" in log_entry, "Log entry should have stdout or stderr"
+
+        # Should not have both empty - if both are present, at least one should have content
+        if "stdout" in log_entry and "stderr" in log_entry:
+            assert log_entry["stdout"].strip() or log_entry["stderr"].strip(), "At least one of stdout/stderr should have non-empty content"
+        elif "stdout" in log_entry:
+            assert log_entry["stdout"].strip(), "stdout should have non-empty content"
+        elif "stderr" in log_entry:
+            assert log_entry["stderr"].strip(), "stderr should have non-empty content"
+
+    # Now check for specific expected log content
+    found_flow_stdout = False
+    found_flow_stderr = False
+    found_setup_command = False
+    found_container_execution = False
+
+    for log_entry in container_logs:
+        # Flow command logs
+        if "stdout" in log_entry and "Test log message from flow" in log_entry["stdout"]:
+            found_flow_stdout = True
+            assert log_entry["type"] == LogType.FLOW_COMMAND.value, "Should be a flow command"
+            assert log_entry["phase"] == "[RUNTIME]", "Should be in RUNTIME phase"
+            assert log_entry["cmd"].startswith("docker exec"), "Flow commands should start with 'docker exec'"
+            assert log_entry["flow"] == "Flow Name", "Should have flow name"
+        if "stderr" in log_entry and "Test error message from flow" in log_entry["stderr"]:
+            found_flow_stderr = True
+
+        # Setup command logs
+        if "stdout" in log_entry and "Test log from setup-commands" in log_entry["stdout"]:
+            found_setup_command = True
+            assert log_entry["type"] == LogType.SETUP_COMMAND.value, "Should be a setup command"
+            assert log_entry["phase"] == "[BOOT]", "Should be in BOOT phase"
+            assert log_entry["cmd"].startswith("docker exec"), "Setup commands should start with 'docker exec'"
+
+        # Container execution logs
+        if "stdout" in log_entry and "Test log from container" in log_entry["stdout"]:
+            found_container_execution = True
+            assert log_entry["type"] == LogType.CONTAINER_EXECUTION.value, "Should be container execution"
+            assert log_entry["phase"] == "[MULTIPLE]", "Container logs should be collected over multiple phases"
+            assert log_entry["cmd"].startswith("docker run"), "Container execution should start with 'docker run'"
+
+    assert found_flow_stdout, "Should find the test flow stdout message"
+    assert found_flow_stderr, "Should find the test flow stderr message"
+    assert found_setup_command, "Should find the setup command log"
+    assert found_container_execution, "Should find the container execution log"
+
+def test_all_run_logs_comprehensive():
+    """Comprehensive test of _get_all_run_logs() method covering single runs, iterations, and different files"""
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml',
+                          skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True)
+
+    # Test 1: Single run - basic structure
+    runner.run()
+    logs = runner._get_all_run_logs()
+
+    assert isinstance(logs, list), "Logs should be a list"
+    assert len(logs) == 1, "Should have one run entry after first run"
+
+    run_entry = logs[0]
+    assert isinstance(run_entry, dict), "Run entry should be a dictionary"
+    assert "iteration" in run_entry, "Run entry should have 'iteration' field"
+    assert "filename" in run_entry, "Run entry should have 'filename' field"
+    assert "containers" in run_entry, "Run entry should have 'containers' field"
+
+    assert run_entry["iteration"] == 1, "First run should be iteration 1"
+    assert run_entry["filename"] == 'tests/data/usage_scenarios/capture_logs.yml', "Filename should match"
+    assert isinstance(run_entry["containers"], dict), "Containers should be a dictionary"
+
+    # Test container logs structure
+    containers = run_entry["containers"]
+    assert "test-container" in containers, "Should have logs for test-container"
+    container_logs = containers["test-container"]
+    assert isinstance(container_logs, list), "Container logs should be a list"
+    assert len(container_logs) > 0, "Should have at least one log entry"
+
+    for log_entry in container_logs:
+        assert isinstance(log_entry, dict), "Each log entry should be a dictionary"
+        assert "type" in log_entry, "Log entry should have 'type' field"
+        assert "stdout" in log_entry or "stderr" in log_entry, "Log entry should have stdout or stderr"
+
+    # Test 2: Multiple iterations of same file
+    runner.run()  # Second run of same file
+    logs = runner._get_all_run_logs()
+
+    assert len(logs) == 2, "Should have two run entries after second run"
+
+    run1, run2 = logs[0], logs[1]
+    assert run1["iteration"] == 1, "First run should be iteration 1"
+    assert run2["iteration"] == 2, "Second run should be iteration 2"
+    assert run1["filename"] == run2["filename"], "Both runs should have same filename"
+    assert "test-container" in run1["containers"], "First run should have container logs"
+    assert "test-container" in run2["containers"], "Second run should have container logs"
+
+    # Test 3: Different filename (reset iteration count)
+    runner.set_filename('tests/data/usage_scenarios/basic_stress.yml')
+    runner.run()  # Third run with different file
+    logs = runner._get_all_run_logs()
+
+    assert len(logs) == 3, "Should have three run entries after third run"
+
+    run3 = logs[2]
+    assert run3["iteration"] == 1, "First run of different file should be iteration 1"
+    assert run3["filename"] == 'tests/data/usage_scenarios/basic_stress.yml', "Third run should have different filename"
+    assert isinstance(run3["containers"], dict), "Third run should have containers dict"
+
+def test_print_logs_integration():
+    """Integration test for --print-logs CLI flag with iterations"""
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR,
+         '--filename', 'tests/data/usage_scenarios/capture_logs.yml',
+         '--iterations', '2', '--print-logs',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+         '--skip-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    print(ps.stdout)
+
+    assert "Container logs:" in ps.stdout
+    container_logs_pos = ps.stdout.find("Container logs:")
+    assert container_logs_pos != -1
+
+    container_logs_section = ps.stdout[container_logs_pos:]
+
+    assert "test-container" in container_logs_section
+
+    test_log_count = container_logs_section.count("Test log message from flow")
+    test_error_count = container_logs_section.count("Test error message from flow")
+
+    assert test_log_count >= 1, f"Expected at least 1 'Test log message from flow' entry, found {test_log_count}"
+    assert test_error_count >= 1, f"Expected at least 1 'Test error message from flow' entry, found {test_error_count}"
+
+    test_log_pos = container_logs_section.find("Test log message from flow")
+    test_error_pos = container_logs_section.find("Test error message from flow")
+
+    assert test_log_pos != -1
+    assert test_error_pos != -1
+    assert test_log_pos < test_error_pos
+
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+## automatic database reconnection
+def test_database_reconnection_during_run():
+    """Verify GMT runner handles database reconnection during execution
+    
+    This test simulates a database outage scenario:
+    1. A first succesful database query occurs at step 'initialize_run'
+    2. After this step, a database restart is triggered to simulate an outage
+    3. The next database query occurs at step 'save_image_and_volume_sizes':
+       Initially it fails due to the outage, but the retry mechanism should recover it
+    """
+
+    out = io.StringIO()
+    err = io.StringIO()
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_optimizations=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            for pause_point in context.run_steps(stop_at='save_image_and_volume_sizes'):
+                if pause_point == 'initialize_run':
+                    # Simulate short db outage
+                    result = subprocess.run(['docker', 'restart', '-t', '0', 'test-green-coding-postgres-container'],
+                                            check=True, capture_output=True)
+
+    assert ('Database connection error' in out.getvalue() and 'Retrying in' in out.getvalue()), \
+        "No database retry messages found - test may not have properly simulated database outage"

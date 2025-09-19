@@ -13,7 +13,7 @@ are async parsing, the OS scheduler, network latency etc.
 
 ## How?
 
-We use the [Green Metrics Tool](https://github.com/green-coding-berlin/green-metrics-tool/) to setup a simple Playwright Headless Browser based benchmark.
+We use the [Green Metrics Tool](https://github.com/green-coding-solutions/green-metrics-tool/) to setup a simple Playwright Headless Browser based benchmark.
 
 There are some example types of pages:
 
@@ -29,16 +29,11 @@ We have a frontend to add new sites to this repo and have them tested with our [
 
 See: https://website-tester.green-coding.io/
 
-## Building in production
+## Building container with custom settings
 
-For production `usage_scenario.yml` files we pre-building the squid container.
+For production `usage_scenario.yml` files we pre-building the squid container from https://hub.docker.com/r/greencoding/squid_reverse_proxy
 
-Build command (please adjust the tag to your repository): 
+If you want to modfiy the reverse proxy or set some custom settings you can build the container yourself.
 
-Please look up details how to setup your build infrastructure here: https://docs.docker.com/build/building/multi-platform/
-```bash
-docker buildx build --platform linux/amd64,linux/arm64 --push -t greencoding/squid_reverse_proxy:vX
-```
+Please look into the [./docker/auxiliary-containers/squid_reverse_proxy] folder for further instructions.
 
-### Pre-Built
-We supply a pre-built container via: `greencoding/squid_reverse_proxy` from Docker Hub.

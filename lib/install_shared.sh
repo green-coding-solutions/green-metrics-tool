@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 GREEN='\033[0;32m'
@@ -103,6 +103,22 @@ function check_file_permissions() {
     return 0
 }
 
+function copy_backup() {
+    local file=$1
+    local example_file="${file}.example"
+
+    if [[ ! -f "$example_file" ]]; then
+        echo "Error: Example file ${example_file} does not exist"
+        return 1
+    fi
+
+    if [[ -f "$file" ]]; then
+        print_message "Backing up existing ${file} to ${file}.backup"
+        cp "$file" "${file}.backup"
+    fi
+
+    cp "$example_file" "$file"
+}
 
 function prepare_config() {
 
@@ -121,7 +137,7 @@ function prepare_config() {
     eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS|$db_pw|\" docker/compose.yml"
 
     print_message "Updating config.yml with new password ..."
-    cp config.yml.example config.yml
+    copy_backup config.yml
     eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS|$db_pw|\" config.yml"
 
     print_message "Updating project with provided URLs ..."
@@ -129,19 +145,21 @@ function prepare_config() {
     eval "${sed_command} -e \"s|__API_URL__|$api_url|\" config.yml"
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" config.yml"
 
-    cp docker/nginx/api.conf.example docker/nginx/api.conf
+
+    copy_backup docker/nginx/api.conf
     local host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
     local host_api_url=${host_api_url%:*}
     eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/api.conf"
 
-    cp docker/nginx/block.conf.example docker/nginx/block.conf
 
-    cp docker/nginx/frontend.conf.example docker/nginx/frontend.conf
+    copy_backup docker/nginx/block.conf
+
+    copy_backup docker/nginx/frontend.conf
     local host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
     local host_metrics_url=${host_metrics_url%:*}
     eval "${sed_command} -e \"s|__METRICS_URL__|$host_metrics_url|\" docker/nginx/frontend.conf"
 
-    cp frontend/js/helpers/config.js.example frontend/js/helpers/config.js
+    copy_backup frontend/js/helpers/config.js
     eval "${sed_command} -e \"s|__API_URL__|$api_url|\" frontend/js/helpers/config.js"
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" frontend/js/helpers/config.js"
 

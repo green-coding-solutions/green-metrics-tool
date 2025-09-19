@@ -1,6 +1,6 @@
 services:
-  gcb-playwright:
-    image: greencoding/gcb_playwright:v18
+  playwright-nodejs:
+    image: mcr.microsoft.com/playwright:v1.55.0-noble
 #    volumes:
 #       - /tmp/.X11-unix:/tmp/.X11-unix # for debugging in non-headless mode
     environment:
@@ -8,9 +8,15 @@ services:
     depends_on:
       squid:
         condition: service_healthy
+    setup-commands:
+        # install playwright libraries
+      - command: mkdir /tmp/energy-tests
+      - command: cp -R /tmp/repo/. /tmp/energy-tests
+      - command: cd /tmp/energy-tests && npm init -y && npm install playwright
+        shell: bash
 
   squid:
-    image: greencoding/squid_reverse_proxy:v3
+    image: greencoding/squid_reverse_proxy:v4
     healthcheck:
       test: [
         "CMD", "curl", "-fs", "--proxy", "http://squid:3128", "https://www.google.com", "--insecure"

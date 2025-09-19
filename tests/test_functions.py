@@ -5,6 +5,7 @@ import json
 
 from lib.db import DB
 from lib.global_config import GlobalConfig
+from lib.log_types import LogType
 from lib import metric_importer
 from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtilizationCgroupContainerProvider
 from metric_providers.cpu.utilization.cgroup.system.provider import CpuUtilizationCgroupSystemProvider
@@ -234,7 +235,15 @@ def check_if_container_running(container_name):
     return True
 
 def build_image_fixture():
-    subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/data/stress-application/compose.yml", 'build'], check=True)
+    subprocess.run([
+        'docker', 'compose', '-f', f"{CURRENT_DIR}/data/stress-application/compose.yml", 'build',
+        '--build-arg', f'HTTP_PROXY={os.environ.get("HTTP_PROXY")}',
+        '--build-arg', f'HTTPS_PROXY={os.environ.get("HTTPS_PROXY")}',
+        '--build-arg', f'NO_PROXY={os.environ.get("NO_PROXY")}',
+        '--build-arg', f'http_proxy={os.environ.get("http_proxy")}',
+        '--build-arg', f'https_proxy={os.environ.get("https_proxy")}',
+        '--build-arg', f'no_proxy={os.environ.get("no_proxy")}',
+    ], check=True)
 
 # should be preceded by a yield statement and on autouse
 def reset_db():
@@ -273,8 +282,34 @@ class RunUntilManager:
         return self
 
     def run_until(self, step):
+        """
+        Execute the runner pipeline until the specified step.
+            
+        Note:
+            This is a convenience wrapper around run_steps(stop_at=step).
+            For more control and inspection capabilities, use run_steps() directly.
+        """
+        for _ in self.run_steps(stop_at=step):
+            pass
+
+    def run_steps(self, stop_at=None):
+        """
+        Generator that executes the runner pipeline, yielding at predefined pause points.        
+        
+        Example:
+            # Run with inspection at all pause points:
+            with RunUntilManager(runner) as context:
+                for pause_point in context.run_steps():
+                    print(f"Reached pause point: {pause_point}")
+
+            # Run until specific pause point (with inspection at all pause points along the way):
+            with RunUntilManager(runner) as context:
+                for pause_point in context.run_steps(stop_at='initialize_run'):
+                    print(f"Reached pause point: {pause_point}")
+                    # This will print both 'import_metric_providers' and 'initialize_run'
+        """
         if not getattr(self, '_active', False):
-            raise RuntimeError("run_until must be used within the context")
+            raise RuntimeError("run_steps must be used within the context")
 
         try:
             self.__runner._start_measurement()
@@ -286,15 +321,18 @@ class RunUntilManager:
             self.__runner._initial_parse()
             self.__runner._register_machine_id()
             self.__runner._import_metric_providers()
-            if step == 'import_metric_providers':
+            yield 'import_metric_providers'
+            if stop_at == 'import_metric_providers':
                 return
             self.__runner._populate_image_names()
             self.__runner._prepare_docker()
-            self.__runner._check_running_containers()
+            self.__runner._check_running_containers_before_start()
             self.__runner._remove_docker_images()
             self.__runner._download_dependencies()
             self.__runner._initialize_run()
-
+            yield 'initialize_run'
+            if stop_at == 'initialize_run':
+                return
             self.__runner._start_metric_providers(allow_other=True, allow_container=False)
             self.__runner._custom_sleep(self.__runner._measurement_pre_test_sleep)
 
@@ -307,15 +345,22 @@ class RunUntilManager:
             self.__runner._end_phase('[INSTALLATION]')
 
             self.__runner._save_image_and_volume_sizes()
-
+            yield 'save_image_and_volume_sizes'
+            if stop_at == 'save_image_and_volume_sizes':
+                return
             self.__runner._start_phase('[BOOT]')
             self.__runner._setup_networks()
-            if step == 'setup_networks':
+            yield 'setup_networks'
+            if stop_at == 'setup_networks':
                 return
             self.__runner._setup_services()
-            if step == 'setup_services':
+            yield 'setup_services'
+            if stop_at == 'setup_services':
                 return
             self.__runner._end_phase('[BOOT]')
+
+            self.__runner._check_running_containers_after_boot_phase()
+            self.__runner._check_process_returncodes()
 
             self.__runner._add_containers_to_metric_providers()
             self.__runner._start_metric_providers(allow_container=True, allow_other=False)
@@ -327,6 +372,11 @@ class RunUntilManager:
             self.__runner._start_phase('[RUNTIME]')
             self.__runner._run_flows() # can trigger debug breakpoints;
             self.__runner._end_phase('[RUNTIME]')
+            yield 'runtime_complete'
+            if stop_at == 'runtime_complete':
+                return
+
+            self.__runner._check_running_containers_after_runtime_phase()
 
             self.__runner._start_phase('[REMOVE]')
             self.__runner._custom_sleep(1)
@@ -340,7 +390,15 @@ class RunUntilManager:
             self.__runner._post_process(0)
 
         except BaseException as exc:
-            self.__runner._add_to_log(exc.__class__.__name__, str(exc))
+            self.__runner._add_to_current_run_log(
+                container_name="[SYSTEM]",
+                log_type=LogType.EXCEPTION,
+                log_id=id(exc),
+                cmd="run_test",
+                phase=None,
+                stderr=str(exc),
+                exception_class=exc.__class__.__name__
+            )
             raise exc
 
     def __exit__(self, exc_type, exc_value, traceback):

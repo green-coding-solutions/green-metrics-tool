@@ -21,7 +21,7 @@ jobs:
           co2-grid-intensity-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
 
       - name: 'Checkout repository'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.ref }}
           submodules: 'false'

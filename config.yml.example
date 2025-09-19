@@ -4,6 +4,7 @@ postgresql:
   dbname: green-coding
   password: PLEASE_CHANGE_THIS
   port: 9573
+  retry_timeout: 300  # Total time to retry database connections on outage/failure (5 minutes)
 
 redis:
   host: green-coding-redis-container
@@ -39,6 +40,8 @@ cluster:
     time_between_control_workload_validations: 21600
     send_control_workload_status_mail: False
     shutdown_on_job_no: suspend
+    docker_prune: True
+    full_docker_prune: False
     control_workload:
       name: "Measurement control Workload"
       uri: "https://github.com/green-coding-solutions/measurement-control-workload"
@@ -75,6 +78,12 @@ machine:
   base_temperature_value: False
   base_temperature_chip: False
   base_temperature_feature: False
+
+container_registry:
+  hostname: index.docker.io
+  default_namespace: library
+  insecure: False
+
 
 measurement:
   metric_providers:

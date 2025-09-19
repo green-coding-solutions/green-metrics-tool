@@ -1,12 +1,17 @@
 .DS_Store
 __pycache__
 /config.yml
+/config.yml.backup
 /docker/nginx/api.conf
+/docker/nginx/api.conf.backup
 /docker/nginx/frontend.conf
+/docker/nginx/frontend.conf.backup
 /docker/nginx/block.conf
+/docker/nginx/block.conf.backup
 /docker/nginx/ssl/*
 !/docker/nginx/ssl/README.md
 /frontend/js/helpers/config.js
+/frontend/js/helpers/config.js.backup
 /sftp-config.json
 TODO
 /docker/compose.yml
@@ -47,3 +52,10 @@ tools/sgx_enable
 /frontend/hog-details.html
 /frontend/hog.html
 /frontend/carbondb.html
+
+# gemini-cli settings
+.gemini/
+
+# GitHub App credentials
+gha-creds-*.json
+

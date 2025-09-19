@@ -16,6 +16,7 @@ from lib.job.base import Job
 from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
 from lib.system_checks import ConfigurationCheckError
+from lib.db import DB
 
 """
     The jobs.py file is effectively a state machine that can insert a job in the 'WAITING'
@@ -73,3 +74,5 @@ if __name__ == '__main__':
                 )
         else:
             error_helpers.log_error('Base exception occurred in jobs.py: ', exception_context=exc.__context__, last_exception=exc)
+
+    DB().shutdown()
