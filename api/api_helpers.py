@@ -131,6 +131,14 @@ def get_machine_list():
     return DB().fetch_all(query)
 
 def get_run_info(user, run_id):
+
+    run_exists = DB().fetch_one(
+        "SELECT 1 FROM runs WHERE id = %s",
+        params=(run_id,)
+    )
+    if not run_exists:
+        raise HTTPException(status_code=404, detail="Run not found")
+
     query = """
             SELECT
                 id, name, uri, branch, commit_hash,
@@ -145,9 +153,15 @@ def get_run_info(user, run_id):
             WHERE
                 (TRUE = %s OR user_id = ANY(%s::int[]))
                 AND id = %s
-            """
+        """
     params = (user.is_super_user(), user.visible_users(), run_id)
-    return DB().fetch_one(query, params=params, fetch_mode='dict')
+    run = DB().fetch_one(query, params=params, fetch_mode='dict')
+
+    if not run:
+        raise HTTPException(status_code=403, detail="You do not have access to this run")
+
+    return run
+
 
 def get_timeline_query(user, uri, filename, machine_id, branch, metric, phase, start_date=None, end_date=None, detail_name=None, sorting='run'):
 
