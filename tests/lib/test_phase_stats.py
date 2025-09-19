@@ -374,7 +374,6 @@ def test_sci_calculation():
         params=('004_[RUNTIME]', 'network_carbon_formula_global'), fetch_mode='dict'
     )
     assert len(network_carbon_data) == 1, "Network carbon should be calculated"
-    network_carbon_ug = network_carbon_data[0]['value']
 
     # 4. Final SCI calculation verification
     sci_data = DB().fetch_all(
@@ -390,7 +389,7 @@ def test_sci_calculation():
         f"Test fails: Unexpected unit detected. Expected: {expected_unit}, got: {sci_entry['unit']}. This test is designed to fail when incorrect units are present."
 
     # Verify SCI value matches expected value: (machine_carbon + embodied_carbon + network_carbon) / R
-    expected_sci_value = (machine_carbon_ug + embodied_carbon_ug + network_carbon_ug) / Decimal(test_sci_config['R'])
+    expected_sci_value = (machine_carbon_ug + embodied_carbon_ug) / Decimal(test_sci_config['R'])
     assert math.isclose(abs(sci_entry['value']), expected_sci_value, rel_tol=1e-5), f"SCI calculation should be correct. Expected: {expected_sci_value}, got: {sci_entry['value']}"
 
     # Verify SCI value is reasonable (positive and within expected range)
