@@ -1,0 +1,15 @@
+name: Test Docker Pull Multi-Arch Image
+author: Test
+description: Test docker pull with multi-architecture image (compatible on all platforms)
+
+services:
+  test_service:
+    image: alpine:3.22.1
+    
+flow:
+  - name: test
+    container: test_service
+    commands:
+      - type: console
+        command: echo "test"
+        note: test command

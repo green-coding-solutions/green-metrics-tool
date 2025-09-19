@@ -40,6 +40,9 @@ from lib.notes import Notes
 from lib import system_checks
 from lib.machine import Machine
 from lib import metric_importer
+from lib import container_compatibility
+from lib.container_compatibility import CompatibilityStatus
+from lib.log_types import LogType
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -74,10 +77,19 @@ class ScenarioRunner:
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
         measurement_wait_time_dependencies=60):
 
-        if skip_unsafe is True and allow_unsafe is True:
-            raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
-
         config = GlobalConfig().config
+
+        # sanity checks
+        if skip_unsafe is True and allow_unsafe is True:
+            raise ValueError('Cannot specify both --skip-unsafe and --allow-unsafe')
+
+        if dev_cache_build and (docker_prune or full_docker_prune):
+            raise ValueError('--dev-cache-build blocks pruning docker images. Combination is not allowed')
+
+        if full_docker_prune and \
+            config['postgresql']['host'] in ('green-coding-postgres-container', 'test-green-coding-postgres-container') :
+            raise ValueError('--full-docker-prune is set while your database host is "(test)-green-coding-postgres-container".\nThe switch is only for remote measuring machines. It would stop the GMT images itself when running locally')
+
         # variables that should not change if you call run multiple times
         if name:
             self._name = name
@@ -155,8 +167,8 @@ class ScenarioRunner:
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
         # They are __ as they should not be changed because this could break the state of the runner
-        self.__current_run_logs = []
-        self.__all_runs_logs = []
+        self.__current_run_logs = {}  # Dict with container names as keys, lists of log entries as values
+        self.__all_runs_logs = []  # List of runs, each containing iteration, filename, and containers with their logs
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
@@ -184,7 +196,7 @@ class ScenarioRunner:
             return
 
         durations = {
-            "measurement_flow_process_duration": self._measurement_flow_process_duration,
+            'measurement_flow_process_duration': self._measurement_flow_process_duration,
             'pre_test_sleep': self._measurement_pre_test_sleep,
             'post_test_sleep': self._measurement_post_test_sleep,
             'idle_duration': self._measurement_idle_duration,
@@ -238,7 +250,6 @@ class ScenarioRunner:
             return filename
 
         raise FileNotFoundError(f"{path2} in {path} not found")
-
 
 
     def _initialize_folder(self, path):
@@ -461,7 +472,7 @@ class ScenarioRunner:
         # Disable Docker CLI hints (e.g. "What's Next? ...")
         os.environ['DOCKER_CLI_HINTS'] = 'false'
 
-    def _check_running_containers(self):
+    def _check_running_containers_before_start(self):
         result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
@@ -476,6 +487,61 @@ class ScenarioRunner:
 
                     if running_container == container_name:
                         raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
+
+    def _check_container_is_running(self, container_name: str, step_description: str, image_name: str | None = None):
+        check_ps = subprocess.run(['docker', 'ps', '-q', '-f', f'name={container_name}'],
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE,
+                                  check=False, encoding='UTF-8')
+        if not check_ps.stdout.strip():
+            # Container not running - this is an error condition that requires raising an exception
+            logs_ps = subprocess.run(
+                ['docker', 'logs', container_name],
+                check=False,
+                capture_output=True,
+                encoding='UTF-8'
+            )
+            inspect_ps = subprocess.run(
+                ['docker', 'inspect', '--format={{.State.ExitCode}}', container_name],
+                check=False,
+                capture_output=True,
+                encoding='UTF-8'
+            )
+            exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
+
+            if exit_code == "0":
+                # Container exited with a successful exit code
+                raise RuntimeError(f"Container '{container_name}' exited during {step_description} (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+            else:
+                # Container failed with non-zero or unknown exit code
+                if not image_name:
+                    image_ps = subprocess.run(
+                        ['docker', 'inspect', '--format={{.Config.Image}}', container_name],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False
+                        )
+                    if image_ps.returncode != 0:
+                        raise RuntimeError(f"Container '{container_name}' failed during {step_description} but could not retrieve image information for architecture compatibility check. Docker inspect error: {image_ps.stderr.strip()}")
+                    image_name = image_ps.stdout.strip()
+
+                compatibility_info = container_compatibility.check_image_architecture_compatibility(image_name)
+                compatibility_status = compatibility_info['status']
+
+                if compatibility_status == CompatibilityStatus.INCOMPATIBLE:
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}' and emulation is not available.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                elif compatibility_status == CompatibilityStatus.EMULATED:
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description}, possibly due to emulation issues (exit code: {exit_code}). Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}'. Container was running via emulation.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                else:
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+
+    def _check_running_containers_after_boot_phase(self):
+        self._check_running_containers("boot phase")
+
+    def _check_running_containers_after_runtime_phase(self):
+        self._check_running_containers("runtime phase")
+
+    def _check_running_containers(self, step_description: str):
+        for container_info in self.__containers.values():
+            self._check_container_is_running(container_info['name'], step_description)
 
     def _populate_image_names(self):
         for service_name, service in self._usage_scenario.get('services', {}).items():
@@ -502,7 +568,14 @@ class ScenarioRunner:
         if self._full_docker_prune:
             print(TerminalColors.HEADER, '\nStopping and removing all containers, build caches, volumes and images on the system', TerminalColors.ENDC)
             subprocess.run('docker ps -aq | xargs docker stop', shell=True, check=False)
-            subprocess.run('docker images --format "{{.ID}}" | xargs docker rmi -f', shell=True, check=False)
+            # Prune all images except Kaniko.
+            # It will be downloaded again anyway, so no need to prune it
+            subprocess.run("""
+                docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" \
+                | grep -v "gcr.io/kaniko-project/executor" \
+                | awk '{print $2}' \
+                | xargs docker rmi -f
+                """, shell=True, check=False)
             subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
         elif self._docker_prune:
             print(TerminalColors.HEADER, '\nRemoving all unassociated build caches, networks volumes and stopped containers on the system', TerminalColors.ENDC)
@@ -640,12 +713,6 @@ class ScenarioRunner:
 
     def _download_dependencies(self):
         print(TerminalColors.HEADER, '\nDownloading dependencies', TerminalColors.ENDC)
-
-        if self._dev_cache_build:
-            print('Skipping downloading dependencies due to --dev-cache-build')
-            return
-
-        print(TerminalColors.HEADER, '\nDownloading dependencies', TerminalColors.ENDC)
         subprocess.run(['docker', 'pull', 'gcr.io/kaniko-project/executor:latest'], check=True)
 
     def _get_build_info(self, service):
@@ -669,6 +736,8 @@ class ScenarioRunner:
 
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
+
+        config = GlobalConfig().config
 
         # Create directory /tmp/green-metrics-tool/docker_images
         temp_dir = f"{self._tmp_folder}/docker_images"
@@ -706,18 +775,26 @@ class ScenarioRunner:
                 context_path = self._join_paths(self.__working_folder, context)
                 self._join_paths(context_path, dockerfile)
 
+                repo_mount_path = service.get('folder-destination', '/tmp/repo')
+
                 docker_build_command = ['docker', 'run', '--rm',
                     '-v', '/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                    '-v', f"{self._repo_folder}:/tmp/repo:ro", # this is the folder where the usage_scenario is!
+                    '-v', f"{self._repo_folder}:{repo_mount_path}:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
-                    f"--dockerfile=/tmp/repo/{self.__working_folder_rel}/{context}/{dockerfile}",
-                    '--context', f'dir:///tmp/repo/{self.__working_folder_rel}/{context}',
+                    f"--dockerfile={repo_mount_path}/{self.__working_folder_rel}/{context}/{dockerfile}",
+                    '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
+                    '--registry-mirror', config['container_registry']['hostname'],
                     '--cleanup=true',
                     '--no-push']
+
+                if config['container_registry']['insecure']:
+                    docker_build_command.append('--insecure-pull')
+                    docker_build_command.append('--insecure-registry')
+                    docker_build_command.append(config['container_registry']['hostname'])
 
                 if self.__docker_params:
                     docker_build_command[2:2] = self.__docker_params
@@ -745,11 +822,30 @@ class ScenarioRunner:
             else:
                 print(f"Pulling {service['image']}")
                 self.__notes_helper.add_note( note="Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
-                ps = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+
+                slash_splitted_image_name = service['image'].split('/')
+                if '.' in slash_splitted_image_name[0]: # we have already a set registry
+                    container_registry_uri_with_image = service['image']
+                elif len(slash_splitted_image_name) > 1: # we have a namespace in the image
+                    container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{service['image']}"
+                else: # we have no registry or namespace and need to add the defaults of our configured registry
+                    container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{config['container_registry']['default_namespace']}/{service['image']}"
+                print(['docker', 'pull', container_registry_uri_with_image])
+
+                ps = subprocess.run(['docker', 'pull', container_registry_uri_with_image], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
-                    if __name__ == '__main__':
+
+                    # Check if it's an architecture mismatch error
+                    stderr_lower = ps.stderr.lower()
+                    if "no matching manifest" in stderr_lower:
+                        # This is definitely an architecture mismatch - create appropriate error
+                        host_arch = container_compatibility.get_native_architecture()
+                        raise RuntimeError(f"Architecture incompatibility detected: Docker image '{service['image']}' is not available for host architecture '{host_arch}'")
+
+                    # Handle other Docker pull failures
+                    if sys.stdin.isatty():
                         print(TerminalColors.OKCYAN, '\nThe docker image could not be pulled. Since you are working locally we can try looking in your local images. Do you want that? (y/N).', TerminalColors.ENDC)
                         if sys.stdin.readline().strip().lower() == 'y':
                             try:
@@ -759,15 +855,15 @@ class ScenarioRunner:
                                                          encoding='UTF-8',
                                                          check=True)
                                 print('Docker image found locally. Tagging now for use in cached runs ...')
-                            except subprocess.CalledProcessError:
-                                raise OSError(f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}") from subprocess.CalledProcessError
+                            except subprocess.CalledProcessError as e:
+                                raise OSError(f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}") from e
                         else:
                             raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
                     else:
                         raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
                 # tagging must be done in pull and local case, so we can get the correct container later
-                subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
+                subprocess.run(['docker', 'tag', container_registry_uri_with_image, tmp_img_name], check=True)
 
 
         # Delete the directory /tmp/gmt_docker_images
@@ -823,6 +919,8 @@ class ScenarioRunner:
         if 'networks' in self._usage_scenario:
             print(TerminalColors.HEADER, '\nSetting up networks', TerminalColors.ENDC)
             for network in self._usage_scenario['networks']:
+                if network in ('host', 'bridge', 'none'):
+                    raise ValueError('Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined.')
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
@@ -906,12 +1004,10 @@ class ScenarioRunner:
             docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
 
             docker_run_string.append('-v')
-            if 'folder-destination' in service:
-                 # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                docker_run_string.append(f"{self._repo_folder}:{service['folder-destination']}:ro")
-            else:
-                 # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                docker_run_string.append(f"{self._repo_folder}:/tmp/repo:ro")
+
+            repo_mount_path = service.get('folder-destination', '/tmp/repo')
+            # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
+            docker_run_string.append(f"{self._repo_folder}:{repo_mount_path}:ro")
 
             if self.__docker_params:
                 docker_run_string[2:2] = self.__docker_params
@@ -1064,11 +1160,15 @@ class ScenarioRunner:
 
             if 'networks' in service:
                 for network in service['networks']:
+                    if network == 'host' and not self._allow_unsafe:
+                        raise ValueError('Docker network host is restricted in GMT and cannot be joined. If running in CLI mode or if you have cluster capabilities try again with --allow-unsafe.')
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
                     if isinstance(service['networks'], dict) and service['networks'][network]:
                         if service['networks'][network].get('aliases', None):
                             for alias in service['networks'][network]['aliases']:
+                                if alias == 'host' and not self._allow_unsafe:
+                                    raise ValueError('Docker network host is restricted in GMT and cannot be aliased. If running in CLI mode or if you have cluster capabilities try again with --allow-unsafe.')
                                 docker_run_string.append('--network-alias')
                                 docker_run_string.append(alias)
                                 print(f"Adding network alias {alias} for network {network} in service {service_name}")
@@ -1156,7 +1256,34 @@ class ScenarioRunner:
                     # empty entrypoint -> default entrypoint will be ignored
                     docker_run_string.append('--entrypoint=')
 
-            docker_run_string.append(self._clean_image_name(service['image']))
+            clean_image_name = self._clean_image_name(service['image'])
+
+            # Architecture compatibility must be checked before docker run execution.
+            # While docker pull has an architecture check, it only catches images with no
+            # compatible manifest at all - the architecture of the used tag or hash digest
+            # may still be incompatible.
+            # Docker run exits with 0 even on incompatible architectures without '--platform',
+            # requiring post-run checks with pauses to detect failures. Using '--platform'
+            # prevents Docker emulation support, so we check compatibility upfront to fail
+            # fast on incompatible images while allowing emulated execution when supported.
+            print('Checking image architecture compatibility...')
+            compatibility_info = container_compatibility.check_image_architecture_compatibility(clean_image_name)
+            compatibility_status = compatibility_info['status']
+            image_arch = compatibility_info['image_arch']
+            host_arch = compatibility_info['host_arch']
+
+            if compatibility_status == CompatibilityStatus.INCOMPATIBLE:
+                # Image cannot run at all - fail immediately with clear error
+                raise RuntimeError(f"Container '{container_name}' cannot run due to architecture incompatibility. Image architecture is '{image_arch}' but host architecture is '{host_arch}' and emulation is not available.")
+            elif compatibility_status == CompatibilityStatus.EMULATED:
+                # Image can run via emulation - add warning but allow Docker to handle it
+                self.__warnings.append(f"Container '{container_name}' will run with architecture emulation. Image architecture is '{image_arch}' but host architecture is '{host_arch}'. This may impact performance.")
+                print(f"Warning: Container will use emulation (image: {image_arch}, host: {host_arch})")
+            elif compatibility_status == CompatibilityStatus.NATIVE:
+                # Native compatibility - no action needed
+                print(f"Architecture compatible: {image_arch} (native)")
+
+            docker_run_string.append(clean_image_name)
 
             # This is because only the first argument in the list is the command, the rest are arguments which need to come after
             # the service name but before the commands
@@ -1254,10 +1381,11 @@ class ScenarioRunner:
             container_id = ps.stdout.strip()
             self.__containers[container_id] = {
                 'name': container_name,
-                'log-stdout': service.get('log-stdout', False),
+                'log-stdout': service.get('log-stdout', True),
                 'log-stderr': service.get('log-stderr', True),
                 'read-notes-stdout': service.get('read-notes-stdout', False),
                 'read-sci-stdout': service.get('read-sci-stdout', False),
+                'docker_run_cmd': docker_run_string,
             }
 
             print('Stdout:', container_id)
@@ -1293,12 +1421,15 @@ class ScenarioRunner:
                     # injection of unwawnted params
                     ps = subprocess.run(
                         d_command,
-                        check=True,
+                        check=False,
                         stderr=subprocess.PIPE,
                         stdout=subprocess.PIPE,
                         encoding='UTF-8',
                         errors='replace',
                     )
+
+                    if ps.returncode != 0:
+                        raise RuntimeError(f"Process {d_command} failed.\n\nStdout: {ps.stdout}\nStderr: {ps.stderr}")
 
                 self.__ps_to_read.append({
                     'cmd': d_command,
@@ -1311,22 +1442,60 @@ class ScenarioRunner:
                     'detach': cmd_obj.get('detach', False),
                 })
 
-        print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
+        container_names = [container_info['name'] for container_info in self.__containers.values()]
+        print(TerminalColors.HEADER, '\nStarted containers: ', container_names, TerminalColors.ENDC)
 
-    def _add_to_current_run_log(self, identifier, message):
-        self.__current_run_logs.append(f"{identifier}\n{message}")
+    def _add_to_current_run_log(self, container_name, log_type, log_id, cmd, phase, stdout=None, stderr=None, flow=None, exception_class=None):
+        """Add a structured log entry to the current run logs.
+        
+        Args:
+            container_name: Name of the container or '[SYSTEM]' for system logs
+            log_type: LogType enum value
+            log_id: ID of the process (from id(ps) or id(exception))
+            cmd: Command that was executed
+            phase: Phase like '[BOOT]', '[RUNTIME]', etc. '[MULTIPLE]', if the logs were collected over multiple phases. [UNKNOWN] is unknown.
+            stdout: Standard output (optional)
+            stderr: Standard error (optional)
+            flow: Flow name for flow_command type (optional)
+            exception_class: Exception class name for exception type (optional)
+        """
+        if container_name not in self.__current_run_logs:
+            self.__current_run_logs[container_name] = []
+
+        command_string = ' '.join(cmd) if isinstance(cmd, list) else str(cmd)
+
+        log_entry = {
+            'type': log_type.value,
+            'id': str(log_id),
+            'cmd': command_string,
+            'phase': phase
+        }
+
+        if stdout is not None:
+            log_entry['stdout'] = stdout
+        if stderr is not None:
+            log_entry['stderr'] = stderr
+        if flow is not None:
+            log_entry['flow'] = flow
+        if exception_class is not None:
+            log_entry['exception_class'] = exception_class
+
+        self.__current_run_logs[container_name].append(log_entry)
 
     def _get_all_run_logs(self):
         """
         Returns accumulated logs from all runs in the current session.
-        
+
         This method provides read-only access to logs collected across multiple runs
-        when using --iterations > 1 or multiple filenames. Each run's logs are preserved 
+        when using --iterations > 1 or multiple filenames. Each run's logs are preserved
         and accumulated to support the --print-logs functionality.
-        
+
         Returns:
-            list: All log entries from current session, where each entry is a formatted
-                  string containing identifier and message content
+            list: All log entries from current session in enhanced structure.
+                  Each list item is a run object containing:
+                    - 'iteration': iteration number for this filename
+                    - 'filename': the scenario filename that was executed
+                    - 'containers': dict with container names as keys and log lists as values
         """
         return self.__all_runs_logs
 
@@ -1460,77 +1629,96 @@ class ScenarioRunner:
                     if 'note' in cmd_obj:
                         self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=flow['container'], timestamp=int(time.time_ns() / 1_000))
 
-                    if cmd_obj['type'] == 'console':
-                        print(TerminalColors.HEADER, '\nConsole command', cmd_obj['command'], 'on container', flow['container'], TerminalColors.ENDC)
+                    print(TerminalColors.HEADER, '\n', cmd_obj['type'], 'command:', cmd_obj['command'], 'on container', flow['container'], TerminalColors.ENDC)
 
-                        docker_exec_command = ['docker', 'exec']
+                    docker_exec_command = ['docker', 'exec']
+                    docker_exec_command.append(flow['container'])
+                    stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
+                    if cmd_obj.get('log-stdout', True):
+                        stdout_behaviour = subprocess.PIPE
+                    if cmd_obj.get('log-stderr', True):
+                        stderr_behaviour = subprocess.PIPE
 
-                        docker_exec_command.append(flow['container'])
+                    if cmd_obj['type'] == 'playwright':
+                        docker_exec_command.append(cmd_obj.get('shell', 'sh'))
+                        docker_exec_command.append('-c')
+                        escaped_command = cmd_obj['command'].replace("'", "\\'")
+                        docker_exec_command.append(f"echo '{escaped_command}' > /tmp/playwright-ipc-commands")
+
+                    elif cmd_obj['type'] == 'console':
+
                         if shell := cmd_obj.get('shell', False):
                             docker_exec_command.append(shell)
                             docker_exec_command.append('-c')
                             docker_exec_command.append(cmd_obj['command'])
                         else:
                             docker_exec_command.extend(shlex.split(cmd_obj['command']))
-
-                        # Note: In case of a detach wish in the usage_scenario.yml:
-                        # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
-                        # Since Popen always make the process asynchronous we can leverage this to emulate a detached
-                        # behavior
-
-                        stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
-                        if cmd_obj.get('log-stdout', False):
-                            stdout_behaviour = subprocess.PIPE
-                        if cmd_obj.get('log-stderr', True):
-                            stderr_behaviour = subprocess.PIPE
-
-
-                        if cmd_obj.get('detach', False) is True:
-                            print('Executing process asynchronously and detaching ...')
-                            #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
-                            ps = subprocess.Popen(
-                                docker_exec_command,
-                                stderr=stderr_behaviour,
-                                stdout=stdout_behaviour,
-                                preexec_fn=os.setsid,
-                                encoding='UTF-8',
-                                errors='replace',
-                            )
-                            if stderr_behaviour == subprocess.PIPE:
-                                os.set_blocking(ps.stderr.fileno(), False)
-                            if  stdout_behaviour == subprocess.PIPE:
-                                os.set_blocking(ps.stdout.fileno(), False)
-
-                            ps_to_kill_tmp.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
-                        else:
-                            print('Executing process synchronously.')
-                            if self._measurement_flow_process_duration:
-                                print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
-
-                            ps = subprocess.run(
-                                docker_exec_command,
-                                stderr=stderr_behaviour,
-                                stdout=stdout_behaviour,
-                                encoding='UTF-8',
-                                errors='replace',
-                                check=False, # cause it will be checked later and also ignore-errors checked
-                                timeout=self._measurement_flow_process_duration,
-                            )
-
-                        ps_to_read_tmp.append({
-                            'cmd': docker_exec_command,
-                            'ps': ps,
-                            'container_name': flow['container'],
-                            'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
-                            'ignore-errors': cmd_obj.get('ignore-errors', False),
-                            'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
-                            'detail_name': flow['container'],
-                            'detach': cmd_obj.get('detach', False),
-                        })
-
-
                     else:
                         raise RuntimeError('Unknown command type in flow: ', cmd_obj['type'])
+
+
+                    if cmd_obj.get('detach', False) is True and cmd_obj['type'] == 'playwright':
+                        raise ValueError('Playwright commands cannot be executed detached, as they must be awaited')
+                    elif cmd_obj.get('detach', False) is True:
+                        print('Executing process asynchronously and detaching ...')
+                        # Note: In case of a detach wish in the usage_scenario.yml:
+                        # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
+                        # Since Popen always make the process asynchronous we can leverage this to emulate a detached behavior
+
+                        #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
+                        ps = subprocess.Popen(
+                            docker_exec_command,
+                            stderr=stderr_behaviour,
+                            stdout=stdout_behaviour,
+                            preexec_fn=os.setsid,
+                            encoding='UTF-8',
+                            errors='replace',
+                        )
+                        if stderr_behaviour == subprocess.PIPE:
+                            os.set_blocking(ps.stderr.fileno(), False)
+                        if  stdout_behaviour == subprocess.PIPE:
+                            os.set_blocking(ps.stdout.fileno(), False)
+
+                        ps_to_kill_tmp.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
+                    else:
+                        print('Executing process synchronously.')
+                        if self._measurement_flow_process_duration:
+                            print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
+
+                        ps = subprocess.run(
+                            docker_exec_command,
+                            stderr=stderr_behaviour,
+                            stdout=stdout_behaviour,
+                            encoding='UTF-8',
+                            errors='replace',
+                            check=False, # cause it will be checked later and also ignore-errors checked
+                            timeout=self._measurement_flow_process_duration,
+                        )
+
+                    ps_to_read_tmp.append({
+                        'cmd': docker_exec_command,
+                        'ps': ps,
+                        'container_name': flow['container'],
+                        'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
+                        'ignore-errors': cmd_obj.get('ignore-errors', False),
+                        'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
+                        'detail_name': flow['container'],
+                        'detach': cmd_obj.get('detach', False),
+                        'flow_name': flow['name'],
+                    })
+
+                    # we need to check the ready IPC endpoint to find out if the process is done
+                    # this command will block until something is received
+                    if cmd_obj['type'] == 'playwright':
+                        print("Awaiting Playwright function return")
+                        ps = subprocess.run(
+                            ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
+                            check=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            timeout=60, # 60 seconds should be reasonable for any playwright command we know
+                        )
+
 
                     if self._debugger.active:
                         self._debugger.pause('Waiting to start next command in flow')
@@ -1630,6 +1818,37 @@ class ScenarioRunner:
         if errors:
             raise RuntimeError("\n".join(errors))
 
+    def _handle_process_output(self, stdout, stderr, container_name, log_type,
+                              log_id, cmd, phase, flow=None,
+                              read_notes_stdout=False, read_sci_stdout=False,
+                              detail_name=None):
+        # Only create log entries if there's actual content
+        has_stdout = stdout is not None and stdout.strip()
+        has_stderr = stderr is not None and stderr.strip()
+
+        if has_stdout or has_stderr:
+            if has_stdout and log_type != LogType.CONTAINER_EXECUTION:
+                print('stdout from process:', cmd, stdout)
+            if has_stderr and log_type != LogType.CONTAINER_EXECUTION:
+                print('stderr from process:', cmd, stderr)
+
+            self._add_to_current_run_log(
+                container_name=container_name,
+                log_type=log_type,
+                log_id=log_id,
+                cmd=cmd,
+                phase=phase,
+                stdout=stdout if has_stdout else None,
+                stderr=stderr if has_stderr else None,
+                flow=flow
+            )
+
+            if has_stdout and read_notes_stdout:
+                self.__notes_helper.parse_and_add_notes(detail_name or container_name, stdout)
+
+            if has_stdout and read_sci_stdout:
+                for match in re.findall(r'^GMT_SCI_R=(\d+)$', stdout, re.MULTILINE):
+                    self._sci['R'] += int(match)
 
     def _read_and_cleanup_processes(self):
         print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
@@ -1650,20 +1869,28 @@ class ScenarioRunner:
                 stdout = ps['ps'].stdout
                 stderr = ps['ps'].stderr
 
-            if stdout is not None:
-                print('stdout from process:', ps['cmd'], stdout)
-                self._add_to_current_run_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDOUT", stdout)
+            log_type = LogType.FLOW_COMMAND if ps.get('flow_name') else LogType.SETUP_COMMAND
+            match log_type:
+                case LogType.FLOW_COMMAND:
+                    phase = '[RUNTIME]'
+                case LogType.SETUP_COMMAND:
+                    phase = '[BOOT]'
+                case _:
+                    phase = '[UNKNOWN]'
 
-                if ps['read-notes-stdout']:
-                    self.__notes_helper.parse_and_add_notes(ps['detail_name'], stdout)
-
-                if ps['read-sci-stdout']:
-                    for match in re.findall(r'^GMT_SCI_R=(\d+)$', stdout, re.MULTILINE):
-                        self._sci['R'] += int(match)
-
-            if stderr is not None:
-                print('stderr from process:', ps['cmd'], stderr)
-                self._add_to_current_run_log(f"{ps['container_name']} (ID: {id(ps['ps'])}; CMD: {ps['cmd']}); STDERR", stderr)
+            self._handle_process_output(
+                stdout=stdout,
+                stderr=stderr,
+                container_name=ps['container_name'],
+                log_type=log_type,
+                log_id=id(ps['ps']),
+                cmd=ps['cmd'],
+                phase=phase,
+                flow=ps.get('flow_name'),
+                read_notes_stdout=ps['read-notes-stdout'],
+                read_sci_stdout=ps['read-sci-stdout'],
+                detail_name=ps['detail_name']
+            )
 
     def _check_process_returncodes(self):
         print(TerminalColors.HEADER, '\nChecking process return codes', TerminalColors.ENDC)
@@ -1765,18 +1992,17 @@ class ScenarioRunner:
                 stderr=stderr_behaviour,
             )
 
-            if log.stdout is not None:
-                self._add_to_current_run_log(f"{container_info['name']} (STDOUT)", log.stdout)
-
-                if container_info['read-notes-stdout']:
-                    self.__notes_helper.parse_and_add_notes(container_info['name'], log.stdout)
-
-                if container_info['read-sci-stdout']:
-                    for match in re.findall(r'^GMT_SCI_R=(\d+)$', log.stdout, re.MULTILINE):
-                        self._sci['R'] += int(match)
-
-            if log.stderr is not None:
-                self._add_to_current_run_log(f"{container_info['name']} (STDERR)", log.stderr)
+            self._handle_process_output(
+                stdout=log.stdout,
+                stderr=log.stderr,
+                container_name=container_info['name'],
+                log_type=LogType.CONTAINER_EXECUTION,
+                log_id=id(log),
+                cmd=container_info['docker_run_cmd'],
+                phase='[MULTIPLE]', # the container logs were collected usually over multiple phases: [BOOT], [IDLE], [RUNTIME]
+                read_notes_stdout=container_info['read-notes-stdout'],
+                read_sci_stdout=container_info['read-sci-stdout']
+            )
 
     def _save_run_logs(self):
         print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
@@ -1785,14 +2011,14 @@ class ScenarioRunner:
             print('Skipping savings logs to DB due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        logs_as_str = '\n\n'.join(self.__current_run_logs)
-        logs_as_str = logs_as_str.replace('\x00','')
-        if logs_as_str:
+        if self.__current_run_logs:
+            logs_as_json = json.dumps(self.__current_run_logs, separators=(',', ':'))  # Compact JSON for efficient storage
+            logs_as_json = logs_as_json.replace('\x00','')
             DB().query("""
                 UPDATE runs
-                SET logs = COALESCE(logs, '') || %s -- append
+                SET logs = COALESCE(logs, '{}'::jsonb) || %s::jsonb
                 WHERE id = %s
-                """, params=(logs_as_str, self._run_id))
+                """, params=(logs_as_json, self._run_id))
 
 
     # This function will be extended in the future to have more conditions
@@ -1856,7 +2082,15 @@ class ScenarioRunner:
                 getattr(self, method_name)(**args)
                 index += 1
         except BaseException as exc:
-            self._add_to_current_run_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
+            self._add_to_current_run_log(
+                container_name='[SYSTEM]',
+                log_type=LogType.EXCEPTION,
+                log_id=id(exc),
+                cmd='post_process',
+                phase='[CLEANUP]',
+                stderr=str(exc),
+                exception_class=exc.__class__.__name__
+            )
             self._set_run_failed()
             self._post_process(index+1)
             raise exc
@@ -1900,13 +2134,23 @@ class ScenarioRunner:
         self.__start_measurement_seconds = None
         self.__notes_helper = Notes()
 
-        # Copy current run's logs to cumulative logs before clearing
-        # Add run separator to distinguish between different runs/iterations
-        # The cumulative logs are used by --print-logs to show logs from all runs
-        if self.__current_run_logs:
-            if self.__all_runs_logs:  # Only add separator if there are already logs
-                self.__all_runs_logs.append(f"=== END OF RUN: {self._original_filename} ===")
-            self.__all_runs_logs.extend(self.__current_run_logs)
+        # Store current run in cumulative logs with iteration and filename tracking
+        # All runs are tracked regardless of log generation for consistent --print-logs output
+        filename = self._original_filename
+        iteration = 1
+        for existing_run in self.__all_runs_logs:
+            if existing_run['filename'] == filename:
+                iteration = max(iteration, existing_run['iteration'] + 1)
+
+        run_entry = {
+            'iteration': iteration,
+            'filename': filename,
+            'containers': {}
+        }
+
+        for container_name, logs in self.__current_run_logs.items():
+            run_entry['containers'][container_name] = logs.copy()
+        self.__all_runs_logs.append(run_entry)
 
         # Clear current run logs now that they've been copied to cumulative
         self.__current_run_logs.clear()
@@ -1953,7 +2197,7 @@ class ScenarioRunner:
             self._import_metric_providers()
             self._populate_image_names()
             self._prepare_docker()
-            self._check_running_containers()
+            self._check_running_containers_before_start()
             self._remove_docker_images()
             self._download_dependencies()
             self._initialize_run() # have this as close to the start of measurement
@@ -1986,6 +2230,8 @@ class ScenarioRunner:
             self._setup_networks()
             self._setup_services()
             self._end_phase('[BOOT]')
+
+            self._check_running_containers_after_boot_phase()
             self._check_process_returncodes()
 
             if self._debugger.active:
@@ -2009,6 +2255,8 @@ class ScenarioRunner:
             self._run_flows() # can trigger debug breakpoints;
             self._end_phase('[RUNTIME]')
 
+            self._check_running_containers_after_runtime_phase()
+
             if self._debugger.active:
                 self._debugger.pause('Container flows complete. Waiting to start remove phase')
 
@@ -2026,7 +2274,15 @@ class ScenarioRunner:
             self._identify_invalid_run()
 
         except BaseException as exc:
-            self._add_to_current_run_log(f"{exc.__class__.__name__} (ID: {id(exc)})", str(exc))
+            self._add_to_current_run_log(
+                container_name='[SYSTEM]',
+                log_type=LogType.EXCEPTION,
+                log_id=id(exc),
+                cmd='run_scenario',
+                phase='[RUNTIME]',
+                stderr=str(exc),
+                exception_class=exc.__class__.__name__
+            )
             self._set_run_failed()
             raise exc
         finally:

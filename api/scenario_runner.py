@@ -14,7 +14,7 @@ import anybadge
 from api.object_specifications import Software, JobChange
 from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics,
                          determine_comparison_case,get_comparison_details,
-                         html_escape_multi, get_phase_stats, get_phase_stats_object, check_run_failed,
+                         get_phase_stats, get_phase_stats_object, check_run_failed,
                          is_valid_uuid, convert_value, get_timeline_query,
                          get_run_info, get_machine_list, get_artifact, store_artifact,
                          authenticate, check_int_field_api)
@@ -142,7 +142,7 @@ async def update_job(
 
     status_message = DB().query(query, params)
     if status_message == 'UPDATE 1':
-        return Response(status_code=204) # No-Content
+        return Response(status_code=202) # Accepted - Further processing happening internally. Not technically correct, but processing in frontend easier.
     else:
         error_helpers.log_error('Job update did return unexpected result', params=params, status_message=status_message)
         raise RuntimeError('Could not update job due to database error')
@@ -168,8 +168,7 @@ async def get_notes(run_id, user: User = Depends(authenticate)):
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    escaped_data = [html_escape_multi(note) for note in data]
-    return ORJSONResponseObjKeep({'success': True, 'data': escaped_data})
+    return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 
 @router.get('/v1/warnings/{run_id}')
@@ -192,8 +191,7 @@ async def get_warnings(run_id, user: User = Depends(authenticate)):
     if data is None or data == []:
         return Response(status_code=204)
 
-    escaped_data = [html_escape_multi(note) for note in data]
-    return ORJSONResponseObjKeep({'success': True, 'data': escaped_data})
+    return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 
 @router.get('/v1/network/{run_id}')
@@ -213,8 +211,7 @@ async def get_network(run_id, user: User = Depends(authenticate)):
     params = (user.is_super_user(), user.visible_users(), run_id)
     data = DB().fetch_all(query, params=params)
 
-    escaped_data = html_escape_multi(data)
-    return ORJSONResponseObjKeep({'success': True, 'data': escaped_data})
+    return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 
 @router.get('/v1/repositories')
@@ -262,9 +259,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    escaped_data = [html_escape_multi(run) for run in data]
-
-    return ORJSONResponse({'success': True, 'data': escaped_data})
+    return ORJSONResponse({'success': True, 'data': data})
 
 
 @router.get('/v1/runs', deprecated=True)
@@ -330,9 +325,7 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    escaped_data = [html_escape_multi(run) for run in data]
-
-    return ORJSONResponse({'success': True, 'data': escaped_data})
+    return ORJSONResponse({'success': True, 'data': data})
 
 
 # Just copy and paste if we want to deprecate URLs
@@ -714,8 +707,6 @@ async def get_watchlist(user: User = Depends(authenticate)):
 @router.post('/v1/software/add')
 async def software_add(software: Software, user: User = Depends(authenticate)):
 
-    software = html_escape_multi(software)
-
     if software.name is None or software.name.strip() == '':
         raise RequestValidationError('Name is empty')
 
@@ -798,8 +789,6 @@ async def get_run(run_id: str, user: User = Depends(authenticate)):
 
     if data is None or data == []:
         return Response(status_code=204) # No-Content
-
-    data = html_escape_multi(data)
 
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 

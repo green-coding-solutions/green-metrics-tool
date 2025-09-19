@@ -213,7 +213,7 @@ if __name__ == '__main__':
             if job:
                 set_status('job_start', run_id=job._run_id)
                 try:
-                    job.process(docker_prune=True)
+                    job.process(docker_prune=config['cluster']['client']['docker_prune'], full_docker_prune=config['cluster']['client']['full_docker_prune'])
                     set_status('job_end', run_id=job._run_id)
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
                     set_status('job_error', data=str(exc), run_id=job._run_id)
@@ -246,7 +246,7 @@ if __name__ == '__main__':
                             user_id=job._user_id,
                             email=job._email,
                             name='Measurement Job on Green Metrics Tool Cluster failed',
-                            message=f"Run-ID: {job._run_id}\nName: {job._name}\nMachine: {job._machine_description}\n\nDetails can also be found in the log under: {config['cluster']['metrics_url']}/stats.html?id={job._run_id}\n\nError message: {exc.__context__}\n{exc}\n"
+                            message=f"Run-ID: {job._run_id}\nName: {job._name}\nMachine: {job._machine_description}\n\nDetails can also be found in the log under: {config['cluster']['metrics_url']}/stats.html?id={job._run_id}\n\nError message: {exc.__context__}\n{exc}\n\nStdout:{exc.stdout if hasattr(exc, 'stdout') else None}\nStderr:{exc.stderr if hasattr(exc, 'stderr') else None}\n"
                         )
                 finally: # run periodic maintenance with cleanup in between every run
                     if not args.testing:
@@ -271,3 +271,6 @@ if __name__ == '__main__':
         pass
     except BaseException as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception_context=exc.__context__, last_exception=exc, machine=config['machine']['description'])
+
+    DB().shutdown()
+

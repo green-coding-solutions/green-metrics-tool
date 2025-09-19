@@ -106,21 +106,6 @@ if __name__ == '__main__':
             key, value = var.split('=', maxsplit=1)
             variables_dict[key] = value
 
-    if args.allow_unsafe and args.skip_unsafe:
-        parser.print_help()
-        error_helpers.log_error('--allow-unsafe and skip--unsafe in conjuction is not possible')
-        sys.exit(1)
-
-    if args.dev_cache_build and (args.docker_prune or args.full_docker_prune):
-        parser.print_help()
-        error_helpers.log_error('--dev-cache-build blocks pruning docker images. Combination is not allowed')
-        sys.exit(1)
-
-    if args.full_docker_prune and GlobalConfig().config['postgresql']['host'] == 'green-coding-postgres-container':
-        parser.print_help()
-        error_helpers.log_error('--full-docker-prune is set while your database host is "green-coding-postgres-container".\nThe switch is only for remote measuring machines. It would stop the GMT images itself when running locally')
-        sys.exit(1)
-
     if args.config_override is not None:
         if args.config_override[-4:] != '.yml':
             parser.print_help()
@@ -242,8 +227,21 @@ if __name__ == '__main__':
             logs = runner._get_all_run_logs()
             if logs:
                 print("Container logs:")
-                for log_entry in logs:
-                    print(log_entry)
+                for run_index, run_data in enumerate(logs):
+                    iteration = run_data.get('iteration', 'unknown')
+                    filename = run_data.get('filename', 'unknown')
+                    containers = run_data.get('containers', {})
+
+                    print(f"=== Run {run_index + 1}: {filename} (iteration {iteration}) ===")
+
+                    for container_name, log_entries in containers.items():
+                        print(f"--- Container: {container_name} ---")
+                        for log_entry in log_entries:
+                            log_type = log_entry.get('type', 'unknown')
+                            if "stdout" in log_entry:
+                                print(f"STDOUT ({log_type}):\n{log_entry['stdout']}")
+                            if "stderr" in log_entry:
+                                print(f"STDERR ({log_type}):\n{log_entry['stderr']}")
                     print('-----------------------------')
                 print()
 

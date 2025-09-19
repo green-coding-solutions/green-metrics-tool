@@ -87,7 +87,7 @@ const fetchAndFillRunData = async (url_params) => {
 
     for (const item in run_data) {
         if (item == 'machine_id') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]} (${GMT_MACHINES[run_data?.[item]] || run_data?.[item]})</td></tr>`);
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])} (${escapeString(GMT_MACHINES[run_data?.[item]] || run_data?.[item])})</td></tr>`);
         } else if (item == 'runner_arguments') {
             fillRunTab('#runner-arguments', run_data[item]); // recurse
         } else if (item == 'machine_specs') {
@@ -99,15 +99,32 @@ const fetchAndFillRunData = async (url_params) => {
             if (Object.keys(run_data[item]).length > 0) {
                 const container = document.querySelector("#usage-scenario-variables ul");
                 for (const key in run_data[item]) {
-                    container.insertAdjacentHTML('beforeend', `<li><span class="ui label">${key}=${run_data[item][key]}</span></li>`)
+                    container.insertAdjacentHTML('beforeend', `<li><span class="ui label">${escapeString(key)}=${escapeString(run_data[item][key])}</span></li>`)
                 }
             } else {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
 
-        } else if(item == 'logs' && run_data?.[item] != null) {
-            // textContent does escaping for us
-            document.querySelector("#logs").textContent = run_data[item];
+        } else if(item == 'logs') {
+            const logsData = run_data[item];
+            if (logsData === null) {
+                // Display simple message indicating no output was produced
+                document.querySelector("#logs").innerHTML = '<pre>Run did not produce any logs to be captured</pre>';
+            } else if (typeof logsData === 'object' && logsData !== null) {
+                // Handle JSON structure logs
+                // Check first if any logs have type 'legacy' - if so, render as simple text instead of structured interface
+                const hasLegacyLogs = Object.values(logsData).some(containerLogs =>
+                    Array.isArray(containerLogs) && containerLogs.some(log => log.type === 'legacy')
+                );
+                if (!hasLegacyLogs) {
+                    renderLogsInterface(logsData);
+                } else {
+                    renderLegacyLogsFromJson(logsData);
+                }
+            } else {
+                // Handle legacy plain text logs (pre-JSON structure)
+                displayLegacyLogs(run_data[item]);
+            }
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
         } else if(item == 'phases' || item == 'id') {
@@ -115,23 +132,30 @@ const fetchAndFillRunData = async (url_params) => {
         }  else if(item == 'commit_hash') {
             if (run_data?.[item] == null) continue; // some old runs did not save it
             let commit_link = buildCommitLink(run_data);
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${commit_link}" target="_blank">${run_data?.[item]}</a></td></tr>`)
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data?.[item])}</a></td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]}</td></tr>`)
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])}</td></tr>`)
         } else if(item == 'failed' && run_data?.[item] == true) {
             document.querySelector('#run-failed').classList.remove('hidden');
         } else if(item == 'start_measurement' || item == 'end_measurement') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td title="${run_data?.[item]}">${new Date(run_data?.[item] / 1e3)}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data?.[item])}">${new Date(run_data?.[item] / 1e3)}</td></tr>`)
         } else if(item == 'created_at' ) {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td title="${run_data?.[item]}">${new Date(run_data?.[item])}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data?.[item])}">${new Date(run_data?.[item])}</td></tr>`)
         } else if(item == 'gmt_hash') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data?.[item]}">${run_data?.[item]}</a></td></tr>`);
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data?.[item]}">${escapeString(run_data?.[item])}</a></td></tr>`);
         } else if(item == 'uri') {
-            let entry = run_data?.[item];
-            if(run_data?.[item].indexOf('http') === 0) entry = `<a href="${run_data?.[item]}">${run_data?.[item]}</a>`;
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${entry}</td></tr>`);
+            const uri = run_data?.[item];
+            let uriDisplay;
+            if(uri.startsWith('http')) {
+                // URI is safe for href attribute: validated to have http/https protocol prevents XSS
+                // HTML escaping not needed here and would break URLs (e.g., & would become &amp;)
+                uriDisplay = `<a href="${uri}">${escapeString(uri)}</a>`;
+            } else {
+                uriDisplay = escapeString(uri);
+            }
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
         } else {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])}</td></tr>`)
         }
     }
 
@@ -163,13 +187,222 @@ const fillRunTab = async (selector, data, parent = '') => {
 
         if(data[item] != null && typeof data[item] == 'object') {
             if (parent == '') {
-                document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${item}</h2></strong></td><td></td></tr>`)
+                document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(item)}</h2></strong></td><td></td></tr>`)
             }
             fillRunTab(selector, data[item], `${item}.`)
         } else {
-            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${parent}${item}</strong></td><td>${data?.[item]}</td></tr>`)
+            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data?.[item])}</td></tr>`)
         }
     }
+}
+
+const displayLegacyLogs = (logData) => {
+    const logsElement = document.querySelector("#logs");
+    logsElement.innerHTML = `<pre>${escapeString(logData)}</pre>`;
+};
+
+const renderLegacyLogsFromJson = (logsData) => {
+    const legacyLogTemplate = `
+        <div class="ui segment">
+            <h4 class="ui header">{{containerName}}</h4>
+            <pre>{{stdout}}</pre>
+        </div>
+    `;
+
+    const logsElement = document.querySelector("#logs");
+    let contentHTML = '';
+
+    // actually, in the legacy case there is only one 'container' called "unified (legacy)"
+    // but to be on the safe side, still use loops for all lists in the JSON structure
+    Object.keys(logsData).forEach(containerName => {
+        const containerLogs = logsData[containerName];
+        containerLogs.forEach(logEntry => {
+            if (logEntry.stdout) {
+                contentHTML += legacyLogTemplate
+                    .replace('{{containerName}}', escapeString(containerName))
+                    .replace('{{stdout}}', escapeString(logEntry.stdout));
+            }
+        });
+    });
+
+    logsElement.innerHTML = contentHTML;
+};
+
+const renderLogsInterface = (logsData) => {
+    const containerTemplate = `
+        <div class="title">
+            <i class="dropdown icon"></i><i class="server icon"></i> {{containerName}}
+            <div class="ui mini label">{{logCount}} log{{logPlural}}</div>
+        </div>
+        <div class="content">{{content}}</div>
+    `;
+
+    const logCardTemplate = `
+        <div class="ui card fluid">
+            {{metadataContent}}
+            {{commandContent}}
+            {{stdoutContent}}
+            {{stderrContent}}
+        </div>
+    `;
+
+    const metadataTemplate = `
+        <div class="content">
+            <div class="header">
+                <div class="ui small labels">
+                    {{typeLabel}}
+                    {{flowLabel}}
+                    {{classLabel}}
+                    {{operationLabel}}
+                    {{phaseLabel}}
+                    {{idLabel}}
+                </div>
+            </div>
+        </div>
+    `;
+
+    const commandTemplate = `
+        <div class="content">
+            <h5 class="ui header"><i class="terminal icon"></i> Command</h5>
+            <div class="ui segment">
+                <code>{{command}}</code>
+            </div>
+        </div>
+    `;
+
+    const stdoutTemplate = `
+        <div class="content">
+            <h5 class="ui header"><i class="file text outline icon"></i> Standard Output</h5>
+            <div class="ui segment stdout">
+                <div>{{stdout}}</div>
+            </div>
+        </div>
+    `;
+
+    const stderrTemplate = `
+        <div class="content">
+            <h5 class="ui header"><i class="exclamation triangle icon"></i> Standard Error</h5>
+            <div class="ui segment stderr">
+                <div>{{stderr}}</div>
+            </div>
+        </div>
+    `;
+
+    const logsElement = document.querySelector("#logs");
+    let accordionHTML = '<div class="ui styled accordion">';
+
+    const containerNames = Object.keys(logsData);
+    // Display [SYSTEM] logs first
+    const systemIndex = containerNames.indexOf('[SYSTEM]');
+    if (systemIndex > -1) {
+        containerNames.splice(systemIndex, 1);
+        containerNames.unshift('[SYSTEM]');
+    }
+
+    containerNames.forEach(containerName => {
+        const containerLogs = logsData[containerName];
+
+        let contentHTML = '';
+        containerLogs.forEach(logEntry => {
+            let typeIcon, typeTooltip;
+            switch (logEntry.type) {
+                case 'container_execution':
+                    typeIcon = 'cog';
+                    typeTooltip = 'Logs from the entire container execution process';
+                    break;
+                case 'setup_commands':
+                    typeIcon = 'wrench';
+                    typeTooltip = 'Logs from setup commands before flow execution';
+                    break;
+                case 'flow_command':
+                    typeIcon = 'play';
+                    typeTooltip = 'Logs from a specific flow execution';
+                    break;
+                case 'network_stats':
+                    typeIcon = 'wifi';
+                    typeTooltip = 'Network connection statistics from tcpdump';
+                    break;
+                case 'exception':
+                    typeIcon = 'exclamation triangle';
+                    typeTooltip = 'An error occurred during execution';
+                    break;
+                default:
+                    typeIcon = 'question';
+                    typeTooltip = 'Logs from an unknown or custom execution type';
+                    break;
+            }
+
+            // Make the type name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
+            const typeTitle = escapeString(logEntry.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+            const typeLabel = `<div class="ui purple label" data-tooltip="${typeTooltip}" data-position="top center"><i class="${typeIcon} icon"></i> ${typeTitle}</div>`;
+
+            const phaseLabel = logEntry.phase ?
+                `<div class="ui blue label" data-tooltip="Execution phase when this command was run" data-position="top center"><i class="clock icon"></i> ${escapeString(logEntry.phase)}</div>` : '';
+
+            const flowLabel = logEntry.flow ?
+                `<div class="ui green label" data-tooltip="Flow this command belongs to" data-position="top center"><i class="sitemap icon"></i> ${escapeString(logEntry.flow)}</div>` : '';
+
+            const idLabel = `<div class="ui label" data-tooltip="Unique identifier for this log entry" data-position="top center"><i class="hashtag icon"></i> ID: ${escapeString(logEntry.id)}</div>`;
+
+            const stdoutContent = logEntry.stdout ?
+                stdoutTemplate.replace('{{stdout}}', escapeString(logEntry.stdout)) : '';
+
+            const stderrContent = logEntry.stderr ?
+                stderrTemplate.replace('{{stderr}}', escapeString(logEntry.stderr)) : '';
+
+            // Show different information if the type is exception
+            let operationLabel = '';
+            let classLabel = '';
+            if (logEntry.type === 'exception') {
+                let operationTooltip;
+                switch (logEntry.cmd) {
+                    case 'run_scenario':
+                        operationTooltip = 'Exception occurred during main scenario execution runtime';
+                        break;
+                    case 'post_process':
+                        operationTooltip = 'Exception occurred during cleanup and post-processing phase';
+                        break;
+                    default:
+                        operationTooltip = `Exception occurred during '${logEntry.cmd}' operation`;
+                }
+                // Make the operation name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
+                const operationTitle = escapeString(logEntry.cmd.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+                operationLabel = `<div class="ui orange label" data-tooltip="${operationTooltip}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
+
+                if (logEntry.exception_class) {
+                    classLabel = `<div class="ui red label" data-tooltip="Exception class type" data-position="top center"><i class="exclamation triangle icon"></i> ${escapeString(logEntry.exception_class)}</div>`;
+                }
+            }
+
+            const metadataContent = metadataTemplate
+                .replace('{{flowLabel}}', flowLabel)
+                .replace('{{typeLabel}}', typeLabel)
+                .replace('{{operationLabel}}', operationLabel)
+                .replace('{{classLabel}}', classLabel)
+                .replace('{{phaseLabel}}', phaseLabel)
+                .replace('{{idLabel}}', idLabel);
+
+            // For exceptions or empty/null commands, don't show the command section
+            const commandContent = (logEntry.type === 'exception' || !logEntry.cmd) ? '' :
+                commandTemplate.replace('{{command}}', escapeString(logEntry.cmd));
+
+                contentHTML += logCardTemplate
+                .replace('{{metadataContent}}', metadataContent)
+                .replace('{{commandContent}}', commandContent)
+                .replace('{{stdoutContent}}', stdoutContent)
+                .replace('{{stderrContent}}', stderrContent);
+        });
+
+        accordionHTML += containerTemplate
+            .replace('{{containerName}}', escapeString(containerName))
+            .replace('{{logCount}}', containerLogs.length)
+            .replace('{{logPlural}}', containerLogs.length === 1 ? '' : 's')
+            .replace('{{content}}', contentHTML);
+    });
+
+    accordionHTML += '</div>';
+    logsElement.innerHTML = accordionHTML;
+    $('.ui.accordion').accordion();
 }
 
 
@@ -284,7 +517,7 @@ const displayTimelineCharts = async (metrics, notes) => {
         let inner_counter = 0;
         if (notes != null) {
             notes.forEach(note => {
-                notes_labels.push({xAxis: note[3]/1000, label: {formatter: note[2], position: note_positions[inner_counter%2]}})
+                notes_labels.push({xAxis: note[3]/1000, label: {formatter: escapeString(note[2]), position: note_positions[inner_counter%2]}})
                 inner_counter++;
             });
         }
@@ -337,11 +570,11 @@ const renderBadges = async (url_params, phase_stats) => {
         badge_container.innerHTML += `
             <div class="inline field">
                 <a href="${METRICS_URL}/stats.html?id=${url_params['id']}">
-                    <img src="${API_URL}/v1/badge/single/${url_params['id']}?metric=${metric_name}" loading="lazy">
+                    <img src="${API_URL}/v1/badge/single/${url_params['id']}?metric=${encodeURIComponent(metric_name)}" loading="lazy">
                 </a>
                 <a class="copy-badge"><i class="copy icon"></i></a>
                 <div class="ui left pointing blue basic label">
-                    ${METRIC_MAPPINGS[metric_name]['explanation']}
+                    ${escapeString(METRIC_MAPPINGS[metric_name]['explanation'])}
                 </div>
             </div>
             <hr class="ui divider"></hr>`;
@@ -391,7 +624,7 @@ const fetchAndFillNetworkIntercepts = async (url_params) => {
     } else {
         for (const item of network.data) {
             const date = (new Date(Number(item[2]))).toLocaleString();
-            document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${date}</strong></td><td>${item[3]}</td><td>${item[4]}</td></tr>`)
+            document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(date)}</strong></td><td>${escapeString(item[3])}</td><td>${escapeString(item[4])}</td></tr>`)
         }
     }
 }
@@ -428,16 +661,16 @@ const fetchAndFillOptimizationsData = async (url_params) => {
 
     optimizations.data.forEach(optimization => {
         let optimizationHTML = optimizationTemplate
-            .replace("{{header}}", optimization[0])
-            .replace("{{label}}", optimization[1])
-            .replace("{{label_colour}}", optimization[2])
-            .replace("{{description}}", optimization[5])
-            .replace("{{subsystem}}", optimization[3])
-            .replace("{{subsystem_icon}}", optimization[4])
+            .replace("{{header}}", escapeString(optimization[0]))
+            .replace("{{label}}", escapeString(optimization[1]))
+            .replace("{{label_colour}}", escapeString(optimization[2]))
+            .replace("{{description}}", escapeString(optimization[5]))
+            .replace("{{subsystem}}", escapeString(optimization[3]))
+            .replace("{{subsystem_icon}}", escapeString(optimization[4]))
 
         if (optimization[6]){
             optimizationHTML = optimizationHTML.replace("{{link}}", `
-            <a class="ui mini icon primary basic button" href="${optimization[6]}">
+            <a class="ui mini icon primary basic button" href="${escapeString(optimization[6])}">
                 <i class="angle right icon"></i>
             </a>`);
         }else{
@@ -521,12 +754,12 @@ const fetchAndFillAIData = async (url_params) => {
 
     ai_data.forEach(d => {
         let optimizationHTML = aiTemplate
-            .replace("{{function_name}}", d.name)
-            .replace("{{rating}}", d.rating)
-            .replace("{{filename}}", d.filename)
-            .replace("{{code}}", d.code)
-            .replace("{{model}}", d.model)
-            .replace("{{color}}", d.color)
+            .replace("{{function_name}}", escapeString(d.name))
+            .replace("{{rating}}", escapeString(d.rating))
+            .replace("{{filename}}", escapeString(d.filename))
+            .replace("{{code}}", escapeString(d.code))
+            .replace("{{model}}", escapeString(d.model))
+            .replace("{{color}}", escapeString(d.color))
             .replace("{{ret_val}}", (d.ret_val || '').replace(/\n/g, '<br>'))
 
         const optimizationElement = document.createElement("div");
@@ -605,7 +838,7 @@ const fetchAndFillWarnings = async (url_params) => {
     const container = document.querySelector('#run-warnings');
     const ul = container.querySelector('ul');
     warnings.data.forEach(w => {
-        ul.insertAdjacentHTML('beforeend', `<li>${w[1]}</li>`);
+        ul.insertAdjacentHTML('beforeend', `<li>${escapeString(w[1])}</li>`);
     });
     container.classList.remove('hidden');
 }

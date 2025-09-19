@@ -4,6 +4,7 @@ author: Didi Hoffmann
 description: test
 
 compose-file: !include test_docker_entry_command.yml
+
 services:
   test-container:
     type: container

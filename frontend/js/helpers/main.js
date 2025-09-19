@@ -158,9 +158,15 @@ const calculateStatistics = (data, object_access=false) => {
 const replaceRepoIcon = (uri) => {
 
   uri = String(uri)
-  if(!uri.startsWith('http')) return uri; // ignore filesystem paths
+  if(!uri.startsWith('http')) return escapeString(uri); // ignore filesystem paths, but escape them for HTML
 
-  const url = new URL(uri);
+  let url;
+  try {
+    url = new URL(uri);
+  } catch (error) {
+    // If URL parsing fails (malicious or malformed URI), safely escape and return
+    return escapeString(uri);
+  }
 
   let iconClass = "";
   switch (url.host) {
@@ -177,10 +183,19 @@ const replaceRepoIcon = (uri) => {
       iconClass = "gitlab";
       break;
     default:
-      return uri;
+      return escapeString(uri);
   }
-  return `<i class="icon ${iconClass}"></i>` + uri.substring(url.origin.length);
+  return `<i class="icon ${iconClass}"></i>` + escapeString(uri.substring(url.origin.length));
 };
+
+const createExternalIconLink = (url) => {
+    // Creates a safe external icon link with protocol validation to prevent XSS attacks
+    // Only allows http/https protocols, returns empty string for non-HTTP URLs
+    if (url && url.startsWith('http')) {
+        return `<a href="${url}" target="_blank"><i class="icon external alternate"></i></a>`;
+    }
+    return '';
+}
 
 const showNotification = (message_title, message_text, type='error') => {
     if (typeof message_text === 'object') console.log(message_text); // this is most likey an error. We need it in the console
@@ -294,7 +309,7 @@ async function makeAPICall(path, values=null, force_authentication_token=null, f
 };
 
 /* Menu toggling */
-let openMenu = function(e){
+let openMenu = function(){
     $(this).removeClass('closed').addClass('opened');
     $('#menu').removeClass('closed').addClass('opened');
     $('#main').removeClass('closed').addClass('opened');
@@ -303,7 +318,7 @@ let openMenu = function(e){
 
 }
 
-let closeMenu = function(e){
+let closeMenu = function(){
     $(this).removeClass('opened').addClass('closed');
     $('#menu').removeClass('opened').addClass('closed');
     $('#main').removeClass('opened').addClass('closed');

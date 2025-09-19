@@ -1,6 +1,8 @@
+import json
 from io import StringIO
 
 from lib.db import DB
+from lib.log_types import LogType
 from metric_providers.network.connections.tcpdump.system.provider import generate_stats_string
 
 
@@ -14,11 +16,23 @@ def import_measurements(df, metric_name, run_id):
         f.close()
 
     elif metric_name == 'network_connections_tcpdump_system':
+        stats_string = generate_stats_string(df)
+
+        log_entry = {
+            '[SYSTEM]': [{
+                'type': LogType.NETWORK_STATS.value,
+                'id': str(id(stats_string)),
+                'cmd': None,
+                'phase': '[MULTIPLE]',
+                'stdout': stats_string
+            }]
+        }
+
         DB().query("""
             UPDATE runs
-            SET logs= COALESCE(logs, '') || %s -- append
+            SET logs = COALESCE(logs, '{}'::jsonb) || %s::jsonb
             WHERE id = %s
-            """, params=(generate_stats_string(df), run_id))
+            """, params=(json.dumps(log_entry), run_id))
 
     else:
 
