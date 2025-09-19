@@ -24,7 +24,6 @@ flow:
     commands:
       - type: console
         command: git clone https://github.com/green-coding-solutions/green-metrics-tool --depth 1 --single-branch --recurse-submodules --shallow-submodules
-        log-stdout: true
 
   - name: Install GMT base
     container: ubuntu-systemd-docker
@@ -35,7 +34,7 @@ flow:
           cd ~/green-metrics-tool
           ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -T -L -z -f -j -d -g --nvidia-gpu
         shell: bash
-        log-stdout: true
+
 
   - name: Install GMT dev requirements
     container: ubuntu-systemd-docker
@@ -47,7 +46,6 @@ flow:
           python3 -m pip install -r requirements-dev.txt
           playwright install --with-deps firefox
         shell: bash
-        log-stdout: true
 
 
   - name: Setup Test Env
@@ -55,11 +53,10 @@ flow:
     commands:
       - type: console
         command: |
-          source venv/bin/activate
           cd ~/green-metrics-tool/tests
+          source ../venv/bin/activate
           python3 setup-test-env.py
         shell: bash
-        log-stdout: true
 
 
   - name: Start Test Containers
@@ -71,7 +68,6 @@ flow:
           source ../venv/bin/activate
           ./start-test-containers.sh -d
         shell: bash
-        log-stdout: true
 
   - name: Run Tests
     container: ubuntu-systemd-docker
@@ -79,10 +75,9 @@ flow:
       - type: console
         command: |
           cd ~/green-metrics-tool/tests
+          source ../venv/bin/activate
           python3 -m pytest -vv -rA
         shell: bash
-        log-stdout: true
-        log-stdout: true
 
   - name: Stop Test Containers
     container: ubuntu-systemd-docker
@@ -92,7 +87,6 @@ flow:
           cd ~/green-metrics-tool/tests
           ./stop-test-containers.sh
         shell: bash
-        log-stdout: true
 
 
 
