@@ -249,10 +249,10 @@ class SchemaChecker():
             known_flow_names.append(flow['name'])
 
             for command in flow['commands']:
-                if command.get('read-sci-stdout', False) and command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
+                if command.get('read-sci-stdout', False) and not command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
                     raise SchemaError(f"You have specified `read-sci-stdout` in flow {flow['name']} but not set `log-stdout` to True.")
 
-                if command.get('read-notes-stdout', False) and command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
+                if command.get('read-notes-stdout', False) and not command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
                     raise SchemaError(f"You have specified `read-notes-stdout` in flow {flow['name']} but not set `log-stdout` to True.")
 
 
