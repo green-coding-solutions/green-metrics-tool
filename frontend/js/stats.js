@@ -104,6 +104,8 @@ const fetchAndFillRunData = async (url_params) => {
             } else {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
+        } else if(item == 'usage_scenario_dependencies') {
+            renderUsageScenarioDependencies(run_data[item]);
 
         } else if(item == 'logs') {
             const logsData = run_data[item];
@@ -843,6 +845,192 @@ const fetchAndFillWarnings = async (url_params) => {
     container.classList.remove('hidden');
 }
 
+
+
+// Templates for usage scenario dependencies
+const dependenciesTemplates = {
+    container: `
+        <div class="ui segment">
+            <h4 class="ui dividing header">Container: {{containerName}}</h4>
+            <div class="ui secondary segment">
+                <strong>Image:</strong> {{image}}<br>
+                <strong>Hash:</strong> <code>{{hash}}</code>
+            </div>
+            {{scopeContent}}
+        </div>
+    `,
+
+    scopeAccordion: `
+        <div class="ui accordion">
+            {{accordionItems}}
+        </div>
+    `,
+
+    accordionItem: `
+        <div class="title">
+            <i class="dropdown icon"></i>
+            {{scopeDisplayName}} Packages ({{totalDeps}} packages)
+        </div>
+        <div class="content">
+            {{scopeMetadata}}
+            {{depsTable}}
+        </div>
+    `,
+
+    scopeMetadata: `
+        <div>
+            {{metadataContent}}
+        </div>
+    `,
+
+    depsTable: `
+        <table class="ui celled compact table">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Name</th>
+                    <th>Version</th>
+                    <th>Hash</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{tableRows}}
+            </tbody>
+        </table>
+    `,
+
+    depsTableRow: `
+        <tr>
+            <td>{{pmType}}</td>
+            <td>{{depName}}</td>
+            <td>{{version}}</td>
+            <td><code title="{{fullHash}}">{{truncatedHash}}</code></td>
+        </tr>
+    `,
+
+    noDepsMessage: `<div class="ui message">{{message}}</div>`
+};
+
+function renderUsageScenarioDependencies(dependenciesData) {
+    const dependenciesSection = document.querySelector("#usage-scenario-dependencies");
+
+    if (!dependenciesData || Object.keys(dependenciesData).length === 0) {
+        dependenciesSection.insertAdjacentHTML('beforeend',
+            dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependency information available</em>')
+        );
+        return;
+    }
+
+    let containersHTML = '';
+
+    for (const containerName in dependenciesData) {
+        const containerData = dependenciesData[containerName];
+        const containerInfo = containerData['source'] || {};
+
+        const image = escapeString(containerInfo.image || 'N/A');
+        const hash = escapeString(containerInfo.hash || 'N/A');
+
+        const scopes = Object.keys(containerData).filter(key => key === 'project' || key === 'system');
+
+        let scopeContent = '';
+
+        if (scopes.length > 0) {
+            const accordionItems = buildScopeAccordionItems(scopes, containerData);
+
+            scopeContent = dependenciesTemplates.scopeAccordion.replace('{{accordionItems}}', accordionItems);
+        } else {
+            scopeContent = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
+        }
+
+        const containerHTML = dependenciesTemplates.container
+            .replace('{{containerName}}', escapeString(containerName))
+            .replace('{{image}}', image)
+            .replace('{{hash}}', hash)
+            .replace('{{scopeContent}}', scopeContent);
+
+        containersHTML += containerHTML;
+    }
+
+    dependenciesSection.insertAdjacentHTML('beforeend', containersHTML);
+
+    // Initialize accordions
+    setTimeout(() => {
+        dependenciesSection.querySelectorAll('.ui.accordion').forEach(accordion => {
+            $(accordion).accordion();
+        });
+    }, 0);
+}
+
+function buildScopeAccordionItems(scopes, containerData) {
+    let accordionItems = '';
+
+    scopes.forEach(scope => {
+        const scopeData = containerData[scope];
+        const packages = scopeData.packages || [];
+        const totalDeps = packages.length;
+
+        const scopeDisplayName = scope.charAt(0).toUpperCase() + scope.slice(1);
+
+        // Build package manager metadata if its given
+        let metadataContent = '';
+        if (scopeData['package-management']) {
+            const packageManagers = scopeData['package-management'];
+            Object.keys(packageManagers).forEach(pmType => {
+                const pmMetadata = packageManagers[pmType];
+                if (pmMetadata && typeof pmMetadata === 'object') {
+                    if (pmMetadata.location) {
+                        metadataContent += `<strong>${escapeString(pmType)} Location:</strong> ${escapeString(pmMetadata.location)}<br>`;
+                    }
+                    if (pmMetadata.hash) {
+                        metadataContent += `<strong>${escapeString(pmType)} Hash:</strong> <code>${escapeString(pmMetadata.hash)}</code><br>`;
+                    }
+                }
+            });
+        }
+
+        const scopeMetadata = metadataContent ?
+            dependenciesTemplates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
+
+        let depsTable = '';
+        if (totalDeps > 0) {
+            const tableRows = buildDependencyTableRows(packages);
+            depsTable = dependenciesTemplates.depsTable.replace('{{tableRows}}', tableRows);
+        } else {
+            depsTable = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependencies found in this scope</em>');
+        }
+
+        const accordionItem = dependenciesTemplates.accordionItem
+            .replace('{{scopeDisplayName}}', escapeString(scopeDisplayName))
+            .replace('{{totalDeps}}', totalDeps)
+            .replace('{{scopeMetadata}}', scopeMetadata)
+            .replace('{{depsTable}}', depsTable);
+
+        accordionItems += accordionItem;
+    });
+
+    return accordionItems;
+}
+
+function buildDependencyTableRows(packages) {
+    let tableRows = '';
+
+    packages.forEach(pkg => {
+        const version = escapeString(pkg.version || 'N/A');
+        const depHash = pkg.hash || 'N/A';
+        const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
+
+        const row = dependenciesTemplates.depsTableRow
+            .replace('{{pmType}}', escapeString(pkg.type || 'N/A'))
+            .replace('{{depName}}', escapeString(pkg.name || 'N/A'))
+            .replace('{{version}}', version)
+            .replace('{{fullHash}}', escapeString(depHash))
+            .replace('{{truncatedHash}}', escapeString(truncatedHash));
+
+        tableRows += row;
+    });
+
+    return tableRows;
+}
 
 
 /* Chart starting code*/
