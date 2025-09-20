@@ -1445,6 +1445,14 @@ class ScenarioRunner:
         container_names = [container_info['name'] for container_info in self.__containers.values()]
         print(TerminalColors.HEADER, '\nStarted containers: ', container_names, TerminalColors.ENDC)
 
+    def _sanitize_text(self, text):
+        """
+        Remove problematic control characters from text.
+        Removes null bytes and control characters that can cause PostgreSQL errors
+        while preserving printable text and common whitespace (tab, newline, carriage return).
+        """
+        return re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', text)
+
     def _add_to_current_run_log(self, container_name, log_type, log_id, cmd, phase, stdout=None, stderr=None, flow=None, exception_class=None):
         """Add a structured log entry to the current run logs.
         
@@ -1472,9 +1480,9 @@ class ScenarioRunner:
         }
 
         if stdout is not None:
-            log_entry['stdout'] = stdout.replace('\x00', '')  # Remove null bytes - PostgreSQL can't handle \u0000 in JSON
+            log_entry['stdout'] = self._sanitize_text(stdout)
         if stderr is not None:
-            log_entry['stderr'] = stderr.replace('\x00', '')  # Remove null bytes - PostgreSQL can't handle \u0000 in JSON
+            log_entry['stderr'] = self._sanitize_text(stderr)
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:

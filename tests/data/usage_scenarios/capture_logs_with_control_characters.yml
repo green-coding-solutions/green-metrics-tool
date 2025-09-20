@@ -1,0 +1,25 @@
+---
+name: Capture Logs with Control Characters
+author: David Kopp
+description: Test handling of control characters in log output
+
+services:
+  test-container:
+    type: container
+    image: alpine
+    setup-commands:
+      - command: 'printf "Setup log with control chars: \000\001\002\007\013\014\017\037\177 embedded"'
+    entrypoint: ["/bin/sh", "-c"]
+    command: ['printf "Container log with control chars: \000\001\002\007\013\014\017\037\177 embedded"; sleep infinity']
+    log-stdout: true
+    log-stderr: true
+
+flow:
+  - name: Flow with Control Characters
+    container: test-container
+    commands:
+      - type: console
+        command: 'printf "Flow stdout with control chars: \000\001\002\007\013\014\017\037\177 embedded" && printf "Flow stderr with control chars: \000\001\002\007\013\014\017\037\177 embedded" >&2'
+        shell: /bin/sh
+        log-stdout: true
+        log-stderr: true
