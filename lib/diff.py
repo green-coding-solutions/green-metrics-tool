@@ -45,6 +45,13 @@ def diff_rows(rows):
     row_a = rows[0]
     row_b = rows[1]
 
+    # expand machine_specs into root level
+    row_a_machine_specs = row_a.pop('machine_specs')
+    row_a.update({f"machine_specs.{k}": v for k, v in row_a_machine_specs.items()})
+
+    row_b_machine_specs = row_b.pop('machine_specs')
+    row_b.update({f"machine_specs.{k}": v for k, v in row_b_machine_specs.items()})
+
     unified_diff = []
     for field in row_a:
         field_a = json.dumps(row_a[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_a[field], (dict, list))  else str(row_a[field])
