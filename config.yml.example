@@ -79,12 +79,6 @@ machine:
   base_temperature_chip: False
   base_temperature_feature: False
 
-container_registry:
-  hostname: index.docker.io
-  default_namespace: library
-  insecure: False
-
-
 measurement:
   metric_providers:
   # Please select the needed providers according to the working ones on your system

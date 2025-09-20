@@ -737,8 +737,6 @@ class ScenarioRunner:
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
-        config = GlobalConfig().config
-
         # Create directory /tmp/green-metrics-tool/docker_images
         temp_dir = f"{self._tmp_folder}/docker_images"
         self._initialize_folder(temp_dir)
@@ -787,14 +785,26 @@ class ScenarioRunner:
                     '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
-                    '--registry-mirror', config['container_registry']['hostname'],
                     '--cleanup=true',
                     '--no-push']
 
-                if config['container_registry']['insecure']:
-                    docker_build_command.append('--insecure-pull')
-                    docker_build_command.append('--insecure-registry')
-                    docker_build_command.append(config['container_registry']['hostname'])
+                # docker agent might be configured to pull from a different, maybe even insecure registry
+                # We want to mirror that behaviour in GMT as we see it used in specially configured environments
+                # where custom docker registries are used
+                docker_info = subprocess.check_output(['docker', 'info', '--format', '{{ json .RegistryConfig.Mirrors }}'], encoding='UTF-8')
+                if docker_info and (mirrors := json.loads(docker_info)):
+                    for mirror in mirrors:
+                        if 'http://' in mirror:
+                            mirror = mirror[7:]
+                            docker_build_command.append('--registry-mirror')
+                            docker_build_command.append(mirror)
+                            docker_build_command.append('--insecure-pull')
+                            docker_build_command.append('--insecure-registry')
+                            docker_build_command.append(mirror)
+                        else: # https
+                            mirror = mirror[8:]
+                            docker_build_command.append('--registry-mirror')
+                            docker_build_command.append(mirror)
 
                 if self.__docker_params:
                     docker_build_command[2:2] = self.__docker_params
@@ -822,17 +832,7 @@ class ScenarioRunner:
             else:
                 print(f"Pulling {service['image']}")
                 self.__notes_helper.add_note( note=f"Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
-
-                slash_splitted_image_name = service['image'].split('/')
-                if '.' in slash_splitted_image_name[0]: # we have already a set registry
-                    container_registry_uri_with_image = service['image']
-                elif len(slash_splitted_image_name) > 1: # we have a namespace in the image
-                    container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{service['image']}"
-                else: # we have no registry or namespace and need to add the defaults of our configured registry
-                    container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{config['container_registry']['default_namespace']}/{service['image']}"
-                print(['docker', 'pull', container_registry_uri_with_image])
-
-                ps = subprocess.run(['docker', 'pull', container_registry_uri_with_image], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+                ps = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
@@ -863,7 +863,7 @@ class ScenarioRunner:
                         raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
                 # tagging must be done in pull and local case, so we can get the correct container later
-                subprocess.run(['docker', 'tag', container_registry_uri_with_image, tmp_img_name], check=True)
+                subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
 
 
         # Delete the directory /tmp/gmt_docker_images
