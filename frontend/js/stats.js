@@ -475,6 +475,35 @@ const buildTimelineChartData = async (measurements_data) => {
     return metrics;
 }
 
+const wrapNoteText = (text, maxLength = 80) => {
+    if (text.length <= maxLength) return text;
+
+    const lines = [];
+    let currentLine = '';
+    const breakChars = [' ', '/', ':', '-', '_'];
+
+    for (const char of text) {
+        currentLine += char;
+
+        if (currentLine.length >= maxLength) {
+            const breakIndex = currentLine.split('').findLastIndex(c => breakChars.includes(c));
+
+            if (breakIndex > maxLength * 0.5) {
+                const breakChar = currentLine[breakIndex];
+                const endIndex = breakChar === ' ' ? breakIndex : breakIndex + 1;
+                lines.push(currentLine.substring(0, endIndex));
+                currentLine = currentLine.substring(breakIndex + 1);
+            } else {
+                lines.push(currentLine.substring(0, maxLength));
+                currentLine = currentLine.substring(maxLength);
+            }
+        }
+    }
+
+    if (currentLine) lines.push(currentLine);
+    return lines.join('\n');
+};
+
 const displayTimelineCharts = async (metrics, notes) => {
 
     const note_positions = [
@@ -517,7 +546,7 @@ const displayTimelineCharts = async (metrics, notes) => {
         let inner_counter = 0;
         if (notes != null) {
             notes.forEach(note => {
-                notes_labels.push({xAxis: note[3]/1000, label: {formatter: escapeString(note[2]), position: note_positions[inner_counter%2]}})
+                notes_labels.push({xAxis: note[3]/1000, label: {formatter: wrapNoteText(note[2]), position: note_positions[inner_counter%2]}})
                 inner_counter++;
             });
         }
