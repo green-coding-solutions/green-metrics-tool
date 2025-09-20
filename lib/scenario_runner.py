@@ -831,7 +831,7 @@ class ScenarioRunner:
 
             else:
                 print(f"Pulling {service['image']}")
-                self.__notes_helper.add_note( note="Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
+                self.__notes_helper.add_note( note=f"Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
                 ps = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
