@@ -760,6 +760,28 @@ def test_logs_structure():
     assert found_setup_command, "Should find the setup command log"
     assert found_container_execution, "Should find the container execution log"
 
+def test_logs_null_byte_handling():
+    """Test that null bytes in logs are automatically cleaned and don't cause database errors"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs_with_null_bytes.yml',
+                          skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True,
+                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
+
+    # This should not raise any database errors despite null bytes in the scenario
+    run_id = runner.run()
+
+    # Verify logs were saved successfully
+    logs_result = DB().fetch_one("SELECT logs FROM runs WHERE id = %s", params=(run_id,))
+    assert logs_result is not None and logs_result[0] is not None, "Logs should be saved to database"
+
+    # Verify no null bytes remain in stored logs
+    logs = logs_result[0]
+    container_logs = logs["test-container"]
+
+    for log_entry in container_logs:
+        for value in log_entry.values():
+            if isinstance(value, str):
+                assert '\x00' not in value, f"Null bytes should be automatically cleaned: {repr(value)}"
+
 def test_all_run_logs_comprehensive():
     """Comprehensive test of _get_all_run_logs() method covering single runs, iterations, and different files"""
 
