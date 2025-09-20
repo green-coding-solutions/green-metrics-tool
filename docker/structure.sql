@@ -89,7 +89,10 @@ VALUES (
                 "/v2/ci/measurement/add",
                 "/v1/software/add",
                 "/v1/user/settings",
-                "/v1/user/setting"
+                "/v1/user/setting",
+                "/v1/cluster/changelog",
+                "/v1/cluster/status"
+                "/v1/cluster/status/history"
             ]
         },
         "data": {
@@ -484,7 +487,7 @@ CREATE TABLE carbon_intensity (
     PRIMARY KEY (latitude, longitude, created_at)
 );
 
-CREATE TABLE changelog (
+CREATE TABLE cluster_changelog (
     id SERIAL PRIMARY KEY,
     message text,
     machine_id integer REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -492,7 +495,21 @@ CREATE TABLE changelog (
     updated_at timestamp with time zone
 );
 
-CREATE TRIGGER changelog_moddatetime
-    BEFORE UPDATE ON changelog
+CREATE TRIGGER cluster_changelog_moddatetime
+    BEFORE UPDATE ON cluster_changelog
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+
+CREATE TABLE cluster_status_messages (
+    id SERIAL PRIMARY KEY,
+    message text,
+    resolved boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+
+CREATE TRIGGER cluster_status_messages_moddatetime
+    BEFORE UPDATE ON cluster_status_messages
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
