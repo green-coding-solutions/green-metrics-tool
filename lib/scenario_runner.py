@@ -1472,9 +1472,9 @@ class ScenarioRunner:
         }
 
         if stdout is not None:
-            log_entry['stdout'] = stdout
+            log_entry['stdout'] = stdout.replace('\x00', '')  # Remove null bytes - PostgreSQL can't handle \u0000 in JSON
         if stderr is not None:
-            log_entry['stderr'] = stderr
+            log_entry['stderr'] = stderr.replace('\x00', '')  # Remove null bytes - PostgreSQL can't handle \u0000 in JSON
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:
@@ -2019,7 +2019,6 @@ class ScenarioRunner:
 
         if self.__current_run_logs:
             logs_as_json = json.dumps(self.__current_run_logs, separators=(',', ':'))  # Compact JSON for efficient storage
-            logs_as_json = logs_as_json.replace('\x00','')
             DB().query("""
                 UPDATE runs
                 SET logs = COALESCE(logs, '{}'::jsonb) || %s::jsonb
