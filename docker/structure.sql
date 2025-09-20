@@ -91,7 +91,7 @@ VALUES (
                 "/v1/user/settings",
                 "/v1/user/setting",
                 "/v1/cluster/changelog",
-                "/v1/cluster/status"
+                "/v1/cluster/status",
                 "/v1/cluster/status/history"
             ]
         },
