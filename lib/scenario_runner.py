@@ -788,6 +788,24 @@ class ScenarioRunner:
                     '--cleanup=true',
                     '--no-push']
 
+                # docker agent might be configured to pull from a different, maybe even insecure registry
+                # We want to mirror that behaviour in GMT as we see it used in specially configured environments
+                # where custom docker registries are used
+                docker_info = subprocess.check_output(['docker', 'info', '--format', '{{ json .RegistryConfig.Mirrors }}'], encoding='UTF-8')
+                if docker_info and (mirrors := json.loads(docker_info)):
+                    for mirror in mirrors:
+                        if 'http://' in mirror:
+                            mirror = mirror[7:]
+                            docker_build_command.append('--registry-mirror')
+                            docker_build_command.append(mirror)
+                            docker_build_command.append('--insecure-pull')
+                            docker_build_command.append('--insecure-registry')
+                            docker_build_command.append(mirror)
+                        else: # https
+                            mirror = mirror[8:]
+                            docker_build_command.append('--registry-mirror')
+                            docker_build_command.append(mirror)
+
                 if self.__docker_params:
                     docker_build_command[2:2] = self.__docker_params
 
