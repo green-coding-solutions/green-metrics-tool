@@ -54,7 +54,9 @@ VALUES (
                 "measurement.post_test_sleep",
                 "measurement.phase_transition_time",
                 "measurement.wait_time_dependencies",
-                "measurement.skip_volume_inspect"
+                "measurement.skip_volume_inspect",
+                "measurement.use_dynamic_carbon_intensity",
+                "measurement.carbon_intensity_location"
             ]
         },
         "api": {

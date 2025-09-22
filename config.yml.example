@@ -10,6 +10,11 @@ redis:
   host: green-coding-redis-container
   port: 6379
 
+elephant:
+  host: localhost
+  port: 8000
+  protocol: http
+
 smtp:
   server: SMTP_SERVER
   sender: SMTP_SENDER
@@ -237,8 +242,7 @@ sci:
     # The default is the value for a developer machine (Pro Laptop - https://dataviz.boavizta.org/terminalimpact)
     TE: 181000
     # I is the Carbon Intensity at the location of this machine
-    # The value can either be a number in gCO2e/kWh or a carbon intensity provider that fetches this number dynamically
-    # https://docs.green-coding.io/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/ (TODO)
+    # This is a static value in gCO2e/kWh. For dynamic carbon intensity, see frontend user settings (Documentation: https://docs.green-coding.io/docs/measuring/carbon/grid-carbon-intensity/).
     # For fixed world-wide values get the number from https://ember-climate.org/insights/research/global-electricity-review-2025/
     # The number worldwide for 2024 is 473
     # The number 334 that comes as default is for Germany from 2024 and comes from https://app.electricitymaps.com/zone/DE/all/yearly

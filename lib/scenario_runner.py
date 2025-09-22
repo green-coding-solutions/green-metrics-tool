@@ -2079,7 +2079,13 @@ class ScenarioRunner:
         # get all the metrics from the measurements table grouped by metric
         # loop over them issuing separate queries to the DB
         from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-        build_and_store_phase_stats(self._run_id, self._sci)
+
+        # Get measurement_config from database to support dynamic carbon intensity
+        measurement_config_query = "SELECT measurement_config FROM runs WHERE id = %s"
+        measurement_config_result = DB().fetch_one(measurement_config_query, (self._run_id,))
+        measurement_config = measurement_config_result[0] if measurement_config_result else {}
+
+        build_and_store_phase_stats(self._run_id, self._sci, measurement_config)
 
     def _post_process(self, index):
         try:
