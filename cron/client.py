@@ -84,7 +84,7 @@ def do_maintenance():
 
     if updated_apt_packages := re.findall(r'<<<< UPDATED APT PACKAGES >>>>\n(.*)\n<<<< END UPDATED APT PACKAGES >>>>', ps.stdout, re.DOTALL):
         updated_apt_packages_list = updated_apt_packages[0].split('\n')
-        DB().query('INSERT INTO changelog (message, machine_id) VALUES (%s, %s)', params=(updated_apt_packages_list, config['machine']['id']))
+        DB().query('INSERT INTO cluster_changelog (message, machine_id) VALUES (%s, %s)', params=(updated_apt_packages_list, config['machine']['id']))
 
         return True # must run validation workload again. New packages installed
 
@@ -271,3 +271,5 @@ if __name__ == '__main__':
         pass
     except BaseException as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception_context=exc.__context__, last_exception=exc, machine=config['machine']['description'])
+
+    DB().shutdown()

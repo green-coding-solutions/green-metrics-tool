@@ -1,17 +1,24 @@
+const date_options = {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false
+};
+
+
 async function cancelJob(e){
     e.preventDefault()
     const job_id = this.getAttribute('data-job-id');
     try {
         await makeAPICall('/v1/job', {job_id: job_id, action: 'cancel'}, null, true)
+        const row = this.closest('tr');
+        row.querySelector('.job-state').innerText = 'CANCELLED'
+        row.querySelector('.job-action').innerHTML = '<i class="ui large icon grey minus"></i>'
+        showNotification('Job cancelled', 'Job has been cancelled successfully', 'success');
     } catch (err) {
-        if (err == 'No data to display. API returned empty response (HTTP 204)') {
-            const row = this.closest('tr');
-            row.querySelector('.job-state').innerText = 'CANCELLED'
-            row.querySelector('.job-action').innerHTML = '<i class="ui large icon grey minus"></i>'
-            showNotification('Job cancelled', 'Job has been cancelled successfully');
-        } else {
-            showNotification('Could not cancel job', err);
-        }
+        showNotification('Could not cancel job', err);
     }
     return false; // bc link click
 };
@@ -21,6 +28,23 @@ $(document).ready(function () {
 
         let machines_data = null;
         let jobs_data = null;
+
+        try {
+            cluster_status_data = await makeAPICall('/v1/cluster/status')
+
+            const container = document.querySelector('.cluster-health-message.yellow #cluster-health-warnings');
+            cluster_status_data.data.forEach(message => {
+                container.insertAdjacentHTML('beforeend', `<p id="message-${message[0]}"><b>${new Date(message[3]).toLocaleDateString('sv-SE', date_options)}</b>: ${message[1]}</p>`);
+            })
+            document.querySelector('.cluster-health-message.yellow').style.display = 'flex'; // show
+
+        } catch (err) {
+            if (err instanceof APIEmptyResponse204) {
+                document.querySelector('.cluster-health-message.success').style.display = 'flex'; // show
+            } else {
+                showNotification('Could not get cluster health status data from API', err); // no return as we want other calls to happen
+            }
+        }
 
         try {
             machines_data = await makeAPICall('/v1/machines')

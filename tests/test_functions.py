@@ -5,6 +5,7 @@ import json
 
 from lib.db import DB
 from lib.global_config import GlobalConfig
+from lib.log_types import LogType
 from lib import metric_importer
 from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtilizationCgroupContainerProvider
 from metric_providers.cpu.utilization.cgroup.system.provider import CpuUtilizationCgroupSystemProvider
@@ -389,7 +390,15 @@ class RunUntilManager:
             self.__runner._post_process(0)
 
         except BaseException as exc:
-            self.__runner._add_to_current_run_log(exc.__class__.__name__, str(exc))
+            self.__runner._add_to_current_run_log(
+                container_name="[SYSTEM]",
+                log_type=LogType.EXCEPTION,
+                log_id=id(exc),
+                cmd="run_test",
+                phase=None,
+                stderr=str(exc),
+                exception_class=exc.__class__.__name__
+            )
             raise exc
 
     def __exit__(self, exc_type, exc_value, traceback):

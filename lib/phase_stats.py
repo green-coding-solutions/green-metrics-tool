@@ -275,8 +275,6 @@ def build_and_store_phase_stats(run_id, sci=None):
 
                 # co2 calculations
                 network_io_carbon_in_ug = network_io_in_kWh * Decimal(sci['I']) * 1_000_000
-                if '[' not in phase['name']: # only for runtime sub phases
-                    software_carbon_intensity_global['network_io_carbon_in_ug'] = software_carbon_intensity_global.get('network_io_carbon_in_ug', 0) + network_io_carbon_in_ug
                 csv_buffer.write(generate_csv_line(run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
             else:
                 error_helpers.log_error('Cannot calculate the total network energy consumption. SCI values I and N are missing in the config.', run_id=run_id)
@@ -316,7 +314,7 @@ def build_and_store_phase_stats(run_id, sci=None):
         and sci.get('R', 0) != 0 \
         and sci.get('R_d', None) is not None:
 
-        csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{runtime_phase_idx:03}_[RUNTIME]", (software_carbon_intensity_global['machine_carbon_ug'] + software_carbon_intensity_global['embodied_carbon_share_ug'] + software_carbon_intensity_global.get('network_io_carbon_in_ug', 0)) / Decimal(sci['R']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci['R_d']}"))
+        csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{runtime_phase_idx:03}_[RUNTIME]", (software_carbon_intensity_global['machine_carbon_ug'] + software_carbon_intensity_global['embodied_carbon_share_ug']) / Decimal(sci['R']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci['R_d']}"))
     # TODO End # pylint: disable=fixme
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning

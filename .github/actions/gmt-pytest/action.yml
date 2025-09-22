@@ -12,7 +12,7 @@ inputs:
   tests-command:
     description: 'The command to run the tests'
     required: false
-    default: 'pytest -vv'
+    default: 'pytest -vv --durations=0'
   github-token:
     description: 'pass in your secrets.GITHUB_TOKEN'
     required: true

@@ -105,9 +105,26 @@ const fetchAndFillRunData = async (url_params) => {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
 
-        } else if(item == 'logs' && run_data?.[item] != null) {
-            // textContent does escaping for us
-            document.querySelector("#logs").textContent = run_data[item];
+        } else if(item == 'logs') {
+            const logsData = run_data[item];
+            if (logsData === null) {
+                // Display simple message indicating no output was produced
+                document.querySelector("#logs").innerHTML = '<pre>Run did not produce any logs to be captured</pre>';
+            } else if (typeof logsData === 'object' && logsData !== null) {
+                // Handle JSON structure logs
+                // Check first if any logs have type 'legacy' - if so, render as simple text instead of structured interface
+                const hasLegacyLogs = Object.values(logsData).some(containerLogs =>
+                    Array.isArray(containerLogs) && containerLogs.some(log => log.type === 'legacy')
+                );
+                if (!hasLegacyLogs) {
+                    renderLogsInterface(logsData);
+                } else {
+                    renderLegacyLogsFromJson(logsData);
+                }
+            } else {
+                // Handle legacy plain text logs (pre-JSON structure)
+                displayLegacyLogs(run_data[item]);
+            }
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
         } else if(item == 'phases' || item == 'id') {
@@ -177,6 +194,215 @@ const fillRunTab = async (selector, data, parent = '') => {
             document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data?.[item])}</td></tr>`)
         }
     }
+}
+
+const displayLegacyLogs = (logData) => {
+    const logsElement = document.querySelector("#logs");
+    logsElement.innerHTML = `<pre>${escapeString(logData)}</pre>`;
+};
+
+const renderLegacyLogsFromJson = (logsData) => {
+    const legacyLogTemplate = `
+        <div class="ui segment">
+            <h4 class="ui header">{{containerName}}</h4>
+            <pre>{{stdout}}</pre>
+        </div>
+    `;
+
+    const logsElement = document.querySelector("#logs");
+    let contentHTML = '';
+
+    // actually, in the legacy case there is only one 'container' called "unified (legacy)"
+    // but to be on the safe side, still use loops for all lists in the JSON structure
+    Object.keys(logsData).forEach(containerName => {
+        const containerLogs = logsData[containerName];
+        containerLogs.forEach(logEntry => {
+            if (logEntry.stdout) {
+                contentHTML += legacyLogTemplate
+                    .replace('{{containerName}}', escapeString(containerName))
+                    .replace('{{stdout}}', escapeString(logEntry.stdout));
+            }
+        });
+    });
+
+    logsElement.innerHTML = contentHTML;
+};
+
+const renderLogsInterface = (logsData) => {
+    const containerTemplate = `
+        <div class="title">
+            <i class="dropdown icon"></i><i class="server icon"></i> {{containerName}}
+            <div class="ui mini label">{{logCount}} log{{logPlural}}</div>
+        </div>
+        <div class="content">{{content}}</div>
+    `;
+
+    const logCardTemplate = `
+        <div class="ui card fluid">
+            {{metadataContent}}
+            {{commandContent}}
+            {{stdoutContent}}
+            {{stderrContent}}
+        </div>
+    `;
+
+    const metadataTemplate = `
+        <div class="content">
+            <div class="header">
+                <div class="ui small labels">
+                    {{typeLabel}}
+                    {{flowLabel}}
+                    {{classLabel}}
+                    {{operationLabel}}
+                    {{phaseLabel}}
+                    {{idLabel}}
+                </div>
+            </div>
+        </div>
+    `;
+
+    const commandTemplate = `
+        <div class="content">
+            <h5 class="ui header"><i class="terminal icon"></i> Command</h5>
+            <div class="ui segment">
+                <code>{{command}}</code>
+            </div>
+        </div>
+    `;
+
+    const stdoutTemplate = `
+        <div class="content">
+            <h5 class="ui header"><i class="file text outline icon"></i> Standard Output</h5>
+            <div class="ui segment stdout">
+                <div>{{stdout}}</div>
+            </div>
+        </div>
+    `;
+
+    const stderrTemplate = `
+        <div class="content">
+            <h5 class="ui header"><i class="exclamation triangle icon"></i> Standard Error</h5>
+            <div class="ui segment stderr">
+                <div>{{stderr}}</div>
+            </div>
+        </div>
+    `;
+
+    const logsElement = document.querySelector("#logs");
+    let accordionHTML = '<div class="ui styled accordion">';
+
+    const containerNames = Object.keys(logsData);
+    // Display [SYSTEM] logs first
+    const systemIndex = containerNames.indexOf('[SYSTEM]');
+    if (systemIndex > -1) {
+        containerNames.splice(systemIndex, 1);
+        containerNames.unshift('[SYSTEM]');
+    }
+
+    containerNames.forEach(containerName => {
+        const containerLogs = logsData[containerName];
+
+        let contentHTML = '';
+        containerLogs.forEach(logEntry => {
+            let typeIcon, typeTooltip;
+            switch (logEntry.type) {
+                case 'container_execution':
+                    typeIcon = 'cog';
+                    typeTooltip = 'Logs from the entire container execution process';
+                    break;
+                case 'setup_commands':
+                    typeIcon = 'wrench';
+                    typeTooltip = 'Logs from setup commands before flow execution';
+                    break;
+                case 'flow_command':
+                    typeIcon = 'play';
+                    typeTooltip = 'Logs from a specific flow execution';
+                    break;
+                case 'network_stats':
+                    typeIcon = 'wifi';
+                    typeTooltip = 'Network connection statistics from tcpdump';
+                    break;
+                case 'exception':
+                    typeIcon = 'exclamation triangle';
+                    typeTooltip = 'An error occurred during execution';
+                    break;
+                default:
+                    typeIcon = 'question';
+                    typeTooltip = 'Logs from an unknown or custom execution type';
+                    break;
+            }
+
+            // Make the type name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
+            const typeTitle = escapeString(logEntry.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+            const typeLabel = `<div class="ui purple label" data-tooltip="${typeTooltip}" data-position="top center"><i class="${typeIcon} icon"></i> ${typeTitle}</div>`;
+
+            const phaseLabel = logEntry.phase ?
+                `<div class="ui blue label" data-tooltip="Execution phase when this command was run" data-position="top center"><i class="clock icon"></i> ${escapeString(logEntry.phase)}</div>` : '';
+
+            const flowLabel = logEntry.flow ?
+                `<div class="ui green label" data-tooltip="Flow this command belongs to" data-position="top center"><i class="sitemap icon"></i> ${escapeString(logEntry.flow)}</div>` : '';
+
+            const idLabel = `<div class="ui label" data-tooltip="Unique identifier for this log entry" data-position="top center"><i class="hashtag icon"></i> ID: ${escapeString(logEntry.id)}</div>`;
+
+            const stdoutContent = logEntry.stdout ?
+                stdoutTemplate.replace('{{stdout}}', escapeString(logEntry.stdout)) : '';
+
+            const stderrContent = logEntry.stderr ?
+                stderrTemplate.replace('{{stderr}}', escapeString(logEntry.stderr)) : '';
+
+            // Show different information if the type is exception
+            let operationLabel = '';
+            let classLabel = '';
+            if (logEntry.type === 'exception') {
+                let operationTooltip;
+                switch (logEntry.cmd) {
+                    case 'run_scenario':
+                        operationTooltip = 'Exception occurred during main scenario execution runtime';
+                        break;
+                    case 'post_process':
+                        operationTooltip = 'Exception occurred during cleanup and post-processing phase';
+                        break;
+                    default:
+                        operationTooltip = `Exception occurred during '${logEntry.cmd}' operation`;
+                }
+                // Make the operation name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
+                const operationTitle = escapeString(logEntry.cmd.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+                operationLabel = `<div class="ui orange label" data-tooltip="${operationTooltip}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
+
+                if (logEntry.exception_class) {
+                    classLabel = `<div class="ui red label" data-tooltip="Exception class type" data-position="top center"><i class="exclamation triangle icon"></i> ${escapeString(logEntry.exception_class)}</div>`;
+                }
+            }
+
+            const metadataContent = metadataTemplate
+                .replace('{{flowLabel}}', flowLabel)
+                .replace('{{typeLabel}}', typeLabel)
+                .replace('{{operationLabel}}', operationLabel)
+                .replace('{{classLabel}}', classLabel)
+                .replace('{{phaseLabel}}', phaseLabel)
+                .replace('{{idLabel}}', idLabel);
+
+            // For exceptions or empty/null commands, don't show the command section
+            const commandContent = (logEntry.type === 'exception' || !logEntry.cmd) ? '' :
+                commandTemplate.replace('{{command}}', escapeString(logEntry.cmd));
+
+                contentHTML += logCardTemplate
+                .replace('{{metadataContent}}', metadataContent)
+                .replace('{{commandContent}}', commandContent)
+                .replace('{{stdoutContent}}', stdoutContent)
+                .replace('{{stderrContent}}', stderrContent);
+        });
+
+        accordionHTML += containerTemplate
+            .replace('{{containerName}}', escapeString(containerName))
+            .replace('{{logCount}}', containerLogs.length)
+            .replace('{{logPlural}}', containerLogs.length === 1 ? '' : 's')
+            .replace('{{content}}', contentHTML);
+    });
+
+    accordionHTML += '</div>';
+    logsElement.innerHTML = accordionHTML;
+    $('.ui.accordion').accordion();
 }
 
 
@@ -249,6 +475,35 @@ const buildTimelineChartData = async (measurements_data) => {
     return metrics;
 }
 
+const wrapNoteText = (text, maxLength = 80) => {
+    if (text.length <= maxLength) return text;
+
+    const lines = [];
+    let currentLine = '';
+    const breakChars = [' ', '/', ':', '-', '_'];
+
+    for (const char of text) {
+        currentLine += char;
+
+        if (currentLine.length >= maxLength) {
+            const breakIndex = currentLine.split('').findLastIndex(c => breakChars.includes(c));
+
+            if (breakIndex > maxLength * 0.5) {
+                const breakChar = currentLine[breakIndex];
+                const endIndex = breakChar === ' ' ? breakIndex : breakIndex + 1;
+                lines.push(currentLine.substring(0, endIndex));
+                currentLine = currentLine.substring(breakIndex + 1);
+            } else {
+                lines.push(currentLine.substring(0, maxLength));
+                currentLine = currentLine.substring(maxLength);
+            }
+        }
+    }
+
+    if (currentLine) lines.push(currentLine);
+    return lines.join('\n');
+};
+
 const displayTimelineCharts = async (metrics, notes) => {
 
     const note_positions = [
@@ -291,7 +546,7 @@ const displayTimelineCharts = async (metrics, notes) => {
         let inner_counter = 0;
         if (notes != null) {
             notes.forEach(note => {
-                notes_labels.push({xAxis: note[3]/1000, label: {formatter: escapeString(note[2]), position: note_positions[inner_counter%2]}})
+                notes_labels.push({xAxis: note[3]/1000, label: {formatter: wrapNoteText(note[2]), position: note_positions[inner_counter%2]}})
                 inner_counter++;
             });
         }

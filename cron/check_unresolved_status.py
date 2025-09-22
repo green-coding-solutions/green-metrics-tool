@@ -18,20 +18,20 @@ from lib import error_helpers
     This file schedules new Watchlist items by inserting jobs in the jobs table
 """
 
-def check_queue(hours=6):
+def check_messages(hours=1):
     query = """
-        SELECT id, name
-        FROM jobs
-        WHERE type = 'run' AND state = 'WAITING' AND created_at <= CURRENT_TIMESTAMP - make_interval(hours => %s)
+        SELECT id, message
+        FROM cluster_status_messages
+        WHERE resolved = FALSE AND created_at <= CURRENT_TIMESTAMP - make_interval(hours => %s)
        """
     data = DB().fetch_all(query, params=(hours, ))
 
     errors = []
-    for [job_id, name] in data:
-        errors.append(f"Name {name}; ID: {job_id}")
+    for [message_id, message] in data:
+        errors.append(f"Message ({message_id}): {message}")
 
     if errors:
-        error_helpers.log_error(f"Jobs in queue are waiting for longer than {hours} hours", errors=errors)
+        error_helpers.log_error(f"Cluster status health problems are open for longer than {hours} hours", errors=errors)
     else:
         print('All good. Nothing to alert ...')
 
@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
         args = parser.parse_args()  # script will exit if arguments not present
 
-        check_queue(args.hours)
+        check_messages(args.hours)
 
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])
