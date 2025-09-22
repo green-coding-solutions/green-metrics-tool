@@ -7,6 +7,7 @@ NC='\033[0m' # No Color
 db_pw=''
 api_url=''
 metrics_url=''
+tz=''
 ask_scenario_runner=true
 activate_scenario_runner=true
 ask_eco_ci=true
@@ -119,6 +120,7 @@ function prepare_config() {
     cp docker/compose.yml.example docker/compose.yml
     eval "${sed_command} -e \"s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD|\" docker/compose.yml"
     eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS|$db_pw|\" docker/compose.yml"
+    eval "${sed_command} -e \"s|__TZ__|$tz|g\" docker/compose.yml"
 
     print_message "Updating config.yml with new password ..."
     cp config.yml.example config.yml
@@ -633,6 +635,18 @@ if [[ -z $metrics_url ]] ; then
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
 fi
 
+# ---- Ask for timezone (default from system; fallback Europe/Berlin) ----
+default_tz=''
+if [[ -f /etc/timezone ]]; then
+    default_tz="$(cat /etc/timezone 2>/dev/null)"
+elif [[ -L /etc/localtime ]]; then
+    default_tz="$(readlink /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##')"
+fi
+default_tz="${default_tz:-Europe/Berlin}"
+
+echo ""
+read -p "Enter timezone for Postgres and containers (e.g., Europe/Berlin) (default: ${default_tz}): " tz
+tz="${tz:-$default_tz}"
 
 if [[ -f config.yml ]]; then
     password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)

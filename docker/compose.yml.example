@@ -11,6 +11,7 @@ services:
     restart: always
     environment:
       - POSTGRES_PASSWORD=PLEASE_CHANGE_THIS
+      - TZ=__TZ__
     volumes:
       - green-coding-postgres-data:/var/lib/postgresql/data
       - ./structure.sql:/docker-entrypoint-initdb.d/01-structure.sql:ro
@@ -27,6 +28,7 @@ services:
       -c ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
       -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
       -c work_mem=16MB
+      -c timezone=__TZ__
       -p 9573
 # This option can potentially speed up big queries: https://www.twilio.com/blog/sqlite-postgresql-complicated
   green-coding-nginx:
