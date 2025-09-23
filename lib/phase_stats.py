@@ -13,8 +13,9 @@ from lib import error_helpers
 from lib.carbon_intensity import (
     CarbonIntensityServiceError,
     CarbonIntensityDataError,
-    interpolate_carbon_intensity,
-    get_carbon_intensity_data_for_run
+    get_carbon_intensity_data_for_run,
+    get_carbon_intensity_timeseries_for_phase,
+    store_phase_carbon_intensity_metric
 )
 
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
@@ -130,12 +131,32 @@ def build_and_store_phase_stats(run_id, sci=None):
         cpu_utilization_machine = None
         network_io_carbon_in_ug = None
 
-        # Calculate carbon intensity once per phase for reuse in energy and network calculations
+        # Generate carbon intensity timeseries for this phase and extract representative value
         phase_carbon_intensity = None
         if carbon_intensity_data:
             try:
-                phase_midpoint_us = (phase['start'] + phase['end']) // 2
-                phase_carbon_intensity = Decimal(interpolate_carbon_intensity(phase_midpoint_us, carbon_intensity_data))
+                location = carbon_intensity_data[0].get('location', 'unknown')
+                carbon_timeseries = get_carbon_intensity_timeseries_for_phase(
+                    phase['start'], phase['end'], carbon_intensity_data
+                )
+
+                if carbon_timeseries:
+                    # Store the timeseries as measurement metric for future energy×carbon calculations
+                    try:
+                        store_phase_carbon_intensity_metric(
+                            run_id, idx, phase['name'], location, carbon_timeseries
+                        )
+                    except Exception as e:  # pylint: disable=broad-except
+                        error_helpers.log_error(f"Failed to store carbon intensity timeseries for phase {phase['name']}: {e}", run_id=run_id)
+
+                    # INTERIM: Calculate representative carbon intensity for current energy calculations
+                    # TODO: Replace this simple average with time-weighted energy×carbon integration
+                    # Future enhancement: Synchronize energy and carbon timeseries for precise temporal calculation
+                    # instead of: energy_total * carbon_average
+                    # use: ∫(energy(t) * carbon_intensity(t))dt over phase duration
+                    total_carbon = sum(point['carbon_intensity'] for point in carbon_timeseries)
+                    phase_carbon_intensity = Decimal(total_carbon / len(carbon_timeseries))
+
             except (CarbonIntensityServiceError, CarbonIntensityDataError, ValueError) as e:
                 error_helpers.log_error(f"Failed to calculate carbon intensity for phase {phase['name']}: {e}", run_id=run_id)
                 phase_carbon_intensity = None

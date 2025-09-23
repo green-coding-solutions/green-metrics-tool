@@ -4,6 +4,7 @@ import pytest
 import requests
 from unittest.mock import Mock, patch
 from datetime import datetime
+from datetime import timezone
 
 GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))+'/../../'
 
@@ -15,10 +16,12 @@ from lib.carbon_intensity import (
     CarbonIntensityDataError,
     _microseconds_to_iso8601,
     _calculate_sampling_rate_from_data,
-    interpolate_carbon_intensity,
+    get_carbon_intensity_at_timestamp,
     get_carbon_intensity_data_for_run,
     store_static_carbon_intensity,
-    store_dynamic_carbon_intensity
+    store_dynamic_carbon_intensity,
+    get_carbon_intensity_timeseries_for_phase,
+    store_phase_carbon_intensity_metric
 )
 
 class TestCarbonIntensityClient:
@@ -90,16 +93,16 @@ class TestCarbonIntensityClient:
         result = _calculate_sampling_rate_from_data([{"invalid": "data"}, {"also": "invalid"}])
         assert result == 300000  # 5 minutes fallback
 
-    def test_interpolate_carbon_intensity_single_point(self):
+    def test_get_carbon_intensity_at_timestamp_single_point(self):
         # Test with single data point
         carbon_data = [
             {"location": "DE", "time": "2024-09-22T10:00:00Z", "carbon_intensity": 185.0}
         ]
         timestamp_us = 1727003400000000  # 2024-09-22T10:50:00Z
-        result = interpolate_carbon_intensity(timestamp_us, carbon_data)
+        result = get_carbon_intensity_at_timestamp(timestamp_us, carbon_data)
         assert result == 185.0
 
-    def test_interpolate_carbon_intensity_between_points(self):
+    def test_get_carbon_intensity_at_timestamp_between_points(self):
         # Test interpolation between two points
         carbon_data = [
             {"location": "DE", "time": "2024-09-22T10:00:00Z", "carbon_intensity": 180.0},
@@ -109,31 +112,31 @@ class TestCarbonIntensityClient:
         mid_time = datetime(2024, 9, 22, 10, 30, 0)  # UTC time
         timestamp_us = int(calendar.timegm(mid_time.timetuple()) * 1_000_000)
 
-        result = interpolate_carbon_intensity(timestamp_us, carbon_data)
+        result = get_carbon_intensity_at_timestamp(timestamp_us, carbon_data)
         assert result == 190.0  # Linear interpolation: 180 + (200-180) * 0.5
 
-    def test_interpolate_carbon_intensity_before_range(self):
+    def test_get_carbon_intensity_at_timestamp_before_range(self):
         # Test with timestamp before data range
         carbon_data = [
             {"location": "DE", "time": "2024-09-22T11:00:00Z", "carbon_intensity": 185.0}
         ]
         timestamp_us = 1727001600000000  # 2024-09-22T10:20:00Z (before 11:00)
-        result = interpolate_carbon_intensity(timestamp_us, carbon_data)
+        result = get_carbon_intensity_at_timestamp(timestamp_us, carbon_data)
         assert result == 185.0  # Should return first value
 
-    def test_interpolate_carbon_intensity_after_range(self):
+    def test_get_carbon_intensity_at_timestamp_after_range(self):
         # Test with timestamp after data range
         carbon_data = [
             {"location": "DE", "time": "2024-09-22T10:00:00Z", "carbon_intensity": 185.0}
         ]
         timestamp_us = 1727007000000000  # 2024-09-22T11:50:00Z (after 10:00)
-        result = interpolate_carbon_intensity(timestamp_us, carbon_data)
+        result = get_carbon_intensity_at_timestamp(timestamp_us, carbon_data)
         assert result == 185.0  # Should return last value
 
-    def test_interpolate_carbon_intensity_empty_data(self):
+    def test_get_carbon_intensity_at_timestamp_empty_data(self):
         # Test with empty data
         with pytest.raises(ValueError, match="No carbon intensity data available"):
-            interpolate_carbon_intensity(1727003400000000, [])
+            get_carbon_intensity_at_timestamp(1727003400000000, [])
 
     @patch('lib.carbon_intensity.requests.get')
     def test_carbon_intensity_client_success(self, mock_get):
@@ -318,3 +321,88 @@ class TestStoreCarbonIntensityAsMetrics:
         # Call the function with None location - should raise an exception or fail gracefully
         with pytest.raises(Exception):  # The method should fail when location is None
             store_dynamic_carbon_intensity(run_id, None)
+
+
+class TestCarbonIntensityTimeseries:
+
+    def test_get_carbon_intensity_timeseries_for_phase(self):
+        """Test generating carbon intensity timeseries for a phase"""
+        # Sample carbon intensity data
+        carbon_data = [
+            {"time": "2025-09-22T10:00:00Z", "carbon_intensity": 185.0, "location": "DE"},
+            {"time": "2025-09-22T11:00:00Z", "carbon_intensity": 190.0, "location": "DE"},
+            {"time": "2025-09-22T12:00:00Z", "carbon_intensity": 183.0, "location": "DE"}
+        ]
+
+        # Phase timeframe: 10:30 to 11:30 (90 minutes) in UTC
+        phase_start_us = int(datetime(2025, 9, 22, 10, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000)
+        phase_end_us = int(datetime(2025, 9, 22, 11, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000)
+
+        # Generate timeseries with 30-minute intervals
+        result = get_carbon_intensity_timeseries_for_phase(
+            phase_start_us, phase_end_us, carbon_data, target_sampling_rate_ms=30*60*1000
+        )
+
+        # Should generate points at 10:30, 11:00, 11:30
+        assert len(result) == 3
+        assert result[0]["timestamp_us"] == phase_start_us
+        assert result[-1]["timestamp_us"] == phase_end_us
+
+        # Values should be interpolated appropriately
+        assert 185.0 <= result[0]["carbon_intensity"] <= 190.0  # Interpolated between 185 and 190
+        assert result[1]["carbon_intensity"] == 190.0  # Exact match at 11:00
+        assert 183.0 <= result[2]["carbon_intensity"] <= 190.0  # Interpolated between 190 and 183
+
+    def test_get_carbon_intensity_timeseries_empty_data(self):
+        """Test error handling with empty carbon data"""
+        phase_start_us = int(datetime(2025, 9, 22, 10, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000)
+        phase_end_us = int(datetime(2025, 9, 22, 11, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000)
+
+        with pytest.raises(ValueError, match="No carbon intensity data available"):
+            get_carbon_intensity_timeseries_for_phase(phase_start_us, phase_end_us, [])
+
+    def test_get_carbon_intensity_timeseries_invalid_timeframe(self):
+        """Test error handling with invalid phase timeframe"""
+        carbon_data = [{"time": "2025-09-22T10:00:00Z", "carbon_intensity": 185.0, "location": "DE"}]
+
+        phase_start_us = int(datetime(2025, 9, 22, 11, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000)
+        phase_end_us = int(datetime(2025, 9, 22, 10, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000)  # End before start
+
+        with pytest.raises(ValueError, match="Invalid phase timeframe"):
+            get_carbon_intensity_timeseries_for_phase(phase_start_us, phase_end_us, carbon_data)
+
+    def test_store_phase_carbon_intensity_metric(self):
+        """Test storing phase-specific carbon intensity metric in database"""
+        run_id = Tests.insert_run()
+
+        # Create test carbon timeseries data
+        carbon_timeseries = [
+            {'timestamp_us': int(datetime(2025, 9, 22, 10, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000), 'carbon_intensity': 185.0},
+            {'timestamp_us': int(datetime(2025, 9, 22, 11, 0, 0, tzinfo=timezone.utc).timestamp() * 1_000_000), 'carbon_intensity': 190.0},
+            {'timestamp_us': int(datetime(2025, 9, 22, 11, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000), 'carbon_intensity': 183.0}
+        ]
+
+        # Store the phase carbon intensity metric
+        store_phase_carbon_intensity_metric(run_id, 1, '[SETUP]', 'DE', carbon_timeseries)
+
+        # Verify the measurement_metric was created
+        metrics = DB().fetch_all(
+            'SELECT metric, detail_name, unit FROM measurement_metrics WHERE run_id = %s',
+            params=(run_id,)
+        )
+        assert len(metrics) == 1
+        assert metrics[0] == ('grid_carbon_intensity_phase', 'DE_001_[SETUP]', 'gCO2e/kWh')
+
+        # Verify the measurement_values were stored
+        values = DB().fetch_all(
+            '''SELECT mv.value, mv.time FROM measurement_values mv
+               JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
+               WHERE mm.run_id = %s ORDER BY mv.time''',
+            params=(run_id,)
+        )
+        assert len(values) == 3
+
+        # Verify the values are stored correctly (as integers * 1000)
+        expected_values = [185000, 190000, 183000]  # multiplied by 1000 for precision
+        actual_values = [v[0] for v in values]
+        assert actual_values == expected_values

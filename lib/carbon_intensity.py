@@ -107,19 +107,24 @@ def get_carbon_intensity_data_for_run(run_id):
     return None
 
 
-def interpolate_carbon_intensity(timestamp_us: int, carbon_data: List[Dict[str, Any]]) -> float:
+def get_carbon_intensity_at_timestamp(timestamp_us: int, carbon_data: List[Dict[str, Any]]) -> float:
     """
-    Interpolate carbon intensity value for a specific timestamp.
+    Get carbon intensity value for a specific timestamp using interpolation/extrapolation.
+
+    This function finds the carbon intensity at a given timestamp by:
+    - Interpolating between two data points if timestamp falls between them
+    - Returning the first value if timestamp is before all data points
+    - Returning the last value if timestamp is after all data points
 
     Args:
         timestamp_us: Target timestamp in microseconds
         carbon_data: List of carbon intensity data points from service
 
     Returns:
-        Interpolated carbon intensity value in gCO2e/kWh
+        Carbon intensity value in gCO2e/kWh
 
     Raises:
-        ValueError: If carbon_data is empty or timestamp is outside range
+        ValueError: If carbon_data is empty
     """
     if not carbon_data:
         raise ValueError("No carbon intensity data available for interpolation")
@@ -158,6 +163,78 @@ def interpolate_carbon_intensity(timestamp_us: int, carbon_data: List[Dict[str, 
             return value1 + (value2 - value1) * ratio
 
     raise ValueError(f"Could not interpolate carbon intensity for timestamp {target_time}")
+
+
+def get_carbon_intensity_timeseries_for_phase(
+    phase_start_us: int,
+    phase_end_us: int,
+    carbon_data: List[Dict[str, Any]],
+    target_sampling_rate_ms: int = None
+) -> List[Dict[str, Any]]:
+    """
+    Generate carbon intensity timeseries for a specific phase timeframe.
+
+    This function generates carbon intensity values at regular intervals throughout a phase,
+    which are stored as measurement metrics and used for calculating representative carbon
+    intensity values for energy calculations.
+
+    Args:
+        phase_start_us: Phase start timestamp in microseconds
+        phase_end_us: Phase end timestamp in microseconds
+        carbon_data: List of carbon intensity data points from service
+        target_sampling_rate_ms: Target sampling rate in milliseconds for timeseries generation.
+                               If None, uses sampling rate from carbon data or defaults to 5 minutes.
+
+    Returns:
+        List of carbon intensity timeseries points:
+        [{"timestamp_us": 1727003400000000, "carbon_intensity": 185.0}, ...]
+
+    Raises:
+        ValueError: If carbon_data is empty or phase timeframe is invalid
+    """
+    if not carbon_data:
+        raise ValueError("No carbon intensity data available for timeseries generation")
+
+    if phase_start_us >= phase_end_us:
+        raise ValueError("Invalid phase timeframe: start must be before end")
+
+    # Determine sampling rate for timeseries generation
+    if target_sampling_rate_ms is None:
+        target_sampling_rate_ms = _calculate_sampling_rate_from_data(carbon_data)
+
+    target_sampling_rate_us = target_sampling_rate_ms * 1000
+
+    # Generate timestamps at regular intervals throughout the phase
+    timeseries = []
+    current_timestamp_us = phase_start_us
+
+    while current_timestamp_us <= phase_end_us:
+        try:
+            carbon_intensity = get_carbon_intensity_at_timestamp(current_timestamp_us, carbon_data)
+            timeseries.append({
+                "timestamp_us": current_timestamp_us,
+                "carbon_intensity": carbon_intensity
+            })
+        except ValueError:
+            # Skip this timestamp if carbon intensity lookup fails
+            # This handles edge cases like malformed data or timestamp conversion issues
+            # Note: Normal out-of-range timestamps are handled gracefully by get_carbon_intensity_at_timestamp
+            pass
+
+        current_timestamp_us += target_sampling_rate_us
+
+    # Always include the phase end timestamp if it wasn't already included
+    if timeseries and timeseries[-1]["timestamp_us"] != phase_end_us:
+        try:
+            carbon_intensity = get_carbon_intensity_at_timestamp(phase_end_us, carbon_data)
+            timeseries.append({
+                "timestamp_us": phase_end_us,
+                "carbon_intensity": carbon_intensity
+            })
+        except ValueError:
+            pass
+
+    return timeseries
 
 
 def _calculate_sampling_rate_from_data(carbon_intensity_data: List[Dict[str, Any]]) -> int:
@@ -348,7 +425,7 @@ def _get_stored_carbon_intensity_data(run_id, metric_name, detail_name):
     if not results:
         return None
 
-    # Convert stored data back to the format expected by interpolate_carbon_intensity
+    # Convert stored data back to the format expected by get_carbon_intensity_at_timestamp
     carbon_data = []
     for timestamp_us, value_int in results:
         # Convert back from integer storage (divide by 1000 to restore decimal precision)
@@ -364,3 +441,70 @@ def _get_stored_carbon_intensity_data(run_id, metric_name, detail_name):
         })
 
     return carbon_data
+
+
+def store_phase_carbon_intensity_metric(
+    run_id,
+    phase_index: int,
+    phase_name: str,
+    location: str,
+    carbon_timeseries: List[Dict[str, Any]]
+):
+    """
+    Store phase-specific carbon intensity timeseries as measurement_metric.
+
+    This creates a new measurement metric specifically for carbon intensity data
+    within a phase, enabling future energy×carbon timeseries calculations and
+    frontend visualization of carbon intensity variations within phases.
+
+    Args:
+        run_id: UUID of the run
+        phase_index: Index of the phase (e.g., 1, 2, 3...)
+        phase_name: Name of the phase (e.g., "[SETUP]", "[RUNTIME]")
+        location: Location code (e.g., "DE", "ES-IB-MA")
+        carbon_timeseries: List of carbon intensity data points with timestamp_us and carbon_intensity
+
+    """
+    if not carbon_timeseries:
+        return
+
+    # Create phase-specific metric name and detail name
+    metric_name = 'grid_carbon_intensity_phase'
+    detail_name = f"{location}_{phase_index:03}_{phase_name}"
+    unit = 'gCO2e/kWh'
+
+    # Calculate sampling rate from the timeseries data
+    if len(carbon_timeseries) >= 2:
+        interval_us = carbon_timeseries[1]['timestamp_us'] - carbon_timeseries[0]['timestamp_us']
+        sampling_rate_configured = int(interval_us / 1000)  # Convert to milliseconds
+    else:
+        sampling_rate_configured = 300000  # 5 minutes default
+
+    # Create measurement_metric entry for phase-specific carbon intensity
+    measurement_metric_id = DB().fetch_one('''
+        INSERT INTO measurement_metrics (run_id, metric, detail_name, unit, sampling_rate_configured)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id
+    ''', params=(run_id, metric_name, detail_name, unit, sampling_rate_configured))[0]
+
+    # Prepare measurement values for bulk insert
+    values_data = []
+    for data_point in carbon_timeseries:
+        timestamp_us = data_point['timestamp_us']
+        # Convert carbon intensity to integer (multiply by 1000 for precision)
+        carbon_intensity_value = int(float(data_point['carbon_intensity']) * 1000)
+        values_data.append((measurement_metric_id, carbon_intensity_value, timestamp_us))
+
+    if values_data:
+        # Bulk insert measurement values using copy_from
+        csv_data = '\n'.join([f"{row[0]},{row[1]},{row[2]}" for row in values_data])
+        f = StringIO(csv_data)
+        DB().copy_from(
+            file=f,
+            table='measurement_values',
+            columns=['measurement_metric_id', 'value', 'time'],
+            sep=','
+        )
+        f.close()
+
+    print(f"Stored {len(values_data)} carbon intensity data points for phase {phase_name} (location: {location})")
