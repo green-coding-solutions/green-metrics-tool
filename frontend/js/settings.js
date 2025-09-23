@@ -23,10 +23,15 @@ const getSettings = async () => {
     try {
         const data = await makeAPICall('/v1/user/settings');
 
-        if (data?.data?._capabilities?.measurement?.dev_no_optimizations === true) document.querySelector('#measurement-dev-no-optimizations').checked = true;
-        if (data?.data?._capabilities?.measurement?.dev_no_sleeps === true) document.querySelector('#measurement-dev-no-sleeps').checked = true;
-        if (data?.data?._capabilities?.measurement?.phase_padding === true) document.querySelector('#measurement-phase-padding').checked = true;
-        if (data?.data?._capabilities?.measurement?.skip_volume_inspect === true) document.querySelector('#measurement-skip-volume-inspect').checked = true;
+        // Checkboxes
+        document.querySelector('#measurement-dev-no-optimizations').checked = data?.data?._capabilities?.measurement?.dev_no_optimizations === true;
+        document.querySelector('#measurement-dev-no-sleeps').checked = data?.data?._capabilities?.measurement?.dev_no_sleeps === true;
+        document.querySelector('#measurement-phase-padding').checked = data?.data?._capabilities?.measurement?.phase_padding === true;
+        document.querySelector('#measurement-skip-volume-inspect').checked = data?.data?._capabilities?.measurement?.skip_volume_inspect === true;
+        document.querySelector('#measurement-use-dynamic-grid-carbon-intensity').checked = data?.data?._capabilities?.measurement?.use_dynamic_grid_carbon_intensity === true;
+
+        // Text
+        document.querySelector('#measurement-grid-carbon-intensity-location').value = data?.data?._capabilities?.measurement?.grid_carbon_intensity_location;
         document.querySelector('#measurement-flow-process-duration').value = data?.data?._capabilities?.measurement?.flow_process_duration;
         document.querySelector('#measurement-total-duration').value = data?.data?._capabilities?.measurement?.total_duration;
         $('#measurement-disabled-metric-providers').dropdown('set exactly', data?.data?._capabilities?.measurement?.disabled_metric_providers);

@@ -219,6 +219,15 @@ def import_demo_data_ee():
         reset_db()
         raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
 
+
+def import_carbon_intensity_value(run_id, static_carbon_intensity_value):
+    DB().query(
+        "UPDATE runs SET start_measurement = %s, end_measurement = %s WHERE id = %s",
+        (TEST_MEASUREMENT_START_TIME, TEST_MEASUREMENT_END_TIME, run_id)
+    )
+    from lib.carbon_intensity import store_static_carbon_intensity # pylint: disable=import-outside-toplevel
+    store_static_carbon_intensity(run_id, static_carbon_intensity_value)
+
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"
 

@@ -75,7 +75,7 @@ class ScenarioRunner:
         skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None, phase_padding=True,
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
-        measurement_wait_time_dependencies=60):
+        measurement_wait_time_dependencies=60, use_dynamic_grid_carbon_intensity=False, grid_carbon_intensity_location=None):
 
         config = GlobalConfig().config
 
@@ -143,6 +143,8 @@ class ScenarioRunner:
         self._measurement_post_test_sleep = measurement_post_test_sleep
         self._measurement_phase_transition_time = measurement_phase_transition_time
         self._measurement_wait_time_dependencies = measurement_wait_time_dependencies
+        self._use_dynamic_grid_carbon_intensity = use_dynamic_grid_carbon_intensity
+        self._grid_carbon_intensity_location = grid_carbon_intensity_location
         self._last_measurement_duration = 0
         self._phase_padding = phase_padding
         self._phase_padding_ms = max(
@@ -161,6 +163,7 @@ class ScenarioRunner:
                 ('_save_notes_runner', {}),
                 ('_save_run_logs', {}),
                 ('_save_warnings', {}),
+                ('_save_grid_carbon_intensity_metrics', {}),
                 ('_process_phase_stats', {}),
             )
 
@@ -635,6 +638,8 @@ class ScenarioRunner:
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['sci'] = self._sci
         measurement_config['phase_padding'] = self._phase_padding_ms
+        measurement_config['use_dynamic_grid_carbon_intensity'] = self._use_dynamic_grid_carbon_intensity
+        measurement_config['grid_carbon_intensity_location'] = self._grid_carbon_intensity_location
 
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
@@ -2067,6 +2072,34 @@ class ScenarioRunner:
             if self.__phases.get('[RUNTIME]', None) is not None and self.__phases['[RUNTIME]'].get('end', None) is None:
                 self.__phases['[RUNTIME]']['end'] = int(time.time_ns() / 1_000)
 
+    def _save_grid_carbon_intensity_metrics(self):
+        if not self._run_id or self._dev_no_save:
+            return
+
+        print(TerminalColors.HEADER, '\nStore grid carbon intensity metrics', TerminalColors.ENDC)
+
+        # pylint: disable=import-outside-toplevel
+        from lib.carbon_intensity import store_static_carbon_intensity, store_dynamic_carbon_intensity
+
+        try:
+            if self._use_dynamic_grid_carbon_intensity:
+                # Store dynamic carbon intensity from API
+                if self._grid_carbon_intensity_location is None:
+                    error_helpers.log_error("Dynamic grid carbon intensity is enabled, but location is missing! Carbon footprint calculations will be skipped.", run_id=self._run_id)
+                    return
+
+                store_dynamic_carbon_intensity(self._run_id, self._grid_carbon_intensity_location)
+            elif self._sci['I']:
+                # Store static carbon intensity from config as constant time series
+                store_static_carbon_intensity(self._run_id, self._sci['I'])
+            else:
+                # No carbon intensity configured - this will prevent carbon calculations
+                # This is only acceptable if no energy metrics are being collected
+                error_helpers.log_error("No grid carbon intensity configured. Carbon footprint calculations will be skipped.", run_id=self._run_id)
+
+        except Exception as e:  # pylint: disable=broad-except
+            error_helpers.log_error(f"Unexpected error storing grid carbon intensity metrics: {e}", run_id=self._run_id)
+
     def _process_phase_stats(self):
         if not self._run_id or self._dev_no_phase_stats or self._dev_no_save:
             return
@@ -2080,12 +2113,7 @@ class ScenarioRunner:
         # loop over them issuing separate queries to the DB
         from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
 
-        # Get measurement_config from database to support dynamic carbon intensity
-        measurement_config_query = "SELECT measurement_config FROM runs WHERE id = %s"
-        measurement_config_result = DB().fetch_one(measurement_config_query, (self._run_id,))
-        measurement_config = measurement_config_result[0] if measurement_config_result else {}
-
-        build_and_store_phase_stats(self._run_id, self._sci, measurement_config)
+        build_and_store_phase_stats(self._run_id, self._sci)
 
     def _post_process(self, index):
         try:

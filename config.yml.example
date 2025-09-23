@@ -256,11 +256,6 @@ sci:
 #  ignore:
 #    - example_optimization_test
 
-# In order to get the carbon intensity we use electricity maps which requires a token.
-# You can get this under https://api-portal.electricitymaps.com/
-# This is a free service please note that you need to pay if you want to use this commercially!
-#electricity_maps_token: '123'
-
 # Modules API / Frontend
 # GMT can selectively activate some API and frontend components. This is asked in the install process and should NOT
 # only be changed here as files in different locations are changed too. Please re-run the install process.

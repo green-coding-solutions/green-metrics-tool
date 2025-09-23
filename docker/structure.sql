@@ -55,8 +55,8 @@ VALUES (
                 "measurement.phase_transition_time",
                 "measurement.wait_time_dependencies",
                 "measurement.skip_volume_inspect",
-                "measurement.use_dynamic_carbon_intensity",
-                "measurement.carbon_intensity_location"
+                "measurement.use_dynamic_grid_carbon_intensity",
+                "measurement.grid_carbon_intensity_location"
             ]
         },
         "api": {
@@ -117,6 +117,8 @@ VALUES (
         },
         "machines": [1],
         "measurement": {
+            "use_dynamic_grid_carbon_intensity": false,
+            "grid_carbon_intensity_location": "DE",
             "phase_padding": true,
             "quotas": {},
             "dev_no_sleeps": false,

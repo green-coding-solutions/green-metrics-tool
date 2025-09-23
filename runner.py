@@ -60,6 +60,8 @@ if __name__ == '__main__':
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
     parser.add_argument('--iterations', type=int, default=1, help='Specify how many times each scenario should be run. Default is 1. With multiple files, all files are processed sequentially, then the entire sequence is repeated N times. Example: with files A.yml, B.yml and --iterations 2, the execution order is A, B, A, B.')
 
+    parser.add_argument('--use-dynamic-grid-carbon-intensity', action='store_true', help='Use dynamic grid carbon intensity value instead of static value from config')
+    parser.add_argument('--grid-carbon-intensity-location', type=str, help='Location of the electricity grid (e.g. DE), used for the dynamic carbon intensity calculation')
 
     # Measurement settings
     parser.add_argument('--measurement-system-check-threshold', type=int, default=3, help='System check threshold when to issue warning and when to fail. When set on 3 runs will fail only on erros, when 2 then also on warnings and 1 also on pure info statements. Can be 1=INFO, 2=WARN or 3=ERROR')
@@ -158,6 +160,8 @@ if __name__ == '__main__':
                     docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
                     skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder,
                     usage_scenario_variables=variables_dict, phase_padding=not args.no_phase_padding,
+                    use_dynamic_grid_carbon_intensity=args.use_dynamic_grid_carbon_intensity,
+                    grid_carbon_intensity_location=args.grid_carbon_intensity_location,
                     measurement_system_check_threshold=args.measurement_system_check_threshold,
                     measurement_pre_test_sleep=args.measurement_pre_test_sleep,
                     measurement_idle_duration=args.measurement_idle_duration,

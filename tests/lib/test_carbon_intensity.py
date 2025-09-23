@@ -4,7 +4,6 @@ import pytest
 import requests
 from unittest.mock import Mock, patch
 from datetime import datetime
-from decimal import Decimal
 
 GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))+'/../../'
 
@@ -14,11 +13,12 @@ from lib.carbon_intensity import (
     CarbonIntensityClient,
     CarbonIntensityServiceError,
     CarbonIntensityDataError,
-    microseconds_to_iso8601,
-    interpolate_carbon_intensity
+    _microseconds_to_iso8601,
+    interpolate_carbon_intensity,
+    get_carbon_intensity_data_for_run,
+    store_static_carbon_intensity,
+    store_dynamic_carbon_intensity
 )
-from lib.phase_stats import build_and_store_phase_stats, get_carbon_intensity_for_timestamp
-
 
 class TestCarbonIntensityClient:
 
@@ -48,10 +48,10 @@ class TestCarbonIntensityClient:
         client = CarbonIntensityClient()
         assert client.base_url == "http://localhost:8000"
 
-    def test_microseconds_to_iso8601(self):
+    def test__microseconds_to_iso8601(self):
         # Test timestamp conversion
         timestamp_us = 1727003400000000  # Some timestamp
-        result = microseconds_to_iso8601(timestamp_us)
+        result = _microseconds_to_iso8601(timestamp_us)
         # Just verify format is correct ISO 8601
         assert len(result) == 20
         assert result.endswith('Z')
@@ -156,150 +156,135 @@ class TestCarbonIntensityClient:
             client.get_carbon_intensity_history("DE", "2024-09-22T10:50:00Z", "2024-09-22T10:55:00Z")
 
 
-class TestGetCarbonIntensityForTimestamp:
+class TestGetCarbonIntensityDataForRun:
 
-    def test_static_mode_with_value(self):
-        # Test static mode with I value
-        sci = {'I': 334}
-        result = get_carbon_intensity_for_timestamp(1727003400000000, sci, None)
-        assert result == Decimal('334')
-
-    def test_static_mode_missing_value(self):
-        # Test static mode without I value
-        sci = {}
-        with pytest.raises(ValueError, match="No carbon intensity value available"):
-            get_carbon_intensity_for_timestamp(1727003400000000, sci, None)
-
-    def test_dynamic_mode(self):
-        # Test dynamic mode with carbon data
-        sci = {'I': 334}  # Should be ignored in dynamic mode
-        carbon_data = [
-            {"location": "DE", "time": "2024-09-22T10:00:00Z", "carbon_intensity": 185.0}
-        ]
-        result = get_carbon_intensity_for_timestamp(1727003400000000, sci, carbon_data)
-        assert result == 185.0
-
-
-class TestDynamicCarbonIntensityPhaseStats:
-
-    @patch('lib.phase_stats.CarbonIntensityClient')
-    def test_dynamic_carbon_intensity_integration(self, mock_client_class):
-        # Test full integration with dynamic carbon intensity
+    def test_no_carbon_intensity_data(self):
+        # Test with run that has no carbon intensity data
         run_id = Tests.insert_run()
-        Tests.import_machine_energy(run_id)
+        result = get_carbon_intensity_data_for_run(run_id)
+        assert result is None
 
-        # Add measurement start/end times to the run
+    def test_with_dynamic_carbon_intensity_data(self):
+        # Test with run that has dynamic carbon intensity data stored
+        run_id = Tests.insert_run()
+
+        # Insert mock carbon intensity metadata into measurement_metrics
+        # This simulates data that would be stored during a run with dynamic carbon intensity
+        metric_id = DB().fetch_one(
+            "INSERT INTO measurement_metrics (run_id, metric, detail_name, unit, sampling_rate_configured) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+            (run_id, 'grid_carbon_intensity_dynamic', 'DE', 'gCO2e/kWh', 1000)
+        )[0]
+
+        # Insert actual carbon intensity values
+        DB().query(
+            "INSERT INTO measurement_values (measurement_metric_id, value, time) VALUES (%s, %s, %s)",
+            (metric_id, 185, 1727003400000000)
+        )
+
+        result = get_carbon_intensity_data_for_run(run_id)
+
+        # Should return the stored carbon intensity data
+        assert result is not None
+        assert len(result) > 0
+
+
+class TestStoreCarbonIntensityAsMetrics:
+
+    @pytest.fixture
+    def run_with_measurement_times(self):
+        """Fixture that creates a test run with measurement start/end times set."""
+        run_id = Tests.insert_run()
+
+        # Set measurement times (required for carbon intensity functions)
         DB().query(
             "UPDATE runs SET start_measurement = %s, end_measurement = %s WHERE id = %s",
             (Tests.TEST_MEASUREMENT_START_TIME, Tests.TEST_MEASUREMENT_END_TIME, run_id)
         )
 
-        # Mock the carbon intensity client
-        mock_client = Mock()
-        mock_client.get_carbon_intensity_history.return_value = [
-            {"location": "DE", "time": "2024-09-22T10:00:00Z", "carbon_intensity": 200.0},
-            {"location": "DE", "time": "2024-09-22T11:00:00Z", "carbon_intensity": 180.0}
-        ]
-        mock_client_class.return_value = mock_client
+        return run_id
 
-        # Test configuration with dynamic carbon intensity enabled
-        sci = {'I': 334, 'N': 0.04106063}  # Static I should be ignored
-        measurement_config = {
-            'capabilities': {
-                'measurement': {
-                    'use_dynamic_carbon_intensity': True,
-                    'carbon_intensity_location': 'DE'
-                }
-            }
-        }
+    def test_store_carbon_intensity_static_value(self, run_with_measurement_times):
+        # Test that static carbon intensity is stored when dynamic is not enabled
+        run_id = run_with_measurement_times
+        static_carbon_intensity = 250.5
 
-        build_and_store_phase_stats(run_id, sci, measurement_config)
+        # Call the function with static value
+        store_static_carbon_intensity(run_id, static_carbon_intensity)
 
-        # Verify the carbon intensity client was called
-        mock_client.get_carbon_intensity_history.assert_called_once()
-        args = mock_client.get_carbon_intensity_history.call_args[0]
-        assert args[0] == 'DE'  # location
-        # args[1] and args[2] are start/end times in ISO format
-
-        # Check that carbon stats were generated
-        carbon_data = DB().fetch_all(
-            'SELECT metric, value FROM phase_stats WHERE metric LIKE %s AND phase = %s',
-            params=('%carbon%', '004_[RUNTIME]'),
-            fetch_mode='dict'
+        # Verify that measurement_metrics entry was created for static carbon intensity
+        metric_result = DB().fetch_one(
+            "SELECT metric, detail_name, unit FROM measurement_metrics WHERE run_id = %s",
+            (run_id,)
         )
 
-        assert len(carbon_data) > 0
-        # Should have carbon data calculated with dynamic intensity (not static 334)
+        assert metric_result is not None
+        assert metric_result[0] == 'grid_carbon_intensity_static'
+        assert metric_result[1] == '[CONFIG]'
+        assert metric_result[2] == 'gCO2e/kWh'
 
-    def test_static_carbon_intensity_fallback(self):
-        # Test fallback to static carbon intensity when dynamic is disabled
-        run_id = Tests.insert_run()
-        Tests.import_machine_energy(run_id)
-
-        sci = {'I': 334}
-        measurement_config = {
-            'capabilities': {
-                'measurement': {
-                    'use_dynamic_carbon_intensity': False
-                }
-            }
-        }
-
-        build_and_store_phase_stats(run_id, sci, measurement_config)
-
-        # Check that carbon stats were generated with static intensity
-        carbon_data = DB().fetch_all(
-            'SELECT metric, value FROM phase_stats WHERE metric LIKE %s AND phase = %s',
-            params=('%carbon%', '004_[RUNTIME]'),
-            fetch_mode='dict'
+        # Verify that static value was stored (should have 2 data points: start and end)
+        values_result = DB().fetch_all(
+            """SELECT mv.value
+               FROM measurement_values mv
+               JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
+               WHERE mm.run_id = %s AND mm.metric = 'grid_carbon_intensity_static'""",
+            (run_id,)
         )
 
-        assert len(carbon_data) > 0
+        assert len(values_result) == 2
+        # Both values should be the same static value (multiplied by 1000)
+        assert values_result[0][0] == 250500  # 250.5 * 1000
+        assert values_result[1][0] == 250500  # 250.5 * 1000
 
-    def test_missing_location_error(self):
-        # Test error when location is missing for dynamic mode
-        run_id = Tests.insert_run()
-        Tests.import_machine_energy(run_id)
+    def test_store_carbon_intensity_dynamic_grid_enabled(self, run_with_measurement_times):
+        # Test that dynamic grid carbon intensity is stored when enabled in measurement config
+        run_id = run_with_measurement_times
 
-        sci = {'I': 334}
-        measurement_config = {
-            'capabilities': {
-                'measurement': {
-                    'use_dynamic_carbon_intensity': True
-                    # Missing carbon_intensity_location
-                }
-            }
-        }
 
-        with pytest.raises(ValueError, match="carbon_intensity_location is required"):
-            build_and_store_phase_stats(run_id, sci, measurement_config)
+        # Mock the carbon intensity API call
+        with patch('lib.carbon_intensity.CarbonIntensityClient') as mock_client_class:
+            mock_client = Mock()
+            mock_client_class.return_value = mock_client
+            mock_client.get_carbon_intensity_history.return_value = [
+                {"location": "DE", "time": "2024-09-22T10:00:00Z", "carbon_intensity": 185.0},
+                {"location": "DE", "time": "2024-09-22T10:30:00Z", "carbon_intensity": 190.0},
+                {"location": "DE", "time": "2024-09-22T11:00:00Z", "carbon_intensity": 183.0}
+            ]
 
-    @patch('lib.phase_stats.CarbonIntensityClient')
-    def test_service_error_propagation(self, mock_client_class):
-        # Test that service errors are properly propagated
-        run_id = Tests.insert_run()
-        Tests.import_machine_energy(run_id)
+            # Call the function under test
+            store_dynamic_carbon_intensity(run_id, 'DE')
 
-        # Add measurement start/end times to the run
-        DB().query(
-            "UPDATE runs SET start_measurement = %s, end_measurement = %s WHERE id = %s",
-            (Tests.TEST_MEASUREMENT_START_TIME, Tests.TEST_MEASUREMENT_END_TIME, run_id)
+        # Verify that measurement_metrics entry was created for dynamic carbon intensity
+        metric_result = DB().fetch_one(
+            "SELECT metric, detail_name, unit FROM measurement_metrics WHERE run_id = %s",
+            (run_id,)
         )
 
-        # Mock the client to raise an exception
-        mock_client = Mock()
-        mock_client.get_carbon_intensity_history.side_effect = CarbonIntensityServiceError("Service unavailable")
-        mock_client_class.return_value = mock_client
+        assert metric_result is not None
+        assert metric_result[0] == 'grid_carbon_intensity_dynamic'
+        assert metric_result[1] == 'DE'
+        assert metric_result[2] == 'gCO2e/kWh'
 
-        sci = {'I': 334}
-        measurement_config = {
-            'capabilities': {
-                'measurement': {
-                    'use_dynamic_carbon_intensity': True,
-                    'carbon_intensity_location': 'DE'
-                }
-            }
-        }
+        # Verify that measurement values were stored
+        values_result = DB().fetch_all(
+            """SELECT mv.value, mv.time
+               FROM measurement_values mv
+               JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
+               WHERE mm.run_id = %s AND mm.metric = 'grid_carbon_intensity_dynamic'
+               ORDER BY mv.time""",
+            (run_id,)
+        )
 
-        with pytest.raises(CarbonIntensityServiceError, match="Service unavailable"):
-            build_and_store_phase_stats(run_id, sci, measurement_config)
+        assert len(values_result) == 3
+        # Values should be stored as integers (multiplied by 1000)
+        assert values_result[0][0] == 185000  # 185.0 * 1000
+        assert values_result[1][0] == 190000  # 190.0 * 1000
+        assert values_result[2][0] == 183000  # 183.0 * 1000
+
+    def test_store_carbon_intensity_dynamic_missing_location(self, run_with_measurement_times):
+        # Test error handling when dynamic method is called with None location
+        run_id = run_with_measurement_times
+
+        # Call the function with None location - should raise an exception or fail gracefully
+        with pytest.raises(Exception):  # The method should fail when location is None
+            store_dynamic_carbon_intensity(run_id, None)

@@ -130,6 +130,8 @@ def test_phase_embodied_and_operational_carbon():
     Tests.import_machine_energy(run_id)
 
     sci = {"I":436,"R":0,"EL":4,"RS":1,"TE":181000,"R_d":"page request"}
+    Tests.import_carbon_intensity_value(run_id, sci['I'])
+
     build_and_store_phase_stats(run_id, sci=sci)
 
     data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, phase FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
@@ -288,6 +290,7 @@ def test_phase_stats_network_data():
         'N': 0.001,    # Network energy intensity (kWh/GB)
         'I': 500,      # Carbon intensity (gCO2e/kWh)
     }
+    Tests.import_carbon_intensity_value(run_id, test_sci_config['I'])
 
     build_and_store_phase_stats(run_id, sci=test_sci_config)
 
@@ -347,6 +350,7 @@ def test_sci_calculation():
         'R': 10,       # Functional unit count (10 runs)
         'R_d': 'test runs'  # Functional unit description
     }
+    Tests.import_carbon_intensity_value(run_id, test_sci_config['I'])
 
     build_and_store_phase_stats(run_id, sci=test_sci_config)
 

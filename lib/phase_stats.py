@@ -11,11 +11,10 @@ from io import StringIO
 from lib.db import DB
 from lib import error_helpers
 from lib.carbon_intensity import (
-    CarbonIntensityClient,
     CarbonIntensityServiceError,
     CarbonIntensityDataError,
-    microseconds_to_iso8601,
-    interpolate_carbon_intensity
+    interpolate_carbon_intensity,
+    get_carbon_intensity_data_for_run
 )
 
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
@@ -73,75 +72,25 @@ def generate_csv_line(run_id, metric, detail_name, phase_name, value, value_type
     # else '' resolves to NULL
     return f"{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{round(sampling_rate_avg) if sampling_rate_avg is not None else ''},{round(sampling_rate_max) if sampling_rate_max is not None else ''},{round(sampling_rate_95p) if sampling_rate_95p is not None else ''},{unit},NOW()\n"
 
-def get_carbon_intensity_for_timestamp(timestamp_us, sci, carbon_intensity_data):
-    """
-    Get carbon intensity value for a specific timestamp.
-    Uses dynamic data if available, otherwise falls back to static value.
-
-    Args:
-        timestamp_us: Timestamp in microseconds
-        sci: SCI configuration dict with static 'I' value
-        carbon_intensity_data: Dynamic carbon intensity data (None for static mode)
-
-    Returns:
-        Carbon intensity value in gCO2e/kWh
-
-    Raises:
-        ValueError: If no carbon intensity data is available
-    """
-    if carbon_intensity_data:
-        # Dynamic mode: interpolate from time series data
-        return interpolate_carbon_intensity(timestamp_us, carbon_intensity_data)
-    else:
-        # Static mode: use configured value
-        if sci.get('I') is None:
-            raise ValueError("No carbon intensity value available (static 'I' value missing)")
-        return Decimal(sci['I'])
 
 
-def build_and_store_phase_stats(run_id, sci=None, measurement_config=None):
+
+def build_and_store_phase_stats(run_id, sci=None):
     if not sci:
         sci = {}
-    if not measurement_config:
-        measurement_config = {}
 
     software_carbon_intensity_global = {}
 
-    # Check for dynamic carbon intensity configuration
-    capabilities = measurement_config.get('capabilities', {})
-    measurement_capabilities = capabilities.get('measurement', {})
-    use_dynamic_carbon_intensity = measurement_capabilities.get('use_dynamic_carbon_intensity', False)
-    carbon_intensity_location = measurement_capabilities.get('carbon_intensity_location')
-
-    # For dynamic carbon intensity, fetch time series data
-    carbon_intensity_data = None
-    if use_dynamic_carbon_intensity:
-        if not carbon_intensity_location:
-            raise ValueError("carbon_intensity_location is required when use_dynamic_carbon_intensity is True")
-
-        # Get run start and end times
-        run_query = """
-            SELECT start_measurement, end_measurement
-            FROM runs
-            WHERE id = %s
-        """
-        run_data = DB().fetch_one(run_query, (run_id,))
-        if not run_data or not run_data[0] or not run_data[1]:
-            raise ValueError(f"Run {run_id} does not have valid start_measurement and end_measurement times")
-
-        start_time_us, end_time_us = run_data
-        start_time_iso = microseconds_to_iso8601(start_time_us)
-        end_time_iso = microseconds_to_iso8601(end_time_us)
-
-        carbon_client = CarbonIntensityClient()
-        carbon_intensity_data = carbon_client.get_carbon_intensity_history(
-            carbon_intensity_location, start_time_iso, end_time_iso
-        )
+    # Load carbon intensity time series data once to use as lookup table during energy metric processing.
+    # This data is used for interpolation at specific timestamps rather than being aggregated like regular metrics.
+    # Auto-detects whether dynamic (API) or static (config) carbon intensity data is available.
+    carbon_intensity_data = get_carbon_intensity_data_for_run(run_id)
 
     query = """
             SELECT id, metric, unit, detail_name, sampling_rate_configured
             FROM measurement_metrics
             WHERE run_id = %s
+            AND metric NOT IN ('grid_carbon_intensity_static', 'grid_carbon_intensity_dynamic')  -- Exclude carbon intensity from phase stats processing
             ORDER BY metric ASC -- we need this ordering for later, when we read again
     """
     metrics = DB().fetch_all(query, (run_id, ))
@@ -180,6 +129,16 @@ def build_and_store_phase_stats(run_id, sci=None, measurement_config=None):
         cpu_utilization_containers = {} # reset
         cpu_utilization_machine = None
         network_io_carbon_in_ug = None
+
+        # Calculate carbon intensity once per phase for reuse in energy and network calculations
+        phase_carbon_intensity = None
+        if carbon_intensity_data:
+            try:
+                phase_midpoint_us = (phase['start'] + phase['end']) // 2
+                phase_carbon_intensity = Decimal(interpolate_carbon_intensity(phase_midpoint_us, carbon_intensity_data))
+            except (CarbonIntensityServiceError, CarbonIntensityDataError, ValueError) as e:
+                error_helpers.log_error(f"Failed to calculate carbon intensity for phase {phase['name']}: {e}", run_id=run_id)
+                phase_carbon_intensity = None
 
         select_query = """
             WITH lag_table as (
@@ -305,29 +264,15 @@ def build_and_store_phase_stats(run_id, sci=None, measurement_config=None):
                 power_min = (min_value * 10**3) / (duration / value_count)
                 csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg, 'MEAN', power_max, power_min, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
 
-                # Calculate carbon values (static or dynamic)
-                try:
-                    if use_dynamic_carbon_intensity and carbon_intensity_data:
-                        # Dynamic carbon intensity: calculate based on measurement timing
-                        # For simplicity, use phase midpoint timestamp for now
-                        # TODO: Implement proper time-weighted carbon calculation per measurement
-                        phase_midpoint_us = (phase['start'] + phase['end']) // 2
-                        carbon_intensity_value = Decimal(get_carbon_intensity_for_timestamp(phase_midpoint_us, sci, carbon_intensity_data))
-                    elif sci.get('I', None) is not None:
-                        # Static carbon intensity
-                        carbon_intensity_value = Decimal(sci['I'])
-                    else:
-                        carbon_intensity_value = None
+                # Calculate carbon values using pre-calculated phase specific carbon intensity
+                if phase_carbon_intensity is not None:
+                    value_carbon_ug = (value_sum / 3_600_000) * phase_carbon_intensity
+                    csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", value_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
 
-                    if carbon_intensity_value is not None:
-                        value_carbon_ug = (value_sum / 3_600_000) * carbon_intensity_value
-                        csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", value_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
-
-                        if '[' not in phase['name'] and metric.endswith('_machine'): # only for runtime sub phases to not double count ... needs refactor ... see comment at beginning of file
-                            software_carbon_intensity_global['machine_carbon_ug'] = software_carbon_intensity_global.get('machine_carbon_ug', 0) + value_carbon_ug
-                except (CarbonIntensityServiceError, CarbonIntensityDataError, ValueError) as e:
-                    error_helpers.log_error(f"Failed to calculate carbon intensity for energy metric: {e}", run_id=run_id)
-                    # Continue processing without carbon calculation
+                    if '[' not in phase['name'] and metric.endswith('_machine'): # only for runtime sub phases to not double count ... needs refactor ... see comment at beginning of file
+                        software_carbon_intensity_global['machine_carbon_ug'] = software_carbon_intensity_global.get('machine_carbon_ug', 0) + value_carbon_ug
+                else:
+                    error_helpers.log_error(f'Cannot calculate carbon intensity for energy metric {metric}". No carbon intensity data found in measurement_metrics. Configure either dynamic carbon intensity or static SCI value I.', run_id=run_id)
 
 
                 if metric.endswith('_machine'):
@@ -346,9 +291,8 @@ def build_and_store_phase_stats(run_id, sci=None, measurement_config=None):
         if network_bytes_total:
             # Check if we can calculate network energy and carbon
             has_network_factor = sci.get('N', None) is not None
-            has_carbon_intensity = (use_dynamic_carbon_intensity and carbon_intensity_data) or sci.get('I', None) is not None
 
-            if has_network_factor and has_carbon_intensity:
+            if has_network_factor:
                 # build the network energy by using a formula: https://www.green-coding.io/co2-formulas/
                 # pylint: disable=invalid-name
                 network_io_in_kWh = Decimal(sum(network_bytes_total)) / 1_000_000_000 * Decimal(sci['N'])
@@ -359,23 +303,15 @@ def build_and_store_phase_stats(run_id, sci=None, measurement_config=None):
                 network_io_power_in_mW = (network_io_in_kWh * Decimal('3600000') / Decimal(duration_in_s) * Decimal('1000'))
                 csv_buffer.write(generate_csv_line(run_id, 'network_power_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_power_in_mW, 'TOTAL', None, None, None, None, None, 'mW'))
 
-                # co2 calculations (static or dynamic)
-                try:
-                    if use_dynamic_carbon_intensity and carbon_intensity_data:
-                        # Dynamic carbon intensity for network
-                        phase_midpoint_us = (phase['start'] + phase['end']) // 2
-                        carbon_intensity_value = Decimal(get_carbon_intensity_for_timestamp(phase_midpoint_us, sci, carbon_intensity_data))
-                    else:
-                        # Static carbon intensity
-                        carbon_intensity_value = Decimal(sci['I'])
-
-                    network_io_carbon_in_ug = network_io_in_kWh * carbon_intensity_value * 1_000_000
+                # co2 calculations using pre-calculated phase specific carbon intensity
+                if phase_carbon_intensity is not None:
+                    network_io_carbon_in_ug = network_io_in_kWh * phase_carbon_intensity * 1_000_000
                     csv_buffer.write(generate_csv_line(run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
-                except Exception as e:  # pylint: disable=broad-except
-                    error_helpers.log_error(f"Failed to calculate network carbon intensity: {e}", run_id=run_id)
+                else:
+                    error_helpers.log_error('Cannot calculate network carbon emissions. No carbon intensity data found in measurement_metrics. Configure either dynamic carbon intensity or static SCI value I.', run_id=run_id)
                     network_io_carbon_in_ug = 0
             else:
-                error_helpers.log_error('Cannot calculate the total network energy consumption. SCI values I and N are missing in the config.', run_id=run_id)
+                error_helpers.log_error('Cannot calculate the total network energy consumption. SCI value N is missing in the config.', run_id=run_id)
                 network_io_carbon_in_ug = 0
         else:
             network_io_carbon_in_ug = 0

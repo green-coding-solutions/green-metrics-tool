@@ -64,6 +64,8 @@ class RunJob(Job):
             dev_no_optimizations=user._capabilities['measurement']['dev_no_optimizations'],
             disabled_metric_providers=user._capabilities['measurement']['disabled_metric_providers'],
             allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'], # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
+            use_dynamic_grid_carbon_intensity=user._capabilities['measurement']['use_dynamic_grid_carbon_intensity'],
+            grid_carbon_intensity_location=user._capabilities['measurement']['grid_carbon_intensity_location'],
 
 
         )
