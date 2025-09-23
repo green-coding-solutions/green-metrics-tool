@@ -160,6 +160,33 @@ def interpolate_carbon_intensity(timestamp_us: int, carbon_data: List[Dict[str, 
     raise ValueError(f"Could not interpolate carbon intensity for timestamp {target_time}")
 
 
+def _calculate_sampling_rate_from_data(carbon_intensity_data: List[Dict[str, Any]]) -> int:
+    """
+    Calculate sampling rate in milliseconds based on time intervals in carbon intensity data.
+
+    Args:
+        carbon_intensity_data: List of carbon intensity data points with 'time' field
+
+    Returns:
+        Sampling rate in milliseconds, or 300000 (5 minutes) as fallback
+
+    Example:
+        For data: [{"time": "2025-09-23T10:00:00Z"}, {"time": "2025-09-23T11:00:00Z"}]
+        Returns: 3600000 (1 hour in milliseconds)
+    """
+    if not carbon_intensity_data or len(carbon_intensity_data) < 2:
+        return 300000
+
+    try:
+        time1 = datetime.fromisoformat(carbon_intensity_data[0]['time'].replace('Z', '+00:00'))
+        time2 = datetime.fromisoformat(carbon_intensity_data[1]['time'].replace('Z', '+00:00'))
+
+        interval_seconds = abs((time2 - time1).total_seconds())
+        return int(interval_seconds * 1000)
+    except (KeyError, ValueError, IndexError):
+        return 300000
+
+
 def _microseconds_to_iso8601(timestamp_us: int) -> str:
     """
     Convert microsecond timestamp to ISO 8601 format.
@@ -212,20 +239,11 @@ def store_static_carbon_intensity(run_id, static_value):
     carbon_intensity_value = int(float(static_value) * 1000)
 
     # Store as constant time series: same value at start and end times
-    values_data = [
-        f"{measurement_metric_id},{carbon_intensity_value},{start_time_us}",
-        f"{measurement_metric_id},{carbon_intensity_value},{end_time_us}"
-    ]
-
-    csv_data = '\n'.join(values_data)
-    f = StringIO(csv_data)
-    DB().copy_from(
-        file=f,
-        table='measurement_values',
-        columns=['measurement_metric_id', 'value', 'time'],
-        sep=','
+    DB().query(
+        "INSERT INTO measurement_values (measurement_metric_id, value, time) VALUES (%s, %s, %s), (%s, %s, %s)",
+        (measurement_metric_id, carbon_intensity_value, start_time_us,
+         measurement_metric_id, carbon_intensity_value, end_time_us)
     )
-    f.close()
 
     print(f"Stored static carbon intensity value {static_value} gCO2e/kWh as constant time series")
 
@@ -267,8 +285,8 @@ def store_dynamic_carbon_intensity(run_id, grid_carbon_intensity_location):
     metric_name = 'grid_carbon_intensity_dynamic'
     detail_name = grid_carbon_intensity_location
     unit = 'gCO2e/kWh'
-    # Estimate sampling rate as 5 minutes (300000ms) based on typical grid data frequency
-    sampling_rate_configured = 300000
+    # Calculate sampling rate based on actual data intervals
+    sampling_rate_configured = _calculate_sampling_rate_from_data(carbon_intensity_data)
 
     measurement_metric_id = DB().fetch_one('''
         INSERT INTO measurement_metrics (run_id, metric, detail_name, unit, sampling_rate_configured)
@@ -287,11 +305,11 @@ def store_dynamic_carbon_intensity(run_id, grid_carbon_intensity_location):
         # Convert carbon intensity to integer (multiply by 1000 for precision)
         carbon_intensity_value = int(float(data_point['carbon_intensity']) * 1000)
 
-        values_data.append(f"{measurement_metric_id},{carbon_intensity_value},{timestamp_us}")
+        values_data.append((measurement_metric_id, carbon_intensity_value, timestamp_us))
 
     if values_data:
-        # Bulk insert measurement values
-        csv_data = '\n'.join(values_data)
+        # Bulk insert measurement values using copy_from
+        csv_data = '\n'.join([f"{row[0]},{row[1]},{row[2]}" for row in values_data])
         f = StringIO(csv_data)
         DB().copy_from(
             file=f,

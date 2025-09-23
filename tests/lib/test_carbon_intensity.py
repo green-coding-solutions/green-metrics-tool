@@ -14,6 +14,7 @@ from lib.carbon_intensity import (
     CarbonIntensityServiceError,
     CarbonIntensityDataError,
     _microseconds_to_iso8601,
+    _calculate_sampling_rate_from_data,
     interpolate_carbon_intensity,
     get_carbon_intensity_data_for_run,
     store_static_carbon_intensity,
@@ -59,6 +60,35 @@ class TestCarbonIntensityClient:
         # Verify it's a valid timestamp that can be parsed back
         parsed = datetime.fromisoformat(result.replace('Z', '+00:00'))
         assert parsed is not None
+
+    def test__calculate_sampling_rate_from_data(self):
+        # Test with 1 hour interval (as in the example)
+        carbon_data = [
+            {"location": "DE", "time": "2025-09-23T10:00:00Z", "carbon_intensity": 253.0},
+            {"location": "DE", "time": "2025-09-23T11:00:00Z", "carbon_intensity": 252.0}
+        ]
+        result = _calculate_sampling_rate_from_data(carbon_data)
+        assert result == 3600000  # 1 hour = 3600 seconds = 3600000 ms
+
+        # Test with 30 minute interval
+        carbon_data_30min = [
+            {"location": "DE", "time": "2025-09-23T10:00:00Z", "carbon_intensity": 253.0},
+            {"location": "DE", "time": "2025-09-23T10:30:00Z", "carbon_intensity": 252.0}
+        ]
+        result = _calculate_sampling_rate_from_data(carbon_data_30min)
+        assert result == 1800000  # 30 minutes = 1800 seconds = 1800000 ms
+
+        # Test with empty data (should return fallback)
+        result = _calculate_sampling_rate_from_data([])
+        assert result == 300000  # 5 minutes fallback
+
+        # Test with single data point (should return fallback)
+        result = _calculate_sampling_rate_from_data([{"location": "DE", "time": "2025-09-23T10:00:00Z", "carbon_intensity": 253.0}])
+        assert result == 300000  # 5 minutes fallback
+
+        # Test with invalid data (should return fallback)
+        result = _calculate_sampling_rate_from_data([{"invalid": "data"}, {"also": "invalid"}])
+        assert result == 300000  # 5 minutes fallback
 
     def test_interpolate_carbon_intensity_single_point(self):
         # Test with single data point
