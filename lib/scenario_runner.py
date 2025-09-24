@@ -77,6 +77,8 @@ class ScenarioRunner:
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
         measurement_wait_time_dependencies=60):
 
+        self._arguments = locals() # safe the argument as first step before anything else to not expose local created variables
+
         config = GlobalConfig().config
 
         # sanity checks
@@ -124,7 +126,6 @@ class ScenarioRunner:
         self._sci |= config.get('sci', None)  # merge in data from machine config like I, TE etc.
 
         self._job_id = job_id
-        self._arguments = locals()
         self._repo_folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._run_id = None
         self._commit_hash = None
