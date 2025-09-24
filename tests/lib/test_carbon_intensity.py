@@ -21,7 +21,6 @@ from lib.carbon_intensity import (
     store_static_carbon_intensity,
     store_dynamic_carbon_intensity,
     get_carbon_intensity_timeseries_for_phase,
-    store_phase_carbon_intensity_metric
 )
 
 class TestCarbonIntensityClient:
@@ -370,39 +369,3 @@ class TestCarbonIntensityTimeseries:
 
         with pytest.raises(ValueError, match="Invalid phase timeframe"):
             get_carbon_intensity_timeseries_for_phase(phase_start_us, phase_end_us, carbon_data)
-
-    def test_store_phase_carbon_intensity_metric(self):
-        """Test storing phase-specific carbon intensity metric in database"""
-        run_id = Tests.insert_run()
-
-        # Create test carbon timeseries data
-        carbon_timeseries = [
-            {'timestamp_us': int(datetime(2025, 9, 22, 10, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000), 'carbon_intensity': 185.0},
-            {'timestamp_us': int(datetime(2025, 9, 22, 11, 0, 0, tzinfo=timezone.utc).timestamp() * 1_000_000), 'carbon_intensity': 190.0},
-            {'timestamp_us': int(datetime(2025, 9, 22, 11, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000), 'carbon_intensity': 183.0}
-        ]
-
-        # Store the phase carbon intensity metric
-        store_phase_carbon_intensity_metric(run_id, 1, '[SETUP]', 'DE', carbon_timeseries)
-
-        # Verify the measurement_metric was created
-        metrics = DB().fetch_all(
-            'SELECT metric, detail_name, unit FROM measurement_metrics WHERE run_id = %s',
-            params=(run_id,)
-        )
-        assert len(metrics) == 1
-        assert metrics[0] == ('grid_carbon_intensity_phase', 'DE_001_[SETUP]', 'gCO2e/kWh')
-
-        # Verify the measurement_values were stored
-        values = DB().fetch_all(
-            '''SELECT mv.value, mv.time FROM measurement_values mv
-               JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
-               WHERE mm.run_id = %s ORDER BY mv.time''',
-            params=(run_id,)
-        )
-        assert len(values) == 3
-
-        # Verify the values are stored correctly (as integers * 1000)
-        expected_values = [185000, 190000, 183000]  # multiplied by 1000 for precision
-        actual_values = [v[0] for v in values]
-        assert actual_values == expected_values

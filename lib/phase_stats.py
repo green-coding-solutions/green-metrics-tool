@@ -15,7 +15,6 @@ from lib.carbon_intensity import (
     CarbonIntensityDataError,
     get_carbon_intensity_data_for_run,
     get_carbon_intensity_timeseries_for_phase,
-    store_phase_carbon_intensity_metric
 )
 
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
@@ -135,25 +134,16 @@ def build_and_store_phase_stats(run_id, sci=None):
         phase_carbon_intensity = None
         if carbon_intensity_data:
             try:
-                location = carbon_intensity_data[0].get('location', 'unknown')
                 carbon_timeseries = get_carbon_intensity_timeseries_for_phase(
                     phase['start'], phase['end'], carbon_intensity_data
                 )
 
+                # INTERIM: Calculate representative carbon intensity for current energy calculations
+                # TODO: Replace this simple average with time-weighted energy×carbon integration  # pylint: disable=fixme
+                # Future enhancement: Synchronize energy and carbon timeseries for precise temporal calculation
+                # instead of: energy_total * carbon_average
+                # use: ∫(energy(t) * carbon_intensity(t))dt over phase duration
                 if carbon_timeseries:
-                    # Store the timeseries as measurement metric for future energy×carbon calculations
-                    try:
-                        store_phase_carbon_intensity_metric(
-                            run_id, idx, phase['name'], location, carbon_timeseries
-                        )
-                    except Exception as e:  # pylint: disable=broad-except
-                        error_helpers.log_error(f"Failed to store carbon intensity timeseries for phase {phase['name']}: {e}", run_id=run_id)
-
-                    # INTERIM: Calculate representative carbon intensity for current energy calculations
-                    # TODO: Replace this simple average with time-weighted energy×carbon integration
-                    # Future enhancement: Synchronize energy and carbon timeseries for precise temporal calculation
-                    # instead of: energy_total * carbon_average
-                    # use: ∫(energy(t) * carbon_intensity(t))dt over phase duration
                     total_carbon = sum(point['carbon_intensity'] for point in carbon_timeseries)
                     phase_carbon_intensity = Decimal(total_carbon / len(carbon_timeseries))
 
