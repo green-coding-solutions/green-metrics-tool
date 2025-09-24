@@ -1445,6 +1445,25 @@ class ScenarioRunner:
         container_names = [container_info['name'] for container_info in self.__containers.values()]
         print(TerminalColors.HEADER, '\nStarted containers: ', container_names, TerminalColors.ENDC)
 
+    def _sanitize_log_output(self, output):
+        """
+        Remove null bytes from log output for PostgreSQL compatibility.
+
+        PostgreSQL cannot handle null bytes (\x00) in text fields and raises an
+        UntranslatableCharacter error. Additionally, JSON-encoded null byte values
+        cause failures with JSONB columns or when JSON operations are executed on
+        JSON columns. Therefore, sanitization is needed.
+
+        Args:
+            output (str): The log output string to sanitize
+
+        Returns:
+            str: The sanitized string with null bytes removed, or None if input was None
+        """
+        if output is None:
+            return None
+        return output.replace('\x00', '')
+
     def _add_to_current_run_log(self, container_name, log_type, log_id, cmd, phase, stdout=None, stderr=None, flow=None, exception_class=None):
         """Add a structured log entry to the current run logs.
         
@@ -1472,9 +1491,9 @@ class ScenarioRunner:
         }
 
         if stdout is not None:
-            log_entry['stdout'] = stdout.replace('\x00', '')  # Remove null bytes - PostgreSQL can't handle \u0000 in JSON
+            log_entry['stdout'] = self._sanitize_log_output(stdout)
         if stderr is not None:
-            log_entry['stderr'] = stderr.replace('\x00', '')  # Remove null bytes - PostgreSQL can't handle \u0000 in JSON
+            log_entry['stderr'] = self._sanitize_log_output(stderr)
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:
