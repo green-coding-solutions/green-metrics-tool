@@ -887,7 +887,6 @@ const dependenciesTemplates = {
         <table class="ui celled compact table">
             <thead>
                 <tr>
-                    <th>Type</th>
                     <th>Name</th>
                     <th>Version</th>
                     <th>Hash</th>
@@ -901,7 +900,6 @@ const dependenciesTemplates = {
 
     depsTableRow: `
         <tr>
-            <td>{{pmType}}</td>
             <td>{{depName}}</td>
             <td>{{version}}</td>
             <td><code title="{{fullHash}}">{{truncatedHash}}</code></td>
@@ -925,29 +923,28 @@ function renderUsageScenarioDependencies(dependenciesData) {
 
     for (const containerName in dependenciesData) {
         const containerData = dependenciesData[containerName];
-        const containerInfo = containerData['_container-info'] || {};
+        const containerInfo = containerData['source'] || {};
 
         const image = escapeString(containerInfo.image || 'N/A');
         const hash = escapeString(containerInfo.hash || 'N/A');
 
-        const packageManagers = Object.keys(containerData).filter(key => key !== '_container-info');
+        const packageManagers = Object.keys(containerData).filter(key => key !== 'source');
 
-        let scopeContent = '';
+        let packageManagerContent = '';
 
         if (packageManagers.length > 0) {
-            const scopeGroups = groupPackageManagersByScope(packageManagers, containerData);
-            const accordionItems = buildScopeAccordionItems(scopeGroups);
+            const accordionItems = buildPackageManagerAccordionItems(packageManagers, containerData);
 
-            scopeContent = dependenciesTemplates.scopeAccordion.replace('{{accordionItems}}', accordionItems);
+            packageManagerContent = dependenciesTemplates.scopeAccordion.replace('{{accordionItems}}', accordionItems);
         } else {
-            scopeContent = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
+            packageManagerContent = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
         }
 
         const containerHTML = dependenciesTemplates.container
             .replace('{{containerName}}', escapeString(containerName))
             .replace('{{image}}', image)
             .replace('{{hash}}', hash)
-            .replace('{{scopeContent}}', scopeContent);
+            .replace('{{scopeContent}}', packageManagerContent);
 
         containersHTML += containerHTML;
     }
@@ -962,91 +959,81 @@ function renderUsageScenarioDependencies(dependenciesData) {
     }, 0);
 }
 
-function groupPackageManagersByScope(packageManagers, containerData) {
-    const scopeGroups = {};
-
-    packageManagers.forEach(pmType => {
-        const pmData = containerData[pmType];
-        const scope = pmData.scope || 'unknown';
-
-        if (!scopeGroups[scope]) {
-            scopeGroups[scope] = [];
-        }
-        scopeGroups[scope].push({ type: pmType, data: pmData });
-    });
-
-    return scopeGroups;
-}
-
-function buildScopeAccordionItems(scopeGroups) {
+function buildPackageManagerAccordionItems(packageManagers, containerData) {
     let accordionItems = '';
 
-    for (const scope in scopeGroups) {
-        const scopeData = scopeGroups[scope];
-        const totalDeps = scopeData.reduce((sum, pm) => {
-            return sum + (pm.data.dependencies ? Object.keys(pm.data.dependencies).length : 0);
-        }, 0);
+    packageManagers.forEach(packageManager => {
+        const packageManagerData = containerData[packageManager];
+        const dependencies = packageManagerData.dependencies || {};
+        const dependenciesArray = Object.entries(dependencies).map(([name, data]) => ({
+            name: name,
+            version: data.version || 'N/A',
+            type: packageManager,
+            hash: data.hash || 'N/A'
+        }));
+        const totalDeps = dependenciesArray.length;
 
-        const scopeDisplayName = scope.charAt(0).toUpperCase() + scope.slice(1);
+        const packageManagerDisplayName = packageManager;
 
-        // Build metadata
+        // Build metadata content
         let metadataContent = '';
-        const pmWithLocation = scopeData.find(pm => pm.data.location);
-        if (pmWithLocation) {
-            metadataContent += `<strong>Location:</strong> ${escapeString(pmWithLocation.data.location)}<br>`;
+        if (packageManagerData.scope) {
+            metadataContent += `<strong>Scope:</strong> ${escapeString(packageManagerData.scope)}<br>`;
         }
-
-        const pmWithHash = scopeData.find(pm => pm.data.hash);
-        if (pmWithHash) {
-            const scopeHash = escapeString(pmWithHash.data.hash);
-            metadataContent += `<strong>Hash:</strong> <code>${scopeHash}</code><br>`;
+        if (packageManagerData.location) {
+            metadataContent += `<strong>Location:</strong> ${escapeString(packageManagerData.location)}<br>`;
         }
+        if (packageManagerData.hash) {
+            metadataContent += `<strong>Hash:</strong> <code>${escapeString(packageManagerData.hash)}</code><br>`;
+        }
+        // Add any other metadata from the package manager data
+        Object.keys(packageManagerData).forEach(key => {
+            if (key !== 'scope' && key !== 'dependencies' && key !== 'hash' && key !== 'location') {
+                const value = packageManagerData[key];
+                if (typeof value === 'string') {
+                    metadataContent += `<strong>${escapeString(key.charAt(0).toUpperCase() + key.slice(1))}:</strong> ${escapeString(value)}<br>`;
+                }
+            }
+        });
 
-        const scopeMetadata = metadataContent ?
+        const packageManagerMetadata = metadataContent ?
             dependenciesTemplates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
 
-        // Build dependencies table
         let depsTable = '';
         if (totalDeps > 0) {
-            const tableRows = buildDependencyTableRows(scopeData);
+            const tableRows = buildDependencyTableRows(dependenciesArray);
             depsTable = dependenciesTemplates.depsTable.replace('{{tableRows}}', tableRows);
         } else {
-            depsTable = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependencies found in this scope</em>');
+            depsTable = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependencies found for this package manager</em>');
         }
 
         const accordionItem = dependenciesTemplates.accordionItem
-            .replace('{{scopeDisplayName}}', escapeString(scopeDisplayName))
+            .replace('{{scopeDisplayName}}', escapeString(packageManagerDisplayName))
             .replace('{{totalDeps}}', totalDeps)
-            .replace('{{scopeMetadata}}', scopeMetadata)
+            .replace('{{scopeMetadata}}', packageManagerMetadata)
             .replace('{{depsTable}}', depsTable);
 
         accordionItems += accordionItem;
-    }
+    });
 
     return accordionItems;
 }
 
-function buildDependencyTableRows(scopeData) {
+function buildDependencyTableRows(packages) {
     let tableRows = '';
 
-    scopeData.forEach(({ type: pmType, data: pmData }) => {
-        if (pmData.dependencies && Object.keys(pmData.dependencies).length > 0) {
-            for (const depName in pmData.dependencies) {
-                const dep = pmData.dependencies[depName];
-                const version = escapeString(dep.version || 'N/A');
-                const depHash = dep.hash || 'N/A';
-                const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
+    packages.forEach(pkg => {
+        const version = escapeString(pkg.version || 'N/A');
+        const depHash = pkg.hash || 'N/A';
+        const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
 
-                const row = dependenciesTemplates.depsTableRow
-                    .replace('{{pmType}}', escapeString(pmType))
-                    .replace('{{depName}}', escapeString(depName))
-                    .replace('{{version}}', version)
-                    .replace('{{fullHash}}', escapeString(depHash))
-                    .replace('{{truncatedHash}}', escapeString(truncatedHash));
+        const row = dependenciesTemplates.depsTableRow
+            .replace('{{depName}}', escapeString(pkg.name || 'N/A'))
+            .replace('{{version}}', version)
+            .replace('{{fullHash}}', escapeString(depHash))
+            .replace('{{truncatedHash}}', escapeString(truncatedHash));
 
-                tableRows += row;
-            }
-        }
+        tableRows += row;
     });
 
     return tableRows;
@@ -1054,7 +1041,7 @@ function buildDependencyTableRows(scopeData) {
 
 
 /* Chart starting code*/
-$(document).ready( (e) => {
+$(document).ready( () => {
     (async () => {
 
         $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data

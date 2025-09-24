@@ -1531,9 +1531,9 @@ class ScenarioRunner:
 
             print(f"Dependency resolution for container '{container_name}' found {total_packages} packages in {duration:.2f} s")
 
-            # Remove the 'name' field from _container-info as we use container name as key
-            if result and 'name' in result.get('_container-info', {}):
-                del result['_container-info']['name']
+            # Remove the 'name' field from source as we use container name as key
+            if result and 'name' in result.get('source', {}):
+                del result['source']['name']
 
             return container_name, result if result else None
 
@@ -1567,11 +1567,11 @@ class ScenarioRunner:
 
         # Process results - abort on any failure
         # Each result is either: (container_name, container_info), (container_name, None), or Exception
-        dependencies = {}
+        container_dependencies = {}
         for result in results:
             if isinstance(result, tuple) and result[1] is not None:
                 container_name, container_info = result
-                dependencies[container_name] = container_info
+                container_dependencies[container_name] = container_info
             elif isinstance(result, Exception):
                 raise RuntimeError(f"Dependency resolution failed: {result}. Aborting GMT run.")
             else:
@@ -1579,8 +1579,8 @@ class ScenarioRunner:
                 container_name = result[0] if isinstance(result, tuple) else "unknown"
                 raise RuntimeError(f"Dependency resolution failed for container '{container_name}'. Aborting GMT run.")
 
-        if dependencies:
-            self.__usage_scenario_dependencies = dependencies
+        if container_dependencies:
+            self.__usage_scenario_dependencies = container_dependencies
         else:
             raise RuntimeError("No dependency information collected. This indicates no containers were processed or all dependency resolution attempts failed.")
 

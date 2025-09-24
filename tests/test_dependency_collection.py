@@ -25,7 +25,8 @@ class TestDependencyCollection:
 
         # Mock successful dependency resolver response
         mock_response = {
-            "_container-info": {
+            "source": {
+                "type": "container",
                 "name": "test-container",
                 "image": "nginx:latest",
                 "hash": "sha256:2cd1d97f893f"
@@ -38,12 +39,17 @@ class TestDependencyCollection:
             result = runner._execute_dependency_resolver_for_container("test-container")
 
             assert result[0] == "test-container"
-            assert result[1] == {"_container-info": {"image": "nginx:latest", "hash": "sha256:2cd1d97f893f"}}
+            assert result[1] == {
+                "source": {
+                    "type": "container",
+                    "image": "nginx:latest",
+                    "hash": "sha256:2cd1d97f893f"
+                }
+            }
 
             # Verify correct function was called with correct parameters
             mock_resolver.assert_called_once_with(
-                container_identifier="test-container",
-                only_container_info=True
+                container_identifier="test-container"
             )
 
     def test_execute_dependency_resolver_for_container_exception(self):
@@ -87,8 +93,12 @@ class TestDependencyCollection:
 
         # Mock successful responses for both containers
         mock_responses = [
-            ("nginx-container", {"_container-info": {"image": "nginx:latest", "hash": "sha256:nginx123"}}),
-            ("postgres-container", {"_container-info": {"image": "postgres:13", "hash": "sha256:postgres456"}})
+            ("nginx-container", {
+                "source": {"type": "container", "image": "nginx:latest", "hash": "sha256:nginx123"}
+            }),
+            ("postgres-container", {
+                "source": {"type": "container", "image": "postgres:13", "hash": "sha256:postgres456"}
+            })
         ]
 
         with patch.object(runner, '_execute_dependency_resolver_for_container') as mock_exec:
@@ -97,8 +107,12 @@ class TestDependencyCollection:
             runner._collect_dependency_info()
 
             expected_dependencies = {
-                "nginx-container": {"_container-info": {"image": "nginx:latest", "hash": "sha256:nginx123"}},
-                "postgres-container": {"_container-info": {"image": "postgres:13", "hash": "sha256:postgres456"}}
+                "nginx-container": {
+                    "source": {"type": "container", "image": "nginx:latest", "hash": "sha256:nginx123"}
+                },
+                "postgres-container": {
+                    "source": {"type": "container", "image": "postgres:13", "hash": "sha256:postgres456"}
+                }
             }
 
             assert runner._ScenarioRunner__usage_scenario_dependencies == expected_dependencies
@@ -124,7 +138,9 @@ class TestDependencyCollection:
 
         # Mock mixed responses (one success, one failure)
         mock_responses = [
-            ("nginx-container", {"_container-info": {"image": "nginx:latest", "hash": "sha256:nginx123"}}),
+            ("nginx-container", {
+                "source": {"type": "container", "image": "nginx:latest", "hash": "sha256:nginx123"}
+            }),
             ("postgres-container", None)  # Failed
         ]
 
@@ -196,7 +212,9 @@ class TestDependencyCollection:
 
         # Mock successful dependency collection
         expected_dependencies = {
-            "test-container": {"_container-info": {"image": "gcb_stress_gmt_run_tmp:latest", "hash": "sha256:mock123"}}
+            "test-container": {
+                "source": {"type": "container", "image": "gcb_stress_gmt_run_tmp:latest", "hash": "sha256:mock123"}
+            }
         }
 
         with patch.object(runner, '_collect_dependency_info') as mock_collect:
@@ -274,29 +292,32 @@ class TestDependencyCollection:
 
             # Verify each dependency has required fields and correct structure
             for container_name, container_data in dependencies.items():
-                # All containers should have _container-info section
-                assert '_container-info' in container_data, f"Missing '_container-info' for container {container_name}"
+                # All containers should have source section
+                assert 'source' in container_data, f"Missing 'source' for container {container_name}"
 
-                container_info = container_data['_container-info']
-                assert 'image' in container_info, f"Missing 'image' for container {container_name}"
-                assert 'hash' in container_info, f"Missing 'hash' for container {container_name}"
-                assert container_info['image'] is not None, f"Image is None for container {container_name}"
-                assert container_info['hash'] is not None, f"Hash is None for container {container_name}"
-                assert container_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {container_name}"
+                source_info = container_data['source']
+                assert 'image' in source_info, f"Missing 'image' for container {container_name}"
+                assert 'hash' in source_info, f"Missing 'hash' for container {container_name}"
+                assert source_info['image'] is not None, f"Image is None for container {container_name}"
+                assert source_info['hash'] is not None, f"Hash is None for container {container_name}"
+                assert source_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {container_name}"
 
                 # Check for full dependency resolution on built containers
                 if 'web' in container_name:
-                    # Built containers should have additional dependency sections (dpkg, pip, etc.)
-                    has_full_deps = any(key != '_container-info' for key in container_data)
-                    assert has_full_deps, f"Built container {container_name} should have full dependency data beyond _container-info"
-                    print(f"✓ Built container {container_name} has full dependency data: {list(container_data.keys())}")
+                    # Built containers should have project and system sections with packages
+                    assert 'pip' in container_data, f"Missing 'pip' packages for container {container_name}"
+
+                    project_packages = container_data.get('pip', {}).get('dependencies', [])
+                    system_packages = container_data.get('dpkg', {}).get('packages', [])
+                    total_packages = len(project_packages) + len(system_packages)
+
+                    assert total_packages > 0, f"Built container {container_name} should have some packages"
+                    print(f"✓ Built container {container_name} has {len(project_packages)} project packages and {len(system_packages)} system packages")
                 else:
-                    # Pre-built containers should only have _container-info
-                    assert len(container_data) == 1, f"Pre-built container {container_name} should only have _container-info but has: {list(container_data.keys())}"
-                    print(f"✓ Pre-built container {container_name} has container-info only")
+                    print(f"✓ Pre-built container {container_name} has container info")
 
             # Verify GMT-transformed images (GMT changes postgres:13 to postgres13_gmt_run_tmp:latest)
-            images = [data['_container-info']['image'] for data in dependencies.values()]
+            images = [data['source']['image'] for data in dependencies.values()]
             assert any('postgres13_gmt_run_tmp' in image for image in images), f"postgres13_gmt_run_tmp not found in images: {images}"
             assert any('web_gmt_run_tmp' in image for image in images), f"web_gmt_run_tmp not found in images: {images}"
 
