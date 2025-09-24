@@ -778,9 +778,31 @@ def test_logs_null_byte_handling():
     container_logs = logs["test-container"]
 
     for log_entry in container_logs:
-        for value in log_entry.values():
-            if isinstance(value, str):
+        for key, value in log_entry.items():
+            if key in ('stdout', 'stderr'):
                 assert '\x00' not in value, f"Null bytes should be automatically cleaned: {repr(value)}"
+
+def test_logs_invalid_character_handling():
+    """Test that invalid UTF-8 character in logs are automatically replaced"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs_with_invalid_character.yml',
+                          skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True,
+                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
+
+    # This should not raise any database errors despite invalid characters in the scenario
+    run_id = runner.run()
+
+    # Verify logs were saved successfully
+    logs_result = DB().fetch_one("SELECT logs FROM runs WHERE id = %s", params=(run_id,))
+    assert logs_result is not None and logs_result[0] is not None, "Logs should be saved to database"
+
+    # Verify no invalid characters remain in stored logs
+    logs = logs_result[0]
+    container_logs = logs["test-container"]
+
+    for log_entry in container_logs:
+        for key, value in log_entry.items():
+            if key in ('stdout', 'stderr'):
+                assert '\xff' not in value, f"Invalid character should be automatically cleaned: {repr(value)}"
 
 def test_all_run_logs_comprehensive():
     """Comprehensive test of _get_all_run_logs() method covering single runs, iterations, and different files"""
