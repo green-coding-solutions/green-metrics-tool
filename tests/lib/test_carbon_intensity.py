@@ -102,7 +102,7 @@ class TestCarbonIntensityClient:
         assert result == 185.0
 
     def test__get_carbon_intensity_at_timestamp_between_points(self):
-        # Test interpolation between two points
+        # Test nearest point selection between two points
         carbon_data = [
             {"location": "DE", "timestamp_us": int(datetime(2024, 9, 22, 10, 0, 0, tzinfo=timezone.utc).timestamp() * 1_000_000), "carbon_intensity": 180.0},
             {"location": "DE", "timestamp_us": int(datetime(2024, 9, 22, 11, 0, 0, tzinfo=timezone.utc).timestamp() * 1_000_000), "carbon_intensity": 200.0}
@@ -112,7 +112,7 @@ class TestCarbonIntensityClient:
         timestamp_us = int(calendar.timegm(mid_time.timetuple()) * 1_000_000)
 
         result = _get_carbon_intensity_at_timestamp(timestamp_us, carbon_data)
-        assert result == 190.0  # Linear interpolation: 180 + (200-180) * 0.5
+        assert result == 180.0  # Nearest point: 10:30 is closer to 10:00 than 11:00
 
     def test__get_carbon_intensity_at_timestamp_before_range(self):
         # Test with timestamp before data range

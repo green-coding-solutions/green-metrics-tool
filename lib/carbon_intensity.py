@@ -241,45 +241,39 @@ def store_dynamic_carbon_intensity(run_id, grid_carbon_intensity_location):
             'carbon_intensity': float(data_point['carbon_intensity'])
         })
 
-    # Sort by timestamp for interpolation
+    # Sort by timestamp for consistent processing
     carbon_data_for_lookup.sort(key=lambda x: x['timestamp_us'])
 
     # Prepare measurement values for bulk insert
     values_data = []
 
     # Always ensure we have data points at measurement start and end times
-    try:
-        # Get carbon intensity at measurement start time
-        start_carbon_intensity = _get_carbon_intensity_at_timestamp(start_time_us, carbon_data_for_lookup)
-        start_carbon_intensity_value = int(start_carbon_intensity * 1000)
-        values_data.append((measurement_metric_id, start_carbon_intensity_value, start_time_us))
+    # Get carbon intensity at measurement start time
+    start_carbon_intensity = _get_carbon_intensity_at_timestamp(start_time_us, carbon_data_for_lookup)
+    start_carbon_intensity_value = int(start_carbon_intensity * 1000)
+    values_data.append((measurement_metric_id, start_carbon_intensity_value, start_time_us))
 
-        # Get carbon intensity at measurement end time
-        end_carbon_intensity = _get_carbon_intensity_at_timestamp(end_time_us, carbon_data_for_lookup)
-        end_carbon_intensity_value = int(end_carbon_intensity * 1000)
+    # Get carbon intensity at measurement end time
+    end_carbon_intensity = _get_carbon_intensity_at_timestamp(end_time_us, carbon_data_for_lookup)
+    end_carbon_intensity_value = int(end_carbon_intensity * 1000)
 
-        # Add intermediate data points that fall within measurement timeframe
-        intermediate_points = []
-        for data_point in carbon_data_for_lookup:
-            timestamp_us = data_point['timestamp_us']
-            # Only include points strictly within the timeframe (not at boundaries)
-            if start_time_us < timestamp_us < end_time_us:
-                carbon_intensity_value = int(float(data_point['carbon_intensity']) * 1000)
-                intermediate_points.append((measurement_metric_id, carbon_intensity_value, timestamp_us))
+    # Add intermediate data points that fall within measurement timeframe
+    intermediate_points = []
+    for data_point in carbon_data_for_lookup:
+        timestamp_us = data_point['timestamp_us']
+        # Only include points strictly within the timeframe (not at boundaries)
+        if start_time_us < timestamp_us < end_time_us:
+            carbon_intensity_value = int(float(data_point['carbon_intensity']) * 1000)
+            intermediate_points.append((measurement_metric_id, carbon_intensity_value, timestamp_us))
 
-        # Sort intermediate points by time and add them
-        intermediate_points.sort(key=lambda x: x[2])  # Sort by timestamp
-        values_data.extend(intermediate_points)
+    # Sort intermediate points by time and add them
+    intermediate_points.sort(key=lambda x: x[2])  # Sort by timestamp
+    values_data.extend(intermediate_points)
 
-        # Add end time point (ensure it's different from start time)
-        if start_time_us != end_time_us:
-            values_data.append((measurement_metric_id, end_carbon_intensity_value, end_time_us))
+    # Add end time point (ensure it's different from start time)
+    if start_time_us != end_time_us:
+        values_data.append((measurement_metric_id, end_carbon_intensity_value, end_time_us))
 
-        print(f"Stored dynamic carbon intensity: start={start_carbon_intensity} gCO2e/kWh, end={end_carbon_intensity} gCO2e/kWh, {len(intermediate_points)} intermediate points")
-
-    except ValueError as e:
-        error_helpers.log_error(f"Failed to interpolate carbon intensity data: {e}", run_id=run_id)
-        return
 
     if values_data:
         # Bulk insert measurement values using copy_from
@@ -293,7 +287,7 @@ def store_dynamic_carbon_intensity(run_id, grid_carbon_intensity_location):
         )
         f.close()
 
-    print(f"Stored {len(values_data)} dynamic carbon intensity data points for location {grid_carbon_intensity_location}")
+    print(f"Stored dynamic carbon intensity for location {grid_carbon_intensity_location}: start={start_carbon_intensity} gCO2e/kWh, end={end_carbon_intensity} gCO2e/kWh, {len(intermediate_points)} intermediate points")
 
 
 def generate_carbon_intensity_timeseries_for_phase(
@@ -367,12 +361,11 @@ def generate_carbon_intensity_timeseries_for_phase(
 
 def _get_carbon_intensity_at_timestamp(timestamp_us: int, carbon_data: List[Dict[str, Any]]) -> float:
     """
-    Get carbon intensity value for a specific timestamp using interpolation/extrapolation.
+    Get carbon intensity value for a specific timestamp using nearest data point.
 
     This function finds the carbon intensity at a given timestamp by:
-    - Interpolating between two data points if timestamp falls between them
-    - Returning the first value if timestamp is before all data points
-    - Returning the last value if timestamp is after all data points
+    - Finding the data point with timestamp closest to the target timestamp
+    - Returning the carbon intensity of that nearest data point
 
     Args:
         timestamp_us: Target timestamp in microseconds
@@ -385,32 +378,15 @@ def _get_carbon_intensity_at_timestamp(timestamp_us: int, carbon_data: List[Dict
         ValueError: If carbon_data is empty
     """
     if not carbon_data:
-        raise ValueError("No carbon intensity data available for interpolation")
+        raise ValueError("No carbon intensity data available")
 
-    # Extract and sort data points by timestamp
-    data_points = [(item['timestamp_us'], float(item['carbon_intensity'])) for item in carbon_data]
-    data_points.sort(key=lambda x: x[0])
+    # Find the data point with timestamp closest to target timestamp
+    closest_point = min(
+        carbon_data,
+        key=lambda point: abs(point['timestamp_us'] - timestamp_us)
+    )
 
-    # Check if target is before first or after last data point
-    if timestamp_us <= data_points[0][0]:
-        return data_points[0][1]
-    if timestamp_us >= data_points[-1][0]:
-        return data_points[-1][1]
-
-    # Find surrounding data points for interpolation
-    for i in range(len(data_points) - 1):
-        time1_us, value1 = data_points[i]
-        time2_us, value2 = data_points[i + 1]
-
-        if time1_us <= timestamp_us <= time2_us:
-            # Linear interpolation
-            if time1_us == time2_us:
-                return value1
-
-            ratio = (timestamp_us - time1_us) / (time2_us - time1_us)
-            return value1 + (value2 - value1) * ratio
-
-    raise ValueError(f"Could not interpolate carbon intensity for timestamp {timestamp_us}")
+    return float(closest_point['carbon_intensity'])
 
 
 def _calculate_sampling_rate_from_data(carbon_intensity_data: List[Dict[str, Any]]) -> int:
