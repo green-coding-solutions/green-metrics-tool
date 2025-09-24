@@ -276,13 +276,15 @@ class TestStoreCarbonIntensityAsMetrics:
 
 
         # Mock the carbon intensity API call
+        # Use timestamps that align with the measurement timeframe (2024-12-24T13:33:10Z to 2024-12-24T13:41:00Z)
         with patch('lib.carbon_intensity.CarbonIntensityClient') as mock_client_class:
             mock_client = Mock()
             mock_client_class.return_value = mock_client
             mock_client.get_carbon_intensity_history.return_value = [
-                {"location": "DE", "time": "2024-09-22T10:00:00Z", "carbon_intensity": 185.0},
-                {"location": "DE", "time": "2024-09-22T10:30:00Z", "carbon_intensity": 190.0},
-                {"location": "DE", "time": "2024-09-22T11:00:00Z", "carbon_intensity": 183.0}
+                {"location": "DE", "time": "2024-12-24T13:32:00Z", "carbon_intensity": 185.0},  # Before start (for extrapolation)
+                {"location": "DE", "time": "2024-12-24T13:35:00Z", "carbon_intensity": 190.0},  # Within timeframe
+                {"location": "DE", "time": "2024-12-24T13:38:00Z", "carbon_intensity": 188.0},  # Within timeframe
+                {"location": "DE", "time": "2024-12-24T13:42:00Z", "carbon_intensity": 183.0}   # After end (for extrapolation)
             ]
 
             # Call the function under test
@@ -309,11 +311,91 @@ class TestStoreCarbonIntensityAsMetrics:
             (run_id,)
         )
 
-        assert len(values_result) == 3
+        # Should have 4 data points: start boundary + 2 intermediate points + end boundary
+        assert len(values_result) == 4
         # Values should be stored as integers (multiplied by 1000)
-        assert values_result[0][0] == 185000  # 185.0 * 1000
+        # First point: interpolated start boundary (between 185.0 and 190.0)
+        # Second point: 190.0 (intermediate point at 13:35:00)
         assert values_result[1][0] == 190000  # 190.0 * 1000
-        assert values_result[2][0] == 183000  # 183.0 * 1000
+        # Third point: 188.0 (intermediate point at 13:38:00)
+        assert values_result[2][0] == 188000  # 188.0 * 1000
+        # Fourth point: interpolated end boundary (between 188.0 and 183.0)
+
+    def test_store_carbon_intensity_dynamic_single_data_point(self, run_with_measurement_times):
+        run_id = run_with_measurement_times
+
+        # Mock the carbon intensity API call with only one data point within timeframe
+        with patch('lib.carbon_intensity.CarbonIntensityClient') as mock_client_class:
+            mock_client = Mock()
+            mock_client_class.return_value = mock_client
+            mock_client.get_carbon_intensity_history.return_value = [
+                {"location": "DE", "time": "2024-12-24T13:37:00Z", "carbon_intensity": 185.0}  # Within measurement timeframe
+            ]
+
+            # Call the function under test
+            store_dynamic_carbon_intensity(run_id, 'DE')
+
+        # Verify that measurement_metrics entry was created for dynamic carbon intensity
+        metric_result = DB().fetch_one(
+            "SELECT metric, detail_name, unit FROM measurement_metrics WHERE run_id = %s",
+            (run_id,)
+        )
+
+        assert metric_result is not None
+        assert metric_result[0] == 'grid_carbon_intensity_dynamic'
+        assert metric_result[1] == 'DE'
+        assert metric_result[2] == 'gCO2e/kWh'
+
+        # Verify that measurement values were stored
+        values_result = DB().fetch_all(
+            """SELECT mv.value, mv.time
+               FROM measurement_values mv
+               JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
+               WHERE mm.run_id = %s AND mm.metric = 'grid_carbon_intensity_dynamic'
+               ORDER BY mv.time""",
+            (run_id,)
+        )
+
+        assert len(values_result) >= 2, "Dynamic carbon intensity requires at least 2 data points"
+
+    def test_store_carbon_intensity_dynamic_data_outside_timeframe(self, run_with_measurement_times):
+        # Test that dynamic carbon intensity properly handles data outside measurement timeframe using extrapolation
+        run_id = run_with_measurement_times
+
+        # Mock API data that is completely outside the measurement timeframe
+        with patch('lib.carbon_intensity.CarbonIntensityClient') as mock_client_class:
+            mock_client = Mock()
+            mock_client_class.return_value = mock_client
+            mock_client.get_carbon_intensity_history.return_value = [
+                {"location": "DE", "time": "2024-12-24T12:00:00Z", "carbon_intensity": 200.0},  # Well before start
+                {"location": "DE", "time": "2024-12-24T12:30:00Z", "carbon_intensity": 210.0}   # Still before start
+            ]
+
+            # Call the function under test
+            store_dynamic_carbon_intensity(run_id, 'DE')
+
+        # Verify that measurement_metrics entry was created
+        metric_result = DB().fetch_one(
+            "SELECT metric, detail_name, unit FROM measurement_metrics WHERE run_id = %s",
+            (run_id,)
+        )
+
+        assert metric_result is not None
+        assert metric_result[0] == 'grid_carbon_intensity_dynamic'
+
+        # Verify that measurement values were stored using extrapolation
+        values_result = DB().fetch_all(
+            """SELECT mv.value, mv.time
+               FROM measurement_values mv
+               JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
+               WHERE mm.run_id = %s AND mm.metric = 'grid_carbon_intensity_dynamic'
+               ORDER BY mv.time""",
+            (run_id,)
+        )
+
+        # Should have exactly 2 data points (start and end boundaries) since no intermediate points in timeframe
+        assert len(values_result) == 2
+        # Both values should be extrapolated from the trend in the API data (210 is higher than 200)
 
     def test_store_carbon_intensity_dynamic_missing_location(self, run_with_measurement_times):
         # Test error handling when dynamic method is called with None location

@@ -228,18 +228,58 @@ def store_dynamic_carbon_intensity(run_id, grid_carbon_intensity_location):
         RETURNING id
     ''', params=(run_id, metric_name, detail_name, unit, sampling_rate_configured))[0]
 
-    # Prepare measurement values for bulk insert
-    values_data = []
+    # Convert API data to format expected by _get_carbon_intensity_at_timestamp
+    carbon_data_for_lookup = []
     for data_point in carbon_intensity_data:
         # Convert ISO timestamp to microseconds
         iso_time = data_point['time']
         dt = datetime.fromisoformat(iso_time.replace('Z', '+00:00'))
         timestamp_us = int(dt.timestamp() * 1_000_000)
 
-        # Convert carbon intensity to integer (multiply by 1000 for precision)
-        carbon_intensity_value = int(float(data_point['carbon_intensity']) * 1000)
+        carbon_data_for_lookup.append({
+            'timestamp_us': timestamp_us,
+            'carbon_intensity': float(data_point['carbon_intensity'])
+        })
 
-        values_data.append((measurement_metric_id, carbon_intensity_value, timestamp_us))
+    # Sort by timestamp for interpolation
+    carbon_data_for_lookup.sort(key=lambda x: x['timestamp_us'])
+
+    # Prepare measurement values for bulk insert
+    values_data = []
+
+    # Always ensure we have data points at measurement start and end times
+    try:
+        # Get carbon intensity at measurement start time
+        start_carbon_intensity = _get_carbon_intensity_at_timestamp(start_time_us, carbon_data_for_lookup)
+        start_carbon_intensity_value = int(start_carbon_intensity * 1000)
+        values_data.append((measurement_metric_id, start_carbon_intensity_value, start_time_us))
+
+        # Get carbon intensity at measurement end time
+        end_carbon_intensity = _get_carbon_intensity_at_timestamp(end_time_us, carbon_data_for_lookup)
+        end_carbon_intensity_value = int(end_carbon_intensity * 1000)
+
+        # Add intermediate data points that fall within measurement timeframe
+        intermediate_points = []
+        for data_point in carbon_data_for_lookup:
+            timestamp_us = data_point['timestamp_us']
+            # Only include points strictly within the timeframe (not at boundaries)
+            if start_time_us < timestamp_us < end_time_us:
+                carbon_intensity_value = int(float(data_point['carbon_intensity']) * 1000)
+                intermediate_points.append((measurement_metric_id, carbon_intensity_value, timestamp_us))
+
+        # Sort intermediate points by time and add them
+        intermediate_points.sort(key=lambda x: x[2])  # Sort by timestamp
+        values_data.extend(intermediate_points)
+
+        # Add end time point (ensure it's different from start time)
+        if start_time_us != end_time_us:
+            values_data.append((measurement_metric_id, end_carbon_intensity_value, end_time_us))
+
+        print(f"Stored dynamic carbon intensity: start={start_carbon_intensity} gCO2e/kWh, end={end_carbon_intensity} gCO2e/kWh, {len(intermediate_points)} intermediate points")
+
+    except ValueError as e:
+        error_helpers.log_error(f"Failed to interpolate carbon intensity data: {e}", run_id=run_id)
+        return
 
     if values_data:
         # Bulk insert measurement values using copy_from
