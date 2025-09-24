@@ -79,7 +79,6 @@ class CarbonIntensityClient:
             raise CarbonIntensityDataError(f"Invalid response from carbon intensity service: {e}") from e
 
 
-
 def get_carbon_intensity_data_for_run(run_id):
     """
     Get carbon intensity data for a run, automatically detecting dynamic vs static.
@@ -88,7 +87,9 @@ def get_carbon_intensity_data_for_run(run_id):
         run_id: UUID of the run
 
     Returns:
-        List of carbon intensity data points or None if no data found
+        Tuple of (carbon_data, sampling_rate_ms) where:
+        - carbon_data: List of carbon intensity data points or None if no data found
+        - sampling_rate_ms: Sampling rate in milliseconds
     """
     # Auto-detect what carbon intensity data is available for this run
     # Check for both static and dynamic carbon intensity
@@ -98,185 +99,41 @@ def get_carbon_intensity_data_for_run(run_id):
         WHERE run_id = %s AND metric IN ('grid_carbon_intensity_static', 'grid_carbon_intensity_dynamic')
         LIMIT 1
     """
-    result = DB().fetch_one(query, (run_id,))
+    grid_carbon_intensity_metrics = DB().fetch_one(query, (run_id,))
 
-    if result:
-        metric, detail_name = result
-        return _get_stored_carbon_intensity_data(run_id, metric, detail_name)
+    if not grid_carbon_intensity_metrics:
+        return None, None
 
-    return None
+    metric_name, detail_name = grid_carbon_intensity_metrics
 
-
-def get_carbon_intensity_at_timestamp(timestamp_us: int, carbon_data: List[Dict[str, Any]]) -> float:
+    query = """
+        SELECT mv.time, mv.value, mm.sampling_rate_configured
+        FROM measurement_values mv
+        JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
+        WHERE mm.run_id = %s
+        AND mm.metric = %s
+        AND mm.detail_name = %s
+        ORDER BY mv.time ASC
     """
-    Get carbon intensity value for a specific timestamp using interpolation/extrapolation.
+    carbon_intensity_values = DB().fetch_all(query, (run_id, metric_name, detail_name))
 
-    This function finds the carbon intensity at a given timestamp by:
-    - Interpolating between two data points if timestamp falls between them
-    - Returning the first value if timestamp is before all data points
-    - Returning the last value if timestamp is after all data points
+    if not carbon_intensity_values:
+        return None, None
 
-    Args:
-        timestamp_us: Target timestamp in microseconds
-        carbon_data: List of carbon intensity data points from service
+    # Extract sampling rate from first row (all rows have the same sampling_rate_configured)
+    sampling_rate_ms = carbon_intensity_values[0][2] if carbon_intensity_values else 300000
 
-    Returns:
-        Carbon intensity value in gCO2e/kWh
+    # Convert from database format to carbon data format (keep timestamps as microseconds)
+    carbon_data = [
+        {
+            'timestamp_us': timestamp_us,
+            'carbon_intensity': float(value_int) / 1000.0,
+            'location': detail_name
+        }
+        for timestamp_us, value_int, _ in carbon_intensity_values  # Unpack the third element (sampling_rate_configured)
+    ]
 
-    Raises:
-        ValueError: If carbon_data is empty
-    """
-    if not carbon_data:
-        raise ValueError("No carbon intensity data available for interpolation")
-
-    target_time = datetime.fromtimestamp(timestamp_us / 1_000_000, timezone.utc).replace(tzinfo=None)
-
-    # Convert carbon data times to datetime objects for comparison
-    data_points = []
-    for item in carbon_data:
-        item_time = datetime.fromisoformat(item['time'].replace('Z', '+00:00')).replace(tzinfo=None)
-        data_points.append((item_time, float(item['carbon_intensity'])))
-
-    # Sort by time
-    data_points.sort(key=lambda x: x[0])
-
-    # Check if target is before first or after last data point
-    if target_time <= data_points[0][0]:
-        return data_points[0][1]
-    if target_time >= data_points[-1][0]:
-        return data_points[-1][1]
-
-    # Find surrounding data points for interpolation
-    for i in range(len(data_points) - 1):
-        time1, value1 = data_points[i]
-        time2, value2 = data_points[i + 1]
-
-        if time1 <= target_time <= time2:
-            # Linear interpolation
-            time_diff = (time2 - time1).total_seconds()
-            if time_diff == 0:
-                return value1
-
-            target_diff = (target_time - time1).total_seconds()
-            ratio = target_diff / time_diff
-
-            return value1 + (value2 - value1) * ratio
-
-    raise ValueError(f"Could not interpolate carbon intensity for timestamp {target_time}")
-
-
-def get_carbon_intensity_timeseries_for_phase(
-    phase_start_us: int,
-    phase_end_us: int,
-    carbon_data: List[Dict[str, Any]],
-    target_sampling_rate_ms: int = None
-) -> List[Dict[str, Any]]:
-    """
-    Generate carbon intensity timeseries for a specific phase timeframe.
-
-    This function generates carbon intensity values at regular intervals throughout a phase,
-    which are stored as measurement metrics and used for calculating representative carbon
-    intensity values for energy calculations.
-
-    Args:
-        phase_start_us: Phase start timestamp in microseconds
-        phase_end_us: Phase end timestamp in microseconds
-        carbon_data: List of carbon intensity data points from service
-        target_sampling_rate_ms: Target sampling rate in milliseconds for timeseries generation.
-                               If None, uses sampling rate from carbon data or defaults to 5 minutes.
-
-    Returns:
-        List of carbon intensity timeseries points:
-        [{"timestamp_us": 1727003400000000, "carbon_intensity": 185.0}, ...]
-
-    Raises:
-        ValueError: If carbon_data is empty or phase timeframe is invalid
-    """
-    if not carbon_data:
-        raise ValueError("No carbon intensity data available for timeseries generation")
-
-    if phase_start_us >= phase_end_us:
-        raise ValueError("Invalid phase timeframe: start must be before end")
-
-    # Determine sampling rate for timeseries generation
-    if target_sampling_rate_ms is None:
-        target_sampling_rate_ms = _calculate_sampling_rate_from_data(carbon_data)
-
-    target_sampling_rate_us = target_sampling_rate_ms * 1000
-
-    # Generate timestamps at regular intervals throughout the phase
-    timeseries = []
-    current_timestamp_us = phase_start_us
-
-    while current_timestamp_us <= phase_end_us:
-        try:
-            carbon_intensity = get_carbon_intensity_at_timestamp(current_timestamp_us, carbon_data)
-            timeseries.append({
-                "timestamp_us": current_timestamp_us,
-                "carbon_intensity": carbon_intensity
-            })
-        except ValueError:
-            # Skip this timestamp if carbon intensity lookup fails
-            # This handles edge cases like malformed data or timestamp conversion issues
-            # Note: Normal out-of-range timestamps are handled gracefully by get_carbon_intensity_at_timestamp
-            pass
-
-        current_timestamp_us += target_sampling_rate_us
-
-    # Always include the phase end timestamp if it wasn't already included
-    if timeseries and timeseries[-1]["timestamp_us"] != phase_end_us:
-        try:
-            carbon_intensity = get_carbon_intensity_at_timestamp(phase_end_us, carbon_data)
-            timeseries.append({
-                "timestamp_us": phase_end_us,
-                "carbon_intensity": carbon_intensity
-            })
-        except ValueError:
-            pass
-
-    return timeseries
-
-
-def _calculate_sampling_rate_from_data(carbon_intensity_data: List[Dict[str, Any]]) -> int:
-    """
-    Calculate sampling rate in milliseconds based on time intervals in carbon intensity data.
-
-    Args:
-        carbon_intensity_data: List of carbon intensity data points with 'time' field
-
-    Returns:
-        Sampling rate in milliseconds, or 300000 (5 minutes) as fallback
-
-    Example:
-        For data: [{"time": "2025-09-23T10:00:00Z"}, {"time": "2025-09-23T11:00:00Z"}]
-        Returns: 3600000 (1 hour in milliseconds)
-    """
-    if not carbon_intensity_data or len(carbon_intensity_data) < 2:
-        return 300000
-
-    try:
-        time1 = datetime.fromisoformat(carbon_intensity_data[0]['time'].replace('Z', '+00:00'))
-        time2 = datetime.fromisoformat(carbon_intensity_data[1]['time'].replace('Z', '+00:00'))
-
-        interval_seconds = abs((time2 - time1).total_seconds())
-        return int(interval_seconds * 1000)
-    except (KeyError, ValueError, IndexError):
-        return 300000
-
-
-def _microseconds_to_iso8601(timestamp_us: int) -> str:
-    """
-    Convert microsecond timestamp to ISO 8601 format.
-
-    Args:
-        timestamp_us: Timestamp in microseconds since epoch
-
-    Returns:
-        ISO 8601 formatted timestamp string (e.g., "2025-09-22T10:50:00Z")
-    """
-    timestamp_seconds = timestamp_us / 1_000_000
-    dt = datetime.fromtimestamp(timestamp_seconds, timezone.utc)
-    return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+    return carbon_data, sampling_rate_ms
 
 
 def store_static_carbon_intensity(run_id, static_value):
@@ -362,7 +219,7 @@ def store_dynamic_carbon_intensity(run_id, grid_carbon_intensity_location):
     metric_name = 'grid_carbon_intensity_dynamic'
     detail_name = grid_carbon_intensity_location
     unit = 'gCO2e/kWh'
-    # Calculate sampling rate based on actual data intervals
+    # Calculate sampling rate based on actual data intervals from API format
     sampling_rate_configured = _calculate_sampling_rate_from_data(carbon_intensity_data)
 
     measurement_metric_id = DB().fetch_one('''
@@ -399,45 +256,159 @@ def store_dynamic_carbon_intensity(run_id, grid_carbon_intensity_location):
     print(f"Stored {len(values_data)} dynamic carbon intensity data points for location {grid_carbon_intensity_location}")
 
 
-def _get_stored_carbon_intensity_data(run_id, metric_name, detail_name):
+def generate_carbon_intensity_timeseries_for_phase(
+    phase_start_us: int,
+    phase_end_us: int,
+    carbon_data: List[Dict[str, Any]],
+    sampling_rate_ms: int = 300000
+) -> List[Dict[str, Any]]:
     """
-    Retrieve stored carbon intensity data from measurement_metrics for a run.
+    Generate carbon intensity timeseries for a specific phase timeframe.
+
+    This function generates carbon intensity values at regular intervals throughout a phase,
+    which are stored as measurement metrics and used for calculating representative carbon
+    intensity values for energy calculations.
 
     Args:
-        run_id: UUID of the run
-        metric_name: Either 'grid_carbon_intensity_static' or 'grid_carbon_intensity_dynamic'
-        detail_name: '[CONFIG]' for static, location code for dynamic (e.g., "DE", "ES-IB-MA")
+        phase_start_us: Phase start timestamp in microseconds
+        phase_end_us: Phase end timestamp in microseconds
+        carbon_data: List of carbon intensity data points from service
+        sampling_rate_ms: Sampling rate in milliseconds for timeseries generation (default: 300000 = 5 minutes)
 
     Returns:
-        List of carbon intensity data points or None if no data found
+        List of carbon intensity timeseries points:
+        [{"timestamp_us": 1727003400000000, "carbon_intensity": 185.0}, ...]
+
+    Raises:
+        ValueError: If carbon_data is empty or phase timeframe is invalid
     """
-    query = """
-        SELECT mv.time, mv.value
-        FROM measurement_values mv
-        JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
-        WHERE mm.run_id = %s
-        AND mm.metric = %s
-        AND mm.detail_name = %s
-        ORDER BY mv.time ASC
+    if not carbon_data:
+        raise ValueError("No carbon intensity data available for timeseries generation")
+
+    if phase_start_us >= phase_end_us:
+        raise ValueError("Invalid phase timeframe: start must be before end")
+
+    # Convert sampling rate to microseconds
+    sampling_rate_us = sampling_rate_ms * 1000
+
+    # Generate timestamps at regular intervals throughout the phase
+    timeseries = []
+    current_timestamp_us = phase_start_us
+
+    while current_timestamp_us <= phase_end_us:
+        try:
+            carbon_intensity = _get_carbon_intensity_at_timestamp(current_timestamp_us, carbon_data)
+            timeseries.append({
+                "timestamp_us": current_timestamp_us,
+                "carbon_intensity": carbon_intensity
+            })
+        except ValueError:
+            # Skip this timestamp if carbon intensity lookup fails
+            # This handles edge cases like malformed data or timestamp conversion issues
+            # Note: Normal out-of-range timestamps are handled gracefully by _get_carbon_intensity_at_timestamp
+            pass
+
+        current_timestamp_us += sampling_rate_us
+
+    # Always include the phase end timestamp if it wasn't already included
+    if timeseries and timeseries[-1]["timestamp_us"] != phase_end_us:
+        try:
+            carbon_intensity = _get_carbon_intensity_at_timestamp(phase_end_us, carbon_data)
+            timeseries.append({
+                "timestamp_us": phase_end_us,
+                "carbon_intensity": carbon_intensity
+            })
+        except ValueError:
+            pass
+
+    return timeseries
+
+
+
+def _get_carbon_intensity_at_timestamp(timestamp_us: int, carbon_data: List[Dict[str, Any]]) -> float:
     """
-    results = DB().fetch_all(query, (run_id, metric_name, detail_name))
+    Get carbon intensity value for a specific timestamp using interpolation/extrapolation.
 
-    if not results:
-        return None
+    This function finds the carbon intensity at a given timestamp by:
+    - Interpolating between two data points if timestamp falls between them
+    - Returning the first value if timestamp is before all data points
+    - Returning the last value if timestamp is after all data points
 
-    # Convert stored data back to the format expected by get_carbon_intensity_at_timestamp
-    carbon_data = []
-    for timestamp_us, value_int in results:
-        # Convert back from integer storage (divide by 1000 to restore decimal precision)
-        carbon_intensity = float(value_int) / 1000.0
-        # Convert timestamp to ISO format for consistency
-        dt = datetime.fromtimestamp(timestamp_us / 1_000_000, timezone.utc)
-        iso_time = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+    Args:
+        timestamp_us: Target timestamp in microseconds
+        carbon_data: List of carbon intensity data points with 'timestamp_us' and 'carbon_intensity' fields
 
-        carbon_data.append({
-            'time': iso_time,
-            'carbon_intensity': carbon_intensity,
-            'location': detail_name
-        })
+    Returns:
+        Carbon intensity value in gCO2e/kWh
 
-    return carbon_data
+    Raises:
+        ValueError: If carbon_data is empty
+    """
+    if not carbon_data:
+        raise ValueError("No carbon intensity data available for interpolation")
+
+    # Extract and sort data points by timestamp
+    data_points = [(item['timestamp_us'], float(item['carbon_intensity'])) for item in carbon_data]
+    data_points.sort(key=lambda x: x[0])
+
+    # Check if target is before first or after last data point
+    if timestamp_us <= data_points[0][0]:
+        return data_points[0][1]
+    if timestamp_us >= data_points[-1][0]:
+        return data_points[-1][1]
+
+    # Find surrounding data points for interpolation
+    for i in range(len(data_points) - 1):
+        time1_us, value1 = data_points[i]
+        time2_us, value2 = data_points[i + 1]
+
+        if time1_us <= timestamp_us <= time2_us:
+            # Linear interpolation
+            if time1_us == time2_us:
+                return value1
+
+            ratio = (timestamp_us - time1_us) / (time2_us - time1_us)
+            return value1 + (value2 - value1) * ratio
+
+    raise ValueError(f"Could not interpolate carbon intensity for timestamp {timestamp_us}")
+
+
+def _calculate_sampling_rate_from_data(carbon_intensity_data: List[Dict[str, Any]]) -> int:
+    """
+    Calculate sampling rate in milliseconds based on time intervals in carbon intensity data.
+
+    Args:
+        carbon_intensity_data: List of carbon intensity data points with 'time' field (API format)
+
+    Returns:
+        Sampling rate in milliseconds, or 300000 (5 minutes) as fallback
+
+    Example:
+        For data with 1 hour intervals: Returns 3600000 (1 hour in milliseconds)
+    """
+    if not carbon_intensity_data or len(carbon_intensity_data) < 2:
+        return 300000
+
+    try:
+        time1 = datetime.fromisoformat(carbon_intensity_data[0]['time'].replace('Z', '+00:00'))
+        time2 = datetime.fromisoformat(carbon_intensity_data[1]['time'].replace('Z', '+00:00'))
+        interval_seconds = abs((time2 - time1).total_seconds())
+        sampling_rate_configured = int(interval_seconds * 1000)
+        return sampling_rate_configured
+    except (KeyError, ValueError, IndexError):
+        return 300000
+
+
+def _microseconds_to_iso8601(timestamp_us: int) -> str:
+    """
+    Convert microsecond timestamp to ISO 8601 format.
+
+    Args:
+        timestamp_us: Timestamp in microseconds since epoch
+
+    Returns:
+        ISO 8601 formatted timestamp string (e.g., "2025-09-22T10:50:00Z")
+    """
+    timestamp_seconds = timestamp_us / 1_000_000
+    dt = datetime.fromtimestamp(timestamp_seconds, timezone.utc)
+    return dt.strftime('%Y-%m-%dT%H:%M:%SZ')

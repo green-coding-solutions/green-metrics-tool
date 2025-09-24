@@ -163,7 +163,7 @@ class ScenarioRunner:
                 ('_save_notes_runner', {}),
                 ('_save_run_logs', {}),
                 ('_save_warnings', {}),
-                ('_save_grid_carbon_intensity_metrics', {}),
+                ('_process_grid_carbon_intensity', {}),
                 ('_process_phase_stats', {}),
             )
 
@@ -2072,11 +2072,11 @@ class ScenarioRunner:
             if self.__phases.get('[RUNTIME]', None) is not None and self.__phases['[RUNTIME]'].get('end', None) is None:
                 self.__phases['[RUNTIME]']['end'] = int(time.time_ns() / 1_000)
 
-    def _save_grid_carbon_intensity_metrics(self):
+    def _process_grid_carbon_intensity(self):
         if not self._run_id or self._dev_no_save:
             return
 
-        print(TerminalColors.HEADER, '\nStore grid carbon intensity metrics', TerminalColors.ENDC)
+        print(TerminalColors.HEADER, '\nProcess grid carbon intensity values', TerminalColors.ENDC)
 
         # pylint: disable=import-outside-toplevel
         from lib.carbon_intensity import store_static_carbon_intensity, store_dynamic_carbon_intensity

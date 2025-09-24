@@ -14,7 +14,7 @@ from lib.carbon_intensity import (
     CarbonIntensityServiceError,
     CarbonIntensityDataError,
     get_carbon_intensity_data_for_run,
-    get_carbon_intensity_timeseries_for_phase,
+    generate_carbon_intensity_timeseries_for_phase,
 )
 
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
@@ -84,7 +84,7 @@ def build_and_store_phase_stats(run_id, sci=None):
     # Load carbon intensity time series data once to use as lookup table during energy metric processing.
     # This data is used for interpolation at specific timestamps rather than being aggregated like regular metrics.
     # Auto-detects whether dynamic (API) or static (config) carbon intensity data is available.
-    carbon_intensity_data = get_carbon_intensity_data_for_run(run_id)
+    carbon_intensity_data, carbon_sampling_rate_ms = get_carbon_intensity_data_for_run(run_id)
 
     query = """
             SELECT id, metric, unit, detail_name, sampling_rate_configured
@@ -134,8 +134,9 @@ def build_and_store_phase_stats(run_id, sci=None):
         phase_carbon_intensity = None
         if carbon_intensity_data:
             try:
-                carbon_timeseries = get_carbon_intensity_timeseries_for_phase(
-                    phase['start'], phase['end'], carbon_intensity_data
+                carbon_timeseries = generate_carbon_intensity_timeseries_for_phase(
+                    phase['start'], phase['end'], carbon_intensity_data,
+                    sampling_rate_ms=carbon_sampling_rate_ms
                 )
 
                 # INTERIM: Calculate representative carbon intensity for current energy calculations
