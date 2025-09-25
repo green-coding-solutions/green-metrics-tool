@@ -2075,9 +2075,6 @@ class ScenarioRunner:
 
         print(TerminalColors.HEADER, '\nProcess grid carbon intensity values', TerminalColors.ENDC)
 
-        # pylint: disable=import-outside-toplevel
-        from lib.carbon_intensity import store_static_carbon_intensity, store_dynamic_carbon_intensity
-
         config = GlobalConfig().config
         dynamic_grid_carbon_intensity = config.get('dynamic_grid_carbon_intensity', None)
         if dynamic_grid_carbon_intensity:
@@ -2086,9 +2083,11 @@ class ScenarioRunner:
             if location is None:
                 raise ValueError("Dynamic grid carbon intensity is enabled, but location configuration is missing! Ensure it is set in your config.yml.")
 
+            from lib.carbon_intensity import store_dynamic_carbon_intensity # pylint: disable=import-outside-toplevel
             store_dynamic_carbon_intensity(self._run_id, location)
         elif self._sci['I']:
             # Store static carbon intensity from config as constant time series
+            from lib.carbon_intensity import store_static_carbon_intensity # pylint: disable=import-outside-toplevel
             store_static_carbon_intensity(self._run_id, self._sci['I'])
         else:
             raise ValueError(

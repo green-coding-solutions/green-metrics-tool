@@ -74,7 +74,6 @@ def build_and_store_phase_stats(run_id, sci=None):
 
     software_carbon_intensity_global = {}
 
-
     query = """
             SELECT id, metric, unit, detail_name, sampling_rate_configured
             FROM measurement_metrics
@@ -275,18 +274,12 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
         # after going through detail metrics, create cumulated ones
-        phase_network_bytes_total = 0
         network_io_in_kWh = None
         if network_bytes_total:
-            phase_network_bytes_total = sum(network_bytes_total)
-
-            # Check if we can calculate network energy
-            has_network_factor = sci.get('N', None) is not None
-
-            if has_network_factor:
+            if sci.get('N', None) is not None:
                 # build the network energy by using a formula: https://www.green-coding.io/co2-formulas/
                 # pylint: disable=invalid-name
-                network_io_in_kWh = Decimal(phase_network_bytes_total) / 1_000_000_000 * Decimal(sci['N'])
+                network_io_in_kWh = Decimal(sum(network_bytes_total)) / 1_000_000_000 * Decimal(sci['N'])
                 network_io_in_uJ = network_io_in_kWh * 3_600_000_000_000
                 csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_uJ, 'TOTAL', None, None, None, None, None, 'uJ'))
 
@@ -336,7 +329,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                 value_carbon_ug = (value_sum / 3_600_000) * phase_grid_carbon_intensity
                 csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, phase_full_name, value_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
 
-                if '[' not in phase['name'] and metric.endswith('_machine'): # only for runtime sub phases to not double count
+                if '[' not in phase['name'] and metric.endswith('_machine'): # only for runtime sub phases to not double count ... needs refactor ... see comment at beginning of file
                     software_carbon_intensity_global['machine_carbon_ug'] = software_carbon_intensity_global.get('machine_carbon_ug', 0) + value_carbon_ug
 
         # Calculate network carbon emissions for this phase
