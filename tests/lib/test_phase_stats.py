@@ -125,18 +125,18 @@ def test_phase_stats_multi():
     assert data[5]['sampling_rate_max'] == 100688, 'MAX sampling rate not in expected range'
     assert data[5]['sampling_rate_95p'] ==  99696, '95p sampling rate not in expected range'
 
-def test_phase_embodied_and_operational_carbon():
+def test_phase_embodied_and_operational_carbon_using_static_intensity():
     run_id = Tests.insert_run()
     Tests.import_machine_energy(run_id)
 
     sci = {"I":436,"R":0,"EL":4,"RS":1,"TE":181000,"R_d":"page request"}
-    Tests.import_static_carbon_intensity_value(run_id, sci['I'])
+    Tests.import_carbon_intensity_metrics(run_id, sci['I'])
 
     build_and_store_phase_stats(run_id, sci=sci)
 
     data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, phase FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
 
-    assert len(data) == 5
+    assert len(data) == 6
     psu_energy_ac_mcp_machine = data[3]
     assert psu_energy_ac_mcp_machine['metric'] == 'psu_energy_ac_mcp_machine'
 
@@ -147,6 +147,45 @@ def test_phase_embodied_and_operational_carbon():
     assert psu_carbon_ac_mcp_machine['unit'] == 'ug'
 
     operational_carbon_expected = int(psu_energy_ac_mcp_machine['value'] * MICROJOULES_TO_KWH * sci['I'] * 1_000_000)
+    assert psu_carbon_ac_mcp_machine['value'] == operational_carbon_expected
+    assert psu_carbon_ac_mcp_machine['type'] == 'TOTAL'
+
+    phase_time_in_years = Tests.TEST_MEASUREMENT_DURATION_S / (60 * 60 * 24 * 365)
+    embodied_carbon_expected = int((phase_time_in_years / sci['EL']) * sci['TE'] * sci['RS'] * 1_000_000)
+
+    embodied_carbon_share_machine = data[0]
+    assert embodied_carbon_share_machine['metric'] == 'embodied_carbon_share_machine'
+    assert embodied_carbon_share_machine['detail_name'] == '[SYSTEM]'
+    assert embodied_carbon_share_machine['unit'] == 'ug'
+    assert embodied_carbon_share_machine['value'] == embodied_carbon_expected
+    assert embodied_carbon_share_machine['type'] == 'TOTAL'
+
+    assert embodied_carbon_share_machine['sampling_rate_avg'] is None, 'AVG sampling rate not in expected range'
+    assert embodied_carbon_share_machine['sampling_rate_max'] is None, 'MAX sampling rate not in expected range'
+    assert embodied_carbon_share_machine['sampling_rate_95p'] is None, '95p sampling rate not in expected range'
+
+def test_phase_embodied_and_operational_carbon_using_dynamic_intensity():
+    run_id = Tests.insert_run()
+    Tests.import_machine_energy(run_id)
+
+    sci = {"R":0,"EL":4,"RS":1,"TE":181000,"R_d":"page request"} # 'I' was removed, because it is not relevant here using dynamic values
+    grid_carbon_intensity = Tests.import_carbon_intensity_metrics(run_id)
+
+    build_and_store_phase_stats(run_id, sci=sci)
+
+    data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, phase FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
+
+    assert len(data) == 6
+    psu_energy_ac_mcp_machine = data[3]
+    assert psu_energy_ac_mcp_machine['metric'] == 'psu_energy_ac_mcp_machine'
+
+    psu_carbon_ac_mcp_machine = data[2]
+
+    assert psu_carbon_ac_mcp_machine['metric'] == 'psu_carbon_ac_mcp_machine'
+    assert psu_carbon_ac_mcp_machine['detail_name'] == '[MACHINE]'
+    assert psu_carbon_ac_mcp_machine['unit'] == 'ug'
+
+    operational_carbon_expected = int(psu_energy_ac_mcp_machine['value'] * MICROJOULES_TO_KWH * grid_carbon_intensity * 1_000_000)
     assert psu_carbon_ac_mcp_machine['value'] == operational_carbon_expected
     assert psu_carbon_ac_mcp_machine['type'] == 'TOTAL'
 
@@ -290,7 +329,7 @@ def test_phase_stats_network_data():
         'N': 0.001,    # Network energy intensity (kWh/GB)
         'I': 500,      # Carbon intensity (gCO2e/kWh)
     }
-    Tests.import_static_carbon_intensity_value(run_id, test_sci_config['I'])
+    Tests.import_carbon_intensity_metrics(run_id, test_sci_config['I'])
 
     build_and_store_phase_stats(run_id, sci=test_sci_config)
 
@@ -338,7 +377,7 @@ def test_phase_stats_network_data():
 
 def test_phase_stats_dynamic_grid_carbon_intensity():
     run_id = Tests.insert_run()
-    Tests.import_dynamic_carbon_intensity_value(run_id)
+    Tests.import_carbon_intensity_metrics(run_id)
 
     build_and_store_phase_stats(run_id)
 
@@ -369,7 +408,7 @@ def test_sci_calculation():
         'R': 10,       # Functional unit count (10 runs)
         'R_d': 'test runs'  # Functional unit description
     }
-    Tests.import_static_carbon_intensity_value(run_id, test_sci_config['I'])
+    Tests.import_carbon_intensity_metrics(run_id, test_sci_config['I'])
 
     build_and_store_phase_stats(run_id, sci=test_sci_config)
 

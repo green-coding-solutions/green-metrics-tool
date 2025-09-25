@@ -125,23 +125,25 @@ def get_carbon_intensity_data_for_run(run_id):
 
 def store_static_carbon_intensity(run_id, static_value):
     """
-    Store static carbon intensity value as a constant time series.
+    Store static carbon intensity value as a constant time series at multiple timestamps:
+    - Start and end of measurement run to ensure graph looks good in frontend
+    - Middle of each phase to enable carbon metrics calculation per phase
 
     Args:
         run_id: UUID of the run
         static_value: Static carbon intensity value from config (gCO2e/kWh)
     """
-    # Get run start and end times
+    # Get run phases data and overall start/end times
     run_query = """
-        SELECT start_measurement, end_measurement
+        SELECT phases, start_measurement, end_measurement
         FROM runs
         WHERE id = %s
     """
     run_data = DB().fetch_one(run_query, (run_id,))
-    if not run_data or not run_data[0] or not run_data[1]:
-        raise ValueError(f"Run {run_id} does not have valid start_measurement and end_measurement times")
+    if not run_data or not run_data[0]:
+        raise ValueError(f"Run {run_id} does not have phases data")
 
-    start_time_us, end_time_us = run_data
+    phases, start_time_us, end_time_us = run_data
 
     # Create measurement_metric entry for static carbon intensity
     metric_name = 'grid_carbon_intensity_static'
@@ -158,14 +160,30 @@ def store_static_carbon_intensity(run_id, static_value):
     # Convert static value to integer
     carbon_intensity_value = int(float(static_value))
 
-    # Store as constant time series: same value at start and end times
-    DB().query(
-        "INSERT INTO measurement_values (measurement_metric_id, value, time) VALUES (%s, %s, %s), (%s, %s, %s)",
-        (measurement_metric_id, carbon_intensity_value, start_time_us,
-         measurement_metric_id, carbon_intensity_value, end_time_us)
-    )
+    # Calculate timestamps: start/end of run + middle of each phase
+    timestamps = []
 
-    print(f"Stored static carbon intensity value {static_value} gCO2e/kWh as constant time series")
+    # Add overall run start and end times
+    if start_time_us and end_time_us:
+        timestamps.extend([start_time_us, end_time_us])
+
+    # Add middle timestamp for each phase
+    for phase in phases:
+        middle_timestamp = (phase['start'] + phase['end']) // 2
+        timestamps.append(middle_timestamp)
+
+    # Insert static value for all timestamps
+    values_to_insert = []
+    for timestamp in timestamps:
+        values_to_insert.extend([measurement_metric_id, carbon_intensity_value, timestamp])
+
+    # Build dynamic query with correct number of placeholders
+    placeholders = ', '.join(['(%s, %s, %s)'] * len(timestamps))
+    query = f"INSERT INTO measurement_values (measurement_metric_id, value, time) VALUES {placeholders}"
+
+    DB().query(query, tuple(values_to_insert))
+
+    print(f"Stored static carbon intensity value {static_value} gCO2e/kWh at {len(timestamps)} timestamps (run start/end + phase middles)")
 
 
 def store_dynamic_carbon_intensity(run_id, location):

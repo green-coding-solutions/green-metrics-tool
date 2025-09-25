@@ -10,10 +10,6 @@ from io import StringIO
 
 from lib.db import DB
 from lib import error_helpers
-from lib.carbon_intensity import (
-    get_carbon_intensity_data_for_run,
-    generate_carbon_intensity_timeseries_for_phase,
-)
 
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
     # First we create averages for all types. This includes means and totals
@@ -70,16 +66,14 @@ def generate_csv_line(run_id, metric, detail_name, phase_name, value, value_type
     # else '' resolves to NULL
     return f"{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{round(sampling_rate_avg) if sampling_rate_avg is not None else ''},{round(sampling_rate_max) if sampling_rate_max is not None else ''},{round(sampling_rate_95p) if sampling_rate_95p is not None else ''},{unit},NOW()\n"
 
+
+
 def build_and_store_phase_stats(run_id, sci=None):
     if not sci:
         sci = {}
 
     software_carbon_intensity_global = {}
 
-    # Load carbon intensity time series data once to use as lookup table during energy metric processing.
-    # This data is used for interpolation at specific timestamps rather than being aggregated like regular metrics.
-    # Auto-detects whether dynamic (API) or static (config) carbon intensity data is available.
-    carbon_intensity_data, carbon_sampling_rate_ms = get_carbon_intensity_data_for_run(run_id)
 
     query = """
             SELECT id, metric, unit, detail_name, sampling_rate_configured
@@ -124,26 +118,8 @@ def build_and_store_phase_stats(run_id, sci=None):
         cpu_utilization_machine = None
         network_io_carbon_in_ug = None
 
-        # Generate carbon intensity timeseries for this phase and extract representative value
-        phase_carbon_intensity = None
-        if carbon_intensity_data:
-            try:
-                carbon_timeseries = generate_carbon_intensity_timeseries_for_phase(
-                    phase['start'], phase['end'], carbon_intensity_data,
-                    sampling_rate_ms=carbon_sampling_rate_ms
-                )
-
-                # INTERIM: Calculate representative carbon intensity for current energy calculations
-                # TODO: Replace this simple average with time-weighted energy×carbon integration  # pylint: disable=fixme
-                # Future enhancement: Synchronize energy and carbon timeseries for precise temporal calculation
-                # instead of: energy_total * carbon_average
-                # use: ∫(energy(t) * carbon_intensity(t))dt over phase duration
-                if carbon_timeseries:
-                    total_carbon = sum(point['carbon_intensity'] for point in carbon_timeseries)
-                    phase_carbon_intensity = Decimal(total_carbon / len(carbon_timeseries))
-
-            except Exception as e:  # pylint: disable=broad-except
-                raise RuntimeError(f"Failed to calculate carbon intensity for phase {phase['name']}: {e}") from e
+        phase_grid_carbon_intensity = None
+        phase_energy_metrics = []
 
         select_query = """
             WITH lag_table as (
@@ -269,15 +245,16 @@ def build_and_store_phase_stats(run_id, sci=None):
                 power_min = (min_value * 10**3) / (duration / value_count)
                 csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg, 'MEAN', power_max, power_min, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
 
-                # Calculate carbon values using pre-calculated phase specific carbon intensity
-                if phase_carbon_intensity is not None:
-                    value_carbon_ug = (value_sum / 3_600_000) * phase_carbon_intensity
-                    csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", value_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
-
-                    if '[' not in phase['name'] and metric.endswith('_machine'): # only for runtime sub phases to not double count ... needs refactor ... see comment at beginning of file
-                        software_carbon_intensity_global['machine_carbon_ug'] = software_carbon_intensity_global.get('machine_carbon_ug', 0) + value_carbon_ug
-                else:
-                    error_helpers.log_error(f'Cannot calculate carbon intensity for energy metric {metric}". No carbon intensity data found in measurement_metrics. Configure either dynamic carbon intensity or static SCI value I.', run_id=run_id)
+                # Store energy metric data for carbon calculation at the end of the phase loop
+                phase_energy_metrics.append({
+                    'metric': metric,
+                    'detail_name': detail_name,
+                    'value_sum': value_sum,
+                    'phase_name': f"{idx:03}_{phase['name']}",
+                    'sampling_rate_avg': sampling_rate_avg,
+                    'sampling_rate_max': sampling_rate_max,
+                    'sampling_rate_95p': sampling_rate_95p
+                })
 
 
                 if metric.endswith('_machine'):
@@ -289,6 +266,7 @@ def build_and_store_phase_stats(run_id, sci=None):
 
             elif "grid_carbon_intensity" in metric:
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+                phase_grid_carbon_intensity = avg_value
 
             else: # Default
                 if metric not in ('cpu_time_powermetrics_vm', ):
@@ -296,33 +274,26 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
         # after going through detail metrics, create cumulated ones
+        phase_network_bytes_total = 0
+        network_io_in_kWh = None
         if network_bytes_total:
-            # Check if we can calculate network energy and carbon
+            phase_network_bytes_total = sum(network_bytes_total)
+
+            # Check if we can calculate network energy
             has_network_factor = sci.get('N', None) is not None
 
             if has_network_factor:
                 # build the network energy by using a formula: https://www.green-coding.io/co2-formulas/
                 # pylint: disable=invalid-name
-                network_io_in_kWh = Decimal(sum(network_bytes_total)) / 1_000_000_000 * Decimal(sci['N'])
+                network_io_in_kWh = Decimal(phase_network_bytes_total) / 1_000_000_000 * Decimal(sci['N'])
                 network_io_in_uJ = network_io_in_kWh * 3_600_000_000_000
                 csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_uJ, 'TOTAL', None, None, None, None, None, 'uJ'))
 
-                #power calculations
+                # power calculations
                 network_io_power_in_mW = (network_io_in_kWh * Decimal('3600000') / Decimal(duration_in_s) * Decimal('1000'))
                 csv_buffer.write(generate_csv_line(run_id, 'network_power_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_power_in_mW, 'TOTAL', None, None, None, None, None, 'mW'))
-
-                # co2 calculations using pre-calculated phase specific carbon intensity
-                if phase_carbon_intensity is not None:
-                    network_io_carbon_in_ug = network_io_in_kWh * phase_carbon_intensity * 1_000_000
-                    csv_buffer.write(generate_csv_line(run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
-                else:
-                    error_helpers.log_error('Cannot calculate network carbon emissions. No carbon intensity data found in measurement_metrics. Configure either dynamic carbon intensity or static SCI value I.', run_id=run_id)
-                    network_io_carbon_in_ug = 0
             else:
                 error_helpers.log_error('Cannot calculate the total network energy consumption. SCI value N is missing in the config.', run_id=run_id)
-                network_io_carbon_in_ug = 0
-        else:
-            network_io_carbon_in_ug = 0
 
         if sci.get('EL', None) is not None and sci.get('TE', None) is not None and sci.get('RS', None) is not None:
             duration_in_years = duration_in_s / (60 * 60 * 24 * 365)
@@ -350,6 +321,28 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'uJ'))
                 csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'mW'))
 
+        # Calculate carbon emissions for this phase's energy metrics
+        if phase_grid_carbon_intensity is not None and phase_energy_metrics:
+            for energy_metric in phase_energy_metrics:
+                metric = energy_metric['metric']
+                detail_name = energy_metric['detail_name']
+                value_sum = energy_metric['value_sum']
+                phase_full_name = energy_metric['phase_name']
+                sampling_rate_avg = energy_metric['sampling_rate_avg']
+                sampling_rate_max = energy_metric['sampling_rate_max']
+                sampling_rate_95p = energy_metric['sampling_rate_95p']
+
+                value_carbon_ug = (value_sum / 3_600_000) * phase_grid_carbon_intensity
+                csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, phase_full_name, value_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
+
+                if '[' not in phase['name'] and metric.endswith('_machine'): # only for runtime sub phases to not double count
+                    software_carbon_intensity_global['machine_carbon_ug'] = software_carbon_intensity_global.get('machine_carbon_ug', 0) + value_carbon_ug
+
+        # Calculate network carbon emissions for this phase
+        if phase_grid_carbon_intensity is not None and network_io_in_kWh is not None:
+            network_io_carbon_in_ug = network_io_in_kWh * phase_grid_carbon_intensity * 1_000_000
+            csv_buffer.write(generate_csv_line(run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
+
     # TODO: refactor to be a metric provider. Than it can also be per phase # pylint: disable=fixme
     if software_carbon_intensity_global.get('machine_carbon_ug', None) is not None \
         and software_carbon_intensity_global.get('embodied_carbon_share_ug', None) is not None \
@@ -358,6 +351,7 @@ def build_and_store_phase_stats(run_id, sci=None):
 
         csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{runtime_phase_idx:03}_[RUNTIME]", (software_carbon_intensity_global['machine_carbon_ug'] + software_carbon_intensity_global['embodied_carbon_share_ug']) / Decimal(sci['R']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci['R_d']}"))
     # TODO End # pylint: disable=fixme
+
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
     DB().copy_from(
