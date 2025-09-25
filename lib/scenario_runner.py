@@ -1513,7 +1513,6 @@ class ScenarioRunner:
 
     def _execute_dependency_resolver_for_container(self, container_name):
         try:
-            print(f"Performing dependency resolution for container '{container_name}'")
             start_time = time.perf_counter()
 
             result = resolve_docker_dependencies_as_dict(
@@ -1526,7 +1525,7 @@ class ScenarioRunner:
             total_packages = 0
             if result:
                 for key, value in result.items():
-                    if key != '_container-info' and isinstance(value, dict) and 'dependencies' in value:
+                    if key != 'source' and isinstance(value, dict) and 'dependencies' in value:
                         total_packages += len(value['dependencies'])
 
             print(f"Dependency resolution for container '{container_name}' found {total_packages} packages in {duration:.2f} s")
