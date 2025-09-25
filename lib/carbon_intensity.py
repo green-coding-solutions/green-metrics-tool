@@ -66,17 +66,19 @@ class CarbonIntensityClient:
         return data
 
 
-def store_static_carbon_intensity(run_id, static_value):
+def _get_run_data_and_phases(run_id):
     """
-    Store static carbon intensity value as a constant time series at multiple timestamps:
-    - Start and end of measurement run to ensure graph looks good in frontend
-    - Middle of each phase to enable carbon metrics calculation per phase
+    Fetch run data including phases and measurement times.
 
     Args:
         run_id: UUID of the run
-        static_value: Static carbon intensity value from config (gCO2e/kWh)
+
+    Returns:
+        tuple: (phases, start_time_us, end_time_us)
+
+    Raises:
+        ValueError: If run data is invalid or missing
     """
-    # Get run phases data and overall start/end times
     run_query = """
         SELECT phases, start_measurement, end_measurement
         FROM runs
@@ -87,23 +89,42 @@ def store_static_carbon_intensity(run_id, static_value):
         raise ValueError(f"Run {run_id} does not have phases data")
 
     phases, start_time_us, end_time_us = run_data
+    return phases, start_time_us, end_time_us
 
-    # Create measurement_metric entry for static carbon intensity
-    metric_name = 'grid_carbon_intensity_static'
-    detail_name = '[CONFIG]'
-    unit = 'gCO2e/kWh'
-    sampling_rate_configured = 0  # Static value has no sampling rate
 
-    measurement_metric_id = DB().fetch_one('''
+def _create_measurement_metric(run_id, metric_name, detail_name, unit, sampling_rate_configured):
+    """
+    Create a measurement metric entry in the database.
+
+    Args:
+        run_id: UUID of the run
+        metric_name: Name of the metric
+        detail_name: Detail/source name for the metric
+        unit: Unit of measurement
+        sampling_rate_configured: Configured sampling rate
+
+    Returns:
+        int: measurement_metric_id
+    """
+    return DB().fetch_one('''
         INSERT INTO measurement_metrics (run_id, metric, detail_name, unit, sampling_rate_configured)
         VALUES (%s, %s, %s, %s, %s)
         RETURNING id
     ''', params=(run_id, metric_name, detail_name, unit, sampling_rate_configured))[0]
 
-    # Convert static value to integer
-    carbon_intensity_value = int(float(static_value))
 
-    # Calculate timestamps: start/end of run + middle of each phase
+def _get_base_timestamps(phases, start_time_us, end_time_us):
+    """
+    Get base timestamps: run start/end + phase middles.
+
+    Args:
+        phases: List of phase dictionaries
+        start_time_us: Run start time in microseconds
+        end_time_us: Run end time in microseconds
+
+    Returns:
+        set: Set of timestamps
+    """
     timestamps = set()
 
     # Add overall run start and end times
@@ -116,19 +137,78 @@ def store_static_carbon_intensity(run_id, static_value):
         middle_timestamp = (phase['start'] + phase['end']) // 2
         timestamps.add(middle_timestamp)
 
-    # Convert back to list for iteration
-    timestamps = list(timestamps)
+    return timestamps
+
+
+def _bulk_insert_measurement_values(measurement_metric_id, value_timestamp_pairs):
+    """
+    Efficiently insert measurement values using the most appropriate method.
+
+    Args:
+        measurement_metric_id: ID of the measurement metric
+        value_timestamp_pairs: List of (value, timestamp) tuples
+    """
+    if not value_timestamp_pairs:
+        return
+
+    # For small datasets, use regular INSERT with multiple VALUES
+    if len(value_timestamp_pairs) <= 10:
+        values_to_insert = []
+        for value, timestamp in value_timestamp_pairs:
+            values_to_insert.extend([measurement_metric_id, int(value), timestamp])
+
+        placeholders = ', '.join(['(%s, %s, %s)'] * len(value_timestamp_pairs))
+        query = f"INSERT INTO measurement_values (measurement_metric_id, value, time) VALUES {placeholders}"
+        DB().query(query, tuple(values_to_insert))
+    else:
+        # For larger datasets, use COPY FROM for better performance
+        values_data = [(measurement_metric_id, int(value), timestamp)
+                      for value, timestamp in value_timestamp_pairs]
+        csv_data = '\n'.join([f"{row[0]},{row[1]},{row[2]}" for row in values_data])
+        f = StringIO(csv_data)
+        DB().copy_from(
+            file=f,
+            table='measurement_values',
+            columns=['measurement_metric_id', 'value', 'time'],
+            sep=','
+        )
+        f.close()
+
+
+def store_static_carbon_intensity(run_id, static_value):
+    """
+    Store static carbon intensity value as a constant time series at multiple timestamps:
+    - Start and end of measurement run to ensure graph looks good in frontend
+    - Middle of each phase to enable carbon metrics calculation per phase
+
+    Args:
+        run_id: UUID of the run
+        static_value: Static carbon intensity value from config (gCO2e/kWh)
+    """
+    # Get run phases data and overall start/end times
+    phases, start_time_us, end_time_us = _get_run_data_and_phases(run_id)
+
+    # Create measurement_metric entry for static carbon intensity
+    metric_name = 'grid_carbon_intensity_static'
+    detail_name = '[CONFIG]'
+    unit = 'gCO2e/kWh'
+    sampling_rate_configured = 0  # Static value has no sampling rate
+
+    measurement_metric_id = _create_measurement_metric(
+        run_id, metric_name, detail_name, unit, sampling_rate_configured
+    )
+
+    # Convert static value to integer
+    carbon_intensity_value = int(float(static_value))
+
+    # Calculate timestamps: start/end of run + middle of each phase
+    timestamps = _get_base_timestamps(phases, start_time_us, end_time_us)
+
+    # Prepare value-timestamp pairs for bulk insert
+    value_timestamp_pairs = [(carbon_intensity_value, timestamp) for timestamp in timestamps]
 
     # Insert static value for all timestamps
-    values_to_insert = []
-    for timestamp in timestamps:
-        values_to_insert.extend([measurement_metric_id, carbon_intensity_value, timestamp])
-
-    # Build dynamic query with correct number of placeholders
-    placeholders = ', '.join(['(%s, %s, %s)'] * len(timestamps))
-    query = f"INSERT INTO measurement_values (measurement_metric_id, value, time) VALUES {placeholders}"
-
-    DB().query(query, tuple(values_to_insert))
+    _bulk_insert_measurement_values(measurement_metric_id, value_timestamp_pairs)
 
     print(f"Stored static carbon intensity value {static_value} gCO2e/kWh at {len(timestamps)} timestamps (run start/end + phase middles)")
 
@@ -143,16 +223,9 @@ def store_dynamic_carbon_intensity(run_id, location):
         location: Location code (e.g., "DE", "ES-IB-MA")
     """
     # Get run phases data and overall start/end times
-    run_query = """
-        SELECT phases, start_measurement, end_measurement
-        FROM runs
-        WHERE id = %s
-    """
-    run_data = DB().fetch_one(run_query, (run_id,))
-    if not run_data or not run_data[0] or not run_data[1] or not run_data[2]:
-        raise ValueError(f"Run {run_id} does not have valid phases and measurement times")
-
-    phases, start_time_us, end_time_us = run_data
+    phases, start_time_us, end_time_us = _get_run_data_and_phases(run_id)
+    if not start_time_us or not end_time_us:
+        raise ValueError(f"Run {run_id} does not have valid measurement times")
     start_time_iso = _microseconds_to_iso8601(start_time_us)
     end_time_iso = _microseconds_to_iso8601(end_time_us)
 
@@ -178,11 +251,9 @@ def store_dynamic_carbon_intensity(run_id, location):
     # Calculate sampling rate based on actual data intervals from API format
     sampling_rate_configured = _calculate_sampling_rate_from_data(carbon_intensity_data)
 
-    measurement_metric_id = DB().fetch_one('''
-        INSERT INTO measurement_metrics (run_id, metric, detail_name, unit, sampling_rate_configured)
-        VALUES (%s, %s, %s, %s, %s)
-        RETURNING id
-    ''', params=(run_id, metric_name, detail_name, unit, sampling_rate_configured))[0]
+    measurement_metric_id = _create_measurement_metric(
+        run_id, metric_name, detail_name, unit, sampling_rate_configured
+    )
 
     # Convert API data to format expected by _get_carbon_intensity_at_timestamp
     carbon_data_for_lookup = []
@@ -201,16 +272,7 @@ def store_dynamic_carbon_intensity(run_id, location):
     carbon_data_for_lookup.sort(key=lambda x: x['timestamp_us'])
 
     # Prepare measurement values for bulk insert
-    timestamps = set()
-
-    # Always ensure we have data points at measurement start and end times
-    timestamps.add(start_time_us)
-    timestamps.add(end_time_us)
-
-    # Add middle timestamp for each phase to ensure coverage
-    for phase in phases:
-        middle_timestamp = (phase['start'] + phase['end']) // 2
-        timestamps.add(middle_timestamp)
+    timestamps = _get_base_timestamps(phases, start_time_us, end_time_us)
 
     # Add any intermediate API data points that fall within measurement timeframe
     for data_point in carbon_data_for_lookup:
@@ -219,27 +281,16 @@ def store_dynamic_carbon_intensity(run_id, location):
             timestamps.add(timestamp_us)
 
     # Convert timestamps to values using nearest data point logic
-    values_data = []
+    value_timestamp_pairs = []
     for timestamp in timestamps:
         carbon_intensity = _get_carbon_intensity_at_timestamp(timestamp, carbon_data_for_lookup)
-        carbon_intensity_value = int(carbon_intensity)
-        values_data.append((measurement_metric_id, carbon_intensity_value, timestamp))
+        value_timestamp_pairs.append((carbon_intensity, timestamp))
 
+    # Bulk insert measurement values
+    _bulk_insert_measurement_values(measurement_metric_id, value_timestamp_pairs)
 
-    if values_data:
-        # Bulk insert measurement values using copy_from
-        csv_data = '\n'.join([f"{row[0]},{row[1]},{row[2]}" for row in values_data])
-        f = StringIO(csv_data)
-        DB().copy_from(
-            file=f,
-            table='measurement_values',
-            columns=['measurement_metric_id', 'value', 'time'],
-            sep=','
-        )
-        f.close()
-
-    unique_values = len(set(row[1] for row in values_data))
-    print(f"Stored dynamic carbon intensity for location {location}: {len(values_data)} timestamps, {unique_values} unique values")
+    unique_values = len(set(int(value) for value, _ in value_timestamp_pairs))
+    print(f"Stored dynamic carbon intensity for location {location}: {len(value_timestamp_pairs)} timestamps, {unique_values} unique values")
 
 
 def _get_carbon_intensity_at_timestamp(timestamp_us: int, carbon_data: List[Dict[str, Any]]) -> float:
