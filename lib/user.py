@@ -1,5 +1,6 @@
 import json
 import hashlib
+import uuid
 
 from lib.secure_variable import SecureVariable
 from lib.db import DB

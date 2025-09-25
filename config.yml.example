@@ -10,11 +10,6 @@ redis:
   host: green-coding-redis-container
   port: 6379
 
-elephant:
-  host: localhost
-  port: 8000
-  protocol: http
-
 smtp:
   server: SMTP_SERVER
   sender: SMTP_SENDER
@@ -254,12 +249,15 @@ sci:
     N: 0.04106063
 
 # If you want to use the current dynamic grid carbon intensity for the carbon metrics instead of the fixed number above (SCI.I),
-# uncomment the following lines and set your location. The location needs to be a valid grid zone code.
-# See https://portal.electricitymaps.com/developer-hub/api/getting-started#geographical-coverage for valid zone codes.
-# Documentation of the feature: https://docs.green-coding.io/docs/measuring/carbon/grid-carbon-intensity/
-# Note, that for this functionality our 'Elephant' service needs to be running and configured correctly.
+# uncomment the following lines and set your location and ensure the Elephant service is setup correctly.
+# The location needs to be a valid grid zone code. 
+# For more information see our documentation: https://docs.green-coding.io/docs/measuring/carbon/grid-carbon-intensity/
 #dynamic_grid_carbon_intensity:
 #  location: 'DE'
+#  elephant:
+#    host: localhost
+#    port: 8000
+#    protocol: http
 
 # The following configuration is an enterprise feature:
 # In order to get the carbon intensity we use electricity maps which requires a token.

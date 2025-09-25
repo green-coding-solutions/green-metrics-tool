@@ -70,9 +70,6 @@ def generate_csv_line(run_id, metric, detail_name, phase_name, value, value_type
     # else '' resolves to NULL
     return f"{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{round(sampling_rate_avg) if sampling_rate_avg is not None else ''},{round(sampling_rate_max) if sampling_rate_max is not None else ''},{round(sampling_rate_95p) if sampling_rate_95p is not None else ''},{unit},NOW()\n"
 
-
-
-
 def build_and_store_phase_stats(run_id, sci=None):
     if not sci:
         sci = {}

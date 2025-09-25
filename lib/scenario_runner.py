@@ -2110,7 +2110,6 @@ class ScenarioRunner:
         # get all the metrics from the measurements table grouped by metric
         # loop over them issuing separate queries to the DB
         from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-
         build_and_store_phase_stats(self._run_id, self._sci)
 
     def _post_process(self, index):
