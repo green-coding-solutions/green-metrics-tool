@@ -135,23 +135,24 @@ def store_static_carbon_intensity(run_id, static_value):
 
 def store_dynamic_carbon_intensity(run_id, location):
     """
-    Store dynamic carbon intensity data from API as time series.
+    Store dynamic carbon intensity data from API as time series, ensuring coverage per phase.
+    Uses nearest data point logic for timestamps where API data may be sparse.
 
     Args:
         run_id: UUID of the run
         location: Location code (e.g., "DE", "ES-IB-MA")
     """
-    # Get run start and end times
+    # Get run phases data and overall start/end times
     run_query = """
-        SELECT start_measurement, end_measurement
+        SELECT phases, start_measurement, end_measurement
         FROM runs
         WHERE id = %s
     """
     run_data = DB().fetch_one(run_query, (run_id,))
-    if not run_data or not run_data[0] or not run_data[1]:
-        raise ValueError(f"Run {run_id} does not have valid start_measurement and end_measurement times")
+    if not run_data or not run_data[0] or not run_data[1] or not run_data[2]:
+        raise ValueError(f"Run {run_id} does not have valid phases and measurement times")
 
-    start_time_us, end_time_us = run_data
+    phases, start_time_us, end_time_us = run_data
     start_time_iso = _microseconds_to_iso8601(start_time_us)
     end_time_iso = _microseconds_to_iso8601(end_time_us)
 
@@ -160,12 +161,15 @@ def store_dynamic_carbon_intensity(run_id, location):
     carbon_intensity_data = carbon_client.get_carbon_intensity_history(
         location, start_time_iso, end_time_iso
     )
-
     if not carbon_intensity_data:
         raise ValueError(
             f"No carbon intensity data received from service for location '{location}' "
             f"between {start_time_iso} and {end_time_iso}. The service returned an empty dataset."
         )
+
+    values = [float(dp['carbon_intensity']) for dp in carbon_intensity_data]
+    print(f"Retrieved {len(carbon_intensity_data)} API data points for {location}: "
+            f"range {min(values):.1f}-{max(values):.1f} gCO2e/kWh")
 
     # Create measurement_metric entry for dynamic carbon intensity
     metric_name = 'grid_carbon_intensity_dynamic'
@@ -197,34 +201,29 @@ def store_dynamic_carbon_intensity(run_id, location):
     carbon_data_for_lookup.sort(key=lambda x: x['timestamp_us'])
 
     # Prepare measurement values for bulk insert
-    values_data = []
+    timestamps = set()
 
     # Always ensure we have data points at measurement start and end times
-    # Get carbon intensity at measurement start time
-    start_carbon_intensity = _get_carbon_intensity_at_timestamp(start_time_us, carbon_data_for_lookup)
-    start_carbon_intensity_value = int(start_carbon_intensity)
-    values_data.append((measurement_metric_id, start_carbon_intensity_value, start_time_us))
+    timestamps.add(start_time_us)
+    timestamps.add(end_time_us)
 
-    # Get carbon intensity at measurement end time
-    end_carbon_intensity = _get_carbon_intensity_at_timestamp(end_time_us, carbon_data_for_lookup)
-    end_carbon_intensity_value = int(end_carbon_intensity)
+    # Add middle timestamp for each phase to ensure coverage
+    for phase in phases:
+        middle_timestamp = (phase['start'] + phase['end']) // 2
+        timestamps.add(middle_timestamp)
 
-    # Add intermediate data points that fall within measurement timeframe
-    intermediate_points = []
+    # Add any intermediate API data points that fall within measurement timeframe
     for data_point in carbon_data_for_lookup:
         timestamp_us = data_point['timestamp_us']
-        # Only include points strictly within the timeframe (not at boundaries)
-        if start_time_us < timestamp_us < end_time_us:
-            carbon_intensity_value = int(float(data_point['carbon_intensity']))
-            intermediate_points.append((measurement_metric_id, carbon_intensity_value, timestamp_us))
+        if start_time_us <= timestamp_us <= end_time_us:
+            timestamps.add(timestamp_us)
 
-    # Sort intermediate points by time and add them
-    intermediate_points.sort(key=lambda x: x[2])  # Sort by timestamp
-    values_data.extend(intermediate_points)
-
-    # Add end time point (ensure it's different from start time)
-    if start_time_us != end_time_us:
-        values_data.append((measurement_metric_id, end_carbon_intensity_value, end_time_us))
+    # Convert timestamps to values using nearest data point logic
+    values_data = []
+    for timestamp in timestamps:
+        carbon_intensity = _get_carbon_intensity_at_timestamp(timestamp, carbon_data_for_lookup)
+        carbon_intensity_value = int(carbon_intensity)
+        values_data.append((measurement_metric_id, carbon_intensity_value, timestamp))
 
 
     if values_data:
@@ -239,7 +238,8 @@ def store_dynamic_carbon_intensity(run_id, location):
         )
         f.close()
 
-    print(f"Stored dynamic carbon intensity for location {location}: start={start_carbon_intensity} gCO2e/kWh, end={end_carbon_intensity} gCO2e/kWh, {len(intermediate_points)} intermediate points")
+    unique_values = len(set(row[1] for row in values_data))
+    print(f"Stored dynamic carbon intensity for location {location}: {len(values_data)} timestamps, {unique_values} unique values")
 
 
 def _get_carbon_intensity_at_timestamp(timestamp_us: int, carbon_data: List[Dict[str, Any]]) -> float:
