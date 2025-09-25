@@ -2081,24 +2081,22 @@ class ScenarioRunner:
         # pylint: disable=import-outside-toplevel
         from lib.carbon_intensity import store_static_carbon_intensity, store_dynamic_carbon_intensity
 
-        try:
-            if self._use_dynamic_grid_carbon_intensity:
-                # Store dynamic carbon intensity from API
-                if self._grid_carbon_intensity_location is None:
-                    error_helpers.log_error("Dynamic grid carbon intensity is enabled, but location is missing! Carbon footprint calculations will be skipped.", run_id=self._run_id)
-                    return
+        if self._use_dynamic_grid_carbon_intensity:
+            # Store dynamic carbon intensity from API
+            if self._grid_carbon_intensity_location is None:
+                raise ValueError("Dynamic grid carbon intensity is enabled, but location configuration is missing! Ensure it is set in your config.yml.")
 
-                store_dynamic_carbon_intensity(self._run_id, self._grid_carbon_intensity_location)
-            elif self._sci['I']:
-                # Store static carbon intensity from config as constant time series
-                store_static_carbon_intensity(self._run_id, self._sci['I'])
-            else:
-                # No carbon intensity configured - this will prevent carbon calculations
-                # This is only acceptable if no energy metrics are being collected
-                error_helpers.log_error("No grid carbon intensity configured. Carbon footprint calculations will be skipped.", run_id=self._run_id)
-
-        except Exception as e:  # pylint: disable=broad-except
-            error_helpers.log_error(f"Unexpected error storing grid carbon intensity metrics: {e}", run_id=self._run_id)
+            store_dynamic_carbon_intensity(self._run_id, self._grid_carbon_intensity_location)
+        elif self._sci['I']:
+            # Store static carbon intensity from config as constant time series
+            store_static_carbon_intensity(self._run_id, self._sci['I'])
+        else:
+            raise ValueError(
+                "No grid carbon intensity configured. Cannot proceed with carbon footprint calculations. "
+                "Please configure either: (1) Static carbon intensity by setting 'sci.I' in your config, "
+                "or (2) Dynamic carbon intensity by enabling 'grid_carbon_intensity.dynamic' and setting "
+                "'grid_carbon_intensity.location'."
+            )
 
     def _process_phase_stats(self):
         if not self._run_id or self._dev_no_phase_stats or self._dev_no_save:

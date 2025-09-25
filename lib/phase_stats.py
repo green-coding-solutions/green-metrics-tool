@@ -11,8 +11,6 @@ from io import StringIO
 from lib.db import DB
 from lib import error_helpers
 from lib.carbon_intensity import (
-    CarbonIntensityServiceError,
-    CarbonIntensityDataError,
     get_carbon_intensity_data_for_run,
     generate_carbon_intensity_timeseries_for_phase,
 )
@@ -148,9 +146,8 @@ def build_and_store_phase_stats(run_id, sci=None):
                     total_carbon = sum(point['carbon_intensity'] for point in carbon_timeseries)
                     phase_carbon_intensity = Decimal(total_carbon / len(carbon_timeseries))
 
-            except (CarbonIntensityServiceError, CarbonIntensityDataError, ValueError) as e:
-                error_helpers.log_error(f"Failed to calculate carbon intensity for phase {phase['name']}: {e}", run_id=run_id)
-                phase_carbon_intensity = None
+            except Exception as e:  # pylint: disable=broad-except
+                raise RuntimeError(f"Failed to calculate carbon intensity for phase {phase['name']}: {e}") from e
 
         select_query = """
             WITH lag_table as (

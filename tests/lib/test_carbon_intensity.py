@@ -12,8 +12,6 @@ from tests import test_functions as Tests
 from lib.db import DB
 from lib.carbon_intensity import (
     CarbonIntensityClient,
-    CarbonIntensityServiceError,
-    CarbonIntensityDataError,
     _microseconds_to_iso8601,
     _calculate_sampling_rate_from_data,
     _get_carbon_intensity_at_timestamp,
@@ -134,7 +132,7 @@ class TestCarbonIntensityClient:
 
     def test__get_carbon_intensity_at_timestamp_empty_data(self):
         # Test with empty data
-        with pytest.raises(ValueError, match="No carbon intensity data available"):
+        with pytest.raises(ValueError, match="min\\(\\) iterable argument is empty"):
             _get_carbon_intensity_at_timestamp(1727003400000000, [])
 
     @patch('lib.carbon_intensity.requests.get')
@@ -172,7 +170,7 @@ class TestCarbonIntensityClient:
         mock_get.side_effect = requests.exceptions.RequestException("Network error")
 
         client = CarbonIntensityClient("http://localhost:8000")
-        with pytest.raises(CarbonIntensityServiceError, match="Failed to fetch carbon intensity data"):
+        with pytest.raises(requests.exceptions.RequestException):
             client.get_carbon_intensity_history("DE", "2024-09-22T10:50:00Z", "2024-09-22T10:55:00Z")
 
     @patch('lib.carbon_intensity.requests.get')
@@ -184,7 +182,7 @@ class TestCarbonIntensityClient:
         mock_get.return_value = mock_response
 
         client = CarbonIntensityClient("http://localhost:8000")
-        with pytest.raises(CarbonIntensityDataError, match="Invalid response from carbon intensity service"):
+        with pytest.raises(ValueError, match="Expected list response from carbon intensity service"):
             client.get_carbon_intensity_history("DE", "2024-09-22T10:50:00Z", "2024-09-22T10:55:00Z")
 
 

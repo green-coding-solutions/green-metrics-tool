@@ -5,16 +5,9 @@ import requests
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 from io import StringIO
-from lib import error_helpers
 from lib.global_config import GlobalConfig
 from lib.db import DB
 
-
-class CarbonIntensityServiceError(Exception):
-    """Raised when carbon intensity service request fails."""
-
-class CarbonIntensityDataError(Exception):
-    """Raised when carbon intensity service returns invalid data."""
 
 class CarbonIntensityClient:
     def __init__(self, base_url: str = None):
@@ -58,25 +51,19 @@ class CarbonIntensityClient:
             'interpolate': 'true'
         }
 
-        try:
-            response = requests.get(url, params=params, timeout=30)
-            response.raise_for_status()
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
 
-            data = response.json()
+        data = response.json()
 
-            if not isinstance(data, list):
-                raise ValueError(f"Expected list response from carbon intensity service, got {type(data)}")
+        if not isinstance(data, list):
+            raise ValueError(f"Expected list response from carbon intensity service, got {type(data)}")
 
-            for item in data:
-                if not all(key in item for key in ['location', 'time', 'carbon_intensity']):
-                    raise ValueError(f"Invalid carbon intensity data format: missing required fields in {item}")
+        for item in data:
+            if not all(key in item for key in ['location', 'time', 'carbon_intensity']):
+                raise ValueError(f"Invalid carbon intensity data format: missing required fields in {item}")
 
-            return data
-
-        except requests.exceptions.RequestException as e:
-            raise CarbonIntensityServiceError(f"Failed to fetch carbon intensity data: {e}") from e
-        except (ValueError, KeyError) as e:
-            raise CarbonIntensityDataError(f"Invalid response from carbon intensity service: {e}") from e
+        return data
 
 
 def get_carbon_intensity_data_for_run(run_id):
@@ -152,8 +139,7 @@ def store_static_carbon_intensity(run_id, static_value):
     """
     run_data = DB().fetch_one(run_query, (run_id,))
     if not run_data or not run_data[0] or not run_data[1]:
-        error_helpers.log_error(f"Run {run_id} does not have valid start_measurement and end_measurement times", run_id=run_id)
-        return
+        raise ValueError(f"Run {run_id} does not have valid start_measurement and end_measurement times")
 
     start_time_us, end_time_us = run_data
 
@@ -198,8 +184,7 @@ def store_dynamic_carbon_intensity(run_id, grid_carbon_intensity_location):
     """
     run_data = DB().fetch_one(run_query, (run_id,))
     if not run_data or not run_data[0] or not run_data[1]:
-        error_helpers.log_error(f"Run {run_id} does not have valid start_measurement and end_measurement times", run_id=run_id)
-        return
+        raise ValueError(f"Run {run_id} does not have valid start_measurement and end_measurement times")
 
     start_time_us, end_time_us = run_data
     start_time_iso = _microseconds_to_iso8601(start_time_us)
@@ -212,8 +197,10 @@ def store_dynamic_carbon_intensity(run_id, grid_carbon_intensity_location):
     )
 
     if not carbon_intensity_data:
-        error_helpers.log_error("No carbon intensity data received from service", run_id=run_id)
-        return
+        raise ValueError(
+            f"No carbon intensity data received from service for location '{grid_carbon_intensity_location}' "
+            f"between {start_time_iso} and {end_time_iso}. The service returned an empty dataset."
+        )
 
     # Create measurement_metric entry for dynamic carbon intensity
     metric_name = 'grid_carbon_intensity_dynamic'
@@ -330,30 +317,20 @@ def generate_carbon_intensity_timeseries_for_phase(
     current_timestamp_us = phase_start_us
 
     while current_timestamp_us <= phase_end_us:
-        try:
-            carbon_intensity = _get_carbon_intensity_at_timestamp(current_timestamp_us, carbon_data)
-            timeseries.append({
-                "timestamp_us": current_timestamp_us,
-                "carbon_intensity": carbon_intensity
-            })
-        except ValueError:
-            # Skip this timestamp if carbon intensity lookup fails
-            # This handles edge cases like malformed data or timestamp conversion issues
-            # Note: Normal out-of-range timestamps are handled gracefully by _get_carbon_intensity_at_timestamp
-            pass
-
+        carbon_intensity = _get_carbon_intensity_at_timestamp(current_timestamp_us, carbon_data)
+        timeseries.append({
+            "timestamp_us": current_timestamp_us,
+            "carbon_intensity": carbon_intensity
+        })
         current_timestamp_us += sampling_rate_us
 
     # Always include the phase end timestamp if it wasn't already included
     if timeseries and timeseries[-1]["timestamp_us"] != phase_end_us:
-        try:
-            carbon_intensity = _get_carbon_intensity_at_timestamp(phase_end_us, carbon_data)
-            timeseries.append({
-                "timestamp_us": phase_end_us,
-                "carbon_intensity": carbon_intensity
-            })
-        except ValueError:
-            pass
+        carbon_intensity = _get_carbon_intensity_at_timestamp(phase_end_us, carbon_data)
+        timeseries.append({
+            "timestamp_us": phase_end_us,
+            "carbon_intensity": carbon_intensity
+        })
 
     return timeseries
 
@@ -370,16 +347,11 @@ def _get_carbon_intensity_at_timestamp(timestamp_us: int, carbon_data: List[Dict
     Args:
         timestamp_us: Target timestamp in microseconds
         carbon_data: List of carbon intensity data points with 'timestamp_us' and 'carbon_intensity' fields
+                    (guaranteed to be non-empty by calling functions)
 
     Returns:
         Carbon intensity value in gCO2e/kWh
-
-    Raises:
-        ValueError: If carbon_data is empty
     """
-    if not carbon_data:
-        raise ValueError("No carbon intensity data available")
-
     # Find the data point with timestamp closest to target timestamp
     closest_point = min(
         carbon_data,
