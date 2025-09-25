@@ -75,7 +75,7 @@ class ScenarioRunner:
         skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None, phase_padding=True,
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
-        measurement_wait_time_dependencies=60, use_dynamic_grid_carbon_intensity=False, grid_carbon_intensity_location=None):
+        measurement_wait_time_dependencies=60):
 
         config = GlobalConfig().config
 
@@ -143,8 +143,6 @@ class ScenarioRunner:
         self._measurement_post_test_sleep = measurement_post_test_sleep
         self._measurement_phase_transition_time = measurement_phase_transition_time
         self._measurement_wait_time_dependencies = measurement_wait_time_dependencies
-        self._use_dynamic_grid_carbon_intensity = use_dynamic_grid_carbon_intensity
-        self._grid_carbon_intensity_location = grid_carbon_intensity_location
         self._last_measurement_duration = 0
         self._phase_padding = phase_padding
         self._phase_padding_ms = max(
@@ -638,8 +636,6 @@ class ScenarioRunner:
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['sci'] = self._sci
         measurement_config['phase_padding'] = self._phase_padding_ms
-        measurement_config['use_dynamic_grid_carbon_intensity'] = self._use_dynamic_grid_carbon_intensity
-        measurement_config['grid_carbon_intensity_location'] = self._grid_carbon_intensity_location
 
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
@@ -2081,12 +2077,15 @@ class ScenarioRunner:
         # pylint: disable=import-outside-toplevel
         from lib.carbon_intensity import store_static_carbon_intensity, store_dynamic_carbon_intensity
 
-        if self._use_dynamic_grid_carbon_intensity:
+        config = GlobalConfig().config
+        dynamic_grid_carbon_intensity = config.get('dynamic_grid_carbon_intensity', None)
+        if dynamic_grid_carbon_intensity:
             # Store dynamic carbon intensity from API
-            if self._grid_carbon_intensity_location is None:
+            location = dynamic_grid_carbon_intensity.get('location', None)
+            if location is None:
                 raise ValueError("Dynamic grid carbon intensity is enabled, but location configuration is missing! Ensure it is set in your config.yml.")
 
-            store_dynamic_carbon_intensity(self._run_id, self._grid_carbon_intensity_location)
+            store_dynamic_carbon_intensity(self._run_id, location)
         elif self._sci['I']:
             # Store static carbon intensity from config as constant time series
             store_static_carbon_intensity(self._run_id, self._sci['I'])

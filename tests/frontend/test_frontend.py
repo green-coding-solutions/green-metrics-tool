@@ -659,12 +659,6 @@ class TestFrontendFunctionality:
         assert user._capabilities['measurement']['skip_volume_inspect'] is False
 
 
-        value = page.locator('#measurement-use-dynamic-grid-carbon-intensity').is_checked()
-        assert value is user._capabilities['measurement']['use_dynamic_grid_carbon_intensity']
-
-        value = page.locator('#measurement-grid-carbon-intensity-location').input_value()
-        assert value.strip() == user._capabilities['measurement']['grid_carbon_intensity_location']
-
         value = page.locator('#measurement-disabled-metric-providers').input_value()
         providers = [] if value.strip() == '' else [value.strip()]
         assert providers == user._capabilities['measurement']['disabled_metric_providers']
@@ -709,8 +703,6 @@ class TestFrontendFunctionality:
         assert value is user._capabilities['measurement']['skip_volume_inspect']
 
 
-        page.locator('#measurement-use-dynamic-grid-carbon-intensity').click()
-        page.locator('#measurement-grid-carbon-intensity-location').fill('DE')
         page.locator('#measurement-system-check-threshold').fill('2')
         page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "NetworkConnectionsProxyContainerProvider");')
         page.locator('#measurement-flow-process-duration').fill('456')
@@ -726,8 +718,6 @@ class TestFrontendFunctionality:
         page.locator('#measurement-dev-no-optimizations').click()
         page.locator('#measurement-skip-volume-inspect').click()
 
-        page.locator('#save-measurement-use-dynamic-grid-carbon-intensity').click()
-        page.locator('#save-measurement-grid-carbon-intensity-location').click()
         page.locator('#save-measurement-system-check-threshold').click()
         page.locator('#save-measurement-disabled-metric-providers').click()
         page.locator('#save-measurement-flow-process-duration').click()
@@ -747,8 +737,6 @@ class TestFrontendFunctionality:
         time.sleep(1)
 
         user = User(1)
-        assert user._capabilities['measurement']['use_dynamic_grid_carbon_intensity'] is True
-        assert user._capabilities['measurement']['grid_carbon_intensity_location'] == 'DE'
         assert user._capabilities['measurement']['disabled_metric_providers'] == ['NetworkConnectionsProxyContainerProvider']
         assert user._capabilities['measurement']['flow_process_duration'] == 456
         assert user._capabilities['measurement']['total_duration'] == 123

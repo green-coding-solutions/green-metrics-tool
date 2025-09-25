@@ -96,20 +96,6 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>Dynamic grid carbon intensity<br>
-                                        <span><small><i class="question circle icon"></i>Determines if the live dynamic grid carbon intensity is for the calculation of carbon emissions or a static value</small></span>
-                                    </td>
-                                    <td><input type="checkbox" id="measurement-use-dynamic-grid-carbon-intensity" name="measurement-use-dynamic-grid-carbon-intensity" data-setting="measurement.use_dynamic_grid_carbon_intensity" required=""></td>
-                                    <td><button id="save-measurement-use-dynamic-grid-carbon-intensity" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
-                                </tr>
-                                <tr>
-                                    <td>Grid location<br>
-                                        <span><small><i class="question circle icon"></i>Only relevant if dynamic grid carbon intensity is used. Location is relevant to get the live grid carbon intensity. Value needs to be a valid grid zone code. See <a href="https://portal.electricitymaps.com/developer-hub/api/getting-started#geographical-coverage" target="_blank">ElectricityMaps for valid zone codes.</a></small></span>
-                                    </td>
-                                    <td><input type="text" placeholder="DE" id="measurement-grid-carbon-intensity-location" name="measurement-grid-carbon-intensity-location" data-setting="measurement.grid_carbon_intensity_location" required=""></td>
-                                    <td><button id="save-measurement-grid-carbon-intensity-location" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
-                                </tr>
-                                <tr>
                                     <td>System check threshold<br>
                                         <span><small><i class="question circle icon"></i>Can be 1=INFO, 2=WARN or 3=ERROR. When set on 3 runs will fail only on erros, when 2 then also on warnings and 1 also on pure info statements.</small></span>
                                     </td>

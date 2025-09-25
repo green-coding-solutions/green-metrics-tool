@@ -168,13 +168,13 @@ def store_static_carbon_intensity(run_id, static_value):
     print(f"Stored static carbon intensity value {static_value} gCO2e/kWh as constant time series")
 
 
-def store_dynamic_carbon_intensity(run_id, grid_carbon_intensity_location):
+def store_dynamic_carbon_intensity(run_id, location):
     """
     Store dynamic carbon intensity data from API as time series.
 
     Args:
         run_id: UUID of the run
-        grid_carbon_intensity_location: Location code (e.g., "DE", "ES-IB-MA")
+        location: Location code (e.g., "DE", "ES-IB-MA")
     """
     # Get run start and end times
     run_query = """
@@ -193,18 +193,18 @@ def store_dynamic_carbon_intensity(run_id, grid_carbon_intensity_location):
     # Fetch carbon intensity data
     carbon_client = CarbonIntensityClient()
     carbon_intensity_data = carbon_client.get_carbon_intensity_history(
-        grid_carbon_intensity_location, start_time_iso, end_time_iso
+        location, start_time_iso, end_time_iso
     )
 
     if not carbon_intensity_data:
         raise ValueError(
-            f"No carbon intensity data received from service for location '{grid_carbon_intensity_location}' "
+            f"No carbon intensity data received from service for location '{location}' "
             f"between {start_time_iso} and {end_time_iso}. The service returned an empty dataset."
         )
 
     # Create measurement_metric entry for dynamic carbon intensity
     metric_name = 'grid_carbon_intensity_dynamic'
-    detail_name = grid_carbon_intensity_location
+    detail_name = location
     unit = 'gCO2e/kWh'
     # Calculate sampling rate based on actual data intervals from API format
     sampling_rate_configured = _calculate_sampling_rate_from_data(carbon_intensity_data)
@@ -274,7 +274,7 @@ def store_dynamic_carbon_intensity(run_id, grid_carbon_intensity_location):
         )
         f.close()
 
-    print(f"Stored dynamic carbon intensity for location {grid_carbon_intensity_location}: start={start_carbon_intensity} gCO2e/kWh, end={end_carbon_intensity} gCO2e/kWh, {len(intermediate_points)} intermediate points")
+    print(f"Stored dynamic carbon intensity for location {location}: start={start_carbon_intensity} gCO2e/kWh, end={end_carbon_intensity} gCO2e/kWh, {len(intermediate_points)} intermediate points")
 
 
 def generate_carbon_intensity_timeseries_for_phase(
