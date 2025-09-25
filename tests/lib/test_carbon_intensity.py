@@ -15,10 +15,8 @@ from lib.carbon_intensity import (
     _microseconds_to_iso8601,
     _calculate_sampling_rate_from_data,
     _get_carbon_intensity_at_timestamp,
-    get_carbon_intensity_data_for_run,
     store_static_carbon_intensity,
-    store_dynamic_carbon_intensity,
-    generate_carbon_intensity_timeseries_for_phase,
+    store_dynamic_carbon_intensity
 )
 
 class TestCarbonIntensityClient:
@@ -184,41 +182,6 @@ class TestCarbonIntensityClient:
         client = CarbonIntensityClient("http://localhost:8000")
         with pytest.raises(ValueError, match="Expected list response from carbon intensity service"):
             client.get_carbon_intensity_history("DE", "2024-09-22T10:50:00Z", "2024-09-22T10:55:00Z")
-
-
-class TestGetCarbonIntensityDataForRun:
-
-    def test_no_carbon_intensity_data(self):
-        # Test with run that has no carbon intensity data
-        run_id = Tests.insert_run()
-        carbon_data, sampling_rate_ms = get_carbon_intensity_data_for_run(run_id)
-        assert carbon_data is None
-        assert sampling_rate_ms is None
-
-    def test_with_dynamic_carbon_intensity_data(self):
-        # Test with run that has dynamic carbon intensity data stored
-        run_id = Tests.insert_run()
-
-        # Insert mock carbon intensity metadata into measurement_metrics
-        # This simulates data that would be stored during a run with dynamic carbon intensity
-        metric_id = DB().fetch_one(
-            "INSERT INTO measurement_metrics (run_id, metric, detail_name, unit, sampling_rate_configured) VALUES (%s, %s, %s, %s, %s) RETURNING id",
-            (run_id, 'grid_carbon_intensity_dynamic', 'DE', 'gCO2e/kWh', 1000)
-        )[0]
-
-        # Insert actual carbon intensity values
-        DB().query(
-            "INSERT INTO measurement_values (measurement_metric_id, value, time) VALUES (%s, %s, %s)",
-            (metric_id, 185, 1727003400000000)
-        )
-
-        carbon_data, sampling_rate_ms = get_carbon_intensity_data_for_run(run_id)
-
-        # Should return the stored carbon intensity data
-        assert carbon_data is not None
-        assert len(carbon_data) > 0
-        assert sampling_rate_ms == 1000  # Should match the sampling rate we inserted
-
 
 class TestStoreCarbonIntensityAsMetrics:
 
@@ -409,52 +372,3 @@ class TestStoreCarbonIntensityAsMetrics:
         # Call the function with None location - should raise an exception or fail gracefully
         with pytest.raises(Exception):  # The method should fail when location is None
             store_dynamic_carbon_intensity(run_id, None)
-
-
-class TestCarbonIntensityTimeseries:
-
-    def test_generate_carbon_intensity_timeseries_for_phase(self):
-        """Test generating carbon intensity timeseries for a phase"""
-        # Sample carbon intensity data with microsecond timestamps
-        carbon_data = [
-            {"timestamp_us": int(datetime(2025, 9, 22, 10, 0, 0, tzinfo=timezone.utc).timestamp() * 1_000_000), "carbon_intensity": 185.0, "location": "DE"},
-            {"timestamp_us": int(datetime(2025, 9, 22, 11, 0, 0, tzinfo=timezone.utc).timestamp() * 1_000_000), "carbon_intensity": 190.0, "location": "DE"},
-            {"timestamp_us": int(datetime(2025, 9, 22, 12, 0, 0, tzinfo=timezone.utc).timestamp() * 1_000_000), "carbon_intensity": 183.0, "location": "DE"}
-        ]
-
-        # Phase timeframe: 10:30 to 11:30 (90 minutes) in UTC
-        phase_start_us = int(datetime(2025, 9, 22, 10, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000)
-        phase_end_us = int(datetime(2025, 9, 22, 11, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000)
-
-        # Generate timeseries with 30-minute intervals
-        result = generate_carbon_intensity_timeseries_for_phase(
-            phase_start_us, phase_end_us, carbon_data, sampling_rate_ms=30*60*1000
-        )
-
-        # Should generate points at 10:30, 11:00, 11:30
-        assert len(result) == 3
-        assert result[0]["timestamp_us"] == phase_start_us
-        assert result[-1]["timestamp_us"] == phase_end_us
-
-        # Values should be interpolated appropriately
-        assert 185.0 <= result[0]["carbon_intensity"] <= 190.0  # Interpolated between 185 and 190
-        assert result[1]["carbon_intensity"] == 190.0  # Exact match at 11:00
-        assert 183.0 <= result[2]["carbon_intensity"] <= 190.0  # Interpolated between 190 and 183
-
-    def test_get_carbon_intensity_timeseries_empty_data(self):
-        """Test error handling with empty carbon data"""
-        phase_start_us = int(datetime(2025, 9, 22, 10, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000)
-        phase_end_us = int(datetime(2025, 9, 22, 11, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000)
-
-        with pytest.raises(ValueError, match="No carbon intensity data available"):
-            generate_carbon_intensity_timeseries_for_phase(phase_start_us, phase_end_us, [])
-
-    def test_get_carbon_intensity_timeseries_invalid_timeframe(self):
-        """Test error handling with invalid phase timeframe"""
-        carbon_data = [{"time": "2025-09-22T10:00:00Z", "carbon_intensity": 185.0, "location": "DE"}]
-
-        phase_start_us = int(datetime(2025, 9, 22, 11, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000)
-        phase_end_us = int(datetime(2025, 9, 22, 10, 30, 0, tzinfo=timezone.utc).timestamp() * 1_000_000)  # End before start
-
-        with pytest.raises(ValueError, match="Invalid phase timeframe"):
-            generate_carbon_intensity_timeseries_for_phase(phase_start_us, phase_end_us, carbon_data)

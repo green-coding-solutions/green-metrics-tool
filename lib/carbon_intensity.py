@@ -66,63 +66,6 @@ class CarbonIntensityClient:
         return data
 
 
-def get_carbon_intensity_data_for_run(run_id):
-    """
-    Get carbon intensity data for a run, automatically detecting dynamic vs static.
-
-    Args:
-        run_id: UUID of the run
-
-    Returns:
-        Tuple of (carbon_data, sampling_rate_ms) where:
-        - carbon_data: List of carbon intensity data points or None if no data found
-        - sampling_rate_ms: Sampling rate in milliseconds
-    """
-    # Auto-detect what carbon intensity data is available for this run
-    # Check for both static and dynamic carbon intensity
-    query = """
-        SELECT metric, detail_name
-        FROM measurement_metrics
-        WHERE run_id = %s AND metric IN ('grid_carbon_intensity_static', 'grid_carbon_intensity_dynamic')
-        LIMIT 1
-    """
-    grid_carbon_intensity_metrics = DB().fetch_one(query, (run_id,))
-
-    if not grid_carbon_intensity_metrics:
-        return None, None
-
-    metric_name, detail_name = grid_carbon_intensity_metrics
-
-    query = """
-        SELECT mv.time, mv.value, mm.sampling_rate_configured
-        FROM measurement_values mv
-        JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
-        WHERE mm.run_id = %s
-        AND mm.metric = %s
-        AND mm.detail_name = %s
-        ORDER BY mv.time ASC
-    """
-    carbon_intensity_values = DB().fetch_all(query, (run_id, metric_name, detail_name))
-
-    if not carbon_intensity_values:
-        return None, None
-
-    # Extract sampling rate from first row (all rows have the same sampling_rate_configured)
-    sampling_rate_ms = carbon_intensity_values[0][2] if carbon_intensity_values else 300000
-
-    # Convert from database format to carbon data format (keep timestamps as microseconds)
-    carbon_data = [
-        {
-            'timestamp_us': timestamp_us,
-            'carbon_intensity': float(value_int),
-            'location': detail_name
-        }
-        for timestamp_us, value_int, _ in carbon_intensity_values  # Unpack the third element (sampling_rate_configured)
-    ]
-
-    return carbon_data, sampling_rate_ms
-
-
 def store_static_carbon_intensity(run_id, static_value):
     """
     Store static carbon intensity value as a constant time series at multiple timestamps:
@@ -297,65 +240,6 @@ def store_dynamic_carbon_intensity(run_id, location):
         f.close()
 
     print(f"Stored dynamic carbon intensity for location {location}: start={start_carbon_intensity} gCO2e/kWh, end={end_carbon_intensity} gCO2e/kWh, {len(intermediate_points)} intermediate points")
-
-
-def generate_carbon_intensity_timeseries_for_phase(
-    phase_start_us: int,
-    phase_end_us: int,
-    carbon_data: List[Dict[str, Any]],
-    sampling_rate_ms: int = 300000
-) -> List[Dict[str, Any]]:
-    """
-    Generate carbon intensity timeseries for a specific phase timeframe.
-
-    This function generates carbon intensity values at regular intervals throughout a phase,
-    which are stored as measurement metrics and used for calculating representative carbon
-    intensity values for energy calculations.
-
-    Args:
-        phase_start_us: Phase start timestamp in microseconds
-        phase_end_us: Phase end timestamp in microseconds
-        carbon_data: List of carbon intensity data points from service
-        sampling_rate_ms: Sampling rate in milliseconds for timeseries generation (default: 300000 = 5 minutes)
-
-    Returns:
-        List of carbon intensity timeseries points:
-        [{"timestamp_us": 1727003400000000, "carbon_intensity": 185.0}, ...]
-
-    Raises:
-        ValueError: If carbon_data is empty or phase timeframe is invalid
-    """
-    if not carbon_data:
-        raise ValueError("No carbon intensity data available for timeseries generation")
-
-    if phase_start_us >= phase_end_us:
-        raise ValueError("Invalid phase timeframe: start must be before end")
-
-    # Convert sampling rate to microseconds
-    sampling_rate_us = sampling_rate_ms * 1000
-
-    # Generate timestamps at regular intervals throughout the phase
-    timeseries = []
-    current_timestamp_us = phase_start_us
-
-    while current_timestamp_us <= phase_end_us:
-        carbon_intensity = _get_carbon_intensity_at_timestamp(current_timestamp_us, carbon_data)
-        timeseries.append({
-            "timestamp_us": current_timestamp_us,
-            "carbon_intensity": carbon_intensity
-        })
-        current_timestamp_us += sampling_rate_us
-
-    # Always include the phase end timestamp if it wasn't already included
-    if timeseries and timeseries[-1]["timestamp_us"] != phase_end_us:
-        carbon_intensity = _get_carbon_intensity_at_timestamp(phase_end_us, carbon_data)
-        timeseries.append({
-            "timestamp_us": phase_end_us,
-            "carbon_intensity": carbon_intensity
-        })
-
-    return timeseries
-
 
 
 def _get_carbon_intensity_at_timestamp(timestamp_us: int, carbon_data: List[Dict[str, Any]]) -> float:
