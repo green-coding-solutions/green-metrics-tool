@@ -389,9 +389,9 @@ def test_phase_stats_dynamic_grid_carbon_intensity():
     assert data[1]['unit'] == 'gCO2e/kWh'
     assert data[1]['value'] == 270
     assert data[1]['type'] == 'MEAN'
-    assert data[1]['sampling_rate_avg'] == 60000000, 'AVG sampling rate not in expected range'
-    assert data[1]['sampling_rate_max'] == 60000000, 'MAX sampling rate not in expected range'
-    assert data[1]['sampling_rate_95p'] == 60000000, '95p sampling rate not in expected range'
+    assert data[1]['sampling_rate_avg'] == 300000, 'Configured sampling rate should be used'
+    assert data[1]['sampling_rate_max'] is None, 'MAX sampling rate should not be set'
+    assert data[1]['sampling_rate_95p'] is None, '95p sampling rate should not be set'
 
 def test_sci_calculation():
     run_id = Tests.insert_run()

@@ -265,7 +265,8 @@ def build_and_store_phase_stats(run_id, sci=None):
                         machine_power_current_phase = power_avg
 
             elif "grid_carbon_intensity" in metric:
-                csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+                # For the average sampling rate use the configured one, for 95p and max we don't use a value
+                csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value, 'MEAN', max_value, min_value, sampling_rate_configured, None, None, unit))
                 phase_grid_carbon_intensity = avg_value
 
             else: # Default
