@@ -621,5 +621,15 @@ METRIC_MAPPINGS = {
         "clean_name": "Total System Disk Writes",
         "source": "cgroup",
         "explanation": "Total data written to disk for the system via cgroup"
+    },
+    "grid_carbon_intensity_static": {
+        "clean_name": "Grid Carbon Intensity",
+        "source": "Config (Static)",
+        "explanation": "Static grid carbon intensity used to calculate the carbon emissions"
+    },
+    "grid_carbon_intensity_dynamic": {
+        "clean_name": "Grid Carbon Intensity",
+        "source": "External Provider (Dynamic)",
+        "explanation": "Dynamic grid carbon intensity during the run retrieved from external carbon intensity provider"
     }
 } // PLEASE DO NOT REMOVE THIS COMMENT -- END METRIC_MAPPINGS

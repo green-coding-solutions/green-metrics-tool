@@ -3,6 +3,7 @@ import subprocess
 import hashlib
 import json
 
+from io import StringIO
 from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib.log_types import LogType
@@ -220,13 +221,98 @@ def import_demo_data_ee():
         raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
 
 
-def import_carbon_intensity_value(run_id, static_carbon_intensity_value):
+def import_static_carbon_intensity_value(run_id, static_carbon_intensity_value):
+    # TODO: Refactor
     DB().query(
         "UPDATE runs SET start_measurement = %s, end_measurement = %s WHERE id = %s",
         (TEST_MEASUREMENT_START_TIME, TEST_MEASUREMENT_END_TIME, run_id)
     )
     from lib.carbon_intensity import store_static_carbon_intensity # pylint: disable=import-outside-toplevel
     store_static_carbon_intensity(run_id, static_carbon_intensity_value)
+
+
+def import_dynamic_carbon_intensity_value(run_id):
+    """
+    Import sample dynamic carbon intensity data for a test run.
+    Creates multiple measurement values aligned with phase timestamps.
+    """
+
+    # TODO: Refactor
+    # Update the run to have measurement times
+    DB().query(
+        "UPDATE runs SET start_measurement = %s, end_measurement = %s WHERE id = %s",
+        (TEST_MEASUREMENT_START_TIME, TEST_MEASUREMENT_END_TIME, run_id)
+    )
+
+    # Create measurement_metric entry for dynamic carbon intensity
+    metric_name = 'grid_carbon_intensity_dynamic'
+    detail_name = 'DE'  # German location
+    unit = 'gCO2e/kWh'
+    sampling_rate_configured = 300000  # 5 minutes in milliseconds
+
+    measurement_metric_id = DB().fetch_one('''
+        INSERT INTO measurement_metrics (run_id, metric, detail_name, unit, sampling_rate_configured)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id
+    ''', params=(run_id, metric_name, detail_name, unit, sampling_rate_configured))[0]
+
+    # Create sample carbon intensity data points aligned with phase timestamps
+    # Values are in integer format (multiply by 1000 for precision)
+    values_data = []
+
+    # Phase timestamps from insert_run function:
+    phase_timestamps = [
+        TEST_MEASUREMENT_START_TIME-8,  # [BASELINE] start
+        TEST_MEASUREMENT_START_TIME-7,  # [BASELINE] end
+        TEST_MEASUREMENT_START_TIME-6,  # [INSTALL] start
+        TEST_MEASUREMENT_START_TIME-5,  # [INSTALL] end
+        TEST_MEASUREMENT_START_TIME-4,  # [BOOT] start
+        TEST_MEASUREMENT_START_TIME-3,  # [BOOT] end
+        TEST_MEASUREMENT_START_TIME-2,  # [IDLE] start
+        TEST_MEASUREMENT_START_TIME-1,  # [IDLE] end
+        TEST_MEASUREMENT_START_TIME,    # [RUNTIME]/Only Phase start
+        TEST_MEASUREMENT_START_TIME + 60000000,  # Mid-runtime - 1 minute
+        TEST_MEASUREMENT_START_TIME + 120000000,  # Mid-runtime - 2 minutes
+        TEST_MEASUREMENT_END_TIME,      # [RUNTIME]/Only Phase end
+        TEST_MEASUREMENT_END_TIME+1,    # [REMOVE] start
+        TEST_MEASUREMENT_END_TIME+2,    # [REMOVE] end
+    ]
+
+    # Sample carbon intensity values that vary over time (realistic grid data)
+    carbon_intensity_values = [
+        180,  # 180.0 gCO2e/kWh (baseline - low demand)
+        175,  # 175.0 gCO2e/kWh
+        220,  # 220.0 gCO2e/kWh (install - higher demand)
+        230,  # 230.0 gCO2e/kWh
+        250,  # 250.0 gCO2e/kWh (boot - peak demand)
+        240,  # 240.0 gCO2e/kWh
+        190,  # 190.0 gCO2e/kWh (idle - lower demand)
+        185,  # 185.0 gCO2e/kWh
+        300,  # 300.0 gCO2e/kWh (runtime start - high demand)
+        280,  # 280.0 gCO2e/kWh (mid-runtime)
+        260,  # 260.0 gCO2e/kWh (mid-runtime 2)
+        240,  # 240.0 gCO2e/kWh (runtime end)
+        200,  # 200.0 gCO2e/kWh (remove start)
+        180,  # 180.0 gCO2e/kWh (remove end - back to baseline)
+    ]
+
+    # Create measurement values
+    for timestamp, value in zip(phase_timestamps, carbon_intensity_values):
+        values_data.append((measurement_metric_id, value, timestamp))
+
+    # Bulk insert measurement values using copy_from
+    if values_data:
+        csv_data = '\n'.join([f"{row[0]},{row[1]},{row[2]}" for row in values_data])
+        f = StringIO(csv_data)
+        DB().copy_from(
+            file=f,
+            table='measurement_values',
+            columns=['measurement_metric_id', 'value', 'time'],
+            sep=','
+        )
+        f.close()
+
+    print(f"Imported {len(values_data)} dynamic carbon intensity data points for run {run_id}")
 
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"

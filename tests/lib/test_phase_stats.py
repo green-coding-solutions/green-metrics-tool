@@ -130,7 +130,7 @@ def test_phase_embodied_and_operational_carbon():
     Tests.import_machine_energy(run_id)
 
     sci = {"I":436,"R":0,"EL":4,"RS":1,"TE":181000,"R_d":"page request"}
-    Tests.import_carbon_intensity_value(run_id, sci['I'])
+    Tests.import_static_carbon_intensity_value(run_id, sci['I'])
 
     build_and_store_phase_stats(run_id, sci=sci)
 
@@ -290,7 +290,7 @@ def test_phase_stats_network_data():
         'N': 0.001,    # Network energy intensity (kWh/GB)
         'I': 500,      # Carbon intensity (gCO2e/kWh)
     }
-    Tests.import_carbon_intensity_value(run_id, test_sci_config['I'])
+    Tests.import_static_carbon_intensity_value(run_id, test_sci_config['I'])
 
     build_and_store_phase_stats(run_id, sci=test_sci_config)
 
@@ -335,6 +335,25 @@ def test_phase_stats_network_data():
     assert network_carbon_entry['type'] == 'TOTAL'
     assert math.isclose(network_carbon_entry['value'], expected_network_carbon_ug, rel_tol=1e-5), f"Expected network carbon: {expected_network_carbon_ug}, got: {network_carbon_entry['value']}"
 
+
+def test_phase_stats_dynamic_grid_carbon_intensity():
+    run_id = Tests.insert_run()
+    Tests.import_dynamic_carbon_intensity_value(run_id)
+
+    build_and_store_phase_stats(run_id)
+
+    data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
+
+    assert len(data) == 2
+    assert data[1]['metric'] == 'grid_carbon_intensity_dynamic'
+    assert data[1]['detail_name'] == 'DE'
+    assert data[1]['unit'] == 'gCO2e/kWh'
+    assert data[1]['value'] == 270
+    assert data[1]['type'] == 'MEAN'
+    assert data[1]['sampling_rate_avg'] == 60000000, 'AVG sampling rate not in expected range'
+    assert data[1]['sampling_rate_max'] == 60000000, 'MAX sampling rate not in expected range'
+    assert data[1]['sampling_rate_95p'] == 60000000, '95p sampling rate not in expected range'
+
 def test_sci_calculation():
     run_id = Tests.insert_run()
     Tests.import_machine_energy(run_id)  # Machine energy component
@@ -350,7 +369,7 @@ def test_sci_calculation():
         'R': 10,       # Functional unit count (10 runs)
         'R_d': 'test runs'  # Functional unit description
     }
-    Tests.import_carbon_intensity_value(run_id, test_sci_config['I'])
+    Tests.import_static_carbon_intensity_value(run_id, test_sci_config['I'])
 
     build_and_store_phase_stats(run_id, sci=test_sci_config)
 

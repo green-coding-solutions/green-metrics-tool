@@ -85,7 +85,6 @@ def build_and_store_phase_stats(run_id, sci=None):
             SELECT id, metric, unit, detail_name, sampling_rate_configured
             FROM measurement_metrics
             WHERE run_id = %s
-            AND metric NOT IN ('grid_carbon_intensity_static', 'grid_carbon_intensity_dynamic')  -- Exclude carbon intensity from phase stats processing
             ORDER BY metric ASC -- we need this ordering for later, when we read again
     """
     metrics = DB().fetch_all(query, (run_id, ))
@@ -287,6 +286,9 @@ def build_and_store_phase_stats(run_id, sci=None):
                     else: # this will effectively happen for all subsequent phases where energy data is available
                         machine_energy_current_phase = value_sum
                         machine_power_current_phase = power_avg
+
+            elif "grid_carbon_intensity" in metric:
+                csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
             else: # Default
                 if metric not in ('cpu_time_powermetrics_vm', ):

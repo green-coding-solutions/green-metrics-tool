@@ -114,7 +114,7 @@ def get_carbon_intensity_data_for_run(run_id):
     carbon_data = [
         {
             'timestamp_us': timestamp_us,
-            'carbon_intensity': float(value_int) / 1000.0,
+            'carbon_intensity': float(value_int),
             'location': detail_name
         }
         for timestamp_us, value_int, _ in carbon_intensity_values  # Unpack the third element (sampling_rate_configured)
@@ -155,8 +155,8 @@ def store_static_carbon_intensity(run_id, static_value):
         RETURNING id
     ''', params=(run_id, metric_name, detail_name, unit, sampling_rate_configured))[0]
 
-    # Convert static value to integer (multiply by 1000 for precision)
-    carbon_intensity_value = int(float(static_value) * 1000)
+    # Convert static value to integer
+    carbon_intensity_value = int(float(static_value))
 
     # Store as constant time series: same value at start and end times
     DB().query(
@@ -237,12 +237,12 @@ def store_dynamic_carbon_intensity(run_id, location):
     # Always ensure we have data points at measurement start and end times
     # Get carbon intensity at measurement start time
     start_carbon_intensity = _get_carbon_intensity_at_timestamp(start_time_us, carbon_data_for_lookup)
-    start_carbon_intensity_value = int(start_carbon_intensity * 1000)
+    start_carbon_intensity_value = int(start_carbon_intensity)
     values_data.append((measurement_metric_id, start_carbon_intensity_value, start_time_us))
 
     # Get carbon intensity at measurement end time
     end_carbon_intensity = _get_carbon_intensity_at_timestamp(end_time_us, carbon_data_for_lookup)
-    end_carbon_intensity_value = int(end_carbon_intensity * 1000)
+    end_carbon_intensity_value = int(end_carbon_intensity)
 
     # Add intermediate data points that fall within measurement timeframe
     intermediate_points = []
@@ -250,7 +250,7 @@ def store_dynamic_carbon_intensity(run_id, location):
         timestamp_us = data_point['timestamp_us']
         # Only include points strictly within the timeframe (not at boundaries)
         if start_time_us < timestamp_us < end_time_us:
-            carbon_intensity_value = int(float(data_point['carbon_intensity']) * 1000)
+            carbon_intensity_value = int(float(data_point['carbon_intensity']))
             intermediate_points.append((measurement_metric_id, carbon_intensity_value, timestamp_us))
 
     # Sort intermediate points by time and add them
