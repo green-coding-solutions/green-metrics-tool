@@ -43,12 +43,14 @@ def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename'
         {"start": TEST_MEASUREMENT_START_TIME, "name": "Only Phase", "end": TEST_MEASUREMENT_END_TIME},
         {"start": TEST_MEASUREMENT_END_TIME+1, "name": "[REMOVE]", "end": TEST_MEASUREMENT_END_TIME+2},
     ]
+    start_measurement=TEST_MEASUREMENT_START_TIME-9
+    end_measurement=TEST_MEASUREMENT_START_TIME+2
 
     return DB().fetch_one('''
-        INSERT INTO runs (uri, branch, filename, phases, user_id, machine_id)
+        INSERT INTO runs (uri, branch, filename, phases, user_id, machine_id, start_measurement, end_measurement)
         VALUES
-        (%s, %s, %s, %s, %s, %s) RETURNING id;
-    ''', params=(uri, branch, filename, json.dumps(phases), user_id, machine_id))[0]
+        (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;
+    ''', params=(uri, branch, filename, json.dumps(phases), user_id, machine_id, start_measurement, end_measurement))[0]
 
 def import_single_cpu_energy_measurement(run_id):
 

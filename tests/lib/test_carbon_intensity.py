@@ -26,10 +26,12 @@ class TestCarbonIntensityClient:
         # Test that client reads URL from config when not provided
         mock_config = Mock()
         mock_config.config = {
-            'elephant': {
-                'protocol': 'https',
-                'host': 'example.com',
-                'port': 9000
+            'dynamic_grid_carbon_intensity': {
+                'elephant': {
+                    'protocol': 'https',
+                    'host': 'example.com',
+                    'port': 9000
+                }
             }
         }
         mock_global_config.return_value = mock_config
@@ -78,15 +80,15 @@ class TestCarbonIntensityClient:
 
         # Test with empty data (should return fallback)
         result = _calculate_sampling_rate_from_data([])
-        assert result == 300000  # 5 minutes fallback
+        assert result == 0
 
         # Test with single data point (should return fallback)
         result = _calculate_sampling_rate_from_data([{"location": "DE", "time": "2025-09-23T10:00:00Z", "carbon_intensity": 253.0}])
-        assert result == 300000  # 5 minutes fallback
+        assert result == 0
 
         # Test with invalid data (should return fallback)
         result = _calculate_sampling_rate_from_data([{"invalid": "data"}, {"also": "invalid"}])
-        assert result == 300000  # 5 minutes fallback
+        assert result == 0
 
     def test__get_carbon_intensity_at_timestamp_single_point(self):
         # Test with single data point
@@ -185,25 +187,11 @@ class TestCarbonIntensityClient:
 
 class TestStoreCarbonIntensityAsMetrics:
 
-    @pytest.fixture
-    def run_with_measurement_times(self):
-        """Fixture that creates a test run with measurement start/end times set."""
+    def test_store_carbon_intensity_static_value(self):
+        # Test that static carbon intensity is stored correctly at the relevant time points
         run_id = Tests.insert_run()
-
-        # Set measurement times (required for carbon intensity functions)
-        DB().query(
-            "UPDATE runs SET start_measurement = %s, end_measurement = %s WHERE id = %s",
-            (Tests.TEST_MEASUREMENT_START_TIME, Tests.TEST_MEASUREMENT_END_TIME, run_id)
-        )
-
-        return run_id
-
-    def test_store_carbon_intensity_static_value(self, run_with_measurement_times):
-        # Test that static carbon intensity is stored when dynamic is not enabled
-        run_id = run_with_measurement_times
         static_carbon_intensity = 250.5
 
-        # Call the function with static value
         store_static_carbon_intensity(run_id, static_carbon_intensity)
 
         # Verify that measurement_metrics entry was created for static carbon intensity
@@ -235,13 +223,12 @@ class TestStoreCarbonIntensityAsMetrics:
         print(run_data)
 
         assert len(values_result) == 8  # 5 phases + 1 flow + start of run + end of run
-        # All values should be the same static value
         for result in values_result:
             assert result[0] == 250 # 250.5 is converted to integer
 
-    def test_store_carbon_intensity_dynamic_grid_enabled(self, run_with_measurement_times):
+    def test_store_carbon_intensity_dynamic_grid_enabled(self):
         # Test that dynamic grid carbon intensity is stored when enabled in measurement config
-        run_id = run_with_measurement_times
+        run_id = Tests.insert_run()
 
         # Mock the carbon intensity API call
         # Use timestamps that align with the measurement timeframe (2024-12-24T13:33:10Z to 2024-12-24T13:41:00Z)
@@ -286,8 +273,8 @@ class TestStoreCarbonIntensityAsMetrics:
         for value, _ in values_result:
             assert isinstance(value, int)
 
-    def test_store_carbon_intensity_dynamic_single_data_point(self, run_with_measurement_times):
-        run_id = run_with_measurement_times
+    def test_store_carbon_intensity_dynamic_single_data_point(self):
+        run_id = Tests.insert_run()
 
         # Mock the carbon intensity API call with only one data point within timeframe
         with patch('lib.carbon_intensity.CarbonIntensityClient') as mock_client_class:
@@ -328,9 +315,9 @@ class TestStoreCarbonIntensityAsMetrics:
         for value, _ in values_result:
             assert value == 185
 
-    def test_store_carbon_intensity_dynamic_data_outside_timeframe(self, run_with_measurement_times):
+    def test_store_carbon_intensity_dynamic_data_outside_timeframe(self):
         # Test that dynamic carbon intensity properly handles data outside measurement timeframe using extrapolation
-        run_id = run_with_measurement_times
+        run_id = Tests.insert_run()
 
         # Mock API data that is completely outside the measurement timeframe
         with patch('lib.carbon_intensity.CarbonIntensityClient') as mock_client_class:
@@ -366,12 +353,10 @@ class TestStoreCarbonIntensityAsMetrics:
         # Should have at least 7 data points: start/end of run + middle of 5 phases
         # All using nearest data point logic with API data outside timeframe
         assert len(values_result) >= 7
-        # Values should be extrapolated using nearest data point logic
 
-    def test_store_carbon_intensity_dynamic_missing_location(self, run_with_measurement_times):
+    def test_store_carbon_intensity_dynamic_missing_location(self):
         # Test error handling when dynamic method is called with None location
-        run_id = run_with_measurement_times
+        run_id = Tests.insert_run()
 
-        # Call the function with None location - should raise an exception or fail gracefully
-        with pytest.raises(Exception):  # The method should fail when location is None
+        with pytest.raises(Exception):
             store_dynamic_carbon_intensity(run_id, None)

@@ -19,7 +19,8 @@ class CarbonIntensityClient:
         """
         if base_url is None:
             config = GlobalConfig().config
-            elephant_config = config.get('elephant', {})
+            dynamic_config = config.get('dynamic_grid_carbon_intensity', {})
+            elephant_config = dynamic_config.get('elephant', {})
             protocol = elephant_config.get('protocol', 'http')
             host = elephant_config.get('host', 'localhost')
             port = elephant_config.get('port', 8000)
@@ -48,7 +49,7 @@ class CarbonIntensityClient:
             'location': location,
             'startTime': start_time,
             'endTime': end_time,
-            'interpolate': 'true'
+            'interpolate': 'true' # we also want to get data points that are adjacent to the requested time range, to be ensure we always get at least one data point
         }
 
         response = requests.get(url, params=params, timeout=30)
@@ -92,7 +93,7 @@ def _get_run_data_and_phases(run_id):
     return phases, start_time_us, end_time_us
 
 
-def _create_measurement_metric(run_id, metric_name, detail_name, unit, sampling_rate_configured):
+def _create_measurement_metric(run_id, metric_name, detail_name, unit, sampling_rate):
     """
     Create a measurement metric entry in the database.
 
@@ -101,7 +102,7 @@ def _create_measurement_metric(run_id, metric_name, detail_name, unit, sampling_
         metric_name: Name of the metric
         detail_name: Detail/source name for the metric
         unit: Unit of measurement
-        sampling_rate_configured: Configured sampling rate
+        sampling_rate: Configured sampling rate
 
     Returns:
         int: measurement_metric_id
@@ -110,12 +111,14 @@ def _create_measurement_metric(run_id, metric_name, detail_name, unit, sampling_
         INSERT INTO measurement_metrics (run_id, metric, detail_name, unit, sampling_rate_configured)
         VALUES (%s, %s, %s, %s, %s)
         RETURNING id
-    ''', params=(run_id, metric_name, detail_name, unit, sampling_rate_configured))[0]
+    ''', params=(run_id, metric_name, detail_name, unit, sampling_rate))[0]
 
 
 def _get_base_timestamps(phases, start_time_us, end_time_us):
     """
-    Get base timestamps: run start/end + phase middles.
+    Defines for which timestamps a carbon intensity value is needed:
+    - run start/end
+    - phase middles
 
     Args:
         phases: List of phase dictionaries
@@ -185,17 +188,15 @@ def store_static_carbon_intensity(run_id, static_value):
         run_id: UUID of the run
         static_value: Static carbon intensity value from config (gCO2e/kWh)
     """
-    # Get run phases data and overall start/end times
     phases, start_time_us, end_time_us = _get_run_data_and_phases(run_id)
 
-    # Create measurement_metric entry for static carbon intensity
     metric_name = 'grid_carbon_intensity_static'
     detail_name = '[CONFIG]'
     unit = 'gCO2e/kWh'
-    sampling_rate_configured = 0  # Static value has no sampling rate
+    sampling_rate = 0  # Static value has no sampling rate
 
     measurement_metric_id = _create_measurement_metric(
-        run_id, metric_name, detail_name, unit, sampling_rate_configured
+        run_id, metric_name, detail_name, unit, sampling_rate
     )
 
     # Convert static value to integer
@@ -220,16 +221,13 @@ def store_dynamic_carbon_intensity(run_id, location):
 
     Args:
         run_id: UUID of the run
-        location: Location code (e.g., "DE", "ES-IB-MA")
+        location: Grid zone code (e.g., "DE", "CH", "ES-IB-MA")
     """
-    # Get run phases data and overall start/end times
     phases, start_time_us, end_time_us = _get_run_data_and_phases(run_id)
-    if not start_time_us or not end_time_us:
-        raise ValueError(f"Run {run_id} does not have valid measurement times")
     start_time_iso = _microseconds_to_iso8601(start_time_us)
     end_time_iso = _microseconds_to_iso8601(end_time_us)
 
-    # Fetch carbon intensity data
+    # Fetch dynamic carbon intensity data for the relevant time frame
     carbon_client = CarbonIntensityClient()
     carbon_intensity_data = carbon_client.get_carbon_intensity_history(
         location, start_time_iso, end_time_iso
@@ -244,18 +242,16 @@ def store_dynamic_carbon_intensity(run_id, location):
     print(f"Retrieved {len(carbon_intensity_data)} API data points for {location}: "
             f"range {min(values):.1f}-{max(values):.1f} gCO2e/kWh")
 
-    # Create measurement_metric entry for dynamic carbon intensity
     metric_name = 'grid_carbon_intensity_dynamic'
     detail_name = location
     unit = 'gCO2e/kWh'
-    # Calculate sampling rate based on actual data intervals from API format
-    sampling_rate_configured = _calculate_sampling_rate_from_data(carbon_intensity_data)
+    sampling_rate = _calculate_sampling_rate_from_data(carbon_intensity_data)
 
     measurement_metric_id = _create_measurement_metric(
-        run_id, metric_name, detail_name, unit, sampling_rate_configured
+        run_id, metric_name, detail_name, unit, sampling_rate
     )
 
-    # Convert API data to format expected by _get_carbon_intensity_at_timestamp
+    # Convert API data to format we need within GMT
     carbon_data_for_lookup = []
     for data_point in carbon_intensity_data:
         # Convert ISO timestamp to microseconds
@@ -271,7 +267,8 @@ def store_dynamic_carbon_intensity(run_id, location):
     # Sort by timestamp for consistent processing
     carbon_data_for_lookup.sort(key=lambda x: x['timestamp_us'])
 
-    # Prepare measurement values for bulk insert
+    # Calculate base timestamps, for which we definitely need a value:
+    # start/end of run + middle of each phase
     timestamps = _get_base_timestamps(phases, start_time_us, end_time_us)
 
     # Add any intermediate API data points that fall within measurement timeframe
@@ -280,11 +277,16 @@ def store_dynamic_carbon_intensity(run_id, location):
         if start_time_us <= timestamp_us <= end_time_us:
             timestamps.add(timestamp_us)
 
-    # Convert timestamps to values using nearest data point logic
     value_timestamp_pairs = []
-    for timestamp in timestamps:
-        carbon_intensity = _get_carbon_intensity_at_timestamp(timestamp, carbon_data_for_lookup)
-        value_timestamp_pairs.append((carbon_intensity, timestamp))
+    if len(carbon_data_for_lookup) == 1:
+        # If only one data point, use it for all timestamps
+        carbon_intensity = carbon_data_for_lookup[0]['carbon_intensity']
+        value_timestamp_pairs = [(carbon_intensity, timestamp) for timestamp in timestamps]
+    else:
+        # Convert timestamps to values using nearest data point logic
+        for timestamp in timestamps:
+            carbon_intensity = _get_carbon_intensity_at_timestamp(timestamp, carbon_data_for_lookup)
+            value_timestamp_pairs.append((carbon_intensity, timestamp))
 
     # Bulk insert measurement values
     _bulk_insert_measurement_values(measurement_metric_id, value_timestamp_pairs)
@@ -326,22 +328,22 @@ def _calculate_sampling_rate_from_data(carbon_intensity_data: List[Dict[str, Any
         carbon_intensity_data: List of carbon intensity data points with 'time' field (API format)
 
     Returns:
-        Sampling rate in milliseconds, or 300000 (5 minutes) as fallback
+        Sampling rate in milliseconds, or 0 as fallback
 
     Example:
         For data with 1 hour intervals: Returns 3600000 (1 hour in milliseconds)
     """
     if not carbon_intensity_data or len(carbon_intensity_data) < 2:
-        return 300000
+        return 0
 
     try:
         time1 = datetime.fromisoformat(carbon_intensity_data[0]['time'].replace('Z', '+00:00'))
         time2 = datetime.fromisoformat(carbon_intensity_data[1]['time'].replace('Z', '+00:00'))
         interval_seconds = abs((time2 - time1).total_seconds())
-        sampling_rate_configured = int(interval_seconds * 1000)
-        return sampling_rate_configured
+        sampling_rate = int(interval_seconds * 1000)
+        return sampling_rate
     except (KeyError, ValueError, IndexError):
-        return 300000
+        return 0
 
 
 def _microseconds_to_iso8601(timestamp_us: int) -> str:
