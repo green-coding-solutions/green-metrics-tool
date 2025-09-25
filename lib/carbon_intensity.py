@@ -161,16 +161,20 @@ def store_static_carbon_intensity(run_id, static_value):
     carbon_intensity_value = int(float(static_value))
 
     # Calculate timestamps: start/end of run + middle of each phase
-    timestamps = []
+    timestamps = set()
 
     # Add overall run start and end times
     if start_time_us and end_time_us:
-        timestamps.extend([start_time_us, end_time_us])
+        timestamps.add(start_time_us)
+        timestamps.add(end_time_us)
 
     # Add middle timestamp for each phase
     for phase in phases:
         middle_timestamp = (phase['start'] + phase['end']) // 2
-        timestamps.append(middle_timestamp)
+        timestamps.add(middle_timestamp)
+
+    # Convert back to list for iteration
+    timestamps = list(timestamps)
 
     # Insert static value for all timestamps
     values_to_insert = []

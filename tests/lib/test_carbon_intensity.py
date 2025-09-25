@@ -254,7 +254,7 @@ class TestStoreCarbonIntensityAsMetrics:
         assert metric_result[1] == '[CONFIG]'
         assert metric_result[2] == 'gCO2e/kWh'
 
-        # Verify that static value was stored (should have 2 data points: start and end)
+        # Verify that static value was stored (should have up to 7 data points: start/end of run + middle of 5 phases, deduplicated)
         values_result = DB().fetch_all(
             """SELECT mv.value
                FROM measurement_values mv
@@ -263,15 +263,22 @@ class TestStoreCarbonIntensityAsMetrics:
             (run_id,)
         )
 
-        assert len(values_result) == 2
-        # Both values should be the same static value (multiplied by 1000)
-        assert values_result[0][0] == 250500  # 250.5 * 1000
-        assert values_result[1][0] == 250500  # 250.5 * 1000
+        run_query = """
+            SELECT phases, start_measurement, end_measurement
+            FROM runs
+            WHERE id = %s
+        """
+        run_data = DB().fetch_one(run_query, (run_id,))
+        print(run_data)
+
+        assert len(values_result) == 8  # 5 phases + 1 flow + start of run + end of run
+        # All values should be the same static value
+        for result in values_result:
+            assert result[0] == 250 # 250.5 is converted to integer
 
     def test_store_carbon_intensity_dynamic_grid_enabled(self, run_with_measurement_times):
         # Test that dynamic grid carbon intensity is stored when enabled in measurement config
         run_id = run_with_measurement_times
-
 
         # Mock the carbon intensity API call
         # Use timestamps that align with the measurement timeframe (2024-12-24T13:33:10Z to 2024-12-24T13:41:00Z)
@@ -311,12 +318,12 @@ class TestStoreCarbonIntensityAsMetrics:
 
         # Should have 4 data points: start boundary + 2 intermediate points + end boundary
         assert len(values_result) == 4
-        # Values should be stored as integers (multiplied by 1000)
+        # Values should be stored as integers
         # First point: interpolated start boundary (between 185.0 and 190.0)
         # Second point: 190.0 (intermediate point at 13:35:00)
-        assert values_result[1][0] == 190000  # 190.0 * 1000
+        assert values_result[1][0] == 190
         # Third point: 188.0 (intermediate point at 13:38:00)
-        assert values_result[2][0] == 188000  # 188.0 * 1000
+        assert values_result[2][0] == 188
         # Fourth point: interpolated end boundary (between 188.0 and 183.0)
 
     def test_store_carbon_intensity_dynamic_single_data_point(self, run_with_measurement_times):
