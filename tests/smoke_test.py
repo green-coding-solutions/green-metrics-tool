@@ -61,6 +61,7 @@ def test_db_rows_are_written_and_presented():
     # for every metric provider, check that there were rows written in the DB with info for that provider
     # also check (in the same test, to save on a DB call) that the output to STD.OUT
     # "Imported XXX metrics from {metric_provider}" displays the same count as in the DB
+    # The grid carbon intensity metrics are not provided by a classic metric provider and are therefore excluded from this test
 
     run_id = utils.get_run_data(RUN_NAME)['id']
     assert(run_id is not None and run_id != '')
@@ -69,7 +70,7 @@ def test_db_rows_are_written_and_presented():
             FROM measurement_metrics as mm
             JOIN measurement_values as mv
             ON mm.id = mv.measurement_metric_id
-            WHERE mm.run_id = %s
+            WHERE mm.run_id = %s AND mm.metric NOT LIKE 'grid_carbon_intensity%%'
             GROUP BY
                 mm.metric
             """
