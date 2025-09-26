@@ -1460,9 +1460,9 @@ class ScenarioRunner:
         }
 
         if stdout is not None:
-            log_entry['stdout'] = stdout.replace('\x00', '') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+            log_entry['stdout'] = stdout.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
         if stderr is not None:
-            log_entry['stderr'] = stderr.replace('\x00', '') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+            log_entry['stderr'] = stderr.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:
