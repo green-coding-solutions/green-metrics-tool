@@ -1445,39 +1445,8 @@ class ScenarioRunner:
         container_names = [container_info['name'] for container_info in self.__containers.values()]
         print(TerminalColors.HEADER, '\nStarted containers: ', container_names, TerminalColors.ENDC)
 
-    def _sanitize_log_output(self, output):
-        """
-        Remove null bytes from log output for PostgreSQL compatibility.
-
-        PostgreSQL cannot handle null bytes (\x00) in text fields and raises an
-        UntranslatableCharacter error. Additionally, JSON-encoded null byte values
-        cause failures with JSONB columns or when JSON operations are executed on
-        JSON columns. Therefore, sanitization is needed.
-
-        Args:
-            output (str): The log output string to sanitize
-
-        Returns:
-            str: The sanitized string with null bytes removed, or None if input was None
-        """
-        if output is None:
-            return None
-        return output.replace('\x00', '')
 
     def _add_to_current_run_log(self, container_name, log_type, log_id, cmd, phase, stdout=None, stderr=None, flow=None, exception_class=None):
-        """Add a structured log entry to the current run logs.
-        
-        Args:
-            container_name: Name of the container or '[SYSTEM]' for system logs
-            log_type: LogType enum value
-            log_id: ID of the process (from id(ps) or id(exception))
-            cmd: Command that was executed
-            phase: Phase like '[BOOT]', '[RUNTIME]', etc. '[MULTIPLE]', if the logs were collected over multiple phases. [UNKNOWN] is unknown.
-            stdout: Standard output (optional)
-            stderr: Standard error (optional)
-            flow: Flow name for flow_command type (optional)
-            exception_class: Exception class name for exception type (optional)
-        """
         if container_name not in self.__current_run_logs:
             self.__current_run_logs[container_name] = []
 
@@ -1491,9 +1460,9 @@ class ScenarioRunner:
         }
 
         if stdout is not None:
-            log_entry['stdout'] = self._sanitize_log_output(stdout)
+            log_entry['stdout'] = stdout.replace('\x00', '') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
         if stderr is not None:
-            log_entry['stderr'] = self._sanitize_log_output(stderr)
+            log_entry['stderr'] = stderr.replace('\x00', '') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:
@@ -1501,8 +1470,8 @@ class ScenarioRunner:
 
         self.__current_run_logs[container_name].append(log_entry)
 
-    def _get_all_run_logs(self):
-        """
+
+    '''
         Returns accumulated logs from all runs in the current session.
 
         This method provides read-only access to logs collected across multiple runs
@@ -1515,7 +1484,8 @@ class ScenarioRunner:
                     - 'iteration': iteration number for this filename
                     - 'filename': the scenario filename that was executed
                     - 'containers': dict with container names as keys and log lists as values
-        """
+    '''
+    def _get_all_run_logs(self):
         return self.__all_runs_logs
 
     def _save_warnings(self):
