@@ -33,6 +33,8 @@ Error: {err}
 {traceback.format_exc()}
 \n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
     """
+
+    error_string = error_string.replace('\x00', '0x00') # If we store to DB: Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
     return error_string
 
 
