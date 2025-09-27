@@ -237,8 +237,8 @@ sci:
     # The default is the value for a developer machine (Pro Laptop - https://dataviz.boavizta.org/terminalimpact)
     TE: 181000
     # I is the Carbon Intensity at the location of this machine
-    # The value can either be a number in gCO2e/kWh or a carbon intensity provider that fetches this number dynamically
-    # https://docs.green-coding.io/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/ (TODO)
+    # This is a static value in gCO2e/kWh. If you want to use the current dynamic grid carbon intensity, 
+    # uncomment the option 'dynamic_grid_carbon_intensity' below.
     # For fixed world-wide values get the number from https://ember-climate.org/insights/research/global-electricity-review-2025/
     # The number worldwide for 2024 is 473
     # The number 334 that comes as default is for Germany from 2024 and comes from https://app.electricitymaps.com/zone/DE/all/yearly
@@ -248,14 +248,26 @@ sci:
     # See https://www.green-coding.io/co2-formulas/ for details
     N: 0.04106063
 
-#optimization:
-#  ignore:
-#    - example_optimization_test
+# If you want to use the current dynamic grid carbon intensity for the carbon metrics instead of the fixed number above (SCI.I),
+# uncomment the following lines and set your location and ensure the Elephant service is setup correctly.
+# The location needs to be a valid grid zone code. 
+# For more information see our documentation: https://docs.green-coding.io/docs/measuring/carbon/grid-carbon-intensity/
+#dynamic_grid_carbon_intensity:
+#  location: 'DE'
+#  elephant:
+#    host: localhost
+#    port: 8000
+#    protocol: http
 
+# The following configuration is an enterprise feature:
 # In order to get the carbon intensity we use electricity maps which requires a token.
 # You can get this under https://api-portal.electricitymaps.com/
 # This is a free service please note that you need to pay if you want to use this commercially!
 #electricity_maps_token: '123'
+
+#optimization:
+#  ignore:
+#    - example_optimization_test
 
 # Modules API / Frontend
 # GMT can selectively activate some API and frontend components. This is asked in the install process and should NOT
