@@ -365,6 +365,10 @@ class RunUntilManager:
             self.__runner._add_containers_to_metric_providers()
             self.__runner._start_metric_providers(allow_container=True, allow_other=False)
 
+            self.__runner._collect_container_dependencies()
+            if stop_at == 'collect_container_dependencies':
+                return
+
             self.__runner._start_phase('[IDLE]')
             self.__runner._custom_sleep(self.__runner._measurement_idle_duration)
             self.__runner._end_phase('[IDLE]')

@@ -104,6 +104,8 @@ const fetchAndFillRunData = async (url_params) => {
             } else {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
+        } else if(item == 'usage_scenario_dependencies') {
+            renderUsageScenarioDependencies(run_data[item]);
 
         } else if(item == 'logs') {
             const logsData = run_data[item];
@@ -874,8 +876,201 @@ const fetchAndFillWarnings = async (url_params) => {
 
 
 
+// Templates for usage scenario dependencies
+const dependenciesTemplates = {
+    container: `
+        <div class="ui segment">
+            <h4 class="ui dividing header">Container: {{containerName}}</h4>
+            <div class="ui secondary segment">
+                <strong>Image:</strong> {{image}}<br>
+                <strong>Hash:</strong> <code>{{hash}}</code>
+            </div>
+            {{scopeContent}}
+        </div>
+    `,
+
+    scopeAccordion: `
+        <div class="ui accordion">
+            {{accordionItems}}
+        </div>
+    `,
+
+    accordionItem: `
+        <div class="title">
+            <i class="dropdown icon"></i>
+            {{scopeDisplayName}} Packages ({{totalDeps}} packages)
+        </div>
+        <div class="content">
+            {{scopeMetadata}}
+            {{depsTable}}
+        </div>
+    `,
+
+    scopeMetadata: `
+        <div>
+            {{metadataContent}}
+        </div>
+    `,
+
+    depsTable: `
+        <table class="ui celled compact table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Version</th>
+                    <th>Hash</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{tableRows}}
+            </tbody>
+        </table>
+    `,
+
+    depsTableRow: `
+        <tr>
+            <td>{{depName}}</td>
+            <td>{{version}}</td>
+            <td><code title="{{fullHash}}">{{truncatedHash}}</code></td>
+        </tr>
+    `,
+
+    noDepsMessage: `<div class="ui message">{{message}}</div>`
+};
+
+function renderUsageScenarioDependencies(dependenciesData) {
+    const dependenciesSection = document.querySelector("#usage-scenario-dependencies");
+
+    if (!dependenciesData || Object.keys(dependenciesData).length === 0) {
+        dependenciesSection.insertAdjacentHTML('beforeend',
+            dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependency information available</em>')
+        );
+        return;
+    }
+
+    let containersHTML = '';
+
+    for (const containerName in dependenciesData) {
+        const containerData = dependenciesData[containerName];
+        const containerInfo = containerData['source'] || {};
+
+        const image = escapeString(containerInfo.image || 'N/A');
+        const hash = escapeString(containerInfo.hash || 'N/A');
+
+        const packageManagers = Object.keys(containerData).filter(key => key !== 'source');
+
+        let packageManagerContent = '';
+
+        if (packageManagers.length > 0) {
+            const accordionItems = buildPackageManagerAccordionItems(packageManagers, containerData);
+
+            packageManagerContent = dependenciesTemplates.scopeAccordion.replace('{{accordionItems}}', accordionItems);
+        } else {
+            packageManagerContent = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
+        }
+
+        const containerHTML = dependenciesTemplates.container
+            .replace('{{containerName}}', escapeString(containerName))
+            .replace('{{image}}', image)
+            .replace('{{hash}}', hash)
+            .replace('{{scopeContent}}', packageManagerContent);
+
+        containersHTML += containerHTML;
+    }
+
+    dependenciesSection.insertAdjacentHTML('beforeend', containersHTML);
+
+    // Initialize accordions
+    setTimeout(() => {
+        dependenciesSection.querySelectorAll('.ui.accordion').forEach(accordion => {
+            $(accordion).accordion();
+        });
+    }, 0);
+}
+
+function buildPackageManagerAccordionItems(packageManagers, containerData) {
+    let accordionItems = '';
+
+    packageManagers.forEach(packageManager => {
+        const packageManagerData = containerData[packageManager];
+        const dependencies = packageManagerData.dependencies || {};
+        const dependenciesArray = Object.entries(dependencies).map(([name, data]) => ({
+            name: name,
+            version: data.version || 'N/A',
+            type: packageManager,
+            hash: data.hash || 'N/A'
+        }));
+        const totalDeps = dependenciesArray.length;
+
+        const packageManagerDisplayName = packageManager;
+
+        // Build metadata content
+        let metadataContent = '';
+        if (packageManagerData.scope) {
+            metadataContent += `<strong>Scope:</strong> ${escapeString(packageManagerData.scope)}<br>`;
+        }
+        if (packageManagerData.location) {
+            metadataContent += `<strong>Location:</strong> ${escapeString(packageManagerData.location)}<br>`;
+        }
+        if (packageManagerData.hash) {
+            metadataContent += `<strong>Hash:</strong> <code>${escapeString(packageManagerData.hash)}</code><br>`;
+        }
+        // Add any other metadata from the package manager data
+        Object.keys(packageManagerData).forEach(key => {
+            if (key !== 'scope' && key !== 'dependencies' && key !== 'hash' && key !== 'location') {
+                const value = packageManagerData[key];
+                if (typeof value === 'string') {
+                    metadataContent += `<strong>${escapeString(key.charAt(0).toUpperCase() + key.slice(1))}:</strong> ${escapeString(value)}<br>`;
+                }
+            }
+        });
+
+        const packageManagerMetadata = metadataContent ?
+            dependenciesTemplates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
+
+        let depsTable = '';
+        if (totalDeps > 0) {
+            const tableRows = buildDependencyTableRows(dependenciesArray);
+            depsTable = dependenciesTemplates.depsTable.replace('{{tableRows}}', tableRows);
+        } else {
+            depsTable = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependencies found for this package manager</em>');
+        }
+
+        const accordionItem = dependenciesTemplates.accordionItem
+            .replace('{{scopeDisplayName}}', escapeString(packageManagerDisplayName))
+            .replace('{{totalDeps}}', totalDeps)
+            .replace('{{scopeMetadata}}', packageManagerMetadata)
+            .replace('{{depsTable}}', depsTable);
+
+        accordionItems += accordionItem;
+    });
+
+    return accordionItems;
+}
+
+function buildDependencyTableRows(packages) {
+    let tableRows = '';
+
+    packages.forEach(pkg => {
+        const version = escapeString(pkg.version || 'N/A');
+        const depHash = pkg.hash || 'N/A';
+        const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
+
+        const row = dependenciesTemplates.depsTableRow
+            .replace('{{depName}}', escapeString(pkg.name || 'N/A'))
+            .replace('{{version}}', version)
+            .replace('{{fullHash}}', escapeString(depHash))
+            .replace('{{truncatedHash}}', escapeString(truncatedHash));
+
+        tableRows += row;
+    });
+
+    return tableRows;
+}
+
+
 /* Chart starting code*/
-$(document).ready( (e) => {
+$(document).ready( () => {
     (async () => {
 
         $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data

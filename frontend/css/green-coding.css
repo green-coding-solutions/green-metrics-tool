@@ -323,6 +323,10 @@ a,
     font-family: monospace;
 }
 
+#usage-scenario-dependencies {
+  word-break: break-all;
+}
+
 #logs .ui.accordion,
 #logs .ui.card {
     width: 100%;
