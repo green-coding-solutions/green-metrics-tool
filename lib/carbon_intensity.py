@@ -29,26 +29,11 @@ class CarbonIntensityClient:
         self.base_url = base_url.rstrip('/')
 
     def get_carbon_intensity_history(self, location: str, start_time: str, end_time: str) -> List[Dict[str, Any]]:
-        """
-        Fetch carbon intensity history from Elephant service.
-
-        Args:
-            location: Location code (e.g., "DE", "ES-IB-MA")
-            start_time: Start time in ISO 8601 format (e.g., "2025-09-22T10:50:00Z")
-            end_time: End time in ISO 8601 format (e.g., "2025-09-22T10:55:00Z")
-
-        Returns:
-            List of carbon intensity data points:
-            [{"location": "DE", "time": "2025-09-22T10:00:00Z", "carbon_intensity": 185.0}, ...]
-
-        Raises:
-            Exception: On any service error, network issue, or invalid response
-        """
         url = f"{self.base_url}/carbon-intensity/history"
         params = {
-            'location': location,
-            'startTime': start_time,
-            'endTime': end_time,
+            'location': location, # Location code (e.g., "DE", "ES-IB-MA")
+            'startTime': start_time, # ISO 8601 format (e.g., "2025-09-22T10:50:00Z")
+            'endTime': end_time, # ISO 8601 format (e.g., "2025-09-22T10:55:00Z")
             'interpolate': 'true' # we also want to get data points that are adjacent to the requested time range, to be ensure we always get at least one data point
         }
 
@@ -68,18 +53,6 @@ class CarbonIntensityClient:
 
 
 def _get_run_data_and_phases(run_id):
-    """
-    Fetch run data including phases and measurement times.
-
-    Args:
-        run_id: UUID of the run
-
-    Returns:
-        tuple: (phases, start_time_us, end_time_us)
-
-    Raises:
-        ValueError: If run data is invalid or missing
-    """
     run_query = """
         SELECT phases, start_measurement, end_measurement
         FROM runs
@@ -94,40 +67,14 @@ def _get_run_data_and_phases(run_id):
 
 
 def _create_measurement_metric(run_id, metric_name, detail_name, unit, sampling_rate):
-    """
-    Create a measurement metric entry in the database.
-
-    Args:
-        run_id: UUID of the run
-        metric_name: Name of the metric
-        detail_name: Detail/source name for the metric
-        unit: Unit of measurement
-        sampling_rate: Configured sampling rate
-
-    Returns:
-        int: measurement_metric_id
-    """
     return DB().fetch_one('''
         INSERT INTO measurement_metrics (run_id, metric, detail_name, unit, sampling_rate_configured)
         VALUES (%s, %s, %s, %s, %s)
         RETURNING id
     ''', params=(run_id, metric_name, detail_name, unit, sampling_rate))[0]
 
-
+# Defines for which timestamps a carbon intensity value is needed: run start/end & phase middles
 def _get_base_timestamps(phases, start_time_us, end_time_us):
-    """
-    Defines for which timestamps a carbon intensity value is needed:
-    - run start/end
-    - phase middles
-
-    Args:
-        phases: List of phase dictionaries
-        start_time_us: Run start time in microseconds
-        end_time_us: Run end time in microseconds
-
-    Returns:
-        set: Set of timestamps
-    """
     timestamps = set()
 
     # Add overall run start and end times
@@ -144,13 +91,6 @@ def _get_base_timestamps(phases, start_time_us, end_time_us):
 
 
 def _bulk_insert_measurement_values(measurement_metric_id, value_timestamp_pairs):
-    """
-    Efficiently insert measurement values using the most appropriate method.
-
-    Args:
-        measurement_metric_id: ID of the measurement metric
-        value_timestamp_pairs: List of (value, timestamp) tuples
-    """
     if not value_timestamp_pairs:
         return
 
@@ -163,8 +103,8 @@ def _bulk_insert_measurement_values(measurement_metric_id, value_timestamp_pairs
         placeholders = ', '.join(['(%s, %s, %s)'] * len(value_timestamp_pairs))
         query = f"INSERT INTO measurement_values (measurement_metric_id, value, time) VALUES {placeholders}"
         DB().query(query, tuple(values_to_insert))
+    # For larger datasets, use COPY FROM for better performance
     else:
-        # For larger datasets, use COPY FROM for better performance
         values_data = [(measurement_metric_id, int(value), timestamp)
                       for value, timestamp in value_timestamp_pairs]
         csv_data = '\n'.join([f"{row[0]},{row[1]},{row[2]}" for row in values_data])
@@ -179,15 +119,6 @@ def _bulk_insert_measurement_values(measurement_metric_id, value_timestamp_pairs
 
 
 def store_static_carbon_intensity(run_id, static_value):
-    """
-    Store static carbon intensity value as a constant time series at multiple timestamps:
-    - Start and end of measurement run to ensure graph looks good in frontend
-    - Middle of each phase to enable carbon metrics calculation per phase
-
-    Args:
-        run_id: UUID of the run
-        static_value: Static carbon intensity value from config (gCO2e/kWh)
-    """
     phases, start_time_us, end_time_us = _get_run_data_and_phases(run_id)
 
     metric_name = 'grid_carbon_intensity_static'
@@ -199,35 +130,24 @@ def store_static_carbon_intensity(run_id, static_value):
         run_id, metric_name, detail_name, unit, sampling_rate
     )
 
-    # Convert static value to integer
     carbon_intensity_value = int(float(static_value))
 
-    # Calculate timestamps: start/end of run + middle of each phase
+    # Calculate base timestamps, for which we definitely need a value:
+    # start/end of run + middle of each phase
     timestamps = _get_base_timestamps(phases, start_time_us, end_time_us)
 
-    # Prepare value-timestamp pairs for bulk insert
     value_timestamp_pairs = [(carbon_intensity_value, timestamp) for timestamp in timestamps]
 
-    # Insert static value for all timestamps
     _bulk_insert_measurement_values(measurement_metric_id, value_timestamp_pairs)
 
     print(f"Stored static carbon intensity value {static_value} gCO2e/kWh at {len(timestamps)} timestamps (run start/end + phase middles)")
 
 
 def store_dynamic_carbon_intensity(run_id, location):
-    """
-    Store dynamic carbon intensity data from API as time series, ensuring coverage per phase.
-    Uses nearest data point logic for timestamps where API data may be sparse.
-
-    Args:
-        run_id: UUID of the run
-        location: Grid zone code (e.g., "DE", "CH", "ES-IB-MA")
-    """
     phases, start_time_us, end_time_us = _get_run_data_and_phases(run_id)
     start_time_iso = _microseconds_to_iso8601(start_time_us)
     end_time_iso = _microseconds_to_iso8601(end_time_us)
 
-    # Fetch dynamic carbon intensity data for the relevant time frame
     carbon_client = CarbonIntensityClient()
     carbon_intensity_data = carbon_client.get_carbon_intensity_history(
         location, start_time_iso, end_time_iso
@@ -264,7 +184,6 @@ def store_dynamic_carbon_intensity(run_id, location):
             'carbon_intensity': float(data_point['carbon_intensity'])
         })
 
-    # Sort by timestamp for consistent processing
     carbon_data_for_lookup.sort(key=lambda x: x['timestamp_us'])
 
     # Calculate base timestamps, for which we definitely need a value:
@@ -288,30 +207,15 @@ def store_dynamic_carbon_intensity(run_id, location):
             carbon_intensity = _get_carbon_intensity_at_timestamp(timestamp, carbon_data_for_lookup)
             value_timestamp_pairs.append((carbon_intensity, timestamp))
 
-    # Bulk insert measurement values
     _bulk_insert_measurement_values(measurement_metric_id, value_timestamp_pairs)
 
     unique_values = len(set(int(value) for value, _ in value_timestamp_pairs))
     print(f"Stored dynamic carbon intensity for location {location}: {len(value_timestamp_pairs)} timestamps, {unique_values} unique values")
 
 
+# Find the data point with timestamp closest to target timestamp.
+# Interpolation is not used on purpose here.
 def _get_carbon_intensity_at_timestamp(timestamp_us: int, carbon_data: List[Dict[str, Any]]) -> float:
-    """
-    Get carbon intensity value for a specific timestamp using nearest data point.
-
-    This function finds the carbon intensity at a given timestamp by:
-    - Finding the data point with timestamp closest to the target timestamp
-    - Returning the carbon intensity of that nearest data point
-
-    Args:
-        timestamp_us: Target timestamp in microseconds
-        carbon_data: List of carbon intensity data points with 'timestamp_us' and 'carbon_intensity' fields
-                    (guaranteed to be non-empty by calling functions)
-
-    Returns:
-        Carbon intensity value in gCO2e/kWh
-    """
-    # Find the data point with timestamp closest to target timestamp
     closest_point = min(
         carbon_data,
         key=lambda point: abs(point['timestamp_us'] - timestamp_us)
@@ -321,18 +225,6 @@ def _get_carbon_intensity_at_timestamp(timestamp_us: int, carbon_data: List[Dict
 
 
 def _calculate_sampling_rate_from_data(carbon_intensity_data: List[Dict[str, Any]]) -> int:
-    """
-    Calculate sampling rate in milliseconds based on time intervals in carbon intensity data.
-
-    Args:
-        carbon_intensity_data: List of carbon intensity data points with 'time' field (API format)
-
-    Returns:
-        Sampling rate in milliseconds, or 0 as fallback
-
-    Example:
-        For data with 1 hour intervals: Returns 3600000 (1 hour in milliseconds)
-    """
     if not carbon_intensity_data or len(carbon_intensity_data) < 2:
         return 0
 
@@ -347,15 +239,6 @@ def _calculate_sampling_rate_from_data(carbon_intensity_data: List[Dict[str, Any
 
 
 def _microseconds_to_iso8601(timestamp_us: int) -> str:
-    """
-    Convert microsecond timestamp to ISO 8601 format.
-
-    Args:
-        timestamp_us: Timestamp in microseconds since epoch
-
-    Returns:
-        ISO 8601 formatted timestamp string (e.g., "2025-09-22T10:50:00Z")
-    """
     timestamp_seconds = timestamp_us / 1_000_000
     dt = datetime.fromtimestamp(timestamp_seconds, timezone.utc)
     return dt.strftime('%Y-%m-%dT%H:%M:%SZ')

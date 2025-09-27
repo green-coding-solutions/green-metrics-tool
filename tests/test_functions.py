@@ -224,17 +224,6 @@ def import_demo_data_ee():
 
 
 def import_carbon_intensity_metrics(run_id, static_value=None):
-    """
-    Import sample carbon intensity data for a test run.
-    Creates multiple measurement values aligned with phase timestamps.
-    If no static_value is given, dynamic values are inserted.
-
-    Args:
-        run_id: The ID of the test run
-        static_value: Optional static carbon intensity value (gCO2e/kWh).
-                     If provided, this value will be used for all timestamps
-                     instead of the dynamic values.
-    """
     metric_name = 'grid_carbon_intensity_dynamic'
     detail_name = 'DE'
     unit = 'gCO2e/kWh'
