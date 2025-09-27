@@ -818,6 +818,16 @@ class ScenarioRunner:
                     ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
                 if ps.returncode != 0:
+                    self._add_to_current_run_log(
+                        container_name=service['image'],
+                        log_type=LogType.EXCEPTION,
+                        log_id=-1,
+                        cmd=docker_build_command,
+                        phase='UNKNOWN',
+                        stdout=ps.stdout,
+                        stderr=ps.stderr,
+                        flow=None
+                    )
                     raise OSError(f"Docker build failed\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
 
                 # import the docker image locally
