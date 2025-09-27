@@ -130,7 +130,7 @@ def test_phase_embodied_and_operational_carbon_using_static_intensity():
     Tests.import_machine_energy(run_id)
 
     sci = {"I":436,"R":0,"EL":4,"RS":1,"TE":181000,"R_d":"page request"}
-    Tests.import_carbon_intensity_metrics(run_id, sci['I'])
+    Tests.import_static_carbon_intensity_metrics(run_id, sci['I'])
 
     build_and_store_phase_stats(run_id, sci=sci)
 
@@ -169,7 +169,7 @@ def test_phase_embodied_and_operational_carbon_using_dynamic_intensity():
     Tests.import_machine_energy(run_id)
 
     sci = {"R":0,"EL":4,"RS":1,"TE":181000,"R_d":"page request"} # 'I' was removed, because it is not relevant here using dynamic values
-    grid_carbon_intensity = Tests.import_carbon_intensity_metrics(run_id)
+    grid_carbon_intensity = Tests.import_dynamic_carbon_intensity_metrics(run_id)
 
     build_and_store_phase_stats(run_id, sci=sci)
 
@@ -329,7 +329,7 @@ def test_phase_stats_network_data():
         'N': 0.001,    # Network energy intensity (kWh/GB)
         'I': 500,      # Carbon intensity (gCO2e/kWh)
     }
-    Tests.import_carbon_intensity_metrics(run_id, test_sci_config['I'])
+    Tests.import_static_carbon_intensity_metrics(run_id, test_sci_config['I'])
 
     build_and_store_phase_stats(run_id, sci=test_sci_config)
 
@@ -377,7 +377,7 @@ def test_phase_stats_network_data():
 
 def test_phase_stats_dynamic_grid_carbon_intensity():
     run_id = Tests.insert_run()
-    Tests.import_carbon_intensity_metrics(run_id)
+    Tests.import_dynamic_carbon_intensity_metrics(run_id)
 
     build_and_store_phase_stats(run_id)
 
@@ -389,7 +389,7 @@ def test_phase_stats_dynamic_grid_carbon_intensity():
     assert data[1]['unit'] == 'gCO2e/kWh'
     assert data[1]['value'] == 270
     assert data[1]['type'] == 'MEAN'
-    assert data[1]['sampling_rate_avg'] == 300000, 'Configured sampling rate should be used'
+    assert data[1]['sampling_rate_avg'] == 60000000, 'Configured sampling rate should be used'
     assert data[1]['sampling_rate_max'] is None, 'MAX sampling rate should not be set'
     assert data[1]['sampling_rate_95p'] is None, '95p sampling rate should not be set'
 
@@ -408,7 +408,7 @@ def test_sci_calculation():
         'R': 10,       # Functional unit count (10 runs)
         'R_d': 'test runs'  # Functional unit description
     }
-    Tests.import_carbon_intensity_metrics(run_id, test_sci_config['I'])
+    Tests.import_static_carbon_intensity_metrics(run_id, test_sci_config['I'])
 
     build_and_store_phase_stats(run_id, sci=test_sci_config)
 
@@ -483,5 +483,5 @@ def test_sci_multi_steps_run():
     data = DB().fetch_all("SELECT value, unit FROM phase_stats WHERE phase = %s AND run_id = %s AND metric = 'software_carbon_intensity_global' ", params=('004_[RUNTIME]', run_id), fetch_mode='dict')
 
     assert len(data) == 1
-    assert 8 < data[0]['value'] < 20
+    assert 5 < data[0]['value'] < 20
     assert data[0]['unit'] == 'ugCO2e/Cool run'

@@ -24,6 +24,23 @@ TEST_MEASUREMENT_DURATION = TEST_MEASUREMENT_END_TIME - TEST_MEASUREMENT_START_T
 TEST_MEASUREMENT_DURATION_S = TEST_MEASUREMENT_DURATION / 1_000_000
 TEST_MEASUREMENT_DURATION_H = TEST_MEASUREMENT_DURATION_S/60/60
 
+PHASE_TIMESTAMPS = [
+    TEST_MEASUREMENT_START_TIME-8,  # [BASELINE] start
+    TEST_MEASUREMENT_START_TIME-7,  # [BASELINE] end
+    TEST_MEASUREMENT_START_TIME-6,  # [INSTALL] start
+    TEST_MEASUREMENT_START_TIME-5,  # [INSTALL] end
+    TEST_MEASUREMENT_START_TIME-4,  # [BOOT] start
+    TEST_MEASUREMENT_START_TIME-3,  # [BOOT] end
+    TEST_MEASUREMENT_START_TIME-2,  # [IDLE] start
+    TEST_MEASUREMENT_START_TIME-1,  # [IDLE] end
+    TEST_MEASUREMENT_START_TIME,    # [RUNTIME]/Only Phase start
+    TEST_MEASUREMENT_START_TIME + 60000000,  # Mid-runtime - 1 minute
+    TEST_MEASUREMENT_START_TIME + 120000000,  # Mid-runtime - 2 minutes
+    TEST_MEASUREMENT_END_TIME,      # [RUNTIME]/Only Phase end
+    TEST_MEASUREMENT_END_TIME+1,    # [REMOVE] start
+    TEST_MEASUREMENT_END_TIME+2,    # [REMOVE] end
+]
+
 def shorten_sleep_times(duration_in_s):
     DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,pre_test_sleep}',%s,false)", params=(str(duration_in_s), ))
     DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,baseline_duration}',%s,false)", params=(str(duration_in_s), ))
@@ -222,44 +239,16 @@ def import_demo_data_ee():
         reset_db()
         raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
 
-
-def import_carbon_intensity_metrics(run_id, static_value=None):
-    metric_name = 'grid_carbon_intensity_dynamic'
-    detail_name = 'DE'
-    unit = 'gCO2e/kWh'
-    sampling_rate_configured = 300000  # 5 minutes in milliseconds
-
-    measurement_metric_id = DB().fetch_one('''
-        INSERT INTO measurement_metrics (run_id, metric, detail_name, unit, sampling_rate_configured)
-        VALUES (%s, %s, %s, %s, %s)
-        RETURNING id
-    ''', params=(run_id, metric_name, detail_name, unit, sampling_rate_configured))[0]
-
-    values_data = []
-
-    # Phase timestamps from insert_run function:
-    phase_timestamps = [
-        TEST_MEASUREMENT_START_TIME-8,  # [BASELINE] start
-        TEST_MEASUREMENT_START_TIME-7,  # [BASELINE] end
-        TEST_MEASUREMENT_START_TIME-6,  # [INSTALL] start
-        TEST_MEASUREMENT_START_TIME-5,  # [INSTALL] end
-        TEST_MEASUREMENT_START_TIME-4,  # [BOOT] start
-        TEST_MEASUREMENT_START_TIME-3,  # [BOOT] end
-        TEST_MEASUREMENT_START_TIME-2,  # [IDLE] start
-        TEST_MEASUREMENT_START_TIME-1,  # [IDLE] end
-        TEST_MEASUREMENT_START_TIME,    # [RUNTIME]/Only Phase start
-        TEST_MEASUREMENT_START_TIME + 60000000,  # Mid-runtime - 1 minute
-        TEST_MEASUREMENT_START_TIME + 120000000,  # Mid-runtime - 2 minutes
-        TEST_MEASUREMENT_END_TIME,      # [RUNTIME]/Only Phase end
-        TEST_MEASUREMENT_END_TIME+1,    # [REMOVE] start
-        TEST_MEASUREMENT_END_TIME+2,    # [REMOVE] end
-    ]
-
-    # Use static value if provided, otherwise use dynamic values
+def _import_carbon_intensity_metrics(run_id, static_value=None):
     if static_value is not None:
-        carbon_intensity_values = [static_value] * len(phase_timestamps)
-        mean_runtime_value = static_value
+        metric_name = 'grid_carbon_intensity_static'
+        sampling_rate_configured = 0
+        carbon_intensity_values = [static_value] * len(PHASE_TIMESTAMPS)
+        metric_type = 'static'
+        avg_carbon_intensity_during_runtime = static_value
     else:
+        metric_name = 'grid_carbon_intensity_dynamic'
+        sampling_rate_configured = 60000000  # 1 minute in milliseconds
         carbon_intensity_values = [
             180,  # 180.0 gCO2e/kWh (baseline - low demand)
             175,  # 175.0 gCO2e/kWh
@@ -276,12 +265,22 @@ def import_carbon_intensity_metrics(run_id, static_value=None):
             200,  # 200.0 gCO2e/kWh (remove start)
             180,  # 180.0 gCO2e/kWh (remove end - back to baseline)
         ]
-        mean_runtime_value = (carbon_intensity_values[9] + carbon_intensity_values[10]) / 2
+        metric_type = 'dynamic'
+        avg_carbon_intensity_during_runtime = (carbon_intensity_values[9] + carbon_intensity_values[10]) / 2
 
-    for timestamp, value in zip(phase_timestamps, carbon_intensity_values):
+    detail_name = 'DE'
+    unit = 'gCO2e/kWh'
+
+    measurement_metric_id = DB().fetch_one('''
+        INSERT INTO measurement_metrics (run_id, metric, detail_name, unit, sampling_rate_configured)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id
+    ''', params=(run_id, metric_name, detail_name, unit, sampling_rate_configured))[0]
+
+    values_data = []
+    for timestamp, value in zip(PHASE_TIMESTAMPS, carbon_intensity_values):
         values_data.append((measurement_metric_id, value, timestamp))
 
-    # Bulk insert measurement values using copy_from
     if values_data:
         csv_data = '\n'.join([f"{row[0]},{row[1]},{row[2]}" for row in values_data])
         f = StringIO(csv_data)
@@ -293,9 +292,17 @@ def import_carbon_intensity_metrics(run_id, static_value=None):
         )
         f.close()
 
-    print(f"Imported {len(values_data)} dynamic carbon intensity data points for run {run_id}")
+    print(f"Imported {len(values_data)} {metric_type} carbon intensity data points for run {run_id}")
 
-    return mean_runtime_value
+    return avg_carbon_intensity_during_runtime
+
+def import_static_carbon_intensity_metrics(run_id, static_value):
+    if static_value is None:
+        raise ValueError('Parameter "static_value" is missing!')
+    return _import_carbon_intensity_metrics(run_id, static_value)
+
+def import_dynamic_carbon_intensity_metrics(run_id):
+    return _import_carbon_intensity_metrics(run_id)
 
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"
