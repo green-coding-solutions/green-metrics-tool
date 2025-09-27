@@ -98,14 +98,14 @@ def _bulk_insert_measurement_values(measurement_metric_id, value_timestamp_pairs
     if len(value_timestamp_pairs) <= 10:
         values_to_insert = []
         for value, timestamp in value_timestamp_pairs:
-            values_to_insert.extend([measurement_metric_id, int(value), timestamp])
+            values_to_insert.extend([measurement_metric_id, round(value), timestamp])
 
         placeholders = ', '.join(['(%s, %s, %s)'] * len(value_timestamp_pairs))
         query = f"INSERT INTO measurement_values (measurement_metric_id, value, time) VALUES {placeholders}"
         DB().query(query, tuple(values_to_insert))
     # For larger datasets, use COPY FROM for better performance
     else:
-        values_data = [(measurement_metric_id, int(value), timestamp)
+        values_data = [(measurement_metric_id, round(value), timestamp)
                       for value, timestamp in value_timestamp_pairs]
         csv_data = '\n'.join([f"{row[0]},{row[1]},{row[2]}" for row in values_data])
         f = StringIO(csv_data)
@@ -130,13 +130,11 @@ def store_static_carbon_intensity(run_id, static_value):
         run_id, metric_name, detail_name, unit, sampling_rate
     )
 
-    carbon_intensity_value = int(float(static_value))
-
     # Calculate base timestamps, for which we definitely need a value:
     # start/end of run + middle of each phase
     timestamps = _get_base_timestamps(phases, start_time_us, end_time_us)
 
-    value_timestamp_pairs = [(carbon_intensity_value, timestamp) for timestamp in timestamps]
+    value_timestamp_pairs = [(static_value, timestamp) for timestamp in timestamps]
 
     _bulk_insert_measurement_values(measurement_metric_id, value_timestamp_pairs)
 

@@ -190,7 +190,7 @@ class TestStoreCarbonIntensityAsMetrics:
     def test_store_carbon_intensity_static_value(self):
         # Test that static carbon intensity is stored correctly at the relevant time points
         run_id = Tests.insert_run()
-        static_carbon_intensity = 250.5
+        static_carbon_intensity = 250.6
 
         store_static_carbon_intensity(run_id, static_carbon_intensity)
 
@@ -224,7 +224,7 @@ class TestStoreCarbonIntensityAsMetrics:
 
         assert len(values_result) == 8  # 5 phases + 1 flow + start of run + end of run
         for result in values_result:
-            assert result[0] == 250 # 250.5 is converted to integer
+            assert result[0] == 251 # 250.6 is rounded up
 
     def test_store_carbon_intensity_dynamic_grid_enabled(self):
         # Test that dynamic grid carbon intensity is stored when enabled in measurement config
