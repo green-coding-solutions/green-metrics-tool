@@ -38,7 +38,24 @@ class CarbonIntensityClient:
         }
 
         response = requests.get(url, params=params, timeout=30)
-        response.raise_for_status()
+
+        if not response.ok:
+            error_detail = "No additional error details available"
+            try:
+                error_json = response.json()
+                if isinstance(error_json, dict) and 'detail' in error_json:
+                    error_detail = error_json['detail']
+                elif isinstance(error_json, dict):
+                    error_detail = str(error_json)
+                else:
+                    error_detail = str(error_json)
+            except (ValueError, KeyError):
+                error_detail = response.text if response.text else "No response body"
+
+            raise requests.HTTPError(
+                f"Carbon intensity API request failed with status {response.status_code}. "
+                f"Error details: {error_detail}"
+            )
 
         data = response.json()
 
