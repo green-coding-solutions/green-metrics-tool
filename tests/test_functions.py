@@ -241,13 +241,13 @@ def import_demo_data_ee():
 
 def _import_carbon_intensity_metrics(run_id, static_value=None):
     if static_value is not None:
-        metric_name = 'grid_carbon_intensity_static'
+        metric_name = 'grid_carbon_intensity_config_location'
         sampling_rate_configured = 0
         carbon_intensity_values = [static_value] * len(PHASE_TIMESTAMPS)
         metric_type = 'static'
         avg_carbon_intensity_during_runtime = static_value
     else:
-        metric_name = 'grid_carbon_intensity_dynamic'
+        metric_name = 'grid_carbon_intensity_api_location'
         sampling_rate_configured = 60000000  # 1 minute in milliseconds
         carbon_intensity_values = [
             180,  # 180.0 gCO2e/kWh (baseline - low demand)

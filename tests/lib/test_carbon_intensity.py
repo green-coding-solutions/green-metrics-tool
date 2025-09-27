@@ -201,7 +201,7 @@ class TestStoreCarbonIntensityAsMetrics:
         )
 
         assert metric_result is not None
-        assert metric_result[0] == 'grid_carbon_intensity_static'
+        assert metric_result[0] == 'grid_carbon_intensity_config_location'
         assert metric_result[1] == '[CONFIG]'
         assert metric_result[2] == 'gCO2e/kWh'
 
@@ -210,7 +210,7 @@ class TestStoreCarbonIntensityAsMetrics:
             """SELECT mv.value
                FROM measurement_values mv
                JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
-               WHERE mm.run_id = %s AND mm.metric = 'grid_carbon_intensity_static'""",
+               WHERE mm.run_id = %s AND mm.metric = 'grid_carbon_intensity_config_location'""",
             (run_id,)
         )
 
@@ -252,7 +252,7 @@ class TestStoreCarbonIntensityAsMetrics:
         )
 
         assert metric_result is not None
-        assert metric_result[0] == 'grid_carbon_intensity_dynamic'
+        assert metric_result[0] == 'grid_carbon_intensity_api_location'
         assert metric_result[1] == 'DE'
         assert metric_result[2] == 'gCO2e/kWh'
 
@@ -261,7 +261,7 @@ class TestStoreCarbonIntensityAsMetrics:
             """SELECT mv.value, mv.time
                FROM measurement_values mv
                JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
-               WHERE mm.run_id = %s AND mm.metric = 'grid_carbon_intensity_dynamic'
+               WHERE mm.run_id = %s AND mm.metric = 'grid_carbon_intensity_api_location'
                ORDER BY mv.time""",
             (run_id,)
         )
@@ -294,7 +294,7 @@ class TestStoreCarbonIntensityAsMetrics:
         )
 
         assert metric_result is not None
-        assert metric_result[0] == 'grid_carbon_intensity_dynamic'
+        assert metric_result[0] == 'grid_carbon_intensity_api_location'
         assert metric_result[1] == 'DE'
         assert metric_result[2] == 'gCO2e/kWh'
 
@@ -303,7 +303,7 @@ class TestStoreCarbonIntensityAsMetrics:
             """SELECT mv.value, mv.time
                FROM measurement_values mv
                JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
-               WHERE mm.run_id = %s AND mm.metric = 'grid_carbon_intensity_dynamic'
+               WHERE mm.run_id = %s AND mm.metric = 'grid_carbon_intensity_api_location'
                ORDER BY mv.time""",
             (run_id,)
         )
@@ -338,14 +338,14 @@ class TestStoreCarbonIntensityAsMetrics:
         )
 
         assert metric_result is not None
-        assert metric_result[0] == 'grid_carbon_intensity_dynamic'
+        assert metric_result[0] == 'grid_carbon_intensity_api_location'
 
         # Verify that measurement values were stored using extrapolation
         values_result = DB().fetch_all(
             """SELECT mv.value, mv.time
                FROM measurement_values mv
                JOIN measurement_metrics mm ON mv.measurement_metric_id = mm.id
-               WHERE mm.run_id = %s AND mm.metric = 'grid_carbon_intensity_dynamic'
+               WHERE mm.run_id = %s AND mm.metric = 'grid_carbon_intensity_api_location'
                ORDER BY mv.time""",
             (run_id,)
         )

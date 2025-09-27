@@ -384,7 +384,7 @@ def test_phase_stats_dynamic_grid_carbon_intensity():
     data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
 
     assert len(data) == 2
-    assert data[1]['metric'] == 'grid_carbon_intensity_dynamic'
+    assert data[1]['metric'] == 'grid_carbon_intensity_api_location'
     assert data[1]['detail_name'] == 'DE'
     assert data[1]['unit'] == 'gCO2e/kWh'
     assert data[1]['value'] == 270

@@ -121,7 +121,7 @@ def _bulk_insert_measurement_values(measurement_metric_id, value_timestamp_pairs
 def store_static_carbon_intensity(run_id, static_value):
     phases, start_time_us, end_time_us = _get_run_data_and_phases(run_id)
 
-    metric_name = 'grid_carbon_intensity_static'
+    metric_name = 'grid_carbon_intensity_config_location'
     detail_name = '[CONFIG]'
     unit = 'gCO2e/kWh'
     sampling_rate = 0  # Static value has no sampling rate
@@ -160,7 +160,7 @@ def store_dynamic_carbon_intensity(run_id, location):
     print(f"Retrieved {len(carbon_intensity_data)} API data points for {location}: "
             f"range {min(values):.1f}-{max(values):.1f} gCO2e/kWh")
 
-    metric_name = 'grid_carbon_intensity_dynamic'
+    metric_name = 'grid_carbon_intensity_api_location'
     detail_name = location
     unit = 'gCO2e/kWh'
     sampling_rate = _calculate_sampling_rate_from_data(carbon_intensity_data)
