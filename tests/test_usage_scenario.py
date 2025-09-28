@@ -747,7 +747,7 @@ def test_invalid_container_name():
         runner.run()
 
     exc_str = str(e.value)
-    assert exc_str.startswith("Command 'Docker run")
+    assert exc_str.startswith("Command '['docker', 'run', '-it', '-d', '--name', 'highload-api-:cont'")
     assert exc_str.endswith('returned non-zero exit status 125.')
 
     assert e.value.stderr == "docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed\n\nRun 'docker run --help' for more information\n"
@@ -761,7 +761,7 @@ def test_invalid_container_name_2():
         runner.run()
 
     exc_str = str(e.value)
-    assert exc_str.startswith("Command 'Docker run")
+    assert exc_str.startswith("Command: '['docker', 'run', '-it', '-d', '--name', 'highload-api-:cont'")
     assert exc_str.endswith('returned non-zero exit status 125.')
 
     assert e.value.stderr == "docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed\n\nRun 'docker run --help' for more information\n"

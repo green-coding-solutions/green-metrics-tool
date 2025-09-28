@@ -1390,7 +1390,7 @@ class ScenarioRunner:
             if ps.returncode != 0:
                 raise subprocess.CalledProcessError(
                             ps.returncode,
-                            f"Docker run ({docker_run_string}) failed",
+                            docker_run_string,
                             output=ps.stdout,
                             stderr=ps.stderr
                         )
