@@ -16,6 +16,16 @@ from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtiliz
 
 from unittest.mock import patch
 
+
+def test_check_unique_time_values():
+    obj = CpuUtilizationCgroupContainerProvider(100, skip_check=True)
+    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_cgroup_container_non_unique.log')
+    with pytest.raises(ValueError) as e:
+        obj.read_metrics()
+    assert str(e.value) == "Metric provider cpu_utilization_cgroup_container did contain non unique timestamps for measurement values. This is not allowed and indicates an error with the clock."
+
+
+
 def test_time_monotonic():
     obj = NetworkIoProcfsSystemProvider(1000, remove_virtual_interfaces=False, skip_check=True)
     obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/network_io_procfs_system_short.log')

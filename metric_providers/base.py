@@ -97,7 +97,7 @@ class BaseMetricProvider:
         return self._has_started
 
     def _check_monotonic(self, df):
-        if not df['time'].is_monotonic_increasing:
+        if not df['time'].is_monotonic_increasing: # this is not strict. Means we still can have duplicates which is checked later
             raise ValueError(f"Time from metric provider {self._metric_name} is not monotonic increasing")
 
     def _check_resolution_underflow(self, df):
@@ -159,22 +159,27 @@ class BaseMetricProvider:
         df['sampling_rate_configured'] = self._sampling_rate
         return df
 
+    def _check_unique(self, df):
+        if not (df.groupby("detail_name")["time"].transform('nunique') == df.groupby("detail_name")["time"].transform("size")).all():
+            raise ValueError(f"Metric provider {self._metric_name} did contain non unique timestamps for measurement values. This is not allowed and indicates an error with the clock.")
+
     @final
     def read_metrics(self): # should not be overriden
 
         df = self._read_metrics() # is not always returning a data frame, but can in rare cases also return a list if no actual numeric measurements are captured
 
-        self._check_empty(df)
+        self._check_empty(df) # initial check bc it is cheap
 
         self._check_monotonic(df) # check must be made before data frame is potentially sorted in _parse_metrics
         self._check_resolution_underflow(df)
 
-        df = self._parse_metrics(df)
+        df = self._parse_metrics(df) # can return DataFrame or [] when metrics are expanded
 
         def process_df(df):
             df = self._add_auxiliary_fields(df)
             df = self._add_and_validate_sampling_rate_and_jitter(df)
-            self._check_empty(df)
+            self._check_unique(df)
+            self._check_empty(df) # final check bc _parse_metrics could have altered the dataframe
             return df
 
         return process_df(df) if not isinstance(df, list) else [process_df(dfi) for dfi in df]
