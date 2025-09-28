@@ -9,8 +9,8 @@ on:
         description: 'Enable SSH connection for debugging purposes'
         required: false
         type: boolean
-      tests-command:
-        description: 'Custom pytest command to run the tests'
+      test-path:
+        description: 'Specific test path to run'
         required: false
         type: string
 
@@ -55,7 +55,7 @@ jobs:
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
          enable-ssh: ${{ inputs.enable-ssh }}
-         tests-command: ${{ inputs.tests-command }}
+         test-path: ${{ inputs.test-path }}
 
       - name: Eco CI Energy Estimation - Get Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@main
