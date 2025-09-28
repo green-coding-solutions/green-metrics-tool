@@ -24,6 +24,10 @@ inputs:
     description: 'Sets the branch to checkout for the ee repo'
     required: false
     default: ''
+  enable-ssh:
+    description: 'Enable SSH connection for debugging purposes'
+    required: false
+    default: 'false'
 
 
 runs:
@@ -105,8 +109,12 @@ runs:
       run: |
         source ../venv/bin/activate && ./start-test-containers.sh -d
 
-    # - name: Setup upterm session
-    #   uses: lhotari/action-upterm@v1
+    # for debugging purposes you can setup a ssh connection by setting 'inputs.enable-ssh' to true
+    - name: Setup upterm session
+      if: ${{ inputs.enable-ssh == 'true' }}
+      uses: owenthereal/action-upterm@v1
+      with:
+        limit-access-to-actor: true # Restrict to the user who triggered the workflow
 
     - name: Disable swap
       shell: bash
