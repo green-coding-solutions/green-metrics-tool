@@ -520,7 +520,7 @@ def test_docker_pull_nonexistent_image_non_interactive_fails():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_nonexistent.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
-    with pytest.raises(OSError) as e:
+    with pytest.raises(subprocess.CalledProcessError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
