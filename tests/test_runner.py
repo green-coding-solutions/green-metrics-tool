@@ -538,11 +538,6 @@ def can_emulate_arm64_images():
     return container_compatibility.get_platform_compatibility_status('linux/arm64') == container_compatibility.CompatibilityStatus.EMULATED
 
 def _print_architecture_debug_info(target_platform):
-    """Print debug information for architecture compatibility testing in GitHub Actions.
-
-    Args:
-        target_platform: The platform being tested (e.g., 'linux/arm64', 'linux/amd64')
-    """
     print("\n=== DEBUG: CI Environment Detected ===")
 
     # Debug: Docker buildx inspect
@@ -617,6 +612,7 @@ def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
+    # Add debug outputs in CI pipeline to investigate https://github.com/green-coding-solutions/green-metrics-tool/issues/1360
     if os.getenv('GITHUB_ACTIONS'):
         _print_architecture_debug_info('linux/arm64')
 
@@ -636,6 +632,7 @@ def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
+    # Add debug outputs in CI pipeline to investigate https://github.com/green-coding-solutions/green-metrics-tool/issues/1360
     if os.getenv('GITHUB_ACTIONS'):
         _print_architecture_debug_info('linux/amd64')
 
