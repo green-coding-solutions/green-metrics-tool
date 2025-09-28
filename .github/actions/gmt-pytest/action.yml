@@ -10,7 +10,7 @@ inputs:
     required: false
     default: '.'
   tests-command:
-    description: 'Base pytest command'
+    description: 'The command to run the tests'
     required: false
     default: 'pytest -vv --durations=0'
   test-path:

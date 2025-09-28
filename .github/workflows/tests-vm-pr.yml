@@ -42,7 +42,7 @@ jobs:
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
          enable-ssh: ${{ inputs.enable-ssh }}
-         test-path: ${{ inputs.test-path || 'test_runner.py::test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails_github_actions' }} # run only one test for debugging purposes
+         test-path: ${{ inputs.test-path }}
 
       - name: Eco CI Energy Estimation - Get Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@main
