@@ -16,7 +16,7 @@ inputs:
   test-path:
     description: 'Specific test path to run'
     required: false
-    default: 'test_runner.py::test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails_github_actions' # Only for debugging
+    default: ''
   github-token:
     description: 'pass in your secrets.GITHUB_TOKEN'
     required: true
