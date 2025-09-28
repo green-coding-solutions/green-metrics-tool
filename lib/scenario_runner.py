@@ -818,17 +818,7 @@ class ScenarioRunner:
                     ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
                 if ps.returncode != 0:
-                    self._add_to_current_run_log(
-                        container_name=service['image'],
-                        log_type=LogType.EXCEPTION,
-                        log_id=-1,
-                        cmd=docker_build_command,
-                        phase='UNKNOWN',
-                        stdout=ps.stdout,
-                        stderr=ps.stderr,
-                        flow=None
-                    )
-                    raise OSError(f"Docker build failed\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                    raise subprocess.CalledProcessError(ps.returncode, 'Docker build failed', output=ps.stdout, stderr=ps.stderr)
 
                 # import the docker image locally
                 image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{tmp_img_name}.tar"]
@@ -836,40 +826,54 @@ class ScenarioRunner:
                 ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0 or ps.stderr != "":
-                    raise OSError(f"Docker image import failed\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                    raise subprocess.CalledProcessError(ps.returncode, 'Docker image import failed', output=ps.stdout, stderr=ps.stderr)
 
             else:
                 print(f"Pulling {service['image']}")
                 self.__notes_helper.add_note( note=f"Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
-                ps = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+                ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
-                if ps.returncode != 0:
-                    print(f"Error: {ps.stderr} \n {ps.stdout}")
+                if ps_pull.returncode != 0:
+                    print(f"Error: {ps_pull.stderr} \n {ps_pull.stdout}")
 
                     # Check if it's an architecture mismatch error
-                    stderr_lower = ps.stderr.lower()
+                    stderr_lower = ps_pull.stderr.lower()
                     if "no matching manifest" in stderr_lower:
                         # This is definitely an architecture mismatch - create appropriate error
                         host_arch = container_compatibility.get_native_architecture()
                         raise RuntimeError(f"Architecture incompatibility detected: Docker image '{service['image']}' is not available for host architecture '{host_arch}'")
 
                     # Handle other Docker pull failures
-                    if sys.stdin.isatty():
-                        print(TerminalColors.OKCYAN, '\nThe docker image could not be pulled. Since you are working locally we can try looking in your local images. Do you want that? (y/N).', TerminalColors.ENDC)
-                        if sys.stdin.readline().strip().lower() == 'y':
-                            try:
-                                subprocess.run(['docker', 'inspect', '--type=image', service['image']],
-                                                         stdout=subprocess.PIPE,
-                                                         stderr=subprocess.PIPE,
-                                                         encoding='UTF-8',
-                                                         check=True)
-                                print('Docker image found locally. Tagging now for use in cached runs ...')
-                            except subprocess.CalledProcessError as e:
-                                raise OSError(f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}") from e
-                        else:
-                            raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
-                    else:
-                        raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
+                    if not sys.stdin.isatty():
+                        raise subprocess.CalledProcessError(
+                            ps_pull.returncode,
+                            f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}",
+                            output=ps_pull.stdout,
+                            stderr=ps_pull.stderr
+                        )
+                    print(TerminalColors.OKCYAN, '\nThe docker image could not be pulled. Since you are working locally we can try looking in your local images. Do you want that? (y/N).', TerminalColors.ENDC)
+                    if sys.stdin.readline().strip().lower() != 'y':
+                        raise subprocess.CalledProcessError(
+                            ps_pull.returncode,
+                            f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}",
+                            output=ps_pull.stdout,
+                            stderr=ps_pull.stderr
+                        )
+                    ps_inpsect = subprocess.run(['docker', 'inspect', '--type=image', service['image']],
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE,
+                         encoding='UTF-8',
+                         check=False)
+
+                    if ps_inpsect.returncode != 0:
+                        raise subprocess.CalledProcessError(
+                            ps_pull.returncode, # still using original ps
+                            f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}",
+                            output=ps_pull.stdout,  # still using original ps
+                            stderr=ps_pull.stderr) # still using original ps
+
+                    print('Docker image found locally. Tagging now for use in cached runs ...')
+
 
                 # tagging must be done in pull and local case, so we can get the correct container later
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
@@ -1384,7 +1388,12 @@ class ScenarioRunner:
             )
 
             if ps.returncode != 0:
-                raise OSError(f"Docker run failed\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                raise subprocess.CalledProcessError(
+                            ps.returncode,
+                            f"Docker run ({docker_run_string}) failed",
+                            output=ps.stdout,
+                            stderr=ps.stderr
+                        )
 
             container_id = ps.stdout.strip()
             self.__containers[container_id] = {
@@ -2090,7 +2099,8 @@ class ScenarioRunner:
                 log_id=id(exc),
                 cmd='post_process',
                 phase='[CLEANUP]',
-                stderr=str(exc),
+                stderr=f"{str(exc)}\n\n{exc.stderr}" if hasattr(exc, 'stderr') else str(exc),
+                stdout=exc.stdout if hasattr(exc, 'stdout') else None,
                 exception_class=exc.__class__.__name__
             )
             self._set_run_failed()
@@ -2282,7 +2292,8 @@ class ScenarioRunner:
                 log_id=id(exc),
                 cmd='run_scenario',
                 phase='[RUNTIME]',
-                stderr=str(exc),
+                stderr=f"{str(exc)}\n\n{exc.stderr}" if hasattr(exc, 'stderr') else str(exc),
+                stdout=exc.stdout if hasattr(exc, 'stdout') else None,
                 exception_class=exc.__class__.__name__
             )
             self._set_run_failed()

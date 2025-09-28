@@ -217,7 +217,7 @@ if __name__ == '__main__':
     except FileNotFoundError as e:
         error_helpers.log_error('File or executable not found', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Command failed', stdout=e.stdout, stderr=e.stderr, exception_context=e.__context__, run_id=runner._run_id if runner else None)
+        error_helpers.log_error(str(e), stdout=e.stdout, stderr=e.stderr, exception_context=e.__context__, run_id=runner._run_id if runner else None)
     except RuntimeError as e:
         error_helpers.log_error('RuntimeError occured in runner.py', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
     except BaseException as e:
