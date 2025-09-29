@@ -59,6 +59,30 @@
                 </ul>
             </div>
         </div>
+
+        <div class="ui icon yellow message cluster-health-message" style="display: none;"> <!-- style must be inline to override fomantic -->
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">
+                    Cluster Status
+                </div>
+                <div id="cluster-health-warnings"></div>
+            </div>
+        </div>
+        <div class="ui icon success message cluster-health-message" style="display: none;">  <!-- style must be inline to override fomantic -->
+            <i class="check circle icon"></i>
+            <div class="content">
+                <div class="header">
+                    Cluster Status
+                </div>
+                <p>All systems operating normally</p>
+            </div>
+        </div>
+        <a href="/cluster-status-history.html" class="cluster-health-link">See Status History <i class="clock icon"></i></a>
+        <a href="/cluster-changelog.html" class="cluster-health-link">See Cluster Changelog <i class="edit icon"></i></a>
+
+        <div style="clear: both;"></div>
+
         <div class="ui segment full-width-card card">
             <div class="content">
                 <div class="header">Submit software for measurement</div>
