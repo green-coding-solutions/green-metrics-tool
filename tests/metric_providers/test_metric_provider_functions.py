@@ -22,7 +22,7 @@ def test_check_unique_time_values():
     obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_cgroup_container_non_unique.log')
     with pytest.raises(ValueError) as e:
         obj.read_metrics()
-    assert str(e.value) == "Metric provider cpu_utilization_cgroup_container did contain non unique timestamps for measurement values. This is not allowed and indicates an error with the clock."
+    assert str(e.value) == 'Metric provider cpu_utilization_cgroup_container did contain non unique timestamps for measurement values. This is not allowed and indicates an error with the clock.'
 
 
 
@@ -38,7 +38,7 @@ def test_time_non_monotonic():
     with pytest.raises(ValueError) as e:
         obj.read_metrics()
 
-    assert str(e.value) == "Time from metric provider network_io_procfs_system is not monotonic increasing"
+    assert str(e.value) == 'Time from metric provider network_io_procfs_system is not monotonic increasing'
 
 def test_value_resolution_ok():
     obj = CpuEnergyRaplMsrComponentProvider(1000, skip_check=True)
@@ -51,7 +51,7 @@ def test_value_resolution_underflow():
 
     with pytest.raises(ValueError) as e:
         obj.read_metrics()
-    assert str(e.value) == "Data from metric provider cpu_energy_rapl_msr_component is running into a resolution underflow. Values are <= 1 uJ"
+    assert str(e.value) == 'Data from metric provider cpu_energy_rapl_msr_component is running into a resolution underflow. Values are <= 1 uJ'
 
 def test_tcpdump_linux():
     obj = NetworkConnectionsTcpdumpSystemProvider(1000, skip_check=True)
@@ -189,7 +189,7 @@ def test_cloud_energy():
 
 def test_cgroup_system():
     with patch('lib.utils.find_own_cgroup_name') as find_own_cgroup_name:
-        find_own_cgroup_name.return_value = "session-2.scope"
+        find_own_cgroup_name.return_value = 'session-2.scope'
         obj = CpuUtilizationCgroupSystemProvider(100, skip_check=True)
 
     obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_cgroup_system.log')
