@@ -160,7 +160,7 @@ class BaseMetricProvider:
         return df
 
     def _check_unique(self, df):
-        if not (df.groupby("detail_name")["time"].transform('nunique') == df.groupby("detail_name")["time"].transform("size")).all():
+        if not (df.groupby(['metric', 'detail_name'])['time'].transform('nunique') == df.groupby(['metric', 'detail_name'])['time'].transform('size')).all():
             raise ValueError(f"Metric provider {self._metric_name} did contain non unique timestamps for measurement values. This is not allowed and indicates an error with the clock.")
 
     @final
