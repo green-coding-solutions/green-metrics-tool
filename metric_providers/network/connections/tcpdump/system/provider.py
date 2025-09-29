@@ -31,6 +31,9 @@ class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
     def _parse_metrics(self, df):
         return parse_tcpdump(df, split_ports=self.split_ports)
 
+    def _check_unique(self, df):
+        pass # noop. Just for overwriting. Empty data is ok for this reporter
+
     def _check_empty(self, df):
         pass # noop. Just for overwriting. Empty data is ok for this reporter
 
