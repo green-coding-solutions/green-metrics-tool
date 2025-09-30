@@ -1,5 +1,5 @@
 PyYAML==6.0.3
-pandas==2.3.2
+pandas==2.3.3
 psycopg[binary]==3.2.10
 psycopg_pool==3.2.6
 pyserial==3.5
