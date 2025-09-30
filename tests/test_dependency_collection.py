@@ -11,8 +11,8 @@ GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__
 
 class TestDependencyCollection:
 
-    def test_execute_dependency_resolver_for_container_success(self):
-        """Test successful dependency resolver execution for a single container"""
+    def test_execute_dependency_resolving_for_container_success(self):
+        """Test successful energy-dependency-inspector execution for a single container"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
             uri_type='folder',
@@ -23,7 +23,7 @@ class TestDependencyCollection:
             dev_no_save=True
         )
 
-        # Mock successful dependency resolver response
+        # Mock successful energy-dependency-inspector response
         mock_response = {
             "source": {
                 "type": "container",
@@ -36,7 +36,7 @@ class TestDependencyCollection:
         with patch('lib.scenario_runner.resolve_docker_dependencies_as_dict') as mock_resolver:
             mock_resolver.return_value = mock_response
 
-            result = runner._execute_dependency_resolver_for_container("test-container")
+            result = runner._execute_dependency_resolving_for_container("test-container")
 
             assert result[0] == "test-container"
             assert result[1] == {
@@ -52,8 +52,8 @@ class TestDependencyCollection:
                 container_identifier="test-container"
             )
 
-    def test_execute_dependency_resolver_for_container_exception(self):
-        """Test dependency resolver exception handling"""
+    def test_execute_dependency_resolving_for_container_exception(self):
+        """Test energy-dependency-inspector exception handling"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
             uri_type='folder',
@@ -67,7 +67,7 @@ class TestDependencyCollection:
         with patch('lib.scenario_runner.resolve_docker_dependencies_as_dict') as mock_resolver:
             mock_resolver.side_effect = RuntimeError("Container not found")
 
-            result = runner._execute_dependency_resolver_for_container("test-container")
+            result = runner._execute_dependency_resolving_for_container("test-container")
 
             assert result[0] == "test-container"
             assert result[1] is None
@@ -101,7 +101,7 @@ class TestDependencyCollection:
             })
         ]
 
-        with patch.object(runner, '_execute_dependency_resolver_for_container') as mock_exec:
+        with patch.object(runner, '_execute_dependency_resolving_for_container') as mock_exec:
             mock_exec.side_effect = mock_responses
 
             runner._collect_dependency_info()
@@ -144,7 +144,7 @@ class TestDependencyCollection:
             ("postgres-container", None)  # Failed
         ]
 
-        with patch.object(runner, '_execute_dependency_resolver_for_container') as mock_exec:
+        with patch.object(runner, '_execute_dependency_resolving_for_container') as mock_exec:
             mock_exec.side_effect = mock_responses
 
             # Should raise RuntimeError due to partial failure
@@ -173,8 +173,8 @@ class TestDependencyCollection:
         # Should remain None
         assert runner._ScenarioRunner__usage_scenario_dependencies is None
 
-    def test_dependency_resolver_integration_in_run_workflow(self):
-        """Test that dependency resolver is called during the run workflow"""
+    def test_energy_dependency_inspector_integration_in_run_workflow(self):
+        """Test that energy-dependency-inspector is called during the run workflow"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
             uri_type='folder',
@@ -257,7 +257,7 @@ class TestDependencyCollection:
                 runner.run()
 
     def test_integration_dependency_collection_with_real_containers(self):
-        """Integration test using real containers and dependency resolver (no mocking)"""
+        """Integration test using real containers and energy-dependency-inspector (no mocking)"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
             uri_type='folder',

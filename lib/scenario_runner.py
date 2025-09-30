@@ -23,7 +23,7 @@ from collections import OrderedDict
 from datetime import datetime
 import platform
 from concurrent.futures import ThreadPoolExecutor
-from dependency_resolver import resolve_docker_dependencies_as_dict
+from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
 GMT_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -1511,7 +1511,7 @@ class ScenarioRunner:
             DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (self._run_id, message))
 
 
-    def _execute_dependency_resolver_for_container(self, container_name):
+    def _execute_dependency_resolving_for_container(self, container_name):
         try:
             start_time = time.perf_counter()
 
@@ -1537,7 +1537,7 @@ class ScenarioRunner:
             return container_name, result if result else None
 
         except Exception as exc:  # pylint: disable=broad-exception-caught
-            print(f"Error executing dependency resolver for container {container_name}: {exc}")
+            print(f"Error executing energy-dependency-inspector for container {container_name}: {exc}")
             return container_name, None
 
     def _collect_container_dependencies(self):
@@ -1560,9 +1560,9 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nCollecting dependency information', TerminalColors.ENDC)
         container_names = [container_info['name'] for container_info in self.__containers.values()]
 
-        # Execute dependency resolver for all containers in parallel using ThreadPoolExecutor
+        # Execute energy-dependency-inspector for all containers in parallel using ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=min(len(container_names), 4)) as executor:
-            results = list(executor.map(self._execute_dependency_resolver_for_container, container_names))
+            results = list(executor.map(self._execute_dependency_resolving_for_container, container_names))
 
         # Process results - abort on any failure
         # Each result is either: (container_name, container_info), (container_name, None), or Exception
