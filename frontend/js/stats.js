@@ -959,61 +959,65 @@ function renderUsageScenarioDependencies(dependenciesData) {
     }, 0);
 }
 
+function buildSingleAccordionItem(packageManager, displayName, data) {
+    const dependencies = data.dependencies || {};
+    const dependenciesArray = Object.entries(dependencies).map(([name, pkgData]) => ({
+        name: name,
+        version: pkgData.version || 'N/A',
+        type: packageManager,
+        hash: pkgData.hash || 'N/A'
+    }));
+    const totalDeps = dependenciesArray.length;
+
+    // Build metadata content
+    let metadataContent = '';
+    if (data.scope) {
+        metadataContent += `<strong>Scope:</strong> ${escapeString(data.scope)}<br>`;
+    }
+    if (data.location) {
+        metadataContent += `<strong>Location:</strong> ${escapeString(data.location)}<br>`;
+    }
+    if (data.hash) {
+        metadataContent += `<strong>Hash:</strong> <code>${escapeString(data.hash)}</code><br>`;
+    }
+
+    const packageManagerMetadata = metadataContent ?
+        dependenciesTemplates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
+
+    let depsTable = '';
+    if (totalDeps > 0) {
+        const tableRows = buildDependencyTableRows(dependenciesArray);
+        depsTable = dependenciesTemplates.depsTable.replace('{{tableRows}}', tableRows);
+    } else {
+        depsTable = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependencies found</em>');
+    }
+
+    return dependenciesTemplates.accordionItem
+        .replace('{{scopeDisplayName}}', escapeString(displayName))
+        .replace('{{totalDeps}}', totalDeps)
+        .replace('{{scopeMetadata}}', packageManagerMetadata)
+        .replace('{{depsTable}}', depsTable);
+}
+
 function buildPackageManagerAccordionItems(packageManagers, containerData) {
     let accordionItems = '';
 
     packageManagers.forEach(packageManager => {
         const packageManagerData = containerData[packageManager];
-        const dependencies = packageManagerData.dependencies || {};
-        const dependenciesArray = Object.entries(dependencies).map(([name, data]) => ({
-            name: name,
-            version: data.version || 'N/A',
-            type: packageManager,
-            hash: data.hash || 'N/A'
-        }));
-        const totalDeps = dependenciesArray.length;
 
-        const packageManagerDisplayName = packageManager;
-
-        // Build metadata content
-        let metadataContent = '';
-        if (packageManagerData.scope) {
-            metadataContent += `<strong>Scope:</strong> ${escapeString(packageManagerData.scope)}<br>`;
-        }
-        if (packageManagerData.location) {
-            metadataContent += `<strong>Location:</strong> ${escapeString(packageManagerData.location)}<br>`;
-        }
-        if (packageManagerData.hash) {
-            metadataContent += `<strong>Hash:</strong> <code>${escapeString(packageManagerData.hash)}</code><br>`;
-        }
-        // Add any other metadata from the package manager data
-        Object.keys(packageManagerData).forEach(key => {
-            if (key !== 'scope' && key !== 'dependencies' && key !== 'hash' && key !== 'location') {
-                const value = packageManagerData[key];
-                if (typeof value === 'string') {
-                    metadataContent += `<strong>${escapeString(key.charAt(0).toUpperCase() + key.slice(1))}:</strong> ${escapeString(value)}<br>`;
-                }
+        // Check if this is a mixed-scope with multiple locations
+        if (packageManagerData.locations) {
+            // Handle mixed-scope with multiple locations
+            for (const [location, locationData] of Object.entries(packageManagerData.locations)) {
+                const scope = locationData.scope || 'unknown';
+                const displayName = `${packageManager} (${scope})`;
+                const dataWithLocation = { ...locationData, location: location };
+                accordionItems += buildSingleAccordionItem(packageManager, displayName, dataWithLocation);
             }
-        });
-
-        const packageManagerMetadata = metadataContent ?
-            dependenciesTemplates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
-
-        let depsTable = '';
-        if (totalDeps > 0) {
-            const tableRows = buildDependencyTableRows(dependenciesArray);
-            depsTable = dependenciesTemplates.depsTable.replace('{{tableRows}}', tableRows);
         } else {
-            depsTable = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependencies found for this package manager</em>');
+            // Handle system or project scope with direct dependencies
+            accordionItems += buildSingleAccordionItem(packageManager, packageManager, packageManagerData);
         }
-
-        const accordionItem = dependenciesTemplates.accordionItem
-            .replace('{{scopeDisplayName}}', escapeString(packageManagerDisplayName))
-            .replace('{{totalDeps}}', totalDeps)
-            .replace('{{scopeMetadata}}', packageManagerMetadata)
-            .replace('{{depsTable}}', depsTable);
-
-        accordionItems += accordionItem;
     });
 
     return accordionItems;

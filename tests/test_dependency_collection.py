@@ -307,12 +307,30 @@ class TestDependencyCollection:
                     # Built containers should have project and system sections with packages
                     assert 'pip' in container_data, f"Missing 'pip' packages for container {container_name}"
 
-                    project_packages = container_data.get('pip', {}).get('dependencies', [])
-                    system_packages = container_data.get('dpkg', {}).get('packages', [])
-                    total_packages = len(project_packages) + len(system_packages)
+                    # Count pip packages (handle both direct dependencies and locations)
+                    pip_data = container_data.get('pip', {})
+                    if 'dependencies' in pip_data:
+                        project_packages_count = len(pip_data['dependencies'])
+                    elif 'locations' in pip_data:
+                        # Handle mixed-scope with multiple locations
+                        project_packages_count = sum(
+                            len(loc.get('dependencies', {}))
+                            for loc in pip_data['locations'].values()
+                        )
+                    else:
+                        project_packages_count = 0
+
+                    # Count dpkg packages
+                    dpkg_data = container_data.get('dpkg', {})
+                    if 'dependencies' in dpkg_data:
+                        system_packages_count = len(dpkg_data['dependencies'])
+                    else:
+                        system_packages_count = 0
+
+                    total_packages = project_packages_count + system_packages_count
 
                     assert total_packages > 0, f"Built container {container_name} should have some packages"
-                    print(f"✓ Built container {container_name} has {len(project_packages)} project packages and {len(system_packages)} system packages")
+                    print(f"✓ Built container {container_name} has {project_packages_count} project packages and {system_packages_count} system packages")
                 else:
                     print(f"✓ Pre-built container {container_name} has container info")
 

@@ -1525,8 +1525,14 @@ class ScenarioRunner:
             total_packages = 0
             if result:
                 for key, value in result.items():
-                    if key != 'source' and isinstance(value, dict) and 'dependencies' in value:
-                        total_packages += len(value['dependencies'])
+                    if key != 'source' and isinstance(value, dict):
+                        if 'dependencies' in value:
+                            total_packages += len(value['dependencies'])
+                        elif 'locations' in value:
+                            # Handle mixed-scope with multiple locations (e.g., pip)
+                            for location_data in value['locations'].values():
+                                if 'dependencies' in location_data:
+                                    total_packages += len(location_data['dependencies'])
 
             print(f"Dependency resolution for container '{container_name}' found {total_packages} packages in {duration:.2f} s")
 
