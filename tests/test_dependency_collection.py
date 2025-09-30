@@ -256,7 +256,88 @@ class TestDependencyCollection:
             with pytest.raises(RuntimeError, match="Dependency resolution failed"):
                 runner.run()
 
-    def test_integration_dependency_collection_with_real_containers(self):
+    def test_integration_dependency_collection_with_real_container(self):
+        """Integration test using a real container and energy-dependency-inspector (no mocking)"""
+        runner = ScenarioRunner(
+            uri=GMT_DIR,
+            uri_type='folder',
+            filename='tests/data/usage_scenarios/dependency_collection.yml',
+            skip_unsafe=True,
+            skip_system_checks=True,
+            dev_cache_build=True,
+            dev_no_sleeps=True,
+            dev_no_metrics=True,
+            dev_no_phase_stats=True,
+            dev_no_optimizations=True
+        )
+
+        run_id = runner.run()
+        assert run_id is not None
+
+        dependencies = runner._ScenarioRunner__usage_scenario_dependencies
+        assert dependencies is not None
+        assert isinstance(dependencies, dict)
+
+        assert len(dependencies) >= 1
+
+        container_names = set(dependencies.keys())
+
+        assert any('test-container' in name for name in container_names), f"No test-container found in: {container_names}"
+
+        # Verify each dependency has required fields and correct structure
+        for container_name, container_data in dependencies.items():
+            assert 'source' in container_data, f"Missing 'source' for container {container_name}"
+
+            source_info = container_data['source']
+            assert 'image' in source_info, f"Missing 'image' for container {container_name}"
+            assert 'hash' in source_info, f"Missing 'hash' for container {container_name}"
+            assert source_info['image'] is not None, f"Image is None for container {container_name}"
+            assert source_info['hash'] is not None, f"Hash is None for container {container_name}"
+            assert source_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {container_name}"
+
+            assert 'pip' in container_data, f"Missing 'pip' packages for container {container_name}"
+            assert 'dpkg' in container_data, f"Missing 'dpkg' packages for container {container_name}"
+
+            pip_data = container_data['pip']
+            dpkg_data = container_data['dpkg']
+
+            # Check for playwright in pip packages (system scope)
+            playwright_found = False
+            if 'locations' in pip_data:
+                for location_data in pip_data['locations'].values():
+                    if 'playwright' in location_data.get('dependencies', {}):
+                        playwright_found = True
+                        break
+            assert playwright_found, f"playwright not found in pip packages for {container_name}"
+
+            # Check for psutils in pip packages (project scope)
+            psutils_found = False
+            if 'locations' in pip_data:
+                for location_data in pip_data['locations'].values():
+                    if 'psutils' in location_data.get('dependencies', {}):
+                        psutils_found = True
+                        break
+            assert psutils_found, f"psutils not found in pip packages for {container_name}"
+
+            # Check for apt in dpkg packages
+            assert 'apt' in dpkg_data.get('dependencies', {}), f"apt not found in dpkg packages for {container_name}"
+
+        # Verify image name
+        images = [data['source']['image'] for data in dependencies.values()]
+        assert any('greencoding' in image or 'playwright' in image for image in images), f"gcb_playwright image not found in images: {images}"
+
+        # Verify dependencies were stored in database
+        result = DB().fetch_one(
+            "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
+            (run_id,)
+        )
+        assert result is not None
+        assert result[0] is not None
+        stored_dependencies = result[0]
+        print(stored_dependencies)
+        assert stored_dependencies == dependencies, "Stored dependencies don't match collected dependencies"
+
+    def test_integration_dependency_collection_with_real_web_application(self):
         """Integration test using real containers and energy-dependency-inspector (no mocking)"""
         runner = ScenarioRunner(
             uri=GMT_DIR,
@@ -271,88 +352,75 @@ class TestDependencyCollection:
             dev_no_optimizations=True
         )
 
-        try:
-            run_id = runner.run()
-            assert run_id is not None
+        run_id = runner.run()
+        assert run_id is not None
 
-            # Verify dependencies were collected successfully
-            dependencies = runner._ScenarioRunner__usage_scenario_dependencies
-            assert dependencies is not None
-            assert isinstance(dependencies, dict)
+        dependencies = runner._ScenarioRunner__usage_scenario_dependencies
+        assert dependencies is not None
+        assert isinstance(dependencies, dict)
 
-            # Should have dependencies for both containers in docker-compose
-            assert len(dependencies) >= 2
+        assert len(dependencies) >= 2
 
-            # Verify we have the expected containers
-            container_names = set(dependencies.keys())
+        container_names = set(dependencies.keys())
 
-            # Check that we have some expected containers (names may vary slightly)
-            assert any('web' in name for name in container_names), f"No web container found in: {container_names}"
-            assert any('db' in name for name in container_names), f"No db container found in: {container_names}"
+        assert any('web' in name for name in container_names), f"No web container found in: {container_names}"
+        assert any('db' in name for name in container_names), f"No db container found in: {container_names}"
 
-            # Verify each dependency has required fields and correct structure
-            for container_name, container_data in dependencies.items():
-                # All containers should have source section
-                assert 'source' in container_data, f"Missing 'source' for container {container_name}"
+        # Verify each dependency has required fields and correct structure
+        for container_name, container_data in dependencies.items():
+            # All containers should have source section
+            assert 'source' in container_data, f"Missing 'source' for container {container_name}"
 
-                source_info = container_data['source']
-                assert 'image' in source_info, f"Missing 'image' for container {container_name}"
-                assert 'hash' in source_info, f"Missing 'hash' for container {container_name}"
-                assert source_info['image'] is not None, f"Image is None for container {container_name}"
-                assert source_info['hash'] is not None, f"Hash is None for container {container_name}"
-                assert source_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {container_name}"
+            source_info = container_data['source']
+            assert 'image' in source_info, f"Missing 'image' for container {container_name}"
+            assert 'hash' in source_info, f"Missing 'hash' for container {container_name}"
+            assert source_info['image'] is not None, f"Image is None for container {container_name}"
+            assert source_info['hash'] is not None, f"Hash is None for container {container_name}"
+            assert source_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {container_name}"
 
-                # Check for full dependency resolution on built containers
-                if 'web' in container_name:
-                    # Built containers should have project and system sections with packages
-                    assert 'pip' in container_data, f"Missing 'pip' packages for container {container_name}"
+            # Check for full dependency resolution on built containers
+            if 'web' in container_name:
+                # Built containers should have project and system sections with packages
+                assert 'pip' in container_data, f"Missing 'pip' packages for container {container_name}"
 
-                    # Count pip packages (handle both direct dependencies and locations)
-                    pip_data = container_data.get('pip', {})
-                    if 'dependencies' in pip_data:
-                        project_packages_count = len(pip_data['dependencies'])
-                    elif 'locations' in pip_data:
-                        # Handle mixed-scope with multiple locations
-                        project_packages_count = sum(
-                            len(loc.get('dependencies', {}))
-                            for loc in pip_data['locations'].values()
-                        )
-                    else:
-                        project_packages_count = 0
-
-                    # Count dpkg packages
-                    dpkg_data = container_data.get('dpkg', {})
-                    if 'dependencies' in dpkg_data:
-                        system_packages_count = len(dpkg_data['dependencies'])
-                    else:
-                        system_packages_count = 0
-
-                    total_packages = project_packages_count + system_packages_count
-
-                    assert total_packages > 0, f"Built container {container_name} should have some packages"
-                    print(f"✓ Built container {container_name} has {project_packages_count} project packages and {system_packages_count} system packages")
+                # Count pip packages (handle both direct dependencies and locations)
+                pip_data = container_data.get('pip', {})
+                if 'dependencies' in pip_data:
+                    project_packages_count = len(pip_data['dependencies'])
+                elif 'locations' in pip_data:
+                    # Handle mixed-scope with multiple locations
+                    project_packages_count = sum(
+                        len(loc.get('dependencies', {}))
+                        for loc in pip_data['locations'].values()
+                    )
                 else:
-                    print(f"✓ Pre-built container {container_name} has container info")
+                    project_packages_count = 0
 
-            # Verify GMT-transformed images (GMT changes postgres:13 to postgres13_gmt_run_tmp:latest)
-            images = [data['source']['image'] for data in dependencies.values()]
-            assert any('postgres13_gmt_run_tmp' in image for image in images), f"postgres13_gmt_run_tmp not found in images: {images}"
-            assert any('web_gmt_run_tmp' in image for image in images), f"web_gmt_run_tmp not found in images: {images}"
+                # Count dpkg packages
+                dpkg_data = container_data.get('dpkg', {})
+                if 'dependencies' in dpkg_data:
+                    system_packages_count = len(dpkg_data['dependencies'])
+                else:
+                    system_packages_count = 0
 
-            # Verify dependencies were stored in database
-            result = DB().fetch_one(
-                "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
-                (run_id,)
-            )
-            assert result is not None
-            assert result[0] is not None
-            stored_dependencies = result[0]
-            assert stored_dependencies == dependencies, "Stored dependencies don't match collected dependencies"
+                total_packages = project_packages_count + system_packages_count
 
-        except Exception as exc:
-            # Clean up on any failure
-            try:
-                runner.cleanup()
-            except Exception:  # pylint: disable=broad-exception-caught
-                pass
-            raise exc
+                assert total_packages > 0, f"Built container {container_name} should have some packages"
+                print(f"✓ Built container {container_name} has {project_packages_count} project packages and {system_packages_count} system packages")
+            else:
+                print(f"✓ Pre-built container {container_name} has container info")
+
+        # Verify GMT-transformed images (GMT changes postgres:13 to postgres13_gmt_run_tmp:latest)
+        images = [data['source']['image'] for data in dependencies.values()]
+        assert any('postgres13_gmt_run_tmp' in image for image in images), f"postgres13_gmt_run_tmp not found in images: {images}"
+        assert any('web_gmt_run_tmp' in image for image in images), f"web_gmt_run_tmp not found in images: {images}"
+
+        # Verify dependencies were stored in database
+        result = DB().fetch_one(
+            "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
+            (run_id,)
+        )
+        assert result is not None
+        assert result[0] is not None
+        stored_dependencies = result[0]
+        assert stored_dependencies == dependencies, "Stored dependencies don't match collected dependencies"
