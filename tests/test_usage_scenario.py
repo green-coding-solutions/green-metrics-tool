@@ -848,8 +848,7 @@ def test_failed_pull_does_not_trigger_cli():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
 
-    assert 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' == str(e.value), \
-        Tests.assertion_info('Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt', str(e.value))
+    assert "Command 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' returned non-zero exit status 1." == str(e.value)
 
 def test_failed_pull_does_not_trigger_cli_with_build_on():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_image.yml', skip_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
@@ -859,8 +858,7 @@ def test_failed_pull_does_not_trigger_cli_with_build_on():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
 
-    assert 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' == str(e.value), \
-        Tests.assertion_info('Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt', str(e.value))
+    assert "Command 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' returned non-zero exit status 1." == str(e.value)
 
 def test_internal_network():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/internal_network.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
