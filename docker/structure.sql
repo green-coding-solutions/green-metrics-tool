@@ -252,6 +252,7 @@ CREATE TABLE runs (
     categories int[],
     usage_scenario json,
     usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
+    usage_scenario_dependencies jsonb,
     filename text NOT NULL,
     machine_specs jsonb,
     runner_arguments json,
