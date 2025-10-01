@@ -64,10 +64,18 @@ def send_email(receiver, subject, message_input):
 
 if __name__ == '__main__':
     import argparse
+    import os
 
     parser = argparse.ArgumentParser()
     parser.add_argument('receiver', help='Please supply a receiver email to send the email to')
+    parser.add_argument('data', help='Please supply a message or a filename')
 
     args = parser.parse_args()  # script will exit if arguments is not present
 
-    send_email(args.receiver, "My subject", "My custom message")
+    if os.path.exists(args.data):
+        with open(args.data, encoding='UTF-8') as f:
+            data = f.read()
+    else:
+        data = args.data
+
+    send_email(args.receiver, "My subject", data)
