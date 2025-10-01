@@ -164,6 +164,7 @@ class ScenarioRunner:
                 ('_save_notes_runner', {}),
                 ('_save_run_logs', {}),
                 ('_save_warnings', {}),
+                ('_process_grid_carbon_intensity', {}),
                 ('_process_phase_stats', {}),
             )
 
@@ -2154,6 +2155,34 @@ class ScenarioRunner:
             # Also patch Runtime phase separately, which we need as this will only get set after all child runtime phases
             if self.__phases.get('[RUNTIME]', None) is not None and self.__phases['[RUNTIME]'].get('end', None) is None:
                 self.__phases['[RUNTIME]']['end'] = int(time.time_ns() / 1_000)
+
+    def _process_grid_carbon_intensity(self):
+        if not self._run_id or self._dev_no_phase_stats or self._dev_no_save:
+            return
+
+        print(TerminalColors.HEADER, '\nProcess grid carbon intensity values', TerminalColors.ENDC)
+
+        config = GlobalConfig().config
+        dynamic_grid_carbon_intensity = config.get('dynamic_grid_carbon_intensity', None)
+        if dynamic_grid_carbon_intensity:
+            # Store dynamic carbon intensity from API
+            location = dynamic_grid_carbon_intensity.get('location', None)
+            if location is None:
+                raise ValueError("Dynamic grid carbon intensity is enabled, but location configuration is missing! Ensure it is set in your config.yml.")
+
+            from lib.carbon_intensity import store_dynamic_carbon_intensity # pylint: disable=import-outside-toplevel
+            store_dynamic_carbon_intensity(self._run_id, location)
+        elif self._sci['I']:
+            # Store static carbon intensity from config as constant time series
+            from lib.carbon_intensity import store_static_carbon_intensity # pylint: disable=import-outside-toplevel
+            store_static_carbon_intensity(self._run_id, self._sci['I'])
+        else:
+            raise ValueError(
+                "No grid carbon intensity configured. Cannot proceed with carbon footprint calculations. "
+                "Please configure either: (1) Static carbon intensity by setting 'sci.I' in your config, "
+                "or (2) Dynamic carbon intensity by enabling 'grid_carbon_intensity.dynamic' and setting "
+                "'grid_carbon_intensity.location'."
+            )
 
     def _process_phase_stats(self):
         if not self._run_id or self._dev_no_phase_stats or self._dev_no_metrics or self._dev_no_save:
