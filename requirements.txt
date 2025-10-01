@@ -6,6 +6,7 @@ pyserial==3.5
 psutil==7.0.0
 schema==0.7.7
 aiohttp==3.12.15
+energy-dependency-inspector==0.2.0
 
 # calibration script dep
 tqdm==4.67.1
