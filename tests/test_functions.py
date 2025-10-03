@@ -2,6 +2,7 @@ import os
 import subprocess
 import hashlib
 import json
+import pytest
 
 from lib.db import DB
 from lib.global_config import GlobalConfig
@@ -22,6 +23,10 @@ TEST_MEASUREMENT_END_TIME = 1735047660000000
 TEST_MEASUREMENT_DURATION = TEST_MEASUREMENT_END_TIME - TEST_MEASUREMENT_START_TIME
 TEST_MEASUREMENT_DURATION_S = TEST_MEASUREMENT_DURATION / 1_000_000
 TEST_MEASUREMENT_DURATION_H = TEST_MEASUREMENT_DURATION_S/60/60
+
+@pytest.fixture
+def delete_jobs_from_DB():
+    DB().query('DELETE FROM jobs')
 
 def shorten_sleep_times(duration_in_s):
     DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,pre_test_sleep}',%s,false)", params=(str(duration_in_s), ))
@@ -284,7 +289,7 @@ class RunUntilManager:
     def run_until(self, step):
         """
         Execute the runner pipeline until the specified step.
-            
+
         Note:
             This is a convenience wrapper around run_steps(stop_at=step).
             For more control and inspection capabilities, use run_steps() directly.
@@ -294,8 +299,8 @@ class RunUntilManager:
 
     def run_steps(self, stop_at=None):
         """
-        Generator that executes the runner pipeline, yielding at predefined pause points.        
-        
+        Generator that executes the runner pipeline, yielding at predefined pause points.
+
         Example:
             # Run with inspection at all pause points:
             with RunUntilManager(runner) as context:
