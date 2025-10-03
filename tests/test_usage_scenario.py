@@ -743,24 +743,28 @@ def test_invalid_container_name():
 
     out = io.StringIO()
     err = io.StringIO()
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(OSError) as e:
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(subprocess.CalledProcessError) as e:
         runner.run()
 
-    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed"
-    assert expected_exception in str(e.value), \
-        Tests.assertion_info(expected_exception, str(e.value))
+    exc_str = str(e.value)
+    assert exc_str.startswith("Command '['docker', 'run', '-it', '-d', '--name', 'highload-api-:cont'")
+    assert exc_str.endswith('returned non-zero exit status 125.')
+
+    assert e.value.stderr == "docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed\n\nRun 'docker run --help' for more information\n"
 
 def test_invalid_container_name_2():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name_2.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
 
     out = io.StringIO()
     err = io.StringIO()
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(OSError) as e:
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(subprocess.CalledProcessError) as e:
         runner.run()
 
-    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed"
-    assert expected_exception in str(e.value), \
-        Tests.assertion_info(expected_exception, str(e.value))
+    exc_str = str(e.value)
+    assert exc_str.startswith("Command '['docker', 'run', '-it', '-d', '--name', '8zhfiuw:-3tjfuehuis'")
+    assert exc_str.endswith('returned non-zero exit status 125.')
+
+    assert e.value.stderr == "docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed\n\nRun 'docker run --help' for more information\n"
 
 def test_duplicate_container_name():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/duplicate_container_name.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
@@ -844,8 +848,7 @@ def test_failed_pull_does_not_trigger_cli():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
 
-    assert 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' == str(e.value), \
-        Tests.assertion_info('Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt', str(e.value))
+    assert "Command 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' returned non-zero exit status 1." == str(e.value)
 
 def test_failed_pull_does_not_trigger_cli_with_build_on():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_image.yml', skip_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
@@ -855,8 +858,7 @@ def test_failed_pull_does_not_trigger_cli_with_build_on():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
 
-    assert 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' == str(e.value), \
-        Tests.assertion_info('Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt', str(e.value))
+    assert "Command 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' returned non-zero exit status 1." == str(e.value)
 
 def test_internal_network():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/internal_network.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)

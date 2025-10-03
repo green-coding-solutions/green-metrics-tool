@@ -89,7 +89,10 @@ VALUES (
                 "/v2/ci/measurement/add",
                 "/v1/software/add",
                 "/v1/user/settings",
-                "/v1/user/setting"
+                "/v1/user/setting",
+                "/v1/cluster/changelog",
+                "/v1/cluster/status",
+                "/v1/cluster/status/history"
             ]
         },
         "data": {
@@ -238,6 +241,10 @@ CREATE TRIGGER jobs_moddatetime
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 
+INSERT INTO "jobs"("type","state","name","email","url","branch","filename","usage_scenario_variables","categories","machine_id","message","user_id","created_at","updated_at")
+	VALUES
+	(E'run',E'FINISHED',E'This is a demo job - Please delete when you run in cluster mode',NULL,E'demo-url',E'demo-branch',E'demo-filename',E'{}',NULL,1,NULL,1,E'2025-10-03 07:57:29.829712+00',NULL);
+
 CREATE TABLE runs (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     job_id integer REFERENCES jobs(id) ON DELETE SET NULL ON UPDATE CASCADE UNIQUE,
@@ -249,6 +256,7 @@ CREATE TABLE runs (
     categories int[],
     usage_scenario json,
     usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
+    usage_scenario_dependencies jsonb,
     filename text NOT NULL,
     machine_specs jsonb,
     runner_arguments json,
@@ -484,7 +492,7 @@ CREATE TABLE carbon_intensity (
     PRIMARY KEY (latitude, longitude, created_at)
 );
 
-CREATE TABLE changelog (
+CREATE TABLE cluster_changelog (
     id SERIAL PRIMARY KEY,
     message text,
     machine_id integer REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -492,7 +500,23 @@ CREATE TABLE changelog (
     updated_at timestamp with time zone
 );
 
-CREATE TRIGGER changelog_moddatetime
-    BEFORE UPDATE ON changelog
+CREATE TRIGGER cluster_changelog_moddatetime
+    BEFORE UPDATE ON cluster_changelog
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
+
+
+CREATE TABLE cluster_status_messages (
+    id SERIAL PRIMARY KEY,
+    message text,
+    resolved boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+
+CREATE TRIGGER cluster_status_messages_moddatetime
+    BEFORE UPDATE ON cluster_status_messages
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+INSERT INTO "cluster_status_messages"("message") VALUES('GMT is currently not running in cluster mode and thus status messages are not active - This is just a demo message to show the capabilites of the status message system. You can ignore it when using GMT locally. But please delete it when running in cluster mode');

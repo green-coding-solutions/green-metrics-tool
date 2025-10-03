@@ -22,7 +22,7 @@ def check_queue(hours=6):
     query = """
         SELECT id, name
         FROM jobs
-        WHERE type = 'run' AND state = 'WAITING' AND created_at <= CURRENT_DATE - make_interval(hours => %s)
+        WHERE type = 'run' AND state = 'WAITING' AND created_at <= CURRENT_TIMESTAMP - make_interval(hours => %s)
        """
     data = DB().fetch_all(query, params=(hours, ))
 

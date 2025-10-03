@@ -22,6 +22,8 @@ import yaml
 from collections import OrderedDict
 from datetime import datetime
 import platform
+from concurrent.futures import ThreadPoolExecutor
+from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
 GMT_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -77,6 +79,8 @@ class ScenarioRunner:
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
         measurement_wait_time_dependencies=60):
 
+        self._arguments = locals() # safe the argument as first step before anything else to not expose local created variables
+
         config = GlobalConfig().config
 
         # sanity checks
@@ -124,7 +128,6 @@ class ScenarioRunner:
         self._sci |= config.get('sci', None)  # merge in data from machine config like I, TE etc.
 
         self._job_id = job_id
-        self._arguments = locals()
         self._repo_folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._run_id = None
         self._commit_hash = None
@@ -187,6 +190,7 @@ class ScenarioRunner:
         self.__image_sizes = {}
         self.__volume_sizes = {}
         self.__warnings = []
+        self.__usage_scenario_dependencies = None
 
         self._check_all_durations()
 
@@ -511,7 +515,7 @@ class ScenarioRunner:
 
             if exit_code == "0":
                 # Container exited with a successful exit code
-                raise RuntimeError(f"Container '{container_name}' exited during {step_description} (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                raise RuntimeError(f"Container '{container_name}' exited during {step_description} (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
             else:
                 # Container failed with non-zero or unknown exit code
                 if not image_name:
@@ -527,11 +531,11 @@ class ScenarioRunner:
                 compatibility_status = compatibility_info['status']
 
                 if compatibility_status == CompatibilityStatus.INCOMPATIBLE:
-                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}' and emulation is not available.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}' and emulation is not available.\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
                 elif compatibility_status == CompatibilityStatus.EMULATED:
-                    raise RuntimeError(f"Container '{container_name}' failed during {step_description}, possibly due to emulation issues (exit code: {exit_code}). Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}'. Container was running via emulation.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description}, possibly due to emulation issues (exit code: {exit_code}). Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}'. Container was running via emulation.\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
                 else:
-                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n{logs_ps.stdout}\n{logs_ps.stderr}")
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
 
     def _check_running_containers_after_boot_phase(self):
         self._check_running_containers("boot phase")
@@ -657,7 +661,8 @@ class ScenarioRunner:
                     self._job_id, self._name, self._uri, self._branch, self._original_filename,
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
-                    json.dumps(self._usage_scenario), json.dumps(self._usage_scenario_variables), gmt_hash,
+                    json.dumps(self._usage_scenario), json.dumps(self._usage_scenario_variables),
+                    gmt_hash,
                     GlobalConfig().config['machine']['id'], self._user_id,
                 ))[0]
         return self._run_id
@@ -737,8 +742,6 @@ class ScenarioRunner:
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
-        config = GlobalConfig().config
-
         # Create directory /tmp/green-metrics-tool/docker_images
         temp_dir = f"{self._tmp_folder}/docker_images"
         self._initialize_folder(temp_dir)
@@ -787,14 +790,26 @@ class ScenarioRunner:
                     '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
-                    '--registry-mirror', config['container_registry']['hostname'],
                     '--cleanup=true',
                     '--no-push']
 
-                if config['container_registry']['insecure']:
-                    docker_build_command.append('--insecure-pull')
-                    docker_build_command.append('--insecure-registry')
-                    docker_build_command.append(config['container_registry']['hostname'])
+                # docker agent might be configured to pull from a different, maybe even insecure registry
+                # We want to mirror that behaviour in GMT as we see it used in specially configured environments
+                # where custom docker registries are used
+                docker_info = subprocess.check_output(['docker', 'info', '--format', '{{ json .RegistryConfig.Mirrors }}'], encoding='UTF-8')
+                if docker_info and (mirrors := json.loads(docker_info)):
+                    for mirror in mirrors:
+                        if 'http://' in mirror:
+                            mirror = mirror[7:]
+                            docker_build_command.append('--registry-mirror')
+                            docker_build_command.append(mirror)
+                            docker_build_command.append('--insecure-pull')
+                            docker_build_command.append('--insecure-registry')
+                            docker_build_command.append(mirror)
+                        else: # https
+                            mirror = mirror[8:]
+                            docker_build_command.append('--registry-mirror')
+                            docker_build_command.append(mirror)
 
                 if self.__docker_params:
                     docker_build_command[2:2] = self.__docker_params
@@ -807,8 +822,7 @@ class ScenarioRunner:
                     ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
                 if ps.returncode != 0:
-                    print(f"Error: {ps.stderr} \n {ps.stdout}")
-                    raise OSError(f"Docker build failed\nStderr: {ps.stderr}\nStdout: {ps.stdout}")
+                    raise subprocess.CalledProcessError(ps.returncode, 'Docker build failed', output=ps.stdout, stderr=ps.stderr)
 
                 # import the docker image locally
                 image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{tmp_img_name}.tar"]
@@ -816,54 +830,57 @@ class ScenarioRunner:
                 ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0 or ps.stderr != "":
-                    print(f"Error: {ps.stderr} \n {ps.stdout}")
-                    raise OSError("Docker image import failed")
+                    raise subprocess.CalledProcessError(ps.returncode, 'Docker image import failed', output=ps.stdout, stderr=ps.stderr)
 
             else:
                 print(f"Pulling {service['image']}")
-                self.__notes_helper.add_note( note="Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
+                self.__notes_helper.add_note( note=f"Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
+                ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
-                slash_splitted_image_name = service['image'].split('/')
-                if '.' in slash_splitted_image_name[0]: # we have already a set registry
-                    container_registry_uri_with_image = service['image']
-                elif len(slash_splitted_image_name) > 1: # we have a namespace in the image
-                    container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{service['image']}"
-                else: # we have no registry or namespace and need to add the defaults of our configured registry
-                    container_registry_uri_with_image = f"{config['container_registry']['hostname']}/{config['container_registry']['default_namespace']}/{service['image']}"
-                print(['docker', 'pull', container_registry_uri_with_image])
-
-                ps = subprocess.run(['docker', 'pull', container_registry_uri_with_image], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
-
-                if ps.returncode != 0:
-                    print(f"Error: {ps.stderr} \n {ps.stdout}")
+                if ps_pull.returncode != 0:
+                    print(f"Error: {ps_pull.stderr} \n {ps_pull.stdout}")
 
                     # Check if it's an architecture mismatch error
-                    stderr_lower = ps.stderr.lower()
+                    stderr_lower = ps_pull.stderr.lower()
                     if "no matching manifest" in stderr_lower:
                         # This is definitely an architecture mismatch - create appropriate error
                         host_arch = container_compatibility.get_native_architecture()
                         raise RuntimeError(f"Architecture incompatibility detected: Docker image '{service['image']}' is not available for host architecture '{host_arch}'")
 
                     # Handle other Docker pull failures
-                    if sys.stdin.isatty():
-                        print(TerminalColors.OKCYAN, '\nThe docker image could not be pulled. Since you are working locally we can try looking in your local images. Do you want that? (y/N).', TerminalColors.ENDC)
-                        if sys.stdin.readline().strip().lower() == 'y':
-                            try:
-                                subprocess.run(['docker', 'inspect', '--type=image', service['image']],
-                                                         stdout=subprocess.PIPE,
-                                                         stderr=subprocess.PIPE,
-                                                         encoding='UTF-8',
-                                                         check=True)
-                                print('Docker image found locally. Tagging now for use in cached runs ...')
-                            except subprocess.CalledProcessError as e:
-                                raise OSError(f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}") from e
-                        else:
-                            raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
-                    else:
-                        raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
+                    if not sys.stdin.isatty():
+                        raise subprocess.CalledProcessError(
+                            ps_pull.returncode,
+                            f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}",
+                            output=ps_pull.stdout,
+                            stderr=ps_pull.stderr
+                        )
+                    print(TerminalColors.OKCYAN, '\nThe docker image could not be pulled. Since you are working locally we can try looking in your local images. Do you want that? (y/N).', TerminalColors.ENDC)
+                    if sys.stdin.readline().strip().lower() != 'y':
+                        raise subprocess.CalledProcessError(
+                            ps_pull.returncode,
+                            f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}",
+                            output=ps_pull.stdout,
+                            stderr=ps_pull.stderr
+                        )
+                    ps_inpsect = subprocess.run(['docker', 'inspect', '--type=image', service['image']],
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE,
+                         encoding='UTF-8',
+                         check=False)
+
+                    if ps_inpsect.returncode != 0:
+                        raise subprocess.CalledProcessError(
+                            ps_pull.returncode, # still using original ps
+                            f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}",
+                            output=ps_pull.stdout,  # still using original ps
+                            stderr=ps_pull.stderr) # still using original ps
+
+                    print('Docker image found locally. Tagging now for use in cached runs ...')
+
 
                 # tagging must be done in pull and local case, so we can get the correct container later
-                subprocess.run(['docker', 'tag', container_registry_uri_with_image, tmp_img_name], check=True)
+                subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
 
 
         # Delete the directory /tmp/gmt_docker_images
@@ -1375,8 +1392,12 @@ class ScenarioRunner:
             )
 
             if ps.returncode != 0:
-                print(f"Error: {ps.stderr} \n {ps.stdout}")
-                raise OSError(f"Docker run failed\nStderr: {ps.stderr}\nStdout: {ps.stdout}")
+                raise subprocess.CalledProcessError(
+                            ps.returncode,
+                            docker_run_string,
+                            output=ps.stdout,
+                            stderr=ps.stderr
+                        )
 
             container_id = ps.stdout.strip()
             self.__containers[container_id] = {
@@ -1429,7 +1450,7 @@ class ScenarioRunner:
                     )
 
                     if ps.returncode != 0:
-                        raise RuntimeError(f"Process {d_command} failed.\n\nStdout: {ps.stdout}\nStderr: {ps.stderr}")
+                        raise RuntimeError(f"Process {d_command} failed.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
 
                 self.__ps_to_read.append({
                     'cmd': d_command,
@@ -1445,20 +1466,8 @@ class ScenarioRunner:
         container_names = [container_info['name'] for container_info in self.__containers.values()]
         print(TerminalColors.HEADER, '\nStarted containers: ', container_names, TerminalColors.ENDC)
 
+
     def _add_to_current_run_log(self, container_name, log_type, log_id, cmd, phase, stdout=None, stderr=None, flow=None, exception_class=None):
-        """Add a structured log entry to the current run logs.
-        
-        Args:
-            container_name: Name of the container or '[SYSTEM]' for system logs
-            log_type: LogType enum value
-            log_id: ID of the process (from id(ps) or id(exception))
-            cmd: Command that was executed
-            phase: Phase like '[BOOT]', '[RUNTIME]', etc. '[MULTIPLE]', if the logs were collected over multiple phases. [UNKNOWN] is unknown.
-            stdout: Standard output (optional)
-            stderr: Standard error (optional)
-            flow: Flow name for flow_command type (optional)
-            exception_class: Exception class name for exception type (optional)
-        """
         if container_name not in self.__current_run_logs:
             self.__current_run_logs[container_name] = []
 
@@ -1472,9 +1481,9 @@ class ScenarioRunner:
         }
 
         if stdout is not None:
-            log_entry['stdout'] = stdout
+            log_entry['stdout'] = stdout.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
         if stderr is not None:
-            log_entry['stderr'] = stderr
+            log_entry['stderr'] = stderr.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:
@@ -1482,8 +1491,8 @@ class ScenarioRunner:
 
         self.__current_run_logs[container_name].append(log_entry)
 
-    def _get_all_run_logs(self):
-        """
+
+    '''
         Returns accumulated logs from all runs in the current session.
 
         This method provides read-only access to logs collected across multiple runs
@@ -1496,7 +1505,8 @@ class ScenarioRunner:
                     - 'iteration': iteration number for this filename
                     - 'filename': the scenario filename that was executed
                     - 'containers': dict with container names as keys and log lists as values
-        """
+    '''
+    def _get_all_run_logs(self):
         return self.__all_runs_logs
 
     def _save_warnings(self):
@@ -1505,6 +1515,85 @@ class ScenarioRunner:
             return
         for message in self.__warnings:
             DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (self._run_id, message))
+
+
+    def _execute_dependency_resolving_for_container(self, container_name):
+        try:
+            start_time = time.perf_counter()
+
+            result = resolve_docker_dependencies_as_dict(
+                container_identifier=container_name
+            )
+
+            duration = time.perf_counter() - start_time
+
+            # Count total packages found across all package managers
+            total_packages = 0
+            if result:
+                for key, value in result.items():
+                    if key != 'source' and isinstance(value, dict):
+                        if 'dependencies' in value:
+                            total_packages += len(value['dependencies'])
+                        elif 'locations' in value:
+                            # Handle mixed-scope with multiple locations (e.g., pip)
+                            for location_data in value['locations'].values():
+                                if 'dependencies' in location_data:
+                                    total_packages += len(location_data['dependencies'])
+
+            print(f"Dependency resolution for container '{container_name}' found {total_packages} packages in {duration:.2f} s")
+
+            # Remove the 'name' field from source as we use container name as key
+            if result and 'name' in result.get('source', {}):
+                del result['source']['name']
+
+            return container_name, result if result else None
+
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            print(f"Error executing energy-dependency-inspector for container {container_name}: {exc}")
+            return container_name, None
+
+    def _collect_container_dependencies(self):
+        """Wrapper method to collect container dependencies."""
+        self._collect_dependency_info()
+
+        if self._run_id:
+            DB().query("""
+                UPDATE runs 
+                SET usage_scenario_dependencies = %s 
+                WHERE id = %s
+                """, params=(json.dumps(self.__usage_scenario_dependencies) if self.__usage_scenario_dependencies is not None else None, self._run_id))
+
+    def _collect_dependency_info(self):
+        """Collect dependency information for all containers."""
+        if not self.__containers:
+            print("No containers available for dependency resolution")
+            return
+
+        print(TerminalColors.HEADER, '\nCollecting dependency information', TerminalColors.ENDC)
+        container_names = [container_info['name'] for container_info in self.__containers.values()]
+
+        # Execute energy-dependency-inspector for all containers in parallel using ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(len(container_names), 4)) as executor:
+            results = list(executor.map(self._execute_dependency_resolving_for_container, container_names))
+
+        # Process results - abort on any failure
+        # Each result is either: (container_name, container_info), (container_name, None), or Exception
+        container_dependencies = {}
+        for result in results:
+            if isinstance(result, tuple) and result[1] is not None:
+                container_name, container_info = result
+                container_dependencies[container_name] = container_info
+            elif isinstance(result, Exception):
+                raise RuntimeError(f"Dependency resolution failed: {result}. Aborting GMT run.")
+            else:
+                # Dependency resolution failed for this container
+                container_name = result[0] if isinstance(result, tuple) else "unknown"
+                raise RuntimeError(f"Dependency resolution failed for container '{container_name}'. Aborting GMT run.")
+
+        if container_dependencies:
+            self.__usage_scenario_dependencies = container_dependencies
+        else:
+            raise RuntimeError("No dependency information collected. This indicates no containers were processed or all dependency resolution attempts failed.")
 
     def _add_containers_to_metric_providers(self):
         for metric_provider in self.__metric_providers:
@@ -1634,8 +1723,14 @@ class ScenarioRunner:
                     docker_exec_command = ['docker', 'exec']
                     docker_exec_command.append(flow['container'])
                     stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
-                    if cmd_obj.get('log-stdout', True):
+                    if cmd_obj.get('stream-stdout', False):
+                        stdout_behaviour = None
+                        self.__warnings.append('Stdout for a command was be streamed. This can create significant overhead and also means it cannot be captured to the logs. Only use this in local development')
+                    elif cmd_obj.get('log-stdout', True):
                         stdout_behaviour = subprocess.PIPE
+                    if cmd_obj.get('stream-stderr', False):
+                        stderr_behaviour = None
+                        self.__warnings.append('Stderr for a command was be streamed. This can create significant overhead and also means it cannot be captured to the logs. Only use this in local development')
                     if cmd_obj.get('log-stderr', True):
                         stderr_behaviour = subprocess.PIPE
 
@@ -2013,7 +2108,6 @@ class ScenarioRunner:
 
         if self.__current_run_logs:
             logs_as_json = json.dumps(self.__current_run_logs, separators=(',', ':'))  # Compact JSON for efficient storage
-            logs_as_json = logs_as_json.replace('\x00','')
             DB().query("""
                 UPDATE runs
                 SET logs = COALESCE(logs, '{}'::jsonb) || %s::jsonb
@@ -2062,7 +2156,7 @@ class ScenarioRunner:
                 self.__phases['[RUNTIME]']['end'] = int(time.time_ns() / 1_000)
 
     def _process_phase_stats(self):
-        if not self._run_id or self._dev_no_phase_stats or self._dev_no_save:
+        if not self._run_id or self._dev_no_phase_stats or self._dev_no_metrics or self._dev_no_save:
             return
 
         # After every run, even if it failed, we want to generate phase stats.
@@ -2088,7 +2182,8 @@ class ScenarioRunner:
                 log_id=id(exc),
                 cmd='post_process',
                 phase='[CLEANUP]',
-                stderr=str(exc),
+                stderr=f"{str(exc)}\n\n{exc.stderr}" if hasattr(exc, 'stderr') else str(exc),
+                stdout=exc.stdout if hasattr(exc, 'stdout') else None,
                 exception_class=exc.__class__.__name__
             )
             self._set_run_failed()
@@ -2240,9 +2335,13 @@ class ScenarioRunner:
             self._add_containers_to_metric_providers()
             self._start_metric_providers(allow_container=True, allow_other=False)
 
+            if self._debugger.active:
+                self._debugger.pause('Container providers started. Waiting to collect dependency information')
+
+            self._collect_container_dependencies()
 
             if self._debugger.active:
-                self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
+                self._debugger.pause('Dependency collection complete. Waiting to start idle phase')
 
             self._start_phase('[IDLE]')
             self._custom_sleep(self._measurement_idle_duration)
@@ -2280,7 +2379,8 @@ class ScenarioRunner:
                 log_id=id(exc),
                 cmd='run_scenario',
                 phase='[RUNTIME]',
-                stderr=str(exc),
+                stderr=f"{str(exc)}\n\n{exc.stderr}" if hasattr(exc, 'stderr') else str(exc),
+                stdout=exc.stdout if hasattr(exc, 'stdout') else None,
                 exception_class=exc.__class__.__name__
             )
             self._set_run_failed()

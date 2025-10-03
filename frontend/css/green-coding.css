@@ -323,6 +323,10 @@ a,
     font-family: monospace;
 }
 
+#usage-scenario-dependencies {
+  word-break: break-all;
+}
+
 #logs .ui.accordion,
 #logs .ui.card {
     width: 100%;
@@ -430,4 +434,9 @@ a {
 
 #machines-table tr, #machines-table td {
   font-size: 11px;
+}
+
+.cluster-health-link {
+    padding-right: 20px;
+    float: right;
 }

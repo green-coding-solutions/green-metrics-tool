@@ -1,3 +1,4 @@
+
 async function cancelJob(e){
     e.preventDefault()
     const job_id = this.getAttribute('data-job-id');
@@ -18,6 +19,8 @@ $(document).ready(function () {
 
         let machines_data = null;
         let jobs_data = null;
+
+        await getClusterStatus();
 
         try {
             machines_data = await makeAPICall('/v1/machines')

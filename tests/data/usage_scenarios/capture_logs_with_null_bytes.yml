@@ -1,0 +1,25 @@
+---
+name: Capture Logs with Null Bytes
+author: David Kopp
+description: Test handling of null bytes in log output
+
+services:
+  test-container:
+    type: container
+    image: alpine
+    setup-commands:
+      - command: 'printf "Setup log with null byte: \x00 embedded\n"'
+    entrypoint: ["/bin/sh", "-c"]
+    command: ['printf "Container log with null byte: \x00 embedded\n"; sleep infinity']
+    log-stdout: true
+    log-stderr: true
+
+flow:
+  - name: Flow with Null Bytes
+    container: test-container
+    commands:
+      - type: console
+        command: 'printf "Flow stdout with null byte: \x00 embedded\n" && printf "Flow stderr with null byte: \x00 embedded\n" >&2'
+        shell: /bin/sh
+        log-stdout: true
+        log-stderr: true

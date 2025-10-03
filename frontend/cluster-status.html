@@ -22,7 +22,7 @@
     <script src="/dist/js/dimmer.min.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
-    <script src="/js/status.js" defer></script>
+    <script src="/js/cluster-status.js" defer></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
@@ -39,13 +39,35 @@
             <div class="content">
                 <div class="header">Status overview</div>
                 <div class="description">
-                <i class="close icon"></i>
-                <p>This page shows the status of the machines and the jobs in their respective queues.</p>
-                <p>With it you can estimate the length of the jobs queue. Be aware of the the processing scheme configured (Random or FIFO).</p>
-                <p>In a future version this will also provide statistics such as jobs run per day, failed jobs, most measured software etc.</p>
+                    <i class="close icon"></i>
+                    <p>This page shows the status of the machines and the jobs in their respective queues.</p>
+                    <p>With it you can estimate the length of the jobs queue. Be aware of the the processing scheme configured (Random or FIFO).</p>
+                    <p>In a future version this will also provide statistics such as jobs run per day, failed jobs, most measured software etc.</p>
                 </div>
             </div>
         </div>
+
+        <div class="ui icon yellow message cluster-health-message" style="display: none;"> <!-- style must be inline to override fomantic -->
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">
+                    Cluster Status
+                </div>
+                <div id="cluster-health-warnings"></div>
+            </div>
+        </div>
+        <div class="ui icon success message cluster-health-message" style="display: none;">  <!-- style must be inline to override fomantic -->
+            <i class="check circle icon"></i>
+            <div class="content">
+                <div class="header">
+                    Cluster Status
+                </div>
+                <p>All systems operating normally</p>
+            </div>
+        </div>
+        <a href="/cluster-status-history.html" class="cluster-health-link">See Status History <i class="clock icon"></i></a>
+        <a href="/cluster-changelog.html" class="cluster-health-link">See Cluster Changelog <i class="edit icon"></i></a>
+
         <h3>Machines</h3>
         <table id="machines-table" class="ui celled striped table"></table>
 
@@ -61,7 +83,7 @@
         </div>
         <div class="actions">
             <div class="ui approve button">Close</div>
-          </div>
-      </div>
+        </div>
+    </div>
 </body>
 </html>

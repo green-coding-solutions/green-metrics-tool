@@ -520,7 +520,7 @@ def test_docker_pull_nonexistent_image_non_interactive_fails():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_nonexistent.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
 
-    with pytest.raises(OSError) as e:
+    with pytest.raises(subprocess.CalledProcessError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
@@ -537,12 +537,84 @@ def can_emulate_arm64_images():
     """Check if this host can run ARM64 Docker images via emulation."""
     return container_compatibility.get_platform_compatibility_status('linux/arm64') == container_compatibility.CompatibilityStatus.EMULATED
 
+def _print_architecture_debug_info(target_platform):
+    print("\n=== DEBUG: CI Environment Detected ===")
+
+    # Debug: Docker buildx inspect
+    try:
+        result = subprocess.run(['docker', 'buildx', 'inspect', '--bootstrap'],
+                              capture_output=True, text=True, timeout=30, check=False)
+        print(f"DEBUG: docker buildx inspect --bootstrap (exit code: {result.returncode}):")
+        print(f"STDOUT:\n{result.stdout}")
+        if result.stderr:
+            print(f"STDERR:\n{result.stderr}")
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as e:
+        print(f"DEBUG: Failed to run docker buildx inspect: {e}")
+
+    # Debug: QEMU emulation check
+    qemu_binary = 'qemu-aarch64' if 'arm64' in target_platform else 'qemu-x86_64'
+    try:
+        result = subprocess.run(['cat', f'/proc/sys/fs/binfmt_misc/{qemu_binary}'],
+                              capture_output=True, text=True, timeout=10, check=False)
+        if result.returncode == 0:
+            print(f"DEBUG: QEMU {target_platform.split('/')[-1].upper()} emulation available")
+            print(f"DEBUG: {qemu_binary} config:\n{result.stdout}")
+        else:
+            print(f"DEBUG: No QEMU {target_platform.split('/')[-1].upper()} emulation")
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as e:
+        print(f"DEBUG: No QEMU {target_platform.split('/')[-1].upper()} emulation (error: {e})")
+
+    # Debug: Docker version and info
+    try:
+        result = subprocess.run(['docker', 'version'], capture_output=True, text=True, timeout=15, check=False)
+        print(f"DEBUG: docker version (exit code: {result.returncode}):")
+        print(f"STDOUT:\n{result.stdout}")
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as e:
+        print(f"DEBUG: Failed to get docker version: {e}")
+
+    # Debug: Platform architecture info
+    print(f"DEBUG: Platform machine: {platform.machine()}")
+    print(f"DEBUG: Platform processor: {platform.processor()}")
+    print(f"DEBUG: Platform architecture: {platform.architecture()}")
+
+    # Debug: Container compatibility status (with cache verification)
+    try:
+        # First check with potentially cached data
+        status = container_compatibility.get_platform_compatibility_status(target_platform)
+        platform_info = container_compatibility.get_platform_compatibility_status()
+        print(f"DEBUG: {target_platform} compatibility status (cached): {status}")
+        print(f"DEBUG: Native platform (cached): {platform_info.get('native_platform', 'unknown')}")
+        print(f"DEBUG: Emulated platforms (cached): {platform_info.get('emulated_platforms', [])}")
+
+        # Clear cache and check again to ensure data is current
+        container_compatibility._clear_platform_cache()
+        status_fresh = container_compatibility.get_platform_compatibility_status(target_platform)
+        platform_info_fresh = container_compatibility.get_platform_compatibility_status()
+        print(f"DEBUG: {target_platform} compatibility status (fresh): {status_fresh}")
+        print(f"DEBUG: Native platform (fresh): {platform_info_fresh.get('native_platform', 'unknown')}")
+        print(f"DEBUG: Emulated platforms (fresh): {platform_info_fresh.get('emulated_platforms', [])}")
+
+        # Check if cache results differ from fresh results
+        if status != status_fresh:
+            print(f"DEBUG: WARNING - Cached {target_platform} status differs from fresh: {status} vs {status_fresh}")
+        if platform_info.get('native_platform') != platform_info_fresh.get('native_platform'):
+            print("DEBUG: WARNING - Cached native platform differs from fresh")
+    except (AttributeError, KeyError, TypeError) as e:
+        print(f"DEBUG: Failed to get platform compatibility: {e}")
+
+    print("=== END DEBUG INFO ===\n")
+
+
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
 @pytest.mark.skipif(can_emulate_arm64_images(), reason="Test is only valid when arm64 can't be emulated")
 def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
     """Test Docker run fails immediately when trying to run ARM64 image on AMD64 host without emulation"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    # Add debug outputs in CI pipeline to investigate https://github.com/green-coding-solutions/green-metrics-tool/issues/1360
+    if os.getenv('GITHUB_ACTIONS'):
+        _print_architecture_debug_info('linux/arm64')
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -559,6 +631,10 @@ def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
     """Test Docker run fails immediately when trying to run amd64 image on arm64 host without emulation"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    # Add debug outputs in CI pipeline to investigate https://github.com/green-coding-solutions/green-metrics-tool/issues/1360
+    if os.getenv('GITHUB_ACTIONS'):
+        _print_architecture_debug_info('linux/amd64')
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -759,6 +835,50 @@ def test_logs_structure():
     assert found_flow_stderr, "Should find the test flow stderr message"
     assert found_setup_command, "Should find the setup command log"
     assert found_container_execution, "Should find the container execution log"
+
+def test_logs_null_byte_handling():
+    """Test that null bytes in logs are automatically cleaned and don't cause database errors"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs_with_null_bytes.yml',
+                          skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True,
+                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
+
+    # This should not raise any database errors despite null bytes in the scenario
+    run_id = runner.run()
+
+    # Verify logs were saved successfully
+    logs_result = DB().fetch_one("SELECT logs FROM runs WHERE id = %s", params=(run_id,))
+    assert logs_result is not None and logs_result[0] is not None, "Logs should be saved to database"
+
+    # Verify no null bytes remain in stored logs
+    logs = logs_result[0]
+    container_logs = logs["test-container"]
+
+    for log_entry in container_logs:
+        for key, value in log_entry.items():
+            if key in ('stdout', 'stderr'):
+                assert '\x00' not in value, f"Null bytes should be automatically cleaned: {repr(value)}"
+
+def test_logs_invalid_character_handling():
+    """Test that invalid UTF-8 character in logs are automatically replaced"""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs_with_invalid_character.yml',
+                          skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True,
+                          dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
+
+    # This should not raise any database errors despite invalid characters in the scenario
+    run_id = runner.run()
+
+    # Verify logs were saved successfully
+    logs_result = DB().fetch_one("SELECT logs FROM runs WHERE id = %s", params=(run_id,))
+    assert logs_result is not None and logs_result[0] is not None, "Logs should be saved to database"
+
+    # Verify no invalid characters remain in stored logs
+    logs = logs_result[0]
+    container_logs = logs["test-container"]
+
+    for log_entry in container_logs:
+        for key, value in log_entry.items():
+            if key in ('stdout', 'stderr'):
+                assert '\xff' not in value, f"Invalid character should be automatically cleaned: {repr(value)}"
 
 def test_all_run_logs_comprehensive():
     """Comprehensive test of _get_all_run_logs() method covering single runs, iterations, and different files"""
