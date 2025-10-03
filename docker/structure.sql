@@ -241,6 +241,10 @@ CREATE TRIGGER jobs_moddatetime
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 
+INSERT INTO "jobs"("type","state","name","email","url","branch","filename","usage_scenario_variables","categories","machine_id","message","user_id","created_at","updated_at")
+	VALUES
+	(E'run',E'FINISHED',E'This is a demo job - Please delete when you run in cluster mode',NULL,E'demo-url',E'demo-branch',E'demo-filename',E'{}',NULL,1,NULL,1,E'2025-10-03 07:57:29.829712+00',NULL);
+
 CREATE TABLE runs (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     job_id integer REFERENCES jobs(id) ON DELETE SET NULL ON UPDATE CASCADE UNIQUE,
@@ -514,3 +518,5 @@ CREATE TRIGGER cluster_status_messages_moddatetime
     BEFORE UPDATE ON cluster_status_messages
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
+
+INSERT INTO "cluster_status_messages"("message") VALUES('GMT is currently not running in cluster mode and thus status messages are not active - This is just a demo message to show the capabilites of the status message system. You can ignore it when using GMT locally. But please delete it when running in cluster mode');
