@@ -558,6 +558,8 @@ class ScenarioRunner:
     def _remove_docker_images(self):
         print(TerminalColors.HEADER, '\nRemoving all temporary GMT images', TerminalColors.ENDC)
 
+        config = GlobalConfig().config
+
         if self._dev_cache_build:
             print('Skipping removing of all temporary GMT images skipped due to --dev-cache-build')
             return
@@ -572,14 +574,14 @@ class ScenarioRunner:
         if self._full_docker_prune:
             print(TerminalColors.HEADER, '\nStopping and removing all containers, build caches, volumes and images on the system', TerminalColors.ENDC)
             subprocess.run('docker ps -aq | xargs docker stop', shell=True, check=False)
-            # Prune all images except Kaniko.
-            # It will be downloaded again anyway, so no need to prune it
-            subprocess.run("""
-                docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" \
-                | grep -v "gcr.io/kaniko-project/executor" \
-                | awk '{print $2}' \
-                | xargs docker rmi -f
-                """, shell=True, check=False)
+
+            docker_prune_images_cmd = 'docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}"'
+            for whitelisted_image in config['measurement']['full_docker_prune_whitelist']:
+                docker_prune_images_cmd += f" | grep -v {shlex.quote(whitelisted_image)}"
+            docker_prune_images_cmd += " | awk '{print $2}'"
+            docker_prune_images_cmd += " | xargs docker rmi -f"
+            subprocess.run(docker_prune_images_cmd, shell=True, check=False)
+
             subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
         elif self._docker_prune:
             print(TerminalColors.HEADER, '\nRemoving all unassociated build caches, networks volumes and stopped containers on the system', TerminalColors.ENDC)
