@@ -11,7 +11,7 @@ from lib.db import DB
 from lib.global_config import GlobalConfig
 
 from lib import utils
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
 
 #pylint: disable=unused-argument
@@ -29,7 +29,7 @@ MB = 1000*1000 # Note: GMT uses SI Units!
 def setup_module(module):
     global run_id #pylint: disable=global-statement
 
-    runner = Runner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/metric_providers_data.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/metric_providers_data.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_sleeps=True, dev_cache_build=True)
 
     subprocess.run('sync', check=True) # we sync here so that we can later more granular check for written file size
 
@@ -138,7 +138,8 @@ def test_network_providers():
 
         if metric == 'network_total_procfs_system':
             # Some small network overhead to a 5 MB file always occurs
-            assert 5*MB <= val < 5.6*MB , f"network_total_procfs_system is not between 5 and 5.6 MB but {metric_provider['value']} {metric_provider['unit']}"
+            # See discussion for details on how much believe is acceaptable and for which reasons here: https://github.com/green-coding-solutions/green-metrics-tool/issues/1322
+            assert 5*MB <= val < 6*MB , f"network_total_procfs_system is not between 5 and 6 MB but {metric_provider['value']} {metric_provider['unit']}"
             seen_network_total_procfs_system = True
 
     assert seen_network_total_procfs_system is True

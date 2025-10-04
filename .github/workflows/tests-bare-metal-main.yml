@@ -1,58 +1,50 @@
 name: Daily Test Run - Bare Metal - Main Branch
-run-name: Scheduled - main branch
+run-name: Scheduled - main branch - Bare Metal
 on:
-  schedule:
-    - cron: '0 */6 * * *'
+#  schedule:
+#    - cron: '2 50 * * *'
   workflow_dispatch:
 
 jobs:
   run-tests-main:
-    runs-on: local-test-arm64
-    permissions:
-      packages: write
-      contents: read
+    runs-on: eco-ci-runner-tx1330-m4
     steps:
-      # - id: check-date
-      #   if: ${{ github.event_name != 'workflow_dispatch' }}
-      #   uses: green-coding-solutions/eco-ci-activity-checker@main
-      #   with:
-      #     repo: 'green-coding-solutions/green-metrics-tool'
-      #     branch: 'main'
-      #     workflow-id: 45267391
-
       - name: Eco CI Energy Estimation - Initialize
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: start-measurement
           project: "Green Metrics Tool"
-          machine: "ubuntu-latest"
-          tags: "CI/CD,Bare-Metal-main-Workflow"
+          machine: "eco-ci-runner-tx1330-m4"
+          tags: "CI/CD, Main-Workflow"
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
-          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+          # Intensity for our own solar panels
+          co2-calculation-method: 'constant'
+          co2-grid-intensity-constant: 30
 
-      # - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
-      - name: 'Checkout repository'
-        uses: actions/checkout@v4
+      - id: check-date
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        uses: green-coding-solutions/eco-ci-activity-checker@v1
+        with:
+          branch: 'main'
+
+      - name: Eco CI Energy Estimation - After Check Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: get-measurement
+
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
+        name: 'Checkout repository'
+        uses: actions/checkout@v5
         with:
           ref: 'main'
           submodules: 'false'
 
-      - name: Eco CI Energy Estimation - Initialize
-        uses: green-coding-solutions/eco-ci-energy-estimation@main
-        with:
-          task: start-measurement
-          project: "Green Metrics Tool"
-          machine: "ubuntu-latest"
-          tags: "CI/CD, PR-Workflow"
-          gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
-          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
-
-
-      # - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
-      - name: 'Setup, Run, and Teardown Tests'
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
+        name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
+         tests-command: "pytest api/test_api_software_add.py::test_post_run_add_github_tags -vv"
 
       - name: Eco CI Energy Estimation - Get Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@main
@@ -63,4 +55,3 @@ jobs:
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: display-results
-          pr-comment: true

@@ -18,6 +18,7 @@
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/accordion.min.js" defer></script>
+    <script src="/dist/js/progress.min.js" defer></script>
     <script src="/dist/js/tab.min.js" defer></script>
     <script src="/dist/js/echarts.min.js" defer></script>
     <script src="/dist/js/json2yaml.js" defer></script>
@@ -47,14 +48,17 @@
                     <div class="ui secondary menu">
                         <a class="item active" data-tab="one">General</a>
                         <a class="item" data-tab="two">Measurement</a>
-                        <a class="item" data-tab="three">Badges</a>
+                        <a class="item" data-tab="three">Switches</a>
                         <a class="item" data-tab="four">Machine</a>
                         <a class="item" data-tab="five">Usage Scenario</a>
                         <a class="item" data-tab="six">Logs</a>
                         <a class="item" data-tab="seven">Network</a>
                         <a class="item" data-tab="eight">Optimizations<div class="ui red label" id="optimization_count">0</div></a>
+                        <a class="item" data-tab="nine">Badges</a>
+                        <a class="item" data-tab="ten">AI</a>
+
                     </div>
-                    <div class="ui tab segment" data-tab="one">
+                    <div class="ui active tab segment" data-tab="one">
                         <table class="table-hover" id="run-data-top"></table>
                         <div class="ui accordion">
                             <div class="title ui header">
@@ -65,39 +69,85 @@
                             </div>
                         </div>
                     </div>
-                    <div class="ui active tab segment" data-tab="two">
+                    <div class="ui tab segment" data-tab="two">
                         <table class="table-hover" id="measurement-config"></table>
                     </div>
-                    <div class="ui active tab segment" data-tab="three">
-                        <div id="run-badges">
-                        </div>
+                    <div class="ui tab segment" data-tab="three">
+                        <table class="table-hover" id="runner-arguments"></table>
                     </div>
                     <div class="ui tab segment" data-tab="four" id="machine-specs-tab">
                         <table class="table-hover" id="machine-specs"></table>
                     </div>
-                    <div class="ui active tab segment" data-tab="five">
-                        <span id="usage-scenario"></span>
+                    <div class="ui tab segment" data-tab="five">
+                        <h3>Usage Scenario Variables</h3>
+                        <div id="usage-scenario-variables">
+                            <ul></ul>
+                        </div>
+                        <h3>Usage Scenario File</h3>
+                        <div id="usage-scenario"></div>
+                        <h3>Usage Scenario Dependencies</h3>
+                        <div id="usage-scenario-dependencies">
+                        </div>
                     </div>
-                    <div class="ui active tab segment" data-tab="six">
-                        <span id="logs"></span>
+                    <div class="ui tab segment" data-tab="six">
+                        <div id="logs"></div>
                     </div>
-                    <div class="ui active tab segment" data-tab="seven">
+                    <div class="ui tab segment" data-tab="seven">
                         <i class="info circle icon"></i>This is a list of all <b>external</b> network connections the system requested.
                         <div class="ui divider" id="network-divider"></div>
                         <table class="table-hover" id="network-intercepts"></table>
                     </div>
 
-                    <div class="ui active tab segment" data-tab="eight">
+                    <div class="ui tab segment" data-tab="eight">
                         <p>This is a list of potential optimizations we have detected based off your run. We are constantly adding new features so please check our <a href="https://docs.green-coding.io/">documentation</a> for more details. If you think a warning does not apply to you, you can add an ignore into your <code>usage_scenario.yml</code> file or your GMT config.</p>
                         <p>&NonBreakingSpace;</p>
                         <div id="optimizationsContainer" class="ui container"></div>
                     </div>
+                    <div class="ui tab segment" data-tab="nine">
+                        <div id="run-badges">
+                        </div>
+                        <div class="ui icon message warning">
+                            <i class="info circle icon"></i>
+                            <div class="content">
+                                <div class="header">
+                                    Badge missing or not showing data?
+                                </div>
+                                <ul>
+                                    <li>Badges are for Runtime phase only by default. Append <b>&amp;phase=ENTER_PHASE_NAME</b> to img src show specific phase</li>
+                                    <li>Badges are only visible for the default user. If you are logged in with a different account badges cannot show. Please use a HTTP proxy like Cloudflare workers to tunnel the page if needed or enable user visibility.</li>
 
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ui tab segment" data-tab="ten">
+                        <div id="ai-container" class="ui container">As AI jobs are quite expensive this feature is only available in the enterprise version. You can see our pricing under <a href="https://www.green-coding.io/products/green-metrics-tool/">https://www.green-coding.io/products/green-metrics-tool/</a></div>
+                    </div>
 
 
                 </div>
             </div>
         </div><!-- end ui full-width-card card -->
+
+        <div id="run-failed" class="ui icon message error hidden">
+            <i class="times icon"></i>
+            <div class="content">
+                <div class="header">
+                    Failed
+                </div>
+                This run has failed. Please see logs for details
+            </div>
+        </div>
+
+        <div id="run-warnings" class="ui icon message warning hidden">
+            <i class="warning icon"></i>
+            <div class="content">
+                <div class="header">
+                    Warnings
+                </div>
+                <ul></ul>
+            </div>
+        </div>
 
         <div class="ui steps attached phases">
             <a class="active step" data-tab="[BASELINE]">

@@ -17,10 +17,17 @@ WATCHLIST_ITEM = {
         'machine_id':1,
         'user_id':1,
         'schedule_mode':'daily',
-        'last_marker':None
+        'last_marker':None,
+        'usage_scenario_variables': {}
 }
 
 GMT_LAST_COMMIT_HASH = utils.get_repo_last_marker(WATCHLIST_ITEM['repo_url'], 'commits')
+
+@pytest.fixture(autouse=True, scope="function")
+def delete_jobs_from_DB():
+    DB().query('DELETE FROM jobs')
+    yield
+
 
 def test_run_schedule_one_off_broken():
     watchlist_item_modified = WATCHLIST_ITEM.copy()
@@ -77,6 +84,7 @@ def test_run_schedule_watchlist_item_update_commit():
     watchlist_item_modified = WATCHLIST_ITEM.copy()
     watchlist_item_modified['last_marker'] = '23rfq'
     watchlist_item_modified['schedule_mode'] = 'commit'
+    watchlist_item_modified['usage_scenario_variables'] = {'Yes': 'no'}
 
     Watchlist.insert(**watchlist_item_modified)
 
@@ -87,6 +95,7 @@ def test_run_schedule_watchlist_item_update_commit():
 
     watchlist_item_db = utils.get_watchlist_item(watchlist_item_modified['repo_url'])
     assert watchlist_item_db['last_marker'] == GMT_LAST_COMMIT_HASH
+    assert watchlist_item_db['usage_scenario_variables'] == {'Yes': 'no'}
 
     # And another schedule will NOT create a new item
     schedule_watchlist_item()

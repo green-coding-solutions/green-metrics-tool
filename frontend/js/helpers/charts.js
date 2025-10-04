@@ -190,7 +190,7 @@ const getLineBarChartOptions = (legend, labels, series, x_axis_name=null, y_axis
                 },
                 data: [
                     [
-                        { yAxis: mean + stddev, name: `StdDev: ${(stddev/mean * 100).toFixed(2)} %`},
+                        { yAxis: mean + stddev, name: `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `(${(stddev/mean * 100).toFixed(2)} %)` : 'N/A'}} %)`},
                         { yAxis: mean - stddev},
                     ]
 

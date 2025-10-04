@@ -7,4 +7,4 @@ compose-file: !include import_two_compose.yml
 services:
   my-database:
     setup-commands:
-      - cp /tmp/repo/test_1MB.jpg /usr/local/apache2/htdocs/test_1MB.jpg
+      - command: cp /tmp/repo/test_1MB.jpg /usr/local/apache2/htdocs/test_1MB.jpg

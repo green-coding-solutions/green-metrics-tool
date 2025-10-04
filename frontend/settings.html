@@ -96,7 +96,15 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>Disable providers</td>
+                                    <td>System check threshold<br>
+                                        <span><small><i class="question circle icon"></i>Can be 1=INFO, 2=WARN or 3=ERROR. When set on 3 runs will fail only on erros, when 2 then also on warnings and 1 also on pure info statements.</small></span>
+                                    </td>
+                                    <td><input type="text" placeholder="Input a value" id="measurement-system-check-threshold" name="measurement-system-check-threshold" data-setting="measurement.system_check_threshold" required=""></td>
+                                    <td><button id="save-measurement-system-check-threshold" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Disable providers<br>
+                                        <span><small><i class="question circle icon"></i>Deactivates a provider even if configured on the machine. Use only if you experience errors with a provider.</small></span>
                                     <td>
                                         <select id="measurement-disabled-metric-providers" multiple="" class="ui multiple search selection dropdown" data-setting="measurement.disabled_metric_providers">
                                             <option value="">Select Metrics Provider</option>
@@ -107,14 +115,82 @@
                                     <td><button id="save-measurement-disabled-metric-providers" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
                                 </tr>
                                 <tr>
-                                    <td>Maximum flow process duration</td>
+                                    <td>Maximum flow process duration<br>
+                                        <span><small><i class="question circle icon"></i>Value is in seconds.</small></span>
+                                    </td>
                                     <td><input type="text" placeholder="Input a value" id="measurement-flow-process-duration" name="measurement-flow-process-duration" data-setting="measurement.flow_process_duration" required=""></td>
                                     <td><button id="save-measurement-flow-process-duration" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
                                 </tr>
                                 <tr>
-                                    <td>Maximum total duration</td>
+                                    <td>Maximum total duration<br>
+                                        <span><small><i class="question circle icon"></i>Value is in seconds.</small></span>
+                                    </td>
                                     <td><input type="text" placeholder="Input a value" id="measurement-total-duration" name="measurement-total-duration" data-setting="measurement.total_duration" required="" ></td>
                                     <td><button id="save-measurement-total-duration" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Phase padding<br>
+                                        <span><small><i class="question circle icon"></i>Determines if phases shall be padded to account for possible undersampling. Only turn off when you need nanosecond exact cut-offs from measurements and favor undersampling instead of capturing partial samples.</small></span>
+                                    </td>
+                                    <td><input type="checkbox" id="measurement-phase-padding" name="measurement-phase-padding" data-setting="measurement.phase_padding"></td>
+                                    <td><button id="save-measurement-phase-padding" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Pre-test sleep<br>
+                                        <span><small><i class="question circle icon"></i>Value is in seconds.</small></span>
+                                    </td>
+                                    <td><input type="text" placeholder="Input a value" id="measurement-pre-test-sleep" name="measurement-pre-test-sleep" data-setting="measurement.pre_test_sleep" required=""></td>
+                                    <td><button id="save-measurement-pre-test-sleep" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Baseline duration<br>
+                                        <span><small><i class="question circle icon"></i>Value is in seconds. We recommend 60 seconds at least to get stable baseline for runtime overhead calculations.</small></span>
+                                    </td>
+                                    <td><input type="text" placeholder="Input a value" id="measurement-baseline-duration" name="measurement-baseline-duration" data-setting="measurement.baseline_duration" required=""></td>
+                                    <td><button id="save-measurement-baseline-duration" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Idle duration<br>
+                                        <span><small><i class="question circle icon"></i>Value is in seconds. We recommend 60 seconds at least to get stable baseline for runtime overhead calculations.</small></span>
+                                    </td>
+                                    <td><input type="text" placeholder="Input a value" id="measurement-idle-duration" name="measurement-idle-duration" data-setting="measurement.idle_duration" required=""></td>
+                                    <td><button id="save-measurement-idle-duration" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Post-test sleep<br>
+                                        <span><small><i class="question circle icon"></i>Value is in seconds. Should be 10 seconds minimum when doing Blue Angel measurements.</small></span>
+                                    </td>
+                                    <td><input type="text" placeholder="Input a value" id="measurement-post-test-sleep" name="measurement-post-test-sleep" data-setting="measurement.post_test_sleep" required=""></td>
+                                    <td><button id="save-measurement-post-test-sleep" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Phase transition time<br>
+                                        <span><small><i class="question circle icon"></i>Value is in seconds.</small></span>
+                                    </td>
+                                    <td><input type="text" placeholder="Input a value" id="measurement-phase-transition-time" name="measurement-phase-transition-time" data-setting="measurement.phase_transition_time" required=""></td>
+                                    <td><button id="save-measurement-phase-transition-time" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Wait time for dependencies<br>
+                                        <span><small><i class="question circle icon"></i>Value is in seconds.</small></span>
+                                    </td>
+                                    <td><input type="text" placeholder="Input a value" id="measurement-wait-time-dependencies" name="measurement-wait-time-dependencies" data-setting="measurement.wait_time_dependencies" required=""></td>
+                                    <td><button id="save-measurement-wait-time-dependencies" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>(DEV) No Sleeps during run<br><span><small><i class="question circle icon"></i>You can use this while developing to speed up runs on the cluster. However it will make the measurement invalid as important cooldown times are skipped.</small></span></td>
+                                    <td><input type="checkbox" id="measurement-dev-no-sleeps" name="measurement-dev-no-sleeps" data-setting="measurement.dev_no_sleeps"></td>
+                                    <td><button id="save-measurement-dev-no-sleeps" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>(DEV) No optimizations after run<br><span><small><i class="question circle icon"></i>You can use this while developing to speed up runs on the cluster if you are not interested in the optimizations to run.</small></span></td>
+                                    <td><input type="checkbox"  id="measurement-dev-no-optimizations" name="measurement-dev-no-optimizations" data-setting="measurement.dev_no_optimizations"></td>
+                                    <td><button id="save-measurement-dev-no-optimizations" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>(DEV) Skip volume inspect<br><span><small><i class="question circle icon"></i>You can use this while developing to speed up runs on the cluster if you are not interested in the volume sizes or experience errors with shared non-readable volumes.</small></span></td>
+                                    <td><input type="checkbox"  id="measurement-skip-volume-inspect" name="easurement-skip-volume-inspect" data-setting="measurement.skip_volume_inspect"></td>
+                                    <td><button id="save-measurement-skip-volume-inspect" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
                                 </tr>
                                 <!--
                                 <tr>

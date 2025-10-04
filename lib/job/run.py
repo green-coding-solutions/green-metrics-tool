@@ -15,8 +15,7 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.user import User
 from lib.terminal_colors import TerminalColors
-from lib.system_checks import ConfigurationCheckError
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 import optimization_providers.base
 
 
@@ -27,7 +26,7 @@ class RunJob(Job):
         return DB().fetch_one(query, params=(self._machine_id, ))
 
     #pylint: disable=arguments-differ
-    def _process(self, skip_system_checks=False, docker_prune=False, full_docker_prune=False):
+    def _process(self, docker_prune=False, full_docker_prune=False):
 
         user = User(self._user_id)
 
@@ -37,22 +36,36 @@ class RunJob(Job):
         if not user.has_measurement_quota(self._machine_id):
             raise RuntimeError(f"Your user does not have enough measurement quota to run a job on the selected machine. Machine ID: {self._machine_id}")
 
-        runner = Runner(
+        runner = ScenarioRunner(
             name=self._name,
             uri=self._url,
             uri_type='URL',
             filename=self._filename,
             branch=self._branch,
-            skip_unsafe=True,
-            skip_system_checks=skip_system_checks,
-            full_docker_prune=full_docker_prune,
-            docker_prune=docker_prune,
+            skip_unsafe=user._capabilities['measurement']['skip_unsafe'],
+            allow_unsafe=user._capabilities['measurement']['allow_unsafe'],
+            skip_system_checks=user._capabilities['measurement']['skip_system_checks'],
+            skip_volume_inspect=user._capabilities['measurement']['skip_volume_inspect'],
+            full_docker_prune=full_docker_prune, # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
+            docker_prune=docker_prune, # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
             job_id=self._id,
             user_id=self._user_id,
+            usage_scenario_variables=self._usage_scenario_variables,
             measurement_flow_process_duration=user._capabilities['measurement']['flow_process_duration'],
             measurement_total_duration=user._capabilities['measurement']['total_duration'],
+            measurement_system_check_threshold=user._capabilities['measurement']['system_check_threshold'],
+            measurement_pre_test_sleep=user._capabilities['measurement']['pre_test_sleep'],
+            measurement_idle_duration=user._capabilities['measurement']['idle_duration'],
+            measurement_baseline_duration=user._capabilities['measurement']['baseline_duration'],
+            measurement_post_test_sleep=user._capabilities['measurement']['post_test_sleep'],
+            measurement_phase_transition_time=user._capabilities['measurement']['phase_transition_time'],
+            measurement_wait_time_dependencies=user._capabilities['measurement']['wait_time_dependencies'],
+            dev_no_sleeps=user._capabilities['measurement']['dev_no_sleeps'],
+            dev_no_optimizations=user._capabilities['measurement']['dev_no_optimizations'],
             disabled_metric_providers=user._capabilities['measurement']['disabled_metric_providers'],
             allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'], # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
+
+
         )
         try:
             # Start main code. Only URL is allowed for cron jobs
@@ -72,18 +85,6 @@ class RunJob(Job):
                     name=f"Measurement Job '{self._name}' successfully processed on Green Metrics Tool Cluster",
                     message=f"Your report is now accessible under the URL: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={self._run_id}"
                 )
-
-        except Exception as exc:
-            self._run_id = runner._run_id # might not be set yet, but we try
-            if self._email and not isinstance(exc, ConfigurationCheckError): # reduced error message to client, but only if no ConfigurationCheckError
-
-                Job.insert(
-                    'email',
-                    user_id=self._user_id,
-                    email=self._email,
-                    name='Measurement Job on Green Metrics Tool Cluster failed',
-                    message=f"Run-ID: {self._run_id}\nName: {self._name}\n\nDetails can also be found in the log under: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={self._run_id}\n\nError message: {exc}\n"
-                )
-            raise exc
         finally:
+            self._run_id = runner._run_id # might not be set yet, but we try
             user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds

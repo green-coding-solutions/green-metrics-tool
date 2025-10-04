@@ -154,7 +154,7 @@ const displayStatsTable = (stats) => {
         const label_stats_avg_node = document.createElement("tr")
         const label = row[21];
         label_stats_avg_node.innerHTML += `
-                                        <td class="td-index" data-tooltip="Averages per step '${label}'"  data-position="top left">${label} <i class="question circle icon small"></i></td>
+                                        <td class="td-index" data-tooltip="Averages per step '${escapeString(label)}'"  data-position="top left">${escapeString(label)} <i class="question circle icon small"></i></td>
                                         <td class=" td-index">${numberFormatter.format(row[0]/1000000)} J (± ${numberFormatter.format(row[3])}%)</td>
                                         <td class=" td-index">${numberFormatter.format(row[4]/1000000)} s (± ${numberFormatter.format(row[7])}%)</td>
                                         <td class=" td-index">${numberFormatter.format(row[8])}% (± ${numberFormatter.format(row[11])}%%)</td>
@@ -166,7 +166,7 @@ const displayStatsTable = (stats) => {
 
         const label_stats_total_node = document.createElement("tr")
         label_stats_total_node.innerHTML += `
-                                        <td class="td-index" data-tooltip="Totals per step '${label}'"  data-position="top left">${label} <i class="question circle icon small"></i></td>
+                                        <td class="td-index" data-tooltip="Totals per step '${escapeString(label)}'"  data-position="top left">${escapeString(label)} <i class="question circle icon small"></i></td>
                                         <td class=" td-index">${numberFormatter.format(row[0]/1000000)} J (± ${numberFormatter.format(row[3])}%)</td>
                                         <td class=" td-index">${numberFormatter.format(row[4]/1000000)} s (± ${numberFormatter.format(row[7])}%)</td>
                                         <td class=" td-index">${numberFormatterLong.format(row[17]/1000000)} gCO2e (± ${numberFormatter.format(row[19])}%)</td>
@@ -185,7 +185,7 @@ const displayRunDetailsTable = (measurements, repo) => {
     measurements.forEach(measurement => {
         const li_node = document.createElement("tr");
 
-        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, carbon_ug] = measurement;
+        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, carbon_ug, note] = measurement;
 
         const short_hash = commit_hash.substring(0, 7);
         const tooltip = `title="${commit_hash}"`;
@@ -193,13 +193,13 @@ const displayRunDetailsTable = (measurements, repo) => {
 
         let run_link = '';
 
-        const run_id_esc = escapeString(run_id)
+        const run_id_esc = encodeURIComponent(run_id)
 
         if(source == 'github') {
-            run_link = `https://github.com/${repo}/actions/runs/${run_id_esc}`;
+            run_link = `https://github.com/${encodeURIComponent(repo)}/actions/runs/${run_id_esc}`;
         }
         else if (source == 'gitlab') {
-            run_link = `https://gitlab.com/${repo}/-/pipelines/${run_id_esc}`
+            run_link = `https://gitlab.com/${encodeURIComponent(repo)}/-/pipelines/${run_id_esc}`
         }
 
         const run_link_node = `<a href="${run_link}" target="_blank">${run_id_esc}</a>`
@@ -216,10 +216,12 @@ const displayRunDetailsTable = (measurements, repo) => {
                             <td class="td-index">${escapeString(cpu)}</td>\
                             <td class="td-index">${escapeString(cpu_avg)}%</td>
                             <td class="td-index">${numberFormatter.format(duration_us/1000000)} s</td>
-                            <td class="td-index" ${escapeString(tooltip)}>${escapeString(short_hash)}</td>\
+                            <td class="td-index" title="${escapeString(commit_hash)}">${escapeString(short_hash)}</td>\
                             <td class="td-index">${city_string}</td>
                             <td class="td-index">${escapeString(carbon_intensity_g)} gCO2/kWh</td>
                             <td class="td-index" title="${carbon_ug/1000000}">${escapeString(numberFormatterLong.format(carbon_ug/1000000))} gCO2e</td>
+                            <td class="td-index">${ (note == null) ? '' : `<span class="ui icon" data-position="top right" data-inverted="" data-tooltip="${escapeString(note)}"><i class="ui question circle icon fluid"></i></span>` }</td>
+
                             `;
         document.querySelector("#ci-table").appendChild(li_node);
     });
@@ -230,9 +232,11 @@ const getBadges = async (repo, branch, workflow_id) => {
     try {
         const link_node = document.createElement("a")
         const img_node = document.createElement("img")
-        img_node.src = `${API_URL}/v1/ci/badge/get?repo=${repo}&branch=${branch}&workflow=${workflow_id}`
+        img_node.src = `${API_URL}/v1/ci/badge/get?repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}&workflow=${encodeURIComponent(workflow_id)}`
         img_node.onerror = function() {this.src='/images/no-data-badge.webp'}
-        link_node.href = '#'
+        link_node.href = `${METRICS_URL}/ci.html?repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}&workflow=${encodeURIComponent(workflow_id)}`
+        link_node.rel = 'noopener'
+        link_node.target = '_blank'
 
         const energy_last = link_node.cloneNode(true)
         const energy_last_image = img_node.cloneNode(true)
@@ -286,7 +290,7 @@ const getBadges = async (repo, branch, workflow_id) => {
 
 const getMeasurementsAndStats = async (repo, branch, workflow_id, start_date, end_date) => {
 
-    const query_string=`repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`;
+    const query_string=`repo=${escapeString(repo)}&branch=${escapeString(branch)}&workflow=${escapeString(workflow_id)}&start_date=${start_date}&end_date=${end_date}`;
     const [measurements, stats] = await Promise.all([
         makeAPICall(`/v1/ci/measurements?${query_string}`),
         makeAPICall(`/v1/ci/stats?${query_string}`)
@@ -304,10 +308,18 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
     let stats = null;
     try {
         [measurements, stats] = await getMeasurementsAndStats(repo, branch, workflow_id, start_date, end_date); // iterates I
+        document.querySelectorAll('.container-no-data').forEach(el => el.style.display = '')
+        document.querySelector('#message-no-data').style.display = 'none';
 
     } catch (err) {
-        showNotification('Could not get data from API', err);
-        return; // abort
+        if (err instanceof APIEmptyResponse204) {
+            document.querySelectorAll('.container-no-data').forEach(el => el.style.display = 'none')
+            document.querySelector('#message-no-data').style.display = '';
+            return
+        } else {
+            showNotification('Could not get data from API', err);
+            return; // abort
+        }
     }
 
     history.pushState(null, '', `${window.location.origin}${window.location.pathname}?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`); // replace URL to bookmark!
@@ -345,23 +357,23 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
 
 const populateRunInfos = async (repo, branch, source, workflow_name, workflow_id) => {
 
-    document.querySelector('#ci-data-branch').innerText =  branch;
-    document.querySelector('#ci-data-workflow-id').innerText =  workflow_id;
+    document.querySelector('#ci-data-branch').innerText =  escapeString(branch);
+    document.querySelector('#ci-data-workflow-id').innerText =  escapeString(workflow_id);
 
     if (workflow_name == '' || workflow_name == null) {
         workflow_name = workflow_id ;
     }
-    document.querySelector('#ci-data-workflow').innerText =  workflow_name;
+    document.querySelector('#ci-data-workflow').innerText =  escapeString(workflow_name);
 
     let repo_link = ''
     if(source == 'github') {
-        repo_link = `https://github.com/${repo}`;
+        repo_link = `https://github.com/${encodeURIComponent(repo)}`;
     }
     else if(source == 'gitlab') {
-        repo_link = `https://gitlab.com/${repo}`;
+        repo_link = `https://gitlab.com/${encodeURIComponent(repo)}`;
     }
 
-    const repo_link_node = `<a href="${repo_link}" target="_blank">${repo}</a>`
+    const repo_link_node = `<a href="${repo_link}" target="_blank">${escapeString(repo)}</a>`
     document.querySelector('#ci-data-repo').innerHTML =  repo_link_node;
 }
 

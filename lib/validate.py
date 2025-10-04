@@ -27,7 +27,7 @@ from lib.db import DB
 from lib.terminal_colors import TerminalColors
 from lib import error_helpers
 
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 
 class ValidationWorkloadStddevError(RuntimeError):
     pass
@@ -76,18 +76,20 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
 
 
 def run_workload(name, uri, filename, branch):
-    runner = Runner(
+    runner = ScenarioRunner(
         name=name,
         uri=uri,
         uri_type='URL',
         filename=filename,
         branch=branch,
         skip_unsafe=True,
-        skip_system_checks=None,
+        skip_system_checks=False,
         full_docker_prune=False,
         docker_prune=True,
         job_id=None,
         user_id=0, # User id 0 is the [GMT-SYSTEM] user
+        measurement_flow_process_duration=1800,
+        measurement_total_duration=1800,
     )
     # Start main code. Only URL is allowed for cron jobs
     runner.run()
@@ -96,16 +98,16 @@ def validate_workload_stddev(data, metrics):
     warning = False
     info_string_acc = []
     for el in data:
-        info_string = f"{el['metric']} {el['detail_name']}: {el['avg']} +/- {el['stddev']} {el['stddev_rel']*100} %"
+        info_string = f"{el['metric']} {el['detail_name']}:\n\t{round(el['avg'], 2)} +/- {round(el['stddev'], 2)} {round(el['stddev_rel']*100, 2)} %"
         info_string_acc.append(info_string)
 
         if metrics[el['metric']]['type'] == 'stddev_rel':
             if el['stddev_rel'] > metrics[el['metric']]['threshold']:
-                info_string_acc.append(f"=> Warning! Threshold of {metrics[el['metric']]['threshold']} exceeded. Value is: {el['stddev_rel']}. Metric: {el['metric']}")
+                info_string_acc.append(f"=> Warning! Threshold of {metrics[el['metric']]['threshold']} exceeded.\nValue is: {round(el['stddev_rel'], 2)}. Metric: {el['metric']}")
                 warning = True
         elif metrics[el['metric']]['type'] == 'stddev':
             if el['stddev'] > metrics[el['metric']]['threshold']:
-                info_string_acc.append(f"=> Warning! Threshold of {metrics[el['metric']]['threshold']} exceeded. Value is: {el['stddev']}. Metric: {el['metric']}")
+                info_string_acc.append(f"=> Warning! Threshold of {metrics[el['metric']]['threshold']} exceeded.\nValue is: {round(el['stddev'], 2)}. Metric: {el['metric']}")
                 warning = True
         else:
             raise ValueError(f"{el['metric']} had unknown threshhold validation type: {metrics[el['metric']]['type']}")

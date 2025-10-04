@@ -45,20 +45,30 @@
                 </div>
             </div>
         </div>
-        <div class="ui icon message blue">
-            <i class="info circle icon"></i>
+
+        <div class="ui icon yellow message cluster-health-message" style="display: none;"> <!-- style must be inline to override fomantic -->
+            <i class="exclamation triangle icon"></i>
             <div class="content">
                 <div class="header">
-                    Restrictions of the free version
+                    Cluster Status
                 </div>
-                <ul>
-                    <li>Only public repositories are supported</li>
-                    <li>Soft-Limit of 5 runs month, 30 Minutes per measurement, measurement minutes, data retention ...</li>
-                    <li>For a premium account with no restrictions please see <a style="text-decoration: underline; font-weight: bold;" href="https://www.green-coding.io/products/green-metrics-tool">our comparison table</a></li>
-                    <li>If you already have a premium plan please enter your authentication token on the <a style="text-decoration: underline; font-weight: bold;" href="/settings">settings page</a></li>
-                </ul>
+                <div id="cluster-health-warnings"></div>
             </div>
         </div>
+        <div class="ui icon success message cluster-health-message" style="display: none;">  <!-- style must be inline to override fomantic -->
+            <i class="check circle icon"></i>
+            <div class="content">
+                <div class="header">
+                    Cluster Status
+                </div>
+                <p>All systems operating normally</p>
+            </div>
+        </div>
+        <a href="/cluster-status-history.html" class="cluster-health-link">See Status History <i class="clock icon"></i></a>
+        <a href="/cluster-changelog.html" class="cluster-health-link">See Cluster Changelog <i class="edit icon"></i></a>
+
+        <div style="clear: both;"></div>
+
         <div class="ui segment full-width-card card">
             <div class="content">
                 <div class="header">Submit software for measurement</div>
@@ -105,6 +115,7 @@
                                 <option value='commit-variance'>Test variance on every new commit (3 measurements in a row) [Premium]</option>
                                 <option value='tag'>On every new tag [Premium]</option>
                                 <option value='tag-variance'>Test variance on every new tag (3 measurements in a row) [Premium]</option>
+                                <option value='statistical-significance'>Do 10 runs to evaluate statistical significance [Premium]</option>
                             </select>
                         </div>
                         <button class="positive ui button">Submit software</button>

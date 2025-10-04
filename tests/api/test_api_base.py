@@ -90,5 +90,5 @@ def test_machines():
     assert json_data['data'][0][1] == 'Local machine'
 
 def test_jobs():
-    response = requests.get(f"{API_URL}/v1/jobs", timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    response = requests.get(f"{API_URL}/v2/jobs", timeout=15, headers={'X-Authentication': 'DEFAULT'})
     assert response.status_code == 204

@@ -2,6 +2,16 @@ name: Pull Request Tests
 run-name: PR check
 on:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      enable-ssh:
+        description: 'Enable SSH connection for debugging purposes'
+        required: false
+        type: boolean
+      test-path:
+        description: 'Specific test path to run'
+        required: false
+        type: string
 
 jobs:
   run-tests:
@@ -17,10 +27,11 @@ jobs:
           machine: "ubuntu-latest"
           tags: "CI/CD, PR-Workflow"
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
-          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+          co2-calculation-method: 'location-based'
+          co2-grid-intensity-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
 
       - name: 'Checkout repository'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.ref }}
           submodules: 'false'
@@ -30,6 +41,8 @@ jobs:
         uses: ./.github/actions/gmt-pytest
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
+         enable-ssh: ${{ inputs.enable-ssh }}
+         test-path: ${{ inputs.test-path }}
 
       - name: Eco CI Energy Estimation - Get Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@main
@@ -41,3 +54,4 @@ jobs:
         with:
           task: display-results
           pr-comment: true
+

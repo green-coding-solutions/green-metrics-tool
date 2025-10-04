@@ -65,6 +65,9 @@ class User():
             raise ValueError(f"You cannot change this setting: {name}")
 
         match name:
+            case 'measurement.dev_no_optimizations' | 'measurement.dev_no_sleeps' | 'measurement.phase_padding' | 'measurement.skip_volume_inspect':
+                if not isinstance(value, bool):
+                    raise ValueError(f'The setting {name} must be boolean')
             case 'measurement.flow_process_duration' | 'measurement.total_duration':
                 if not (isinstance(value, int) or value.isdigit()) or int(value) <= 0 or int(value) > 86400:
                     raise ValueError(f'The setting {name} must be between 1 and 86400')
@@ -75,6 +78,14 @@ class User():
                 if not value.issubset(allowed_values):
                     raise ValueError(f'The setting {name} must be in {allowed_values} but is {value}')
                 value = list(value) # transform back, as it is not json serializable. But we need the unique transform of set beforehand
+            case 'measurement.system_check_threshold':
+                if not (isinstance(value, int) or value.isdigit()) or int(value) not in [1, 2, 3]:
+                    raise ValueError(f'The setting {name} must be 1, 2 or 3')
+                value = int(value)
+            case 'measurement.pre_test_sleep' | 'measurement.idle_duration' | 'measurement.baseline_duration' | 'measurement.post_test_sleep' | 'measurement.phase_transition_time' | 'measurement.wait_time_dependencies':
+                if not (isinstance(value, int) or value.isdigit()) or int(value) <= 0 or int(value) > 86400:
+                    raise ValueError(f'The setting {name} must be between 1 and 86400')
+                value = int(value)
             case _:
                 raise ValueError(f'The setting {name} is unknown')
 

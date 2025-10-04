@@ -2,7 +2,6 @@
 name: Test Stress
 author: Dan Mateas
 description: test
-description: test
 
 services:
   test-container:

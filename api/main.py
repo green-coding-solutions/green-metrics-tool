@@ -14,11 +14,13 @@ from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.datastructures import Headers as StarletteHeaders
 
-from api.api_helpers import authenticate, html_escape_multi
+from api.api_helpers import authenticate
 
 from lib.global_config import GlobalConfig
 from lib import error_helpers
 from lib.user import User
+from lib.db import DB
+from lib.secure_variable import SecureVariable
 
 from api.object_specifications import UserSetting
 
@@ -105,7 +107,24 @@ app.add_middleware(
 def obfuscate_authentication_token(headers: StarletteHeaders):
     headers_mut = headers.mutablecopy()
     if 'X-Authentication' in headers_mut:
-        headers_mut['X-Authentication'] = '****OBFUSCATED****'
+        try:
+            authentication_token = headers_mut['X-Authentication']
+            if not authentication_token or authentication_token.strip() == '': # Note that if no token is supplied this will authenticate as the DEFAULT user, which in FOSS systems has full capabilities
+                authentication_token = 'DEFAULT'
+
+            user = User.authenticate(SecureVariable(authentication_token))
+            headers_mut['X-Authentication'] = f"****TOKEN REMOVED FOR USER {user._name} ({user._id})****"
+        except Exception as exc: # pylint: disable=broad-exception-caught
+            error_helpers.log_error(
+                'Could not resolve user name for authentication token',
+                headers=headers,
+                token=headers['X-Authentication'],
+                exception=exc,
+                previous_exception=exc.__context__
+            )
+
+            headers_mut['X-Authentication'] = '****TOKEN REMOVED FOR USER __UNKNOWN__ ****'
+
     return headers_mut
 
 #############################################################
@@ -144,7 +163,6 @@ async def get_user_settings(user: User = Depends(authenticate)):
 
 @app.put('/v1/user/setting')
 async def update_user_setting(setting: UserSetting, user: User = Depends(authenticate)):
-    setting = html_escape_multi(setting)
 
     try:
         user.change_setting(setting.name, setting.value)
@@ -152,6 +170,72 @@ async def update_user_setting(setting: UserSetting, user: User = Depends(authent
         raise RequestValidationError(str(exc)) from exc
 
     return Response(status_code=202) # No-Content
+
+@app.get('/v1/cluster/status')
+async def get_cluster_status(
+    user: User = Depends(authenticate) # pylint: disable=unused-argument
+    ):
+    query = '''
+        SELECT id, message, resolved, created_at
+        FROM cluster_status_messages
+        WHERE resolved = false
+        ORDER BY created_at DESC
+    '''
+
+    data = DB().fetch_all(query)
+
+    if data is None or data == []:
+        return Response(status_code=204)  # No-Content
+
+    return ORJSONResponse({'success': True, 'data': data})
+
+
+@app.get('/v1/cluster/status/history')
+async def get_cluster_status_history(
+    user: User = Depends(authenticate) # pylint: disable=unused-argument
+    ):
+    query = '''
+        SELECT id, message, resolved, created_at
+        FROM cluster_status_messages
+        ORDER BY created_at DESC
+    '''
+
+    data = DB().fetch_all(query)
+
+    if data is None or data == []:
+        return Response(status_code=204)  # No-Content
+
+    return ORJSONResponse({'success': True, 'data': data})
+
+@app.get('/v1/cluster/changelog')
+async def get_cluster_changelog(
+    machine_id: int | None = None,
+    user: User = Depends(authenticate) # pylint: disable=unused-argument
+    ):
+
+    params = []
+    machine_id_condition = ''
+
+    if machine_id is not None:
+        machine_id_condition = 'AND machine_id = %'
+        params.append(machine_id)
+
+    query = f"""
+        SELECT id, message, machine_id, created_at
+        FROM cluster_changelog
+        WHERE
+            1=1
+            {machine_id_condition}
+        ORDER BY created_at DESC
+    """
+
+    data = DB().fetch_all(query, params=params)
+
+    if data is None or data == []:
+        return Response(status_code=204)  # No-Content
+
+    return ORJSONResponse({'success': True, 'data': data})
+
 
 if GlobalConfig().config.get('activate_scenario_runner', False):
     from api import scenario_runner
@@ -168,6 +252,10 @@ if GlobalConfig().config.get('activate_power_hog', False):
 if GlobalConfig().config.get('activate_carbon_db', False):
     from ee.api import carbondb
     app.include_router(carbondb.router)
+
+if GlobalConfig().config.get('activate_ai_optimisations', False):
+    from ee.api import ai_optimisations
+    app.include_router(ai_optimisations.router)
 
 
 if __name__ == '__main__':

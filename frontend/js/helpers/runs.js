@@ -140,9 +140,7 @@ async function getRepositories(sort_by = 'date') {
         const last_run = el[1];
         let uri_link = replaceRepoIcon(uri);
 
-        if (uri.startsWith("http")) {
-            uri_link = `${uri_link} <a href="${uri}"><i class="icon external alternate"></i></a>`;
-        }
+        uri_link = `${uri_link} ${createExternalIconLink(uri)}`;
 
         let row = table_body.insertRow()
         row.innerHTML = `
@@ -152,7 +150,7 @@ async function getRepositories(sort_by = 'date') {
                     <i class="dropdown icon"></i> ${uri_link}
                     <span class="ui label float-right"><i class="clock icon"></i> ${dateToYMD(new Date(last_run), short=true)}</span>
                   </div>
-                  <div class="content" data-uri="${uri}">
+                  <div class="content" data-uri="${escapeString(uri)}">
                       <table class="ui celled striped table"></table>
                   </div>
                 </div>
@@ -164,7 +162,7 @@ async function getRepositories(sort_by = 'date') {
 
             if(!$.fn.DataTable.isDataTable(table)) {
                 const uri = this.getAttribute('data-uri');
-                getRunsTable($(table), `/v1/runs?uri=${uri}&uri_mode=exact`, false, false, true)
+                getRunsTable($(table), `/v2/runs?uri=${uri}&uri_mode=exact&limit=0`, false, false, true)
             }
     }});
 }
@@ -186,11 +184,14 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             title: 'Name',
             render: function(el, type, row) {
 
-                // only show Failed OR in Progress
-                if(row[10] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
-                else if(row[9] == null) el = `${el} (in progress 🔥)`;
+                el = escapeString(el);
 
-                if(row[5] != null) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">invalidated</span>`;
+                // Show status labels based on run state
+                if(row[12] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
+                else if(row[11] == null) el = `${el} (in progress 🔥)`;
+
+                // Show warning label if warnings exist
+                if(row[5] != 0) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">Warnings</span>`;
 
                 return `<a href="/stats.html?id=${row[0]}" target="_blank">${el}</a>`
             },
@@ -204,28 +205,33 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 render: function(el, type, row) {
                     let uri_link = replaceRepoIcon(el);
 
-                    if (el.startsWith("http")) {
-                        uri_link = `${uri_link} <a href="${el}"><i class="icon external alternate"></i></a>`;
-                    }
+                    uri_link = `${uri_link} ${createExternalIconLink(el)}`;
                     return uri_link
                 },
         })
     }
 
-    columns.push({ data: 3, title: '<i class="icon code branch"></i>Branch'});
+    columns.push({ data: 3, title: '<i class="icon code branch"></i>Branch', render: (el, type, row) => escapeString(el) });
 
     columns.push({
-        data: 8,
+        data: 10,
         title: '<i class="icon history"></i>Commit</th>',
         render: function(el, type, row) {
           // Modify the content of the "Name" column here
-          return el == null ? null : `${el.substr(0,3)}...${el.substr(-3,3)}`
+          return el == null ? null : `${escapeString(el.substr(0,3))}...${escapeString(el.substr(-3,3))}`
         },
     });
 
-    columns.push({ data: 6, title: '<i class="icon file alternate"></i>Filename', });
-    columns.push({ data: 7, title: '<i class="icon laptop code"></i>Machine</th>' });
-    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (el, type, row) => el == null ? '-' : `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${row[2]}&branch=${row[3]}&machine_id=${row[11]}&filename=${row[6]}&metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>` });
+    columns.push({
+        data: 6,
+        title: '<i class="icon file alternate"></i>Filename',
+        render: function(el, type, row) {
+            const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui label">${escapeString(k)}=${escapeString(v)}</span>`);
+            return `${escapeString(el)} ${usage_scenario_variables.join(' ')}`
+        }
+    });
+    columns.push({ data: 9, title: '<i class="icon laptop code"></i>Machine</th>', render: (el, type, row) => escapeString(el) });
+    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (el, type, row) => el == null ? '-' : `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${encodeURIComponent(row[2])}&branch=${encodeURIComponent(row[3])}&machine_id=${row[13]}&filename=${encodeURIComponent(row[6])}&metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>` });
 
     columns.push({
         data: 0,
@@ -266,6 +272,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
 
 (async () => {
 
+    const url_params = getURLParams();
+
     document.querySelector('#home-toggle-button').addEventListener('click', el => {
         if (el.currentTarget.innerText === 'Switch to repository view') {
             document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Repositories';
@@ -278,7 +286,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         }
     });
 
-    if (localStorage.getItem('scenario_runner_data_shown') === 'repositories') {
+    if (url_params['show'] === 'repositories' || localStorage.getItem('scenario_runner_data_shown') === 'repositories') {
         document.querySelector('#runs-and-repos-table-title').innerText = 'Repositories';
         document.querySelector('#home-toggle-button').innerText = 'Switch to last runs view';
         document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Repositories';
@@ -287,7 +295,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     } else {
         document.querySelector('#scenario-runner-repositories-description')?.remove();
         document.querySelector('#sort-button').remove()
-        getRunsTable($('#runs-and-repos-table tbody table'), `/v1/runs?${getFilterQueryStringFromURI()}&limit=50`)
+        getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?${getFilterQueryStringFromURI()}&limit=50`)
     }
 
     if (localStorage.getItem('expert_compare_mode') === 'true') {

@@ -219,6 +219,16 @@ a,
     text-transform: none;
 }
 
+.source {
+    font-size: 0.9em;
+    color: #999;
+}
+
+.metric-type{
+    font-size: 0.7em;
+    color: #999;
+}
+
 .ui.fluid.image.menu-logo {
     width: 90%;
 }
@@ -273,6 +283,10 @@ a,
 }
 
 
+.compare-metrics-table td:nth-child(6) {
+    font-weight: bold;
+}
+
 .compare-chart-container, .key-metrics-chart-container {
     display: flex;
     flex-direction: row;
@@ -281,10 +295,6 @@ a,
     margin-bottom: 40px;
 }
 
-.usage-scenario, #diff-pre {
-    word-wrap: break-word;
-    white-space: pre-wrap;
-}
 
 .break {
   flex-basis: 100%;
@@ -306,11 +316,54 @@ a,
     vertical-align: top;
 }
 
-#logs pre, #machine-specs-tab {
-    max-width: 80vw;
-    white-space: pre-wrap;
+#usage-scenario {
+    white-space: pre;
     word-wrap: break-word;
-    overflow: scroll;
+    overflow: auto;
+    font-family: monospace;
+}
+
+#usage-scenario-dependencies {
+  word-break: break-all;
+}
+
+#logs .ui.accordion,
+#logs .ui.card {
+    width: 100%;
+    max-width: none;
+}
+
+#logs .ui.segment.stdout,
+#logs .ui.segment.stderr {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+#logs .ui.segment.stdout {
+    background-color: #f8f8f9;
+}
+
+#logs .ui.segment.stderr {
+    background-color: #fff6f6;
+    border-color: #e0b4b4;
+}
+
+#logs .ui.segment > div:last-child {
+    font-family: monospace;
+    font-size: 0.9em;
+    white-space: pre-wrap;
+    color: rgba(0,0,0,0.8);
+}
+
+#logs h4.ui.header {
+    text-transform: uppercase;
+}
+
+#machine-specs, #machine-specs-tab {
+    white-space: pre;
+    word-wrap: break-word;
+    overflow: scroll; /* without forcing scroll on table does not work */
+    font-family: monospace;
 }
 
 #unselect-button, #compare-force-mode {
@@ -365,6 +418,14 @@ a {
     font-weight: bold;
 }
 
+#usage-scenario-variables li {
+    margin-bottom: 5px;
+}
+
+#measurement-config h2 {
+    margin-top: 30px;
+}
+
 
 /* PRINT STYLESHEETS */
 @media print {
@@ -376,3 +437,12 @@ a {
 
 /* Allow clickable boxes for chart overlays */
 .statistics-chart div { pointer-events: all !important }
+
+#machines-table tr, #machines-table td {
+  font-size: 11px;
+}
+
+.cluster-health-link {
+    padding-right: 20px;
+    float: right;
+}

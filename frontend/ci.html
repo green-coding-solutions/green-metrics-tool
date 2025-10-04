@@ -33,7 +33,7 @@
     <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left"><a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon opened"></i></a> CI Run Info</h1>
-        <div class="ui full-width-card card">
+        <div class="ui full-width-card card container-no-data">
             <div class="content">
                 <div class="header"><a class="ui red ribbon label">
                     <h3>General Info</h3>
@@ -83,7 +83,19 @@
                 </div>
             </div>
         </div><!-- end ui full-width-card card -->
-        <div class="ui icon message blue">
+
+        <div id="message-no-data" class="ui icon message red container-no-data">
+            <i class="info circle icon"></i>
+            <div class="content">
+                <div class="header">
+                    No data for time frame
+                </div>
+                <p>In the selected time frame we have not seen any data :/</p>
+                <p>Try selecting a longer period reaching deeper into the past to see data for this repo.</p>
+            </div>
+        </div>
+
+        <div class="ui icon message blue container-no-data">
             <i class="info circle icon"></i>
             <div class="content">
                 <p> Here you can see the energy measurements of the associated CI/CD pipeline. </p>
@@ -119,10 +131,9 @@
             </div>
         </div>
 
-        <div class="ui segment" id="chart-container">
+        <div id="chart-container" class="ui segment container-no-data"></div>
 
-        </div>
-        <div class = "ui segment" id="stats-container">
+        <div id="stats-container" class="ui segment container-no-data">
             <div class="header"><a class="ui teal ribbon label">
                     <h3>Pipeline stats</h3>
                 </a></div>
@@ -163,7 +174,7 @@
             </div>
         </div>
 
-       <div id="loader-question" class="ui icon info message blue">
+       <div id="loader-question" class="ui icon info message blue container-no-data">
             <i class="info circle icon"></i>
 
             <div class="content">
@@ -177,7 +188,7 @@
             <ul></ul>
         </div>
 
-        <div class="ui one cards" id="api-loader" style="display:none;">
+        <div id="api-loader" class="ui one cards" style="display:none;">
             <div class="card" style="min-height: 300px">
                 <div class="ui active dimmer">
                     <div class="ui indeterminate text loader">Building table ...</div>
@@ -185,8 +196,6 @@
                 <p></p>
             </div>
         </div>
-        <div id="chart-container"></div>
-
 
         <div class="ui segment" id="run-details-table" style="display: none">
             <div class="header"><a class="ui teal ribbon label">
@@ -206,6 +215,7 @@
                     <th>Location</th>
                     <th>Grid Intensity</th>
                     <th>gCO2eq of run</th>
+                    <th>Note</th>
                 </tr>
             </thead>
             <tbody id="ci-table"></tbody>

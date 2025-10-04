@@ -6,7 +6,7 @@ from tests import test_functions as Tests
 # to the diffing. To prevent this, this Unit test checks if the table column signature is unchanged
 def test_run_signature():
 
-    expected_signature = 'id,job_id,name,uri,branch,commit_hash,commit_timestamp,categories,usage_scenario,filename,machine_specs,runner_arguments,machine_id,gmt_hash,measurement_config,start_measurement,end_measurement,phases,logs,invalid_run,failed,user_id,created_at,updated_at'
+    expected_signature = 'id,job_id,name,uri,branch,commit_hash,commit_timestamp,categories,usage_scenario,usage_scenario_variables,usage_scenario_dependencies,filename,machine_specs,runner_arguments,machine_id,gmt_hash,measurement_config,start_measurement,end_measurement,phases,logs,invalid_run,failed,user_id,created_at,updated_at'
     current_signature = DB().fetch_all("SELECT column_name FROM information_schema.columns WHERE table_name = 'runs' ORDER BY ordinal_position;")
     current_signature = ",".join([x[0] for x in current_signature])
 

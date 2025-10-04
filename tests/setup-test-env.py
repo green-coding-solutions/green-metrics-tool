@@ -1,6 +1,8 @@
 import os
 from copy import deepcopy
 import subprocess
+import sys
+from time import sleep
 import yaml
 import shutil
 import re
@@ -30,6 +32,24 @@ base_frontend_config_path = os.path.join(current_dir, f'../{BASE_FRONTEND_CONFIG
 test_frontend_config_path = os.path.join(current_dir, TEST_FRONTEND_CONFIG_NAME)
 
 DB_PW = 'testpw'
+
+def check_sudo():
+    print('Checking sudo...')
+    process = None
+    try:
+        process = subprocess.Popen(['sudo', 'echo', 'ok']) # pylint: disable=consider-using-with
+        process.wait()
+        if process.returncode != 0:
+            raise RuntimeError("Failed to run sudo. Please run `sudo echo 'ok'` to get the sudo token and then rerun this script.")
+    except KeyboardInterrupt:
+        if process is not None:
+            process.terminate()
+        print('Interrupted by user. You might get some sudo message in your shell. Ignore it! Sleeping for 5 seconds to let sudo finish writing to terminal.')
+        print("Failed to run sudo. Please run `sudo echo 'ok'` to get the sudo token and then rerun this script.")
+
+        sleep(5) # We need to sleep here to give sudo time to write to terminal
+
+        sys.exit(1)
 
 def copy_sql_structure(ee=False):
     print('Copying SQL structure...')
@@ -130,7 +150,7 @@ def edit_compose_file():
     with open(test_compose_path, 'w', encoding='utf8') as test_compose_file:
         yaml.dump(compose, test_compose_file)
 
-def create_test_config_file(ee=False):
+def create_test_config_file(ee=False, ai=False):
     print('Creating test-config.yml...')
 
     with open('test-config.yml.example', 'r', encoding='utf-8') as file:
@@ -142,10 +162,14 @@ def create_test_config_file(ee=False):
         content = content.replace('activate_power_hog: False', 'activate_power_hog: True')
         content = content.replace('activate_carbon_db: False', 'activate_carbon_db: True')
 
+    if ai:
+        print('Activating AI in config.yml ...')
+        content = content.replace('activate_ai_optimisations: False', 'activate_ai_optimisations: True')
+
     with open('test-config.yml', 'w', encoding='utf-8') as file:
         file.write(content)
 
-def create_frontend_config_file(ee=False):
+def create_frontend_config_file(ee=False, ai=False):
     print('Creating frontend test-config.js file...')
 
     with open(base_frontend_config_path, 'r', encoding='utf-8') as file:
@@ -165,11 +189,18 @@ def create_frontend_config_file(ee=False):
         content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = false;', content, flags=re.MULTILINE)
         content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = false;', content, flags=re.MULTILINE)
 
+    if ai:
+        print(f'Activating AI in {TEST_FRONTEND_CONFIG_NAME} ...')
+        content = re.sub(r'ACTIVATE_AI_OPTIMISATIONS.*$', 'ACTIVATE_AI_OPTIMISATIONS = true;', content, flags=re.MULTILINE)
+    else:
+        content = re.sub(r'ACTIVATE_AI_OPTIMISATIONS.*$', 'ACTIVATE_AI_OPTIMISATIONS = false;', content, flags=re.MULTILINE)
+
     with open(test_frontend_config_path, 'w', encoding='utf-8') as file:
         file.write(content)
 
 def edit_etc_hosts():
     subprocess.run(['./edit-etc-hosts.sh'], check=True)
+
 
 def build_test_docker_image():
     subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build'], check=True)
@@ -182,14 +213,19 @@ if __name__ == '__main__':
                         help='Do not build the docker image')
     parser.add_argument('--ee', action='store_true',
                         help='Enable enterprise tests')
+    parser.add_argument('--ai', action='store_true',
+                        help='Enable AI tests')
+
 
     args = parser.parse_args()
 
+    check_sudo()
     copy_sql_structure(args.ee)
-    create_test_config_file(args.ee)
-    create_frontend_config_file(args.ee)
+    create_test_config_file(args.ee, args.ai)
+    create_frontend_config_file(args.ee, args.ai)
     edit_compose_file()
     edit_etc_hosts()
     if not args.no_docker_build:
         build_test_docker_image()
+    subprocess.check_output(['sudo', '-k']) # deactivate sudo again
     print('fin.')

@@ -68,6 +68,8 @@ def test_insert_job():
     assert job._state == 'WAITING'
 
 def test_simple_run_job_no_quota():
+    Tests.shorten_sleep_times(1)
+
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
@@ -91,6 +93,8 @@ def test_simple_run_job_no_quota():
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
 def test_simple_run_job_quota_gets_deducted():
+    Tests.shorten_sleep_times(1)
+
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
@@ -117,6 +121,32 @@ def test_simple_run_job_quota_gets_deducted():
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
     assert User(1)._capabilities['measurement']['quotas']['1'] < 10_000 * 60
+
+def test_simple_run_job_with_variables():
+    Tests.shorten_sleep_times(1)
+
+    name = utils.randomword(12)
+    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
+    filename = 'usage_scenario.yml'
+    branch = 'usage_scenario_variables'
+    machine_id = 1
+    usage_scenario_variables = {'__GMT_VAR_COMMAND__': 'stress-ng'}
+
+    Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id, usage_scenario_variables=usage_scenario_variables)
+
+    ps = subprocess.run(
+            ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+
+    assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
+    assert 'Successfully processed jobs queue item.' in ps.stdout,\
+        Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
+    assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
+        Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
 def test_simple_run_job_missing_filename_branch():
     name = utils.randomword(12)

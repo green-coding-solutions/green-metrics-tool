@@ -4,7 +4,7 @@ import unittest
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 from lib import utils
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 
 class TestYML(unittest.TestCase):
 
@@ -12,10 +12,10 @@ class TestYML(unittest.TestCase):
         test_root_file = 'tests/data/usage_scenarios/import_one_root.yml'
         name = 'test_' + utils.randomword(12)
 
-        runner = Runner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
-        runner.checkout_repository() # We need to do this to setup the file paths correctly
+        runner = ScenarioRunner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
+        runner._checkout_repository() # We need to do this to setup the file paths correctly
 
-        runner.load_yml_file()
+        runner._load_yml_file()
         result_obj = {'name': 'Import Test',
                     'services': {'test-container':
                                     {'type': 'container'}},
@@ -27,17 +27,19 @@ class TestYML(unittest.TestCase):
         test_root_file = 'tests/data/usage_scenarios/import_two_root.yml'
         name = 'test_' + utils.randomword(12)
 
-        runner = Runner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
-        runner.checkout_repository() # We need to do this to setup the file paths correctly
+        runner = ScenarioRunner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
+        runner._checkout_repository() # We need to do this to setup the file paths correctly
 
-        runner.load_yml_file()
+        runner._load_yml_file()
         result_obj = {'name': 'my sample flow',
                       'author': 'Arne Tarara',
                       'description': 'test',
                       'services': {'my-database':
-                                   {'some-key': 'something',
-                                    'setup-commands':
-                                    ['cp /tmp/repo/test_1MB.jpg /usr/local/apache2/htdocs/test_1MB.jpg']}}}
+                                    {'some-key': 'something',
+                                      'setup-commands': [{'command': 'cp /tmp/repo/test_1MB.jpg /usr/local/apache2/htdocs/test_1MB.jpg'}]
+                                   }
+                                 }
+                     }
 
         print(f"actual: {runner._usage_scenario}")
         print(f"expect: {result_obj}")
@@ -47,6 +49,6 @@ class TestYML(unittest.TestCase):
     def test_invalid_path(self):
         name = 'test_' + utils.randomword(12)
         test_root_file = 'tests/data/usage_scenarios/import_error.yml'
-        runner = Runner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
-        runner.checkout_repository() # We need to do this to setup the file paths correctly
-        self.assertRaises(ValueError, runner.load_yml_file)
+        runner = ScenarioRunner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
+        runner._checkout_repository() # We need to do this to setup the file paths correctly
+        self.assertRaises(ValueError, runner._load_yml_file)

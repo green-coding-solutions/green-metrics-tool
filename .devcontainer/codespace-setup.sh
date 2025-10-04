@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euxo pipefail
 
 /workspaces/green-metrics-tool/install_linux.sh -p testpw -a "https://${CODESPACE_NAME}-9142.app.github.dev" -m "https://${CODESPACE_NAME}-9143.app.github.dev" -T -I -S -L -z -Z -f
@@ -13,7 +13,7 @@ sed -i 's/- 9142:9142/- 9142:9142\n      - 9143:9143/' /workspaces/green-metrics
 sed -i 's|- ./nginx/block.conf|#- ./nginx/block.conf|' /workspaces/green-metrics-tool/docker/compose.yml
 
 # activate XGBoost provider with sane values for GitHub Codespaces
-sed -i 's/common:/common:\n      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:\n        resolution: 99\n        CPUChips: 1\n        HW_CPUFreq: 2800\n        CPUCores: 32\n        CPUThreads: 64\n        TDP: 270\n        HW_MemAmountGB: 256\n        VHost_Ratio: 0.03125\n/' /workspaces/green-metrics-tool/config.yml
+sed -i 's/common:/common:\n      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:\n        CPUChips: 1\n        HW_CPUFreq: 2800\n        CPUCores: 32\n        CPUThreads: 64\n        TDP: 270\n        HW_MemAmountGB: 256\n        VHost_Ratio: 0.03125\n/' /workspaces/green-metrics-tool/config.yml
 
 
 git clone https://github.com/green-coding-solutions/example-applications.git --depth=1 --single-branch /workspaces/green-metrics-tool/example-applications || true

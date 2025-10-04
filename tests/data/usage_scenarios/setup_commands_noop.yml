@@ -1,0 +1,22 @@
+---
+name: Test Noop
+author: Dan Mateas
+description: test
+
+services:
+  test-container:
+    type: container
+    image: gcb_stress
+    build:
+      context: ../stress-application
+    setup-commands:
+      - command: ps -a
+        shell: sh
+
+flow:
+  - name: Noop
+    container: test-container
+    commands:
+      - type: console
+        command: echo 1
+        note: Starting Noop

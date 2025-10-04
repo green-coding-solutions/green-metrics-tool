@@ -1,0 +1,68 @@
+
+services:
+
+### This demonstrates how ENTRYPOINT and COMMAND work together
+
+  # 1. Shell ENTRYPOINT + COMMAND
+  shell-entrypoint-with-command:
+    image: alpine
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["echo 'Hello from command'; sleep infinity"]
+  # -> Executes: /bin/sh -c "echo 'Hello from command'; sleep infinity"
+
+  # 2. Exec ENTRYPOINT + Arguments as COMMAND
+  exec-entrypoint-with-args:
+    image: alpine
+    entrypoint: ["sleep"]
+    command: ["infinity"]
+  # -> Executes: sleep infinity
+
+  # 3. Command ENTRYPOINT + Parameters
+  tool-entrypoint-with-params:
+    image: alpine
+    entrypoint: ["tail"]
+    command: ["-f", "/dev/null"]
+  # -> Executes: tail -f /dev/null (stays alive, demonstrates parameters)
+
+  # 4. No ENTRYPOINT + Shell COMMAND
+  no-entrypoint-shell-command:
+    image: alpine
+    command: ["/bin/sh", "-c", "sleep infinity"]
+  # -> Uses default Alpine entrypoint, runs shell command
+
+  # 5. No ENTRYPOINT + Simple COMMAND
+  no-entrypoint-simple-command:
+    image: alpine
+    command: ["sleep", "infinity"]
+  # -> Uses default Alpine entrypoint with exec form
+
+  # 6. ENTRYPOINT only (no COMMAND)
+  entrypoint-only:
+    image: alpine
+    entrypoint: ["sleep", "infinity"]
+  # -> Executes: sleep infinity (entrypoint only, no command)
+
+  # 7. Simple string ENTRYPOINT only
+  string-entrypoint-only:
+    image: alpine
+    entrypoint: cat
+  # -> Executes: cat (string form entrypoint only, waits for input)
+
+  # 8. Shell variable testing in ENTRYPOINT + COMMAND
+  shell-variable-test:
+    image: alpine
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["echo 'A $0' && echo 'B $0' && sleep infinity"]
+  # -> Tests shell variable behavior: /bin/sh -c "echo 'A $0' && echo 'B $0' && sleep infinity"
+
+  # 9. Default shell command (Alpine ash)
+  default-shell-command:
+    image: alpine
+    command: ["ash", "-c", "echo 'Using Alpine ash shell'; sleep infinity"]
+  # -> Tests Alpine's default shell behavior
+
+  # 10. Shell variable escaping test
+  shell-variable-escape-test:
+    image: alpine
+    command: ["/bin/sh", "-c", "echo 'Variable test: $$0'; sleep infinity"]
+  # -> Tests shell variable escaping: echo $$0

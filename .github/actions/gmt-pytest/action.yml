@@ -12,7 +12,11 @@ inputs:
   tests-command:
     description: 'The command to run the tests'
     required: false
-    default: 'pytest -vv'
+    default: 'pytest -vv --durations=0'
+  test-path:
+    description: 'Specific test path to run'
+    required: false
+    default: ''
   github-token:
     description: 'pass in your secrets.GITHUB_TOKEN'
     required: true
@@ -20,6 +24,15 @@ inputs:
     description: 'enable enterprise tests'
     required: false
     default: false
+  ee-branch:
+    description: 'Sets the branch to checkout for the ee repo'
+    required: false
+    default: ''
+  enable-ssh:
+    description: 'Enable SSH connection for debugging purposes'
+    required: false
+    default: 'false'
+
 
 runs:
   using: 'composite'
@@ -40,9 +53,14 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}
       run: |
         if ${{inputs.ee}}; then
-          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test
+          if [[ "${{inputs.ee-branch}}" != '' ]]; then
+            echo "Using ee-branch ${{inputs.ee-branch}}"
+            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --ee-branch  ${{inputs.ee-branch}} --nvidia-gpu --ai
+          else
+            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --nvidia-gpu --ai
+          fi
         else
-          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j
+          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j --nvidia-gpu
         fi
         source venv/bin/activate
       env:
@@ -95,8 +113,12 @@ runs:
       run: |
         source ../venv/bin/activate && ./start-test-containers.sh -d
 
-    # - name: Setup upterm session
-    #   uses: lhotari/action-upterm@v1
+    # for debugging purposes you can setup a ssh connection by setting 'inputs.enable-ssh' to true
+    - name: Setup upterm session
+      if: ${{ inputs.enable-ssh == 'true' }}
+      uses: owenthereal/action-upterm@v1
+      with:
+        limit-access-to-actor: true # Restrict to the user who triggered the workflow
 
     - name: Disable swap
       shell: bash
@@ -108,7 +130,7 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
         source ../venv/bin/activate
-        python3 -m ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
+        python3 -m ${{ inputs.tests-command }} ${{ inputs.test-path }} -rA | tee /tmp/test-results.txt
 
     - name: Display Results
       shell: bash

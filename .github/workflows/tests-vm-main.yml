@@ -4,10 +4,19 @@ on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      enable-ssh:
+        description: 'Enable SSH connection for debugging purposes'
+        required: false
+        type: boolean
+      test-path:
+        description: 'Specific test path to run'
+        required: false
+        type: string
 
 jobs:
   run-tests-main:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
 
       - name: Eco CI Energy Estimation - Initialize
@@ -18,7 +27,9 @@ jobs:
           machine: "ubuntu-latest"
           tags: "CI/CD, Main-Workflow"
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
-          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+          # Intensity for California in 2024
+          co2-calculation-method: 'constant'
+          co2-grid-intensity-constant: 231
 
       - id: check-date
         if: ${{ github.event_name != 'workflow_dispatch' }}
@@ -33,7 +44,7 @@ jobs:
 
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: 'Checkout repository'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: 'main'
           submodules: 'false'
@@ -43,14 +54,15 @@ jobs:
         uses: ./.github/actions/gmt-pytest
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
+         enable-ssh: ${{ inputs.enable-ssh }}
+         test-path: ${{ inputs.test-path }}
 
       - name: Eco CI Energy Estimation - Get Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: get-measurement
 
-      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
-        name: Eco CI Energy Estimation - End Measurement
+      - name: Eco CI Energy Estimation - End Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: display-results

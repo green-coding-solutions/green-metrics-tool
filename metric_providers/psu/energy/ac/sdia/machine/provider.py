@@ -4,11 +4,11 @@ from metric_providers.base import BaseMetricProvider, MetricProviderConfiguratio
 from lib.global_config import GlobalConfig
 
 class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
-    def __init__(self, *, resolution, CPUChips, TDP, skip_check=False, filename=None):
+    def __init__(self, *, CPUChips, TDP, skip_check=False, filename=None):
         super().__init__(
             metric_name='psu_energy_ac_sdia_machine',
             metrics={'time': int, 'value': int},
-            resolution=resolution,
+            sampling_rate=-1,
             unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
@@ -70,6 +70,10 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
     def _check_resolution_underflow(self, df):
         pass
 
+    # Provider does not sample on it's own and thus does not have to be checked
+    def _add_and_validate_sampling_rate_and_jitter(self, df):
+        return df
+
     def _parse_metrics(self, df):
         df = super()._parse_metrics(df)
 
@@ -83,7 +87,7 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
         # Since one value is useless for us we drop the row
         df.dropna(inplace=True)
 
-        df.value = df.value.astype(int)
+        df.value = df.value.astype('int64')
 
         if df.empty:
             raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")

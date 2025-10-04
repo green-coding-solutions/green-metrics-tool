@@ -1,7 +1,15 @@
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
+from typing import Optional, Dict, Literal
 
 from fastapi.exceptions import RequestValidationError
+
+### Jobs
+
+class JobChange(BaseModel):
+    job_id: int
+    action: Literal['cancel']
+
+    model_config = ConfigDict(extra='forbid')
 
 ### Software Add
 
@@ -14,6 +22,7 @@ class Software(BaseModel):
     branch: str
     machine_id: int
     schedule_mode: str
+    usage_scenario_variables: Optional[Dict[str, str]] = None
 
     model_config = ConfigDict(extra='forbid')
 
@@ -21,47 +30,11 @@ class Software(BaseModel):
 
 class UserSetting(BaseModel):
     name: str
-    value: str | list
+    value: str | list | bool
 
     model_config = ConfigDict(extra='forbid')
 
 ### Eco CI
-# pylint: disable=invalid-name
-class CI_Measurement_Old(BaseModel):
-    energy_value: int
-    energy_unit: str
-    repo: str
-    branch: str
-    cpu: str
-    cpu_util_avg: float
-    commit_hash: str
-    workflow: str   # workflow_id, change when we make API change of workflow_name being mandatory
-    run_id: str
-    source: str
-    label: str
-    duration: int
-    workflow_name: str = None
-    cb_company_uuid: Optional[str] = '' # will just be ignored as of now
-    cb_project_uuid: Optional[str] = '' # will just be ignored as of now
-    cb_machine_uuid: Optional[str] = '' # will just be ignored as of now
-    lat: Optional[str] = ''
-    lon: Optional[str] = ''
-    city: Optional[str] = ''
-    co2i: Optional[str] = ''
-    co2eq: Optional[str] = ''
-    project_id: Optional[str] = '' # legacy. Is ignored
-
-    model_config = ConfigDict(extra='forbid')
-
-    # Empty string will not trigger error on their own
-    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
-    @classmethod
-    def check_not_empty(cls, values, data):
-        if not values or values == '':
-            raise RequestValidationError(f"{data.field_name} must be set and not empty")
-        return values
-
-
 # pylint: disable=invalid-name
 class CI_Measurement(BaseModel):
     energy_uj: int
@@ -86,6 +59,7 @@ class CI_Measurement(BaseModel):
     carbon_intensity_g: Optional[int] = None
     carbon_ug: Optional[int] = None
     ip: Optional[str] = None
+    note: Optional[constr(max_length=1024)] = None
 
     model_config = ConfigDict(extra='forbid')
 
