@@ -15,6 +15,19 @@ function logNote(message) {
   console.log(`${timestamp} ${message}`);
 }
 
+gmtPlaywrightCache() {
+    command: await page.goto("__GMT_VAR_PAGE__");
+      - type: console
+        command: sleep '__GMT_VAR_SLEEP__'
+      - type: playwright
+        command: await context.close()
+      - type: playwright
+        command: context = await browser.newContext(contextOptions);
+      - type: playwright
+        command: page = await context.newPage()
+
+}
+
 async function startFifoReader(fifoPath, callback) {
   function openStream() {
     const stream = fs.createReadStream(fifoPath, { encoding: "utf-8" });
@@ -46,7 +59,7 @@ async function run(browserName, headless, proxy) {
       args: headless ? ["--headless=new"] : [],
     });
   }
-  
+
   let context = await browser.newContext(contextOptions);
   await context.clearCookies();
   let page = await context.newPage()

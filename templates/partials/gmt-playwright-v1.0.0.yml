@@ -1,0 +1,15 @@
+services:
+    playwright-nodejs:
+        image: mcr.microsoft.com/playwright:v1.55.0-noble
+#        volumes:
+#            - /tmp/.X11-unix:/tmp/.X11-unix # for debugging in non-headless mode
+        environment:
+            DISPLAY: ":0" # for debugging in non-headless mode
+        setup-commands:
+        # install playwright libraries
+            - command: mkdir /tmp/energy-tests
+            - command: cp -R /tmp/repo/. /tmp/energy-tests
+            - command: cd /tmp/energy-tests && npm init -y && npm install playwright
+              shell: bash
+        volumes:
+            - /Users/arne/Sites/green-coding/green-metrics-tool/templates/partials/playwright-ipc-v1.0.0.js:/tmp/gmt-utils/playwright-ipc-v1.0.0.js
