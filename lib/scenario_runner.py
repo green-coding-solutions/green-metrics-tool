@@ -1560,8 +1560,8 @@ class ScenarioRunner:
 
         if self._run_id:
             DB().query("""
-                UPDATE runs 
-                SET usage_scenario_dependencies = %s 
+                UPDATE runs
+                SET usage_scenario_dependencies = %s
                 WHERE id = %s
                 """, params=(json.dumps(self.__usage_scenario_dependencies) if self.__usage_scenario_dependencies is not None else None, self._run_id))
 
@@ -1651,7 +1651,7 @@ class ScenarioRunner:
         if self._measurement_total_duration and (time.time() - self.__start_measurement_seconds) > self._measurement_total_duration:
             raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total_duration'.")
 
-    def _start_phase(self, phase, transition = True):
+    def _start_phase(self, phase, *, hidden=False, transition=True):
         print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
 
         self._check_total_runtime_exceeded()
@@ -1665,7 +1665,7 @@ class ScenarioRunner:
         phase_time = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note( note=f"Starting phase {phase}", detail_name='[NOTES]', timestamp=phase_time)
 
-        self.__phases[phase] = {'start': phase_time, 'name': phase}
+        self.__phases[phase] = {'start': phase_time, 'name': phase, 'hidden': hidden}
 
     def _end_phase(self, phase):
 
@@ -1712,7 +1712,7 @@ class ScenarioRunner:
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
-                self._start_phase(flow['name'], transition=False)
+                self._start_phase(flow['name'], hidden=flow.get('hidden', False), transition=False)
 
                 for cmd_obj in flow['commands']:
                     self._check_total_runtime_exceeded()

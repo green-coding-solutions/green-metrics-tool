@@ -393,11 +393,6 @@ a,
     margin-top: 5px;
 }
 
-span.hidden-phase-name {
-    display: none;
-}
-
-
 
 /* Since we have a without href we need to force pointer */
 a {
@@ -445,4 +440,8 @@ a {
 .cluster-health-link {
     padding-right: 20px;
     float: right;
+}
+
+.hidden {
+    display: none !important;
 }
