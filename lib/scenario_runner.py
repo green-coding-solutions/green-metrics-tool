@@ -1301,6 +1301,8 @@ class ScenarioRunner:
             elif compatibility_status == CompatibilityStatus.NATIVE:
                 # Native compatibility - no action needed
                 print(f"Architecture compatible: {image_arch} (native)")
+            else:
+                print('Architecture compatibility unknown. Trying run')
 
             docker_run_string.append(clean_image_name)
 
