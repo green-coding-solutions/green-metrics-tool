@@ -109,6 +109,7 @@ def build_and_store_phase_stats(run_id, sci=None):
             runtime_phase_idx = idx
             continue
 
+        phase_warnings = set()
         network_bytes_total = [] # reset; # we use array here and sum later, because checking for 0 alone not enough
 
         cpu_utilization_containers = {} # reset
@@ -158,7 +159,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                 derivative_avg = Decimal(classic_value_avg / (duration/value_count))
                 derivative_max = Decimal(max_value / (duration/value_count))
                 derivative_min = Decimal(min_value / (duration/value_count))
-                DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (run_id, f"Very few samples encountered in phase '{phase['name']}', MEAN values might be inaccurate"))
+                phase_warnings.add(f"Very few samples encountered in phase '{phase['name']}', MEAN values might be inaccurate")
             else:
                 value_avg = Decimal(weighted_value_avg)
                 derivative_avg = Decimal(derivative_avg)
@@ -252,6 +253,10 @@ def build_and_store_phase_stats(run_id, sci=None):
                 if metric not in ('cpu_time_powermetrics_vm', ):
                     error_helpers.log_error('Unmapped phase_stat found, using default', metric=metric, detail_name=detail_name, run_id=run_id)
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+
+
+        for phase_warning in phase_warnings:
+            DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (run_id, phase_warning))
 
         # after going through detail metrics, create cumulated ones
         if network_bytes_total:
