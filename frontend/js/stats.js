@@ -129,8 +129,21 @@ const fetchAndFillRunData = async (url_params) => {
             }
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
-        } else if(item == 'phases' || item == 'id') {
+        } else if(item == 'id') {
             // skip
+        } else if(item == 'phases' && run_data?.item != null) { // run_data['phases'] can be null if run failed early. Thus no need to continue here
+            Object.keys(run_data[item]).forEach(key => {
+                if (run_data[item][key]?.hidden == true) {
+                    document.querySelector('#runtime-hidden-info').classList.remove('hidden');
+                    const tab = document.querySelector(`.item.runtime-step[data-tab="${run_data[item][key].name}"]`)
+                    tab.innerHTML = `<i class="low vision icon"></i> <span class="hidden-phase-name">${tab.innerText}</span>`
+                    tab.classList.add("hidden-phase-tab")
+                }
+            });
+            document.querySelectorAll('#runtime-sub-phases .item').forEach(el => {
+                el.addEventListener('click', showHiddenPhaseTab)
+            })
+
         }  else if(item == 'commit_hash') {
             if (run_data?.[item] == null) continue; // some old runs did not save it
             let commit_link = buildCommitLink(run_data);
@@ -828,7 +841,7 @@ function copyTextToClipboard(text) {
 }
 
 const fetchTimelineData = async (url_params) => {
-    document.querySelector('#api-loader').style.display = '';
+    document.querySelector('#api-loader').classList.remove('hidden');
     document.querySelector('#loader-question').remove();
 
     let measurements = null;
@@ -1087,7 +1100,7 @@ $(document).ready( () => {
             return;
         }
 
-        fetchAndFillRunData(url_params);
+
         fetchAndFillNetworkIntercepts(url_params);
         fetchAndFillOptimizationsData(url_params);
         fetchAndFillAIData(url_params);
@@ -1096,6 +1109,7 @@ $(document).ready( () => {
         (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
             const phase_stats = await fetchAndFillPhaseStatsData(url_params);
             renderBadges(url_params, phase_stats?.data?.data['[RUNTIME]']);
+            fetchAndFillRunData(url_params); // bc it will hide phases. TODO: Refactor this to have the data in the phase_stats_object. Is a bigger refactor though!
         })();
 
 
@@ -1106,7 +1120,7 @@ $(document).ready( () => {
             ]);
             if (timeline_data == null) {
                 document.querySelector('#api-loader').remove()
-                document.querySelector('#message-chart-load-failure').style.display = '';
+                document.querySelector('#message-chart-load-failure').classList.remove('hidden');
                 return
             }
             const timeline_chart_data = await buildTimelineChartData(timeline_data);
@@ -1120,7 +1134,7 @@ $(document).ready( () => {
 
                 if (timeline_data == null) {
                     document.querySelector('#api-loader').remove()
-                    document.querySelector('#message-chart-load-failure').style.display = '';
+                    document.querySelector('#message-chart-load-failure').classList.remove('hidden');
                     return
                 }
                 const timeline_chart_data = await buildTimelineChartData(timeline_data);

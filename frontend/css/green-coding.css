@@ -393,6 +393,7 @@ a,
     margin-top: 5px;
 }
 
+
 /* Since we have a without href we need to force pointer */
 a {
     cursor: pointer;
@@ -439,4 +440,8 @@ a {
 .cluster-health-link {
     padding-right: 20px;
     float: right;
+}
+
+.hidden {
+    display: none !important;
 }

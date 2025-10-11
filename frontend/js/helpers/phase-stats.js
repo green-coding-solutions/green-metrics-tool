@@ -1,6 +1,6 @@
 const createTableHeader = (phase, comparison_keys, comparison_case, comparison_amounts) => {
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] .compare-metrics-table thead`).insertRow();
-
+    console.log(phase)
     if (comparison_amounts >= 2) {
         tr.innerHTML = `
             <th>Metric</th>
