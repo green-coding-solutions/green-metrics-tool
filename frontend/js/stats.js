@@ -72,16 +72,6 @@ class CO2Tangible extends HTMLElement {
 
 customElements.define('co2-tangible', CO2Tangible);
 
-const showHiddenPhaseTab = (el) => {
-    if (el.currentTarget.classList.contains('hidden-phase-tab')) {
-        el.currentTarget.querySelector('.hidden-phase-name').style.display = 'block'
-    } else {
-        document.querySelectorAll('.hidden-phase-name').forEach(matched_el => {
-            matched_el.style.display = 'none'
-        })
-    }
-}
-
 const fetchAndFillRunData = async (url_params) => {
 
     let run = null;
@@ -141,9 +131,10 @@ const fetchAndFillRunData = async (url_params) => {
             fillRunTab('#measurement-config', run_data[item]); // recurse
         } else if(item == 'id') {
             // skip
-        } else if(item == 'phases') {
+        } else if(item == 'phases' && run_data?.item != null) { // run_data['phases'] can be null if run failed early. Thus no need to continue here
             Object.keys(run_data[item]).forEach(key => {
-                    if (run_data[item][key]?.hidden == true) {
+                if (run_data[item][key]?.hidden == true) {
+                    document.querySelector('#runtime-hidden-info').classList.remove('hidden');
                     const tab = document.querySelector(`.item.runtime-step[data-tab="${run_data[item][key].name}"]`)
                     tab.innerHTML = `<i class="low vision icon"></i> <span class="hidden-phase-name">${tab.innerText}</span>`
                     tab.classList.add("hidden-phase-tab")
@@ -850,7 +841,7 @@ function copyTextToClipboard(text) {
 }
 
 const fetchTimelineData = async (url_params) => {
-    document.querySelector('#api-loader').style.display = '';
+    document.querySelector('#api-loader').classList.remove('hidden');
     document.querySelector('#loader-question').remove();
 
     let measurements = null;
@@ -1129,7 +1120,7 @@ $(document).ready( () => {
             ]);
             if (timeline_data == null) {
                 document.querySelector('#api-loader').remove()
-                document.querySelector('#message-chart-load-failure').style.display = '';
+                document.querySelector('#message-chart-load-failure').classList.remove('hidden');
                 return
             }
             const timeline_chart_data = await buildTimelineChartData(timeline_data);
@@ -1143,7 +1134,7 @@ $(document).ready( () => {
 
                 if (timeline_data == null) {
                     document.querySelector('#api-loader').remove()
-                    document.querySelector('#message-chart-load-failure').style.display = '';
+                    document.querySelector('#message-chart-load-failure').classList.remove('hidden');
                     return
                 }
                 const timeline_chart_data = await buildTimelineChartData(timeline_data);

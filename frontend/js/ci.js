@@ -330,7 +330,7 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
 
     $('#display-run-details-table').off('click');
     $('#display-run-details-table').on('click', () => {
-        document.querySelector('#api-loader').style.display = '';
+        document.querySelector('#api-loader').classList.remove('hidden');
         document.querySelector('#loader-question').remove();
         setTimeout(() => {displayRunDetailsTable(measurements?.data, repo); document.querySelector('#api-loader').remove();}, 100); // we need to include a mini delay here, because otherwise the loader does not render, but is blocked by the hefty calculation
     });
