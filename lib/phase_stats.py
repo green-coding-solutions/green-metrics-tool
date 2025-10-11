@@ -304,7 +304,7 @@ def build_and_store_phase_stats(run_id, sci=None):
 
         if machine_power_current_phase and machine_power_baseline and cpu_utilization_machine and cpu_utilization_containers:
             surplus_power_runtime = machine_power_current_phase - machine_power_baseline
-            surplus_energy_runtime = machine_energy_current_phase - (machine_power_baseline * (Decimal(duration) / 1_000_000)) # we do not subtract phase energy here but calculate, becuase phases have different length
+            surplus_energy_runtime = machine_energy_current_phase - (machine_power_baseline * duration * Decimal(1e3)) # we cannot directly subtract baseline energy, but need to stretch it to not subtract phase energy here but calculate, bc phases have different length
 
             total_container_utilization = Decimal(sum(cpu_utilization_containers.values()))
 
