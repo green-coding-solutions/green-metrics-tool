@@ -154,18 +154,20 @@ def build_and_store_phase_stats(run_id, sci=None):
             # Since we need to LAG the table the first value will be NULL. So it means we need at least 3 rows to make a useful weighted average.
             # In case we cannot do that we use the classic average
             if value_count <= 2:
-                value_avg = classic_value_avg
+                value_avg = Decimal(classic_value_avg)
+                derivative_avg = Decimal(classic_value_avg / (duration/value_count))
+                derivative_max = Decimal(max_value / (duration/value_count))
+                derivative_min = Decimal(min_value / (duration/value_count))
             else:
-                value_avg = weighted_value_avg
+                value_avg = Decimal(weighted_value_avg)
+                derivative_avg = Decimal(derivative_avg)
+                derivative_max = Decimal(derivative_max)
+                derivative_min = Decimal(derivative_min)
 
             # we make everything Decimal so in subsequent divisions these values stay Decimal
             value_sum = Decimal(value_sum)
-            value_avg = Decimal(value_avg)
             max_value = Decimal(max_value)
             min_value = Decimal(min_value)
-            derivative_avg = Decimal(derivative_avg)
-            derivative_max = Decimal(derivative_max)
-            derivative_min = Decimal(derivative_min)
             value_count = Decimal(value_count)
 
 
@@ -206,9 +208,9 @@ def build_and_store_phase_stats(run_id, sci=None):
                             'disk_io_read_cgroup_system',
                             ]:
 
-                derivative_avg_s = derivative_avg * 1e6
-                derivative_max_s = derivative_max * 1e6
-                derivative_min_s = derivative_min * 1e6
+                derivative_avg_s = derivative_avg * Decimal(1e6)
+                derivative_max_s = derivative_max * Decimal(1e6)
+                derivative_min_s = derivative_min * Decimal(1e6)
 
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", derivative_avg_s, 'MEAN', derivative_max_s, derivative_min_s, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, f"{unit}/s"))
 
@@ -223,9 +225,9 @@ def build_and_store_phase_stats(run_id, sci=None):
                 # for energy we want to deliver an extra value, the watts.
                 # Here we need to calculate the average differently
 
-                power_avg_mW = derivative_avg * 1e3
-                power_max_mW = derivative_max * 1e3
-                power_min_mW = derivative_min * 1e3
+                power_avg_mW = derivative_avg * Decimal(1e3)
+                power_max_mW = derivative_max * Decimal(1e3)
+                power_min_mW = derivative_min * Decimal(1e3)
 
                 csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg_mW, 'MEAN', power_max_mW, power_min_mW, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
 
