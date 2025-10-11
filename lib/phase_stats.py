@@ -125,7 +125,10 @@ def build_and_store_phase_stats(run_id, sci=None):
             SELECT
                 SUM(value), MAX(value), MIN(value),
                 AVG(value), -- This would be the normal average. we only use that when there is less than three values available and we cannot build a weighted average
-                (SUM(value*diff))::DOUBLE PRECISION/(SUM(diff)), -- weighted average -- we are missing the first row, which is NULL by concept. We could estimate it with an AVG, but this would increase complexity of this query for diminishing results the longer the measurement runs. we thus skip that
+                (SUM(value*diff))::DOUBLE PRECISION/(SUM(diff)), -- weighted average -- we are missing the first row, which is NULL by concept. We could estimate it with an AVG, but this would increase complexity of this query as well as create fake values in case of network, where we cannot assume that the value before the first measurement is linearly extraploateable. thus we do skip it
+                AVG(value/diff) as derivative_avg, -- this is only a true derivate if value is already a difference, which is the case for energy values and for _io_ providers
+                MAX(value/diff) as derivative_max, -- this is only a true derivate if value is already a difference, which is the case for energy values and for _io_ providers
+                MIN(value/diff) as derivative_min, -- this is only a true derivate if value is already a difference, which is the case for energy values and for _io_ providers
                 COUNT(value),
                 AVG(diff) as sampling_rate_avg,
                 MAX(diff) as sampling_rate_max,
@@ -134,23 +137,15 @@ def build_and_store_phase_stats(run_id, sci=None):
         """
 
         duration = Decimal(phase['end']-phase['start'])
-        duration_in_s = duration / 1_000_000
+        duration_in_s = Decimal(duration / 1_000_000)
         csv_buffer.write(generate_csv_line(run_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, None, None, None, 'us'))
 
         # now we go through all metrics in the run and aggregate them
         for measurement_metric_id, metric, unit, detail_name in metrics: # unpack
-            # -- saved for future if I need lag time query
-            #    WITH times as (
-            #        SELECT id, value, time, (time - LAG(time) OVER (ORDER BY detail_name ASC, time ASC)) AS diff, unit
-            #        FROM measurements
-            #        WHERE run_id = %s AND metric = %s
-            #        ORDER BY detail_name ASC, time ASC
-            #    ) -- Backlog: if we need derivatives / integrations in the future
-
             params = (measurement_metric_id, phase['start'], phase['end'])
             results = DB().fetch_one(select_query, params=params)
 
-            value_sum, max_value, min_value, classic_avg_value, weighted_avg_value, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p = results
+            value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p = results
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
@@ -159,15 +154,18 @@ def build_and_store_phase_stats(run_id, sci=None):
             # Since we need to LAG the table the first value will be NULL. So it means we need at least 3 rows to make a useful weighted average.
             # In case we cannot do that we use the classic average
             if value_count <= 2:
-                avg_value = classic_avg_value
+                value_avg = classic_value_avg
             else:
-                avg_value = weighted_avg_value
+                value_avg = weighted_value_avg
 
             # we make everything Decimal so in subsequent divisions these values stay Decimal
             value_sum = Decimal(value_sum)
-            avg_value = Decimal(avg_value)
+            value_avg = Decimal(value_avg)
             max_value = Decimal(max_value)
             min_value = Decimal(min_value)
+            derivative_avg = Decimal(derivative_avg)
+            derivative_max = Decimal(derivative_max)
+            derivative_min = Decimal(derivative_min)
             value_count = Decimal(value_count)
 
 
@@ -187,12 +185,12 @@ def build_and_store_phase_stats(run_id, sci=None):
                 'cpu_throttling_thermal_msr_component',
                 'cpu_throttling_power_msr_component',
             ):
-                csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+                csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_avg, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
                 if metric in ('cpu_utilization_procfs_system', 'cpu_utilization_mach_system'):
-                    cpu_utilization_machine = avg_value
+                    cpu_utilization_machine = value_avg
                 if metric in ('cpu_utilization_cgroup_container', 'cpu_utilization_cgroup_system', ):
-                    cpu_utilization_containers[detail_name] = avg_value
+                    cpu_utilization_containers[detail_name] = value_avg
 
             elif metric in ['network_io_cgroup_system',
                             'network_io_cgroup_container',
@@ -208,11 +206,11 @@ def build_and_store_phase_stats(run_id, sci=None):
                             'disk_io_read_cgroup_system',
                             ]:
 
-                value_per_s = value_sum/duration_in_s
-                max_value_per_s = max_value/(duration_in_s / value_count)
-                min_value_per_s = min_value/(duration_in_s / value_count)
+                derivative_avg_s = derivative_avg * 1e6
+                derivative_max_s = derivative_max * 1e6
+                derivative_min_s = derivative_min * 1e6
 
-                csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_per_s, 'MEAN', max_value_per_s, min_value_per_s, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, f"{unit}/s"))
+                csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", derivative_avg_s, 'MEAN', derivative_max_s, derivative_min_s, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, f"{unit}/s"))
 
                 # we also generate a total line to see how much total data was processed
                 csv_buffer.write(generate_csv_line(run_id, metric.replace('_io_', '_total_'), detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
@@ -224,10 +222,12 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
                 # for energy we want to deliver an extra value, the watts.
                 # Here we need to calculate the average differently
-                power_avg = (value_sum * 10**3) / duration
-                power_max = (max_value * 10**3) / (duration / value_count)
-                power_min = (min_value * 10**3) / (duration / value_count)
-                csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg, 'MEAN', power_max, power_min, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
+
+                power_avg_mW = derivative_avg * 1e3
+                power_max_mW = derivative_max * 1e3
+                power_min_mW = derivative_min * 1e3
+
+                csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg_mW, 'MEAN', power_max_mW, power_min_mW, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
 
                 if sci.get('I', None) is not None:
                     value_carbon_ug = (value_sum / 3_600_000) * Decimal(sci['I'])
@@ -240,10 +240,10 @@ def build_and_store_phase_stats(run_id, sci=None):
 
                 if metric.endswith('_machine'):
                     if phase['name'] == '[BASELINE]':
-                        machine_power_baseline = power_avg
+                        machine_power_baseline = power_avg_mW
                     else: # this will effectively happen for all subsequent phases where energy data is available
                         machine_energy_current_phase = value_sum
-                        machine_power_current_phase = power_avg
+                        machine_power_current_phase = power_avg_mW
 
             else: # Default
                 if metric not in ('cpu_time_powermetrics_vm', ):
@@ -260,7 +260,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_uJ, 'TOTAL', None, None, None, None, None, 'uJ'))
 
                 #power calculations
-                network_io_power_in_mW = (network_io_in_kWh * Decimal('3600000') / Decimal(duration_in_s) * Decimal('1000'))
+                network_io_power_in_mW = network_io_in_kWh * Decimal(3_600) / duration_in_s
                 csv_buffer.write(generate_csv_line(run_id, 'network_power_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_power_in_mW, 'TOTAL', None, None, None, None, None, 'mW'))
 
                 # co2 calculations
