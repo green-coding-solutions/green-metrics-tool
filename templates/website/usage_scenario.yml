@@ -17,7 +17,7 @@ flow:
         note: Starting browser in background process with IPC
         detach: true
       - type: console
-        command: until [ -p "/tmp/playwright-ipc-ready" ]; do sleep 1; done && echo "Browser ready!"
+        command: timeout 5 bash -c 'until [ -p "/tmp/playwright-ipc-ready" ]; do sleep 1; done && echo "Browser ready!"'
         shell: bash
         note: Waiting for website stepper loop to start by monitoring rendevous file endpoint
 

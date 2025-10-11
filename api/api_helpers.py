@@ -125,7 +125,7 @@ def get_machine_list():
                 m.configuration
 
             FROM machines as m
-            ORDER BY m.description DESC
+            ORDER BY m.available DESC, m.id ASC
             """
 
     return DB().fetch_all(query)

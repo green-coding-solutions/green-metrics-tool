@@ -16,6 +16,7 @@ class CompatibilityStatus(Enum):
     NATIVE = 'NATIVE'
     EMULATED = 'EMULATED'
     INCOMPATIBLE = 'INCOMPATIBLE'
+    UNKNOWN = 'UNKNOWN'
 
 # Common architecture mappings for Docker platform detection
 ARCH_MAPPING = {
@@ -314,6 +315,19 @@ def check_image_architecture_compatibility(image_name):
             raise RuntimeError(f"Failed to inspect Docker image architecture for '{image_name}': {ps.stderr.strip()}")
 
         image_arch = ps.stdout.strip()
+
+        if not image_arch or image_arch == '' :
+            return {
+                'image_arch': 'unknown',
+                'host_arch': get_native_architecture(),
+                'image_platform': 'unknown',
+                'status': CompatibilityStatus.UNKNOWN,
+                'can_run': None,
+                'needs_emulation': None,
+                'is_native_compatible': None,
+                'error': None
+            }
+
         # Docker images are typically Linux-based containers
         image_platform = f"linux/{image_arch}"
 
