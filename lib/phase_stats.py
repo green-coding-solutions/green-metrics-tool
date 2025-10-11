@@ -73,7 +73,7 @@ def build_and_store_phase_stats(run_id, sci=None):
     software_carbon_intensity_global = {}
 
     query = """
-            SELECT id, metric, unit, detail_name, sampling_rate_configured
+            SELECT id, metric, unit, detail_name
             FROM measurement_metrics
             WHERE run_id = %s
             ORDER BY metric ASC -- we need this ordering for later, when we read again
@@ -138,7 +138,7 @@ def build_and_store_phase_stats(run_id, sci=None):
         csv_buffer.write(generate_csv_line(run_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, None, None, None, 'us'))
 
         # now we go through all metrics in the run and aggregate them
-        for measurement_metric_id, metric, unit, detail_name, sampling_rate_configured in metrics: # unpack
+        for measurement_metric_id, metric, unit, detail_name in metrics: # unpack
             # -- saved for future if I need lag time query
             #    WITH times as (
             #        SELECT id, value, time, (time - LAG(time) OVER (ORDER BY detail_name ASC, time ASC)) AS diff, unit
@@ -208,21 +208,11 @@ def build_and_store_phase_stats(run_id, sci=None):
                             'disk_io_read_cgroup_system',
                             ]:
 
-                # if we only have one value, we cannot determine the effective sampling rate.
-                # Thus we have to use the configured sampling_rate from the settings
-                if value_count == 1:
-                    sampling_rate_avg = sampling_rate_max = sampling_rate_95p = Decimal(sampling_rate_configured)*1000
+                max_value_per_s = max_value/duration_in_s
+                min_value_per_s = min_value/duration_in_s
+                value_per_s = value_sum/duration_in_s
 
-                # I/O values should be per second. However we have very different timing intervals.
-                # So we do not directly use the average here, as this would be the average per sampling frequency. We go through the duration
-                if not sampling_rate_avg:
-                    raise RuntimeError(f"Sampling rate (AVG) was missing and avg_value_per_s could not be derived for metric provider: {metric}")
-                provider_conversion_factor_to_s = Decimal(round(sampling_rate_avg)/1_000_000)
-                max_value_per_s = max_value/provider_conversion_factor_to_s
-                min_value_per_s = min_value/provider_conversion_factor_to_s
-                avg_value_per_s = avg_value/provider_conversion_factor_to_s
-
-                csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value_per_s, 'MEAN', max_value_per_s, min_value_per_s, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, f"{unit}/s"))
+                csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_per_s, 'MEAN', max_value_per_s, min_value_per_s, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, f"{unit}/s"))
 
                 # we also generate a total line to see how much total data was processed
                 csv_buffer.write(generate_csv_line(run_id, metric.replace('_io_', '_total_'), detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
