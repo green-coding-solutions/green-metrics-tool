@@ -343,6 +343,7 @@ CREATE TABLE phase_stats (
     sampling_rate_max int,
     sampling_rate_95p int,
     unit text NOT NULL,
+    hidden boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
