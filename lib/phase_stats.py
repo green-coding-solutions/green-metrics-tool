@@ -315,9 +315,9 @@ def build_and_store_phase_stats(run_id, sci=None):
                     splitting_ratio = container_utilization / total_container_utilization
 
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_energy_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_energy_current_phase * splitting_ratio, 'TOTAL', None, None, None, None, None, 'uJ'))
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_power_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_power_current_phase * splitting_ratio, 'TOTAL', None, None, None, None, None, 'mW'))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_power_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_power_current_phase * splitting_ratio, 'MEAN', None, None, None, None, None, 'mW'))
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'uJ'))
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'mW'))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'MEAN', None, None, None, None, None, 'mW'))
 
     # TODO: refactor to be a metric provider. Than it can also be per phase # pylint: disable=fixme
     if software_carbon_intensity_global.get('machine_carbon_ug', None) is not None \
