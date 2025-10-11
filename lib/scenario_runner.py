@@ -672,8 +672,8 @@ class ScenarioRunner:
     def _import_metric_providers(self):
         print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
 
-        if self._dev_no_metrics or self._dev_no_save:
-            print('Skipping import of metric providers due to --dev-no-save or --dev-no-metrics')
+        if self._dev_no_metrics:
+            print('Skipping import of metric providers due to --dev-no-save')
             return
 
         config = GlobalConfig().config
@@ -1607,8 +1607,8 @@ class ScenarioRunner:
     def _start_metric_providers(self, allow_container=True, allow_other=True):
         print(TerminalColors.HEADER, '\nStarting metric providers', TerminalColors.ENDC)
 
-        if self._dev_no_metrics or self._dev_no_save:
-            print('Skipping start of metric providers due to --dev-no-metrics or --dev-no-save')
+        if self._dev_no_metrics:
+            print('Skipping start of metric providers due to --dev-no-metrics')
             return
 
 
@@ -1879,8 +1879,8 @@ class ScenarioRunner:
     def _stop_metric_providers(self):
         print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
 
-        if self._dev_no_metrics or self._dev_no_save:
-            print('Skipping stop of metric providers due to --dev-no-metrics or --dev-no-save')
+        if self._dev_no_metrics:
+            print('Skipping stop of metric providers due to --dev-no-metrics')
             return
 
         errors = []
@@ -1903,6 +1903,10 @@ class ScenarioRunner:
                 df = metric_provider.read_metrics()
             except RuntimeError as exc:
                 errors.append(f"{metric_provider.__class__.__name__} returned error message: {str(exc)}")
+                continue
+
+            if self._dev_no_save:
+                print('Skipping import of metrics from provider due to --dev-no-save')
                 continue
 
             if isinstance(df, list):
