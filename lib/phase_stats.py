@@ -158,6 +158,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                 derivative_avg = Decimal(classic_value_avg / (duration/value_count))
                 derivative_max = Decimal(max_value / (duration/value_count))
                 derivative_min = Decimal(min_value / (duration/value_count))
+                DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (run_id, f"Very few samples encountered in phase '{phase['name']}', MEAN values might be inaccurate"))
             else:
                 value_avg = Decimal(weighted_value_avg)
                 derivative_avg = Decimal(derivative_avg)
