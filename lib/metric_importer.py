@@ -38,14 +38,14 @@ def import_measurements(df, metric_name, run_id):
 
         df['run_id'] = run_id
 
-        metric_and_detail_names = df[['metric', 'detail_name', 'unit', 'sampling_rate_configured']].drop_duplicates()
+        metric_and_detail_names = df[['metric', 'detail_name', 'unit']].drop_duplicates()
 
         for _, row in metric_and_detail_names.iterrows():
             measurement_metric_id = DB().fetch_one('''
-                INSERT INTO measurement_metrics (run_id, metric, detail_name, unit, sampling_rate_configured)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
+                VALUES (%s, %s, %s, %s)
                 RETURNING id
-            ''', params=(run_id, row['metric'], row['detail_name'], row['unit'], row['sampling_rate_configured']))[0] # using row['metric'] here instead of metric_name, as some providers have multiple metrics inlined like powermetrics
+            ''', params=(run_id, row['metric'], row['detail_name'], row['unit']))[0] # using row['metric'] here instead of metric_name, as some providers have multiple metrics inlined like powermetrics
             df.loc[(df['metric'] == row['metric']) & (df['detail_name'] == row['detail_name']) & (df['unit'] == row['unit']), 'measurement_metric_id'] = measurement_metric_id
 
         df['measurement_metric_id'] = df.measurement_metric_id.astype('int64')

@@ -156,7 +156,6 @@ class BaseMetricProvider:
             df['unit'] = self._unit
         if 'metric' not in df.columns:
             df['metric'] = self._metric_name
-        df['sampling_rate_configured'] = self._sampling_rate
         return df
 
     def _check_unique(self, df):
