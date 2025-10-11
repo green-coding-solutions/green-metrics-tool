@@ -24,8 +24,8 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx):
                 %s,
                 SUM(value),
                 type,
-                MAX(value),
-                MIN(value),
+                MAX(max_value),
+                MIN(min_value),
                 AVG(sampling_rate_avg), -- approx, but good enough for overview.
                 MAX(sampling_rate_max),
                 AVG(sampling_rate_95p), -- approx, but good enough for overview
