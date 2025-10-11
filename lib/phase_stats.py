@@ -208,9 +208,9 @@ def build_and_store_phase_stats(run_id, sci=None):
                             'disk_io_read_cgroup_system',
                             ]:
 
-                max_value_per_s = max_value/duration_in_s
-                min_value_per_s = min_value/duration_in_s
                 value_per_s = value_sum/duration_in_s
+                max_value_per_s = max_value/(duration_in_s / value_count)
+                min_value_per_s = min_value/(duration_in_s / value_count)
 
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_per_s, 'MEAN', max_value_per_s, min_value_per_s, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, f"{unit}/s"))
 
