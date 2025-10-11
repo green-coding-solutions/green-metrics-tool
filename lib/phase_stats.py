@@ -127,9 +127,13 @@ def build_and_store_phase_stats(run_id, sci=None):
                 SUM(value), MAX(value), MIN(value),
                 AVG(value), -- This would be the normal average. we only use that when there is less than three values available and we cannot build a weighted average
                 (SUM(value*diff))::DOUBLE PRECISION/(SUM(diff)), -- weighted average -- we are missing the first row, which is NULL by concept. We could estimate it with an AVG, but this would increase complexity of this query as well as create fake values in case of network, where we cannot assume that the value before the first measurement is linearly extraploateable. thus we do skip it
-                AVG(value/diff) as derivative_avg, -- this is only a true derivate if value is already a difference, which is the case for energy values and for _io_ providers
-                MAX(value/diff) as derivative_max, -- this is only a true derivate if value is already a difference, which is the case for energy values and for _io_ providers
-                MIN(value/diff) as derivative_min, -- this is only a true derivate if value is already a difference, which is the case for energy values and for _io_ providers
+
+                -- these are only a true derivate if value is already a difference, which is the case for energy values and for _io_ providers or any other that outputs increments instead of totals
+                -- using the derivative for other providers makes no sense atm
+                AVG(value/diff) as derivative_avg,
+                MAX(value/diff) as derivative_max,
+                MIN(value/diff) as derivative_min,
+
                 COUNT(value),
                 AVG(diff) as sampling_rate_avg,
                 MAX(diff) as sampling_rate_max,
@@ -156,6 +160,7 @@ def build_and_store_phase_stats(run_id, sci=None):
             # In case we cannot do that we use the classic average
             if value_count <= 2:
                 value_avg = Decimal(classic_value_avg)
+                # This derivative is only an approximation, but better than delivering no value as it is at least based on one sample
                 derivative_avg = Decimal(classic_value_avg / (duration/value_count))
                 derivative_max = Decimal(max_value / (duration/value_count))
                 derivative_min = Decimal(min_value / (duration/value_count))
@@ -224,8 +229,6 @@ def build_and_store_phase_stats(run_id, sci=None):
 
             elif "_energy_" in metric and unit == 'uJ':
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
-                # for energy we want to deliver an extra value, the watts.
-                # Here we need to calculate the average differently
 
                 power_avg_mW = derivative_avg * Decimal(1e3)
                 power_max_mW = derivative_max * Decimal(1e3)
