@@ -28,7 +28,7 @@ def test_check_unique_time_values():
 
 def test_time_monotonic():
     obj = NetworkIoProcfsSystemProvider(1000, remove_virtual_interfaces=False, skip_check=True)
-    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/network_io_procfs_system_short.log')
+    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/network_io_procfs_system.log')
     obj.read_metrics()
 
 
@@ -42,7 +42,7 @@ def test_time_non_monotonic():
 
 def test_value_resolution_ok():
     obj = CpuEnergyRaplMsrComponentProvider(1000, skip_check=True)
-    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_energy_rapl_msr_component_short.log')
+    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_energy_rapl_msr_component.log')
     obj.read_metrics()
 
 def test_value_resolution_underflow():
