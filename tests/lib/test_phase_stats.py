@@ -390,6 +390,28 @@ def test_phase_stats_network_procfs_manually_verifyable():
 
     build_and_store_phase_stats(run_id)
 
+    data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p FROM phase_stats WHERE phase = %s ', params=('008_Download', ), fetch_mode='dict')
+
+    assert len(data) == 5
+
+    df = df_network_io.loc[df_network_io['detail_name'] == data[2]['detail_name']]
+    assert data[2]['metric'] == 'network_total_procfs_system'
+    assert data[2]['detail_name'] == 'CURRENT_ACTUAL_NETWORK_INTERFACE'
+    assert data[2]['value'] == Tests.filter_df_runtime_subphase(df, phase_name='Download', hidden=False)['value'].sum()
+    assert data[2]['sampling_rate_avg'] == 100000, 'AVG sampling rate not in expected range' # we fixed it manually to 100000
+    assert data[2]['sampling_rate_max'] == 100000, 'MAX sampling rate not in expected range'
+    assert data[2]['sampling_rate_95p'] == 100000, '95p sampling rate not in expected range'
+    assert isinstance(data[2]['sampling_rate_95p'], int)
+
+    df = df_network_io.loc[df_network_io['detail_name'] == data[1]['detail_name']]
+    assert data[1]['metric'] == 'network_io_procfs_system'
+    assert data[1]['detail_name'] == 'CURRENT_ACTUAL_NETWORK_INTERFACE'
+    assert data[1]['value'] == round(Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()/Tests.TEST_MEASUREMENT_DOWNLOAD_SUBPHASE_DURATION * 1e6)
+    assert data[1]['sampling_rate_avg'] == 100000, 'AVG sampling rate not in expected range' # we fixed it manually to 100000
+    assert data[1]['sampling_rate_max'] == 100000, 'MAX sampling rate not in expected range'
+    assert data[1]['sampling_rate_95p'] == 100000, '95p sampling rate not in expected range'
+    assert isinstance(data[1]['sampling_rate_95p'], int)
+
     data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
 
     assert len(data) == 5
@@ -411,6 +433,7 @@ def test_phase_stats_network_procfs_manually_verifyable():
     assert data[3]['sampling_rate_max'] == 100000, 'MAX sampling rate not in expected range'
     assert data[3]['sampling_rate_95p'] == 100000, '95p sampling rate not in expected range'
     assert isinstance(data[3]['sampling_rate_95p'], int)
+
 
 
 def test_phase_stats_network_procfs():
