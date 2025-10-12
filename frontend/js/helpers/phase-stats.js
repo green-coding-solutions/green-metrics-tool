@@ -115,7 +115,7 @@ const createPhaseTab = (phase, hidden) => {
         if (hidden === true) {
             document.querySelector('#runtime-hidden-info').classList.remove('hidden');
             const tab = document.querySelector(`.item.runtime-step[data-tab="${phase}"]`)
-            tab.innerHTML = `<i class="low vision icon"></i> <span class="hidden-phase-name">${tab.innerText}</span>`
+            tab.innerHTML = `<i class="low vision icon"></i> <span class="hidden-phase-name hidden">${tab.innerText}</span>`
             tab.classList.add("hidden-phase-tab")
         }
 

@@ -385,10 +385,10 @@ const numberFormatterLong = new Intl.NumberFormat('en-US', {
 
 const showHiddenPhaseTab = (el) => {
     if (el.currentTarget.classList.contains('hidden-phase-tab')) {
-        el.currentTarget.querySelector('.hidden-phase-name').classList.add('hidden');
+        el.currentTarget.querySelector('.hidden-phase-name').classList.remove('hidden');
     } else {
         document.querySelectorAll('.hidden-phase-name').forEach(matched_el => {
-            matched_el.style.classList.remove('hidden');
+            matched_el.classList.add('hidden');
         })
     }
 }
