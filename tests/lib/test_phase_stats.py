@@ -145,15 +145,15 @@ def test_phase_stats_multi():
     data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, phase FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
 
     assert len(data) == 5
-    assert data[0]['metric'] == 'cpu_energy_rapl_msr_component'
-    assert data[0]['phase'] == '004_[RUNTIME]'
-    assert data[0]['value'] == Tests.filter_df_runtime_subphase(df_cpu_energy, hidden=False)['value'].sum()
-    assert data[0]['type'] == 'TOTAL'
-    assert data[0]['unit'] == 'uJ'
-    assert data[0]['detail_name'] == 'Package_0'
-    assert data[0]['sampling_rate_avg'] == 99524, 'AVG sampling rate not in expected range'
-    assert data[0]['sampling_rate_max'] == 101764, 'MAX sampling rate not in expected range'
-    assert data[0]['sampling_rate_95p'] ==  100111, '95p sampling rate not in expected range'
+    assert data[1]['metric'] == 'cpu_energy_rapl_msr_component'
+    assert data[1]['phase'] == '004_[RUNTIME]'
+    assert data[1]['value'] == Tests.filter_df_runtime_subphase(df_cpu_energy, hidden=False)['value'].sum()
+    assert data[1]['type'] == 'TOTAL'
+    assert data[1]['unit'] == 'uJ'
+    assert data[1]['detail_name'] == 'Package_0'
+    assert data[1]['sampling_rate_avg'] == 99524, 'AVG sampling rate not in expected range'
+    assert data[1]['sampling_rate_max'] == 101764, 'MAX sampling rate not in expected range'
+    assert data[1]['sampling_rate_95p'] ==  100111, '95p sampling rate not in expected range'
 
     assert data[3]['metric'] == 'cpu_power_rapl_msr_component'
     assert data[3]['phase'] == '004_[RUNTIME]'
@@ -237,7 +237,7 @@ def test_phase_embodied_and_operational_carbon():
     data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, phase FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
 
     assert len(data) == 5
-    psu_energy_ac_mcp_machine = data[3]
+    psu_energy_ac_mcp_machine = data[1]
     assert psu_energy_ac_mcp_machine['metric'] == 'psu_energy_ac_mcp_machine'
 
     psu_carbon_ac_mcp_machine = data[2]
@@ -253,7 +253,7 @@ def test_phase_embodied_and_operational_carbon():
     phase_time_in_years = Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN_S / (60 * 60 * 24 * 365)
     embodied_carbon_expected = int((phase_time_in_years / sci['EL']) * sci['TE'] * sci['RS'] * 1_000_000)
 
-    embodied_carbon_share_machine = data[0]
+    embodied_carbon_share_machine = data[3]
     assert embodied_carbon_share_machine['metric'] == 'embodied_carbon_share_machine'
     assert embodied_carbon_share_machine['detail_name'] == '[SYSTEM]'
     assert embodied_carbon_share_machine['unit'] == 'ug'
