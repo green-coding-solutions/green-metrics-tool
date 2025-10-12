@@ -33,8 +33,8 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx):
                 NOW()
             FROM phase_stats
             WHERE run_id = %s AND phase NOT LIKE '%%[%%' AND hidden IS FALSE
-            GROUP BY run_id, phase, metric, detail_name, type, unit
-            ORDER BY phase ASC, MAX(id) ASC
+            GROUP BY run_id, metric, detail_name, type, unit
+            ORDER BY MAX(id) ASC
         ''', params=(f"{runtime_phase_idx:03}_[RUNTIME]", run_id, ))
 
     # now we need to actually fix the totals. This is done in a separate step as we could not reference the total phase
