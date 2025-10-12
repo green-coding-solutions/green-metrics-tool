@@ -131,7 +131,7 @@ const fetchAndFillRunData = async (url_params) => {
             fillRunTab('#measurement-config', run_data[item]); // recurse
         } else if(item == 'id') {
             // skip
-        } else if(item == 'phases' && run_data?.item != null) { // run_data['phases'] can be null if run failed early. Thus no need to continue here
+        } else if(item == 'phases' && run_data[item] != null) { // run_data['phases'] can be null if run failed early. Thus no need to continue here
             Object.keys(run_data[item]).forEach(key => {
                 if (run_data[item][key]?.hidden == true) {
                     document.querySelector('#runtime-hidden-info').classList.remove('hidden');
