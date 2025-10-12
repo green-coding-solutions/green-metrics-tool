@@ -374,7 +374,7 @@ const buildTotalChartData = (phase_stats_object) => {
 
                     if (total_chart_bottom_condition(metric_name) && `${metric_name} ${detail_name}` == found_bottom_chart_metric) {
                         transformed_total_chart_bottom_unit = transformed_unit;
-                        if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
+                        if(total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
                             total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] = []
                         }
                         total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`].push(transformed_total_chart_bottom_mean)
@@ -388,7 +388,7 @@ const buildTotalChartData = (phase_stats_object) => {
         // this can for instance happen if a phase is too short and no metric was reported in the timespan
         for (const key in bottom_chart_present_keys) {
             if(bottom_chart_present_keys[key] == false) {
-                if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
+                if(total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
                     total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] = []
                 }
                 total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`].push(null)
