@@ -182,9 +182,9 @@ def test_phase_stats_multi():
     assert data[4]['type'] == 'MEAN'
     assert data[4]['unit'] == 'mW'
     assert data[4]['detail_name'] == '[MACHINE]'
-    assert data[2]['sampling_rate_avg'] == 99502, 'AVG sampling rate not in expected range' # hardcoded for now ... try Tests.filter_df_runtime_subphase(df_cpu_energy)['time_diff'].mean() when refactoring
-    assert data[2]['sampling_rate_max'] == 101999, 'MAX sampling rate not in expected range' # hardcoded for now ... try Tests.filter_df_runtime_subphase(df_cpu_energy)['time_diff'].mean() when refactoring
-    assert data[2]['sampling_rate_95p'] ==  100183, '95p sampling rate not in expected range' # hardcoded for now ... try Tests.filter_df_runtime_subphase(df_cpu_energy)['time_diff'].mean() when refactoring
+    assert data[4]['sampling_rate_avg'] == 99502, 'AVG sampling rate not in expected range' # hardcoded for now ... try Tests.filter_df_runtime_subphase(df_cpu_energy)['time_diff'].mean() when refactoring
+    assert data[4]['sampling_rate_max'] == 101999, 'MAX sampling rate not in expected range' # hardcoded for now ... try Tests.filter_df_runtime_subphase(df_cpu_energy)['time_diff'].mean() when refactoring
+    assert data[4]['sampling_rate_95p'] ==  100183, '95p sampling rate not in expected range' # hardcoded for now ... try Tests.filter_df_runtime_subphase(df_cpu_energy)['time_diff'].mean() when refactoring
 
 
 '''
