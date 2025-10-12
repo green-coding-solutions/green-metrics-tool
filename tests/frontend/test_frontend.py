@@ -586,7 +586,7 @@ class TestFrontendFunctionality:
 
         assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(1)").text_content() == 'Machine'
 
-        assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(2)").text_content() == 'Local machine'
+        assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(2)").text_content() == 'Development machine for testing'
 
 
         new_page.close()
@@ -666,7 +666,7 @@ class TestFrontendFunctionality:
         page.locator("#menu").get_by_role("link", name="Cluster Status", exact=True).click()
 
         machine_name = page.locator('#machines-table > tbody > tr:nth-child(1) > td:nth-child(2)').text_content()
-        assert machine_name.strip() == 'Local machine'
+        assert machine_name.strip() == 'Development machine for testing'
 
 
         awaiting_info = page.locator('#machines-table > tbody > tr:nth-child(1) > td:nth-child(10)').text_content()

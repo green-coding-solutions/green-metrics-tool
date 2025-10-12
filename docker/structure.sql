@@ -216,7 +216,7 @@ CREATE TRIGGER machines_moddatetime
 -- Default password for authentication is DEFAULT
 INSERT INTO "public"."machines"("description", "available")
 VALUES
-(E'Local machine', true);
+(E'Development machine for testing', true);
 
 
 CREATE TABLE jobs (
