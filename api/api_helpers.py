@@ -434,9 +434,9 @@ def get_phase_stats(user, ids):
                 (TRUE = %s OR b.user_id = ANY(%s::int[]))
                 AND a.run_id = ANY(%s::uuid[])
             ORDER BY
-                -- at least the run_ids must be same order as get_comparison_details so that the order in the comparison bar charts aligns with the comparsion_details array
-                b.created_at ASC,
-                a.phase ASC
+                b.created_at ASC, -- at least the first sorting key which determinse the order of run_ids must be same order as get_comparison_details so that the order in the comparison bar charts aligns with the comparsion_details array
+                a.phase ASC,
+                a.id ASC
             """
     params = (user.is_super_user(), user.visible_users(), ids)
     return DB().fetch_all(query, params=params)
