@@ -921,10 +921,14 @@ class TestXssSecurity:
         (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[BASELINE]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
         (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',5306934,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
         (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'004_[RUNTIME]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[RUNTIME]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
         (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
         (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[BASELINE]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
         (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',5306934,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
-        (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL);
+        (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'004_[RUNTIME]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'004_[RUNTIME]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL);
         """
 
         DB().query(run_query, params=(
@@ -932,10 +936,14 @@ class TestXssSecurity:
             run_id,      # 779 - baseline cpu_energy for run_id
             run_id,      # 780 - flow phase_time for run_id
             run_id,      # 781 - flow cpu_energy for run_id
-            run_id2,     # 782 - baseline phase_time for run_id2
-            run_id2,     # 783 - baseline cpu_energy for run_id2
-            run_id2,     # 784 - flow phase_time for run_id2
-            run_id2      # 785 - flow cpu_energy for run_id2
+            run_id,      # 782 - runtime phase_time for run_id
+            run_id,      # 783 - runtime cpu_energy for run_id
+            run_id2,     # 784 - baseline phase_time for run_id2
+            run_id2,     # 785 - baseline cpu_energy for run_id2
+            run_id2,     # 786 - flow phase_time for run_id2
+            run_id2,      # 787 - flow cpu_energy for run_id2
+            run_id2,     # 788 - runtime phase_time for run_id
+            run_id2,     # 789 - runtime cpu_energy for run_id
         ))
 
         # Insert malicious watchlist data

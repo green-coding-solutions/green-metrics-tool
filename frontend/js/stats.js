@@ -1096,7 +1096,7 @@ $(document).ready( () => {
 
         (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
             const phase_stats = await fetchAndFillPhaseStatsData(url_params);
-            renderBadges(url_params, phase_stats.data.data['[RUNTIME]'].data);
+            renderBadges(url_params, phase_stats?.data?.data?.['[RUNTIME]']?.data); // phase_stats can be empty when returned if run is broken or not done. thus the safe access
         })();
 
 

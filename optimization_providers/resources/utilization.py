@@ -38,7 +38,7 @@ def container_memory_utilization(self, run, measurements, repo_path, network, no
         if x := d.get('deploy', {}).get('resources', {}).get('limits', {}).get('memory', None):
             mem[s] = memory_to_bytes(x)
 
-    for service, measurement_stats in phases.get('data').get('[RUNTIME]').get('memory_used_cgroup_container').get('data').items():
+    for service, measurement_stats in phases['data']['[RUNTIME]']['data']['memory_used_cgroup_container']['data'].items():
         if not service in mem:
             self.add_optimization(
                 f"You are not using Memory limits definitions on {service}",
@@ -71,7 +71,7 @@ def container_cpu_utilization(self, run, measurements, repo_path, network, notes
         if x := d.get('deploy', {}).get('resources', {}).get('limits', {}).get('cpus', None):
             cpus[s] = float(x)
 
-    for service, measurement_stats in phases.get('data').get('[RUNTIME]').get('cpu_utilization_cgroup_container').get('data').items():
+    for service, measurement_stats in phases['data']['[RUNTIME]']['data']['cpu_utilization_cgroup_container']['data'].items():
         if not service in cpus:
             self.add_optimization(
                 f"You are not using CPU limits definitions on {service}",
