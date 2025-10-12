@@ -436,7 +436,7 @@ def get_phase_stats(user, ids):
             ORDER BY
                 -- at least the run_ids must be same order as get_comparison_details so that the order in the comparison bar charts aligns with the comparsion_details array
                 b.created_at ASC,
-                a.id ASC
+                a.phase ASC
             """
     params = (user.is_super_user(), user.visible_users(), ids)
     return DB().fetch_all(query, params=params)

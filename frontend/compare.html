@@ -232,6 +232,12 @@
             </div>
             <!-- We are using a trick here. The selection works on [RUNTIME] but will match this tab still, as it is the first by default -->
             <div class="ui bottom attached active tab segment" data-tab="[[RUNTIME]]">
+                <div id="runtime-hidden-info" class="ui info message hidden">
+                    <div class="header">
+                        Flow contains hidden phases
+                    </div>
+                    <p>Note: Hidden phases (<i class="low vision icon"></i>) do not contribute to RUNTIME totals</p>
+                </div>
                 <div class="ui warning message hidden">
                     <div class="header">
                         <i class="notched warning icon"></i> This phase has some warnings
