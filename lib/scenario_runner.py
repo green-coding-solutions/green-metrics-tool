@@ -55,14 +55,23 @@ def validate_usage_scenario_variables(usage_scenario_variables):
             raise ValueError(f"Usage Scenario variable ({key}) has invalid name. Format must be __GMT_VAR_[\\w]+__ - Example: __GMT_VAR_EXAMPLE__")
     return usage_scenario_variables
 
-def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
+uc_replaced = tuple()
+
+def uc_string_replace(uc_string, old, new):
+    global uc_replaced
+    new_uc = uc_string.replace(old, new)
+    if new_uc != uc_string:
+        uc_replaced = uc_replaced + (old,)
+
+    return new_uc
+
+
+def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables, check=True):
     for key, value in usage_scenario_variables.items():
-        if key not in usage_scenario:
-            raise ValueError(f"Usage Scenario Variable '{key}' does not exist in usage scenario. Did you forget to add it?")
-        usage_scenario = usage_scenario.replace(key, value)
+        usage_scenario = uc_string_replace(usage_scenario, key, value)
 
     if matches := re.findall(r'__GMT_VAR_\w+__', usage_scenario):
-        raise RuntimeError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. Please add variables when submitting run.")
+        raise RuntimeError(f"Unreplaced leftover variables are still in usage_scenario: {matches} \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
 
     return usage_scenario
 
@@ -363,6 +372,7 @@ class ScenarioRunner:
         #pylint: disable=too-many-ancestors
         runner_join_paths = self._join_paths
         usage_scenario_file = self._join_paths(self._repo_folder, self._original_filename)
+        usage_scenario_variables = self._usage_scenario_variables
 
         class Loader(yaml.SafeLoader):
             def include(self, node):
@@ -384,21 +394,25 @@ class ScenarioRunner:
                     raise ValueError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
                 with open(filename, 'r', encoding='UTF-8') as f:
-                    # We want to enable a deep search for keys
-                    def recursive_lookup(k, d):
-                        if k in d:
-                            return d[k]
-                        for v in d.values():
-                            if isinstance(v, dict):
-                                return recursive_lookup(k, v)
-                        return None
+                    usage_scenario = f.read()
 
-                    # We can use load here as the Loader extends SafeLoader
-                    if len(nodes) == 1:
-                        # There is no selector specified
-                        return yaml.load(f, Loader)
+                usage_scenario = replace_usage_scenario_variables(usage_scenario, usage_scenario_variables, False)
 
-                    return recursive_lookup(nodes[1], yaml.load(f, Loader))
+                # We want to enable a deep search for keys
+                def recursive_lookup(k, d):
+                    if k in d:
+                        return d[k]
+                    for v in d.values():
+                        if isinstance(v, dict):
+                            return recursive_lookup(k, v)
+                    return None
+
+                # We can use load here as the Loader extends SafeLoader
+                if len(nodes) == 1:
+                    # There is no selector specified
+                    return yaml.load(usage_scenario, Loader)
+
+                return recursive_lookup(nodes[1], yaml.load(usage_scenario, Loader))
 
         Loader.add_constructor('!include', Loader.include)
 
@@ -412,10 +426,18 @@ class ScenarioRunner:
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as f:
             usage_scenario = f.read()
-            usage_scenario = replace_usage_scenario_variables(usage_scenario, self._usage_scenario_variables)
+            usage_scenario = replace_usage_scenario_variables(usage_scenario, self._usage_scenario_variables, True)
 
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(usage_scenario, Loader)
+
+
+            #Check that all variables have been replaced
+            if matches := re.findall(r'__GMT_VAR_\w+__', usage_scenario):
+                raise RuntimeError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. Please add variables when submitting run.")
+            for old, _ in self._usage_scenario_variables.items():
+                if old not in uc_replaced:
+                    raise RuntimeError(f"Usage Scenario Variable '{old}' was not used in usage scenario. Please remove it or add it to the usage scenario.")
 
             # Now that we have parsed the yml file we need to check for the special case in which we have a
             # compose-file key. In this case we merge the data we find under this key but overwrite it with
@@ -727,11 +749,13 @@ class ScenarioRunner:
             # If build is a string we can assume the short form
             context = service['build']
             dockerfile = 'Dockerfile'
+            args = {}
         else:
             context =  service['build'].get('context', '.')
             dockerfile = service['build'].get('dockerfile', 'Dockerfile')
+            args = service['build'].get('args', {})
 
-        return context, dockerfile
+        return context, dockerfile, args
 
     def _clean_image_name(self, name):
         # clean up image name for problematic characters
@@ -772,7 +796,7 @@ class ScenarioRunner:
                 pass
 
             if 'build' in service:
-                context, dockerfile = self._get_build_info(service)
+                context, dockerfile, args = self._get_build_info(service)
                 print(f"Building {service['image']}")
                 self.__notes_helper.add_note( note=f"Building {service['image']}", detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
 
@@ -794,6 +818,10 @@ class ScenarioRunner:
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--cleanup=true',
                     '--no-push']
+
+                for arg_dict in args:
+                    for arg_key, arg_value in arg_dict.items():
+                        docker_build_command.append(f"--build-arg={arg_key}={arg_value}")
 
                 # docker agent might be configured to pull from a different, maybe even insecure registry
                 # We want to mirror that behaviour in GMT as we see it used in specially configured environments
@@ -1562,8 +1590,8 @@ class ScenarioRunner:
 
         if self._run_id:
             DB().query("""
-                UPDATE runs 
-                SET usage_scenario_dependencies = %s 
+                UPDATE runs
+                SET usage_scenario_dependencies = %s
                 WHERE id = %s
                 """, params=(json.dumps(self.__usage_scenario_dependencies) if self.__usage_scenario_dependencies is not None else None, self._run_id))
 
