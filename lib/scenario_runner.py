@@ -55,18 +55,18 @@ def validate_usage_scenario_variables(usage_scenario_variables):
             raise ValueError(f"Usage Scenario variable ({key}) has invalid name. Format must be __GMT_VAR_[\\w]+__ - Example: __GMT_VAR_EXAMPLE__")
     return usage_scenario_variables
 
-uc_replaced = tuple()
+_uc_replaced = tuple()
 
 def uc_string_replace(uc_string, old, new):
-    global uc_replaced
+    global _uc_replaced
     new_uc = uc_string.replace(old, new)
     if new_uc != uc_string:
-        uc_replaced = uc_replaced + (old,)
+        _uc_replaced = _uc_replaced + (old,)
 
     return new_uc
 
 
-def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables, check=True):
+def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
     for key, value in usage_scenario_variables.items():
         usage_scenario = uc_string_replace(usage_scenario, key, value)
 
@@ -436,7 +436,7 @@ class ScenarioRunner:
             if matches := re.findall(r'__GMT_VAR_\w+__', usage_scenario):
                 raise RuntimeError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. Please add variables when submitting run.")
             for old, _ in self._usage_scenario_variables.items():
-                if old not in uc_replaced:
+                if old not in _uc_replaced:
                     raise RuntimeError(f"Usage Scenario Variable '{old}' was not used in usage scenario. Please remove it or add it to the usage scenario.")
 
             # Now that we have parsed the yml file we need to check for the special case in which we have a
