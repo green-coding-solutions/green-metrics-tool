@@ -396,7 +396,7 @@ class ScenarioRunner:
                 with open(filename, 'r', encoding='UTF-8') as f:
                     usage_scenario = f.read()
 
-                usage_scenario = replace_usage_scenario_variables(usage_scenario, usage_scenario_variables, False)
+                usage_scenario = replace_usage_scenario_variables(usage_scenario, usage_scenario_variables)
 
                 # We want to enable a deep search for keys
                 def recursive_lookup(k, d):
@@ -426,7 +426,7 @@ class ScenarioRunner:
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as f:
             usage_scenario = f.read()
-            usage_scenario = replace_usage_scenario_variables(usage_scenario, self._usage_scenario_variables, True)
+            usage_scenario = replace_usage_scenario_variables(usage_scenario, self._usage_scenario_variables)
 
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(usage_scenario, Loader)
