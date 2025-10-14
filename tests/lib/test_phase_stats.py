@@ -47,7 +47,7 @@ def test_phase_stats_single_energy():
     assert data[2]['metric'] == 'psu_power_ac_mcp_machine'
     assert data[2]['detail_name'] == '[MACHINE]'
     assert data[2]['unit'] == 'mW'
-    assert data[2]['value'] == round(Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum() / Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN * 1e3) # 1e3 bc mW and not W
+    assert data[2]['value'] == 8384758 # hardcoded bc it is not energy / divided by total_runtime but rather by the samples seen
     assert data[2]['type'] == 'MEAN'
     assert data[2]['sampling_rate_avg'] == 99502, 'AVG sampling rate not in expected range' # hardcoded for now. due for refactor
     assert data[2]['sampling_rate_max'] == 101999, 'MAX sampling rate not in expected range'  # hardcoded for now. due for refactor
@@ -157,7 +157,7 @@ def test_phase_stats_multi():
 
     assert data[3]['metric'] == 'cpu_power_rapl_msr_component'
     assert data[3]['phase'] == '004_[RUNTIME]'
-    assert data[3]['value'] == round(Tests.filter_df_runtime_subphase(df_cpu_energy, hidden=False)['value'].sum() / Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN * 1e3) # 1e3 bc mW and not W
+    assert data[3]['value'] == 4728 # hardcoded bc it is not energy / divided by total_runtime but rather by the samples seen
     assert data[3]['type'] == 'MEAN'
     assert data[3]['unit'] == 'mW'
     assert data[3]['detail_name'] == 'Package_0'
@@ -178,7 +178,7 @@ def test_phase_stats_multi():
 
     assert data[4]['metric'] == 'psu_power_ac_mcp_machine'
     assert data[4]['phase'] == '004_[RUNTIME]'
-    assert data[4]['value'] == round(Tests.filter_df_runtime_subphase(df_machine_energy, hidden=False)['value'].sum() / Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN * 1e3) # 1e3 bc mW and not W
+    assert data[4]['value'] == 8384758 # hardcoded bc it is not energy / divided by total_runtime but rather by the samples seen
     assert data[4]['type'] == 'MEAN'
     assert data[4]['unit'] == 'mW'
     assert data[4]['detail_name'] == '[MACHINE]'
@@ -394,10 +394,19 @@ def test_phase_stats_network_procfs_manually_verifyable():
 
     assert len(data) == 5
 
+    assert data[0]['metric'] == 'phase_time_syscall_system'
+    assert data[0]['detail_name'] == '[SYSTEM]'
+    assert data[0]['unit'] == 'us'
+    assert data[0]['value'] == Tests.TEST_MEASUREMENT_DOWNLOAD_SUBPHASE_DURATION
+    assert data[0]['type'] == 'TOTAL'
+    assert data[0]['sampling_rate_avg'] is None, 'AVG sampling rate not in expected range'
+    assert data[0]['sampling_rate_max'] is None, 'MAX sampling rate not in expected range'
+    assert data[0]['sampling_rate_95p'] is None, '95p sampling rate not in expected range'
+
     df = df_network_io.loc[df_network_io['detail_name'] == data[2]['detail_name']]
     assert data[2]['metric'] == 'network_total_procfs_system'
     assert data[2]['detail_name'] == 'CURRENT_ACTUAL_NETWORK_INTERFACE'
-    assert data[2]['value'] == Tests.filter_df_runtime_subphase(df, phase_name='Download', hidden=False)['value'].sum()
+    assert data[2]['value'] == 3003 # hardcoded as readable in file
     assert data[2]['sampling_rate_avg'] == 100000, 'AVG sampling rate not in expected range' # we fixed it manually to 100000
     assert data[2]['sampling_rate_max'] == 100000, 'MAX sampling rate not in expected range'
     assert data[2]['sampling_rate_95p'] == 100000, '95p sampling rate not in expected range'
@@ -406,7 +415,7 @@ def test_phase_stats_network_procfs_manually_verifyable():
     df = df_network_io.loc[df_network_io['detail_name'] == data[1]['detail_name']]
     assert data[1]['metric'] == 'network_io_procfs_system'
     assert data[1]['detail_name'] == 'CURRENT_ACTUAL_NETWORK_INTERFACE'
-    assert data[1]['value'] == round(Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()/Tests.TEST_MEASUREMENT_DOWNLOAD_SUBPHASE_DURATION * 1e6)
+    assert data[1]['value'] == 10010
     assert data[1]['sampling_rate_avg'] == 100000, 'AVG sampling rate not in expected range' # we fixed it manually to 100000
     assert data[1]['sampling_rate_max'] == 100000, 'MAX sampling rate not in expected range'
     assert data[1]['sampling_rate_95p'] == 100000, '95p sampling rate not in expected range'
@@ -416,19 +425,29 @@ def test_phase_stats_network_procfs_manually_verifyable():
 
     assert len(data) == 5
 
-    df = df_network_io.loc[df_network_io['detail_name'] == data[0]['detail_name']]
-    assert data[0]['metric'] == 'network_total_procfs_system'
-    assert data[0]['detail_name'] == 'CURRENT_ACTUAL_NETWORK_INTERFACE'
-    assert data[0]['value'] == Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
-    assert data[0]['sampling_rate_avg'] == 100000, 'AVG sampling rate not in expected range' # we fixed it manually to 100000
-    assert data[0]['sampling_rate_max'] == 100000, 'MAX sampling rate not in expected range'
-    assert data[0]['sampling_rate_95p'] == 100000, '95p sampling rate not in expected range'
-    assert isinstance(data[0]['sampling_rate_95p'], int)
+    assert data[0]['metric'] == 'phase_time_syscall_system'
+    assert data[0]['detail_name'] == '[SYSTEM]'
+    assert data[0]['unit'] == 'us'
+    assert data[0]['value'] == Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN
+    assert data[0]['type'] == 'TOTAL'
+    assert data[0]['sampling_rate_avg'] is None, 'AVG sampling rate not in expected range'
+    assert data[0]['sampling_rate_max'] is None, 'MAX sampling rate not in expected range'
+    assert data[0]['sampling_rate_95p'] is None, '95p sampling rate not in expected range'
+
+
+    df = df_network_io.loc[df_network_io['detail_name'] == data[1]['detail_name']]
+    assert data[1]['metric'] == 'network_total_procfs_system'
+    assert data[1]['detail_name'] == 'CURRENT_ACTUAL_NETWORK_INTERFACE'
+    assert data[1]['value'] == Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
+    assert data[1]['sampling_rate_avg'] == 100000, 'AVG sampling rate not in expected range' # we fixed it manually to 100000
+    assert data[1]['sampling_rate_max'] == 100000, 'MAX sampling rate not in expected range'
+    assert data[1]['sampling_rate_95p'] == 100000, '95p sampling rate not in expected range'
+    assert isinstance(data[1]['sampling_rate_95p'], int)
 
     df = df_network_io.loc[df_network_io['detail_name'] == data[3]['detail_name']]
     assert data[3]['metric'] == 'network_io_procfs_system'
     assert data[3]['detail_name'] == 'CURRENT_ACTUAL_NETWORK_INTERFACE'
-    assert data[3]['value'] == round(Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()/Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN * 1e6)
+    assert data[3]['value'] == 878
     assert data[3]['sampling_rate_avg'] == 100000, 'AVG sampling rate not in expected range' # we fixed it manually to 100000
     assert data[3]['sampling_rate_max'] == 100000, 'MAX sampling rate not in expected range'
     assert data[3]['sampling_rate_95p'] == 100000, '95p sampling rate not in expected range'
@@ -446,34 +465,29 @@ def test_phase_stats_network_procfs():
 
     assert len(data) == 27
 
-    df = df_network_io.loc[df_network_io['detail_name'] == data[12]['detail_name']]
-    assert data[12]['metric'] == 'network_total_procfs_system'
-    assert data[12]['detail_name'] == 'wlp170s0'
-    assert data[12]['value'] == Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
-    assert data[12]['sampling_rate_avg'] == 99771, 'AVG sampling rate not in expected range'
-    assert data[12]['sampling_rate_max'] == 101780, 'MAX sampling rate not in expected range'
-    assert data[12]['sampling_rate_95p'] == 100411, '95p sampling rate not in expected range'
-    assert isinstance(data[12]['sampling_rate_95p'], int)
+    df = df_network_io.loc[df_network_io['detail_name'] == data[13]['detail_name']]
+    assert data[13]['metric'] == 'network_total_procfs_system'
+    assert data[13]['detail_name'] == 'wlp170s0'
+    assert data[13]['value'] == Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
+    assert data[13]['sampling_rate_avg'] == 99771, 'AVG sampling rate not in expected range'
+    assert data[13]['sampling_rate_max'] == 101780, 'MAX sampling rate not in expected range'
+    assert data[13]['sampling_rate_95p'] == 100411, '95p sampling rate not in expected range'
+    assert isinstance(data[13]['sampling_rate_95p'], int)
 
-    df = df_network_io.loc[df_network_io['detail_name'] == data[1]['detail_name']]
-    assert data[1]['metric'] == 'network_total_procfs_system'
-    assert data[1]['detail_name'] == 'br-f1a25ccf9cd0'
-    assert data[1]['value'] == Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
+    df = df_network_io.loc[df_network_io['detail_name'] == data[2]['detail_name']]
+    assert data[2]['metric'] == 'network_total_procfs_system'
+    assert data[2]['detail_name'] == 'br-f1a25ccf9cd0'
+    assert data[2]['value'] == Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
 
 
-    df = df_network_io.loc[df_network_io['detail_name'] == data[14]['detail_name']]
-    assert data[14]['metric'] == 'network_io_procfs_system'
-    assert data[14]['detail_name'] == 'br-aa354692fe44'
-    assert data[14]['value'] == round(Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()/Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN * 1e6)
-    assert data[14]['sampling_rate_avg'] == 99771, 'AVG sampling rate not in expected range'
-    assert data[14]['sampling_rate_max'] == 101780, 'MAX sampling rate not in expected range'
-    assert data[14]['sampling_rate_95p'] == 100411, '95p sampling rate not in expected range'
-    assert isinstance(data[14]['sampling_rate_95p'], int)
-
-    df = df_network_io.loc[df_network_io['detail_name'] == data[15]['detail_name']]
-    assert data[15]['metric'] == 'network_io_procfs_system'
-    assert data[15]['detail_name'] == 'br-f1a25ccf9cd0'
-    assert data[15]['value'] == round(Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()/Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN * 1e6)
+    df = df_network_io.loc[df_network_io['detail_name'] == data[16]['detail_name']]
+    assert data[16]['metric'] == 'network_io_procfs_system'
+    assert data[16]['detail_name'] == 'docker0'
+    assert data[16]['value'] == round(Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()/Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN * 1e6)
+    assert data[16]['sampling_rate_avg'] == 99771, 'AVG sampling rate not in expected range'
+    assert data[16]['sampling_rate_max'] == 101780, 'MAX sampling rate not in expected range'
+    assert data[16]['sampling_rate_95p'] == 100411, '95p sampling rate not in expected range'
+    assert isinstance(data[16]['sampling_rate_95p'], int)
 
 
 def test_phase_stats_network_data():
