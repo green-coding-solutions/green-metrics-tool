@@ -33,7 +33,7 @@ class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
         '''
 
         intervals = df['time'].diff()
-        intervals[0] = intervals.mean()  # approximate first interval
+        intervals[0] = intervals.mean()  # approximate first interval as we can safely assume that the unloaded power was the same in the step before
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row

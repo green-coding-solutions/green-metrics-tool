@@ -68,9 +68,8 @@ def test_splitting_by_group():
 
     obj = NetworkIoProcfsSystemProvider(1000, remove_virtual_interfaces=False)
 
-    actual_network_interface = utils.get_network_interfaces(mode='physical')[0]
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-        mock_temporary_network_file('./data/metrics/network_io_procfs_system_short.log', temp_file.name, actual_network_interface)
+        mock_temporary_network_file('./data/metrics/network_io_procfs_system_two_measurements_at_phase_border_out.log', temp_file.name, 'MY_FAKE_INTERFACE')
 
         obj._filename = temp_file.name
         df = obj.read_metrics()

@@ -87,7 +87,7 @@ const fetchAndFillRunData = async (url_params) => {
 
     for (const item in run_data) {
         if (item == 'machine_id') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])} (${escapeString(GMT_MACHINES[run_data?.[item]] || run_data?.[item])})</td></tr>`);
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])} (${escapeString(GMT_MACHINES[run_data[item]] || run_data[item])})</td></tr>`);
         } else if (item == 'runner_arguments') {
             fillRunTab('#runner-arguments', run_data[item]); // recurse
         } else if (item == 'machine_specs') {
@@ -129,24 +129,24 @@ const fetchAndFillRunData = async (url_params) => {
             }
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
-        } else if(item == 'phases' || item == 'id') {
+        } else if(item == 'id' || item == 'phases') {
             // skip
         }  else if(item == 'commit_hash') {
-            if (run_data?.[item] == null) continue; // some old runs did not save it
+            if (run_data[item] == null) continue; // some old runs did not save it
             let commit_link = buildCommitLink(run_data);
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data?.[item])}</a></td></tr>`)
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data[item])}</a></td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])}</td></tr>`)
-        } else if(item == 'failed' && run_data?.[item] == true) {
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
+        } else if(item == 'failed' && run_data[item] == true) {
             document.querySelector('#run-failed').classList.remove('hidden');
         } else if(item == 'start_measurement' || item == 'end_measurement') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data?.[item])}">${new Date(run_data?.[item] / 1e3)}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item] / 1e3)}</td></tr>`)
         } else if(item == 'created_at' ) {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data?.[item])}">${new Date(run_data?.[item])}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item])}</td></tr>`)
         } else if(item == 'gmt_hash') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data?.[item]}">${escapeString(run_data?.[item])}</a></td></tr>`);
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data[item]}">${escapeString(run_data[item])}</a></td></tr>`);
         } else if(item == 'uri') {
-            const uri = run_data?.[item];
+            const uri = run_data[item];
             let uriDisplay;
             if(uri.startsWith('http')) {
                 // URI is safe for href attribute: validated to have http/https protocol prevents XSS
@@ -157,7 +157,7 @@ const fetchAndFillRunData = async (url_params) => {
             }
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
         } else {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
         }
     }
 
@@ -193,7 +193,7 @@ const fillRunTab = async (selector, data, parent = '') => {
             }
             fillRunTab(selector, data[item], `${item}.`)
         } else {
-            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data?.[item])}</td></tr>`)
+            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data[item])}</td></tr>`)
         }
     }
 }
@@ -828,7 +828,7 @@ function copyTextToClipboard(text) {
 }
 
 const fetchTimelineData = async (url_params) => {
-    document.querySelector('#api-loader').style.display = '';
+    document.querySelector('#api-loader').classList.remove('hidden');
     document.querySelector('#loader-question').remove();
 
     let measurements = null;
@@ -1087,15 +1087,16 @@ $(document).ready( () => {
             return;
         }
 
-        fetchAndFillRunData(url_params);
+        // run all without await, as they have no blocking visuals or depended upon changes
         fetchAndFillNetworkIntercepts(url_params);
         fetchAndFillOptimizationsData(url_params);
         fetchAndFillAIData(url_params);
         fetchAndFillWarnings(url_params);
+        fetchAndFillRunData(url_params);
 
         (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
             const phase_stats = await fetchAndFillPhaseStatsData(url_params);
-            renderBadges(url_params, phase_stats?.data?.data['[RUNTIME]']);
+            renderBadges(url_params, phase_stats?.data?.data?.['[RUNTIME]']?.data); // phase_stats can be empty when returned if run is broken or not done. thus the safe access
         })();
 
 
@@ -1106,7 +1107,7 @@ $(document).ready( () => {
             ]);
             if (timeline_data == null) {
                 document.querySelector('#api-loader').remove()
-                document.querySelector('#message-chart-load-failure').style.display = '';
+                document.querySelector('#message-chart-load-failure').classList.remove('hidden');
                 return
             }
             const timeline_chart_data = await buildTimelineChartData(timeline_data);
@@ -1120,7 +1121,7 @@ $(document).ready( () => {
 
                 if (timeline_data == null) {
                     document.querySelector('#api-loader').remove()
-                    document.querySelector('#message-chart-load-failure').style.display = '';
+                    document.querySelector('#message-chart-load-failure').classList.remove('hidden');
                     return
                 }
                 const timeline_chart_data = await buildTimelineChartData(timeline_data);
