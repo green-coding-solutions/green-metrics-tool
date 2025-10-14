@@ -139,9 +139,9 @@ def build_and_store_phase_stats(run_id, sci=None):
 
                 -- these are only a true derivate if value is already a difference, which is the case for energy values and for _io_ providers or any other that outputs increments instead of totals
                 -- using the derivative for other providers makes no sense atm
-                AVG(value/diff) as derivative_avg,
-                MAX(value/diff) as derivative_max,
-                MIN(value/diff) as derivative_min,
+                AVG(value::DOUBLE PRECISION/diff) as derivative_avg, -- is enough to cast nominator
+                MAX(value::DOUBLE PRECISION/diff) as derivative_max, -- is enough to cast nominator
+                MIN(value::DOUBLE PRECISION/diff) as derivative_min, -- is enough to cast nominator
 
                 COUNT(value),
                 AVG(diff) as sampling_rate_avg,
