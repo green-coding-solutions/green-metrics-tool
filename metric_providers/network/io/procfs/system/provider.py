@@ -26,10 +26,8 @@ class NetworkIoProcfsSystemProvider(BaseMetricProvider):
         df = df.sort_values(by=['interface', 'time'], ascending=True)
 
         df['transmitted_bytes_intervals'] = df.groupby(['interface'])['transmitted_bytes'].diff()
-        df['transmitted_bytes_intervals'] = df.groupby('interface')['transmitted_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
 
         df['received_bytes_intervals'] = df.groupby(['interface'])['received_bytes'].diff()
-        df['received_bytes_intervals'] = df.groupby('interface')['received_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row
