@@ -423,7 +423,7 @@ def get_phase_stats(user, ids):
     query = """
             SELECT
                 a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.min_value,
-                a.sampling_rate_avg, a.sampling_rate_max, a.sampling_rate_95p, a.unit,
+                a.sampling_rate_avg, a.sampling_rate_max, a.sampling_rate_95p, a.unit, a.hidden,
                 b.uri, c.id, b.filename, b.commit_hash, b.branch,
                 b.id, b.usage_scenario_variables
             FROM phase_stats as a
@@ -434,8 +434,8 @@ def get_phase_stats(user, ids):
                 (TRUE = %s OR b.user_id = ANY(%s::int[]))
                 AND a.run_id = ANY(%s::uuid[])
             ORDER BY
-                -- at least the run_ids must be same order as get_comparison_details so that the order in the comparison bar charts aligns with the comparsion_details array
-                b.created_at ASC,
+                b.created_at ASC, -- at least the first sorting key which determinse the order of run_ids must be same order as get_comparison_details so that the order in the comparison bar charts aligns with the comparsion_details array
+                a.phase ASC,
                 a.id ASC
             """
     params = (user.is_super_user(), user.visible_users(), ids)
@@ -493,40 +493,43 @@ def get_phase_stats(user, ids):
             [BASELINE]: dict
             [INSTALLATION]: dict
             ....
-            [PHASE]: dict -> key: metric_name
-                -mean: - // will NOT be implemented. See explanation
-                    // mean of the phase for all the metrics and their details
-                    // this really only makes sense for all the energy values, and then only for selected ones ...
-                    // actually only really helpful if we have multiple metrics that report the same value
-                    // this shall NOT be supported
-                // we reserve this level for phase-level data
-                // atm there is only the data key
-                core_energy_powermetrics_component: dict
-                ...
-                ane_energy_powermetrics_component: dict
-                    clean_name: str
-                    explanation: str
-                    source: str
-                    ....
-                    mean: float
-                        // mean of the metric over all details per per repo / usage_scenario etc.
-                        // => Interesting for multiple docker containers
-                        repo/usage_scenarios/machine/commit/: number
-                        repo/usage_scenarios/machine/commit/: number
-                        ...
-                    stddev: float
-                    p-value: float
+            [PHASE]: dict:
+               hidden: bool
+               data : dict:
+                 metric_name:dict
+                    -mean: - // will NOT be implemented. See explanation
+                        // mean of the phase for all the metrics and their details
+                        // this really only makes sense for all the energy values, and then only for selected ones ...
+                        // actually only really helpful if we have multiple metrics that report the same value
+                        // this shall NOT be supported
+                    // we reserve this level for phase-level data
+                    // atm there is only the data key
+                    core_energy_powermetrics_component: dict
+                    ...
+                    ane_energy_powermetrics_component: dict
+                        clean_name: str
+                        explanation: str
+                        source: str
+                        ....
+                        mean: float
+                            // mean of the metric over all details per per repo / usage_scenario etc.
+                            // => Interesting for multiple docker containers
+                            repo/usage_scenarios/machine/commit/: number
+                            repo/usage_scenarios/machine/commit/: number
+                            ...
+                        stddev: float
+                        p-value: float
 
-                    data: dict -> key: detail_name
-                        [COMPONENT]: dict
-                        [SYSTEM]: dict
-                        ...
-                        [MACHINE]:
-                                mean: float // mean of the metric for this detail for this phase
-                                stddev: float
-                                ci: float
-                                max: float
-                                values: list // the actual values
+                        data: dict -> key: detail_name
+                            [COMPONENT]: dict
+                            [SYSTEM]: dict
+                            ...
+                            [MACHINE]:
+                                    mean: float // mean of the metric for this detail for this phase
+                                    stddev: float
+                                    ci: float
+                                    max: float
+                                    values: list // the actual values
             ...
 '''
 def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comparison_identifiers=None):
@@ -545,7 +548,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
     for phase_stat in phase_stats:
         [
             phase, metric_name, detail_name, value, metric_type, max_value, min_value,
-            sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit,
+            sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit, hidden,
             repo, machine_id, filename, commit_hash, branch,
             run_id, usage_scenario_variables
         ] = phase_stat
@@ -569,10 +572,11 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
         else:
             key = run_id # No comparison case - Single view
 
-        if phase not in phase_stats_object['data']: phase_stats_object['data'][phase] = OrderedDict()
+        if phase not in phase_stats_object['data']:
+            phase_stats_object['data'][phase] = OrderedDict({'hidden': hidden, 'data': {}})
 
-        if metric_name not in phase_stats_object['data'][phase]:
-            phase_stats_object['data'][phase][metric_name] = {
+        if metric_name not in phase_stats_object['data'][phase]['data']:
+            phase_stats_object['data'][phase]['data'][metric_name] = {
                 'type': metric_type,
                 'unit': unit,
                 #'mean': None, # currently no use for that
@@ -582,12 +586,12 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
                 #'is_significant': None,  # currently no use for that
                 'data': OrderedDict(),
             }
-        elif phase_stats_object['data'][phase][metric_name]['unit'] != unit:
-            raise ValueError(f"Metric cannot be compared as units have changed: {unit} vs. {phase_stats_object['data'][phase][metric_name]['unit']}")
+        elif phase_stats_object['data'][phase]['data'][metric_name]['unit'] != unit:
+            raise ValueError(f"Metric cannot be compared as units have changed: {unit} vs. {phase_stats_object['data'][phase]['data'][metric_name]['unit']}")
 
 
-        if detail_name not in phase_stats_object['data'][phase][metric_name]['data']:
-            phase_stats_object['data'][phase][metric_name]['data'][detail_name] = {
+        if detail_name not in phase_stats_object['data'][phase]['data'][metric_name]['data']:
+            phase_stats_object['data'][phase]['data'][metric_name]['data'][detail_name] = {
                 'name': detail_name,
                 # 'mean': None, # mean for a detail over multiple machines / branches makes no sense
                 # 'max': max_value, # max for a detail over multiple machines / branches makes no sense
@@ -599,7 +603,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
                 'data': OrderedDict(),
             }
 
-        detail_data = phase_stats_object['data'][phase][metric_name]['data'][detail_name]['data']
+        detail_data = phase_stats_object['data'][phase]['data'][metric_name]['data'][detail_name]['data']
         if key not in detail_data:
             detail_data[key] = {
                 'mean': value, # this is the mean over all repetitions of the detail_name for the key
@@ -654,7 +658,7 @@ def transform_dict_to_list_two_level(my_dict):
 def add_phase_stats_statistics(phase_stats_object):
 
     for _, phase_data in phase_stats_object['data'].items():
-        for _, metric in phase_data.items():
+        for _, metric in phase_data['data'].items():
             for _, detail in metric['data'].items():
                 for _, key_obj in detail['data'].items():
 
@@ -719,7 +723,7 @@ def add_phase_stats_statistics(phase_stats_object):
 
         # we need to traverse only one branch of the tree like structure, as we only need to compare matching metrics
         for _, phase_data in phase_stats_object['data'].items():
-            for _, metric in phase_data.items():
+            for _, metric in phase_data['data'].items():
                 for _, detail in metric['data'].items():
                     if key1 not in detail['data'] or key2 not in detail['data']:
                         continue
