@@ -70,7 +70,7 @@ def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
     for key, value in usage_scenario_variables.items():
         usage_scenario = uc_string_replace(usage_scenario, key, value)
 
-    if matches := re.findall(r'__GMT_VAR_\w+__', usage_scenario):
+    if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
         raise RuntimeError(f"Unreplaced leftover variables are still in usage_scenario: {matches} \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
 
     return usage_scenario
@@ -433,8 +433,8 @@ class ScenarioRunner:
 
 
             #Check that all variables have been replaced
-            if matches := re.findall(r'__GMT_VAR_\w+__', usage_scenario):
-                raise RuntimeError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. Please add variables when submitting run.")
+            if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
+                raise RuntimeError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
             for old, _ in self._usage_scenario_variables.items():
                 if old not in _uc_replaced:
                     raise RuntimeError(f"Usage Scenario Variable '{old}' was not used in usage scenario. Please remove it or add it to the usage scenario.")

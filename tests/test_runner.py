@@ -376,7 +376,7 @@ def test_usage_scenario_variable_leftover():
         runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_variables.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True)
         runner.run()
 
-    assert str(e.value) == "Unreplaced leftover variables are still in usage_scenario: ['__GMT_VAR_COMMAND__']. Please add variables when submitting run."
+    assert "Unreplaced leftover variables are still in usage_scenario: ['__GMT_VAR_COMMAND__']." in str(e.value)
 
 def test_usage_scenario_variable_replacement_done_correctly():
 
@@ -983,7 +983,7 @@ def test_print_logs_integration():
 ## automatic database reconnection
 def test_database_reconnection_during_run():
     """Verify GMT runner handles database reconnection during execution
-    
+
     This test simulates a database outage scenario:
     1. A first succesful database query occurs at step 'initialize_run'
     2. After this step, a database restart is triggered to simulate an outage
