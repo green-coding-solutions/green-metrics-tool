@@ -74,7 +74,7 @@ class GMTMenu extends HTMLElement {
                 </a>
             </div>
             <div class="sticky-container">
-                <a href="href="https://www.green-coding.io">
+                <a href="https://www.green-coding.io">
                   <img class="ui fluid image menu-logo" src="/images/green-coding-menu-logo-2x.webp"
                        srcset="/images/green-coding-menu-logo.webp 1x,
                                /images/green-coding-menu-logo-2x.webp 2x"
