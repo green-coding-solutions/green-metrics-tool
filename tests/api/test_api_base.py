@@ -89,7 +89,7 @@ def test_machines():
     json_data = json.loads(response.text)
 
     assert json_data['data'][0][0] == 1
-    assert json_data['data'][0][1] == 'Local machine'
+    assert json_data['data'][0][1] == 'Development machine for testing'
 
 def test_jobs_with_dummy_job():
     response = requests.get(f"{API_URL}/v2/jobs", timeout=15, headers={'X-Authentication': 'DEFAULT'})

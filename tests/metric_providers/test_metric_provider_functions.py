@@ -27,8 +27,8 @@ def test_check_unique_time_values():
 
 
 def test_time_monotonic():
-    obj = NetworkIoProcfsSystemProvider(1000, remove_virtual_interfaces=False, skip_check=True)
-    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/network_io_procfs_system_short.log')
+    obj = NetworkIoProcfsSystemProvider(100, remove_virtual_interfaces=False, skip_check=True)
+    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/network_io_procfs_system.log')
     obj.read_metrics()
 
 
@@ -41,8 +41,8 @@ def test_time_non_monotonic():
     assert str(e.value) == 'Time from metric provider network_io_procfs_system is not monotonic increasing'
 
 def test_value_resolution_ok():
-    obj = CpuEnergyRaplMsrComponentProvider(1000, skip_check=True)
-    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_energy_rapl_msr_component_short.log')
+    obj = CpuEnergyRaplMsrComponentProvider(100, skip_check=True)
+    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_energy_rapl_msr_component.log')
     obj.read_metrics()
 
 def test_value_resolution_underflow():
@@ -185,7 +185,7 @@ def test_cloud_energy():
 
     assert df.metric.unique() == ['psu_energy_ac_xgboost_machine']
 
-    assert df[df.metric == 'psu_energy_ac_xgboost_machine'].value.mean() == 10055978
+    assert math.isclose(df[df.metric == 'psu_energy_ac_xgboost_machine'].value.mean(), 7076857.12, rel_tol=1e-5)
 
 def test_cgroup_system():
     with patch('lib.utils.find_own_cgroup_name') as find_own_cgroup_name:
@@ -198,7 +198,7 @@ def test_cgroup_system():
 
     assert df.metric.unique() == ['cpu_utilization_cgroup_system']
     assert df.detail_name.unique() == 'GMT Overhead'
-    assert math.isclose(df.value.mean(), 1985.447, rel_tol=1e-5)
+    assert math.isclose(df.value.mean(), 539.3809, rel_tol=1e-5)
 
 def test_cgroup_container():
     obj = CpuUtilizationCgroupContainerProvider(100, skip_check=True)
@@ -209,6 +209,6 @@ def test_cgroup_container():
     df = obj.read_metrics()
 
     assert df.metric.unique() == ['cpu_utilization_cgroup_container']
-    assert list(df.detail_name.unique()) == ['Arne', 'Not-Arne']
+    assert list(df.detail_name.unique()) == ['38d1e484f336c40a6e60e4518915a4e385f62fdddd47994d6adcb4fb294b2ec8', '939f410a21730a2275e91b8a949884f7f426b89e50e8b2ffceca271b6a4573b6']
 
-    assert math.isclose(df.value.mean(), 2972.021, rel_tol=1e-5)
+    assert math.isclose(df.value.mean(), 289.595, rel_tol=1e-5)

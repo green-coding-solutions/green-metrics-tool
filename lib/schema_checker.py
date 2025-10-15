@@ -191,6 +191,7 @@ class SchemaChecker():
              'flow': [{
                 'name': And(str, Use(self.not_empty), Regex(r'^[\.\s0-9a-zA-Z_\(\)-]+$')),
                 'container': And(str, Use(self.not_empty), Use(self.contains_no_invalid_chars)),
+                Optional('hidden'): bool,
                 'commands': [{
                     'type': Or('console', 'playwright'),
                     'command': And(str, Use(self.not_empty)),
