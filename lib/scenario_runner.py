@@ -521,7 +521,7 @@ class ScenarioRunner:
                 if not image_name:
                     image_ps = subprocess.run(
                         ['docker', 'inspect', '--format={{.Config.Image}}', container_name],
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='repalce', check=False
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False
                         )
                     if image_ps.returncode != 0:
                         raise RuntimeError(f"Container '{container_name}' failed during {step_description} but could not retrieve image information for architecture compatibility check. Docker inspect error: {image_ps.stderr.strip()}")
