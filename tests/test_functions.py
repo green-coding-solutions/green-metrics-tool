@@ -3,6 +3,8 @@ import subprocess
 import hashlib
 import json
 import pytest
+import random
+import pandas
 
 from lib.db import DB
 from lib.global_config import GlobalConfig
@@ -18,11 +20,74 @@ from metric_providers.network.io.cgroup.container.provider import NetworkIoCgrou
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 TEST_MEASUREMENT_CONTAINERS = {'bb0ea912f295ab0d8b671caf061929de9bb8b106128c071d6a196f9b6c05cd98': {'name': 'Arne'}, 'f78f0ca43069836d975f2bd4c45724227bbc71fc4788e60b33a77f1494cd2e0c': {'name': 'Not-Arne'}}
-TEST_MEASUREMENT_START_TIME = 1735047190000000
-TEST_MEASUREMENT_END_TIME = 1735047660000000
-TEST_MEASUREMENT_DURATION = TEST_MEASUREMENT_END_TIME - TEST_MEASUREMENT_START_TIME
-TEST_MEASUREMENT_DURATION_S = TEST_MEASUREMENT_DURATION / 1_000_000
-TEST_MEASUREMENT_DURATION_H = TEST_MEASUREMENT_DURATION_S/60/60
+
+def add_random_padding():
+    return random.randint(100, 10000)
+
+# This comes from a sample measurement with GMT
+# the logfiles in tests/data/metrics must correspond to this
+# See the README.md in tests/data/metrics how to generate it
+TEST_MEASUREMENT_PHASES = [
+    {"start": 1759592247440278, "name": "[BASELINE]", "end": 1759592247539293, "hidden": False},
+    {"start": 1759592247539657, "name": "[INSTALLATION]", "end": 1759592249820903, "hidden": False},
+    {"start": 1759592249910619, "name": "[BOOT]", "end": 1759592254712793, "hidden": False},
+    {"start": 1759592255759021, "name": "[IDLE]", "end": 1759592255858032, "hidden": False},
+    {"start": 1759592255858388, "name": "[RUNTIME]", "end": 1759592267082505, "hidden": False},
+    {"start": 1759592255858449, "name": "Idle a bit", "end": 1759592259024679, "hidden": False},
+    {"start": 1759592259024966, "name": "Hidden warmup", "end": 1759592263190100, "hidden": True},
+    {"start": 1759592263190497, "name": "Stress", "end": 1759592264373945, "hidden": False},
+    {"start": 1759592264374156, "name": "Download", "end": 1759592264792173, "hidden": False},
+    {"start": 1759592264792530, "name": "Hidden cleanup", "end": 1759592266982576, "hidden": True},
+    {"start": 1759592267148706, "name": "[REMOVE]", "end": 1759592267247715, "hidden": False}
+]
+
+TEST_MEASUREMENT_START_TIME                      = TEST_MEASUREMENT_PHASES[0]['start']-100
+
+
+#TEST_MEASUREMENT_RUNTIME_START_TIME              = TEST_MEASUREMENT_PHASES[4]['start']
+#TEST_MEASUREMENT_RUNTIME_DURATION                = TEST_MEASUREMENT_PHASES[4]['end'] - TEST_MEASUREMENT_PHASES[4]['start']
+#TEST_MEASUREMENT_HIDDEN_WARMUP_START_TIME        = TEST_MEASUREMENT_PHASES[5]['start']
+TEST_MEASUREMENT_HIDDEN_WARMUP_SUBPHASE_DURATION  = TEST_MEASUREMENT_PHASES[6]['end'] - TEST_MEASUREMENT_PHASES[6]['start']
+TEST_MEASUREMENT_STRESS_SUBPHASE_DURATION         = TEST_MEASUREMENT_PHASES[7]['end'] - TEST_MEASUREMENT_PHASES[7]['start']
+TEST_MEASUREMENT_DOWNLOAD_SUBPHASE_DURATION         = TEST_MEASUREMENT_PHASES[8]['end'] - TEST_MEASUREMENT_PHASES[8]['start']
+#TEST_MEASUREMENT_HIDDEN_CLEANUP_PHASE_START_TIME = TEST_MEASUREMENT_PHASES[7]['start']
+#TEST_MEASUREMENT_HIDDEN_CLEANUP_PHASE_DURATION   = TEST_MEASUREMENT_PHASES[7]['end'] - TEST_MEASUREMENT_PHASES[7]['start']
+
+TEST_MEASUREMENT_END_TIME = TEST_MEASUREMENT_PHASES[-1]['end']+100
+
+TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN = 0
+for single_phase in TEST_MEASUREMENT_PHASES:
+    if ']' not in single_phase['name'] and not single_phase['hidden']:
+        TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN += single_phase['end'] -  single_phase['start']
+
+TEST_MEASUREMENT_RUNTIME_DURATION_HIDDEN = 0
+for single_phase in TEST_MEASUREMENT_PHASES:
+    if ']' not in single_phase['name'] and single_phase['hidden']:
+        TEST_MEASUREMENT_RUNTIME_DURATION_HIDDEN += single_phase['end'] -  single_phase['start']
+
+TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN_S = TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN / 1_000_000
+TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN_H = TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN_S/60/60
+TEST_MEASUREMENT_DURATION_RAW   = TEST_MEASUREMENT_END_TIME - TEST_MEASUREMENT_START_TIME
+TEST_MEASUREMENT_DURATION_RAW_S = TEST_MEASUREMENT_DURATION_RAW / 1_000_000
+TEST_MEASUREMENT_DURATION_RAW_H = TEST_MEASUREMENT_DURATION_RAW_S/60/60
+
+
+def filter_df_runtime_subphase(df, *, hidden=False, phase_name=None):
+    df_list = []
+    for phase in TEST_MEASUREMENT_PHASES:
+        if phase_name:
+            if phase['name'] == phase_name:
+                df_list.append(apply_mask(df, phase))
+        elif ']' not in phase['name'] and phase['hidden'] is hidden:
+            df_list.append(apply_mask(df, phase))
+    return pandas.concat(df_list).sort_index()
+
+def apply_mask(df, phase):
+    mask = df['time'].between(phase['start'], phase['end'], inclusive="neither")
+    df_temp = df[mask].copy()
+    df_temp['time_diff'] = df_temp['time'].diff()
+    return df_temp
+
 
 @pytest.fixture
 def delete_jobs_from_DB():
@@ -36,63 +101,13 @@ def shorten_sleep_times(duration_in_s):
     DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,phase_transition_time}',%s,false)", params=(str(duration_in_s), ))
 
 
-def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename', user_id=1, machine_id=1):
-    # spoof time from the beginning of UNIX time until now.
-    phases = [
-        {"start": TEST_MEASUREMENT_START_TIME-8, "name": "[BASELINE]", "end": TEST_MEASUREMENT_START_TIME-7},
-        {"start": TEST_MEASUREMENT_START_TIME-6, "name": "[INSTALL]", "end": TEST_MEASUREMENT_START_TIME-5},
-        {"start": TEST_MEASUREMENT_START_TIME-4, "name": "[BOOT]", "end": TEST_MEASUREMENT_START_TIME-3},
-        {"start": TEST_MEASUREMENT_START_TIME-2, "name": "[IDLE]", "end": TEST_MEASUREMENT_START_TIME-1},
-        {"start": TEST_MEASUREMENT_START_TIME, "name": "[RUNTIME]", "end": TEST_MEASUREMENT_END_TIME},
-        {"start": TEST_MEASUREMENT_START_TIME, "name": "Only Phase", "end": TEST_MEASUREMENT_END_TIME},
-        {"start": TEST_MEASUREMENT_END_TIME+1, "name": "[REMOVE]", "end": TEST_MEASUREMENT_END_TIME+2},
-    ]
-
+def insert_run(phases, *, uri='test-uri', branch='test-branch', filename='test-filename', user_id=1, machine_id=1):
     return DB().fetch_one('''
         INSERT INTO runs (uri, branch, filename, phases, user_id, machine_id)
         VALUES
         (%s, %s, %s, %s, %s, %s) RETURNING id;
     ''', params=(uri, branch, filename, json.dumps(phases), user_id, machine_id))[0]
 
-def import_single_cpu_energy_measurement(run_id):
-
-    obj = CpuEnergyRaplMsrComponentProvider(1000, skip_check=True)
-    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_energy_rapl_msr_component_single_measurement.log')
-    df = obj.read_metrics()
-
-    metric_importer.import_measurements(df, 'cpu_energy_rapl_msr_component', run_id)
-
-    return df
-
-def import_single_network_io_procfs_measurement(run_id):
-
-    obj = NetworkIoProcfsSystemProvider(1000, skip_check=True, remove_virtual_interfaces=False)
-    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_procfs_system_single_measurement.log')
-    df = obj.read_metrics()
-
-    metric_importer.import_measurements(df, 'network_io_procfs_system', run_id)
-
-    return df
-
-def import_two_network_io_procfs_measurements(run_id):
-
-    obj = NetworkIoProcfsSystemProvider(1000, skip_check=True, remove_virtual_interfaces=False)
-    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_procfs_system_two_measurements.log')
-    df = obj.read_metrics()
-
-    metric_importer.import_measurements(df, 'network_io_procfs_system', run_id)
-
-    return df
-
-def import_two_network_io_procfs_measurements_at_phase_border(run_id):
-
-    obj = NetworkIoProcfsSystemProvider(1000, skip_check=True, remove_virtual_interfaces=False)
-    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_procfs_system_two_measurements_at_phase_border.log')
-    df = obj.read_metrics()
-
-    metric_importer.import_measurements(df, 'network_io_procfs_system', run_id)
-
-    return df
 
 def import_cpu_utilization_container(run_id):
 
@@ -131,11 +146,11 @@ def import_machine_energy(run_id):
 
     return df
 
-def import_network_io_procfs(run_id):
+def import_network_io_procfs(run_id, filename='network_io_procfs_system.log'):
 
     obj = NetworkIoProcfsSystemProvider(99, skip_check=True, remove_virtual_interfaces=False)
 
-    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_procfs_system.log')
+    obj._filename = os.path.join(CURRENT_DIR, f'data/metrics/{filename}')
     df = obj.read_metrics()
 
     metric_importer.import_measurements(df, 'network_io_procfs_system', run_id)
@@ -153,11 +168,11 @@ def import_network_io_cgroup_container(run_id):
 
     return df
 
-def import_cpu_energy(run_id):
+def import_cpu_energy(run_id, filename='cpu_energy_rapl_msr_component.log'):
 
     obj = CpuEnergyRaplMsrComponentProvider(99, skip_check=True)
 
-    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_energy_rapl_msr_component.log')
+    obj._filename = os.path.join(CURRENT_DIR, f"data/metrics/{filename}")
     df = obj.read_metrics()
 
     metric_importer.import_measurements(df, 'cpu_energy_rapl_msr_component', run_id)

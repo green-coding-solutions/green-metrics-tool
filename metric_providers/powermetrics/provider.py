@@ -101,9 +101,7 @@ class PowermetricsProvider(BaseMetricProvider):
         return df # noop, as we have already set detail_name individually in _read_metrics
 
     def _add_auxiliary_fields(self, df):
-        # do not call parent as we have already set detail_name individually in _read_metrics
-        df['sampling_rate_configured'] = self._sampling_rate
-        return df
+        return df # do not call parent as we have already set detail_name individually in _read_metrics
 
     def _check_resolution_underflow(self, df):
         pass # noop, as values with powermetrics exhibit sparse data very often and are 0

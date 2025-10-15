@@ -13,7 +13,7 @@ flow:
     container: playwright-nodejs
     commands:
       - type: console
-        command: node /tmp/energy-tests/templates/website/playwright-ipc.js --headless true --browser firefox
+        command: node /tmp/energy-tests/templates/website/playwright-ipc.js --headless true --browser firefox --proxy http://squid:3128
         note: Starting browser in background process with IPC
         detach: true
       - type: console
