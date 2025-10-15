@@ -6,18 +6,14 @@ description: "Opens __GMT_VAR_PAGE__ uncached and waits for full load + 5 second
 sci:
   R_d: Website load
 
-services:
-    alpine:
-        image: alpine
-        # this container should still be present
-
-compose-file: !include gmt-playwright-v1.0.0.yml
+compose-file: !include-gmt-helper gmt-playwright-v1.0.0.yml
 
 flow:
-  - name: Load and idle
-    container: playwright-nodejs
+  - name: Visit page and idle for __GMT_VAR_SLEEP__ s
+    container: gmt-playwright-nodejs
     commands:
       - type: playwright
         command: await page.goto("__GMT_VAR_PAGE__");
       - type: console
         command: sleep '__GMT_VAR_SLEEP__'
+

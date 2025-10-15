@@ -1,23 +1,18 @@
 services:
-    playwright-nodejs:
-        image: mcr.microsoft.com/playwright:v1.55.0-noble
-    #    volumes:
-    #       - /tmp/.X11-unix:/tmp/.X11-unix # for debugging in non-headless mode
+    gmt-playwright-nodejs:
+        image: mcr.microsoft.com/playwright:v1.56.0-noble
+#        volumes:
+#            - /tmp/.X11-unix:/tmp/.X11-unix # for debugging in non-headless mode
         environment:
-        DISPLAY: ":0" # for debugging in non-headless mode
-        depends_on:
-        squid:
-            condition: service_healthy
+            DISPLAY: ":0" # for debugging in non-headless mode
         setup-commands:
-            # install playwright libraries
-            - command: mkdir /tmp/energy-tests
-            - command: cp -R /tmp/repo/. /tmp/energy-tests
-            - command: cd /tmp/energy-tests && npm init -y && npm install playwright
+            # install playwright libraries in writeable directory
+            - command: cd /tmp/gmt-utils && npm init -y && npm install playwright@1.56.0
               shell: bash
-        volumes:
-            - /Users/arne/Sites/green-coding/green-metrics-tool/templates/partials/playwright-ipc-v1.0.0.js:/tmp/gmt-utils/playwright-ipc-v1.0.0.js
+        # playwright-ipc-v1.0.0.js will be mounted into container via lib/scenario_runner.py to not conflict with include directory restrictions
+
     squid:
-        image: greencoding/squid_reverse_proxy:v4
+        image: greencoding/squid_reverse_proxy:v5
         healthcheck:
             test: ["CMD", "curl", "-fs", "--proxy", "http://squid:3128", "https://www.google.com", "--insecure"]
             interval: "1h" # effectively turns repeated healthchecks during runtime off
@@ -26,3 +21,17 @@ services:
 # activate for debugging
 #        ports:
 #           - 3128:3128
+
+flow-prepend:
+  - name: Starting browser IPC
+    container: gmt-playwright-nodejs
+    hidden: true
+    commands:
+      - type: console
+        command: node /tmp/gmt-utils/gmt-playwright-ipc-v1.0.0.js --headless true --browser firefox --proxy http://squid:3128
+        note: Starting browser in background process with IPC
+        detach: true
+      - type: console
+        command: timeout 5 bash -c 'until [ -p "/tmp/playwright-ipc-ready" ]; do sleep 1; done && echo "Browser ready!"'
+        shell: bash
+        note: Waiting for website stepper loop to start by monitoring rendevous file endpoint
