@@ -27,6 +27,7 @@ for command in commands:
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, # put both in one stream
         encoding='UTF-8',
+        errors='replace',
     )
     if ps.returncode != 0:
         raise RuntimeError(f"{command} failed: {ps.stdout}")
@@ -36,13 +37,13 @@ for command in commands:
 # Typically in cluster installations port 123 is blocked and a local time server is available. Thus the guard function here
 subprocess.check_output(['sudo', 'timedatectl', 'set-ntp', 'true']) # this will trigger immediate update
 time.sleep(5)
-ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8')
+ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8', errors='replace')
 if 'System clock synchronized: yes' not in ntp_status or 'NTP service: active' not in ntp_status:
     raise RuntimeError('System clock could not be synchronized', ntp_status)
 
-result = subprocess.check_output(['sudo', 'timedatectl', 'set-ntp', 'false']) # we want NTP always off in clusters
+subprocess.check_output(['sudo', 'timedatectl', 'set-ntp', 'false']) # we want NTP always off in clusters
 time.sleep(2)
-ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8')
+ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8', errors='replace')
 if 'System clock synchronized: yes' not in ntp_status:
     raise RuntimeError('System clock synchronization could not be synchronized', ntp_status)
 
@@ -66,7 +67,7 @@ if (not os.path.exists('/var/log/apt/history.log')) or ((now - os.path.getmtime(
         raise RuntimeError(f"sudo apt update failed: {ps.stdout}")
 
 
-    apt_packages_upgrade = subprocess.check_output(['apt', 'list', '--upgradeable'], encoding='UTF-8', stderr=subprocess.DEVNULL).split('\n')[1:]
+    apt_packages_upgrade = subprocess.check_output(['apt', 'list', '--upgradeable'], encoding='UTF-8', errors='replace', stderr=subprocess.DEVNULL).split('\n')[1:]
     if apt_packages_upgrade == ['']:
         apt_packages_upgrade = None
 

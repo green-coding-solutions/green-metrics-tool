@@ -507,7 +507,7 @@ class ScenarioRunner:
         result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
-                                check=True, encoding='UTF-8')
+                                check=True, encoding='UTF-8', errors='replace')
         for line in result.stdout.splitlines():
             for running_container in line.split(','): # if docker container has multiple tags, they will be split by comma, so we only want to
                 for service_name in self._usage_scenario.get('services', {}):
@@ -523,7 +523,7 @@ class ScenarioRunner:
         check_ps = subprocess.run(['docker', 'ps', '-q', '-f', f'name={container_name}'],
                                   stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE,
-                                  check=False, encoding='UTF-8')
+                                  check=False, encoding='UTF-8', errors='replace')
         if not check_ps.stdout.strip():
             # Container not running - this is an error condition that requires raising an exception
             logs_ps = subprocess.run(
@@ -548,7 +548,7 @@ class ScenarioRunner:
                 if not image_name:
                     image_ps = subprocess.run(
                         ['docker', 'inspect', '--format={{.Config.Image}}', container_name],
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False
                         )
                     if image_ps.returncode != 0:
                         raise RuntimeError(f"Container '{container_name}' failed during {step_description} but could not retrieve image information for architecture compatibility check. Docker inspect error: {image_ps.stderr.strip()}")
@@ -654,7 +654,7 @@ class ScenarioRunner:
         machine_specs = hardware_info.get_default_values()
 
         if len(hardware_info_root.get_root_list()) > 0:
-            ps = subprocess.run(['sudo', '/usr/bin/python3', '-m', 'lib.hardware_info_root'], stdout=subprocess.PIPE, cwd=GMT_ROOT_DIR, check=True, encoding='UTF-8')
+            ps = subprocess.run(['sudo', '/usr/bin/python3', '-m', 'lib.hardware_info_root'], stdout=subprocess.PIPE, cwd=GMT_ROOT_DIR, check=True, encoding='UTF-8', errors='replace')
             machine_specs_root = json.loads(ps.stdout)
             machine_specs.update(machine_specs_root)
 
@@ -712,7 +712,7 @@ class ScenarioRunner:
             print(TerminalColors.WARNING, arrows('No metric providers were configured in config.yml. Was this intentional?'), TerminalColors.ENDC)
             return
 
-        subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', check=True)
+        subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', errors='replace', check=True)
 
         for metric_provider in metric_providers: # will iterate over keys
             module_path, class_name = metric_provider.rsplit('.', 1)
@@ -793,6 +793,7 @@ class ScenarioRunner:
                                          stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE,
                                          encoding='UTF-8',
+                                         errors='replace',
                                          check=True)
                 # The image exists so exit and don't build
                 print(f"Image {service['image']} exists in build cache. Skipping build ...")
@@ -831,7 +832,7 @@ class ScenarioRunner:
                 # docker agent might be configured to pull from a different, maybe even insecure registry
                 # We want to mirror that behaviour in GMT as we see it used in specially configured environments
                 # where custom docker registries are used
-                docker_info = subprocess.check_output(['docker', 'info', '--format', '{{ json .RegistryConfig.Mirrors }}'], encoding='UTF-8')
+                docker_info = subprocess.check_output(['docker', 'info', '--format', '{{ json .RegistryConfig.Mirrors }}'], encoding='UTF-8', errors='replace')
                 if docker_info and (mirrors := json.loads(docker_info)):
                     for mirror in mirrors:
                         if 'http://' in mirror:
@@ -862,7 +863,7 @@ class ScenarioRunner:
                 # import the docker image locally
                 image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{tmp_img_name}.tar"]
                 print(' '.join(image_import_command))
-                ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+                ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
                 if ps.returncode != 0 or ps.stderr != "":
                     raise subprocess.CalledProcessError(ps.returncode, 'Docker image import failed', output=ps.stdout, stderr=ps.stderr)
@@ -870,7 +871,7 @@ class ScenarioRunner:
             else:
                 print(f"Pulling {service['image']}")
                 self.__notes_helper.add_note( note=f"Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
-                ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+                ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
                 if ps_pull.returncode != 0:
                     print(f"Error: {ps_pull.stderr} \n {ps_pull.stdout}")
@@ -902,6 +903,7 @@ class ScenarioRunner:
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE,
                          encoding='UTF-8',
+                         errors='replace',
                          check=False)
 
                     if ps_inpsect.returncode != 0:
@@ -933,6 +935,7 @@ class ScenarioRunner:
                 f"docker image inspect {tmp_img_name} " + '--format={{.Size}}',
                 shell=True,
                 encoding='UTF-8',
+                errors='replace',
             )
             self.__image_sizes[service['image']] = int(output.strip())
 
@@ -943,11 +946,11 @@ class ScenarioRunner:
                 try:
                     output = subprocess.check_output(
                         ['docker', 'volume', 'inspect', volume, '--format={{.Mountpoint}}'],
-                        encoding='UTF-8',
+                        encoding='UTF-8', errors='replace'
                     )
                     output = subprocess.check_output(
                         ['du', '-s', '-b', output.strip()],
-                        encoding='UTF-8',
+                        encoding='UTF-8', errors='replace'
                     )
 
                     self.__volume_sizes[volume] = int(output.strip().split('\t', maxsplit=1)[0])
@@ -1362,6 +1365,7 @@ class ScenarioRunner:
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
                             stderr=subprocess.STDOUT,
                             encoding='UTF-8',
+                            errors='replace'
                         )
                         state = status_output.strip()
                         if time_waited == 0 or state != "running":
@@ -1377,7 +1381,8 @@ class ScenarioRunner:
                                     check=False,
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT, # put both in one stream
-                                    encoding='UTF-8'
+                                    encoding='UTF-8',
+                                    errors='replace'
                                 )
                                 health = ps.stdout.strip()
                                 print(f"Container health of dependent service '{dependent_service}': {health}")
@@ -1849,6 +1854,8 @@ class ScenarioRunner:
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             timeout=60, # 60 seconds should be reasonable for any playwright command we know
+                            errors='replace',
+                            encoding='UTF-8',
                         )
 
 
