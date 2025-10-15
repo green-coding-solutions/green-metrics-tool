@@ -111,7 +111,7 @@ class ScenarioRunner:
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
         self._usage_scenario = {}
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
-        self._usage_scenario_variables_used_buffer = list(validate_usage_scenario_variables(usage_scenario_variables).keys()) if usage_scenario_variables else []
+        self.__usage_scenario_variables_used_buffer = list(validate_usage_scenario_variables(usage_scenario_variables).keys()) if usage_scenario_variables else []
         self._architecture = utils.get_architecture()
 
         self._sci = {'R_d': None, 'R': 0}
@@ -357,8 +357,8 @@ class ScenarioRunner:
         def uc_string_replace(uc_string, old, new):
             new_uc = uc_string.replace(old, new)
             if new_uc != uc_string:
-                if old in self._usage_scenario_variables_used_buffer:
-                    self._usage_scenario_variables_used_buffer.remove(old)
+                if old in self.__usage_scenario_variables_used_buffer:
+                    self.__usage_scenario_variables_used_buffer.remove(old)
 
             return new_uc
 
@@ -441,8 +441,8 @@ class ScenarioRunner:
             #Check that all variables have been replaced
             if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
                 raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
-            if len(self._usage_scenario_variables_used_buffer) > 0:
-                    raise ValueError(f"Usage Scenario Variables '{self._usage_scenario_variables_used_buffer}' was not used in usage scenario. Please remove it or add it to the usage scenario.")
+            if len(self.__usage_scenario_variables_used_buffer) > 0:
+                raise ValueError(f"Usage Scenario Variables '{self.__usage_scenario_variables_used_buffer}' was not used in usage scenario. Please remove it or add it to the usage scenario.")
 
             # Now that we have parsed the yml file we need to check for the special case in which we have a
             # compose-file key. In this case we merge the data we find under this key but overwrite it with
@@ -2308,6 +2308,7 @@ class ScenarioRunner:
         self.__image_sizes.clear()
         self.__volume_sizes.clear()
         self.__warnings.clear()
+        self.__usage_scenario_variables_used_buffer.clear()
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
