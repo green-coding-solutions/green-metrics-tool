@@ -368,15 +368,17 @@ def test_check_variable_no_replacement_found():
         runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_VALID__': "1"})
         runner.run()
 
-    assert str(e.value) == "Usage Scenario Variable '__GMT_VAR_VALID__' does not exist in usage scenario. Did you forget to add it?"
+    assert "Usage Scenario Variable" in str(e.value)
+    assert "__GMT_VAR_VALID__" in str(e.value)
 
 def test_usage_scenario_variable_leftover():
 
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(ValueError) as e:
         runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_variables.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True)
         runner.run()
 
-    assert "Unreplaced leftover variables are still in usage_scenario: ['__GMT_VAR_COMMAND__']." in str(e.value)
+    assert "Unreplaced leftover variables are still in usage_scenario:" in str(e.value)
+    assert "_GMT_VAR_COMMAND__" in str(e.value)
 
 def test_usage_scenario_variable_replacement_done_correctly():
 

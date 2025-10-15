@@ -55,26 +55,6 @@ def validate_usage_scenario_variables(usage_scenario_variables):
             raise ValueError(f"Usage Scenario variable ({key}) has invalid name. Format must be __GMT_VAR_[\\w]+__ - Example: __GMT_VAR_EXAMPLE__")
     return usage_scenario_variables
 
-_uc_replaced = tuple()
-
-def uc_string_replace(uc_string, old, new):
-    global _uc_replaced
-    new_uc = uc_string.replace(old, new)
-    if new_uc != uc_string:
-        _uc_replaced = _uc_replaced + (old,)
-
-    return new_uc
-
-
-def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
-    for key, value in usage_scenario_variables.items():
-        usage_scenario = uc_string_replace(usage_scenario, key, value)
-
-    if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
-        raise RuntimeError(f"Unreplaced leftover variables are still in usage_scenario: {matches} \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
-
-    return usage_scenario
-
 class ScenarioRunner:
     def __init__(self,
         *, uri, uri_type, name=None, filename='usage_scenario.yml', branch=None,
@@ -131,6 +111,7 @@ class ScenarioRunner:
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
         self._usage_scenario = {}
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
+        self._usage_scenario_variables_used_buffer = list(validate_usage_scenario_variables(usage_scenario_variables).keys()) if usage_scenario_variables else []
         self._architecture = utils.get_architecture()
 
         self._sci = {'R_d': None, 'R': 0}
@@ -372,9 +353,28 @@ class ScenarioRunner:
         #pylint: disable=too-many-ancestors
         runner_join_paths = self._join_paths
         usage_scenario_file = self._join_paths(self._repo_folder, self._original_filename)
-        usage_scenario_variables = self._usage_scenario_variables
 
-        class Loader(yaml.SafeLoader):
+        def uc_string_replace(uc_string, old, new):
+            new_uc = uc_string.replace(old, new)
+            if new_uc != uc_string:
+                if old in self._usage_scenario_variables_used_buffer:
+                    self._usage_scenario_variables_used_buffer.remove(old)
+
+            return new_uc
+
+        def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
+            for key, value in usage_scenario_variables.items():
+                usage_scenario = uc_string_replace(usage_scenario, key, value)
+
+            if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
+                raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches} \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
+
+            return usage_scenario
+
+        def make_loader(replacer, usage_scenario_variables, usage_scenario_file):
+            class Loader(yaml.SafeLoader):
+                pass
+
             def include(self, node):
                 # We allow two types of includes
                 # !include <filename> => ScalarNode
@@ -396,7 +396,7 @@ class ScenarioRunner:
                 with open(filename, 'r', encoding='UTF-8') as f:
                     usage_scenario = f.read()
 
-                usage_scenario = replace_usage_scenario_variables(usage_scenario, usage_scenario_variables)
+                usage_scenario = replacer(usage_scenario, usage_scenario_variables)
 
                 # We want to enable a deep search for keys
                 def recursive_lookup(k, d):
@@ -414,7 +414,8 @@ class ScenarioRunner:
 
                 return recursive_lookup(nodes[1], yaml.load(usage_scenario, Loader))
 
-        Loader.add_constructor('!include', Loader.include)
+            Loader.add_constructor('!include', include)
+            return Loader
 
 
         # We set the working folder now to the actual location of the usage_scenario
@@ -428,16 +429,20 @@ class ScenarioRunner:
             usage_scenario = f.read()
             usage_scenario = replace_usage_scenario_variables(usage_scenario, self._usage_scenario_variables)
 
+            Loader = make_loader(
+                replacer=replace_usage_scenario_variables,
+                usage_scenario_variables=self._usage_scenario_variables,
+                usage_scenario_file=usage_scenario_file,
+            )
+
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(usage_scenario, Loader)
 
-
             #Check that all variables have been replaced
             if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
-                raise RuntimeError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
-            for old, _ in self._usage_scenario_variables.items():
-                if old not in _uc_replaced:
-                    raise RuntimeError(f"Usage Scenario Variable '{old}' was not used in usage scenario. Please remove it or add it to the usage scenario.")
+                raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
+            if len(self._usage_scenario_variables_used_buffer) > 0:
+                    raise ValueError(f"Usage Scenario Variables '{self._usage_scenario_variables_used_buffer}' was not used in usage scenario. Please remove it or add it to the usage scenario.")
 
             # Now that we have parsed the yml file we need to check for the special case in which we have a
             # compose-file key. In this case we merge the data we find under this key but overwrite it with
