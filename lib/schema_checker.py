@@ -112,7 +112,6 @@ class SchemaChecker():
                         {
                             Optional('context'): And(str, Use(self.not_empty)),
                             Optional('dockerfile'): And(str, Use(self.not_empty)),
-                            Optional('target'): And(str, Use(self.not_empty)),
                             Optional('args'): Or(
                                 {And(str, Use(self.not_empty)): Or(str, int, float, bool, None)},
                                 [
