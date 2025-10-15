@@ -53,7 +53,7 @@ def read_process_with_regex(path, regex, params=REGEX_PARAMS, capture_groups=Non
        input! The matching character for the regex is a 'o'. If the process fails (exit val not 0) an exception
        is thrown.'''
     result = subprocess.run(path, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        shell=True, encoding='UTF-8', check=False)
+        shell=True, encoding='UTF-8', errors='replace', check=False)
     if result.returncode != 0:
         return 'Unknown'
 
