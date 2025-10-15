@@ -1842,6 +1842,8 @@ class ScenarioRunner:
                             check=True,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
+                            encoding='UTF-8',
+                            errors='replace',
                             timeout=60, # 60 seconds should be reasonable for any playwright command we know
                         )
 
