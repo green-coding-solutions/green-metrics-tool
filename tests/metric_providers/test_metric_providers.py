@@ -66,7 +66,7 @@ def test_splitting_by_group():
     if utils.get_architecture() == 'macos':
         return
 
-    obj = NetworkIoProcfsSystemProvider(1000, remove_virtual_interfaces=False)
+    obj = NetworkIoProcfsSystemProvider(99, remove_virtual_interfaces=False)
 
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
         mock_temporary_network_file('./data/metrics/network_io_procfs_system_two_measurements_at_phase_border_out.log', temp_file.name, 'MY_FAKE_INTERFACE')
