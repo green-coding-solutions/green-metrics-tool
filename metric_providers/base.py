@@ -68,7 +68,7 @@ class BaseMetricProvider:
             result = subprocess.run(cmd,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
-                                check=False, encoding='UTF-8')
+                                check=False, encoding='UTF-8', errors='replace')
             if result.returncode == 1:
                 pass
             elif result.returncode == 0:
@@ -90,7 +90,7 @@ class BaseMetricProvider:
         if self._ps.stderr is not None:
             stderr_read = self._ps.stderr.read()
             if isinstance(stderr_read, bytes):
-                stderr_read = stderr_read.decode('utf-8')
+                stderr_read = stderr_read.decode('utf-8', errors='replace')
         return stderr_read
 
     def has_started(self):

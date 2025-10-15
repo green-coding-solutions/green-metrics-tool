@@ -38,6 +38,7 @@ class PowermetricsProvider(BaseMetricProvider):
         cmd = ['pgrep', '-ix', 'powermetrics']
         result = subprocess.run(cmd,
                                 encoding='UTF-8',
+                                errors='replace',
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
                                 check=False)

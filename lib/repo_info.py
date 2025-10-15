@@ -6,6 +6,7 @@ def get_repo_info(folder):
     output = subprocess.check_output(
         ['git', 'log', '-n', '1', '--pretty=format:%H %cd', '--date=iso', '--', folder],
         encoding='UTF-8',
+        errors='replace',
         cwd=folder,
     )
     output = output.strip("\n")

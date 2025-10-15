@@ -74,6 +74,7 @@ def do_maintenance():
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, # put both in one stream
         encoding='UTF-8',
+        errors='replace',
     )
     if ps.returncode != 0:
         set_status('maintenance_error')
