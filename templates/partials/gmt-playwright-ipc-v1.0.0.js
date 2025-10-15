@@ -5,7 +5,7 @@ import { execSync } from "child_process";
 // global variables, since we want to keep function signatures slim for exposed functions in usage_scenario.yml
 let browser = null;
 let context = null;
-let page = null
+let page = null;
 
 const contextOptions = {
   viewport: { width: 1280, height: 800 },
@@ -24,7 +24,7 @@ function sleep(ms) {
 
 async function gmtPlaywrightCache(url, sleep_duration) {
     await page.goto(url);
-    sleep(sleep_duration);
+    await sleep(sleep_duration);
     await context.close();
     context = await browser.newContext(contextOptions);
     page = await context.newPage();
