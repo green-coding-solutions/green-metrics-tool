@@ -672,8 +672,8 @@ class ScenarioRunner:
     def _import_metric_providers(self):
         print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
 
-        if self._dev_no_metrics or self._dev_no_save:
-            print('Skipping import of metric providers due to --dev-no-save or --dev-no-metrics')
+        if self._dev_no_metrics:
+            print('Skipping import of metric providers due to --dev-no-save')
             return
 
         config = GlobalConfig().config
@@ -1301,6 +1301,8 @@ class ScenarioRunner:
             elif compatibility_status == CompatibilityStatus.NATIVE:
                 # Native compatibility - no action needed
                 print(f"Architecture compatible: {image_arch} (native)")
+            else:
+                print('Architecture compatibility unknown. Trying run')
 
             docker_run_string.append(clean_image_name)
 
@@ -1560,8 +1562,8 @@ class ScenarioRunner:
 
         if self._run_id:
             DB().query("""
-                UPDATE runs 
-                SET usage_scenario_dependencies = %s 
+                UPDATE runs
+                SET usage_scenario_dependencies = %s
                 WHERE id = %s
                 """, params=(json.dumps(self.__usage_scenario_dependencies) if self.__usage_scenario_dependencies is not None else None, self._run_id))
 
@@ -1605,8 +1607,8 @@ class ScenarioRunner:
     def _start_metric_providers(self, allow_container=True, allow_other=True):
         print(TerminalColors.HEADER, '\nStarting metric providers', TerminalColors.ENDC)
 
-        if self._dev_no_metrics or self._dev_no_save:
-            print('Skipping start of metric providers due to --dev-no-metrics or --dev-no-save')
+        if self._dev_no_metrics:
+            print('Skipping start of metric providers due to --dev-no-metrics')
             return
 
 
@@ -1651,7 +1653,7 @@ class ScenarioRunner:
         if self._measurement_total_duration and (time.time() - self.__start_measurement_seconds) > self._measurement_total_duration:
             raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total_duration'.")
 
-    def _start_phase(self, phase, transition = True):
+    def _start_phase(self, phase, *, hidden=False, transition=True):
         print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
 
         self._check_total_runtime_exceeded()
@@ -1665,7 +1667,7 @@ class ScenarioRunner:
         phase_time = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note( note=f"Starting phase {phase}", detail_name='[NOTES]', timestamp=phase_time)
 
-        self.__phases[phase] = {'start': phase_time, 'name': phase}
+        self.__phases[phase] = {'start': phase_time, 'name': phase, 'hidden': hidden}
 
     def _end_phase(self, phase):
 
@@ -1712,7 +1714,7 @@ class ScenarioRunner:
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
-                self._start_phase(flow['name'], transition=False)
+                self._start_phase(flow['name'], hidden=flow.get('hidden', False), transition=False)
 
                 for cmd_obj in flow['commands']:
                     self._check_total_runtime_exceeded()
@@ -1877,8 +1879,8 @@ class ScenarioRunner:
     def _stop_metric_providers(self):
         print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
 
-        if self._dev_no_metrics or self._dev_no_save:
-            print('Skipping stop of metric providers due to --dev-no-metrics or --dev-no-save')
+        if self._dev_no_metrics:
+            print('Skipping stop of metric providers due to --dev-no-metrics')
             return
 
         errors = []
@@ -1901,6 +1903,10 @@ class ScenarioRunner:
                 df = metric_provider.read_metrics()
             except RuntimeError as exc:
                 errors.append(f"{metric_provider.__class__.__name__} returned error message: {str(exc)}")
+                continue
+
+            if self._dev_no_save:
+                print('Skipping import of metrics from provider due to --dev-no-save')
                 continue
 
             if isinstance(df, list):

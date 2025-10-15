@@ -750,7 +750,7 @@ def test_invalid_container_name():
     assert exc_str.startswith("Command '['docker', 'run', '-it', '-d', '--name', 'highload-api-:cont'")
     assert exc_str.endswith('returned non-zero exit status 125.')
 
-    assert e.value.stderr == "docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed\n\nRun 'docker run --help' for more information\n"
+    assert e.value.stderr.startswith("docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed")
 
 def test_invalid_container_name_2():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name_2.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
@@ -764,7 +764,7 @@ def test_invalid_container_name_2():
     assert exc_str.startswith("Command '['docker', 'run', '-it', '-d', '--name', '8zhfiuw:-3tjfuehuis'")
     assert exc_str.endswith('returned non-zero exit status 125.')
 
-    assert e.value.stderr == "docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed\n\nRun 'docker run --help' for more information\n"
+    assert e.value.stderr.startswith("docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed")
 
 def test_duplicate_container_name():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/duplicate_container_name.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)

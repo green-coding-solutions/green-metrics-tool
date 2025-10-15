@@ -74,7 +74,7 @@ class GMTMenu extends HTMLElement {
                 </a>
             </div>
             <div class="sticky-container">
-                <a href="href="https://www.green-coding.io">
+                <a href="https://www.green-coding.io">
                   <img class="ui fluid image menu-logo" src="/images/green-coding-menu-logo-2x.webp"
                        srcset="/images/green-coding-menu-logo.webp 1x,
                                /images/green-coding-menu-logo-2x.webp 2x"
@@ -244,12 +244,12 @@ const showNotification = (message_title, message_text, type='error') => {
 
 const copyToClipboard = async (e) => {
   e.preventDefault();
-  
+
   if (!navigator?.clipboard?.writeText) {
     alert('Clipboard API not supported');
     return;
   }
-  
+
   try {
     const htmlContent = e.currentTarget.previousElementSibling.innerHTML;
     await navigator.clipboard.writeText(htmlContent);
@@ -383,7 +383,22 @@ const numberFormatterLong = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 4,
 });
 
-$(document).ready(function () {
+const showHiddenPhaseTab = (el) => {
+    if (el.currentTarget.classList.contains('hidden-phase-tab')) {
+        el.currentTarget.querySelector('.hidden-phase-name').classList.remove('hidden');
+    } else {
+        document.querySelectorAll('.hidden-phase-name').forEach(matched_el => {
+            matched_el.classList.add('hidden');
+        })
+    }
+}
+
+
+if (localStorage.getItem('closed_descriptions') == null) {
+    localStorage.setItem('closed_descriptions', '');
+}
+
+$(document).ready(() => {
     $(document).on('click','#menu-toggle.closed', openMenu);
     $(document).on('click','#menu-toggle.opened', closeMenu);
 
@@ -392,19 +407,15 @@ $(document).ready(function () {
         $('#menu').removeClass('opened').addClass('closed');
         $('#main').removeClass('opened').addClass('closed');
     }
-});
 
-if (localStorage.getItem('closed_descriptions') == null) {
-    localStorage.setItem('closed_descriptions', '');
-}
-
-$(document).ready(() => {
     $("body").removeClass("preload"); // activate tranisition CSS properties again
+
     const closed_descriptions = localStorage.getItem('closed_descriptions');
     $('.close').on('click', function() {
         $(this).closest('.ui').transition('fade');
         localStorage.setItem('closed_descriptions', `${closed_descriptions},${window.location.pathname}`)
     });
+
     if (closed_descriptions.indexOf(window.location.pathname) !== -1) {
         document.querySelectorAll('i.close.icon').forEach(el => { el.closest('.ui').remove()}
         )

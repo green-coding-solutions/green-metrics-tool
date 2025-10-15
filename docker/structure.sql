@@ -216,7 +216,7 @@ CREATE TRIGGER machines_moddatetime
 -- Default password for authentication is DEFAULT
 INSERT INTO "public"."machines"("description", "available")
 VALUES
-(E'Local machine', true);
+(E'Development machine for testing', true);
 
 
 CREATE TABLE jobs (
@@ -284,8 +284,7 @@ CREATE TABLE measurement_metrics (
     run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
     metric text NOT NULL,
     detail_name text NOT NULL,
-    unit text NOT NULL,
-    sampling_rate_configured int NOT NULL
+    unit text NOT NULL
 );
 
 CREATE UNIQUE INDEX measurement_metrics_get ON measurement_metrics(run_id,metric,detail_name); -- technically we could allow also different units, but we want to see the use case for that first. Also a lot of code relies on detail_name to be the final discriminator (e.g. metric providers .transform(utils.df_fill_mean) etc.m which then need to be rewritten)
@@ -343,6 +342,7 @@ CREATE TABLE phase_stats (
     sampling_rate_max int,
     sampling_rate_95p int,
     unit text NOT NULL,
+    hidden boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );

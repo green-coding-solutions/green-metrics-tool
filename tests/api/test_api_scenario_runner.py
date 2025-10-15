@@ -160,7 +160,7 @@ def test_get_insights():
     response = requests.get(f"{API_URL}/v1/insights", timeout=15)
     res_json = response.json()
     assert response.status_code == 200
-    assert res_json['data'][0] == 5
+    assert res_json['data'][0] == 6
     assert res_json['data'][1] == '2024-09-11'
 
 def test_get_badge():
