@@ -111,7 +111,6 @@ class ScenarioRunner:
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
         self._usage_scenario = {}
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
-        self.__usage_scenario_variables_used_buffer = self._usage_scenario_variables.keys()
         self._architecture = utils.get_architecture()
 
         self._sci = {'R_d': None, 'R': 0}
@@ -181,6 +180,8 @@ class ScenarioRunner:
         self.__volume_sizes = {}
         self.__warnings = []
         self.__usage_scenario_dependencies = None
+        self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
+
 
         self._check_all_durations()
 
