@@ -366,7 +366,7 @@ class ScenarioRunner:
         usage_scenario_file = self._join_paths(self._repo_folder, self._original_filename)
 
         class Loader(yaml.SafeLoader):
-            def process_include(self, filename, node):
+            def get_constructed_nodes(self, node):
                 # We allow two types of includes
                 # !include <filename> => ScalarNode
                 # and
@@ -378,6 +378,9 @@ class ScenarioRunner:
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
 
+                return nodes
+
+            def process_include(self, filename, nodes):
                 with open(filename, 'r', encoding='UTF-8') as f:
                     # We want to enable a deep search for keys
                     def recursive_lookup(k, d):
@@ -396,17 +399,22 @@ class ScenarioRunner:
                     return recursive_lookup(nodes[1], yaml.load(f, Loader))
 
             def include_gmt_helper(self, node):
-                filename = runner_join_paths(GMT_ROOT_DIR, f"templates/partials/{node.value}", force_path_as_root=True, force_path_in_repo=False)
-                return self.process_include(filename, node)
+                nodes = self.get_constructed_nodes(node)
+
+                filename = runner_join_paths(GMT_ROOT_DIR, f"templates/partials/{nodes[0]}", force_path_as_root=True, force_path_in_repo=False)
+                return self.process_include(filename, nodes)
 
             def include(self, node):
+
+                nodes = self.get_constructed_nodes(node)
+
                 try:
                     usage_scenario_dir = os.path.split(usage_scenario_file)[0]
-                    filename = runner_join_paths(usage_scenario_dir, node.value, force_path_as_root=True)
+                    filename = runner_join_paths(usage_scenario_dir, nodes[0], force_path_as_root=True)
                 except RuntimeError as exc:
-                    raise ValueError(f"Included compose file \"{node.value}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
+                    raise ValueError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
-                return self.process_include(filename, node)
+                return self.process_include(filename, nodes)
 
         Loader.add_constructor('!include', Loader.include)
         Loader.add_constructor('!include-gmt-helper', Loader.include_gmt_helper)
