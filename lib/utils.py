@@ -201,7 +201,7 @@ def get_metric_providers_names(config):
 
 def get_architecture():
     ps = subprocess.run(['uname', '-s'],
-            check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8')
+            check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8', errors='replace')
     output = ps.stdout.strip().lower()
 
     if output == 'darwin':
@@ -214,13 +214,13 @@ def is_rapl_energy_filtering_deactivated():
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             cwd=os.path.abspath(os.path.join(CURRENT_DIR, '..')),
-                            check=True, encoding='UTF-8')
+                            check=True, encoding='UTF-8', errors='replace')
     return '1' != result.stdout.strip()
 
 @cache
 def find_own_cgroup_name():
     current_pid = os.getpid()
-    with open(f"/proc/{current_pid}/cgroup", 'r', encoding='utf-8') as file:
+    with open(f"/proc/{current_pid}/cgroup", 'r', encoding='utf-8', errors='replace') as file:
         lines = file.readlines()
         found_cgroups = len(lines)
         if found_cgroups != 1:

@@ -27,7 +27,9 @@ class PsuEnergyAcGudeMachineProvider(BaseMetricProvider):
             [call_string],
             shell=True,
             preexec_fn=os.setsid,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            #encoding='UTF-8' # we cannot set this option here as reading later will then flake with "can't concat NoneType to bytes"
+                              # see get_stderr() for additional details
             # since we are launching the command with shell=True we cannot use ps.terminate() / ps.kill().
             # This would just kill the executing shell, but not it's child and make the process an orphan.
             # therefore we use os.setsid here and later call os.getpgid(pid) to get process group that the shell

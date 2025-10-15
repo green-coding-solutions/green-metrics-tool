@@ -46,6 +46,7 @@ def _execute_command_safe(cmd):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             encoding='UTF-8',
+            errors='replace',
             check=False,
             timeout=5
         )
@@ -308,7 +309,7 @@ def check_image_architecture_compatibility(image_name):
         # Get image architecture
         ps = subprocess.run(
             ['docker', 'image', 'inspect', image_name, '--format', '{{.Architecture}}'],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False
         )
 
         if ps.returncode != 0:
