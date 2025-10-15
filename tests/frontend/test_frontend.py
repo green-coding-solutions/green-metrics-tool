@@ -378,11 +378,11 @@ class TestFrontendFunctionality:
 
         assert new_page.locator('#runtime-hidden-info').is_hidden() is False # bc moved to other tab through click
 
-        assert new_page.locator('#runtime-sub-phases > .item.runtime-step.hidden-phase-tab[data-tab="I am a hidden phase"]').inner_html() == '<i class="low vision icon"></i> <span class="hidden-phase-name">I am a hidden phase</span>'
+        assert new_page.locator('#runtime-sub-phases > .item.runtime-step.hidden-phase-tab[data-tab="I am a hidden phase"]').inner_html() == '<i class="low vision icon"></i> <span class="hidden-phase-name hidden">I am a hidden phase</span>'
 
         new_page.locator('#runtime-sub-phases > .item.runtime-step.hidden-phase-tab[data-tab="I am a hidden phase"]').click()
 
-        assert new_page.locator('#runtime-sub-phases > .item.runtime-step.hidden-phase-tab[data-tab="I am a hidden phase"]').inner_html() == '<i class="low vision icon"></i> <span class="hidden-phase-name hidden">I am a hidden phase</span>'
+        assert new_page.locator('#runtime-sub-phases > .item.runtime-step.hidden-phase-tab[data-tab="I am a hidden phase"]').inner_html() == '<i class="low vision icon"></i> <span class="hidden-phase-name">I am a hidden phase</span>'
 
         assert new_page.locator('#runtime-hidden-info').is_hidden() is True # bc moved to other tab through click
 
