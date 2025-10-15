@@ -34,7 +34,7 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
         super().check_system(check_command=None)
 
         # check tinyproxy version
-        output = subprocess.check_output(['tinyproxy', '-v'], stderr=subprocess.STDOUT, text=True)
+        output = subprocess.check_output(['tinyproxy', '-v'], stderr=subprocess.STDOUT, encoding='UTF-8', errors='replace')
         version_string = output.strip().split()[1].split('-')[0]
         if parse(version_string) >= parse('1.11'):
             return True
