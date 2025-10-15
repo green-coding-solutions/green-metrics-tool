@@ -1858,8 +1858,6 @@ class ScenarioRunner:
                             encoding='UTF-8',
                             errors='replace',
                             timeout=60, # 60 seconds should be reasonable for any playwright command we know
-                            errors='replace',
-                            encoding='UTF-8',
                         )
 
 
