@@ -52,7 +52,7 @@ def check_ntp(*_, **__):
     if platform.system() == 'Darwin': # no NTP for darwin, as this is linux cluster only functionality
         return True
 
-    ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8')
+    ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8', errors='replace')
     if 'NTP service: inactive' not in ntp_status: # NTP must be inactive
         return False
 
@@ -79,30 +79,35 @@ def check_free_memory(*_, **__):
     return psutil.virtual_memory().available >= GMT_Resources['free_memory']
 
 def check_containers_running(*_, **__):
-    result = subprocess.check_output(['docker', 'ps', '--format', '{{.Names}}'], encoding='UTF-8')
+    result = subprocess.check_output(['docker', 'ps', '--format', '{{.Names}}'], encoding='UTF-8', errors='replace')
     return not bool(result.strip())
 
 def check_gmt_dir_dirty(*_, **__):
-    return subprocess.check_output(['git', 'status', '-s'], encoding='UTF-8') == ''
+    return subprocess.check_output(['git', 'status', '-s'], encoding='UTF-8', errors='replace') == ''
 
 def check_docker_daemon(*_, **__):
     result = subprocess.run(['docker', 'version'],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
-                            check=False, encoding='UTF-8')
+                            check=False, encoding='UTF-8',
+                            errors='replace')
     return result.returncode == 0
 
 def check_utf_encoding(*_, **__):
     return locale.getpreferredencoding().lower() == sys.getdefaultencoding().lower() == 'utf-8'
 
+def check_tty_attached(*_, **__):
+    return not sys.stdin.isatty()
+
+
 # This text we compare with indicates that no swap is used
 #pylint: disable=no-else-return
 def check_swap_disabled(*_, **__):
     if platform.system() == 'Darwin':
-        result = subprocess.check_output(['sysctl', 'vm.swapusage'], encoding='utf-8')
+        result = subprocess.check_output(['sysctl', 'vm.swapusage'], encoding='utf-8', errors='replace')
         return result.strip() == 'vm.swapusage: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)'
     else:
-        result = subprocess.check_output(['free'], encoding='utf-8')
+        result = subprocess.check_output(['free'], encoding='utf-8', errors='replace')
         for line in result.splitlines():
             # we want this output: Swap:              0           0           0
             # and condense it to Swap:000
@@ -111,19 +116,21 @@ def check_swap_disabled(*_, **__):
         return True
 
 def check_suspend(*, run_duration):
-    run_duration = math.ceil(run_duration/1e6/60)
+    run_duration = math.ceil(run_duration/1e6)
 
     if platform.system() == 'Darwin': # no NTP for darwin, as this is linux cluster only functionality
-        command = ['bash', '-c', f"log show --style syslog --predicate 'eventMessage contains[c] \"Entering sleep\" OR eventMessage contains[c] \"Entering Sleep\"' --last {run_duration}m"]
+        command = [f"log show --style syslog --predicate 'eventMessage contains[c] \"Entering sleep\" OR eventMessage contains[c] \"Entering Sleep\"' --last {run_duration}s --info --debug | tail -n+1 | grep -v 'log run noninteractively'"]
     else:
-        command = ['journalctl', '--grep=\'suspend\'', '--output=short-iso', '--since', f"{run_duration} minutes ago", '-q']
+        command = [f"journalctl --grep='suspend' --output=short-iso --since '{run_duration} seconds ago' -q"]
 
     ps = subprocess.run(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
-        encoding='UTF-8'
+        shell=True,
+        encoding='UTF-8',
+        errors='replace'
     )
     if ps.stderr:
         raise RuntimeError(f"Could not check for system suspend state: {ps.stderr}")
@@ -146,6 +153,7 @@ start_checks = (
     (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
     (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
     (check_swap_disabled, Status.WARN, 'swap disabled', 'Your system uses a swap filesystem. This can lead to very instable measurements. Please disable swap.'),
+    (check_tty_attached, Status.WARN, 'tty attached', 'GMT runs with a TTY attached. This will create relevant overhead. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
 )
 
 end_checks = (

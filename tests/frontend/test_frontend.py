@@ -64,7 +64,9 @@ def setup_browser(setup_playwright): #pylint: disable=unused-argument,redefined-
     browser.close()
 
 def handle_page_error(exception):
+    # we really would love to execute page.screenshot() here, but weirdly this leads to the test passing if page is broken ... even a try/except block does not help ...
     raise RuntimeError("JS error occured on page:", exception)
+
 
 ## Fixture for tests that need demo data
 @pytest.fixture()
@@ -95,7 +97,7 @@ class TestFrontendFunctionality:
         assert value== 'ScenarioRunner'
 
         value = page.locator("#scenario-runner-count").text_content()
-        assert value== '5'
+        assert value== '6'
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         value = page.locator("div.ui.cards.link > div.ui.card:nth-child(2) a.header").text_content()
@@ -107,7 +109,7 @@ class TestFrontendFunctionality:
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/runs.html')
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        value = page.locator("#runs-and-repos-table > tbody tr:nth-child(2) > td:nth-child(1) > a").text_content()
+        value = page.locator("#runs-and-repos-table > tbody tr:nth-child(3) > td:nth-child(1) > a").text_content()
 
         assert value== 'Stress Test #2'
 
@@ -221,6 +223,13 @@ class TestFrontendFunctionality:
         new_page = new_page_info.value
         new_page.set_default_timeout(3_000)
 
+        new_page.wait_for_load_state("networkidle")
+
+        assert new_page.locator("#runtime-hidden-info").is_hidden() is True
+        assert new_page.locator("#run-failed").is_hidden() is True
+        assert new_page.locator("#run-warnings").is_hidden() is True
+
+
         # open details
         new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
         new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
@@ -321,7 +330,34 @@ class TestFrontendFunctionality:
         new_page.close()
 
 
-    def test_repositories_and_compare_with_diff(self):
+    def test_stats_hidden_run(self):
+
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+
+        page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
+
+        with context.expect_page() as new_page_info:
+            page.get_by_role("link", name="Hidden Phase Run").click()
+
+
+        new_page = new_page_info.value
+        new_page.set_default_timeout(3_000)
+
+        new_page.wait_for_load_state("networkidle")
+
+        assert new_page.locator("#runtime-hidden-info").is_hidden() is False
+        assert new_page.locator("#run-failed").is_hidden() is True
+        assert new_page.locator("#run-warnings").is_hidden() is True
+
+        assert new_page.locator('#runtime-sub-phases > .item.runtime-step.hidden-phase-tab[data-tab="I am a hidden phase"]').inner_html() == '<i class="low vision icon"></i> <span class="hidden-phase-name hidden">I am a hidden phase</span>'
+
+        new_page.locator('#runtime-sub-phases > .item.runtime-step.hidden-phase-tab[data-tab="I am a hidden phase"]').click()
+
+        assert new_page.locator('#runtime-sub-phases > .item.runtime-step.hidden-phase-tab[data-tab="I am a hidden phase"]').inner_html() == '<i class="low vision icon"></i> <span class="hidden-phase-name">I am a hidden phase</span>'
+
+        assert new_page.locator('#runtime-hidden-info').is_hidden() is True # bc moved to other tab through click
+
+    def test_compare_with_hidden_phases(self):
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
@@ -330,7 +366,37 @@ class TestFrontendFunctionality:
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[0].click()
-        elements[3].click()
+        elements[1].click()
+
+        with context.expect_page() as new_page_info:
+            page.locator('#compare-button').click() # will do usage-scenario-variables comparison
+
+        new_page = new_page_info.value
+        new_page.set_default_timeout(3_000)
+
+        new_page.wait_for_load_state("networkidle")
+
+        assert new_page.locator('#runtime-hidden-info').is_hidden() is False # bc moved to other tab through click
+
+        assert new_page.locator('#runtime-sub-phases > .item.runtime-step.hidden-phase-tab[data-tab="I am a hidden phase"]').inner_html() == '<i class="low vision icon"></i> <span class="hidden-phase-name hidden">I am a hidden phase</span>'
+
+        new_page.locator('#runtime-sub-phases > .item.runtime-step.hidden-phase-tab[data-tab="I am a hidden phase"]').click()
+
+        assert new_page.locator('#runtime-sub-phases > .item.runtime-step.hidden-phase-tab[data-tab="I am a hidden phase"]').inner_html() == '<i class="low vision icon"></i> <span class="hidden-phase-name">I am a hidden phase</span>'
+
+        assert new_page.locator('#runtime-hidden-info').is_hidden() is True # bc moved to other tab through click
+
+
+    def test_repositories_and_compare_with_diff(self):
+
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+        page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
+
+        page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+
+        elements = page.query_selector_all("input[type=checkbox]")
+        elements[1].click()
+        elements[4].click()
 
         with context.expect_page() as new_page_info:
             page.locator('#compare-button').click() # will do usage-scenario-variables comparison
@@ -400,7 +466,7 @@ class TestFrontendFunctionality:
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
         page.get_by_role("button", name="Switch to repository view").click()
 
-        page.locator('.ui.accordion div.title').click()
+        page.get_by_text("/home/arne/Sites/green-coding/example-applications/").click()
         page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
 
         elements = page.query_selector_all("input[type=checkbox]")
@@ -481,10 +547,10 @@ class TestFrontendFunctionality:
         page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
 
         elements = page.query_selector_all("input[type=checkbox]")
-        elements[0].click()
         elements[1].click()
         elements[2].click()
-        elements[4].click()
+        elements[3].click()
+        elements[5].click()
 
         with context.expect_page() as new_page_info:
             page.locator('#compare-button').click()
@@ -499,10 +565,10 @@ class TestFrontendFunctionality:
 
         page.locator('#unselect-button').click()
         elements = page.query_selector_all("input[type=checkbox]")
-        elements[0].click()
         elements[1].click()
         elements[2].click()
-        elements[4].click()
+        elements[3].click()
+        elements[5].click()
 
         page.locator('#compare-force-mode').select_option("Machines")
 
@@ -520,7 +586,7 @@ class TestFrontendFunctionality:
 
         assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(1)").text_content() == 'Machine'
 
-        assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(2)").text_content() == 'Local machine'
+        assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(2)").text_content() == 'Development machine for testing'
 
 
         new_page.close()
@@ -558,15 +624,15 @@ class TestFrontendFunctionality:
 
         assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:first-child").text_content() == 'Number of runs compared'
 
-        assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)").text_content() == '5'
+        assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)").text_content() == '6'
 
         table_cell = new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(2)")
         assert "Variable" in table_cell.text_content()  # Should contain table header
         assert "__GMT_VAR_STATUS__" in table_cell.text_content()  # Should contain the variable name
         assert "I love the GMT!" in table_cell.text_content()  # Should contain the value
 
-
         new_page.close()
+
     def test_watchlist(self):
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
@@ -600,7 +666,7 @@ class TestFrontendFunctionality:
         page.locator("#menu").get_by_role("link", name="Cluster Status", exact=True).click()
 
         machine_name = page.locator('#machines-table > tbody > tr:nth-child(1) > td:nth-child(2)').text_content()
-        assert machine_name.strip() == 'Local machine'
+        assert machine_name.strip() == 'Development machine for testing'
 
 
         awaiting_info = page.locator('#machines-table > tbody > tr:nth-child(1) > td:nth-child(10)').text_content()
@@ -784,7 +850,26 @@ class TestXssSecurity:
             'var1': f'{xss_payload}value1',
             'var2': f'{xss_payload}value2'
         }
-        malicious_logs = f'{xss_payload}Error in container\nStacktrace here'
+        malicious_logs_json = {
+            "malicious-container": [
+                {
+                    "type": "container_execution",
+                    "id": "131377540004848",
+                    "cmd": f"docker run -it -d --name malicious-container {xss_payload}",
+                    "phase": "[MULTIPLE]",
+                    "stdout": f"{xss_payload}Container started with malicious output\nStacktrace here"
+                },
+                {
+                    "type": "flow_command",
+                    "id": "131377540003888",
+                    "cmd": f"docker exec malicious-container {xss_payload}",
+                    "phase": "[RUNTIME]",
+                    "stdout": f"{xss_payload}Application executed malicious command\nError output here",
+                    "flow": f"{xss_payload}Malicious Flow Scenario"
+                }
+            ]
+        }
+        malicious_logs = json.dumps(malicious_logs_json)
 
         # Insert test data with malicious content in multiple fields
         run_id = str(uuid.uuid4())
@@ -830,16 +915,20 @@ class TestXssSecurity:
         # Insert phase_stats for the two runs (needed for the compare view)
         # Include both baseline and flow phases to make the flow visible
         run_query = """
-        INSERT INTO phase_stats ("id","run_id","metric","detail_name","phase","value","type","max_value","min_value","sampling_rate_avg","sampling_rate_max","sampling_rate_95p","unit","created_at","updated_at")
+        INSERT INTO phase_stats ("run_id","metric","detail_name","phase","value","type","max_value","min_value","sampling_rate_avg","sampling_rate_max","sampling_rate_95p","unit","created_at","updated_at")
         VALUES
-        (778,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
-        (779,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[BASELINE]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
-        (780,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',5306934,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
-        (781,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
-        (782,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
-        (783,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[BASELINE]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
-        (784,%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',5306934,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
-        (785,%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL);
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[BASELINE]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',5306934,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'004_[RUNTIME]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[RUNTIME]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'000_[BASELINE]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',5306934,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'001_<img src=x onerror="window.IMG_XSS_EXECUTED=true">Malicious Flow',3476000,E'TOTAL',NULL,NULL,99120,99132,99131,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'004_[RUNTIME]',5000601,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',E'2025-01-03 19:40:59.13422+00',NULL),
+        (%s,E'cpu_energy_rapl_msr_component',E'Package_0',E'004_[RUNTIME]',9688000,E'TOTAL',NULL,NULL,99384,99666,99624,E'uJ',E'2025-01-03 19:40:59.13422+00',NULL);
         """
 
         DB().query(run_query, params=(
@@ -847,10 +936,14 @@ class TestXssSecurity:
             run_id,      # 779 - baseline cpu_energy for run_id
             run_id,      # 780 - flow phase_time for run_id
             run_id,      # 781 - flow cpu_energy for run_id
-            run_id2,     # 782 - baseline phase_time for run_id2
-            run_id2,     # 783 - baseline cpu_energy for run_id2
-            run_id2,     # 784 - flow phase_time for run_id2
-            run_id2      # 785 - flow cpu_energy for run_id2
+            run_id,      # 782 - runtime phase_time for run_id
+            run_id,      # 783 - runtime cpu_energy for run_id
+            run_id2,     # 784 - baseline phase_time for run_id2
+            run_id2,     # 785 - baseline cpu_energy for run_id2
+            run_id2,     # 786 - flow phase_time for run_id2
+            run_id2,      # 787 - flow cpu_energy for run_id2
+            run_id2,     # 788 - runtime phase_time for run_id
+            run_id2,     # 789 - runtime cpu_energy for run_id
         ))
 
         # Insert malicious watchlist data
@@ -954,15 +1047,18 @@ class TestXssSecurity:
         """
         DB().query(update_notes_query, params=(malicious_note, existing_notes[0][0]))
 
+
         page.evaluate("window.IMG_XSS_EXECUTED = false")
 
         base_url = GlobalConfig().config['cluster']['metrics_url']
         stats_url = f"{base_url}/stats.html?id={run_id}"
 
+
         page.goto(stats_url)
         page.wait_for_load_state("networkidle")
 
         fetch_button = page.locator('button#fetch-time-series')
+
         assert fetch_button.count() > 0, "fetch-time-series button not found - test setup failed"
         fetch_button.click()
         page.wait_for_timeout(3000)

@@ -1,0 +1,20 @@
+name: Django Web Application
+author: David Kopp
+description: Test
+
+compose-file: !include docker-compose.yml
+
+services:
+  curl:
+    image: curlimages/curl:8.10.1
+    entrypoint: sleep infinity
+    setup-commands:
+      - command: sleep 5
+
+flow:
+  - name: Hello World
+    container: curl
+    commands:
+      - type: console
+        command: curl http://web:8000
+        note: Hello World

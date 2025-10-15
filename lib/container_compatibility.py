@@ -16,6 +16,7 @@ class CompatibilityStatus(Enum):
     NATIVE = 'NATIVE'
     EMULATED = 'EMULATED'
     INCOMPATIBLE = 'INCOMPATIBLE'
+    UNKNOWN = 'UNKNOWN'
 
 # Common architecture mappings for Docker platform detection
 ARCH_MAPPING = {
@@ -45,6 +46,7 @@ def _execute_command_safe(cmd):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             encoding='UTF-8',
+            errors='replace',
             check=False,
             timeout=5
         )
@@ -307,13 +309,26 @@ def check_image_architecture_compatibility(image_name):
         # Get image architecture
         ps = subprocess.run(
             ['docker', 'image', 'inspect', image_name, '--format', '{{.Architecture}}'],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False
         )
 
         if ps.returncode != 0:
             raise RuntimeError(f"Failed to inspect Docker image architecture for '{image_name}': {ps.stderr.strip()}")
 
         image_arch = ps.stdout.strip()
+
+        if not image_arch or image_arch == '' :
+            return {
+                'image_arch': 'unknown',
+                'host_arch': get_native_architecture(),
+                'image_platform': 'unknown',
+                'status': CompatibilityStatus.UNKNOWN,
+                'can_run': None,
+                'needs_emulation': None,
+                'is_native_compatible': None,
+                'error': None
+            }
+
         # Docker images are typically Linux-based containers
         image_platform = f"linux/{image_arch}"
 

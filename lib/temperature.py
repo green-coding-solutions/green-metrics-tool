@@ -12,6 +12,7 @@ def get_temperature(chip, feature):
         output = subprocess.check_output(
             [f"{CURRENT_DIR}/../metric_providers/lmsensors/metric-provider-binary", '-c', chip, '-f', feature, '-n', '1'],
             encoding='UTF-8',
+            errors='replace',
         )
     except (FileNotFoundError, subprocess.CalledProcessError) as exc:
         raise RuntimeError('Could not get system temperature. Did you install lmsensors and the corresponding metric provider correctly?') from exc

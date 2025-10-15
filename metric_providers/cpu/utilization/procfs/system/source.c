@@ -11,7 +11,7 @@ typedef struct procfs_time_t { // struct is a specification and this static make
     unsigned long user_time;
     unsigned long nice_time;
     unsigned long system_time;
-    unsigned long wait_time;
+    unsigned long idle_time;
     unsigned long iowait_time;
     unsigned long irq_time;
     unsigned long softirq_time;
@@ -23,7 +23,7 @@ typedef struct procfs_time_t { // struct is a specification and this static make
 
 
     unsigned long compute_time; // custom attr by us not in standard /proc/stat format
-    unsigned long idle_time; // custom attr by us not in standard /proc/stat format
+    unsigned long non_compute_time; // custom attr by us not in standard /proc/stat format
 } procfs_time_t;
 
 
@@ -44,7 +44,7 @@ static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
     }
 
     // see explanation above in procfs_time_struct why we do not caputure steal_time etc.
-    int match_result = fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld", &procfs_time_struct->user_time, &procfs_time_struct->nice_time, &procfs_time_struct->system_time, &procfs_time_struct->wait_time, &procfs_time_struct->iowait_time, &procfs_time_struct->irq_time, &procfs_time_struct->softirq_time);
+    int match_result = fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld", &procfs_time_struct->user_time, &procfs_time_struct->nice_time, &procfs_time_struct->system_time, &procfs_time_struct->idle_time, &procfs_time_struct->iowait_time, &procfs_time_struct->irq_time, &procfs_time_struct->softirq_time);
     if (match_result != 7) {
         fprintf(stderr, "Could not match cpu usage pattern\n");
         exit(1);
@@ -55,7 +55,7 @@ static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
 
     fclose(fd);
 
-    procfs_time_struct->idle_time = procfs_time_struct->wait_time + procfs_time_struct->iowait_time + procfs_time_struct->irq_time + procfs_time_struct->softirq_time;
+    procfs_time_struct->non_compute_time = procfs_time_struct->idle_time + procfs_time_struct->iowait_time + procfs_time_struct->irq_time + procfs_time_struct->softirq_time;
     // in /proc/stat nice time is NOT included in the user time! (it is in cgroups however though)
     procfs_time_struct->compute_time = procfs_time_struct->user_time + procfs_time_struct->system_time + procfs_time_struct->nice_time;
 }
@@ -63,7 +63,7 @@ static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
 
 static void output_stats() {
 
-    long int  idle_reading, compute_time_reading;
+    long int  non_compute_reading, compute_time_reading;
     procfs_time_t main_cpu_reading_before;
     procfs_time_t main_cpu_reading_after;
     struct timeval now;
@@ -76,7 +76,7 @@ static void output_stats() {
 
     read_cpu_proc(&main_cpu_reading_after); // will set main_cpu_reading_before
 
-    idle_reading = main_cpu_reading_after.idle_time - main_cpu_reading_before.idle_time;
+    non_compute_reading = main_cpu_reading_after.non_compute_time - main_cpu_reading_before.non_compute_time;
     compute_time_reading = main_cpu_reading_after.compute_time - main_cpu_reading_before.compute_time;
 
     // debug
@@ -84,7 +84,7 @@ static void output_stats() {
     // printf("%ld%06ld %f\n", now.tv_sec, now.tv_usec, (double)compute_time_reading / (double)(compute_time_reading+idle_reading));
 
     // main output to Stdout
-    printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (compute_time_reading*10000) / (compute_time_reading+idle_reading) ); // Deliberate integer conversion. Precision with 0.01% is good enough
+    printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (compute_time_reading*10000) / (compute_time_reading+non_compute_reading) ); // Deliberate integer conversion. Precision with 0.01% is good enough
 }
 
 static int check_system() {

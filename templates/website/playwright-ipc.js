@@ -3,7 +3,6 @@ import fs from "fs";
 import { execSync } from "child_process";
 
 
-const defaultProxy = { server: "http://squid:3128" };
 const contextOptions = {
   viewport: { width: 1280, height: 800 },
   ignoreHTTPSErrors: true, // <--- disables SSL check as we funnel requests through proxy
@@ -77,13 +76,13 @@ for (let i = 2; i < argv.length; i++) {
   } else if (argv[i] === "--headless" && argv[i + 1]) {
     args.headless = argv[++i].toLowerCase() === "true";
   } else if (argv[i] === "--proxy" && argv[i + 1]) {
-    args.proxy = argv[++i] === "null" ? null : { server: argv[i] };
+    args.proxy = { server: argv[i + 1] };
   }
 }
 
 await run(
   (args.browser || "chromium").toLowerCase(),
   args.headless !== undefined ? args.headless : true,
-  args.proxy !== undefined ? args.proxy : defaultProxy
+  args.proxy !== undefined ? args.proxy : {} // {} will default to no proxy
 );
 

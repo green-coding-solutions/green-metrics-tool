@@ -1,17 +1,15 @@
+
 async function cancelJob(e){
     e.preventDefault()
     const job_id = this.getAttribute('data-job-id');
     try {
         await makeAPICall('/v1/job', {job_id: job_id, action: 'cancel'}, null, true)
+        const row = this.closest('tr');
+        row.querySelector('.job-state').innerText = 'CANCELLED'
+        row.querySelector('.job-action').innerHTML = '<i class="ui large icon grey minus"></i>'
+        showNotification('Job cancelled', 'Job has been cancelled successfully', 'success');
     } catch (err) {
-        if (err == 'No data to display. API returned empty response (HTTP 204)') {
-            const row = this.closest('tr');
-            row.querySelector('.job-state').innerText = 'CANCELLED'
-            row.querySelector('.job-action').innerHTML = '<i class="ui large icon grey minus"></i>'
-            showNotification('Job cancelled', 'Job has been cancelled successfully');
-        } else {
-            showNotification('Could not cancel job', err);
-        }
+        showNotification('Could not cancel job', err);
     }
     return false; // bc link click
 };
@@ -21,6 +19,8 @@ $(document).ready(function () {
 
         let machines_data = null;
         let jobs_data = null;
+
+        await getClusterStatus();
 
         try {
             machines_data = await makeAPICall('/v1/machines')
@@ -94,7 +94,7 @@ $(document).ready(function () {
                         $('#machine-configuration').modal('show');
                     })
             },
-            //order: [[7, 'desc']] // API also orders, but we need to indicate order for the user
+            order: [] // empty means enforce no ordering. Use API ordering
         });
 
         $('#jobs-table').DataTable({

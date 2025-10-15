@@ -66,11 +66,10 @@ def test_splitting_by_group():
     if utils.get_architecture() == 'macos':
         return
 
-    obj = NetworkIoProcfsSystemProvider(1000, remove_virtual_interfaces=False)
+    obj = NetworkIoProcfsSystemProvider(99, remove_virtual_interfaces=False)
 
-    actual_network_interface = utils.get_network_interfaces(mode='physical')[0]
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-        mock_temporary_network_file('./data/metrics/network_io_procfs_system_short.log', temp_file.name, actual_network_interface)
+        mock_temporary_network_file('./data/metrics/network_io_procfs_system_two_measurements_at_phase_border_out.log', temp_file.name, 'MY_FAKE_INTERFACE')
 
         obj._filename = temp_file.name
         df = obj.read_metrics()
@@ -138,7 +137,8 @@ def test_network_providers():
 
         if metric == 'network_total_procfs_system':
             # Some small network overhead to a 5 MB file always occurs
-            assert 5*MB <= val < 5.6*MB , f"network_total_procfs_system is not between 5 and 5.6 MB but {metric_provider['value']} {metric_provider['unit']}"
+            # See discussion for details on how much believe is acceaptable and for which reasons here: https://github.com/green-coding-solutions/green-metrics-tool/issues/1322
+            assert 5*MB <= val < 6*MB , f"network_total_procfs_system is not between 5 and 6 MB but {metric_provider['value']} {metric_provider['unit']}"
             seen_network_total_procfs_system = True
 
     assert seen_network_total_procfs_system is True

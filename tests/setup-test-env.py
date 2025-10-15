@@ -37,7 +37,7 @@ def check_sudo():
     print('Checking sudo...')
     process = None
     try:
-        process = subprocess.Popen(['sudo', 'echo', 'ok'])
+        process = subprocess.Popen(['sudo', 'echo', 'ok']) # pylint: disable=consider-using-with
         process.wait()
         if process.returncode != 0:
             raise RuntimeError("Failed to run sudo. Please run `sudo echo 'ok'` to get the sudo token and then rerun this script.")
@@ -227,4 +227,5 @@ if __name__ == '__main__':
     edit_etc_hosts()
     if not args.no_docker_build:
         build_test_docker_image()
+    subprocess.check_output(['sudo', '-k']) # deactivate sudo again
     print('fin.')

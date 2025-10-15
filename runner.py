@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
     parser.add_argument('--filename', type=str, action='append', help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported. Duplicate filenames are allowed and will be processed multiple times.')
 
-    parser.add_argument('--variables', nargs='+', help='Variables that will be replaced into the usage_scenario.yml file')
+    parser.add_argument('--variable', action='append', help='Variable that will be replaced into the usage_scenario.yml file. Use multiple times for multiple variables.')
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
 
     parser.add_argument('--user-id', type=int, default=1, help='A user-ID the run shall be mapped to. Defaults to 1 (the default user)')
@@ -99,8 +99,8 @@ if __name__ == '__main__':
         sys.exit(1)
 
     variables_dict = {}
-    if args.variables:
-        for var in args.variables:
+    if args.variable:
+        for var in args.variable:
             if not re.fullmatch(r'__GMT_VAR_[\w]+__=.*', var):
                 raise ValueError(f"Usage Scenario variable ({var}) has invalid name. Format must be __GMT_VAR_[\\w]+__. Example: __GMT_VAR_EXAMPLE__")
             key, value = var.split('=', maxsplit=1)
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     except FileNotFoundError as e:
         error_helpers.log_error('File or executable not found', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Command failed', stdout=e.stdout, stderr=e.stderr, exception_context=e.__context__, run_id=runner._run_id if runner else None)
+        error_helpers.log_error(str(e), stdout=e.stdout, stderr=e.stderr, exception_context=e.__context__, run_id=runner._run_id if runner else None)
     except RuntimeError as e:
         error_helpers.log_error('RuntimeError occured in runner.py', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
     except BaseException as e:
@@ -227,8 +227,21 @@ if __name__ == '__main__':
             logs = runner._get_all_run_logs()
             if logs:
                 print("Container logs:")
-                for log_entry in logs:
-                    print(log_entry)
+                for run_index, run_data in enumerate(logs):
+                    iteration = run_data.get('iteration', 'unknown')
+                    filename = run_data.get('filename', 'unknown')
+                    containers = run_data.get('containers', {})
+
+                    print(f"=== Run {run_index + 1}: {filename} (iteration {iteration}) ===")
+
+                    for container_name, log_entries in containers.items():
+                        print(f"--- Container: {container_name} ---")
+                        for log_entry in log_entries:
+                            log_type = log_entry.get('type', 'unknown')
+                            if "stdout" in log_entry:
+                                print(f"STDOUT ({log_type}):\n{log_entry['stdout']}")
+                            if "stderr" in log_entry:
+                                print(f"STDERR ({log_type}):\n{log_entry['stderr']}")
                     print('-----------------------------')
                 print()
 

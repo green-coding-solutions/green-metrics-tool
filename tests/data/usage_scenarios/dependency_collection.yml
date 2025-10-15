@@ -1,0 +1,24 @@
+---
+name: Test Dependency Resolving
+author: David Kopp
+description: Test Dependency Resolving
+
+services:
+  test-container:
+    type: container
+    image: greencoding/gcb_playwright:v20
+    setup-commands:
+      - shell: bash
+        command: |
+          cd /root
+          python3 -m virtualenv venv
+          /root/venv/bin/pip install psutils
+          apt update
+          apt install nano
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: echo "Test"

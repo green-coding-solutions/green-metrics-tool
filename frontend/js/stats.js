@@ -87,7 +87,7 @@ const fetchAndFillRunData = async (url_params) => {
 
     for (const item in run_data) {
         if (item == 'machine_id') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])} (${escapeString(GMT_MACHINES[run_data?.[item]] || run_data?.[item])})</td></tr>`);
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])} (${escapeString(GMT_MACHINES[run_data[item]] || run_data[item])})</td></tr>`);
         } else if (item == 'runner_arguments') {
             fillRunTab('#runner-arguments', run_data[item]); // recurse
         } else if (item == 'machine_specs') {
@@ -104,30 +104,49 @@ const fetchAndFillRunData = async (url_params) => {
             } else {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
+        } else if(item == 'usage_scenario_dependencies') {
+            renderUsageScenarioDependencies(run_data[item]);
 
-        } else if(item == 'logs' && run_data?.[item] != null) {
-            // textContent does escaping for us
-            document.querySelector("#logs").textContent = run_data[item];
+        } else if(item == 'logs') {
+            const logsData = run_data[item];
+            if (logsData === null) {
+                // Display simple message indicating no output was produced
+                document.querySelector("#logs").innerHTML = '<pre>Run did not produce any logs to be captured</pre>';
+            } else if (typeof logsData === 'object' && logsData !== null) {
+                // Handle JSON structure logs
+                // Check first if any logs have type 'legacy' - if so, render as simple text instead of structured interface
+                const hasLegacyLogs = Object.values(logsData).some(containerLogs =>
+                    Array.isArray(containerLogs) && containerLogs.some(log => log.type === 'legacy')
+                );
+                if (!hasLegacyLogs) {
+                    renderLogsInterface(logsData);
+                } else {
+                    renderLegacyLogsFromJson(logsData);
+                }
+            } else {
+                // Handle legacy plain text logs (pre-JSON structure)
+                displayLegacyLogs(run_data[item]);
+            }
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
-        } else if(item == 'phases' || item == 'id') {
+        } else if(item == 'id' || item == 'phases') {
             // skip
         }  else if(item == 'commit_hash') {
-            if (run_data?.[item] == null) continue; // some old runs did not save it
+            if (run_data[item] == null) continue; // some old runs did not save it
             let commit_link = buildCommitLink(run_data);
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data?.[item])}</a></td></tr>`)
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data[item])}</a></td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])}</td></tr>`)
-        } else if(item == 'failed' && run_data?.[item] == true) {
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
+        } else if(item == 'failed' && run_data[item] == true) {
             document.querySelector('#run-failed').classList.remove('hidden');
         } else if(item == 'start_measurement' || item == 'end_measurement') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data?.[item])}">${new Date(run_data?.[item] / 1e3)}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item] / 1e3)}</td></tr>`)
         } else if(item == 'created_at' ) {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data?.[item])}">${new Date(run_data?.[item])}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item])}</td></tr>`)
         } else if(item == 'gmt_hash') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data?.[item]}">${escapeString(run_data?.[item])}</a></td></tr>`);
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data[item]}">${escapeString(run_data[item])}</a></td></tr>`);
         } else if(item == 'uri') {
-            const uri = run_data?.[item];
+            const uri = run_data[item];
             let uriDisplay;
             if(uri.startsWith('http')) {
                 // URI is safe for href attribute: validated to have http/https protocol prevents XSS
@@ -138,7 +157,7 @@ const fetchAndFillRunData = async (url_params) => {
             }
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
         } else {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
         }
     }
 
@@ -174,9 +193,218 @@ const fillRunTab = async (selector, data, parent = '') => {
             }
             fillRunTab(selector, data[item], `${item}.`)
         } else {
-            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data?.[item])}</td></tr>`)
+            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data[item])}</td></tr>`)
         }
     }
+}
+
+const displayLegacyLogs = (logData) => {
+    const logsElement = document.querySelector("#logs");
+    logsElement.innerHTML = `<pre>${escapeString(logData)}</pre>`;
+};
+
+const renderLegacyLogsFromJson = (logsData) => {
+    const legacyLogTemplate = `
+        <div class="ui segment">
+            <h4 class="ui header">{{containerName}}</h4>
+            <pre>{{stdout}}</pre>
+        </div>
+    `;
+
+    const logsElement = document.querySelector("#logs");
+    let contentHTML = '';
+
+    // actually, in the legacy case there is only one 'container' called "unified (legacy)"
+    // but to be on the safe side, still use loops for all lists in the JSON structure
+    Object.keys(logsData).forEach(containerName => {
+        const containerLogs = logsData[containerName];
+        containerLogs.forEach(logEntry => {
+            if (logEntry.stdout) {
+                contentHTML += legacyLogTemplate
+                    .replace('{{containerName}}', escapeString(containerName))
+                    .replace('{{stdout}}', escapeString(logEntry.stdout));
+            }
+        });
+    });
+
+    logsElement.innerHTML = contentHTML;
+};
+
+const renderLogsInterface = (logsData) => {
+    const containerTemplate = `
+        <div class="title">
+            <i class="dropdown icon"></i><i class="server icon"></i> {{containerName}}
+            <div class="ui mini label">{{logCount}} log{{logPlural}}</div>
+        </div>
+        <div class="content">{{content}}</div>
+    `;
+
+    const logCardTemplate = `
+        <div class="ui card fluid">
+            {{metadataContent}}
+            {{commandContent}}
+            {{stdoutContent}}
+            {{stderrContent}}
+        </div>
+    `;
+
+    const metadataTemplate = `
+        <div class="content">
+            <div class="header">
+                <div class="ui small labels">
+                    {{typeLabel}}
+                    {{flowLabel}}
+                    {{classLabel}}
+                    {{operationLabel}}
+                    {{phaseLabel}}
+                    {{idLabel}}
+                </div>
+            </div>
+        </div>
+    `;
+
+    const commandTemplate = `
+        <div class="content">
+            <h5 class="ui header"><i class="terminal icon"></i> Command</h5>
+            <div class="ui segment">
+                <code>{{command}}</code>
+            </div>
+        </div>
+    `;
+
+    const stdoutTemplate = `
+        <div class="content">
+            <h5 class="ui header"><i class="file text outline icon"></i> Standard Output</h5>
+            <div class="ui segment stdout">
+                <div>{{stdout}}</div>
+            </div>
+        </div>
+    `;
+
+    const stderrTemplate = `
+        <div class="content">
+            <h5 class="ui header"><i class="exclamation triangle icon"></i> Standard Error</h5>
+            <div class="ui segment stderr">
+                <div>{{stderr}}</div>
+            </div>
+        </div>
+    `;
+
+    const logsElement = document.querySelector("#logs");
+    let accordionHTML = '<div class="ui styled accordion">';
+
+    const containerNames = Object.keys(logsData);
+    // Display [SYSTEM] logs first
+    const systemIndex = containerNames.indexOf('[SYSTEM]');
+    if (systemIndex > -1) {
+        containerNames.splice(systemIndex, 1);
+        containerNames.unshift('[SYSTEM]');
+    }
+
+    containerNames.forEach(containerName => {
+        const containerLogs = logsData[containerName];
+
+        let contentHTML = '';
+        containerLogs.forEach(logEntry => {
+            let typeIcon, typeTooltip;
+            switch (logEntry.type) {
+                case 'container_execution':
+                    typeIcon = 'cog';
+                    typeTooltip = 'Logs from the entire container execution process';
+                    break;
+                case 'setup_commands':
+                    typeIcon = 'wrench';
+                    typeTooltip = 'Logs from setup commands before flow execution';
+                    break;
+                case 'flow_command':
+                    typeIcon = 'play';
+                    typeTooltip = 'Logs from a specific flow execution';
+                    break;
+                case 'network_stats':
+                    typeIcon = 'wifi';
+                    typeTooltip = 'Network connection statistics from tcpdump';
+                    break;
+                case 'exception':
+                    typeIcon = 'exclamation triangle';
+                    typeTooltip = 'An error occurred during execution';
+                    break;
+                default:
+                    typeIcon = 'question';
+                    typeTooltip = 'Logs from an unknown or custom execution type';
+                    break;
+            }
+
+            // Make the type name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
+            const typeTitle = escapeString(logEntry.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+            const typeLabel = `<div class="ui purple label" data-tooltip="${typeTooltip}" data-position="top center"><i class="${typeIcon} icon"></i> ${typeTitle}</div>`;
+
+            const phaseLabel = logEntry.phase ?
+                `<div class="ui blue label" data-tooltip="Execution phase when this command was run" data-position="top center"><i class="clock icon"></i> ${escapeString(logEntry.phase)}</div>` : '';
+
+            const flowLabel = logEntry.flow ?
+                `<div class="ui green label" data-tooltip="Flow this command belongs to" data-position="top center"><i class="sitemap icon"></i> ${escapeString(logEntry.flow)}</div>` : '';
+
+            const idLabel = `<div class="ui label" data-tooltip="Unique identifier for this log entry" data-position="top center"><i class="hashtag icon"></i> ID: ${escapeString(logEntry.id)}</div>`;
+
+            const stdoutContent = logEntry.stdout ?
+                stdoutTemplate.replace('{{stdout}}', escapeString(logEntry.stdout)) : '';
+
+            const stderrContent = logEntry.stderr ?
+                stderrTemplate.replace('{{stderr}}', escapeString(logEntry.stderr)) : '';
+
+            // Show different information if the type is exception
+            let operationLabel = '';
+            let classLabel = '';
+            if (logEntry.type === 'exception') {
+                let operationTooltip;
+                switch (logEntry.cmd) {
+                    case 'run_scenario':
+                        operationTooltip = 'Exception occurred during main scenario execution runtime';
+                        break;
+                    case 'post_process':
+                        operationTooltip = 'Exception occurred during cleanup and post-processing phase';
+                        break;
+                    default:
+                        operationTooltip = `Exception occurred during '${logEntry.cmd}' operation`;
+                }
+                // Make the operation name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
+                const operationTitle = escapeString(logEntry.cmd.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+                operationLabel = `<div class="ui orange label" data-tooltip="${operationTooltip}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
+
+                if (logEntry.exception_class) {
+                    classLabel = `<div class="ui red label" data-tooltip="Exception class type" data-position="top center"><i class="exclamation triangle icon"></i> ${escapeString(logEntry.exception_class)}</div>`;
+                }
+            }
+
+            const metadataContent = metadataTemplate
+                .replace('{{flowLabel}}', flowLabel)
+                .replace('{{typeLabel}}', typeLabel)
+                .replace('{{operationLabel}}', operationLabel)
+                .replace('{{classLabel}}', classLabel)
+                .replace('{{phaseLabel}}', phaseLabel)
+                .replace('{{idLabel}}', idLabel);
+
+            // For exceptions or empty/null commands, don't show the command section
+            const commandContent = (logEntry.type === 'exception' || !logEntry.cmd) ? '' :
+                commandTemplate.replace('{{command}}', escapeString(logEntry.cmd));
+
+                contentHTML += logCardTemplate
+                .replace('{{metadataContent}}', metadataContent)
+                .replace('{{commandContent}}', commandContent)
+                .replace('{{stdoutContent}}', stdoutContent)
+                .replace('{{stderrContent}}', stderrContent);
+        });
+
+        accordionHTML += containerTemplate
+            .replace('{{containerName}}', escapeString(containerName))
+            .replace('{{logCount}}', containerLogs.length)
+            .replace('{{logPlural}}', containerLogs.length === 1 ? '' : 's')
+            .replace('{{content}}', contentHTML);
+    });
+
+    accordionHTML += '</div>';
+    logsElement.innerHTML = accordionHTML;
+    $('.ui.accordion').accordion();
 }
 
 
@@ -249,6 +477,35 @@ const buildTimelineChartData = async (measurements_data) => {
     return metrics;
 }
 
+const wrapNoteText = (text, maxLength = 80) => {
+    if (text.length <= maxLength) return text;
+
+    const lines = [];
+    let currentLine = '';
+    const breakChars = [' ', '/', ':', '-', '_'];
+
+    for (const char of text) {
+        currentLine += char;
+
+        if (currentLine.length >= maxLength) {
+            const breakIndex = currentLine.split('').findLastIndex(c => breakChars.includes(c));
+
+            if (breakIndex > maxLength * 0.5) {
+                const breakChar = currentLine[breakIndex];
+                const endIndex = breakChar === ' ' ? breakIndex : breakIndex + 1;
+                lines.push(currentLine.substring(0, endIndex));
+                currentLine = currentLine.substring(breakIndex + 1);
+            } else {
+                lines.push(currentLine.substring(0, maxLength));
+                currentLine = currentLine.substring(maxLength);
+            }
+        }
+    }
+
+    if (currentLine) lines.push(currentLine);
+    return lines.join('\n');
+};
+
 const displayTimelineCharts = async (metrics, notes) => {
 
     const note_positions = [
@@ -291,7 +548,7 @@ const displayTimelineCharts = async (metrics, notes) => {
         let inner_counter = 0;
         if (notes != null) {
             notes.forEach(note => {
-                notes_labels.push({xAxis: note[3]/1000, label: {formatter: escapeString(note[2]), position: note_positions[inner_counter%2]}})
+                notes_labels.push({xAxis: note[3]/1000, label: {formatter: wrapNoteText(note[2]), position: note_positions[inner_counter%2]}})
                 inner_counter++;
             });
         }
@@ -571,7 +828,7 @@ function copyTextToClipboard(text) {
 }
 
 const fetchTimelineData = async (url_params) => {
-    document.querySelector('#api-loader').style.display = '';
+    document.querySelector('#api-loader').classList.remove('hidden');
     document.querySelector('#loader-question').remove();
 
     let measurements = null;
@@ -619,8 +876,205 @@ const fetchAndFillWarnings = async (url_params) => {
 
 
 
+// Templates for usage scenario dependencies
+const dependenciesTemplates = {
+    container: `
+        <div class="ui segment">
+            <h4 class="ui dividing header">Container: {{containerName}}</h4>
+            <div class="ui secondary segment">
+                <strong>Image:</strong> {{image}}<br>
+                <strong>Hash:</strong> <code>{{hash}}</code>
+            </div>
+            {{scopeContent}}
+        </div>
+    `,
+
+    scopeAccordion: `
+        <div class="ui accordion">
+            {{accordionItems}}
+        </div>
+    `,
+
+    accordionItem: `
+        <div class="title">
+            <i class="dropdown icon"></i>
+            {{scopeDisplayName}} Packages ({{totalDeps}} packages)
+        </div>
+        <div class="content">
+            {{scopeMetadata}}
+            {{depsTable}}
+        </div>
+    `,
+
+    scopeMetadata: `
+        <div>
+            {{metadataContent}}
+        </div>
+    `,
+
+    depsTable: `
+        <table class="ui celled compact table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Version</th>
+                    <th>Hash</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{tableRows}}
+            </tbody>
+        </table>
+    `,
+
+    depsTableRow: `
+        <tr>
+            <td>{{depName}}</td>
+            <td>{{version}}</td>
+            <td><code title="{{fullHash}}">{{truncatedHash}}</code></td>
+        </tr>
+    `,
+
+    noDepsMessage: `<div class="ui message">{{message}}</div>`
+};
+
+function renderUsageScenarioDependencies(dependenciesData) {
+    const dependenciesSection = document.querySelector("#usage-scenario-dependencies");
+
+    if (!dependenciesData || Object.keys(dependenciesData).length === 0) {
+        dependenciesSection.insertAdjacentHTML('beforeend',
+            dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependency information available</em>')
+        );
+        return;
+    }
+
+    let containersHTML = '';
+
+    for (const containerName in dependenciesData) {
+        const containerData = dependenciesData[containerName];
+        const containerInfo = containerData['source'] || {};
+
+        const image = escapeString(containerInfo.image || 'N/A');
+        const hash = escapeString(containerInfo.hash || 'N/A');
+
+        const packageManagers = Object.keys(containerData).filter(key => key !== 'source');
+
+        let packageManagerContent = '';
+
+        if (packageManagers.length > 0) {
+            const accordionItems = buildPackageManagerAccordionItems(packageManagers, containerData);
+
+            packageManagerContent = dependenciesTemplates.scopeAccordion.replace('{{accordionItems}}', accordionItems);
+        } else {
+            packageManagerContent = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
+        }
+
+        const containerHTML = dependenciesTemplates.container
+            .replace('{{containerName}}', escapeString(containerName))
+            .replace('{{image}}', image)
+            .replace('{{hash}}', hash)
+            .replace('{{scopeContent}}', packageManagerContent);
+
+        containersHTML += containerHTML;
+    }
+
+    dependenciesSection.insertAdjacentHTML('beforeend', containersHTML);
+
+    // Initialize accordions
+    setTimeout(() => {
+        dependenciesSection.querySelectorAll('.ui.accordion').forEach(accordion => {
+            $(accordion).accordion();
+        });
+    }, 0);
+}
+
+function buildSingleAccordionItem(packageManager, displayName, data) {
+    const dependencies = data.dependencies || {};
+    const dependenciesArray = Object.entries(dependencies).map(([name, pkgData]) => ({
+        name: name,
+        version: pkgData.version || 'N/A',
+        type: packageManager,
+        hash: pkgData.hash || 'N/A'
+    }));
+    const totalDeps = dependenciesArray.length;
+
+    // Build metadata content
+    let metadataContent = '';
+    if (data.scope) {
+        metadataContent += `<strong>Scope:</strong> ${escapeString(data.scope)}<br>`;
+    }
+    if (data.location) {
+        metadataContent += `<strong>Location:</strong> ${escapeString(data.location)}<br>`;
+    }
+    if (data.hash) {
+        metadataContent += `<strong>Hash:</strong> <code>${escapeString(data.hash)}</code><br>`;
+    }
+
+    const packageManagerMetadata = metadataContent ?
+        dependenciesTemplates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
+
+    let depsTable = '';
+    if (totalDeps > 0) {
+        const tableRows = buildDependencyTableRows(dependenciesArray);
+        depsTable = dependenciesTemplates.depsTable.replace('{{tableRows}}', tableRows);
+    } else {
+        depsTable = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependencies found</em>');
+    }
+
+    return dependenciesTemplates.accordionItem
+        .replace('{{scopeDisplayName}}', escapeString(displayName))
+        .replace('{{totalDeps}}', totalDeps)
+        .replace('{{scopeMetadata}}', packageManagerMetadata)
+        .replace('{{depsTable}}', depsTable);
+}
+
+function buildPackageManagerAccordionItems(packageManagers, containerData) {
+    let accordionItems = '';
+
+    packageManagers.forEach(packageManager => {
+        const packageManagerData = containerData[packageManager];
+
+        // Check if this is a mixed-scope with multiple locations
+        if (packageManagerData.locations) {
+            // Handle mixed-scope with multiple locations
+            for (const [location, locationData] of Object.entries(packageManagerData.locations)) {
+                const scope = locationData.scope || 'unknown';
+                const displayName = `${packageManager} (${scope})`;
+                const dataWithLocation = { ...locationData, location: location };
+                accordionItems += buildSingleAccordionItem(packageManager, displayName, dataWithLocation);
+            }
+        } else {
+            // Handle system or project scope with direct dependencies
+            accordionItems += buildSingleAccordionItem(packageManager, packageManager, packageManagerData);
+        }
+    });
+
+    return accordionItems;
+}
+
+function buildDependencyTableRows(packages) {
+    let tableRows = '';
+
+    packages.forEach(pkg => {
+        const version = escapeString(pkg.version || 'N/A');
+        const depHash = pkg.hash || 'N/A';
+        const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
+
+        const row = dependenciesTemplates.depsTableRow
+            .replace('{{depName}}', escapeString(pkg.name || 'N/A'))
+            .replace('{{version}}', version)
+            .replace('{{fullHash}}', escapeString(depHash))
+            .replace('{{truncatedHash}}', escapeString(truncatedHash));
+
+        tableRows += row;
+    });
+
+    return tableRows;
+}
+
+
 /* Chart starting code*/
-$(document).ready( (e) => {
+$(document).ready( () => {
     (async () => {
 
         $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
@@ -633,15 +1087,16 @@ $(document).ready( (e) => {
             return;
         }
 
-        fetchAndFillRunData(url_params);
+        // run all without await, as they have no blocking visuals or depended upon changes
         fetchAndFillNetworkIntercepts(url_params);
         fetchAndFillOptimizationsData(url_params);
         fetchAndFillAIData(url_params);
         fetchAndFillWarnings(url_params);
+        fetchAndFillRunData(url_params);
 
         (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
             const phase_stats = await fetchAndFillPhaseStatsData(url_params);
-            renderBadges(url_params, phase_stats?.data?.data['[RUNTIME]']);
+            renderBadges(url_params, phase_stats?.data?.data?.['[RUNTIME]']?.data); // phase_stats can be empty when returned if run is broken or not done. thus the safe access
         })();
 
 
@@ -652,7 +1107,7 @@ $(document).ready( (e) => {
             ]);
             if (timeline_data == null) {
                 document.querySelector('#api-loader').remove()
-                document.querySelector('#message-chart-load-failure').style.display = '';
+                document.querySelector('#message-chart-load-failure').classList.remove('hidden');
                 return
             }
             const timeline_chart_data = await buildTimelineChartData(timeline_data);
@@ -666,7 +1121,7 @@ $(document).ready( (e) => {
 
                 if (timeline_data == null) {
                     document.querySelector('#api-loader').remove()
-                    document.querySelector('#message-chart-load-failure').style.display = '';
+                    document.querySelector('#message-chart-load-failure').classList.remove('hidden');
                     return
                 }
                 const timeline_chart_data = await buildTimelineChartData(timeline_data);

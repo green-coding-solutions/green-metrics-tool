@@ -34,7 +34,7 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
         super().check_system(check_command=None)
 
         # check tinyproxy version
-        output = subprocess.check_output(['tinyproxy', '-v'], stderr=subprocess.STDOUT, text=True)
+        output = subprocess.check_output(['tinyproxy', '-v'], stderr=subprocess.STDOUT, encoding='UTF-8', errors='replace')
         version_string = output.strip().split()[1].split('-')[0]
         if parse(version_string) >= parse('1.11'):
             return True
@@ -94,6 +94,9 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
                 parsed_lines.append([time, connection_type, protocol])
 
         return pandas.DataFrame.from_records(parsed_lines, columns=['time', 'connection_type', 'protocol']) # may be empty as no network traffic can happen
+
+    def _check_unique(self, df):
+        pass # noop. Just for overwriting. Empty data is ok for this reporter
 
     def _check_empty(self, df):
         pass # noop. Just for overwriting. Empty data is ok for this reporter

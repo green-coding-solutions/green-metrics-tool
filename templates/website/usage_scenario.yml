@@ -13,11 +13,11 @@ flow:
     container: playwright-nodejs
     commands:
       - type: console
-        command: node /tmp/energy-tests/templates/website/playwright-ipc.js --headless true --browser firefox
+        command: node /tmp/energy-tests/templates/website/playwright-ipc.js --headless true --browser firefox --proxy http://squid:3128
         note: Starting browser in background process with IPC
         detach: true
       - type: console
-        command: until [ -p "/tmp/playwright-ipc-ready" ]; do sleep 1; done && echo "Browser ready!"
+        command: timeout 5 bash -c 'until [ -p "/tmp/playwright-ipc-ready" ]; do sleep 1; done && echo "Browser ready!"'
         shell: bash
         note: Waiting for website stepper loop to start by monitoring rendevous file endpoint
 
