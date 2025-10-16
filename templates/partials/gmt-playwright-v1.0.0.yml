@@ -3,8 +3,8 @@ services:
         image: mcr.microsoft.com/playwright:v1.56.0-noble
 #        volumes:
 #            - /tmp/.X11-unix:/tmp/.X11-unix # for debugging in non-headless mode
-        environment:
-            DISPLAY: ":0" # for debugging in non-headless mode
+#        environment:
+#            DISPLAY: ":0" # for debugging in non-headless mode
         setup-commands:
             # install playwright libraries in writeable directory
             - command: cd /tmp/gmt-utils && npm init -y && npm install playwright@1.56.0
