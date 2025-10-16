@@ -191,7 +191,7 @@ class ScenarioRunner:
         self.__volume_sizes = {}
         self.__warnings = []
         self.__usage_scenario_dependencies = None
-        self.__include_playwright_ipc = None
+        self.__include_playwright_ipc_version = None
 
         self._check_all_durations()
 
@@ -432,7 +432,7 @@ class ScenarioRunner:
             usage_scenario = replace_usage_scenario_variables(usage_scenario, self._usage_scenario_variables)
 
             if match := re.search(r'!include-gmt-helper gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml', usage_scenario):
-                self.__include_playwright_ipc = match[1]
+                self.__include_playwright_ipc_version = match[1]
 
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(usage_scenario, Loader)
@@ -1061,10 +1061,10 @@ class ScenarioRunner:
             docker_run_string.append(f"{self._repo_folder}:{repo_mount_path}:ro")
 
             # this is a special feature container with a reserved name.
-            # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc == True
-            if self.__include_playwright_ipc and container_name == 'gmt-playwright-nodejs':
+            # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc_version == True
+            if self.__include_playwright_ipc_version and container_name == 'gmt-playwright-nodejs':
                 docker_run_string.append('-v')
-                docker_run_string.append(f"{GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc-{self.__include_playwright_ipc}.js:/tmp/gmt-utils/gmt-playwright-ipc-{self.__include_playwright_ipc}.js:ro")
+                docker_run_string.append(f"{GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc-{self.__include_playwright_ipc_version}.js:/tmp/gmt-utils/gmt-playwright-ipc-{self.__include_playwright_ipc_version}.js:ro")
 
             if self.__docker_params:
                 docker_run_string[2:2] = self.__docker_params
@@ -2310,7 +2310,7 @@ class ScenarioRunner:
         self.__image_sizes.clear()
         self.__volume_sizes.clear()
         self.__warnings.clear()
-        self.__include_playwright_ipc = None
+        self.__include_playwright_ipc_version = None
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
