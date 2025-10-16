@@ -181,7 +181,7 @@ class ScenarioRunner:
         self.__warnings = []
         self.__usage_scenario_dependencies = None
         self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
-
+        self.__include_playwright_ipc_version = None
 
         self._check_all_durations()
 
@@ -217,7 +217,7 @@ class ScenarioRunner:
     # path with `..`, symbolic links or similar.
     # We always return the same error message including the path and file parameter, never `filename` as
     # otherwise we might disclose if certain files exist or not.
-    def _join_paths(self, path, path2, force_path_as_root=False):
+    def _join_paths(self, path, path2, force_path_as_root=False, force_path_in_repo=True):
         filename = os.path.realpath(os.path.join(path, path2))
 
         # If the original path is a symlink we need to resolve it.
@@ -227,14 +227,14 @@ class ScenarioRunner:
         if filename == path.rstrip('/'):
             return filename
 
-        if not filename.startswith(self._repo_folder):
+        if force_path_in_repo and not filename.startswith(self._repo_folder):
             raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder}")
 
         if force_path_as_root and not filename.startswith(path):
             raise RuntimeError(f"{path2} must not be in folder above {path}")
 
         # Another way to implement this. This is checking again but we want to be extra secure 👾
-        if Path(self._repo_folder).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
+        if force_path_in_repo and Path(self._repo_folder).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
             raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder}")
 
         if force_path_as_root and Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
@@ -334,9 +334,9 @@ class ScenarioRunner:
         if self._dev_no_save:
             return
 
-        self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8').strip()
+        self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8', errors='replace').strip()
 
-        git_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self._repo_folder, encoding='UTF-8').strip()
+        git_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self._repo_folder, encoding='UTF-8', errors='replace').strip()
         if git_repo_root != self._repo_folder:
             raise RuntimeError(f"Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename. Real repo root is {git_repo_root}")
 
@@ -374,19 +374,54 @@ class ScenarioRunner:
 
         def make_loader(replacer, usage_scenario_variables, usage_scenario_file):
             class Loader(yaml.SafeLoader):
-                pass
+                def get_constructed_nodes(self, node):
+                    # We allow two types of includes
+                    # !include <filename> => ScalarNode
+                    # and
+                    # !include <filename> <selector> => SequenceNode
+                    if isinstance(node, yaml.nodes.ScalarNode):
+                        nodes = [self.construct_scalar(node)]
+                    elif isinstance(node, yaml.nodes.SequenceNode):
+                        nodes = self.construct_sequence(node)
+                    else:
+                        raise ValueError("We don't support Mapping Nodes to date")
 
-            def include(self, node):
-                # We allow two types of includes
-                # !include <filename> => ScalarNode
-                # and
-                # !include <filename> <selector> => SequenceNode
-                if isinstance(node, yaml.nodes.ScalarNode):
-                    nodes = [self.construct_scalar(node)]
-                elif isinstance(node, yaml.nodes.SequenceNode):
-                    nodes = self.construct_sequence(node)
-                else:
-                    raise ValueError("We don't support Mapping Nodes to date")
+                    return nodes
+
+                def process_include(self, filename, nodes):
+                    with open(filename, 'r', encoding='UTF-8') as f:
+                        usage_scenario = f.read()
+
+                    usage_scenario = replacer(usage_scenario, usage_scenario_variables)
+
+                    # We want to enable a deep search for keys
+                    def recursive_lookup(k, d):
+                        if k in d:
+                            return d[k]
+                        for v in d.values():
+                            if isinstance(v, dict):
+                                return recursive_lookup(k, v)
+                        return None
+
+                    # We can use load here as the Loader extends SafeLoader
+                    if len(nodes) == 1:
+                        # There is no selector specified
+                        return yaml.load(usage_scenario, Loader)
+
+                    return recursive_lookup(nodes[1], yaml.load(usage_scenario, Loader))
+
+            def include_gmt_helper(loader: Loader, node):
+                nodes = loader.get_constructed_nodes(node)
+
+                if not re.fullmatch(r'gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml', nodes[0]):
+                    raise ValueError(f"You tried include unallowed files with !include-gmt-helper function. Included files must conform to regex gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml but actually is {nodes[0]}")
+
+                filename = runner_join_paths(f"{GMT_ROOT_DIR}/templates/partials/", nodes[0], force_path_as_root=True, force_path_in_repo=False)
+
+                return loader.process_include(filename, nodes)
+
+            def include(loader: Loader, node):
+                nodes = loader.get_constructed_nodes(node)
 
                 try:
                     usage_scenario_dir = os.path.split(usage_scenario_file)[0]
@@ -394,28 +429,10 @@ class ScenarioRunner:
                 except RuntimeError as exc:
                     raise ValueError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
-                with open(filename, 'r', encoding='UTF-8') as f:
-                    usage_scenario = f.read()
-
-                usage_scenario = replacer(usage_scenario, usage_scenario_variables)
-
-                # We want to enable a deep search for keys
-                def recursive_lookup(k, d):
-                    if k in d:
-                        return d[k]
-                    for v in d.values():
-                        if isinstance(v, dict):
-                            return recursive_lookup(k, v)
-                    return None
-
-                # We can use load here as the Loader extends SafeLoader
-                if len(nodes) == 1:
-                    # There is no selector specified
-                    return yaml.load(usage_scenario, Loader)
-
-                return recursive_lookup(nodes[1], yaml.load(usage_scenario, Loader))
+                return loader.process_include(filename, nodes)
 
             Loader.add_constructor('!include', include)
+            Loader.add_constructor('!include-gmt-helper', include_gmt_helper)
             return Loader
 
 
@@ -436,12 +453,16 @@ class ScenarioRunner:
                 usage_scenario_file=usage_scenario_file,
             )
 
+            if match := re.search(r'!include-gmt-helper gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml', usage_scenario):
+                self.__include_playwright_ipc_version = match[1]
+
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(usage_scenario, Loader)
 
             #Check that all variables have been replaced
             if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
                 raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
+
             if len(self.__usage_scenario_variables_used_buffer) > 0:
                 raise ValueError(f"Usage Scenario Variables '{self.__usage_scenario_variables_used_buffer}' was not used in usage scenario. Please remove it or add it to the usage scenario.")
 
@@ -461,16 +482,25 @@ class ScenarioRunner:
                 return dict2
 
             new_dict = {}
+
             if 'compose-file' in yml_obj.keys():
                 for k,v in yml_obj['compose-file'].items():
                     if k in yml_obj:
                         new_dict[k] = merge_dicts(v,yml_obj[k])
                     else: # just copy over if no key exists in usage_scenario
                         yml_obj[k] = v
-
                 del yml_obj['compose-file']
 
             yml_obj.update(new_dict)
+
+            if 'flow-prepend' in yml_obj.keys():
+                if not isinstance(yml_obj['flow-prepend'], list):
+                    raise ValueError('magic key "flow-prepend" must be a list to be able to be processed as include')
+                if 'flow' not in yml_obj:
+                    yml_obj['flow'] = {} # flow might still be empty here. Only in syntax check after it must be non empty
+                yml_obj['flow-prepend'].extend(yml_obj['flow'])
+                yml_obj['flow'] = yml_obj['flow-prepend']
+                del yml_obj['flow-prepend']
 
 
             # If a service is defined as None we remove it. This is so we can have a compose file that starts
@@ -1064,6 +1094,12 @@ class ScenarioRunner:
             repo_mount_path = service.get('folder-destination', '/tmp/repo')
             # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
             docker_run_string.append(f"{self._repo_folder}:{repo_mount_path}:ro")
+
+            # this is a special feature container with a reserved name.
+            # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc_version == True
+            if self.__include_playwright_ipc_version and container_name == 'gmt-playwright-nodejs':
+                docker_run_string.append('-v')
+                docker_run_string.append(f"{GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc-{self.__include_playwright_ipc_version}.js:/tmp/gmt-utils/gmt-playwright-ipc-{self.__include_playwright_ipc_version}.js:ro")
 
             if self.__docker_params:
                 docker_run_string[2:2] = self.__docker_params
@@ -1854,9 +1890,9 @@ class ScenarioRunner:
                             check=True,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
-                            timeout=60, # 60 seconds should be reasonable for any playwright command we know
-                            errors='replace',
                             encoding='UTF-8',
+                            errors='replace',
+                            timeout=60, # 60 seconds should be reasonable for any playwright command we know
                         )
 
 
@@ -2310,6 +2346,7 @@ class ScenarioRunner:
         self.__volume_sizes.clear()
         self.__warnings.clear()
         self.__usage_scenario_variables_used_buffer.clear()
+        self.__include_playwright_ipc_version = None
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 

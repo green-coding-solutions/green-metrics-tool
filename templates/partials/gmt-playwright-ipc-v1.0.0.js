@@ -2,6 +2,10 @@ import { firefox, chromium } from "playwright";
 import fs from "fs";
 import { execSync } from "child_process";
 
+// global variables, since we want to keep function signatures slim for exposed functions in usage_scenario.yml
+let browser = null;
+let context = null;
+let page = null;
 
 const contextOptions = {
   viewport: { width: 1280, height: 800 },
@@ -12,6 +16,18 @@ const contextOptions = {
 function logNote(message) {
   const timestamp = String(BigInt(Date.now()) * 1000000n).slice(0, 16);
   console.log(`${timestamp} ${message}`);
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function gmtPlaywrightCache(url, sleep_duration) {
+    await page.goto(url);
+    await sleep(sleep_duration);
+    await context.close();
+    context = await browser.newContext(contextOptions);
+    page = await context.newPage();
 }
 
 async function startFifoReader(fifoPath, callback) {
@@ -32,11 +48,12 @@ async function startFifoReader(fifoPath, callback) {
 }
 
 
-// Test 1 - BRANCH: Launch Branch website with no cookies
 async function run(browserName, headless, proxy) {
-  let browser = null;
-  const launchOptions = { headless, proxy };
+  const launchOptions = { headless };
 
+  if (proxy != null) {
+      launchOptions.proxy = proxy;
+  }
   if (browserName === "firefox") {
     browser = await firefox.launch(launchOptions);
   } else {
@@ -45,10 +62,10 @@ async function run(browserName, headless, proxy) {
       args: headless ? ["--headless=new"] : [],
     });
   }
-  
-  let context = await browser.newContext(contextOptions);
+
+  context = await browser.newContext(contextOptions);
   await context.clearCookies();
-  let page = await context.newPage()
+  page = await context.newPage()
 
   execSync(`mkfifo /tmp/playwright-ipc-ready`); // signal that browser is launched
   execSync(`mkfifo /tmp/playwright-ipc-commands`); // create pipe to get commands
@@ -76,13 +93,13 @@ for (let i = 2; i < argv.length; i++) {
   } else if (argv[i] === "--headless" && argv[i + 1]) {
     args.headless = argv[++i].toLowerCase() === "true";
   } else if (argv[i] === "--proxy" && argv[i + 1]) {
-    args.proxy = { server: argv[i + 1] };
+    args.proxy = { server: argv[i+1] };
   }
 }
 
 await run(
   (args.browser || "chromium").toLowerCase(),
   args.headless !== undefined ? args.headless : true,
-  args.proxy !== undefined ? args.proxy : {} // {} will default to no proxy
+  args.proxy !== undefined ? args.proxy : null
 );
 
