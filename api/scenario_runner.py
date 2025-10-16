@@ -434,7 +434,7 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
     except RuntimeError as err:
         raise RequestValidationError(str(err)) from err
     except HTTPException as err:
-      return ORJSONResponseObjKeep({'success': False, 'data': err.detail}, status_code=err.status_code)  
+        return ORJSONResponseObjKeep({'success': False, 'data': err.detail}, status_code=err.status_code)
 
     if not force_mode: # force_mode must never store data
         store_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}", orjson.dumps(phase_stats_object)) # pylint: disable=no-member
@@ -799,8 +799,8 @@ async def get_run(run_id: str, user: User = Depends(authenticate)):
     try:
         data = get_run_info(user, run_id)
     except HTTPException as err:
-      return ORJSONResponseObjKeep({'success': False, 'data': err.detail}, status_code=err.status_code)  
-    
+        return ORJSONResponseObjKeep({'success': False, 'data': err.detail}, status_code=err.status_code)
+
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 

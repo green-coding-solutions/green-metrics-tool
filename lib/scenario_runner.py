@@ -55,17 +55,6 @@ def validate_usage_scenario_variables(usage_scenario_variables):
             raise ValueError(f"Usage Scenario variable ({key}) has invalid name. Format must be __GMT_VAR_[\\w]+__ - Example: __GMT_VAR_EXAMPLE__")
     return usage_scenario_variables
 
-def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
-    for key, value in usage_scenario_variables.items():
-        if key not in usage_scenario:
-            raise ValueError(f"Usage Scenario Variable '{key}' does not exist in usage scenario. Did you forget to add it?")
-        usage_scenario = usage_scenario.replace(key, value)
-
-    if matches := re.findall(r'__GMT_VAR_\w+__', usage_scenario):
-        raise RuntimeError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. Please add variables when submitting run.")
-
-    return usage_scenario
-
 class ScenarioRunner:
     def __init__(self,
         *, uri, uri_type, name=None, filename='usage_scenario.yml', branch=None,
@@ -191,6 +180,7 @@ class ScenarioRunner:
         self.__volume_sizes = {}
         self.__warnings = []
         self.__usage_scenario_dependencies = None
+        self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
         self.__include_playwright_ipc_version = None
 
         self._check_all_durations()
@@ -365,23 +355,45 @@ class ScenarioRunner:
         runner_join_paths = self._join_paths
         usage_scenario_file = self._join_paths(self._repo_folder, self._original_filename)
 
-        class Loader(yaml.SafeLoader):
-            def get_constructed_nodes(self, node):
-                # We allow two types of includes
-                # !include <filename> => ScalarNode
-                # and
-                # !include <filename> <selector> => SequenceNode
-                if isinstance(node, yaml.nodes.ScalarNode):
-                    nodes = [self.construct_scalar(node)]
-                elif isinstance(node, yaml.nodes.SequenceNode):
-                    nodes = self.construct_sequence(node)
-                else:
-                    raise ValueError("We don't support Mapping Nodes to date")
+        def uc_string_replace(uc_string, old, new):
+            new_uc = uc_string.replace(old, new)
+            if new_uc != uc_string:
+                if old in self.__usage_scenario_variables_used_buffer:
+                    self.__usage_scenario_variables_used_buffer.remove(old)
 
-                return nodes
+            return new_uc
 
-            def process_include(self, filename, nodes):
-                with open(filename, 'r', encoding='UTF-8') as f:
+        def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
+            for key, value in usage_scenario_variables.items():
+                usage_scenario = uc_string_replace(usage_scenario, key, value)
+
+            if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
+                raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches} \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
+
+            return usage_scenario
+
+        def make_loader(replacer, usage_scenario_variables, usage_scenario_file):
+            class Loader(yaml.SafeLoader):
+                def get_constructed_nodes(self, node):
+                    # We allow two types of includes
+                    # !include <filename> => ScalarNode
+                    # and
+                    # !include <filename> <selector> => SequenceNode
+                    if isinstance(node, yaml.nodes.ScalarNode):
+                        nodes = [self.construct_scalar(node)]
+                    elif isinstance(node, yaml.nodes.SequenceNode):
+                        nodes = self.construct_sequence(node)
+                    else:
+                        raise ValueError("We don't support Mapping Nodes to date")
+
+                    return nodes
+
+                def process_include(self, filename, nodes):
+                    with open(filename, 'r', encoding='UTF-8') as f:
+                        usage_scenario = f.read()
+
+                    usage_scenario = replacer(usage_scenario, usage_scenario_variables)
+
                     # We want to enable a deep search for keys
                     def recursive_lookup(k, d):
                         if k in d:
@@ -394,22 +406,22 @@ class ScenarioRunner:
                     # We can use load here as the Loader extends SafeLoader
                     if len(nodes) == 1:
                         # There is no selector specified
-                        return yaml.load(f, Loader)
+                        return yaml.load(usage_scenario, Loader)
 
-                    return recursive_lookup(nodes[1], yaml.load(f, Loader))
+                    return recursive_lookup(nodes[1], yaml.load(usage_scenario, Loader))
 
-            def include_gmt_helper(self, node):
-                nodes = self.get_constructed_nodes(node)
+            def include_gmt_helper(loader: Loader, node):
+                nodes = loader.get_constructed_nodes(node)
 
                 if not re.fullmatch(r'gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml', nodes[0]):
-                    raise ValueError(f"You tried include unallowed files with !include-gmt-helper function. Included files must conform to regex gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml but actually is {nodes[0]}")
+                    raise ValueError(f"You tried include unallowed files with !include-gmt-helper function. Included files must conform to regex gmt-playwright-(?:with-cache-)?(v\\d+.\\d+.\\d+)\\.yml but actually is {nodes[0]}")
 
                 filename = runner_join_paths(f"{GMT_ROOT_DIR}/templates/partials/", nodes[0], force_path_as_root=True, force_path_in_repo=False)
-                return self.process_include(filename, nodes)
 
-            def include(self, node):
+                return loader.process_include(filename, nodes)
 
-                nodes = self.get_constructed_nodes(node)
+            def include(loader: Loader, node):
+                nodes = loader.get_constructed_nodes(node)
 
                 try:
                     usage_scenario_dir = os.path.split(usage_scenario_file)[0]
@@ -417,10 +429,11 @@ class ScenarioRunner:
                 except RuntimeError as exc:
                     raise ValueError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
-                return self.process_include(filename, nodes)
+                return loader.process_include(filename, nodes)
 
-        Loader.add_constructor('!include', Loader.include)
-        Loader.add_constructor('!include-gmt-helper', Loader.include_gmt_helper)
+            Loader.add_constructor('!include', include)
+            Loader.add_constructor('!include-gmt-helper', include_gmt_helper)
+            return Loader
 
 
         # We set the working folder now to the actual location of the usage_scenario
@@ -434,11 +447,24 @@ class ScenarioRunner:
             usage_scenario = f.read()
             usage_scenario = replace_usage_scenario_variables(usage_scenario, self._usage_scenario_variables)
 
+            Loader = make_loader(
+                replacer=replace_usage_scenario_variables,
+                usage_scenario_variables=self._usage_scenario_variables,
+                usage_scenario_file=usage_scenario_file,
+            )
+
             if match := re.search(r'!include-gmt-helper gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml', usage_scenario):
                 self.__include_playwright_ipc_version = match[1]
 
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(usage_scenario, Loader)
+
+            #Check that all variables have been replaced
+            if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
+                raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
+
+            if len(self.__usage_scenario_variables_used_buffer) > 0:
+                raise ValueError(f"Usage Scenario Variables '{self.__usage_scenario_variables_used_buffer}' was not used in usage scenario. Please remove it or add it to the usage scenario.")
 
             # Now that we have parsed the yml file we need to check for the special case in which we have a
             # compose-file key. In this case we merge the data we find under this key but overwrite it with
@@ -759,11 +785,13 @@ class ScenarioRunner:
             # If build is a string we can assume the short form
             context = service['build']
             dockerfile = 'Dockerfile'
+            args = {}
         else:
             context =  service['build'].get('context', '.')
             dockerfile = service['build'].get('dockerfile', 'Dockerfile')
+            args = service['build'].get('args', {})
 
-        return context, dockerfile
+        return context, dockerfile, args
 
     def _clean_image_name(self, name):
         # clean up image name for problematic characters
@@ -805,7 +833,7 @@ class ScenarioRunner:
                 pass
 
             if 'build' in service:
-                context, dockerfile = self._get_build_info(service)
+                context, dockerfile, args = self._get_build_info(service)
                 print(f"Building {service['image']}")
                 self.__notes_helper.add_note( note=f"Building {service['image']}", detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
 
@@ -827,6 +855,10 @@ class ScenarioRunner:
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--cleanup=true',
                     '--no-push']
+
+                for arg_dict in args:
+                    for arg_key, arg_value in arg_dict.items():
+                        docker_build_command.append(f"--build-arg={arg_key}={arg_value}")
 
                 # docker agent might be configured to pull from a different, maybe even insecure registry
                 # We want to mirror that behaviour in GMT as we see it used in specially configured environments
@@ -2313,6 +2345,7 @@ class ScenarioRunner:
         self.__image_sizes.clear()
         self.__volume_sizes.clear()
         self.__warnings.clear()
+        self.__usage_scenario_variables_used_buffer.clear()
         self.__include_playwright_ipc_version = None
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
