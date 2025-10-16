@@ -401,7 +401,10 @@ class ScenarioRunner:
             def include_gmt_helper(self, node):
                 nodes = self.get_constructed_nodes(node)
 
-                filename = runner_join_paths(GMT_ROOT_DIR, f"templates/partials/{nodes[0]}", force_path_as_root=True, force_path_in_repo=False)
+                if not re.fullmatch(r'gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml', nodes[0]):
+                    raise ValueError(f"You tried include unallowed files with !include-gmt-helper function. Included files must conform to regex gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml but actually is {nodes[0]}")
+
+                filename = runner_join_paths(f"{GMT_ROOT_DIR}/templates/partials/", nodes[0], force_path_as_root=True, force_path_in_repo=False)
                 return self.process_include(filename, nodes)
 
             def include(self, node):
