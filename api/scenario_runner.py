@@ -218,8 +218,8 @@ async def get_network(run_id: str, user: User = Depends(authenticate)):
     params = (user.is_super_user(), user.visible_users(), run_id)
     data = DB().fetch_all(query, params=params)
 
-    if not data:
-        return ORJSONResponseObjKeep({'success': False, 'data': 'You do not have access to this run'}, status_code=403)
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 

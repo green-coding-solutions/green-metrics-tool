@@ -646,7 +646,11 @@ const fetchAndFillNetworkIntercepts = async (url_params) => {
     try {
         network = await makeAPICall('/v1/network/' + url_params['id'])
     } catch (err) {
-        showNotification('Could not get network intercepts data from API', err);
+        if (err instanceof APIEmptyResponse204) {
+            console.log('No network intercepts present in API response. Skipping error as this is allowed case.')
+        } else {
+            showNotification('Could not get network intercepts data from API', err);
+        }
         return
     }
 
