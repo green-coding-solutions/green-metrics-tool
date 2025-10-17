@@ -24,7 +24,7 @@ function sleep(ms) {
 
 async function gmtPlaywrightCache(url, sleep_duration) {
     await page.goto(url);
-    await sleep(sleep_duration);
+    await sleep(sleep_duration*1000);
     await context.close();
     context = await browser.newContext(contextOptions);
     page = await context.newPage();
