@@ -14,7 +14,7 @@ flow:
     hidden: true
     commands:
       - type: playwright
-        command: gmtPlaywrightCache("__GMT_VAR_PAGE__", __GMT_VAR_SLEEP__)
+        command: await gmtPlaywrightCache("__GMT_VAR_PAGE__", __GMT_VAR_SLEEP__);
 
   - name: Visit page and idle for __GMT_VAR_SLEEP__ s
     container: gmt-playwright-nodejs
