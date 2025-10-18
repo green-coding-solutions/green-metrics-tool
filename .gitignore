@@ -13,6 +13,8 @@ __pycache__
 /frontend/js/helpers/config.js
 /frontend/js/helpers/config.js.backup
 /sftp-config.json
+*.sublime-project
+*.sublime-workspace
 TODO
 /docker/compose.yml
 metric-provider-binary
