@@ -6,24 +6,24 @@ from email.mime.text import MIMEText
 from lib.global_config import GlobalConfig
 import math
 
+# message may not contain lines longer than 1000 chars (incl. \r\n) as some SMTP servers complain
+def chunk_message(message, max_chunk_length=998):
+    message_chunked = []
+    for line in message.splitlines():
+        if (length := len(line)) > max_chunk_length:
+            chunk_length = math.ceil(length / max_chunk_length)
+            chunks = [line[i*998:(i+1)*998] for i in range(0, chunk_length)]
+            message_chunked.extend(chunks)
+        else:
+            message_chunked.append(line)
+    return message_chunked
+
 def send_email(receiver, subject, message_input):
 
     config = GlobalConfig().config
 
-
-    # message may not contain lines longer than 1000 chars (incl. \r\n) as some SMTP servers complain
-
-    message_safe = []
-
-    for line in message_input.splitlines():
-        if (length := len(line)) > 998:
-            chunk_length = math.floor(length / 998)
-            chunks = [line[i:i+chunk_length] for i in range(0, length, chunk_length)]
-            message_safe.extend(chunks)
-        else:
-            message_safe.append(line)
-
-    message = '\n'.join(message_safe)
+    message_chunked = chunk_message(message_input)
+    message = '\n'.join(message_chunked)
     message = f"{message}\n\n---\n{config['cluster']['metrics_url']}"
 
     # body_html = f"""
