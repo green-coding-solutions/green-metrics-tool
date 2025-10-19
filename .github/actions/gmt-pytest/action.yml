@@ -116,7 +116,7 @@ runs:
     # for debugging purposes you can setup a ssh connection by setting 'inputs.enable-ssh' to true
     - name: Setup upterm session
       if: ${{ inputs.enable-ssh == 'true' }}
-      uses: owenthereal/action-upterm@v1
+      uses: owenthereal/action-upterm@77f40a48f26e70aa301b03ade2e4e58b6aa1c4ef
       with:
         limit-access-to-actor: true # Restrict to the user who triggered the workflow
 
