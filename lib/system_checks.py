@@ -41,7 +41,7 @@ def check_db(*_, **__):
     return True
 
 def check_docker_host_env(*_, **__):
-    return 'rootless' in subprocess.check_output(['docker', 'info'], encoding='UTF-8', errors='replace') and os.getenv("DOCKER_HOST", '') != ''
+    return 'rootless' not in subprocess.check_output(['docker', 'info'], encoding='UTF-8', errors='replace') or os.getenv('DOCKER_HOST', '') != ''
 
 def check_one_energy_and_scope_machine_provider(*_, **__):
     metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
