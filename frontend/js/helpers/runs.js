@@ -187,8 +187,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 el = escapeString(el);
 
                 // Show status labels based on run state
-                if(row[12] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
-                else if(row[11] == null) el = `${el} (in progress 🔥)`;
+                if(row[11] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
+                else if(row[10] == null) el = `${el} (in progress 🔥)`;
 
                 // Show warning label if warnings exist
                 if(row[5] != 0) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">Warnings</span>`;
@@ -214,7 +214,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     columns.push({ data: 3, title: '<i class="icon code branch"></i>Branch', render: (el, type, row) => escapeString(el) });
 
     columns.push({
-        data: 10,
+        data: 9,
         title: '<i class="icon history"></i>Commit</th>',
         render: function(el, type, row) {
           // Modify the content of the "Name" column here
@@ -230,8 +230,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             return `${escapeString(el)} ${usage_scenario_variables.join(' ')}`
         }
     });
-    columns.push({ data: 9, title: '<i class="icon laptop code"></i>Machine</th>', render: (el, type, row) => escapeString(el) });
-    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (el, type, row) => el == null ? '-' : `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${encodeURIComponent(row[2])}&branch=${encodeURIComponent(row[3])}&machine_id=${row[13]}&filename=${encodeURIComponent(row[6])}&metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>` });
+    columns.push({ data: 8, title: '<i class="icon laptop code"></i>Machine</th>', render: (el, type, row) => escapeString(el) });
+    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (el, type, row) => el == null ? '-' : `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${encodeURIComponent(row[2])}&branch=${encodeURIComponent(row[3])}&machine_id=${row[12]}&filename=${encodeURIComponent(row[6])}&metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>` });
 
     columns.push({
         data: 0,
