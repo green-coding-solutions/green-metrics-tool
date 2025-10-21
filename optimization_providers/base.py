@@ -86,7 +86,7 @@ async def fetch_all_data(run_id):
 
 
     #pylint: disable=no-member
-    return orjson.loads(run)['data'], orjson.loads(measurements)['data'], orjson.loads(network)['data'], orjson.loads(notes)['data'], orjson.loads(phase_stats)['data']
+    return orjson.loads(run)['data'], orjson.loads(measurements)['data'], orjson.loads(network)['data'] if network else None, orjson.loads(notes)['data'], orjson.loads(phase_stats)['data']
 
 async def query_all_data(user_id, run_id):
     # This call is used for shared environments, which however cannot access API endpoints.
@@ -111,7 +111,7 @@ async def query_all_data(user_id, run_id):
     return (
         orjson.loads(run.body)['data'],
         orjson.loads(measurements.body)['data'],
-        orjson.loads(network.body)['data'],
+        orjson.loads(network.body)['data'] if network.body else None, # can be 204 response and thus empty
         orjson.loads(notes.body)['data'],
         orjson.loads(phase_stats.body)['data']
     )
