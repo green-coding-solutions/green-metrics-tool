@@ -100,16 +100,24 @@ const showWarning = (phase, warning) => {
     Therefore this function relies on the current order of the steps and tabs and can only append new phases, but
     not prepend
 */
-const createPhaseTab = (phase) => {
+const createPhaseTab = (phase, hidden) => {
     let phase_tab_node = document.querySelector(`a.step[data-tab='${phase}']`);
 
     if(phase_tab_node == null) {
+
         let runtime_tab_node = document.querySelector('a.runtime-step');
         let cloned_tab_node = runtime_tab_node.cloneNode(true);
         cloned_tab_node.style.display = '';
         cloned_tab_node.innerText = phase;
         cloned_tab_node.setAttribute('data-tab', phase);
         runtime_tab_node.parentNode.appendChild(cloned_tab_node)
+
+        if (hidden === true) {
+            document.querySelector('#runtime-hidden-info').classList.remove('hidden');
+            const tab = document.querySelector(`.item.runtime-step[data-tab="${phase}"]`)
+            tab.innerHTML = `<i class="low vision icon"></i> <span class="hidden-phase-name hidden">${tab.innerText}</span>`
+            tab.classList.add("hidden-phase-tab")
+        }
 
         let phase_step_node = document.querySelector('.runtime-tab');
         let cloned_step_node = phase_step_node.cloneNode(true);
@@ -123,7 +131,7 @@ const createPhaseTab = (phase) => {
 const buildPhaseTabs = (phase_stats_object) => {
 
     for (const phase in phase_stats_object['data']) {
-        createPhaseTab(phase); // will not create already existing phase tabs
+        createPhaseTab(phase, phase_stats_object['data'][phase].hidden); // will not create already existing phase tabs
         createTableHeader(
             phase,
             phase_stats_object.comparison_identifiers,
@@ -131,6 +139,10 @@ const buildPhaseTabs = (phase_stats_object) => {
             phase_stats_object.comparison_identifiers.length
         )
     }
+
+    document.querySelectorAll('#runtime-sub-phases .item').forEach(el => {
+        el.addEventListener('click', showHiddenPhaseTab)
+    })
 
     $('.ui.steps.phases .step').tab({
         onLoad: function(value, text) {
@@ -178,7 +190,7 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
 
     window.__rendered_phases[phase] = true;
 
-    let phase_data = phase_stats_object['data'][phase];
+    let phase_data = phase_stats_object['data'][phase]['data'];
 
     let radar_chart_labels = [];
     let radar_chart_data = [...Array(phase_stats_object.comparison_identifiers.length)].map(e => Array(0));
@@ -331,7 +343,7 @@ const buildTotalChartData = (phase_stats_object) => {
     let transformed_total_chart_bottom_unit = null;
 
     for (const phase in phase_stats_object['data']) {
-        let phase_data = phase_stats_object['data'][phase];
+        let phase_data = phase_stats_object['data'][phase]['data'];
 
         total_chart_bottom_labels.push(phase);
         total_chart_bottom_legend[phase]  = [];
@@ -362,7 +374,7 @@ const buildTotalChartData = (phase_stats_object) => {
 
                     if (total_chart_bottom_condition(metric_name) && `${metric_name} ${detail_name}` == found_bottom_chart_metric) {
                         transformed_total_chart_bottom_unit = transformed_unit;
-                        if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
+                        if(total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
                             total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] = []
                         }
                         total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`].push(transformed_total_chart_bottom_mean)
@@ -376,7 +388,7 @@ const buildTotalChartData = (phase_stats_object) => {
         // this can for instance happen if a phase is too short and no metric was reported in the timespan
         for (const key in bottom_chart_present_keys) {
             if(bottom_chart_present_keys[key] == false) {
-                if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
+                if(total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
                     total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] = []
                 }
                 total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`].push(null)

@@ -1,0 +1,25 @@
+---
+name: "Website Test (__GMT_VAR_PAGE__)"
+author: Arne Tarara <arne@green-coding.io>
+description: "Opens __GMT_VAR_PAGE__ from a cache and waits for full load + 5 seconds"
+
+sci:
+  R_d: Website load
+
+compose-file: !include-gmt-helper gmt-playwright-with-cache-v1.0.0.yml
+
+flow:
+  - name: Warmup and Caching
+    container: gmt-playwright-nodejs
+    hidden: true
+    commands:
+      - type: playwright
+        command: await gmtPlaywrightCache("__GMT_VAR_PAGE__", __GMT_VAR_SLEEP__);
+
+  - name: Visit page and idle for __GMT_VAR_SLEEP__ s
+    container: gmt-playwright-nodejs
+    commands:
+      - type: playwright
+        command: await page.goto("__GMT_VAR_PAGE__");
+      - type: console
+        command: sleep __GMT_VAR_SLEEP__

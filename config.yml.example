@@ -37,11 +37,13 @@ cluster:
   client:
     sleep_time_no_job: 300
     jobs_processing: "random"
-    time_between_control_workload_validations: 21600
-    send_control_workload_status_mail: False
     shutdown_on_job_no: suspend
+    # These two parameters have only effect in cluster mode. When using CLI they will be set via flags --docker-prune and --full-docker-prune only
     docker_prune: True
     full_docker_prune: False
+    # define a workload to check cluster noise floor
+    time_between_control_workload_validations: 21600
+    send_control_workload_status_mail: False
     control_workload:
       name: "Measurement control Workload"
       uri: "https://github.com/green-coding-solutions/measurement-control-workload"
@@ -72,6 +74,7 @@ cluster:
           threshold: 0.01 # 1%
           type: stddev_rel
 
+
 machine:
   id: 1
   description: "Development machine for testing"
@@ -80,6 +83,8 @@ machine:
   base_temperature_feature: False
 
 measurement:
+  full_docker_prune_whitelist:
+    - gcr.io/kaniko-project/executor
   metric_providers:
   # Please select the needed providers according to the working ones on your system
   # More info https://docs.green-coding.io/docs/measuring/metric-providers

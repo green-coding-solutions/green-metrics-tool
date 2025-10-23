@@ -1,0 +1,51 @@
+---
+name: "Website Test (__GMT_VAR_PAGE__)"
+author: Arne Tarara <arne@green-coding.io>
+description: "Opens __GMT_VAR_PAGE__ from a cache and waits for full load + 5 seconds (with debug)"
+
+sci:
+  R_d: Website load
+
+compose-file: !include-gmt-helper gmt-playwright-with-cache-v1.0.0.yml
+
+flow:
+  - name: Warmup and Caching
+    container: gmt-playwright-nodejs
+    hidden: true
+    commands:
+      - type: playwright
+        command: gmtPlaywrightCache("__GMT_VAR_PAGE__")
+
+  - name: Dump Log (Warmup)
+    hidden: true
+    container: squid
+    commands:
+      - type: console
+        command: cat /apps/squid/var/logs/access.log
+      - type: console
+        command: grep 'TCP_MISS/' /apps/squid/var/logs/access.log #validate that TCP_MISSes present
+      - type: console
+        command: echo > /apps/squid/var/logs/access.log
+        shell: bash
+
+  - name: Visit page and idle for __GMT_VAR_SLEEP__ s
+    container: gmt-playwright-nodejs
+    commands:
+      - type: playwright
+        command: await page.goto("__GMT_VAR_PAGE__");
+      - type: console
+        command: sleep '__GMT_VAR_SLEEP__'
+
+  - name: Dump Log (Load and idle)
+    hidden: true
+    container: squid
+    commands:
+      - type: console
+        command: cat /apps/squid/var/logs/access.log
+        read-notes-stdout: true
+      - type: console
+        command: grep 'TCP_MEM_HIT/' /apps/squid/var/logs/access.log #validate that TCP_MEM_HITs present
+        # This is sadly too strict. Pages fingerprint you all the time and a new request might get a new fingerprint that will not be cached
+        # But if you have a page that does not fingerprint we recommend having this uncommented, as it will warn you if resources bypass the cache pre-loading
+#      - type: console
+#        command: awk '/TCP_MISS\// { found=1 } END { exit found }' /apps/squid/var/logs/access.log # ensure no TCP_MISSes present

@@ -107,7 +107,22 @@ class SchemaChecker():
                     Optional('init'): bool,
                     Optional('type'): Use(self.valid_service_types),
                     Optional('image'): And(str, Use(self.not_empty)),
-                    Optional('build'): Or(Or({And(str, Use(self.not_empty)):And(str, Use(self.not_empty))},list),And(str, Use(self.not_empty))),
+                    Optional('build'): Or(
+                        And(str, Use(self.not_empty)),
+                        {
+                            Optional('context'): And(str, Use(self.not_empty)),
+                            Optional('dockerfile'): And(str, Use(self.not_empty)),
+                            Optional('args'): Or(
+                                {And(str, Use(self.not_empty)): Or(str, int, float, bool, None)},
+                                [
+                                    Or(
+                                        And(str, Use(self.not_empty)),
+                                        {And(str, Use(self.not_empty)): Or(str, int, float, bool, None)}
+                                    )
+                                ]
+                            ),
+                        }
+                    ),
                     Optional('networks'): Or(
                         [And(str, Use(self.contains_no_invalid_chars))],
                         {
@@ -176,6 +191,7 @@ class SchemaChecker():
              'flow': [{
                 'name': And(str, Use(self.not_empty), Regex(r'^[\.\s0-9a-zA-Z_\(\)-]+$')),
                 'container': And(str, Use(self.not_empty), Use(self.contains_no_invalid_chars)),
+                Optional('hidden'): bool,
                 'commands': [{
                     'type': Or('console', 'playwright'),
                     'command': And(str, Use(self.not_empty)),

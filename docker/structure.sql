@@ -216,7 +216,7 @@ CREATE TRIGGER machines_moddatetime
 -- Default password for authentication is DEFAULT
 INSERT INTO "public"."machines"("description", "available")
 VALUES
-(E'Local machine', true);
+(E'Development machine for testing', true);
 
 
 CREATE TABLE jobs (
@@ -241,6 +241,10 @@ CREATE TRIGGER jobs_moddatetime
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 
+INSERT INTO "jobs"("type","state","name","email","url","branch","filename","usage_scenario_variables","categories","machine_id","message","user_id","created_at","updated_at")
+	VALUES
+	(E'run',E'FINISHED',E'This is a demo job - Please delete when you run in cluster mode',NULL,E'demo-url',E'demo-branch',E'demo-filename',E'{}',NULL,1,NULL,1,E'2025-10-03 07:57:29.829712+00',NULL);
+
 CREATE TABLE runs (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     job_id integer REFERENCES jobs(id) ON DELETE SET NULL ON UPDATE CASCADE UNIQUE,
@@ -252,6 +256,7 @@ CREATE TABLE runs (
     categories int[],
     usage_scenario json,
     usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
+    usage_scenario_dependencies jsonb,
     filename text NOT NULL,
     machine_specs jsonb,
     runner_arguments json,
@@ -279,8 +284,7 @@ CREATE TABLE measurement_metrics (
     run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
     metric text NOT NULL,
     detail_name text NOT NULL,
-    unit text NOT NULL,
-    sampling_rate_configured int NOT NULL
+    unit text NOT NULL
 );
 
 CREATE UNIQUE INDEX measurement_metrics_get ON measurement_metrics(run_id,metric,detail_name); -- technically we could allow also different units, but we want to see the use case for that first. Also a lot of code relies on detail_name to be the final discriminator (e.g. metric providers .transform(utils.df_fill_mean) etc.m which then need to be rewritten)
@@ -295,7 +299,6 @@ CREATE TABLE measurement_values (
 );
 
 CREATE INDEX measurement_values_mmid ON measurement_values(measurement_metric_id);
-CREATE UNIQUE INDEX measurement_values_unique ON measurement_values(measurement_metric_id, time);
 
 CREATE TABLE network_intercepts (
     id SERIAL PRIMARY KEY,
@@ -339,6 +342,7 @@ CREATE TABLE phase_stats (
     sampling_rate_max int,
     sampling_rate_95p int,
     unit text NOT NULL,
+    hidden boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -513,3 +517,5 @@ CREATE TRIGGER cluster_status_messages_moddatetime
     BEFORE UPDATE ON cluster_status_messages
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
+
+INSERT INTO "cluster_status_messages"("message") VALUES('GMT is currently not running in cluster mode and thus status messages are not active - This is just a demo message to show the capabilites of the status message system. You can ignore it when using GMT locally. But please delete it when running in cluster mode');

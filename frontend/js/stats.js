@@ -87,7 +87,7 @@ const fetchAndFillRunData = async (url_params) => {
 
     for (const item in run_data) {
         if (item == 'machine_id') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])} (${escapeString(GMT_MACHINES[run_data?.[item]] || run_data?.[item])})</td></tr>`);
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])} (${escapeString(GMT_MACHINES[run_data[item]] || run_data[item])})</td></tr>`);
         } else if (item == 'runner_arguments') {
             fillRunTab('#runner-arguments', run_data[item]); // recurse
         } else if (item == 'machine_specs') {
@@ -104,6 +104,8 @@ const fetchAndFillRunData = async (url_params) => {
             } else {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
+        } else if(item == 'usage_scenario_dependencies') {
+            renderUsageScenarioDependencies(run_data[item]);
 
         } else if(item == 'logs') {
             const logsData = run_data[item];
@@ -127,24 +129,24 @@ const fetchAndFillRunData = async (url_params) => {
             }
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
-        } else if(item == 'phases' || item == 'id') {
+        } else if(item == 'id' || item == 'phases') {
             // skip
         }  else if(item == 'commit_hash') {
-            if (run_data?.[item] == null) continue; // some old runs did not save it
+            if (run_data[item] == null) continue; // some old runs did not save it
             let commit_link = buildCommitLink(run_data);
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data?.[item])}</a></td></tr>`)
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data[item])}</a></td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])}</td></tr>`)
-        } else if(item == 'failed' && run_data?.[item] == true) {
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
+        } else if(item == 'failed' && run_data[item] == true) {
             document.querySelector('#run-failed').classList.remove('hidden');
         } else if(item == 'start_measurement' || item == 'end_measurement') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data?.[item])}">${new Date(run_data?.[item] / 1e3)}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item] / 1e3)}</td></tr>`)
         } else if(item == 'created_at' ) {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data?.[item])}">${new Date(run_data?.[item])}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item])}</td></tr>`)
         } else if(item == 'gmt_hash') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data?.[item]}">${escapeString(run_data?.[item])}</a></td></tr>`);
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data[item]}">${escapeString(run_data[item])}</a></td></tr>`);
         } else if(item == 'uri') {
-            const uri = run_data?.[item];
+            const uri = run_data[item];
             let uriDisplay;
             if(uri.startsWith('http')) {
                 // URI is safe for href attribute: validated to have http/https protocol prevents XSS
@@ -155,7 +157,7 @@ const fetchAndFillRunData = async (url_params) => {
             }
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
         } else {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data?.[item])}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
         }
     }
 
@@ -191,7 +193,7 @@ const fillRunTab = async (selector, data, parent = '') => {
             }
             fillRunTab(selector, data[item], `${item}.`)
         } else {
-            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data?.[item])}</td></tr>`)
+            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data[item])}</td></tr>`)
         }
     }
 }
@@ -644,7 +646,11 @@ const fetchAndFillNetworkIntercepts = async (url_params) => {
     try {
         network = await makeAPICall('/v1/network/' + url_params['id'])
     } catch (err) {
-        showNotification('Could not get network intercepts data from API', err);
+        if (err instanceof APIEmptyResponse204) {
+            console.log('No network intercepts present in API response. Skipping error as this is allowed case.')
+        } else {
+            showNotification('Could not get network intercepts data from API', err);
+        }
         return
     }
 
@@ -826,7 +832,7 @@ function copyTextToClipboard(text) {
 }
 
 const fetchTimelineData = async (url_params) => {
-    document.querySelector('#api-loader').style.display = '';
+    document.querySelector('#api-loader').classList.remove('hidden');
     document.querySelector('#loader-question').remove();
 
     let measurements = null;
@@ -874,8 +880,205 @@ const fetchAndFillWarnings = async (url_params) => {
 
 
 
+// Templates for usage scenario dependencies
+const dependenciesTemplates = {
+    container: `
+        <div class="ui segment">
+            <h4 class="ui dividing header">Container: {{containerName}}</h4>
+            <div class="ui secondary segment">
+                <strong>Image:</strong> {{image}}<br>
+                <strong>Hash:</strong> <code>{{hash}}</code>
+            </div>
+            {{scopeContent}}
+        </div>
+    `,
+
+    scopeAccordion: `
+        <div class="ui accordion">
+            {{accordionItems}}
+        </div>
+    `,
+
+    accordionItem: `
+        <div class="title">
+            <i class="dropdown icon"></i>
+            {{scopeDisplayName}} Packages ({{totalDeps}} packages)
+        </div>
+        <div class="content">
+            {{scopeMetadata}}
+            {{depsTable}}
+        </div>
+    `,
+
+    scopeMetadata: `
+        <div>
+            {{metadataContent}}
+        </div>
+    `,
+
+    depsTable: `
+        <table class="ui celled compact table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Version</th>
+                    <th>Hash</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{tableRows}}
+            </tbody>
+        </table>
+    `,
+
+    depsTableRow: `
+        <tr>
+            <td>{{depName}}</td>
+            <td>{{version}}</td>
+            <td><code title="{{fullHash}}">{{truncatedHash}}</code></td>
+        </tr>
+    `,
+
+    noDepsMessage: `<div class="ui message">{{message}}</div>`
+};
+
+function renderUsageScenarioDependencies(dependenciesData) {
+    const dependenciesSection = document.querySelector("#usage-scenario-dependencies");
+
+    if (!dependenciesData || Object.keys(dependenciesData).length === 0) {
+        dependenciesSection.insertAdjacentHTML('beforeend',
+            dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependency information available</em>')
+        );
+        return;
+    }
+
+    let containersHTML = '';
+
+    for (const containerName in dependenciesData) {
+        const containerData = dependenciesData[containerName];
+        const containerInfo = containerData['source'] || {};
+
+        const image = escapeString(containerInfo.image || 'N/A');
+        const hash = escapeString(containerInfo.hash || 'N/A');
+
+        const packageManagers = Object.keys(containerData).filter(key => key !== 'source');
+
+        let packageManagerContent = '';
+
+        if (packageManagers.length > 0) {
+            const accordionItems = buildPackageManagerAccordionItems(packageManagers, containerData);
+
+            packageManagerContent = dependenciesTemplates.scopeAccordion.replace('{{accordionItems}}', accordionItems);
+        } else {
+            packageManagerContent = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
+        }
+
+        const containerHTML = dependenciesTemplates.container
+            .replace('{{containerName}}', escapeString(containerName))
+            .replace('{{image}}', image)
+            .replace('{{hash}}', hash)
+            .replace('{{scopeContent}}', packageManagerContent);
+
+        containersHTML += containerHTML;
+    }
+
+    dependenciesSection.insertAdjacentHTML('beforeend', containersHTML);
+
+    // Initialize accordions
+    setTimeout(() => {
+        dependenciesSection.querySelectorAll('.ui.accordion').forEach(accordion => {
+            $(accordion).accordion();
+        });
+    }, 0);
+}
+
+function buildSingleAccordionItem(packageManager, displayName, data) {
+    const dependencies = data.dependencies || {};
+    const dependenciesArray = Object.entries(dependencies).map(([name, pkgData]) => ({
+        name: name,
+        version: pkgData.version || 'N/A',
+        type: packageManager,
+        hash: pkgData.hash || 'N/A'
+    }));
+    const totalDeps = dependenciesArray.length;
+
+    // Build metadata content
+    let metadataContent = '';
+    if (data.scope) {
+        metadataContent += `<strong>Scope:</strong> ${escapeString(data.scope)}<br>`;
+    }
+    if (data.location) {
+        metadataContent += `<strong>Location:</strong> ${escapeString(data.location)}<br>`;
+    }
+    if (data.hash) {
+        metadataContent += `<strong>Hash:</strong> <code>${escapeString(data.hash)}</code><br>`;
+    }
+
+    const packageManagerMetadata = metadataContent ?
+        dependenciesTemplates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
+
+    let depsTable = '';
+    if (totalDeps > 0) {
+        const tableRows = buildDependencyTableRows(dependenciesArray);
+        depsTable = dependenciesTemplates.depsTable.replace('{{tableRows}}', tableRows);
+    } else {
+        depsTable = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependencies found</em>');
+    }
+
+    return dependenciesTemplates.accordionItem
+        .replace('{{scopeDisplayName}}', escapeString(displayName))
+        .replace('{{totalDeps}}', totalDeps)
+        .replace('{{scopeMetadata}}', packageManagerMetadata)
+        .replace('{{depsTable}}', depsTable);
+}
+
+function buildPackageManagerAccordionItems(packageManagers, containerData) {
+    let accordionItems = '';
+
+    packageManagers.forEach(packageManager => {
+        const packageManagerData = containerData[packageManager];
+
+        // Check if this is a mixed-scope with multiple locations
+        if (packageManagerData.locations) {
+            // Handle mixed-scope with multiple locations
+            for (const [location, locationData] of Object.entries(packageManagerData.locations)) {
+                const scope = locationData.scope || 'unknown';
+                const displayName = `${packageManager} (${scope})`;
+                const dataWithLocation = { ...locationData, location: location };
+                accordionItems += buildSingleAccordionItem(packageManager, displayName, dataWithLocation);
+            }
+        } else {
+            // Handle system or project scope with direct dependencies
+            accordionItems += buildSingleAccordionItem(packageManager, packageManager, packageManagerData);
+        }
+    });
+
+    return accordionItems;
+}
+
+function buildDependencyTableRows(packages) {
+    let tableRows = '';
+
+    packages.forEach(pkg => {
+        const version = escapeString(pkg.version || 'N/A');
+        const depHash = pkg.hash || 'N/A';
+        const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
+
+        const row = dependenciesTemplates.depsTableRow
+            .replace('{{depName}}', escapeString(pkg.name || 'N/A'))
+            .replace('{{version}}', version)
+            .replace('{{fullHash}}', escapeString(depHash))
+            .replace('{{truncatedHash}}', escapeString(truncatedHash));
+
+        tableRows += row;
+    });
+
+    return tableRows;
+}
+
+
 /* Chart starting code*/
-$(document).ready( (e) => {
+$(document).ready( () => {
     (async () => {
 
         $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
@@ -888,15 +1091,16 @@ $(document).ready( (e) => {
             return;
         }
 
-        fetchAndFillRunData(url_params);
+        // run all without await, as they have no blocking visuals or depended upon changes
         fetchAndFillNetworkIntercepts(url_params);
         fetchAndFillOptimizationsData(url_params);
         fetchAndFillAIData(url_params);
         fetchAndFillWarnings(url_params);
+        fetchAndFillRunData(url_params);
 
         (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
             const phase_stats = await fetchAndFillPhaseStatsData(url_params);
-            renderBadges(url_params, phase_stats?.data?.data['[RUNTIME]']);
+            renderBadges(url_params, phase_stats?.data?.data?.['[RUNTIME]']?.data); // phase_stats can be empty when returned if run is broken or not done. thus the safe access
         })();
 
 
@@ -907,7 +1111,7 @@ $(document).ready( (e) => {
             ]);
             if (timeline_data == null) {
                 document.querySelector('#api-loader').remove()
-                document.querySelector('#message-chart-load-failure').style.display = '';
+                document.querySelector('#message-chart-load-failure').classList.remove('hidden');
                 return
             }
             const timeline_chart_data = await buildTimelineChartData(timeline_data);
@@ -921,7 +1125,7 @@ $(document).ready( (e) => {
 
                 if (timeline_data == null) {
                     document.querySelector('#api-loader').remove()
-                    document.querySelector('#message-chart-load-failure').style.display = '';
+                    document.querySelector('#message-chart-load-failure').classList.remove('hidden');
                     return
                 }
                 const timeline_chart_data = await buildTimelineChartData(timeline_data);

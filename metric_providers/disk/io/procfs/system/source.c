@@ -39,9 +39,6 @@ static void output_get_disk_procfs() {
     get_adjusted_time(&now, &offset);
 
     while (fgets(buf, 1024, fd)) {
-        // We are not counting dropped packets, as we believe they will at least show up in the
-        // sender side as not dropped.
-        // Since we are iterating over all relevant docker containers we should catch these packets at least in one /proc/net/dev file
         match_result = sscanf(buf, "%u %u %15s %*u %*u %llu %*u %*u %*u %llu", &major_number, &minor_number, device_name, &sectors_read, &sectors_written);
         if (match_result != 5) {
             fprintf(stderr, "Could not match /proc/diskstats pattern in %s. Amount was %d\n", buf, match_result);

@@ -68,7 +68,7 @@ class BaseMetricProvider:
             result = subprocess.run(cmd,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
-                                check=False, encoding='UTF-8')
+                                check=False, encoding='UTF-8', errors='replace')
             if result.returncode == 1:
                 pass
             elif result.returncode == 0:
@@ -90,14 +90,14 @@ class BaseMetricProvider:
         if self._ps.stderr is not None:
             stderr_read = self._ps.stderr.read()
             if isinstance(stderr_read, bytes):
-                stderr_read = stderr_read.decode('utf-8')
+                stderr_read = stderr_read.decode('utf-8', errors='replace')
         return stderr_read
 
     def has_started(self):
         return self._has_started
 
     def _check_monotonic(self, df):
-        if not df['time'].is_monotonic_increasing:
+        if not df['time'].is_monotonic_increasing: # this is not strict. Means we still can have duplicates which is checked later
             raise ValueError(f"Time from metric provider {self._metric_name} is not monotonic increasing")
 
     def _check_resolution_underflow(self, df):
@@ -156,25 +156,29 @@ class BaseMetricProvider:
             df['unit'] = self._unit
         if 'metric' not in df.columns:
             df['metric'] = self._metric_name
-        df['sampling_rate_configured'] = self._sampling_rate
         return df
+
+    def _check_unique(self, df):
+        if not (df.groupby(['metric', 'detail_name'])['time'].transform('nunique') == df.groupby(['metric', 'detail_name'])['time'].transform('size')).all():
+            raise ValueError(f"Metric provider {self._metric_name} did contain non unique timestamps for measurement values. This is not allowed and indicates an error with the clock.")
 
     @final
     def read_metrics(self): # should not be overriden
 
         df = self._read_metrics() # is not always returning a data frame, but can in rare cases also return a list if no actual numeric measurements are captured
 
-        self._check_empty(df)
+        self._check_empty(df) # initial check bc it is cheap
 
         self._check_monotonic(df) # check must be made before data frame is potentially sorted in _parse_metrics
         self._check_resolution_underflow(df)
 
-        df = self._parse_metrics(df)
+        df = self._parse_metrics(df) # can return DataFrame or [] when metrics are expanded
 
         def process_df(df):
             df = self._add_auxiliary_fields(df)
             df = self._add_and_validate_sampling_rate_and_jitter(df)
-            self._check_empty(df)
+            self._check_unique(df)
+            self._check_empty(df) # final check bc _parse_metrics could have altered the dataframe
             return df
 
         return process_df(df) if not isinstance(df, list) else [process_df(dfi) for dfi in df]

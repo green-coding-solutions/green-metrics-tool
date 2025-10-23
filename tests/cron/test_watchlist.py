@@ -23,6 +23,12 @@ WATCHLIST_ITEM = {
 
 GMT_LAST_COMMIT_HASH = utils.get_repo_last_marker(WATCHLIST_ITEM['repo_url'], 'commits')
 
+@pytest.fixture(autouse=True, scope="function")
+def delete_jobs_from_DB():
+    DB().query('DELETE FROM jobs')
+    yield
+
+
 def test_run_schedule_one_off_broken():
     watchlist_item_modified = WATCHLIST_ITEM.copy()
     watchlist_item_modified['schedule_mode'] = 'one-off'

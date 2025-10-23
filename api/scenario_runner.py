@@ -5,7 +5,7 @@ from xml.sax.saxutils import escape as xml_escape
 from datetime import date, datetime, timedelta
 import pprint
 
-from fastapi import APIRouter, Response, Depends
+from fastapi import APIRouter, HTTPException, Response, Depends
 from fastapi.responses import ORJSONResponse
 from fastapi.exceptions import RequestValidationError
 
@@ -195,9 +195,16 @@ async def get_warnings(run_id, user: User = Depends(authenticate)):
 
 
 @router.get('/v1/network/{run_id}')
-async def get_network(run_id, user: User = Depends(authenticate)):
+async def get_network(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        return ORJSONResponseObjKeep({'success': False, 'data': 'Run ID is not a valid UUID or empty'}, status_code=422)
+
+    run_exists = DB().fetch_one(
+        "SELECT 1 FROM runs WHERE id = %s",
+        params=(run_id,)
+    )
+    if not run_exists:
+        return ORJSONResponseObjKeep({'success': False, 'data': 'Run not found'}, status_code=404)
 
     query = '''
             SELECT ni.*
@@ -207,9 +214,12 @@ async def get_network(run_id, user: User = Depends(authenticate)):
                 (TRUE = %s OR r.user_id = ANY(%s::int[]))
                 AND ni.run_id = %s
             ORDER BY ni.time
-    '''
+        '''
     params = (user.is_super_user(), user.visible_users(), run_id)
     data = DB().fetch_all(query, params=params)
+
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
@@ -423,6 +433,8 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
 
     except RuntimeError as err:
         raise RequestValidationError(str(err)) from err
+    except HTTPException as err:
+        return ORJSONResponseObjKeep({'success': False, 'data': err.detail}, status_code=err.status_code)
 
     if not force_mode: # force_mode must never store data
         store_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}", orjson.dumps(phase_stats_object)) # pylint: disable=no-member
@@ -784,8 +796,10 @@ def old_v1_run_endpoint():
 async def get_run(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
         raise RequestValidationError('Run ID is not a valid UUID or empty')
-
-    data = get_run_info(user, run_id)
+    try:
+        data = get_run_info(user, run_id)
+    except HTTPException as err:
+        return ORJSONResponseObjKeep({'success': False, 'data': err.detail}, status_code=err.status_code)
 
     if data is None or data == []:
         return Response(status_code=204) # No-Content

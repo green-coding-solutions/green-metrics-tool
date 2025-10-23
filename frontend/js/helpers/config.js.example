@@ -509,7 +509,7 @@ METRIC_MAPPINGS = {
     },
     "network_total_procfs_system": {
         "clean_name": "Network Traffic",
-        "source": "formula",
+        "source": "procfs",
         "explanation": "Network total data traffic for the whole accumulated from procfs data"
     },
     "gpu_energy_nvidia_nvml_component": {

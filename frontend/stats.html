@@ -85,6 +85,9 @@
                         </div>
                         <h3>Usage Scenario File</h3>
                         <div id="usage-scenario"></div>
+                        <h3>Usage Scenario Dependencies</h3>
+                        <div id="usage-scenario-dependencies">
+                        </div>
                     </div>
                     <div class="ui tab segment" data-tab="six">
                         <div id="logs"></div>
@@ -277,6 +280,12 @@
             </div>
             <!-- We are using a trick here. The selection works on [RUNTIME] but will match this tab still, as it is the first by default -->
             <div class="ui bottom attached active tab segment" data-tab="[[RUNTIME]]">
+                <div id="runtime-hidden-info" class="ui info message hidden">
+                    <div class="header">
+                        Flow contains hidden phases
+                    </div>
+                    <p>Note: Hidden phases (<i class="low vision icon"></i>) do not contribute to RUNTIME totals</p>
+                </div>
                 <div class="ui warning message hidden">
                     <div class="header">
                         <i class="notched warning icon"></i> This phase has some warnings
@@ -385,7 +394,7 @@
             </div>
         </div>
 
-        <div class="ui two cards" id="api-loader" style="display:none;">
+        <div id="api-loader" class="ui two cards hidden">
             <div class="card" style="min-height: 300px">
                 <div class="ui active dimmer">
                     <div class="ui indeterminate text loader">Waiting for API data</div>
@@ -399,7 +408,7 @@
                 <p></p>
             </div>
         </div>
-        <div id="message-chart-load-failure"class="ui icon message red" style="display: none;">
+        <div id="message-chart-load-failure" class="ui icon message red hidden">
             <i class="info circle icon"></i>
             <div class="content">
                 <div class="header">

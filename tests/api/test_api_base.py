@@ -1,12 +1,14 @@
 import json
 import os
 import requests
+import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.user import User
 from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
+from tests.test_functions import delete_jobs_from_DB # pylint: disable=unused-import
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
@@ -87,8 +89,13 @@ def test_machines():
     json_data = json.loads(response.text)
 
     assert json_data['data'][0][0] == 1
-    assert json_data['data'][0][1] == 'Local machine'
+    assert json_data['data'][0][1] == 'Development machine for testing'
 
-def test_jobs():
+def test_jobs_with_dummy_job():
+    response = requests.get(f"{API_URL}/v2/jobs", timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    assert response.status_code == 200
+
+@pytest.mark.usefixtures('delete_jobs_from_DB')
+def test_jobs_clean():
     response = requests.get(f"{API_URL}/v2/jobs", timeout=15, headers={'X-Authentication': 'DEFAULT'})
     assert response.status_code == 204

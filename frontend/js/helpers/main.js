@@ -2,17 +2,14 @@ const GMT_MACHINES = JSON.parse(localStorage.getItem('gmt_machines')) || {}; // 
 
 class APIEmptyResponse204 extends Error {}
 
-// tricky to make this async as some other functions will depend on the value of the variable
-// but if it is not set yet it will populate in a later call
-const resolveMachinesToGlobalVariable = async () => {
-    if (Object.keys(GMT_MACHINES).length === 0) {
-        const api_data = await makeAPICall('/v1/machines')
-        api_data.data.forEach(el => {
-            GMT_MACHINES[el[0]] = el[1];
-        })
-    }
-    localStorage.setItem('gmt_machines', JSON.stringify(GMT_MACHINES));
-}
+const date_options = {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false
+};
 
 /*
     WebComponent function without ShadowDOM
@@ -77,7 +74,7 @@ class GMTMenu extends HTMLElement {
                 </a>
             </div>
             <div class="sticky-container">
-                <a href="href="https://www.green-coding.io">
+                <a href="https://www.green-coding.io">
                   <img class="ui fluid image menu-logo" src="/images/green-coding-menu-logo-2x.webp"
                        srcset="/images/green-coding-menu-logo.webp 1x,
                                /images/green-coding-menu-logo-2x.webp 2x"
@@ -91,6 +88,38 @@ class GMTMenu extends HTMLElement {
     }
 }
 customElements.define('gmt-menu', GMTMenu);
+
+// tricky to make this async as some other functions will depend on the value of the variable
+// but if it is not set yet it will populate in a later call
+const resolveMachinesToGlobalVariable = async () => {
+    if (Object.keys(GMT_MACHINES).length === 0) {
+        const api_data = await makeAPICall('/v1/machines')
+        api_data.data.forEach(el => {
+            GMT_MACHINES[el[0]] = el[1];
+        })
+    }
+    localStorage.setItem('gmt_machines', JSON.stringify(GMT_MACHINES));
+}
+
+
+const getClusterStatus = async (status_ok_selector, status_warning_selector) => {
+    try {
+        cluster_status_data = await makeAPICall('/v1/cluster/status')
+
+        const container = document.querySelector('.cluster-health-message.yellow #cluster-health-warnings');
+        cluster_status_data.data.forEach(message => {
+            container.insertAdjacentHTML('beforeend', `<p id="message-${message[0]}"><b>${new Date(message[3]).toLocaleDateString('sv-SE', date_options)}</b>: ${message[1]}</p>`);
+        })
+        document.querySelector('.cluster-health-message.yellow').style.display = 'flex'; // show
+
+    } catch (err) {
+        if (err instanceof APIEmptyResponse204) {
+            document.querySelector('.cluster-health-message.success').style.display = 'flex'; // show
+        } else {
+            showNotification('Could not get cluster health status data from API', err); // no return as we want other calls to happen
+        }
+    }
+}
 
 const dateTimePicker = (days_before=30, url_params=null) => {
 
@@ -215,12 +244,12 @@ const showNotification = (message_title, message_text, type='error') => {
 
 const copyToClipboard = async (e) => {
   e.preventDefault();
-  
+
   if (!navigator?.clipboard?.writeText) {
     alert('Clipboard API not supported');
     return;
   }
-  
+
   try {
     const htmlContent = e.currentTarget.previousElementSibling.innerHTML;
     await navigator.clipboard.writeText(htmlContent);
@@ -354,7 +383,22 @@ const numberFormatterLong = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 4,
 });
 
-$(document).ready(function () {
+const showHiddenPhaseTab = (el) => {
+    if (el.currentTarget.classList.contains('hidden-phase-tab')) {
+        el.currentTarget.querySelector('.hidden-phase-name').classList.remove('hidden');
+    } else {
+        document.querySelectorAll('.hidden-phase-name').forEach(matched_el => {
+            matched_el.classList.add('hidden');
+        })
+    }
+}
+
+
+if (localStorage.getItem('closed_descriptions') == null) {
+    localStorage.setItem('closed_descriptions', '');
+}
+
+$(document).ready(() => {
     $(document).on('click','#menu-toggle.closed', openMenu);
     $(document).on('click','#menu-toggle.opened', closeMenu);
 
@@ -363,19 +407,15 @@ $(document).ready(function () {
         $('#menu').removeClass('opened').addClass('closed');
         $('#main').removeClass('opened').addClass('closed');
     }
-});
 
-if (localStorage.getItem('closed_descriptions') == null) {
-    localStorage.setItem('closed_descriptions', '');
-}
-
-$(document).ready(() => {
     $("body").removeClass("preload"); // activate tranisition CSS properties again
+
     const closed_descriptions = localStorage.getItem('closed_descriptions');
     $('.close').on('click', function() {
         $(this).closest('.ui').transition('fade');
         localStorage.setItem('closed_descriptions', `${closed_descriptions},${window.location.pathname}`)
     });
+
     if (closed_descriptions.indexOf(window.location.pathname) !== -1) {
         document.querySelectorAll('i.close.icon').forEach(el => { el.closest('.ui').remove()}
         )

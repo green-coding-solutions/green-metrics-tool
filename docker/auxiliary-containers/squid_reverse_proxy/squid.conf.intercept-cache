@@ -60,11 +60,13 @@ access_log /apps/squid/var/logs/access.log squid
 
 debug_options ALL,1
 
-cache_mem 10 MB
-cache_dir ufs /apps/squid/var/cache/squid 100 16 256
+cache_mem 1000 MB
+maximum_object_size_in_memory 100 MB
+maximum_object_size 100 MB
+cache_dir ufs /apps/squid/var/cache/squid 2000 16 256
 
 # This patterns means that we cache everything forever
-refresh_pattern . 1000000 100% 1000000
+refresh_pattern . 1000000 100% 1000000 override-expire ignore-private ignore-no-store
 
 coredump_dir /apps/squid/var/cache
 
