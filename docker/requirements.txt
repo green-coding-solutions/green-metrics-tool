@@ -11,7 +11,7 @@ orjson==3.11.3
 scipy==1.16.2
 schema==0.7.8
 deepdiff==8.6.1
-redis==6.4.0
+redis==7.0.0
 hiredis==3.3.0
 requests==2.32.5
 uvicorn-worker==0.4.0
