@@ -217,7 +217,7 @@ async def get_cluster_changelog(
     machine_id_condition = ''
 
     if machine_id is not None:
-        machine_id_condition = 'AND machine_id = %'
+        machine_id_condition = 'AND machine_id = %s'
         params.append(machine_id)
 
     query = f"""
