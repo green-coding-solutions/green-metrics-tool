@@ -140,6 +140,10 @@ def check_suspend(*, run_duration):
 
     return 'Entering' not in ps.stdout and 'suspend' not in ps.stdout
 
+def check_steal_time(*_, **__):
+    return math.isclose(getattr(psutil.cpu_times(), 'steal', 0.0), 0.0, abs_tol=1e-6) # safe check for float == 0.0
+
+
 ######## END CHECK FUNCTIONS ########
 
 start_checks = (
@@ -162,6 +166,8 @@ start_checks = (
 
 end_checks = (
     (check_suspend, Status.ERROR, 'system suspend', 'System has gone into suspend during measurement. This will skew all measurement data. If GMT shall ever be able to correctly account for suspend states please note that metric providers must support CLOCK_BOOTIME. See https://github.com/green-coding-solutions/green-metrics-tool/pull/1229 for discussion.'),
+    (check_steal_time, Status.ERROR, 'cpu steal time', 'The CPU has accounted steal time. This means the measurement could have been interrupted and / or the VM that you are running in halted. This will lead to broken measurement data as time jumps can occur.'),
+
 )
 
 def system_check(mode='start', system_check_threshold=3, run_duration=None):
