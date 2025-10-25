@@ -968,7 +968,7 @@ class TestXssSecurity:
 
         # Test 1: Runs page
         page.goto(base_url + '/runs.html')
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("networkidle", timeout=10000)
         page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
 
         runs_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
@@ -977,7 +977,7 @@ class TestXssSecurity:
         # Test 2: Stats page
         stats_url = f"{base_url}/stats.html?id={run_id}"
         page.goto(stats_url)
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("networkidle", timeout=10000)
         page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
 
         stats_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
@@ -985,7 +985,7 @@ class TestXssSecurity:
 
         # Test 3: Watchlist page
         page.goto(base_url + '/watchlist.html')
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("networkidle", timeout=10000)
         page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
 
         watchlist_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
@@ -994,7 +994,7 @@ class TestXssSecurity:
         # Test 4: Timeline page
         timeline_url = f"{base_url}/timeline.html?uri={malicious_uri}&branch={malicious_branch}&filename={malicious_filename}&machine_id=1"
         page.goto(timeline_url)
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("networkidle", timeout=10000)
         page.wait_for_function("() => document.querySelector('input[name=\"uri\"]')?.value.includes('evil.com')", timeout=10000)
 
         timeline_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
@@ -1003,7 +1003,7 @@ class TestXssSecurity:
         # Test 5: Compare page (commit hashes comparison view includes repository uri, filename and usage scenario)
         compare_url = f"{base_url}/compare.html?ids={run_id},{run_id2}&force_mode=commit_hashes"
         page.goto(compare_url)
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("networkidle", timeout=10000)
         page.wait_for_function("() => document.body.innerText.includes('deadbeef123456789abcdef')", timeout=10000)
 
         compare_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
@@ -1016,7 +1016,7 @@ class TestXssSecurity:
         page.remove_listener("pageerror", handle_page_error)
 
         page.goto(compare_url)
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("networkidle", timeout=10000)
         page.wait_for_function("() => document.body.innerText.includes('different_value')", timeout=10000)
 
         compare_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
