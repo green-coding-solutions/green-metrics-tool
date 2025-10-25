@@ -120,6 +120,7 @@ def add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, pac
 def parse_tcpdump(lines, split_ports=False):
     stats = defaultdict(lambda: {'ports': defaultdict(lambda: {'packets': 0, 'bytes': 0}), 'total_bytes': 0})
     ethertype_unknown_pattern = re.compile(r'(\S+) > (\S+), ethertype Unknown \(0x\w+\), length (\d+):\s*$')
+    mac_address_only_frame_pattern = re.compile(r'[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2} > [0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}')
     time_ip_and_payload_length_pattern = re.compile(r'\d{10,15}\.\d{6}.*next-header (\w+) \(\d+\) payload length: (\d+)\) (\S+) > (\S+):')
     time_and_protocol_pattern = re.compile(r'^\d{10,15}\.\d{6}.* proto (\w+).* length (\d+)')
     only_ip_pattern = re.compile(r'(\S+) > (\S+):')
@@ -139,6 +140,8 @@ def parse_tcpdump(lines, split_ports=False):
                 packet_length = int(packet_length)
                 src_ip, src_port, dst_ip, dst_port, protocol = 'Unknown Port', 'Unknown Port', 'Unknown Port', 'Unknown Port', 'Unknown Etherframe'
                 add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports)
+            elif mac_address_only_frame_pattern.search(line):
+                continue # must happen before IP match, as very similar
             elif data_stream_match := time_ip_and_payload_length_pattern.search(line):
                 used_mode = 'data_stream_match'
                 #print('data_stream_match', data_stream_match.groups())
