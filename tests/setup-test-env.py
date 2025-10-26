@@ -32,6 +32,7 @@ base_frontend_config_path = os.path.join(current_dir, f'../{BASE_FRONTEND_CONFIG
 test_frontend_config_path = os.path.join(current_dir, TEST_FRONTEND_CONFIG_NAME)
 
 DB_PW = 'testpw'
+TZ_VALUE = 'Europe/Berlin'
 
 def check_sudo():
     print('Checking sudo...')
@@ -128,6 +129,7 @@ def edit_compose_file():
             new_env = []
             for env in compose['services'][service]['environment']:
                 env = env.replace('PLEASE_CHANGE_THIS', DB_PW)
+                env = env.replace('__TZ__', TZ_VALUE)
                 new_env.append(env)
             compose['services'][service]['environment'] = new_env
 
@@ -137,6 +139,13 @@ def edit_compose_file():
             new_command = f'{command} --port {TEST_REDIS_PORT}'
             compose['services'][service]['command'] = new_command
             compose['services'][service]['ports'] = TEST_REDIS_PORT_MAPPING
+
+        # For all, change
+        new_env = []
+        for env in compose['services'][service]['environment']:
+            env = env.replace('__TZ__', TZ_VALUE)
+            new_env.append(env)
+        compose['services'][service]['environment'] = new_env
 
         # Edit service container name
         old_container_name = compose['services'][service]['container_name']

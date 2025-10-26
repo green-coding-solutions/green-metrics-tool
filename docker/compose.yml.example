@@ -43,6 +43,8 @@ services:
     ports:
       - 9142:9142
     restart: always
+    environment:
+      - TZ=__TZ__
     volumes:
       - green-coding-shared-sockets:/tmp/gmt-sockets
       - PATH_TO_GREEN_METRICS_TOOL_REPO:/var/www/green-metrics-tool:ro
@@ -61,6 +63,8 @@ services:
     depends_on:
       - green-coding-postgres
     restart: always
+    environment:
+      - TZ=__TZ__
     volumes:
       - green-coding-shared-sockets:/tmp/gmt-sockets
       - PATH_TO_GREEN_METRICS_TOOL_REPO:/var/www/green-metrics-tool:ro
@@ -69,6 +73,8 @@ services:
   green-coding-redis:
     image: redis:alpine
     container_name: green-coding-redis-container
+    environment:
+      - TZ=__TZ__
     volumes:
       - green-coding-redis-data:/data
     command: redis-server --save 60 1 --loglevel warning
