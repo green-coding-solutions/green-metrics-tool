@@ -119,11 +119,12 @@ def add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, pac
 
 def parse_tcpdump(lines, split_ports=False):
     stats = defaultdict(lambda: {'ports': defaultdict(lambda: {'packets': 0, 'bytes': 0}), 'total_bytes': 0})
-    ethertype_unknown = r'(\S+) > (\S+), ethertype Unknown \(0x\w+\), length (\d+):\s*$'
-    time_ip_and_payload_length_pattern = r'\d{10,15}\.\d{6}.*next-header (\w+) \(\d+\) payload length: (\d+)\) (\S+) > (\S+):'
-    time_and_protocol_pattern = r'^\d{10,15}\.\d{6}.* proto (\w+).* length (\d+)'
-    only_ip_pattern = r'(\S+) > (\S+):'
-    lldp_pattern = r'^\d{10,15}\.\d{6} (LLDP), length (\d+)\s*$'
+    ethertype_unknown_pattern = re.compile(r'(\S+) > (\S+), ethertype Unknown \(0x\w+\), length (\d+):\s*$')
+    mac_address_only_frame_pattern = re.compile(r'[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2} > [0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}')
+    time_ip_and_payload_length_pattern = re.compile(r'\d{10,15}\.\d{6}.*next-header (\w+) \(\d+\) payload length: (\d+)\) (\S+) > (\S+):')
+    time_and_protocol_pattern = re.compile(r'^\d{10,15}\.\d{6}.* proto (\w+).* length (\d+)')
+    only_ip_pattern = re.compile(r'(\S+) > (\S+):')
+    lldp_pattern = re.compile(r'^\d{10,15}\.\d{6} (LLDP), length (\d+)\s*$')
 
     packet_length = None # running variable
     protocol = None # running variable
@@ -131,33 +132,41 @@ def parse_tcpdump(lines, split_ports=False):
 
     for line in lines:
         try:
-            if ethertype_unknown_match := re.search(ethertype_unknown, line):
+            used_mode = None
+            if ethertype_unknown_match := ethertype_unknown_pattern.search(line):
+                used_mode = 'ethertype_unknown_match'
                 #print('Ethermatch', ethertype_unknown_match.groups())
                 src, dst, packet_length = ethertype_unknown_match.groups()
                 packet_length = int(packet_length)
                 src_ip, src_port, dst_ip, dst_port, protocol = 'Unknown Port', 'Unknown Port', 'Unknown Port', 'Unknown Port', 'Unknown Etherframe'
                 add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports)
-            elif data_stream_match := re.search(time_ip_and_payload_length_pattern, line):
+            elif mac_address_only_frame_pattern.search(line):
+                continue # must happen before IP match, as very similar
+            elif data_stream_match := time_ip_and_payload_length_pattern.search(line):
+                used_mode = 'data_stream_match'
                 #print('data_stream_match', data_stream_match.groups())
                 protocol, packet_length, src, dst = data_stream_match.groups()
                 packet_length = int(packet_length)
                 src_ip, src_port = parse_ip_port(src)
                 dst_ip, dst_port = parse_ip_port(dst)
                 add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports)
-            elif protocol_match := re.search(time_and_protocol_pattern, line):
+            elif protocol_match := time_and_protocol_pattern.search(line):
+                used_mode = 'protocol_match'
                 #print('protocol match', protocol_match.groups())
                 protocol, packet_length = protocol_match.groups()
                 packet_length = int(packet_length)
                 continue # we fetch data only in the next line, thus we skip variable reset here
 
-            elif ip_match := re.search(only_ip_pattern, line):
+            elif ip_match := only_ip_pattern.search(line):
+                used_mode = 'ip_match'
                 #print('ip match', ip_match.groups())
                 src, dst = ip_match.groups()
                 src_ip, src_port = parse_ip_port(src)
                 dst_ip, dst_port = parse_ip_port(dst)
                 add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports)
                 continue # no reset, as we can have multiple packets following here
-            elif lldp_match := re.search(lldp_pattern, line):
+            elif lldp_match := lldp_pattern.search(line):
+                used_mode = 'lldp_match'
                 #print('lldp match', lldp_match.groups())
                 protocol, packet_length = lldp_match.groups()
                 packet_length = int(packet_length)
@@ -176,11 +185,11 @@ def parse_tcpdump(lines, split_ports=False):
             elif line.startswith('    ') or line.startswith('\t'): # these are all detail infos for specific control packets. 4-6 indents indicate deep detail infos
                 continue
             else:
-                error_helpers.log_error('Unmatched tcpdump line', line=line, all_lines=lines)
+                error_helpers.log_error('Unmatched tcpdump line', line=line, used_mode=used_mode, all_lines=lines)
                 # this was an exception before. However it seems that tcpdump comes up with unexpected lines ones in a while
                 # we have never seen before. Thus this was moved to a log only and will be expanded over time
         except Exception as exc:
-            error_helpers.log_error('Exception occured while trying to parse tcdump lines', exception=exc, line=line, all_lines=lines)
+            error_helpers.log_error('Exception occured while trying to parse tcdump lines', exception=exc, line=line, used_mode=used_mode, all_lines=lines)
 
 
 
