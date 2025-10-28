@@ -423,6 +423,11 @@ check_python_version
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --tz)
+            check_optarg 'tz' "${2:-}"
+            tz="$2"
+            shift 2
+            ;;
         --nvidia-gpu)
             install_nvidia_toolkit_headers=true
             shift
@@ -654,17 +659,18 @@ if [[ -z $metrics_url ]] ; then
 fi
 
 # ---- Ask for timezone (default from system; fallback Europe/Berlin) ----
-default_tz=''
-if [[ -f /etc/timezone ]]; then
-    default_tz="$(cat /etc/timezone 2>/dev/null)"
-elif [[ -L /etc/localtime ]]; then
-    default_tz="$(readlink /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##')"
+if [[ -z $tz ]] ; then
+    default_tz=''
+    if [[ -f /etc/timezone ]]; then
+        default_tz="$(cat /etc/timezone 2>/dev/null)"
+    elif [[ -L /etc/localtime ]]; then
+        default_tz="$(readlink /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##')"
+    fi
+    default_tz="${default_tz:-Europe/Berlin}"
+    echo ""
+    read -p "Enter timezone for Postgres and containers (e.g., Europe/Berlin) (default: ${default_tz}): " tz
+    tz="${tz:-$default_tz}"
 fi
-default_tz="${default_tz:-Europe/Berlin}"
-
-echo ""
-read -p "Enter timezone for Postgres and containers (e.g., Europe/Berlin) (default: ${default_tz}): " tz
-tz="${tz:-$default_tz}"
 
 if [[ -f config.yml ]]; then
     password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)

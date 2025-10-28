@@ -23,7 +23,7 @@ flow:
         # we set here --nvidia-gpu altough the M4 machine does not have any. We want to test if the headers can be correctly downloaded
         command: |
           cd ~/green-metrics-tool
-          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -T -L -z -f -j -d -g --nvidia-gpu
+          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -T -L -z -f -j -d -g --nvidia-gpu --tz Europe/Berlin
         shell: bash
 
   - name: Install GMT dev requirements

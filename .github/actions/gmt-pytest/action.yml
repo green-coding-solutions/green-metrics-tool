@@ -55,12 +55,12 @@ runs:
         if ${{inputs.ee}}; then
           if [[ "${{inputs.ee-branch}}" != '' ]]; then
             echo "Using ee-branch ${{inputs.ee-branch}}"
-            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --ee-branch  ${{inputs.ee-branch}} --nvidia-gpu --ai
+            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --ee-branch ${{inputs.ee-branch}} --nvidia-gpu --ai --tz Europe/Berlin
           else
-            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --nvidia-gpu --ai
+            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --nvidia-gpu --ai --tz Europe/Berlin
           fi
         else
-          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j --nvidia-gpu
+          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j --nvidia-gpu --tz Europe/Berlin
         fi
         source venv/bin/activate
       env:
