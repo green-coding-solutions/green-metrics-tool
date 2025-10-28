@@ -138,6 +138,14 @@ def edit_compose_file():
             compose['services'][service]['command'] = new_command
             compose['services'][service]['ports'] = TEST_REDIS_PORT_MAPPING
 
+        # For all, change time zone
+        tz_value = detect_timezone()
+        new_env = []
+        for env in compose['services'][service]['environment']:
+            env = env.replace('__TZ__', tz_value)
+            new_env.append(env)
+        compose['services'][service]['environment'] = new_env
+
         # Edit service container name
         old_container_name = compose['services'][service]['container_name']
         compose['services'][service]['container_name'] = f'test-{old_container_name}'
@@ -204,6 +212,21 @@ def edit_etc_hosts():
 
 def build_test_docker_image():
     subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build'], check=True)
+
+
+def detect_timezone(default="Europe/Berlin"):
+    if os.path.isfile("/etc/timezone"):
+        with open("/etc/timezone", encoding="utf-8") as f:
+            tz = f.read().strip()
+            if tz:
+                return tz
+
+    if os.path.exists("/etc/localtime"):
+        real = os.path.realpath("/etc/localtime")
+        if "zoneinfo" in real:
+            return real.split("zoneinfo/")[-1]
+    return default
+
 
 if __name__ == '__main__':
     import argparse
