@@ -85,6 +85,9 @@ def edit_compose_file():
         compose['volumes'][f"test-{vol_name}"] = deepcopy(compose['volumes'][vol_name])
         del compose['volumes'][vol_name]
 
+    tz_value = detect_timezone()
+
+
     # Edit Services
     for service in compose.get('services').copy():
         # Edit Services with new volumes
@@ -122,6 +125,7 @@ def edit_compose_file():
         if 'postgres' in service:
             command = compose['services'][service]['command']
             new_command = command.replace(str(BASE_DATABASE_PORT), str(TEST_DATABASE_PORT))
+            new_command = new_command.replace('__TZ__', tz_value) # timezone in command string must go extra
             compose['services'][service]['command'] = new_command
             compose['services'][service]['ports'] = TEST_DATABASE_PORT_MAPPING
 
@@ -138,8 +142,7 @@ def edit_compose_file():
             compose['services'][service]['command'] = new_command
             compose['services'][service]['ports'] = TEST_REDIS_PORT_MAPPING
 
-        # For all, change time zone
-        tz_value = detect_timezone()
+        # For all, change time zone in env vars
         new_env = []
         for env in compose['services'][service]['environment']:
             env = env.replace('__TZ__', tz_value)
@@ -223,7 +226,9 @@ def detect_timezone(default="Europe/Berlin"):
 
     if os.path.exists("/etc/localtime"):
         real = os.path.realpath("/etc/localtime")
-        if "zoneinfo" in real:
+        if "zoneinfo.default/" in real:
+            return real.split("zoneinfo.default/")[-1]
+        elif "zoneinfo/" in real:
             return real.split("zoneinfo/")[-1]
     return default
 
