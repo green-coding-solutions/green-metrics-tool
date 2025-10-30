@@ -27,9 +27,8 @@ jobs:
           machine: "ubuntu-latest"
           tags: "CI/CD, Main-Workflow"
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
-          # Intensity for California in 2024
-          co2-calculation-method: 'constant'
-          co2-grid-intensity-constant: 231
+          co2-calculation-method: 'location-based'
+          co2-grid-intensity-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
 
       - id: check-date
         if: ${{ github.event_name != 'workflow_dispatch' }}

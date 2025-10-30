@@ -27,8 +27,10 @@ jobs:
           machine: "ubuntu-latest"
           tags: "CI/CD, PR-Workflow"
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
-          co2-calculation-method: 'location-based'
-          co2-grid-intensity-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+          # Intensity for California, where many GitHub Servers are in 2024
+          # we use constant here, as GitHub Actions Bot cannot access the secrets, where we would store the Electricitymaps token
+          co2-calculation-method: 'constant'
+          co2-grid-intensity-constant: 231
 
       - name: 'Checkout repository'
         uses: actions/checkout@v5
