@@ -337,7 +337,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     $('.ui.accordion').accordion();
     $('button[name=submit]').on('click', async function () {
         const query_string = getFilterQueryStringFromInputs()
-        getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?${query_string}`)
+        getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?${query_string}&limit=0`)
         history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${query_string}`); // replace URL to bookmark!
         $('.ui.accordion').accordion('close', 0);
     });
