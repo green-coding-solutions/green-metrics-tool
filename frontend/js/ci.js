@@ -194,12 +194,13 @@ const displayRunDetailsTable = (measurements, repo) => {
         let run_link = '';
 
         const run_id_esc = encodeURIComponent(run_id)
+        const repo_encoded = repo.split('/').map(encodeURIComponent).join('/');
 
         if(source == 'github') {
-            run_link = `https://github.com/${encodeURIComponent(repo)}/actions/runs/${run_id_esc}`;
+            run_link = `https://github.com/${repo_encoded}/actions/runs/${run_id_esc}`;
         }
         else if (source == 'gitlab') {
-            run_link = `https://gitlab.com/${encodeURIComponent(repo)}/-/pipelines/${run_id_esc}`
+            run_link = `https://gitlab.com/${repo_encoded}/-/pipelines/${run_id_esc}`;
         }
 
         const run_link_node = `<a href="${run_link}" target="_blank">${run_id_esc}</a>`
@@ -366,11 +367,12 @@ const populateRunInfos = async (repo, branch, source, workflow_name, workflow_id
     document.querySelector('#ci-data-workflow').innerText =  escapeString(workflow_name);
 
     let repo_link = ''
+    const repo_encoded = repo.split('/').map(encodeURIComponent).join('/');
     if(source == 'github') {
-        repo_link = `https://github.com/${encodeURIComponent(repo)}`;
+        repo_link = `https://github.com/${repo_encoded}`;
     }
     else if(source == 'gitlab') {
-        repo_link = `https://gitlab.com/${encodeURIComponent(repo)}`;
+        repo_link = `https://gitlab.com/${repo_encoded}`;
     }
 
     const repo_link_node = `<a href="${repo_link}" target="_blank">${escapeString(repo)}</a>`

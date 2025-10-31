@@ -222,6 +222,7 @@ const loadCharts = async () => {
             triggerOn: 'click',
             formatter: function (params, ticket, callback) {
                 if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
+                const repository_uri_encoded = repository_uri.split('/').map(encodeURIComponent).join('/');
                 return `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong><br>
                         run_id: <a href="/stats.html?id=${series[params.seriesName].notes[params.dataIndex].run_id}"  target="_blank">${series[params.seriesName].notes[params.dataIndex].run_id}</a><br>
                         date: ${series[params.seriesName].notes[params.dataIndex].created_at}<br>
@@ -229,7 +230,7 @@ const loadCharts = async () => {
                         phase: ${escapeString(series[params.seriesName].notes[params.dataIndex].phase)}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
                         commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
-                        commit_hash: <a href="${encodeURIComponent(repository_uri)}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
+                        commit_hash: <a href="${repository_uri_encoded}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
                         gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].gmt_hash)}</a><br>
 
                         <br>
