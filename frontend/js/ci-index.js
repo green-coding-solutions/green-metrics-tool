@@ -58,12 +58,13 @@ function getRepoLink(repo, source) {
 
 // Function to generate the repository URI
 function getRepoUri(repo, source) {
+    const repo_encoded = repo.split('/').map(encodeURIComponent).join('/');
     if (source.startsWith('github')) {
-        return `https://www.github.com/${encodeURIComponent(repo)}`;
+        return `https://www.github.com/${repo_encoded}`;
     } else if (source.startsWith('gitlab')) {
-        return `https://www.gitlab.com/${encodeURIComponent(repo)}`;
+        return `https://www.gitlab.com/${repo_encoded}`;
     } else if (source.startsWith('bitbucket')) {
-        return `https://bitbucket.com/${encodeURIComponent(repo)}`;
+        return `https://bitbucket.com/${repo_encoded}`;
     }
 }
 
