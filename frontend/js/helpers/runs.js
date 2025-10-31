@@ -82,43 +82,69 @@ const removeFilter = (paramName) => {
     window.location.href = newUrl;
 }
 
-const showActiveFilters = (key, value) => {
-    document.querySelector(`.ui.warning.message`).classList.remove('hidden');
-    const newListItem = document.createElement("span");
-    newListItem.innerHTML = `<div class="ui label"><i class="times circle icon" onClick="removeFilter('${escapeString(key)}')"></i>${escapeString(key)}: ${escapeString(value)} </div> `;
-    document.querySelector(`.ui.warning.message ul`).appendChild(newListItem);
-
-}
 
 const getFilterQueryStringFromURI = () => {
     const url_params = getURLParams();
+
     let query_string = '';
     if (url_params['uri'] != null && url_params['uri'].trim() != '') {
         const uri = url_params['uri'].trim()
-        query_string = `${query_string}&uri=${uri}`
-        showActiveFilters('uri', uri)
+        query_string += `&uri=${uri}`
+        document.querySelector('input[name=uri]').value = escapeString(uri);
+        document.querySelector('#filters-active').classList.remove('hidden');
     }
     if (url_params['filename'] != null && url_params['filename'].trim() != '') {
         const filename = url_params['filename'].trim()
-        query_string = `${query_string}&filename=${filename}`
-        showActiveFilters('filename', filename)
+        query_string += `&filename=${filename}`
+        document.querySelector('input[name=filename]').value = escapeString(filename);
+        document.querySelector('#filters-active').classList.remove('hidden');
     }
     if (url_params['branch'] != null && url_params['branch'].trim() != '') {
         const branch = url_params['branch'].trim()
-        query_string = `${query_string}&branch=${branch}`
-        showActiveFilters('branch', branch)
+        query_string += `&branch=${branch}`
+        document.querySelector('input[name=branch]').value = escapeString(branch);
+        document.querySelector('#filters-active').classList.remove('hidden');
     }
     if (url_params['machine_id'] != null && url_params['machine_id'].trim() != '') {
         const machine_id = url_params['machine_id'].trim()
-        query_string = `${query_string}&machine_id=${machine_id}`
-        showActiveFilters('machine_id', machine_id)
+        query_string += `&machine_id=${machine_id}`
+        document.querySelector('input[name=machine_id]').value = escapeString(machine_id);
+        document.querySelector('#filters-active').classList.remove('hidden');
     }
     if (url_params['machine'] != null && url_params['machine'].trim() != '') {
         const machine = url_params['machine'].trim()
-        query_string = `${query_string}&machine=${machine}`
-        showActiveFilters('machine', machine)
+        query_string += `&machine=${machine}`
+        document.querySelector('input[name=machine]').value = escapeString(machine);
+        document.querySelector('#filters-active').classList.remove('hidden');
+    }
+    if (url_params['usage_scenario_variables'] != null && url_params['usage_scenario_variables'].trim() != '') {
+        const usage_scenario_variables = url_params['usage_scenario_variables'].trim()
+        query_string += `&usage_scenario_variables=${usage_scenario_variables}`
+        document.querySelector('input[name=usage_scenario_variables]').value = escapeString(usage_scenario_variables);
+        document.querySelector('#filters-active').classList.remove('hidden');
     }
 
+    return query_string
+}
+
+const getFilterQueryStringFromInputs = () => {
+    let query_string = '';
+
+    const uri = document.querySelector('input[name=uri]').value.trim()
+    const filename = document.querySelector('input[name=filename]').value.trim()
+    const branch = document.querySelector('input[name=branch]').value.trim()
+    const machine = document.querySelector('input[name=machine]').value.trim()
+    const machine_id = document.querySelector('input[name=machine_id]').value.trim()
+    const usage_scenario_variables = document.querySelector('input[name=usage_scenario_variables]').value.trim()
+
+    if(uri != '') query_string += `&uri=${document.querySelector('input[name=uri]').value.trim()}`
+    if(filename != '')query_string += `&filename=${document.querySelector('input[name=filename]').value.trim()}`
+    if(branch != '')query_string += `&branch=${document.querySelector('input[name=branch]').value.trim()}`
+    if(machine != '')query_string += `&machine=${document.querySelector('input[name=machine]').value.trim()}`
+    if(machine_id != '')query_string += `&machine_id=${document.querySelector('input[name=machine_id]').value.trim()}`
+    if(usage_scenario_variables != '')query_string += `&usage_scenario_variables=${document.querySelector('input[name=usage_scenario_variables]').value.trim()}`
+
+    document.querySelector('#filters-active').classList.remove('hidden');
 
     return query_string
 }
@@ -170,6 +196,7 @@ async function getRepositories(sort_by = 'date') {
 const getRunsTable = async (el, url, include_uri=true, include_button=true, searching=false) => {
 
     let runs = null;
+    el.DataTable().clear().destroy() // clear old
 
     try {
         runs = await makeAPICall(url)
@@ -305,5 +332,24 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             el.value = value;
         }
     }
+
+    // filters
+    $('.ui.accordion').accordion();
+    $('button[name=submit]').on('click', async function () {
+        const query_string = getFilterQueryStringFromInputs()
+        getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?${query_string}`)
+        history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${query_string}`); // replace URL to bookmark!
+        $('.ui.accordion').accordion('close', 0);
+    });
+    $('button[name=clear]').on('click', async function () {
+        history.replaceState(null, '', window.location.pathname);
+        document.querySelectorAll('input.filter-option').forEach((el) => {
+            el.value = '';
+        })
+        getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?limit=50`)
+        $('.ui.accordion').accordion('close', 0);
+        document.querySelector('#filters-active').classList.add('hidden');
+    });
+
 
 })();

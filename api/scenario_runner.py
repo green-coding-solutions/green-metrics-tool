@@ -278,7 +278,7 @@ def old_v1_runs_endpoint():
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v2/runs')
-async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, job_id: int | None = None, failed: bool | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, job_id: int | None = None, failed: bool | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
 
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at,
@@ -314,6 +314,13 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
     if machine:
         query = f"{query} AND m.description LIKE %s \n"
         params.append(f"%{machine}%")
+
+    if usage_scenario_variables:
+        # This query cannot use an index because of the cast
+        # at the moment the column has no index, so it must anyway be scanned.
+        # But potential target for optimizations if schema changes
+        query = f"{query} AND r.usage_scenario_variables::text LIKE %s \n"
+        params.append(f"%{usage_scenario_variables}%")
 
     if job_id:
         query = f"{query} AND r.job_id = %s \n"

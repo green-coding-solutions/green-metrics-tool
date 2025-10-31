@@ -62,11 +62,47 @@
             </div>
         </div>
 
-        <div class="ui warning message hidden">
-            <div class="header">
-                <i class="notched warning icon"></i> Filters are active
+        <div class="ui styled accordion full-width-card card">
+            <div id="show-filters" class="title">
+                <i class="dropdown icon"></i> Show Filters <i class="filter icon"></i>
+                <span id="filters-active" class="ui blue label float-right"><i class="info icon"></i> Filters are active! Open Dropdown for details </span>
             </div>
-            <ul></ul>
+
+            <div class="content">
+
+                <div class="ui form">
+                    <h3>Filters</h3>
+                    <div class="field">
+                        <label>URI:</label>
+                        <input class="filter-option" name="uri" value="">
+                    </div>
+                    <div class="field">
+                        <label>Filename:</label>
+                        <input class="filter-option" name="filename" value="">
+                    </div>
+                    <div class="field">
+                        <label>Branch:</label>
+                        <input class="filter-option" name="branch" value="">
+                    </div>
+                    <div class="field">
+                        <label>Machine:</label>
+                        <input class="filter-option" name="machine" value="">
+                    </div>
+                    <div class="field">
+                        <label>Machine ID:</label>
+                        <input class="filter-option" name="machine_id" value="">
+                    </div>
+                    <div class="field">
+                        <label>Usage Scenario Variables:</label>
+                        <input class="filter-option" name="usage_scenario_variables" value="">
+                    </div>
+                    <div class="field" style="float: right;">
+                        <label>&nbsp;</label>
+                        <button class="negative ui button tiny" name="clear">Clear</button>
+                        <button class="positive ui button" name="submit">Search</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <table id="runs-and-repos-table" class="ui table">
