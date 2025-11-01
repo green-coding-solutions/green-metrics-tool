@@ -62,7 +62,7 @@
             </div>
         </div>
 
-        <div class="ui styled accordion full-width-card card">
+        <div class="ui styled accordion filter-dropdown full-width-card card">
             <div id="show-filters" class="title">
                 <i class="dropdown icon"></i> Show Filters <i class="filter icon"></i>
                 <span id="filters-active" class="ui blue label hidden float-right"><i class="info icon"></i> Filters are active! Open Dropdown for details </span>
@@ -70,7 +70,7 @@
 
             <div class="content">
 
-                <div class="ui form">
+                <form class="ui form">
                     <h3>Filters</h3>
                     <div class="field">
                         <label>URI:</label>
@@ -98,10 +98,10 @@
                     </div>
                     <div class="field" style="float: right;">
                         <label>&nbsp;</label>
-                        <button class="negative ui button tiny" name="clear">Clear</button>
-                        <button class="positive ui button" name="submit">Search</button>
+                        <button class="negative ui button tiny" type="button" name="clear">Clear</button>
+                        <input class="positive ui button" type="submit" name="submit">
                     </div>
-                </div>
+                </form>
             </div>
         </div>
 

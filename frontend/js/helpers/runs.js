@@ -171,7 +171,7 @@ async function getRepositories(sort_by = 'date') {
         let row = table_body.insertRow()
         row.innerHTML = `
             <td>
-                <div class="ui accordion" style="width: 100%;">
+                <div class="ui accordion repositories" style="width: 100%;">
                   <div class="title">
                     <i class="dropdown icon"></i> ${uri_link}
                     <span class="ui label float-right"><i class="clock icon"></i> ${dateToYMD(new Date(last_run), short=true)}</span>
@@ -182,7 +182,7 @@ async function getRepositories(sort_by = 'date') {
                 </div>
             </td>`;
     });
-    $('.ui.accordion').accordion({
+    $('.ui.accordion.repositories').accordion({
         onOpen: function(value, text) {
             const table = this.querySelector('table');
 
@@ -191,6 +191,7 @@ async function getRepositories(sort_by = 'date') {
                 getRunsTable($(table), `/v2/runs?uri=${uri}&uri_mode=exact&limit=0`, false, false, true)
             }
     }});
+    $('.ui.accordion.filter-dropdown').hide();
 }
 
 const getRunsTable = async (el, url, include_uri=true, include_button=true, searching=false) => {
@@ -305,10 +306,12 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         if (el.currentTarget.innerText === 'Switch to repository view') {
             document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Repositories';
             localStorage.setItem('scenario_runner_data_shown', 'repositories');
+            history.replaceState(null, '', window.location.pathname); // clear any filters if any set
             window.location.reload();
         } else {
             document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Last 50 Runs';
             localStorage.setItem('scenario_runner_data_shown', 'last_runs');
+            history.replaceState(null, '', window.location.pathname); // clear any filters if any set
             window.location.reload();
         }
     });
@@ -334,12 +337,14 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     }
 
     // filters
-    $('.ui.accordion').accordion();
-    $('button[name=submit]').on('click', async function () {
+    $('.ui.accordion.filter-dropdown').accordion();
+    $('form').on('submit', async function (e) {
+        e.preventDefault();
         const query_string = getFilterQueryStringFromInputs()
         getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?${query_string}&limit=0`)
         history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${query_string}`); // replace URL to bookmark!
-        $('.ui.accordion').accordion('close', 0);
+        $('.ui.accordion.filter-dropdown').accordion('close', 0);
+        return false;
     });
     $('button[name=clear]').on('click', async function () {
         history.replaceState(null, '', window.location.pathname);
