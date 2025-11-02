@@ -72,34 +72,38 @@
 
                 <form class="ui form">
                     <h3>Filters</h3>
+
                     <div class="field">
-                        <label>URI:</label>
-                        <input class="filter-option" name="uri" value="">
+                        <label>URI</label>
+                        <input placeholder="URI (Example: github.com)" class="filter-option" name="uri" value="">
+                    </div>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Filename</label>
+                            <input placeholder="Filename (Example: usage_scenario_custom)" class="filter-option" name="filename" value="">
+                        </div>
+                        <div class="field">
+                            <label>Branch</label>
+                            <input placeholder="Branch (Example: main)" class="filter-option" name="branch" value="">
+                        </div>
+                    </div>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Machine</label>
+                            <input placeholder="Machine (Example: M2-Microbenchmarking)" class="filter-option" name="machine" value="">
+                        </div>
+                        <div class="field">
+                            <label>Machine ID</label>
+                            <input placeholder="Machine ID (Example: 3)" class="filter-option" name="machine_id" value="">
+                        </div>
                     </div>
                     <div class="field">
-                        <label>Filename:</label>
-                        <input class="filter-option" name="filename" value="">
+                        <label>Usage Scenario Variables</label>
+                        <input placeholder="Usage Scenario Variables (takes input or value. All filters allow even partial matches)"class="filter-option" name="usage_scenario_variables" value="">
                     </div>
                     <div class="field">
-                        <label>Branch:</label>
-                        <input class="filter-option" name="branch" value="">
-                    </div>
-                    <div class="field">
-                        <label>Machine:</label>
-                        <input class="filter-option" name="machine" value="">
-                    </div>
-                    <div class="field">
-                        <label>Machine ID:</label>
-                        <input class="filter-option" name="machine_id" value="">
-                    </div>
-                    <div class="field">
-                        <label>Usage Scenario Variables:</label>
-                        <input class="filter-option" name="usage_scenario_variables" value="">
-                    </div>
-                    <div class="field" style="float: right;">
-                        <label>&nbsp;</label>
+                        <input class="positive ui button" type="submit" name="submit" value="Search">
                         <button class="negative ui button tiny" type="button" name="clear">Clear</button>
-                        <input class="positive ui button" type="submit" name="submit">
                     </div>
                 </form>
             </div>
