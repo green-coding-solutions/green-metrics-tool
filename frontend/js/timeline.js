@@ -70,20 +70,25 @@ const fillInputsFromURL = (url_params) => {
         showNotification('Invalid URI', 'URI must be a valid HTTP/HTTPS URL or absolute file path');
         throw "Error";
     }
-    $('input[name="uri"]').val(escapeString(repository_uri));
-    $('#uri').text(escapeString(repository_uri));
+    // setting as value / innerText needs no XSS escaping
+    $('input[name="uri"]').val(repository_uri);
+    $('#uri').text(repository_uri);
 
     // all variables can be set via URL initially
     if(url_params['branch'] != null) {
-        $('input[name="branch"]').val(escapeString(url_params['branch']));
-        $('#branch').text(escapeString(url_params['branch']));
+        $('input[name="branch"]').val(url_params['branch']);
+        $('#branch').text(url_params['branch']);
     }
     if(url_params['filename'] != null) {
-        $('input[name="filename"]').val(escapeString(url_params['filename']));
-        $('#filename').text(escapeString(url_params['filename']));
+        $('input[name="filename"]').val(url_params['filename']);
+        $('#filename').text(url_params['filename']);
+    }
+    if(url_params['usage_scenario_variables'] != null) {
+        $('input[name="usage_scenario_variables"]').val((url_params['usage_scenario_variables']));
+        $('#usage-scenario-variables').text(url_params['usage_scenario_variables']);
     }
     if(url_params['machine_id'] != null) {
-        $('select[name="machine_id"]').val(escapeString(url_params['machine_id']));
+        $('select[name="machine_id"]').val(url_params['machine_id']);
         $('#machine').text($('select[name="machine_id"] :checked').text());
     }
     if(url_params['sorting'] != null) $(`#sorting-${url_params['sorting']}`).prop('checked', true);
@@ -101,6 +106,7 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     if($('input[name="phase"]:checked').val() !== '') api_url = `${api_url}&phase=${encodeURIComponent($('input[name="phase"]:checked').val())}`
     if($('select[name="machine_id"]').val() !== '') api_url = `${api_url}&machine_id=${encodeURIComponent($('select[name="machine_id"]').val())}`
     if($('input[name="filename"]').val() !== '') api_url = `${api_url}&filename=${encodeURIComponent($('input[name="filename"]').val())}`
+    if($('input[name="usage_scenario_variables"]').val() !== '') api_url = `${api_url}&usage_scenario_variables=${encodeURIComponent($('input[name="usage_scenario_variables"]').val())}`
 
     if(metric_override != null) api_url = `${api_url}&metric=${encodeURIComponent(metric_override)}`
     else if($('input[name="metrics"]:checked').val() !== '') api_url = `${api_url}&metric=${encodeURIComponent($('input[name="metrics"]:checked').val())}`

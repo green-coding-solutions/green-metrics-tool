@@ -163,7 +163,7 @@ def get_run_info(user, run_id):
     return run
 
 
-def get_timeline_query(user, uri, filename, machine_id, branch, metric, phase, start_date=None, end_date=None, detail_name=None, sorting='run'):
+def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=None, end_date=None, detail_name=None, sorting='run'):
 
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
@@ -171,7 +171,10 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metric, phase, s
     if branch is None or branch.strip() == '':
         branch = 'main'
 
-    params = [user.is_super_user(), user.visible_users(), uri, filename, branch, f"%{phase}"]
+    if usage_scenario_variables is None or usage_scenario_variables.strip() == '':
+        usage_scenario_variables = '{}'
+
+    params = [user.is_super_user(), user.visible_users(), uri, branch, filename, usage_scenario_variables, f"%{phase}"]
 
     metric_condition = ''
     if metric is None or metric.strip() == '' or metric.strip() == 'key':
@@ -216,8 +219,9 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metric, phase, s
             WHERE
                 (TRUE = %s OR r.user_id = ANY(%s::int[]))
                 AND r.uri = %s
-                AND r.filename = %s
                 AND r.branch = %s
+                AND r.filename = %s
+                AND r.usage_scenario_variables::text = %s
                 AND r.end_measurement IS NOT NULL
                 AND r.failed != TRUE
                 AND p.phase LIKE %s
