@@ -130,8 +130,6 @@ const loadCharts = async () => {
     let phase_stats_data = null;
     try {
         phase_stats_data = (await makeAPICall(`/v1/timeline?${buildQueryParams()}`)).data
-        console.log(phase_stats_data);
-
         document.querySelectorAll('.container-no-data').forEach(el => el.style.display = '')
         document.querySelector('#message-no-data').style.display = 'none';
 
