@@ -70,20 +70,21 @@ const fillInputsFromURL = (url_params) => {
         showNotification('Invalid URI', 'URI must be a valid HTTP/HTTPS URL or absolute file path');
         throw "Error";
     }
-    $('input[name="uri"]').val(escapeString(repository_uri));
-    $('#uri').text(escapeString(repository_uri));
+    // setting as value / innerText needs no XSS escaping
+    $('input[name="uri"]').val(repository_uri);
+    $('#uri').text(repository_uri);
 
     // all variables can be set via URL initially
     if(url_params['branch'] != null) {
-        $('input[name="branch"]').val(escapeString(url_params['branch']));
-        $('#branch').text(escapeString(url_params['branch']));
+        $('input[name="branch"]').val(url_params['branch']);
+        $('#branch').text(url_params['branch']);
     }
     if(url_params['filename'] != null) {
-        $('input[name="filename"]').val(escapeString(url_params['filename']));
-        $('#filename').text(escapeString(url_params['filename']));
+        $('input[name="filename"]').val(url_params['filename']);
+        $('#filename').text(url_params['filename']);
     }
     if(url_params['machine_id'] != null) {
-        $('select[name="machine_id"]').val(escapeString(url_params['machine_id']));
+        $('select[name="machine_id"]').val(url_params['machine_id']);
         $('#machine').text($('select[name="machine_id"] :checked').text());
     }
     if(url_params['sorting'] != null) $(`#sorting-${url_params['sorting']}`).prop('checked', true);
