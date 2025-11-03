@@ -90,37 +90,37 @@ const getFilterQueryStringFromURI = () => {
     if (url_params['uri'] != null && url_params['uri'].trim() != '') {
         const uri = url_params['uri'].trim()
         query_string += `&uri=${uri}`
-        document.querySelector('input[name=uri]').value = escapeString(uri);
+        document.querySelector('input[name=uri]').value = uri;
         document.querySelector('#filters-active').classList.remove('hidden');
     }
     if (url_params['filename'] != null && url_params['filename'].trim() != '') {
         const filename = url_params['filename'].trim()
         query_string += `&filename=${filename}`
-        document.querySelector('input[name=filename]').value = escapeString(filename);
+        document.querySelector('input[name=filename]').value = filename;
         document.querySelector('#filters-active').classList.remove('hidden');
     }
     if (url_params['branch'] != null && url_params['branch'].trim() != '') {
         const branch = url_params['branch'].trim()
         query_string += `&branch=${branch}`
-        document.querySelector('input[name=branch]').value = escapeString(branch);
+        document.querySelector('input[name=branch]').value = branch;
         document.querySelector('#filters-active').classList.remove('hidden');
     }
     if (url_params['machine_id'] != null && url_params['machine_id'].trim() != '') {
         const machine_id = url_params['machine_id'].trim()
         query_string += `&machine_id=${machine_id}`
-        document.querySelector('input[name=machine_id]').value = escapeString(machine_id);
+        document.querySelector('input[name=machine_id]').value = machine_id;
         document.querySelector('#filters-active').classList.remove('hidden');
     }
     if (url_params['machine'] != null && url_params['machine'].trim() != '') {
         const machine = url_params['machine'].trim()
         query_string += `&machine=${machine}`
-        document.querySelector('input[name=machine]').value = escapeString(machine);
+        document.querySelector('input[name=machine]').value = machine;
         document.querySelector('#filters-active').classList.remove('hidden');
     }
     if (url_params['usage_scenario_variables'] != null && url_params['usage_scenario_variables'].trim() != '') {
         const usage_scenario_variables = url_params['usage_scenario_variables'].trim()
         query_string += `&usage_scenario_variables=${usage_scenario_variables}`
-        document.querySelector('input[name=usage_scenario_variables]').value = escapeString(usage_scenario_variables);
+        document.querySelector('input[name=usage_scenario_variables]').value = usage_scenario_variables;
         document.querySelector('#filters-active').classList.remove('hidden');
     }
 
