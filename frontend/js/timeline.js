@@ -97,32 +97,34 @@ const fillInputsFromURL = (url_params) => {
 
 }
 
-const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null) => {
+const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null,html_replace=false) => {
     let api_url = `uri=${encodeURIComponent(repository_uri)}`;
 
+    const ampersand = html_replace ? '&amp' : '&';
+
     // however, the form takes precendence
-    if($('input[name="branch"]').val() !== '') api_url = `${api_url}&branch=${encodeURIComponent($('input[name="branch"]').val())}`
-    if($('input[name="sorting"]:checked').val() !== '') api_url = `${api_url}&sorting=${encodeURIComponent($('input[name="sorting"]:checked').val())}`
-    if($('input[name="phase"]:checked').val() !== '') api_url = `${api_url}&phase=${encodeURIComponent($('input[name="phase"]:checked').val())}`
-    if($('select[name="machine_id"]').val() !== '') api_url = `${api_url}&machine_id=${encodeURIComponent($('select[name="machine_id"]').val())}`
-    if($('input[name="filename"]').val() !== '') api_url = `${api_url}&filename=${encodeURIComponent($('input[name="filename"]').val())}`
-    if($('input[name="usage_scenario_variables"]').val() !== '') api_url = `${api_url}&usage_scenario_variables=${encodeURIComponent($('input[name="usage_scenario_variables"]').val())}`
+    if($('input[name="branch"]').val() !== '') api_url += `${ampersand}branch=${encodeURIComponent($('input[name="branch"]').val())}`
+    if($('input[name="sorting"]:checked').val() !== '') api_url += `${ampersand}sorting=${encodeURIComponent($('input[name="sorting"]:checked').val())}`
+    if($('input[name="phase"]:checked').val() !== '') api_url += `${ampersand}phase=${encodeURIComponent($('input[name="phase"]:checked').val())}`
+    if($('select[name="machine_id"]').val() !== '') api_url += `${ampersand}machine_id=${encodeURIComponent($('select[name="machine_id"]').val())}`
+    if($('input[name="filename"]').val() !== '') api_url += `${ampersand}filename=${encodeURIComponent($('input[name="filename"]').val())}`
+    if($('input[name="usage_scenario_variables"]').val() !== '') api_url += `${ampersand}usage_scenario_variables=${encodeURIComponent($('input[name="usage_scenario_variables"]').val())}`
 
-    if(metric_override != null) api_url = `${api_url}&metric=${encodeURIComponent(metric_override)}`
-    else if($('input[name="metrics"]:checked').val() !== '') api_url = `${api_url}&metric=${encodeURIComponent($('input[name="metrics"]:checked').val())}`
+    if(metric_override != null) api_url += `${ampersand}metric=${encodeURIComponent(metric_override)}`
+    else if($('input[name="metrics"]:checked').val() !== '') api_url += `${ampersand}metric=${encodeURIComponent($('input[name="metrics"]:checked').val())}`
 
-    if(detail_name != null) api_url = `${api_url}&detail_name=${encodeURIComponent(detail_name)}`
+    if(detail_name != null) api_url += `${ampersand}detail_name=${encodeURIComponent(detail_name)}`
 
     if (skip_dates) return api_url;
 
     if ($('input[name="start_date"]').val() != '') {
         let start_date = dateToYMD(new Date($('input[name="start_date"]').val()), short=true);
-        api_url = `${api_url}&start_date=${encodeURIComponent(start_date)}`
+        api_url += `${ampersand}start_date=${encodeURIComponent(start_date)}`
     }
 
     if ($('input[name="end_date"]').val() != '') {
         let end_date = dateToYMD(new Date($('input[name="end_date"]').val()), short=true);
-        api_url = `${api_url}&end_date=${encodeURIComponent(end_date)}`
+        api_url += `${ampersand}end_date=${encodeURIComponent(end_date)}`
     }
     return api_url;
 }
@@ -194,7 +196,7 @@ const loadCharts = async () => {
                             <i class="question circle icon link"></i>
                         </i>
                     </div>
-                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams()}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(skip_dates=false,metric_override=series[my_series].metric_name,detail_name=series[my_series].detail_name)}&unit=joules"></a></span>
+                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams(false, null, null, true)}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(false,series[my_series].metric_name,series[my_series].detail_name, true)}&unit=joules"></a></span>
                     <a class="copy-badge"><i class="copy icon"></i></a>
                 </div>
                 <p></p>`

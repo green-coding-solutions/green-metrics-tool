@@ -267,7 +267,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             let usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => typeof(v) == 'number' ? `"${k}": ${JSON.stringify(v)}` : `"${k}": "${JSON.stringify(v)}"`).join(', ')
             usage_scenario_variables = `{${usage_scenario_variables}}`
 
-            return `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${encodeURIComponent(row[2])}&branch=${encodeURIComponent(row[3])}&machine_id=${row[12]}&filename=${encodeURIComponent(row[6])}&usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}&metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>`;
+            return `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${encodeURIComponent(row[2])}&amp;branch=${encodeURIComponent(row[3])}&amp;machine_id=${row[12]}&amp;filename=${encodeURIComponent(row[6])}&amp;usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}&amp;metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>`;
 
         }
     });
