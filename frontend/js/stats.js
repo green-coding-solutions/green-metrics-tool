@@ -859,7 +859,6 @@ const fetchAndFillWarnings = async (url_params) => {
     let warnings = null;
     try {
         warnings = await makeAPICall('/v1/warnings/' + url_params['id'])
-        if (!warnings || warnings?.data?.length === 0) return;
     } catch (err) {
         if (err instanceof APIEmptyResponse204) {
             console.log('No warnings where present in API response. Skipping error as this is allowed case.')
@@ -869,6 +868,8 @@ const fetchAndFillWarnings = async (url_params) => {
         return;
 
     }
+
+    if (!warnings || warnings?.data?.length === 0) return;
 
     const container = document.querySelector('#run-warnings');
     const ul = container.querySelector('ul');
