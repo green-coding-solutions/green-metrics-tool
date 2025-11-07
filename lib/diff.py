@@ -13,7 +13,6 @@ def get_diffable_rows(user, uuids):
     query = """SELECT
         uri,
         branch,
-        invalid_run,
         commit_hash,
         phases,
         machine_id,

@@ -267,7 +267,6 @@ CREATE TABLE runs (
     end_measurement bigint,
     phases JSON,
     logs jsonb,
-    invalid_run text,
     failed boolean DEFAULT false,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
