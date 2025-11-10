@@ -100,7 +100,7 @@ const fillInputsFromURL = (url_params) => {
 const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null,html_replace=false) => {
     let api_url = `uri=${encodeURIComponent(repository_uri)}`;
 
-    const ampersand = html_replace ? '&amp' : '&';
+    const ampersand = html_replace ? '&amp;' : '&';
 
     // however, the form takes precendence
     if($('input[name="branch"]').val() !== '') api_url += `${ampersand}branch=${encodeURIComponent($('input[name="branch"]').val())}`
