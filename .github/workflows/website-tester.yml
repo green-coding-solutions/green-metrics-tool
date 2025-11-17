@@ -13,6 +13,7 @@ jobs:
         run: |
           cat > test_playwright.py <<'EOF'
           from playwright.sync_api import sync_playwright, Dialog
+          import time
 
           with sync_playwright() as p:
               browser = p.chromium.launch(headless=False,args=["--headless=new"])
