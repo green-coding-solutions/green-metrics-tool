@@ -31,13 +31,18 @@ jobs:
 
               page.on("dialog", handle_dialog)
               page.on("console", handle_console)
-
+            
               page.goto("https://website-tester.green-coding.io/")
-              page.fill('input[name="page"]', 'www.green-coding.io')
+              time.sleep(2)
+            
+              page.fill('input[name="page"]', 'www.garten.de')
+              time.sleep(2)
+            
               page.click('button:has-text("Measure")')
-
+              time.sleep(2)
+            
               page.wait_for_timeout(3000)
-
+              time.sleep(5)
               if alert_message[0] is None:
                   raise Exception("Expected alert did not occur.")
               if alert_message[0] != 'Thanks, we have received your measurement request and will e-mail you shortly!':
