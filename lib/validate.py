@@ -51,7 +51,7 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
             metric, detail_name, phase, type,
             AVG(value) as "avg",
             COALESCE(STDDEV(value), 0) as "stddev",
-            COALESCE(STDDEV(value) / AVG(value), 0) as "stddev_rel",
+            COALESCE(STDDEV(value) / NULLIF(AVG(value), 0), 0) as "stddev_rel",
             unit
           FROM phase_stats
           WHERE
