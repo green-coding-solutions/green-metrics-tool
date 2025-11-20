@@ -217,20 +217,25 @@ def build_test_docker_image():
     subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build'], check=True)
 
 
-def detect_timezone(default="Europe/Berlin"):
-    if os.path.isfile("/etc/timezone"):
-        with open("/etc/timezone", encoding="utf-8") as f:
-            tz = f.read().strip()
-            if tz:
-                return tz
+# We never want to set a different timezone than GMT for tests.
+# The reason being is that we have a lot of demo data with GMT timestamps in the DB and this
+# should always be tested against a system running on GMT. Otherwise users in different timezones will experience failing tests
+def detect_timezone(): # default="Europe/Berlin"
+    return 'GMT'
 
-    if os.path.exists("/etc/localtime"):
-        real = os.path.realpath("/etc/localtime")
-        if "zoneinfo.default/" in real:
-            return real.split("zoneinfo.default/")[-1]
-        elif "zoneinfo/" in real:
-            return real.split("zoneinfo/")[-1]
-    return default
+    # if os.path.isfile("/etc/timezone"):
+    #     with open("/etc/timezone", encoding="utf-8") as f:
+    #         tz = f.read().strip()
+    #         if tz:
+    #             return tz
+
+    # if os.path.exists("/etc/localtime"):
+    #     real = os.path.realpath("/etc/localtime")
+    #     if "zoneinfo.default/" in real:
+    #         return real.split("zoneinfo.default/")[-1]
+    #     elif "zoneinfo/" in real:
+    #         return real.split("zoneinfo/")[-1]
+    # return default
 
 
 if __name__ == '__main__':
