@@ -246,11 +246,11 @@ if GlobalConfig().config.get('activate_eco_ci', False):
     app.include_router(eco_ci.router)
 
 if GlobalConfig().config.get('activate_power_hog', False):
-    from ee.api import power_hog
+    from api import power_hog
     app.include_router(power_hog.router)
 
 if GlobalConfig().config.get('activate_carbon_db', False):
-    from ee.api import carbondb
+    from api import carbondb
     app.include_router(carbondb.router)
 
 if GlobalConfig().config.get('activate_ai_optimisations', False):

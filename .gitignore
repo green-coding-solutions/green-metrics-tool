@@ -42,19 +42,7 @@ tools/sgx_enable
 ## Files that will be created if Enterprise Version gets installed with valid license
 /ee
 /cron/delete_expired_data.py
-/cron/carbondb_copy_over_and_remove_duplicates.py
-/cron/carbondb_compress.py
-/tests/cron/test_carbondb_compress.py
-/tests/frontend/test_frontend_ee.py
-/tests/api/test_api_hog.py
-/tests/api/test_api_carbondb.py
-/tools/rebuild_carbondb.py
-/frontend/js/hog-details.js
-/frontend/js/carbondb.js
-/frontend/js/hog.js
-/frontend/hog-details.html
-/frontend/hog.html
-/frontend/carbondb.html
+/lib/ai-optimisations.py
 
 # gemini-cli settings
 .gemini/
