@@ -190,7 +190,7 @@ def update_user_token(user_id, token):
     ''', params=(sha256_hash.hexdigest(), user_id))
 
 
-def insert_user(user_id, token):
+def insert_user(user_id, token, make_super_user=False):
     sha256_hash = hashlib.sha256()
     sha256_hash.update(token.encode('UTF-8'))
 
@@ -202,7 +202,12 @@ def insert_user(user_id, token):
     DB().query("""
         UPDATE users SET capabilities = jsonb_set(capabilities, '{user,visible_users}', %s ,false)
             WHERE id = %s
-    """, params=(str(user_id), user_id))
+    """, params=(str([user_id]), user_id))
+    if not make_super_user:
+        DB().query("""
+            UPDATE users SET capabilities = jsonb_set(capabilities, '{user,is_super_user}', %s ,false)
+                WHERE id = %s
+        """, params=('false', user_id))
 
 
 def import_demo_data():
