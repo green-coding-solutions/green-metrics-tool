@@ -146,7 +146,6 @@ def test_carbondb_no_filters():
 def test_carbondb_alternative_user_and_data():
 
     Tests.import_demo_data()
-    Tests.import_demo_data_ee()
     response = requests.get(f"{API_URL}/v2/carbondb/filters", timeout=15, headers={'X-Authentication': 'DEFAULT'})
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert response.text == '{"success":true,"data":{"types":{"1":"machine.test","2":"generator.solar","3":"asdasd","4":"machine.ci","5":"machine.server"},"tags":{"111":"Environment setup (OS ubuntu-24.04","115":"green-coding.ai","118":"green-coding-solutions/ci-carbon-testing","119":"Measurement #1","120":"Environment setup (Python","135":"metrics.green-coding.io"},"machines":{"1":"GCS HQ Solar Panel","5":"metrics.green-coding.io","11":"green-coding.ai","20":"metrics.green-coding.io-alt","22":"ubuntu-latest"},"projects":{"1":"Projekt #1","2":"Projekt #2","3":"Projekt #3","4":"Projekt #4"},"sources":{"1":"UNDEFINED"},"users":{"0":"[GMT-SYSTEM]","1":"DEFAULT"}}}'
@@ -176,7 +175,6 @@ def test_carbondb_normal_user_cannot_see_other_users():
 
 def test_get_insights():
     Tests.import_demo_data()
-    Tests.import_demo_data_ee()
 
     response = requests.get(f"{API_URL}/v1/carbondb/insights", timeout=15)
     res_json = response.json()

@@ -24,7 +24,6 @@ def setup_and_cleanup_module():
     playwright = sync_playwright().start()
 
     Tests.import_demo_data()
-    Tests.import_demo_data_ee()
     yield
 
     # after
