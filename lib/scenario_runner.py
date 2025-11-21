@@ -323,6 +323,11 @@ class ScenarioRunner:
 
             if problematic_symlink := utils.find_outside_symlinks(self._repo_folder):
                 raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
+
+            # Fix permissions to allow access from different users inside Docker containers
+            # In some environments like GitHub Codespaces, directories may be created without
+            # execute permission for 'other', preventing container users from traversing them
+            subprocess.run(['chmod', '-R', 'o+X', self._repo_folder], check=True)
         else:
             if self._original_branch is not None:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
