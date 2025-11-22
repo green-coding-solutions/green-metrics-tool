@@ -16,7 +16,7 @@ ACTIVATE_AI_OPTIMISATIONS = __ACTIVATE_AI_OPTIMISATIONS__;
 
 
 // title and filter function for the top left most chart in the Detailed Metrics / Compare view
-const TOTAL_CHART_BOTTOM_TITLE = 'Total energy consumption';
+const TOTAL_CHART_BOTTOM_TITLE = 'Total Energy Consumption';
 const TOTAL_CHART_BOTTOM_LABEL = 'Machine Energy';
 // function must return boolean
 const total_chart_bottom_condition = (metric) => {
@@ -24,15 +24,15 @@ const total_chart_bottom_condition = (metric) => {
 }
 
 // title and filter function for the top left most chart in the Detailed Metrics / Compare view
-const TOP_BAR_CHART_TITLE = 'Energy metrics'
+const TOP_BAR_CHART_TITLE = 'Energy Metrics';
 const top_bar_chart_condition = (metric) => {
-    return metric.indexOf('_energy_') !== -1;
+    return metric.indexOf('_energy_') !== -1 && (metric.endsWith('_machine') || metric.endsWith('_component'));
 }
 
 // title and filter function for the top right radar chart in the Detailed Metrics / Compare view
-const RADAR_CHART_TITLE = 'General component distribution'
+const RADAR_CHART_TITLE = 'General Metrics';
 const radar_chart_condition = (metric) => {
-    return metric.indexOf('cpu_frequency_sysfs_core') == -1;
+    return metric.indexOf('cpu_frequency_sysfs_core') == -1 && metric.indexOf('temperature') == -1  && metric.indexOf('energy') == -1 && metric.indexOf('throttling') == -1 && metric.indexOf('power') == -1 && metric.indexOf('carbon') == -1;
 }
 
 // filter function for the CO₂ calculations in the Detailed Metrics
