@@ -154,7 +154,7 @@ function prepare_config() {
     eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/api.conf"
 
 
-    copy_backup docker/nginx/block.conf
+    copy_backup docker/nginx/block-and-redirect.conf
 
     copy_backup docker/nginx/frontend.conf
     local host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
@@ -213,12 +213,12 @@ function prepare_config() {
 
         eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/frontend.conf"
         eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/api.conf"
-        eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/block.conf"
+        eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/block-and-redirect.conf"
 
     else
         eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/frontend.conf"
         eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/api.conf"
-        eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/block.conf"
+        eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/block-and-redirect.conf"
     fi
 
     if [[ $modify_hosts == true ]] ; then
