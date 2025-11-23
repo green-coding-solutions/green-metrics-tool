@@ -36,7 +36,7 @@ class UserSetting(BaseModel):
 
 ### Eco CI
 # pylint: disable=invalid-name
-class CI_Measurement(BaseModel):
+class CI_MeasurementBase(BaseModel):
     energy_uj: int
     repo: str
     branch: str
@@ -61,8 +61,6 @@ class CI_Measurement(BaseModel):
     ip: Optional[str] = None
     note: Optional[constr(max_length=1024)] = None
 
-    model_config = ConfigDict(extra='forbid')
-
 
     # Empty string will not trigger error on their own
     @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
@@ -85,3 +83,23 @@ class CI_Measurement(BaseModel):
         if any(not item or item.strip() == '' for item in value):
             raise ValueError("The list contains empty elements.")
         return value
+
+
+class CI_Measurement(CI_MeasurementBase):
+    """
+    v2 CI measurement model.
+    This keeps backward compatibility with existing EcoCI clients.
+    """
+    model_config = ConfigDict(extra='forbid')
+
+
+class CI_MeasurementV3(CI_MeasurementBase):
+    """
+    v3 CI measurement model.
+    Adds new optional fields; for now they are parsed but not stored.
+    """
+    os_name: Optional[str] = None
+    cpu_arch: Optional[str] = None
+    job_id: Optional[str] = None
+
+    model_config = ConfigDict(extra='forbid')
