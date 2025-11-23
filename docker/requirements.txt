@@ -17,4 +17,4 @@ requests==2.32.5
 uvicorn-worker==0.4.0
 cachetools==6.2.2
 
-pytest==9.0.0 # needed because we need to exit in db.py if tests run with wrong config
+pytest==9.0.1 # needed because we need to exit in db.py if tests run with wrong config
