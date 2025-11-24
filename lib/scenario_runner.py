@@ -13,6 +13,7 @@ import subprocess
 import json
 import os
 import time
+import stat
 import importlib
 import re
 from pathlib import Path
@@ -283,6 +284,13 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nChecking out repository', TerminalColors.ENDC)
 
         if self._uri_type == 'URL':
+            Path(self._repo_folder).mkdir(parents=True, exist_ok=True)
+            subprocess.check_output(['setfacl', '-k', self._repo_folder]) # no inheritance in subfolders of ACLs
+            subprocess.check_output(['setfacl', '-b', self._repo_folder]) # remove set ACLs
+            # Make /tmp/repo executable as this might not be the case due to inhereted ACLs in place from /tmp
+            current_mode = os.stat(self._repo_folder).st_mode
+            os.chmod(self._repo_folder, current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
             # always remove the folder if URL provided, cause -v directory binding always creates it
             # no check cause might fail when directory might be missing due to manual delete
             if self._branch:
