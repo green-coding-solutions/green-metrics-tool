@@ -6,8 +6,8 @@ __pycache__
 /docker/nginx/api.conf.backup
 /docker/nginx/frontend.conf
 /docker/nginx/frontend.conf.backup
-/docker/nginx/block.conf
-/docker/nginx/block.conf.backup
+/docker/nginx/block-and-redirect.conf
+/docker/nginx/block-and-redirect.conf.backup
 /docker/nginx/ssl/*
 !/docker/nginx/ssl/README.md
 /frontend/js/helpers/config.js
