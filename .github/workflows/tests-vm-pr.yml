@@ -33,7 +33,7 @@ jobs:
           co2-grid-intensity-constant: 231
 
       - name: 'Checkout repository'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           submodules: 'false'

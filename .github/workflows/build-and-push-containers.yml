@@ -33,7 +33,7 @@ jobs:
           electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
         ## This is needed for multi-architecture builds
       - name: Set up QEMU
