@@ -1,9 +1,9 @@
 # This file will block access to the IP directly.
-# Many options do not access api.gree-coding.io/trash but go directly to XXX.XXX.XXX.XXX/trash
+# Many crawlers do not access api.green-coding.io/trash but go directly to XXX.XXX.XXX.XXX/trash
 # Since GMT has no use for these connections this file introduces the block. It will also
 # block on port 80 in case SSL is activated
 
-# Futhermore it does HTTP redirects to HTTPS in case an SSL certificate is activated
+# Furthermore it does HTTP redirects to HTTPS in case an SSL certificate is activated
 
 server {
 
