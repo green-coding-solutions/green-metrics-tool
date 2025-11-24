@@ -42,14 +42,8 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
     if used_client_ip is None:
         used_client_ip = get_connecting_ip(request)
 
-    if hasattr(measurement, "os_name"):
-        params.append(measurement.os_name)
-
-    if hasattr(measurement, "cpu_arch"):
-        params.append(measurement.cpu_arch)
-
-    if hasattr(measurement, "job_id"):
-        params.append(measurement.job_id)
+    for field in ["os_name", "cpu_arch", "job_id"]:
+        params.append(getattr(measurement, field, None))
     params.append(used_client_ip)
     params.append(user._id)
 
