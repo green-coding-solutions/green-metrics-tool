@@ -45,6 +45,7 @@ def setup_and_cleanup_test():
     page.set_default_timeout(3_000)
     yield
     page.close()
+    context.close()
     browser.close()
 
 def test_carbondb_display():
