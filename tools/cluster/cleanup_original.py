@@ -71,9 +71,10 @@ result = subprocess.run(
 
 check_timers(result.stdout)
 
+print('Checking user timers for', os.environ['SUDO_USER'])
 
 result = subprocess.run(
-    ['systemctl', '--user', '--all', 'list-timers'],
+    ['sudo', 'systemctl', f"--machine={os.environ['SUDO_USER']}@", '--user', '--all', 'list-timers'],
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT, # put both in one stream
     encoding='UTF-8', errors='replace', check=True)
