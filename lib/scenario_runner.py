@@ -1283,7 +1283,7 @@ class ScenarioRunner:
 
             SYSTEM_ASSIGNABLE_CPU_COUNT = int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip()) -1
             if SYSTEM_ASSIGNABLE_CPU_COUNT <= 0:
-                raise RuntimeError('Cannot assign docker containers to any CPU as no CPUs are available to Docker. Available CPU count: ', SYSTEM_ASSIGNABLE_CPU_COUNT)
+                raise RuntimeError(f"Cannot assign docker containers to any CPU as no CPUs are available to Docker. Available CPU count: {SYSTEM_ASSIGNABLE_CPU_COUNT}")
 
             # apply cpuset but keep one core for GMT and metric providers free
             # This cannot be configured via user as no knowledge of machine shall be required

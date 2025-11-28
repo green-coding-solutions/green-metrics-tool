@@ -245,7 +245,7 @@ def docker_memory_to_bytes(memory_value):
 
     # although not specified in the docker specification values like 10m and also 10MB are allowed.
     # so if we see an additional B we remove it at the end
-    if memory_value[:-1] == 'b' or memory_value[:-1] == 'B':
+    if memory_value[-1] == 'b' or memory_value[-1] == 'B':
         memory_value = memory_value[:-1]
 
     if memory_value[-1].isdigit():

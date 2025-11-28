@@ -28,7 +28,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 GMT_Resources = {
     'free_disk': 1024 ** 3, # 1GB in bytes
-    'free_memory': 2048 ** 3, # 2GB in bytes
+    'free_memory': 2 * 1024 ** 3, # 2GB in bytes
 }
 
 ######## CHECK FUNCTIONS ########
