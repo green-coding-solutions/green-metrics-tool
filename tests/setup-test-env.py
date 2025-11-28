@@ -167,11 +167,13 @@ def create_test_config_file(ee=False, ai=False):
     with open('test-config.yml.example', 'r', encoding='utf-8') as file:
         content = file.read()
 
+    content = content.replace('activate_eco_ci: False', 'activate_eco_ci: True')
+    content = content.replace('activate_power_hog: False', 'activate_power_hog: True')
+    content = content.replace('activate_carbon_db: False', 'activate_carbon_db: True')
+
     if ee:
         print('Activating enterprise in config.yml ...')
         content = content.replace('#ee_token:', 'ee_token:')
-        content = content.replace('activate_power_hog: False', 'activate_power_hog: True')
-        content = content.replace('activate_carbon_db: False', 'activate_carbon_db: True')
 
     if ai:
         print('Activating AI in config.yml ...')
@@ -191,14 +193,11 @@ def create_frontend_config_file(ee=False, ai=False):
 
     content = re.sub(r'ACTIVATE_SCENARIO_RUNNER.*$', 'ACTIVATE_SCENARIO_RUNNER = true;', content, flags=re.MULTILINE)
     content = re.sub(r'ACTIVATE_ECO_CI.*$', 'ACTIVATE_ECO_CI = true;', content, flags=re.MULTILINE)
+    content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = true;', content, flags=re.MULTILINE)
+    content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = true;', content, flags=re.MULTILINE)
 
     if ee:
-        print(f'Activating enterprise in {TEST_FRONTEND_CONFIG_NAME} ...')
-        content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = true;', content, flags=re.MULTILINE)
-        content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = true;', content, flags=re.MULTILINE)
-    else:
-        content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = false;', content, flags=re.MULTILINE)
-        content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = false;', content, flags=re.MULTILINE)
+        pass # currently noop as all non ai enterprise content has been moved to open source
 
     if ai:
         print(f'Activating AI in {TEST_FRONTEND_CONFIG_NAME} ...')

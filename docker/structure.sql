@@ -92,7 +92,15 @@ VALUES (
                 "/v1/user/setting",
                 "/v1/cluster/changelog",
                 "/v1/cluster/status",
-                "/v1/cluster/status/history"
+                "/v1/cluster/status/history",
+                "/v1/carbondb/insights",
+                "/v1/hog/insights",
+                "/v2/carbondb/add",
+                "/v2/carbondb",
+                "/v2/carbondb/filters",
+                "/v2/hog/add",
+                "/v2/hog/top_processes",
+                "/v2/hog/details"
             ]
         },
         "data": {
@@ -518,3 +526,139 @@ CREATE TRIGGER cluster_status_messages_moddatetime
     EXECUTE PROCEDURE moddatetime (updated_at);
 
 INSERT INTO "cluster_status_messages"("message") VALUES('GMT is currently not running in cluster mode and thus status messages are not active - This is just a demo message to show the capabilites of the status message system. You can ignore it when using GMT locally. But please delete it when running in cluster mode');
+
+CREATE TABLE carbondb_types (
+    id SERIAL PRIMARY KEY,
+    type text NOT NULL,
+    user_ids integer[] NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX carbondb_types_unique ON carbondb_types(type);
+
+
+CREATE TABLE carbondb_tags (
+    id SERIAL PRIMARY KEY,
+    tag text NOT NULL,
+    user_ids integer[] NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX carbondb_tags_unique ON carbondb_tags(tag);
+
+
+CREATE TABLE carbondb_machines (
+    id SERIAL PRIMARY KEY,
+    machine text NOT NULL,
+    user_ids integer[] NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX carbondb_machines_unique ON carbondb_machines(machine);
+
+CREATE TABLE carbondb_projects (
+    id SERIAL PRIMARY KEY,
+    project text NOT NULL,
+    user_ids integer[] NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX carbondb_projects_unique ON carbondb_projects(project);
+
+CREATE TABLE carbondb_sources (
+    id SERIAL PRIMARY KEY,
+    source text NOT NULL,
+    user_ids integer[] NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX carbondb_sources_unique ON carbondb_sources(source);
+
+
+CREATE TABLE carbondb_data_raw (
+    id SERIAL PRIMARY KEY,
+    type text NOT NULL,
+    project text NOT NULL,
+    machine text NOT NULL,
+    source text NOT NULL CHECK (source IN ('CUSTOM', 'Eco CI', 'ScenarioRunner', 'Power HOG')),
+    tags text[] NOT NULL,
+    time BIGINT NOT NULL,
+    energy_kwh DOUBLE PRECISION NOT NULL,
+    carbon_kg DOUBLE PRECISION NOT NULL,
+    carbon_intensity_g int NOT NULL,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    ip_address INET,
+    user_id int NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+
+CREATE TRIGGER carbondb_data_raw_moddatetime
+    BEFORE UPDATE ON carbondb_data_raw
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+-- note that the carbondb_data uses integer fields instead of type fields. This is because we
+-- operate for querying and filtering only on integers for performance
+
+CREATE TABLE carbondb_data (
+    id SERIAL PRIMARY KEY,
+    type integer NOT NULL REFERENCES carbondb_types(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    project integer NOT NULL REFERENCES carbondb_projects(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    machine integer NOT NULL REFERENCES carbondb_machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    source integer NOT NULL REFERENCES carbondb_sources(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    tags int[] NOT NULL,
+    date DATE NOT NULL,
+    energy_kwh_sum DOUBLE PRECISION NOT NULL,
+    carbon_kg_sum DOUBLE PRECISION NOT NULL,
+    carbon_intensity_g_avg int NOT NULL,
+    record_count INT,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX carbondb_data_unique_entry ON carbondb_data(type ,project ,machine ,source ,tags ,date ,user_id) NULLS NOT DISTINCT;
+
+CREATE VIEW carbondb_data_view AS
+SELECT cd.*, t.type as type_str, s.source as source_str, m.machine as machine_str, p.project as project_str FROM carbondb_data as cd
+LEFT JOIN carbondb_types as t ON cd.type = t.id
+LEFT JOIN carbondb_sources as s ON cd.source = s.id
+LEFT JOIN carbondb_machines as m ON cd.machine = m.id
+LEFT JOIN carbondb_projects as p ON cd.project = p.id;
+
+
+CREATE TABLE hog_simplified_measurements (
+    id SERIAL PRIMARY KEY,
+    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    machine_uuid UUID NOT NULL,
+    timestamp BIGINT NOT NULL,
+    timezone TEXT CHECK (char_length(timezone) <= 50),
+    grid_intensity_cog FLOAT,
+    combined_energy_uj BIGINT,
+    cpu_energy_uj BIGINT,
+    gpu_energy_uj BIGINT,
+    ane_energy_uj BIGINT,
+    energy_impact BIGINT,
+    operational_carbon_ug FLOAT, -- We accept here, that the value will be rounded at 4 decimal points
+    hw_model TEXT,
+    elapsed_ns BIGINT,
+    thermal_pressure TEXT,
+    embodied_carbon_ug FLOAT,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+CREATE INDEX idx_measurements_user_id ON hog_simplified_measurements(user_id);
+CREATE INDEX idx_measurements_timestamp ON hog_simplified_measurements(timestamp);
+CREATE INDEX idx_measurements_machine_uuid ON hog_simplified_measurements(machine_uuid);
+
+
+CREATE TABLE hog_top_processes (
+    id SERIAL PRIMARY KEY,
+    measurement_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    energy_impact INTEGER,
+    cputime_ms BIGINT,
+    FOREIGN KEY (measurement_id) REFERENCES hog_simplified_measurements(id) ON DELETE CASCADE
+);
+
+
