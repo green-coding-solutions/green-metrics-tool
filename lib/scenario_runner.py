@@ -1293,25 +1293,24 @@ class ScenarioRunner:
             docker_run_string.append('--cpuset-cpus')
             docker_run_string.append(','.join(map(str, range(1,SYSTEM_ASSIGNABLE_CPU_COUNT+1)))) # range inclusive as we do not assign to 0
 
-            docker_run_string.append('--memory-swap=0') # GMT should never swap as it gives hard to interpret / non-linear performance results
             docker_run_string.append('--memory-swappiness=0') # GMT should never swap as it gives hard to interpret / non-linear performance results
             docker_run_string.append('--oom-score-adj=1000') # containers will be killed first so host does not OOM
 
             # wildly the docker compose spec allows deploy to be None ... thus we need to check and cannot .get()
             if 'deploy' in service and service['deploy'] is not None and (memory := service['deploy'].get('resources', {}).get('limits', {}).get('memory', None)):
                 memory_bytes = utils.docker_memory_to_bytes(memory)
-                docker_run_string.append('--memory')
-                docker_run_string.append(str(memory_bytes))
+                docker_run_string.append(f"--memory={memory_bytes}")
+                docker_run_string.append(f"--memory-swap={memory_bytes}") # effectively disable swap
                 print('Applying Memory Limit from deploy')
             elif memory := service.get('mem_limit', None): # we only need to get resources or cpus. they must align anyway
                 memory_bytes = utils.docker_memory_to_bytes(memory)
-                docker_run_string.append('--memory')
-                docker_run_string.append(str(memory_bytes))
+                docker_run_string.append(f"--memory={memory_bytes}")
+                docker_run_string.append(f"--memory-swap={memory_bytes}") # effectively disable swap
                 print('Applying Memory Limit from services')
             else:
                 memory_bytes = math.floor(unassigned_memory/unassigned_memory_services)
-                docker_run_string.append('--memory')
-                docker_run_string.append(str(memory_bytes))
+                docker_run_string.append(f"--memory={memory_bytes}")
+                docker_run_string.append(f"--memory-swap={memory_bytes}") # effectively disable swap
                 if memory_bytes < 1024**3:
                     self.__warnings.append(f"Container '{container_name}' was auto-assigned less memory than 1 GB because no more memory was available to the host. If you feel that this is too low please set memory limits manually or upgrade to a bigger host.")
 
