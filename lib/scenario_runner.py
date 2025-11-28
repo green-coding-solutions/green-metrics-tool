@@ -1066,6 +1066,10 @@ class ScenarioRunner:
         unassigned_memory_services = len(services)
         unassigned_memory = DOCKER_AVAILABLE_MEMORY-1024**3 # we want to leave 1 GB free on the host / docker VM to avoid OOM situations
 
+        SYSTEM_ASSIGNABLE_CPU_COUNT = int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip()) -1
+        if SYSTEM_ASSIGNABLE_CPU_COUNT <= 0:
+            raise RuntimeError(f"Cannot assign docker containers to any CPU as no CPUs are available to Docker. Available CPU count: {SYSTEM_ASSIGNABLE_CPU_COUNT}")
+
         # Check if there are service dependencies defined with 'depends_on'.
         # If so, change the order of the services accordingly.
         services_ordered = self._order_services(services)
@@ -1280,10 +1284,6 @@ class ScenarioRunner:
 
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
-
-            SYSTEM_ASSIGNABLE_CPU_COUNT = int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip()) -1
-            if SYSTEM_ASSIGNABLE_CPU_COUNT <= 0:
-                raise RuntimeError(f"Cannot assign docker containers to any CPU as no CPUs are available to Docker. Available CPU count: {SYSTEM_ASSIGNABLE_CPU_COUNT}")
 
             # apply cpuset but keep one core for GMT and metric providers free
             # This cannot be configured via user as no knowledge of machine shall be required
