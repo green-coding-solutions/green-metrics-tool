@@ -651,8 +651,9 @@ class ScenarioRunner:
                 service['cpus'] = SYSTEM_ASSIGNABLE_CPU_COUNT
 
 
-        if to_be_assigned_services > 0:
-            memory_per_service = math.floor(unassigned_memory/len(to_be_assigned_services))
+        service_count = len(to_be_assigned_services)
+        if service_count > 0:
+            memory_per_service = math.floor(unassigned_memory/service_count)
             if memory_per_service < 1024**3:
                 self.__warnings.append('Auto-assigned memory for containers was less than 1 GB per container because no more memory was available to the host. If you feel that this is too low please set memory limits manually or upgrade to a bigger host.')
             for service_name in to_be_assigned_services:
