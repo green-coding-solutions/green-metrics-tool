@@ -2,7 +2,7 @@ name: Website Tester Playwright Python Test
 
 on:
   schedule:
-    - cron: '14 14 * * *'
+    - cron: '16 16 * * *'
   workflow_dispatch:
 
 jobs:

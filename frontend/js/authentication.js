@@ -18,8 +18,14 @@
     // })
 
     $('#clear-authentication-token').on('click', function(){
+        $('#login-successful-message').hide();
+        $('#token-details-message').hide();
         localStorage.removeItem('authentication_token');
+        localStorage.removeItem('user_name');
         $('#logout-successful-message').show();
+        setTimeout(() => {
+          window.location.reload();
+        }, 60000);
     })
 
 
@@ -37,10 +43,14 @@
             const user_data = await makeAPICall('/v1/user/settings', null, authentication_token);
 
             localStorage.setItem('authentication_token', authentication_token);
+            localStorage.setItem('user_name', user_data.data._name);
 
             $('#login-successful-message').show();
             $('#token-details-message').show();
             $('#token-details').text(JSON.stringify(user_data.data, null, 2));
+            setTimeout(() => {
+              window.location.reload();
+            }, 60000);
 
         } catch (err) {
             showNotification('Could not read authentication token data', err);

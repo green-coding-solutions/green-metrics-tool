@@ -1,5 +1,18 @@
 const GMT_MACHINES = JSON.parse(localStorage.getItem('gmt_machines')) || {}; // global variable. dynamically resolved via resolveMachinesToGlobalVariable
 
+const escapeString = (string) =>{
+    let my_string = String(string)
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;'
+    };
+    const reg = /[&<>"']/ig;
+    return my_string.replace(reg, (match) => map[match]);
+}
+
 class APIEmptyResponse204 extends Error {}
 
 const date_options = {
@@ -73,6 +86,15 @@ class GMTMenu extends HTMLElement {
                     <b><i class="cogs icon"></i> Settings</b>
                 </a>
             </div>`;
+
+        const user_name = localStorage.getItem('user_name');
+        if (user_name != null) {
+            html_content += `
+                <div class="sticky-container" style="width: 90%; margin: 20px auto;">
+                    <span class="ui label"><i class="users icon"></i> User: ${escapeString(user_name)}</span>
+                </div>`;
+        }
+
         html_content += `
             <div class="sticky-container">
                 <a href="https://www.green-coding.io">
@@ -271,18 +293,6 @@ const dateToYMD = (date, short=false, no_break=false) => {
     return ` ${date.getFullYear()}-${month}-${day} ${breaker} ${hours}:${minutes} UTC${offset}`;
 }
 
-const escapeString = (string) =>{
-    let my_string = String(string)
-    const map = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#x27;'
-    };
-    const reg = /[&<>"']/ig;
-    return my_string.replace(reg, (match) => map[match]);
-  }
 
 async function makeAPICall(path, values=null, force_authentication_token=null, force_put=false) {
 
