@@ -2,6 +2,7 @@ import psutil
 
 from optimization_providers.base import Criticality, register_reporter
 from lib import error_helpers
+from lib import utils
 
 REPORTER_NAME = 'utilization'
 REPORTER_ICON = 'tachometer alternate'
@@ -10,25 +11,6 @@ MIN_MEM_UTIL = 80 #%
 MAX_CPU_UTIL = 90 #%
 MIN_CPU_UTIL = 50 #%
 
-def memory_to_bytes(memory_str):
-    """Convert memory string with units (e.g., '50M', '2G') to bytes."""
-    unit_multipliers = {
-        'K': 1_000,         # Kilobyte
-        'M': 1_000_000,     # Megabyte
-        'G': 1_000_000_000, # Gigabyte
-        'T': 1_000_000_000, # Terabyte
-    }
-
-    if isinstance(memory_str, int) or memory_str[-1].isdigit():
-        return int(memory_str)
-
-    num, unit = float(memory_str[:-1]), memory_str[-1].upper()
-
-    if unit in unit_multipliers:
-        return int(num * unit_multipliers[unit])
-
-    raise ValueError(f"Unrecognized memory unit: {unit}")
-
 # pylint: disable=unused-argument
 @register_reporter('container_memory_utilization', Criticality.INFO, REPORTER_NAME, REPORTER_ICON, req_providers =['MemoryUsedCgroupContainerProvider'])
 def container_memory_utilization(self, run, measurements, repo_path, network, notes, phases):
@@ -36,7 +18,7 @@ def container_memory_utilization(self, run, measurements, repo_path, network, no
     mem = {}
     for s, d in run.get('usage_scenario').get('services').items():
         if x := d.get('deploy', {}).get('resources', {}).get('limits', {}).get('memory', None):
-            mem[s] = memory_to_bytes(x)
+            mem[s] = utils.docker_memory_to_bytes(x)
 
     for service, measurement_stats in phases['data']['[RUNTIME]']['data']['memory_used_cgroup_container']['data'].items():
         if not service in mem:
