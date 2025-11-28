@@ -1,5 +1,18 @@
 const GMT_MACHINES = JSON.parse(localStorage.getItem('gmt_machines')) || {}; // global variable. dynamically resolved via resolveMachinesToGlobalVariable
 
+const escapeString = (string) =>{
+    let my_string = String(string)
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;'
+    };
+    const reg = /[&<>"']/ig;
+    return my_string.replace(reg, (match) => map[match]);
+}
+
 class APIEmptyResponse204 extends Error {}
 
 const date_options = {
@@ -280,18 +293,6 @@ const dateToYMD = (date, short=false, no_break=false) => {
     return ` ${date.getFullYear()}-${month}-${day} ${breaker} ${hours}:${minutes} UTC${offset}`;
 }
 
-const escapeString = (string) =>{
-    let my_string = String(string)
-    const map = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#x27;'
-    };
-    const reg = /[&<>"']/ig;
-    return my_string.replace(reg, (match) => map[match]);
-  }
 
 async function makeAPICall(path, values=null, force_authentication_token=null, force_put=false) {
 
