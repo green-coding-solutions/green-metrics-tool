@@ -78,7 +78,7 @@ class GMTMenu extends HTMLElement {
         if (user_name != null) {
             html_content += `
                 <div class="sticky-container" style="width: 90%; margin: 20px auto;">
-                    <span class="ui label"><i class="users icon"></i> User: ${user_name}</span>
+                    <span class="ui label"><i class="users icon"></i> User: ${escapeString(user_name)}</span>
                 </div>`;
         }
 
