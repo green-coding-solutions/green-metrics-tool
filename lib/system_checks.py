@@ -167,7 +167,7 @@ start_checks = (
     (check_available_cpus, Status.ERROR, '< 2 CPUs', 'You need at least 2 CPU cores on the system (and assigned to Docker in case of macOS) to run GMT'),
     (check_docker_cpu_availability, Status.ERROR, 'Docker CPU reporting', 'Docker reports a different amount of available CPUs than the system itself - GMT cannot handle this currently'),
     (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'You need to free up some disk space to run GMT reliably (< 1GiB available)'),
-    (check_free_memory, Status.ERROR, '1 GiB free memory', 'No free memory! Please kill some programs (< 1GiB available)'),
+    (check_free_memory, Status.ERROR, '2 GiB free memory', 'No free memory! Please kill some programs (< 1GiB available)'),
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),
     (check_docker_host_env, Status.ERROR, 'docker host env', 'You seem to be running a rootless docker and in this case you must set the DOCKER_HOST environment variable so that the docker library we use can find the docker agent. Typically this should be DOCKER_HOST=unix:///$XDG_RUNTIME_DIR/docker.sock'),
     (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),

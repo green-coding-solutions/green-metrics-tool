@@ -614,7 +614,7 @@ class ScenarioRunner:
                 else:
                     service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
-    def _popuplate_cpu_and_memory_limits(self):
+    def _populate_cpu_and_memory_limits(self):
         services = self._usage_scenario.get('services', {})
 
         DOCKER_AVAILABLE_MEMORY = int(subprocess.check_output(['docker', 'info', '--format', '{{.MemTotal}}'], encoding='UTF-8', errors='replace').strip())
@@ -624,6 +624,8 @@ class ScenarioRunner:
             raise RuntimeError(f"Docker has insufficient memory available. Available: {DOCKER_AVAILABLE_MEMORY/1024**3:.2f}GB, Required: at least 1GB for GMT overhead")
 
         SYSTEM_ASSIGNABLE_CPU_COUNT = int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip()) -1
+        if SYSTEM_ASSIGNABLE_CPU_COUNT <= 0:
+            raise RuntimeError(f"Cannot assign docker containers to any CPU as no CPUs are available to Docker. Available CPU count: {SYSTEM_ASSIGNABLE_CPU_COUNT}")
 
         to_be_assigned_services = []
         for service_name, service in services.items():
@@ -649,11 +651,12 @@ class ScenarioRunner:
                 service['cpus'] = SYSTEM_ASSIGNABLE_CPU_COUNT
 
 
-        memory_per_service = math.floor(unassigned_memory/len(to_be_assigned_services))
-        if memory_per_service < 1024**3:
-            self.__warnings.append('Auto-assigned memory for containers was less than 1 GB per container because no more memory was available to the host. If you feel that this is too low please set memory limits manually or upgrade to a bigger host.')
-        for service_name in to_be_assigned_services:
-            services[service_name]['mem_limit'] = memory_per_service
+        if to_be_assigned_services > 0:
+            memory_per_service = math.floor(unassigned_memory/len(to_be_assigned_services))
+            if memory_per_service < 1024**3:
+                self.__warnings.append('Auto-assigned memory for containers was less than 1 GB per container because no more memory was available to the host. If you feel that this is too low please set memory limits manually or upgrade to a bigger host.')
+            for service_name in to_be_assigned_services:
+                services[service_name]['mem_limit'] = memory_per_service
 
 
     def _remove_docker_images(self):
@@ -2418,7 +2421,7 @@ class ScenarioRunner:
             self._register_machine_id()
             self._import_metric_providers()
             self._populate_image_names()
-            self._popuplate_cpu_and_memory_limits()
+            self._populate_cpu_and_memory_limits()
             self._prepare_docker()
             self._check_running_containers_before_start()
             self._remove_docker_images()
