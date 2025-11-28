@@ -1066,6 +1066,9 @@ class ScenarioRunner:
         unassigned_memory_services = len(services)
         unassigned_memory = DOCKER_AVAILABLE_MEMORY-1024**3 # we want to leave 1 GB free on the host / docker VM to avoid OOM situations
 
+        if unassigned_memory <= 0:
+            raise RuntimeError(f"Docker has insufficient memory available. Available: {DOCKER_AVAILABLE_MEMORY/1024**3:.2f}GB, Required: at least 1GB for GMT overhead")
+
         SYSTEM_ASSIGNABLE_CPU_COUNT = int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip()) -1
         if SYSTEM_ASSIGNABLE_CPU_COUNT <= 0:
             raise RuntimeError(f"Cannot assign docker containers to any CPU as no CPUs are available to Docker. Available CPU count: {SYSTEM_ASSIGNABLE_CPU_COUNT}")
