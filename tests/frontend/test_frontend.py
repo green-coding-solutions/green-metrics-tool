@@ -15,7 +15,7 @@ from tests import test_functions as Tests
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from datetime import datetime, timedelta
 
-from api.object_specifications import CI_Measurement
+from api.object_specifications import CI_Measurement, CI_MeasurementV3
 
 
 page = None
@@ -168,6 +168,31 @@ class TestFrontendFunctionality:
         assert count_single.strip() == '5'
 
 
+    def open_and_assert_ci_stats(self):
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+        page.locator("#menu").get_by_role("link", name="Eco CI", exact=True).click()
+
+        page.locator("#ci-repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
+        page.locator('#DataTables_Table_0 > tbody > tr  > td:first-child > a').click()
+
+        page.wait_for_load_state("load")
+
+        energy_avg_all_steps = page.locator(
+            "#label-stats-table-avg > tr:nth-child(1) > td:nth-child(2)"
+        ).text_content()
+        assert energy_avg_all_steps.strip() == '78.00 J (± 0.00%)'
+
+        carbon_all_steps = page.locator(
+            "#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)"
+        ).text_content()
+        assert carbon_all_steps.strip() == '0.9704 gCO2e (± 0.00%)'
+
+        carbon_all_steps = page.locator(
+            "#label-stats-table-avg > tr:nth-child(1) > td:nth-child(3)"
+        ).text_content()
+        assert carbon_all_steps.strip() == '0.11 s (± 0.00%)'
+
+
     @pytest.mark.usefixtures('use_clean_db')
     def test_eco_ci_adding_data(self):
         for index in range(1,4):
@@ -191,23 +216,36 @@ class TestFrontendFunctionality:
             )
             response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement.model_dump(), timeout=15)
             assert response.status_code == 204, Tests.assertion_info('success', response.text)
+        self.open_and_assert_ci_stats()
 
-        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-        page.locator("#menu").get_by_role("link", name="Eco CI", exact=True).click()
 
-        page.locator("#ci-repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
-        page.locator('#DataTables_Table_0 > tbody > tr  > td:first-child > a').click()
-
-        page.wait_for_load_state("load") # ALL JS should be done
-
-        energy_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(2)").text_content()
-        assert energy_avg_all_steps.strip() == '78.00 J (± 0.00%)'
-
-        carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)").text_content()
-        assert carbon_all_steps.strip() == '0.9704 gCO2e (± 0.00%)'
-
-        carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(3)").text_content()
-        assert carbon_all_steps.strip() == '0.11 s (± 0.00%)'
+    @pytest.mark.usefixtures('use_clean_db')
+    def test_eco_ci_adding_data_v3(self):
+        for index in range(1, 4):
+            measurement = CI_MeasurementV3(energy_uj=(13_000_000 * index),
+                                           repo='testRepo',
+                                           branch='testBranch',
+                                           cpu='testCPU',
+                                           cpu_util_avg=50,
+                                           commit_hash='1234asdf',
+                                           workflow='testWorkflow',
+                                           run_id='testRunID',
+                                           source='testSource',
+                                           label='testLabel',
+                                           duration_us=35323,
+                                           workflow_name='testWorkflowName',
+                                           lat="18.2972",
+                                           lon="77.2793",
+                                           city="Nine Mile",
+                                           carbon_intensity_g=100,
+                                           carbon_ug=323456,
+                                           os_name='Linux',
+                                           cpu_arch='x86_64',
+                                           job_id='testJobID'
+                                           )
+            response = requests.post(f"{API_URL}/v3/ci/measurement/add", json=measurement.model_dump(), timeout=15)
+            assert response.status_code == 204, Tests.assertion_info('success', response.text)
+        self.open_and_assert_ci_stats()
 
 
     def test_stats(self):
