@@ -17,8 +17,7 @@ def container_memory_utilization(self, run, measurements, repo_path, network, no
 
     mem = {}
     for s, d in run.get('usage_scenario').get('services').items():
-        if x := d.get('deploy', {}).get('resources', {}).get('limits', {}).get('memory', None):
-            mem[s] = utils.docker_memory_to_bytes(x)
+        mem[s] = utils.docker_memory_to_bytes(d['mem_limit']) # will always be there bc populated by scenario_runner
 
     for service, measurement_stats in phases['data']['[RUNTIME]']['data']['memory_used_cgroup_container']['data'].items():
         if not service in mem:
@@ -50,8 +49,7 @@ def container_cpu_utilization(self, run, measurements, repo_path, network, notes
 
     cpus = {}
     for s, d in run.get('usage_scenario').get('services').items():
-        if x := d.get('deploy', {}).get('resources', {}).get('limits', {}).get('cpus', None):
-            cpus[s] = float(x)
+        cpus[s]  = float(d['cpus']) # will always be there bc populated by scenario_runner
 
     for service, measurement_stats in phases['data']['[RUNTIME]']['data']['cpu_utilization_cgroup_container']['data'].items():
         if not service in cpus:
