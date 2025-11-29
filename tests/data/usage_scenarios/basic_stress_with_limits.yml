@@ -1,0 +1,37 @@
+---
+name: Test Stress
+author: Dan Mateas
+description: test
+
+services:
+  test-container:
+    type: container
+    image: gcb_stress
+    mem_limit: 100MB
+    cpus: 2
+    build:
+      context: ../stress-application
+
+flow:
+
+  - name: I am a hidden phase
+    container: test-container
+    hidden: true
+    commands:
+        - type: console
+          command: echo 1
+
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress
+
+  - name: I am hidden too
+    container: test-container
+    hidden: true
+    commands:
+      - type: console
+        command: echo 1
+        note: echo

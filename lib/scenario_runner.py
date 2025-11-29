@@ -646,9 +646,13 @@ class ScenarioRunner:
             if 'deploy' in service and service['deploy'] is not None and (cpus := service['deploy'].get('resources', {}).get('limits', {}).get('cpus', None)) is not None:
                 del service['deploy']['resources']['limits']['cpus']
                 service['cpus'] = cpus
-            if service.get('cpus', 0) == 0:
+            REQUESTED_CPUS = float(service.get('cpus', 0))
+            if REQUESTED_CPUS == 0:
                 # we do not want to auto enforce CPU limits. So we re-map the limit spec here to the host system for transparency and for comparing with other runs
                 service['cpus'] = SYSTEM_ASSIGNABLE_CPU_COUNT
+            elif REQUESTED_CPUS > SYSTEM_ASSIGNABLE_CPU_COUNT:
+                raise ValueError(f"You are trying to assign more cpus to service {service_name} than is available host system. Requested CPUs: {REQUESTED_CPUS}. Available CPUs: {SYSTEM_ASSIGNABLE_CPU_COUNT}")
+
 
 
         service_count = len(to_be_assigned_services)
