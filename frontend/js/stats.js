@@ -635,6 +635,22 @@ const fetchAndFillPhaseStatsData = async (url_params) => {
         })
     );
 
+    document.querySelectorAll('#runtime-sub-phases .item').forEach(node => { node.addEventListener('click', event => {
+        const activeTab = localStorage.getItem('activeMetricTab');
+
+        const tabName = node.getAttribute('data-tab');
+        const segment = document.querySelector('.ui.bottom.attached.tab.segment[data-tab="' + tabName + '"]');
+
+        if (!segment) return;
+
+        const tabs = $(segment).find('#unit-tabs .item');
+
+        if (activeTab) {
+            tabs.tab('change tab', activeTab);
+        }
+      });
+    });
+    
     renderCompareChartsForPhase(phase_stats.data, getAndShowPhase());
     displayTotalChart(...buildTotalChartData(phase_stats.data));
 
