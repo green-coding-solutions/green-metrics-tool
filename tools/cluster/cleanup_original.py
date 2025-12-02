@@ -4,8 +4,19 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
+import re
 import time
 import subprocess
+
+def check_timers(data):
+    if not re.search(r'^0 timers listed.$', data, re.MULTILINE):
+        for el in data.splitlines():
+            el = el.strip()
+            if el == '' or el.startswith('NEXT') or el.startswith('-') or el.endswith('timers listed.'):
+                pass
+            else:
+                raise RuntimeError('Found timer', el, '\n', 'Stdout dump:', data)
+
 
 # We can NEVER include non system packages here, as we rely on them all being writeable by root only.
 # This will only be true for non-venv pure system packages coming with the python distribution of the OS
@@ -49,6 +60,26 @@ if 'System clock synchronized: yes' not in ntp_status:
 
 if 'NTP service: inactive' not in ntp_status:
     raise RuntimeError('System clock synchronization could not be turned off', ntp_status)
+
+# List all timers and services to validate we have nothing left
+
+result = subprocess.run(
+    ['sudo', 'systemctl', '--all', 'list-timers'],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT, # put both in one stream
+    encoding='UTF-8', errors='replace', check=True)
+
+check_timers(result.stdout)
+
+print('Checking user timers for', os.environ['SUDO_USER'])
+
+result = subprocess.run(
+    ['sudo', 'systemctl', f"--machine={os.environ['SUDO_USER']}@", '--user', '--all', 'list-timers'],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT, # put both in one stream
+    encoding='UTF-8', errors='replace', check=True)
+
+check_timers(result.stdout)
 
 ## Do APT last, as we want to insert the Changelog
 apt_packages_upgrade = None

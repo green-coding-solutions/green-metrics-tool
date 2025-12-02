@@ -147,18 +147,19 @@ function prepare_config() {
     eval "${sed_command} -e \"s|__API_URL__|$api_url|\" config.yml"
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" config.yml"
 
-
-    copy_backup docker/nginx/api.conf
-    local host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
-    local host_api_url=${host_api_url%:*}
-    eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/api.conf"
-
-
-    copy_backup docker/nginx/block.conf
-
-    copy_backup docker/nginx/frontend.conf
     local host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
     local host_metrics_url=${host_metrics_url%:*}
+    local host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
+    local host_api_url=${host_api_url%:*}
+
+    copy_backup docker/nginx/api.conf
+    eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/api.conf"
+
+    copy_backup docker/nginx/block-and-redirect.conf
+    eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/block-and-redirect.conf"
+    eval "${sed_command} -e \"s|__METRICS_URL__|$host_metrics_url|\" docker/nginx/block-and-redirect.conf"
+
+    copy_backup docker/nginx/frontend.conf
     eval "${sed_command} -e \"s|__METRICS_URL__|$host_metrics_url|\" docker/nginx/frontend.conf"
 
     copy_backup frontend/js/helpers/config.js
@@ -213,12 +214,12 @@ function prepare_config() {
 
         eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/frontend.conf"
         eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/api.conf"
-        eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/block.conf"
+        eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/block-and-redirect.conf"
 
     else
         eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/frontend.conf"
         eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/api.conf"
-        eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/block.conf"
+        eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/block-and-redirect.conf"
     fi
 
     if [[ $modify_hosts == true ]] ; then

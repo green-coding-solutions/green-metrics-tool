@@ -1,0 +1,33 @@
+# This file will block access to the IP directly.
+# Many crawlers do not access api.green-coding.io/trash but go directly to XXX.XXX.XXX.XXX/trash
+# Since GMT has no use for these connections this file introduces the block. It will also
+# block on port 80 in case SSL is activated
+
+# Furthermore it does HTTP redirects to HTTPS in case an SSL certificate is activated
+
+server {
+
+#__DEFAULT__    listen [::]:9142 default_server;
+#__DEFAULT__    listen 9142 default_server;
+
+#__SSL__    listen 80 default_server;
+#__SSL__    listen [::]:80 default_server;
+#__SSL__    listen [::]:443 default_server ssl;
+#__SSL__    listen 443 default_server ssl;
+#__SSL__    ssl_certificate /etc/ssl/production.crt;
+#__SSL__    ssl_certificate_key /etc/ssl/production.key;
+
+
+    server_name _;
+
+    return 444;
+}
+
+server {
+
+#__SSL__    listen 80;
+#__SSL__    listen [::]:80;
+#__SSL__    server_name __API_URL__ __METRICS_URL__;
+#__SSL__    return 301 https://$host$request_uri;
+
+}
