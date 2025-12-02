@@ -37,7 +37,7 @@ def setup_and_cleanup_test():
 #     pass
 
 
-def pytest_sessionstart(session):
+def pytest_sessionstart(_):
     tests_dir = Path(__file__).parent.resolve()
     cwd = Path.cwd().resolve()
 
