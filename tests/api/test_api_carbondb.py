@@ -50,14 +50,14 @@ def test_carbondb_add():
 
 def test_carbondb_add_force_ip():
     energydata_modified = ENERGY_DATA.copy()
-    energydata_modified['ip'] = '1.1.1.1'
+    energydata_modified['ip'] = '5.75.242.14'
 
 
     exp_data = energydata_modified.copy()
     del exp_data['energy_uj']
-    exp_data['ip_address'] = ipaddress.IPv4Address('1.1.1.1')
-    exp_data['latitude'] = -27.4766 # Hmm, this can be flaky! But also we want to test the IP API
-    exp_data['longitude'] = 153.0166 # Hmm, this can be flaky! But also we want to test the IP API
+    exp_data['ip_address'] = ipaddress.IPv4Address('5.75.242.14')
+    exp_data['latitude'] = 50.4777 # Hmm, this can be flaky! But also we want to test the IP API
+    exp_data['longitude'] = 12.3649 # Hmm, this can be flaky! But also we want to test the IP API
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 204, Tests.assertion_info('success', response.text)
