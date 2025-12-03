@@ -55,7 +55,7 @@ const addVariableField = (keyPart = '', value = '') => {
             <div class="gmt-var-input">                
                 <div class="ui right labeled input">
                     <div class="ui label">__GMT_VAR_</div>
-                    <input type="text" placeholder="Key" class="variable-key" pattern="[\\w]+" title="Only alphanumeric characters and underscores are allowed." value="${escapeString(keyPart)}">
+                    <input type="text" placeholder="Key (Variables are optional. Leave empty if not needed)" class="variable-key" pattern="[\\w]+" title="Only alphanumeric characters and underscores are allowed." value="${escapeString(keyPart)}">
                     <div class="ui label">__</div>
                 </div>
             </div>
@@ -63,7 +63,7 @@ const addVariableField = (keyPart = '', value = '') => {
         =
         <div class="field">
             <div class="ui fluid input">
-                <input type="text" placeholder="Variable Value" class="variable-value" value="${escapeString(value)}">
+                <input type="text" placeholder="Value (Variables are optional. Leave empty if not needed)" class="variable-value" value="${escapeString(value)}">
             </div>
         </div>
         <button type="button" class="ui red mini icon button remove-variable">
@@ -104,6 +104,7 @@ const updateRemoveButtonsVisibility = () => {
     }
 
     $('#add-variable').on('click', () => addVariableField());
+    addVariableField() // always add one empty row
 
     $('#variables-container').on('click', '.remove-variable', function (e) {
         $(this).closest('.variable-row').remove();
