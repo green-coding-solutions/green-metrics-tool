@@ -186,8 +186,6 @@ function prepare_config() {
         eval "${sed_command} -e \"s|ee_token:.*$|ee_token: ${ee_token}|\" config.yml"
     fi
 
-    # Activating CarbonDB and PowerHOG makes actually only sense in enterprise mode
-    # but must run still, as we need to set the variables and replacements
     if [[ $activate_power_hog == true ]]; then
         eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|true|\" frontend/js/helpers/config.js"
         eval "${sed_command} -e \"s|activate_power_hog:.*$|activate_power_hog: True|\" config.yml"
@@ -200,6 +198,8 @@ function prepare_config() {
     else
         eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
     fi
+    # Activating AI Optimisations makes actually only sense in enterprise mode
+    # but must run still, as we need to set the variables and replacements
     if [[ $activate_ai_optimisations == true ]]; then
         eval "${sed_command} -e \"s|__ACTIVATE_AI_OPTIMISATIONS__|true|\" frontend/js/helpers/config.js"
         eval "${sed_command} -e \"s|activate_ai_optimisations:.*$|activate_ai_optimisations: True|\" config.yml"
@@ -311,20 +311,12 @@ function checkout_submodules() {
             git -C ee checkout $ee_branch
         fi
 
-        ln -sf ../ee/cron/delete_expired_data.py cron/delete_expired_data.py
-        ln -sf ../ee/cron/carbondb_copy_over_and_remove_duplicates.py cron/carbondb_copy_over_and_remove_duplicates.py
-        ln -sf ../ee/cron/carbondb_compress.py cron/carbondb_compress.py
-        ln -sf ../../ee/tests/cron/test_carbondb_compress.py tests/cron/test_carbondb_compress.py
-        ln -sf ../../ee/tests/frontend/test_frontend_ee.py tests/frontend/test_frontend_ee.py
-        ln -sf ../../ee/tests/api/test_api_hog.py tests/api/test_api_hog.py
-        ln -sf ../../ee/tests/api/test_api_carbondb.py tests/api/test_api_carbondb.py
-        ln -sf ../ee/tools/rebuild_carbondb.py tools/rebuild_carbondb.py
-        ln -sf ../../ee/frontend/js/hog-details.js frontend/js/hog-details.js
-        ln -sf ../../ee/frontend/js/carbondb.js frontend/js/carbondb.js
-        ln -sf ../../ee/frontend/js/hog.js frontend/js/hog.js
-        ln -sf ../ee/frontend/hog-details.html frontend/hog-details.html
-        ln -sf ../ee/frontend/hog.html frontend/hog.html
-        ln -sf ../ee/frontend/carbondb.html frontend/carbondb.html
+        # Link enterprise only files to running instance. Requires the ../ee repo is present. Will be silently ingored if not
+        arr=('cron/delete_expired_data.py')
+        for item in "${arr[@]}"; do
+            [ -e "ee/${item}" ] && ln -sf "../ee/${item}" "${item}" || { echo "Could not find enterprise source file: ee/${item}" >&2; }
+        done
+
     fi
 }
 
@@ -707,7 +699,7 @@ if [[ $ask_eco_ci == true ]]; then
     fi
 fi
 
-if [[ $enterprise == true && $ask_carbon_db == true ]]; then
+if [[ $ask_carbon_db == true ]]; then
     echo ""
     read -p "Do you want to activate CarbonDB? (y/N) : " activate_carbon_db
     if [[  "$activate_carbon_db" == "Y" || "$activate_carbon_db" == "y" ]] ; then
@@ -717,7 +709,7 @@ if [[ $enterprise == true && $ask_carbon_db == true ]]; then
     fi
 fi
 
-if [[ $enterprise == true && $ask_power_hog == true ]]; then
+if [[ $ask_power_hog == true ]]; then
     echo ""
     read -p "Do you want to activate PowerHOG? (y/N) : " activate_power_hog
     if [[  "$activate_power_hog" == "Y" || "$activate_power_hog" == "y" ]] ; then
