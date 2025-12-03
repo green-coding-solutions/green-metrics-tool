@@ -1,5 +1,6 @@
 import pytest
 import os
+from pathlib import Path
 
 from tests import test_functions as Tests
 
@@ -34,3 +35,13 @@ def setup_and_cleanup_test():
 # @pytest.fixture(autouse=False)  # Set autouse to False to override the fixture
 # def setup_and_cleanup_test():
 #     pass
+
+
+def pytest_sessionstart(session):  # pylint: disable=unused-argument
+    tests_dir = Path(__file__).parent.resolve()
+    cwd = Path.cwd().resolve()
+
+    if cwd != tests_dir:
+        pytest.exit(
+            f"Tests must be run from {tests_dir}, but current dir is {cwd}"
+        )
