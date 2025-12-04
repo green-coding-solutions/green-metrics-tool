@@ -48,29 +48,35 @@ const populateFieldsFromURL = () => {
 const addVariableField = (keyPart = '', value = '') => {
     const variablesContainer = document.getElementById('variables-container');
     const newVariableRow = document.createElement('div');
-    newVariableRow.classList.add('two', 'fields', 'variable-row');
+    newVariableRow.classList.add('variable-row', 'ui', 'grid', 'middle', 'aligned',  'stackable');
 
-    newVariableRow.innerHTML = `
-        <div class="field">
-            <div class="gmt-var-input">                
-                <div class="ui right labeled input">
+  newVariableRow.innerHTML = `
+        <div class="seven wide column">
+                <div class="ui right labeled input fluid">
                     <div class="ui label">__GMT_VAR_</div>
                     <input type="text" placeholder="Key (Variables are optional. Leave empty if not needed)" class="variable-key" pattern="[\\w]+" title="Only alphanumeric characters and underscores are allowed." value="${escapeString(keyPart)}">
                     <div class="ui label">__</div>
                 </div>
-            </div>
         </div>
-        =
-        <div class="field">
-            <div class="ui fluid input">
-                <input type="text" placeholder="Value (Variables are optional. Leave empty if not needed)" class="variable-value" value="${escapeString(value)}">
-            </div>
+        <div class="one wide column computer only tablet only" style="text-align: center; padding: 0;">
+            =
         </div>
-        <button type="button" class="ui red mini icon button remove-variable">
-            <i class="times icon"></i>
-        </button>
+        <div class="eight wide column">
+                <div class="ui action input fluid">
+                    <input type="text" placeholder="Value (Variables are optional. Leave empty if not needed)" class="variable-value" value="${escapeString(value)}">
+                    <button type="button" class="ui red mini icon button remove-variable">
+                        <i class="times icon"></i>
+                    </button>
+                </div>
+        </div>
     `;
+
     variablesContainer.appendChild(newVariableRow);
+    
+    const divider = document.createElement('div');
+    divider.classList.add('ui', 'divider', 'custom-mobile-divider');
+    variablesContainer.appendChild(divider);
+
     updateRemoveButtonsVisibility();
 };
 
