@@ -23,6 +23,7 @@ class Software(BaseModel):
     machine_id: int
     schedule_mode: str
     usage_scenario_variables: Optional[Dict[str, str]] = None
+    repo_to_watch_url: Optional[str] = None
 
     model_config = ConfigDict(extra='forbid')
 

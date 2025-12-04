@@ -105,7 +105,7 @@
                         </div>
                         <p style="text-align: right;">Find the specifications of the machines <a href="https://docs.green-coding.io/docs/measuring/measurement-cluster/">in our documentation</a></p>
                         <div class="ui fluid icon input">
-                            <select name="schedule_mode" class="ui fluid dropdown" required>
+                            <select name="schedule_mode" id="schedule-mode-select" class="ui fluid dropdown" required>
                                 <option value=''>-- Select measurement interval --</option>
                                 <option value='one-off'>One-Off [Free - Fair use]</option>
                                 <option value='variance'>Variance test (3 measurements in a row) [Premium]</option>
@@ -118,6 +118,12 @@
                                 <option value='statistical-significance'>Do 10 runs to evaluate statistical significance [Premium]</option>
                             </select>
                         </div>
+                        <div id="watch-different-repo" class="hidden">
+                            <p style="text-align: right;">You can watch a different repo for changes and then benchmark the repository specified above.</p>
+                            <div class="ui fluid icon input">
+                                <input type="text" placeholder="Repo to watch (optional - defaults to the repo above)" name="repo_to_watch_url">
+                            </div>
+                        </div>
                         <p style="text-align: right;">Define variables to be used. See the documentation <a href="https://docs.green-coding.io/docs/measuring/usage-scenario/#variables" target="_blank">here</a>.</p>
                         <div id="variables-container">
                         </div>
@@ -127,7 +133,10 @@
                             </button>
                         </div>
                         </div>
-                    <button class="positive ui button" style="margin-top: 20px;">Submit software</button>
+                    
+                        <button class="positive ui button" style="margin-top: 20px;">Submit software</button>
+                        
+                    </div>
                 </form>
             </div>
         </div>

@@ -443,6 +443,7 @@ CREATE TABLE watchlist (
     name text,
     image_url text,
     repo_url text,
+    repo_to_watch_url text,
     categories integer[],
     branch text NOT NULL,
     filename text NOT NULL,

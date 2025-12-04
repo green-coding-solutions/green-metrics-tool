@@ -747,6 +747,9 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
 
     if software.usage_scenario_variables is None:
         software.usage_scenario_variables = {}
+    
+    if software.repo_to_watch_url is not None and software.repo_to_watch_url.strip() == '':
+        software.repo_to_watch_url = None
 
     if not DB().fetch_one('SELECT id FROM machines WHERE id=%s AND available=TRUE', params=(software.machine_id,)):
         raise RequestValidationError('Machine does not exist')
@@ -765,6 +768,11 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     except ValueError as exc: # We accept the value error here if the repository is unknown, but log it for now
         error_helpers.log_error('Repository could not be checked in /v1/software/add.', exception=exc)
 
+    if software.repo_to_watch_url:
+        try:
+            utils.check_repo(software.repo_to_watch_url, software.branch)
+        except ValueError as exc:
+            error_helpers.log_error('Watch repository could not be checked in /v1/software/add.', exception=exc)
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 
@@ -775,7 +783,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         if 'commit' in software.schedule_mode:
             last_marker = utils.get_repo_last_marker(software.repo_url, 'commits')
 
-        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, repo_to_watch_url=software.repo_to_watch_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
     job_ids_inserted = []
 

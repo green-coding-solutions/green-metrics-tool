@@ -13,6 +13,9 @@ const populateFieldsFromURL = () => {
     if (urlParams.has('repo_url')) { // precedence
         document.querySelector('input[name="repo_url"]').value = escapeString(urlParams.get('repo_url'));
     }
+    if (urlParams.has('repo_to_watch_url')) {
+        document.querySelector('input[name="repo_to_watch_url"]').value = escapeString(urlParams.get('repo_to_watch_url'));
+    }
     if (urlParams.has('filename')) {
         document.querySelector('input[name="filename"]').value = escapeString(urlParams.get('filename'));
     }
@@ -117,6 +120,26 @@ const updateRemoveButtonsVisibility = () => {
         updateRemoveButtonsVisibility();
     });
 
+
+    $('#variables-container').on('click', '.remove-variable', function (e) {
+        $(this).closest('.variable-row').remove();
+        updateRemoveButtonsVisibility();
+    });
+
+    const toggleWatchRepoVisibility = () => {
+        const scheduleModeSelect = document.getElementById('schedule-mode-select');
+        const watchRepoDiv = document.getElementById('watch-different-repo');
+        const commitModes = ['commit', 'commit-variance', 'tag', 'tag-variance'];
+
+        if (commitModes.includes(scheduleModeSelect.value)) {
+            watchRepoDiv.classList.remove('hidden');
+        } else {
+            watchRepoDiv.classList.add('hidden');
+        }
+    };
+
+    toggleWatchRepoVisibility();
+    $('#schedule-mode-select').on('change', toggleWatchRepoVisibility);
 
     document.forms[0].onsubmit = async (event) => {
         event.preventDefault();
