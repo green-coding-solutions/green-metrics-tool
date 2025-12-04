@@ -138,12 +138,12 @@ const getFilterQueryStringFromInputs = () => {
     const usage_scenario_variables = document.querySelector('input[name=usage_scenario_variables]').value.trim()
     const show_archived = document.querySelector('input[name=show_archived]:checked').value.trim()
 
-    if(uri != '') query_string += `&uri=${document.querySelector('input[name=uri]').value.trim()}`
-    if(filename != '')query_string += `&filename=${document.querySelector('input[name=filename]').value.trim()}`
-    if(branch != '')query_string += `&branch=${document.querySelector('input[name=branch]').value.trim()}`
-    if(machine != '')query_string += `&machine=${document.querySelector('input[name=machine]').value.trim()}`
-    if(machine_id != '')query_string += `&machine_id=${document.querySelector('input[name=machine_id]').value.trim()}`
-    if(usage_scenario_variables != '')query_string += `&usage_scenario_variables=${document.querySelector('input[name=usage_scenario_variables]').value.trim()}`
+    if(uri != '') query_string += `&uri=${uri}`
+    if(filename != '')query_string += `&filename=${filename}`
+    if(branch != '')query_string += `&branch=${branch}`
+    if(machine != '')query_string += `&machine=${machine}`
+    if(machine_id != '')query_string += `&machine_id=${machine_id}`
+    if(usage_scenario_variables != '')query_string += `&usage_scenario_variables=${usage_scenario_variables}`
 
     document.querySelector('#filters-active').classList.remove('hidden');
 
