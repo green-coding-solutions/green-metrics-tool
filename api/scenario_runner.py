@@ -818,7 +818,15 @@ async def get_run(run_id: str, user: User = Depends(authenticate)):
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 @router.put('/v1/run/{run_id}')
-def update_run(run_id: str, run: RunChange, user: User = Depends(authenticate)): # pylint: disable=unused-argument
+def update_run(
+    run_id: str,
+    run: RunChange,
+    user: User = Depends(authenticate) # pylint: disable=unused-argument
+    ):
+
+    if run_id is None or not is_valid_uuid(run_id):
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
+
 
     columns = []
     params = []
