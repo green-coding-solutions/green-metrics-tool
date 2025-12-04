@@ -6,7 +6,7 @@ description: "Opens __GMT_VAR_PAGE__ uncached and waits for full load + 5 second
 sci:
   R_d: Website load
 
-compose-file: !include-gmt-helper gmt-playwright-v1.0.0.yml
+compose-file: !include-gmt-helper gmt-playwright-v1.1.0.yml
 
 flow:
   - name: Visit page and idle for __GMT_VAR_SLEEP__ s
