@@ -156,6 +156,26 @@ const fetchAndFillRunData = async (url_params) => {
                 uriDisplay = escapeString(uri);
             }
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
+        } else if(item == 'archived') {
+            const archive_run_button = document.querySelector('#archive-run');
+            const unarchive_run_button = document.querySelector('#unarchive-run');
+
+            if (run_data[item] === true) {
+                archive_run_button.classList.add('hidden');
+                unarchive_run_button.classList.remove('hidden');
+            }
+
+            document.querySelector('#archive-run').addEventListener('click', async () => {
+                await makeAPICall(`/v1/run/${url_params['id']}`, {archived: true}, false, true);
+                archive_run_button.classList.add('hidden');
+                unarchive_run_button.classList.remove('hidden');
+            })
+            document.querySelector('#unarchive-run').addEventListener('click', async () => {
+                await makeAPICall(`/v1/run/${url_params['id']}`, {archived: false}, false, true);
+                archive_run_button.classList.remove('hidden');
+                unarchive_run_button.classList.add('hidden');
+            })
+
         } else {
             document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
         }

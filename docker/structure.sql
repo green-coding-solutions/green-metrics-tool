@@ -100,7 +100,8 @@ VALUES (
                 "/v2/carbondb/filters",
                 "/v2/hog/add",
                 "/v2/hog/top_processes",
-                "/v2/hog/details"
+                "/v2/hog/details",
+                "/v1/run/{run_id}"
             ]
         },
         "data": {

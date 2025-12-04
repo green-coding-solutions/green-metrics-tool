@@ -3,6 +3,12 @@ from typing import List, Optional, Dict, Literal, Union
 
 from fastapi.exceptions import RequestValidationError
 
+### Run
+class RunChange(BaseModel):
+    archived: Optional[bool] = None
+
+    model_config = ConfigDict(extra='forbid')
+
 ### Jobs
 
 class JobChange(BaseModel):

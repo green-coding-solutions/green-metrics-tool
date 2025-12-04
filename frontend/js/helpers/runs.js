@@ -136,6 +136,7 @@ const getFilterQueryStringFromInputs = () => {
     const machine = document.querySelector('input[name=machine]').value.trim()
     const machine_id = document.querySelector('input[name=machine_id]').value.trim()
     const usage_scenario_variables = document.querySelector('input[name=usage_scenario_variables]').value.trim()
+    const show_archived = document.querySelector('input[name=show_archived]:checked').value.trim()
 
     if(uri != '') query_string += `&uri=${document.querySelector('input[name=uri]').value.trim()}`
     if(filename != '')query_string += `&filename=${document.querySelector('input[name=filename]').value.trim()}`
