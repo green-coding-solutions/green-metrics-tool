@@ -445,3 +445,15 @@ a {
 .hidden {
     display: none !important;
 }
+
+.custom-mobile-divider {
+    display: none !important; 
+}
+
+@media only screen and (max-width: 767px) {
+    .custom-mobile-divider {
+        display: block !important;
+        margin-top: 1em !important;
+        margin-bottom: 1em !important;
+    }
+}
