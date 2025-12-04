@@ -144,6 +144,7 @@ const getFilterQueryStringFromInputs = () => {
     if(machine != '')query_string += `&machine=${machine}`
     if(machine_id != '')query_string += `&machine_id=${machine_id}`
     if(usage_scenario_variables != '')query_string += `&usage_scenario_variables=${usage_scenario_variables}`
+    if(show_archived) query_string += `&show_archived=${show_archived}`
 
     document.querySelector('#filters-active').classList.remove('hidden');
 
