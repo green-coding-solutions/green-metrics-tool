@@ -1,3 +1,5 @@
+ALTER TABLE "runs" ADD COLUMN "archived" bool DEFAULT 'FALSE';
+
 UPDATE users
 SET capabilities = jsonb_set(
     capabilities,
