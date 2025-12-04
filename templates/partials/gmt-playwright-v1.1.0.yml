@@ -17,7 +17,7 @@ flow-prepend:
     hidden: true
     commands:
       - type: console
-        command: node /tmp/gmt-utils/gmt-playwright-ipc-v1.0.0.js --headless true --browser firefox
+        command: node /tmp/gmt-utils/gmt-playwright-ipc-v1.1.0.js --headless true --browser firefox
         note: Starting browser in background process with IPC
         detach: true
       - type: console
