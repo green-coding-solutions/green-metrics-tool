@@ -12,7 +12,7 @@ from cron.carbondb_copy_over_and_remove_duplicates import copy_over_eco_ci, copy
 from cron.carbondb_compress import compress_carbondb_raw
 
 if __name__ == '__main__':
-    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../../manager-config.yml")
+    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
 
     print('This will remove ALL non-custom data (ScenarioRunner and Eco CI atm.) in CarbonDB and will try to rebuild it from the database. If you have deleted ScenarioRunner runs or Eco CI data it will not be possible to reconstruct it. Continue? (y/N)')
     answer = sys.stdin.readline()

@@ -164,7 +164,7 @@ def remove_duplicates():
 
 if __name__ == '__main__':
     try:
-        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../../manager-config.yml")
+        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
         backfill_missing_carbon_intensity()
         copy_over_eco_ci()
         copy_over_scenario_runner()
