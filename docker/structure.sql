@@ -276,7 +276,7 @@ CREATE TABLE runs (
     end_measurement bigint,
     phases JSON,
     logs jsonb,
-    failed boolean DEFAULT false,
+    failed boolean NOT NULL DEFAULT false,
     archived boolean NOT NULL DEFAULT false,
     note text NOT NULL DEFAULT '',
     public boolean NOT NULL DEFAULT false,

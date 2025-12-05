@@ -1,6 +1,6 @@
-ALTER TABLE "runs" ADD COLUMN "archived" bool DEFAULT 'FALSE';
+ALTER TABLE "runs" ADD COLUMN "archived" bool NOT NULL DEFAULT 'FALSE';
 ALTER TABLE "runs" ADD COLUMN "note" text NOT NULL DEFAULT '';
-ALTER TABLE "runs" ADD COLUMN "public" bool DEFAULT 'FALSE';
+ALTER TABLE "runs" ADD COLUMN "public" bool NOT NULL DEFAULT 'FALSE';
 
 UPDATE users
 SET capabilities = jsonb_set(
