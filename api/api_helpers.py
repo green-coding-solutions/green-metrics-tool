@@ -252,7 +252,7 @@ def get_comparison_details(user, ids, comparison_db_key):
             id, name, created_at, uri, commit_hash, commit_timestamp, gmt_hash, usage_scenario_variables, {}
         FROM runs
         WHERE
-            (TRUE = %s OR user_id = ANY(%s::int[]) OR r.public = TRUE)
+            (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
             AND id = ANY(%s::uuid[])
         ORDER BY created_at ASC -- must be same order as get_phase_stats so that the order in the comparison bar charts aligns with the comparsion_details array
     ''').format(sql.Identifier(comparison_db_key))
