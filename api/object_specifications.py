@@ -7,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 class RunChange(BaseModel):
     archived: Optional[bool] = None
     note: Optional[str] = None
+    public: Optional[bool] = None
 
     model_config = ConfigDict(extra='forbid')
 

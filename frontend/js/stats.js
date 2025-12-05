@@ -172,17 +172,39 @@ const fetchAndFillRunData = async (url_params) => {
                 unarchive_run_button.classList.remove('hidden');
             }
 
-            document.querySelector('#archive-run').addEventListener('click', async () => {
+            archive_run_button.addEventListener('click', async () => {
                 await makeAPICall(`/v1/run/${url_params['id']}`, {archived: true}, false, true);
                 archive_run_button.classList.add('hidden');
                 unarchive_run_button.classList.remove('hidden');
                 showNotification('Run Archived!', '', 'success')
             })
-            document.querySelector('#unarchive-run').addEventListener('click', async () => {
+            unarchive_run_button.addEventListener('click', async () => {
                 await makeAPICall(`/v1/run/${url_params['id']}`, {archived: false}, false, true);
                 archive_run_button.classList.remove('hidden');
                 unarchive_run_button.classList.add('hidden');
                 showNotification('Run Unarchived!', '', 'success')
+            })
+
+        } else if(item == 'public') {
+            const public_button = document.querySelector('#make-run-public');
+            const non_public_button = document.querySelector('#make-run-non-public');
+
+            if (run_data[item] === true) {
+                public_button.classList.add('hidden');
+                non_public_button.classList.remove('hidden');
+            }
+
+            public_button.addEventListener('click', async () => {
+                await makeAPICall(`/v1/run/${url_params['id']}`, {public: true}, false, true);
+                public_button.classList.add('hidden');
+                non_public_button.classList.remove('hidden');
+                showNotification('Run Made Public!', '', 'success')
+            })
+            non_public_button.addEventListener('click', async () => {
+                await makeAPICall(`/v1/run/${url_params['id']}`, {public: false}, false, true);
+                public_button.classList.remove('hidden');
+                non_public_button.classList.add('hidden');
+                showNotification('Run Made Non-Public!', '', 'success')
             })
 
         } else {

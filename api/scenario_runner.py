@@ -158,7 +158,7 @@ async def get_notes(run_id, user: User = Depends(authenticate)):
             FROM notes as n
             JOIN runs as r on n.run_id = r.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND n.run_id = %s
             ORDER BY n.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             '''
@@ -181,7 +181,7 @@ async def get_warnings(run_id, user: User = Depends(authenticate)):
             FROM warnings as w
             JOIN runs as r on w.run_id = r.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND w.run_id = %s
             ORDER BY w.created_at DESC
             '''
@@ -211,7 +211,7 @@ async def get_network(run_id: str, user: User = Depends(authenticate)):
             FROM network_intercepts as ni
             JOIN runs as r on r.id = ni.run_id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND ni.run_id = %s
             ORDER BY ni.time
         '''
@@ -233,7 +233,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
     '''
 
     params = [user.is_super_user(), user.visible_users()]
@@ -287,7 +287,7 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) or r.public = TRUE)
     '''
     params = [user.is_super_user(), user.visible_users()]
 
@@ -489,7 +489,7 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
             JOIN measurement_values as mv ON mv.measurement_metric_id = mm.id
             JOIN runs as r ON mm.run_id = r.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) or r.public = TRUE)
                 AND mm.run_id = %s
     '''
 
@@ -625,7 +625,7 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
         JOIN
             runs as r ON ps.run_id = r.id
         WHERE
-            (TRUE = %s OR r.user_id = ANY(%s::int[]))
+            (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
             AND ps.run_id = %s
             AND ps.metric = %s
             AND ps.phase LIKE %s
@@ -839,6 +839,10 @@ def update_run(
         columns.append('note = %s')
         params.append(run.note.strip())
 
+    if run.public is not None:
+        columns.append('public = %s')
+        params.append(run.public)
+
 
     if not columns:
         raise RequestValidationError('No data submitted in PUT request to change run with. Please submit data.')
@@ -872,7 +876,7 @@ async def get_optimizations(run_id: str, user: User = Depends(authenticate)):
             FROM optimizations as o
             JOIN runs as r ON o.run_id = r.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND o.run_id = %s
     '''
 

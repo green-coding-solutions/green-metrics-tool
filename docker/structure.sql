@@ -279,6 +279,7 @@ CREATE TABLE runs (
     failed boolean DEFAULT false,
     archived boolean NOT NULL DEFAULT false,
     note text NOT NULL DEFAULT '',
+    public boolean NOT NULL DEFAULT false,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
