@@ -416,6 +416,7 @@ CREATE TABLE ci_measurements (
     filter_tags text[] NOT NULL,
     os_name text,
     cpu_arch text,
+    version text,
     job_id text,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),

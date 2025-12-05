@@ -41,7 +41,8 @@ MEASUREMENT_MODEL_V3 = {'energy_uj': 123000,
                         'workflow_name': 'testWorkflowName',
                         'os_name': 'testOsName',
                         'cpu_arch': 'testCpuArch',
-                        'job_id': 'testJobID'}
+                        'job_id': 'testJobID',
+                        'version': 'v2.2'}
 
 def test_ci_measurement_add_default_user():
 

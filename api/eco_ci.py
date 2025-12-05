@@ -42,7 +42,7 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
     if used_client_ip is None:
         used_client_ip = get_connecting_ip(request)
 
-    for field in ["os_name", "cpu_arch", "job_id"]:
+    for field in ['os_name', 'cpu_arch', 'job_id', 'version']:
         params.append(getattr(measurement, field, None))
     params.append(used_client_ip)
     params.append(user._id)
@@ -77,6 +77,7 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
                              os_name,
                              cpu_arch,
                              job_id,
+                             version,
                              ip_address,
                              user_id,
                              note
@@ -84,7 +85,7 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 {tags_replacer},
-                %s, %s, %s, %s, %s, %s)
+                %s, %s, %s, %s, %s, %s, %s)
         """
 
     DB().query(query=query, params=params)
