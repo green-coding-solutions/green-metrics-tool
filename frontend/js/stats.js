@@ -157,8 +157,9 @@ const fetchAndFillRunData = async (url_params) => {
             }
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
         } else if(item == 'note') {
-            const note = escapeString(run_data[item].trim())
+            const note = run_data[item].trim();
             if (note !== '') {
+                // no need to escape here as .value and .innerText will not execute HTML / JS
                 document.querySelector('textarea[name=note]').value = note;
                 document.querySelector('#run-note-text').innerText = note;
                 document.querySelector('#run-note').classList.remove('hidden')
