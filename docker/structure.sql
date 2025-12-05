@@ -87,6 +87,7 @@ VALUES (
                 "/v1/ci/repositories",
                 "/v1/ci/stats",
                 "/v2/ci/measurement/add",
+                "/v3/ci/measurement/add",
                 "/v1/software/add",
                 "/v1/user/settings",
                 "/v1/user/setting",
@@ -413,6 +414,9 @@ CREATE TABLE ci_measurements (
     filter_project text NOT NULL,
     filter_machine text NOT NULL,
     filter_tags text[] NOT NULL,
+    os_name text,
+    cpu_arch text,
+    job_id text,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
