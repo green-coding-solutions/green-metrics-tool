@@ -153,7 +153,7 @@ def get_run_info(user, run_id):
                 measurement_config, machine_specs, machine_id, usage_scenario, usage_scenario_variables, usage_scenario_dependencies,
                 created_at,
                 (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = runs.id) as warnings,
-                phases, logs, failed, gmt_hash, runner_arguments, archived
+                phases, logs, failed, gmt_hash, runner_arguments, archived, note
             FROM runs
             WHERE
                 (TRUE = %s OR user_id = ANY(%s::int[]))

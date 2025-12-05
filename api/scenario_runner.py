@@ -835,6 +835,10 @@ def update_run(
         columns.append('archived = %s')
         params.append(run.archived)
 
+    if run.note is not None:
+        columns.append('note = %s')
+        params.append(run.note.strip())
+
 
     if not columns:
         raise RequestValidationError('No data submitted in PUT request to change run with. Please submit data.')

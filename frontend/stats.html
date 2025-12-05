@@ -131,6 +131,16 @@
                             <button id="archive-run" class="blue ui button">Archive Run</button>
                             <button id="unarchive-run" class="orange ui button hidden">Un-Archive Run</button>
                         </div>
+                        <div class="ui segment">
+                            <h4>Note</h4>
+                            <p>Add a note to this run.</p>
+                            <div class="ui form">
+                                <div class="field">
+                                    <textarea name="note" rows="3"></textarea>
+                                </div>
+                            </div>
+                            <button id="save-note" class="green ui button" style="margin-top: 10px;">Save Note</button>
+                        </div>
                     </div>
 
                 </div>
@@ -146,6 +156,17 @@
                 This run has failed. Please see logs for details
             </div>
         </div>
+
+        <div id="run-note" class="ui icon message info hidden">
+            <i class="exclamation circle icon"></i>
+            <div class="content">
+                <div class="header">
+                    Note
+                </div>
+                <p id="run-note-text"></p>
+            </div>
+        </div>
+
 
         <div id="run-warnings" class="ui icon message warning hidden">
             <i class="warning icon"></i>

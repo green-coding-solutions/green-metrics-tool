@@ -1,4 +1,5 @@
 ALTER TABLE "runs" ADD COLUMN "archived" bool DEFAULT 'FALSE';
+ALTER TABLE "runs" ADD COLUMN "note" text NOT NULL DEFAULT '';
 
 UPDATE users
 SET capabilities = jsonb_set(
