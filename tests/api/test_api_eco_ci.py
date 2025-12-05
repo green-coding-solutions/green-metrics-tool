@@ -287,7 +287,7 @@ def test_ci_measurement_add_small_with_warning_v3():
 
 
     assert 'Extremely small energy budget was submitted to Eco CI API' in logs
-    assert 'Measurement (CI_Measurement): energy_uj=1' in logs
+    assert 'Measurement (CI_MeasurementV3): energy_uj=1' in logs
 
 def test_ci_measurement_add_force_ip_v3():
 
