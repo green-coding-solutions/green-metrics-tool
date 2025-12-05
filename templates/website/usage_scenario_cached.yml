@@ -6,7 +6,7 @@ description: "Opens __GMT_VAR_PAGE__ from a cache and waits for full load + 5 se
 sci:
   R_d: Website load
 
-compose-file: !include-gmt-helper gmt-playwright-with-cache-v1.0.0.yml
+compose-file: !include-gmt-helper gmt-playwright-with-cache-v1.1.0.yml
 
 flow:
   - name: Warmup and Caching

@@ -61,6 +61,7 @@ def setup_browser(setup_playwright): #pylint: disable=unused-argument,redefined-
 
     yield
     page.close()
+    context.close()
     browser.close()
 
 def handle_page_error(exception):
@@ -72,19 +73,9 @@ def handle_page_error(exception):
 @pytest.fixture()
 def use_demo_data():
     """Import demo data for standard frontend tests"""
-    Tests.reset_db()
     Tests.import_demo_data()
     yield
     Tests.reset_db()
-
-## Fixture for tests that need clean database
-@pytest.fixture()
-def use_clean_db():
-    """Reset database for test that needs a clean database"""
-    Tests.reset_db()
-    yield
-    Tests.reset_db()
-    Tests.import_demo_data()  # Restore demo data after tests
 
 @pytest.mark.usefixtures('use_demo_data')
 class TestFrontendFunctionality:
@@ -167,7 +158,6 @@ class TestFrontendFunctionality:
         count_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(7)").text_content()
         assert count_single.strip() == '5'
 
-
     def open_and_assert_ci_stats(self):
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Eco CI", exact=True).click()
@@ -194,6 +184,7 @@ class TestFrontendFunctionality:
 
 
     @pytest.mark.usefixtures('use_clean_db')
+
     def test_eco_ci_adding_data(self):
         for index in range(1,4):
             measurement = CI_Measurement(energy_uj=(13_000_000*index),
@@ -860,7 +851,6 @@ class TestFrontendFunctionality:
 class TestXssSecurity:
     """XSS vulnerability tests"""
 
-    @pytest.mark.usefixtures('use_clean_db')
     def test_xss_protection_of_run_data(self):
         """
         Test that run-related user-provided fields are properly escaped to prevent XSS attacks across multiple pages.
@@ -1106,7 +1096,6 @@ class TestXssSecurity:
         # Verify XSS protection worked - script should NOT execute
         assert xss_executed is not True, "XSS vulnerability detected: malicious script executed"
 
-    @pytest.mark.usefixtures('use_clean_db')
     def test_xss_protection_of_eco_ci_data(self):
         """
         Test XSS protection on ci-index.html and ci.html pages.

@@ -95,6 +95,7 @@ root_info_list = [
     [rdr, 'CPU Scheduling', '/sys/kernel/debug/sched'],
     [rpwr, 'Hardware Details', 'lshw', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [cf, 'RAPL Energy Filtering', read_rapl_energy_filtering],
+    [rpwr, 'Systemd Services', 'sudo systemctl --all list-unit-files', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
 ]
 
 def get_root_list():

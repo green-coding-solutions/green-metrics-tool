@@ -1,5 +1,18 @@
 const GMT_MACHINES = JSON.parse(localStorage.getItem('gmt_machines')) || {}; // global variable. dynamically resolved via resolveMachinesToGlobalVariable
 
+const escapeString = (string) =>{
+    let my_string = String(string)
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;'
+    };
+    const reg = /[&<>"']/ig;
+    return my_string.replace(reg, (match) => map[match]);
+}
+
 class APIEmptyResponse204 extends Error {}
 
 const date_options = {
@@ -25,7 +38,7 @@ class GMTMenu extends HTMLElement {
                 </a>`
 
         if (ACTIVATE_SCENARIO_RUNNER == true) {
-            html_content = `${html_content}
+            html_content += `
                 <a class="item" href="/runs.html" aria-label="ScenarioRunner"><b><i class="tachometer alternate left icon"></i> ScenarioRunner</b></a>
                 <a class="item" href="/runs.html" aria-label="Runs / Repos">
                     ⮑&nbsp;&nbsp;<b><i class="code branch icon"></i> Runs / Repos</b>
@@ -42,27 +55,27 @@ class GMTMenu extends HTMLElement {
         };
 
         if (ACTIVATE_ECO_CI == true) {
-            html_content = `${html_content}
+            html_content += `
                 <a class="item" href="/ci-index.html" aria-label="Eco CI">
                     <b><i class="seedling icon"></i> Eco CI</b>
                 </a>`;
         };
 
         if (ACTIVATE_POWER_HOG == true) {
-            html_content = `${html_content}
+            html_content += `
                 <a class="item" href="/hog.html" aria-label="Power HOG">
                     <b><i class="piggy bank icon"></i> Power HOG</b>
                 </a>`;
         };
 
         if (ACTIVATE_CARBON_DB == true) {
-            html_content = `${html_content}
+            html_content += `
                 <a class="item" href="/carbondb.html" aria-label="CarbonDB">
                     <b><i class="balance scale icon"></i> CarbonDB</b>
                 </a>`;
         };
 
-        html_content = `${html_content}
+        html_content += `
                 <a class="item" href="/data-analysis.html" aria-label="Data Analysis">
                     <b><i class="chartline icon"></i> Data Analysis</b>
                 </a>
@@ -72,7 +85,17 @@ class GMTMenu extends HTMLElement {
                 <a class="item" href="/settings.html" aria-label="Settings">
                     <b><i class="cogs icon"></i> Settings</b>
                 </a>
-            </div>
+            </div>`;
+
+        const user_name = localStorage.getItem('user_name');
+        if (user_name != null) {
+            html_content += `
+                <div class="sticky-container" style="width: 90%; margin: 20px auto;">
+                    <span class="ui label"><i class="users icon"></i> User: ${escapeString(user_name)}</span>
+                </div>`;
+        }
+
+        html_content += `
             <div class="sticky-container">
                 <a href="https://www.green-coding.io">
                   <img class="ui fluid image menu-logo" src="/images/green-coding-menu-logo-2x.webp"
@@ -81,7 +104,6 @@ class GMTMenu extends HTMLElement {
                        alt="Green Coduing Solutions Logo">
                 </a>
             </div>
-
         </div> <!-- end menu -->`;
 
         this.innerHTML = html_content;
@@ -271,18 +293,6 @@ const dateToYMD = (date, short=false, no_break=false) => {
     return ` ${date.getFullYear()}-${month}-${day} ${breaker} ${hours}:${minutes} UTC${offset}`;
 }
 
-const escapeString = (string) =>{
-    let my_string = String(string)
-    const map = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#x27;'
-    };
-    const reg = /[&<>"']/ig;
-    return my_string.replace(reg, (match) => map[match]);
-  }
 
 async function makeAPICall(path, values=null, force_authentication_token=null, force_put=false) {
 

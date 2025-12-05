@@ -1,7 +1,7 @@
 gunicorn==23.0.0
-psycopg[binary]==3.2.13
-psycopg_pool==3.2.8
-fastapi[standard]==0.121.3
+psycopg[binary]==3.3.1
+psycopg_pool==3.3.0
+fastapi[standard]==0.123.5
 starlette>=0.35
 uvicorn[standard]==0.38.0
 pandas==2.3.3
