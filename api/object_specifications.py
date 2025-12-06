@@ -102,6 +102,7 @@ class CI_MeasurementV3(CI_MeasurementBase):
     os_name: Optional[str] = None
     cpu_arch: Optional[str] = None
     job_id: Optional[str] = None
+    version: Optional[str] = None
 
     model_config = ConfigDict(extra='forbid')
 
@@ -232,4 +233,3 @@ class EnergyData(BaseModel):
         if any(not item or item.strip() == '' for item in value):
             raise ValueError("The list contains empty elements.")
         return value
-

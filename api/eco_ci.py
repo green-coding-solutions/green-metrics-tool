@@ -42,7 +42,7 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
     if used_client_ip is None:
         used_client_ip = get_connecting_ip(request)
 
-    for field in ["os_name", "cpu_arch", "job_id"]:
+    for field in ['os_name', 'cpu_arch', 'job_id', 'version']:
         params.append(getattr(measurement, field, None))
     params.append(used_client_ip)
     params.append(user._id)
@@ -77,6 +77,7 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
                              os_name,
                              cpu_arch,
                              job_id,
+                             version,
                              ip_address,
                              user_id,
                              note
@@ -84,7 +85,7 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 {tags_replacer},
-                %s, %s, %s, %s, %s, %s)
+                %s, %s, %s, %s, %s, %s, %s)
         """
 
     DB().query(query=query, params=params)
@@ -121,7 +122,7 @@ async def post_ci_measurement_add_v3(
     user: User = Depends(authenticate)  # pylint: disable=unused-argument
 ):
     """
-    v3: accepts additional fields (os_name, cpu_arch, job_id) via CI_MeasurementV3.
+    v3: accepts additional fields (os_name, cpu_arch, job_id, version) via CI_MeasurementV3.
     For now, the insert logic is the same as v2 and ignores these extra fields.
     """
     return _insert_ci_measurement(request, measurement, user)
