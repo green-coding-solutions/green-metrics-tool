@@ -64,7 +64,7 @@ def backfill_missing_carbon_intensity():
     query = '''
         UPDATE carbondb_data_raw
         SET carbon_kg = ((energy_kwh::DOUBLE PRECISION)*carbon_intensity_g)/1e3
-        WHERE carbon_ug IS NULL;
+        WHERE carbon_kg IS NULL;
     '''
     DB().query(query)
 

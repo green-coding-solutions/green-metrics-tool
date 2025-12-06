@@ -589,7 +589,7 @@ CREATE TABLE carbondb_data_raw (
     tags text[] NOT NULL,
     time BIGINT NOT NULL,
     energy_kwh DOUBLE PRECISION NOT NULL,
-    carbon_kg DOUBLE PRECISION NOT NULL,
+    carbon_kg DOUBLE PRECISION,
     carbon_intensity_g, -- we need this column not null as it might contain errors which we need to backfill
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
