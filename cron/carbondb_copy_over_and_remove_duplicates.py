@@ -31,6 +31,43 @@ def backfill_missing_carbon_intensity():
     '''
     DB().query(query)
 
+    query = '''
+        UPDATE ci_measurements as cim
+        SET carbon_intensity_g = (SELECT ci.data->>'carbonIntensity'
+            FROM carbon_intensity as ci
+            WHERE ci.data->>'zone' = 'DE'
+            ORDER BY ABS(EXTRACT(EPOCH FROM (cim.created_at - ci.created_at::timestamp)))
+            LIMIT 1)::int
+        WHERE cim.carbon_intensity_g IS NULL;
+    '''
+    DB().query(query)
+
+    query = '''
+        UPDATE ci_measurements
+        SET carbon_ug = ((energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*carbon_intensity_g
+        WHERE carbon_ug IS NULL;
+    '''
+    DB().query(query)
+
+    # we also need to update the carbondb_data_raw table as it gets direct inserts
+    query = '''
+        UPDATE carbondb_data_raw as cdb
+        SET carbon_intensity_g = (SELECT ci.data->>'carbonIntensity'
+            FROM carbon_intensity as ci
+            WHERE ci.data->>'zone' = 'DE'
+            ORDER BY ABS(EXTRACT(EPOCH FROM (cdb.created_at - ci.created_at::timestamp)))
+            LIMIT 1)::int
+        WHERE cdb.carbon_intensity_g IS NULL;
+    '''
+    DB().query(query)
+
+    query = '''
+        UPDATE carbondb_data_raw
+        SET carbon_kg = ((energy_kwh::DOUBLE PRECISION)*carbon_intensity_g)/1e3
+        WHERE carbon_ug IS NULL;
+    '''
+    DB().query(query)
+
 def copy_over_power_hog(interval=30):
     params = []
     query = '''
@@ -46,7 +83,7 @@ def copy_over_power_hog(interval=30):
                 EXTRACT(EPOCH FROM created_at) * 1e6,
                 (combined_energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
                 (operational_carbon_ug::DOUBLE PRECISION)/1e9 + (embodied_carbon_ug/1e9), -- to get to kg
-                -1,  -- (carbon_intensity_g) there is no need for this column for further processing
+                grid_intensity_cog,  -- (carbon_intensity_g) there is no need for this column for further processing
                 NULL,  -- (latitude) there is no need for this column for further processing
                 NULL,  -- (longitude) there is no need for this column for further processing
                 NULL,
