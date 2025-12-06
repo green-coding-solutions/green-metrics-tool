@@ -129,9 +129,16 @@ async def post_ci_measurement_add_v3(
 
 
 @router.get('/v1/ci/measurements')
-async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date, user: User = Depends(authenticate)):
+async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date, job_id: str | None = None, user: User = Depends(authenticate)):
 
-    query = '''
+    params = [user.is_super_user(), user.visible_users(), repo, branch, workflow, str(start_date), str(end_date)]
+
+    job_id_condition = ''
+    if job_id is not None:
+        job_id_condition = 'AND job_id = %s'
+        params.append(job_id)
+
+    query = f"""
         SELECT energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util_avg,
                (SELECT workflow_name FROM ci_measurements AS latest_workflow
                 WHERE latest_workflow.repo = ci_measurements.repo
@@ -146,10 +153,10 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
             AND repo = %s AND branch = %s AND workflow_id = %s
             AND DATE(created_at) >= TO_DATE(%s, 'YYYY-MM-DD')
             AND DATE(created_at) <= TO_DATE(%s, 'YYYY-MM-DD')
+            {job_id_condition}
         ORDER BY run_id ASC, created_at ASC
-    '''
+    """
 
-    params = (user.is_super_user(), user.visible_users(), repo, branch, workflow, str(start_date), str(end_date))
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
