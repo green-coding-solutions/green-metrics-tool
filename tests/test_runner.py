@@ -153,12 +153,13 @@ def test_name_is_in_db():
 # --filename FILENAME
 #    An optional alternative filename if you do not want to use "usage_scenario.yml"
 #    Multiple filenames, wildcards and relative paths are supported
+#    File should contain resource limits, bc they are auto-filled otherwise
 
     # basic positive case
 def test_different_filename():
     run_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/basic_stress.yml', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+        ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/basic_stress_with_limits.yml', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
         '--skip-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
@@ -166,7 +167,7 @@ def test_different_filename():
         encoding='UTF-8'
     )
 
-    with open(f'{GMT_DIR}/tests/data/usage_scenarios/basic_stress.yml', 'r', encoding='utf-8') as f:
+    with open(f'{GMT_DIR}/tests/data/usage_scenarios/basic_stress_with_limits.yml', 'r', encoding='utf-8') as f:
         usage_scenario_contents = yaml.safe_load(f)
     usage_scenario_in_db = utils.get_run_data(run_name)['usage_scenario']
     assert usage_scenario_in_db == usage_scenario_contents, \

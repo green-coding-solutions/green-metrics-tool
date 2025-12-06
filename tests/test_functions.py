@@ -350,6 +350,7 @@ class RunUntilManager:
             if stop_at == 'import_metric_providers':
                 return
             self.__runner._populate_image_names()
+            self.__runner._populate_cpu_and_memory_limits()
             self.__runner._prepare_docker()
             self.__runner._check_running_containers_before_start()
             self.__runner._remove_docker_images()

@@ -71,6 +71,11 @@ services:
     image: alpine
     deploy: # allowed to be None
 
+  test-container-limits-none:
+    type: container
+    image: alpine
+    # no deploy key at all
+
   test-container-cpu-and-memory-in-both:
     type: container
     image: alpine
