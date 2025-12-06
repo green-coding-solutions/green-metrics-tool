@@ -387,7 +387,7 @@ class TestFrontendFunctionality:
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[0].click()
@@ -417,7 +417,7 @@ class TestFrontendFunctionality:
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[1].click()
@@ -492,7 +492,7 @@ class TestFrontendFunctionality:
         page.get_by_role("button", name="Switch to repository view").click()
 
         page.get_by_text("/home/arne/Sites/green-coding/example-applications/").click()
-        page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[0].click()
@@ -569,7 +569,7 @@ class TestFrontendFunctionality:
 
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[1].click()
@@ -630,12 +630,13 @@ class TestFrontendFunctionality:
 
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         for element in elements:
             element.click()
 
+        # #compare-force-mode is only visible when click was successful
         page.locator('#compare-force-mode').select_option("Usage Scenario Variables")
 
 
