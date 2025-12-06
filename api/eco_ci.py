@@ -122,7 +122,7 @@ async def post_ci_measurement_add_v3(
     user: User = Depends(authenticate)  # pylint: disable=unused-argument
 ):
     """
-    v3: accepts additional fields (os_name, cpu_arch, job_id) via CI_MeasurementV3.
+    v3: accepts additional fields (os_name, cpu_arch, job_id, version) via CI_MeasurementV3.
     For now, the insert logic is the same as v2 and ignores these extra fields.
     """
     return _insert_ci_measurement(request, measurement, user)

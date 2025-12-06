@@ -182,9 +182,6 @@ class TestFrontendFunctionality:
         ).text_content()
         assert carbon_all_steps.strip() == '0.11 s (± 0.00%)'
 
-
-    @pytest.mark.usefixtures('use_clean_db')
-
     def test_eco_ci_adding_data(self):
         for index in range(1,4):
             measurement = CI_Measurement(energy_uj=(13_000_000*index),
@@ -209,8 +206,6 @@ class TestFrontendFunctionality:
             assert response.status_code == 204, Tests.assertion_info('success', response.text)
         self.open_and_assert_ci_stats()
 
-
-    @pytest.mark.usefixtures('use_clean_db')
     def test_eco_ci_adding_data_v3(self):
         for index in range(1, 4):
             measurement = CI_MeasurementV3(energy_uj=(13_000_000 * index),
@@ -232,7 +227,8 @@ class TestFrontendFunctionality:
                                            carbon_ug=323456,
                                            os_name='Linux',
                                            cpu_arch='x86_64',
-                                           job_id='testJobID'
+                                           job_id='testJobID',
+                                           version='v1.2'
                                            )
             response = requests.post(f"{API_URL}/v3/ci/measurement/add", json=measurement.model_dump(), timeout=15)
             assert response.status_code == 204, Tests.assertion_info('success', response.text)
