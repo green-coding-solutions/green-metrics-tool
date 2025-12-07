@@ -634,7 +634,7 @@ LEFT JOIN carbondb_projects as p ON cd.project = p.id;
 
 CREATE TABLE hog_simplified_measurements (
     id SERIAL PRIMARY KEY,
-    user_id integer NOT NULL REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     machine_uuid UUID NOT NULL,
     timestamp BIGINT NOT NULL,
     timezone TEXT CHECK (char_length(timezone) <= 50),
