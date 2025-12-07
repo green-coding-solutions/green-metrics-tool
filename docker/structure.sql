@@ -8,10 +8,10 @@ CREATE EXTENSION "moddatetime";
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    name text,
+    name text NOT NULL,
     token text NOT NULL,
     capabilities JSONB NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 
@@ -204,7 +204,7 @@ SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
 
 CREATE TABLE machines (
     id SERIAL PRIMARY KEY,
-    description text,
+    description text NOT NULL,
     available boolean DEFAULT false,
     status_code text,
     jobs_processing text,
@@ -214,7 +214,7 @@ CREATE TABLE machines (
     gmt_hash text,
     gmt_timestamp timestamp with time zone,
     configuration json,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE TRIGGER machines_moddatetime
@@ -242,7 +242,7 @@ CREATE TABLE jobs (
     machine_id int REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     message text,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE TRIGGER jobs_moddatetime
@@ -258,7 +258,7 @@ CREATE TABLE runs (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     job_id integer REFERENCES jobs(id) ON DELETE SET NULL ON UPDATE CASCADE UNIQUE,
     name text,
-    uri text,
+    uri text NOT NULL,
     branch text NOT NULL,
     commit_hash text,
     commit_timestamp timestamp with time zone,
@@ -276,9 +276,9 @@ CREATE TABLE runs (
     end_measurement bigint,
     phases JSON,
     logs jsonb,
-    failed boolean DEFAULT false,
+    failed boolean NOT NULL DEFAULT false,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE TRIGGER runs_moddatetime
@@ -314,7 +314,7 @@ CREATE TABLE network_intercepts (
     time bigint NOT NULL,
     connection_type text NOT NULL,
     protocol text NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE TRIGGER network_intercepts_moddatetime
@@ -327,7 +327,7 @@ CREATE TABLE categories (
     id SERIAL PRIMARY KEY,
     name text,
     parent_id int REFERENCES categories(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE TRIGGER categories_moddatetime
@@ -350,8 +350,8 @@ CREATE TABLE phase_stats (
     sampling_rate_max int,
     sampling_rate_95p int,
     unit text NOT NULL,
-    hidden boolean DEFAULT false,
-    created_at timestamp with time zone DEFAULT now(),
+    hidden boolean NOT NULL DEFAULT false,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE INDEX "phase_stats_run_id" ON "phase_stats" USING HASH ("run_id");
@@ -363,11 +363,11 @@ CREATE TRIGGER phase_stats_moddatetime
 
 CREATE TABLE notes (
     id SERIAL PRIMARY KEY,
-    run_id uuid REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
     detail_name text,
-    note text,
+    note text NOT NULL,
     time bigint,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE INDEX "notes_run_id" ON "notes" USING HASH ("run_id");
@@ -378,9 +378,9 @@ CREATE TRIGGER notes_moddatetime
 
 CREATE TABLE warnings (
     id SERIAL PRIMARY KEY,
-    run_id uuid REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    message text,
-    created_at timestamp with time zone DEFAULT now(),
+    run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    message text NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE INDEX "warnings_run_id" ON "warnings" USING HASH ("run_id");
@@ -391,8 +391,8 @@ CREATE TRIGGER warnings_moddatetime
 
 CREATE TABLE ci_measurements (
     id SERIAL PRIMARY KEY,
-    energy_uj bigint,
-    repo text,
+    energy_uj bigint NOT NULL,
+    repo text NOT NULL,
     branch text,
     workflow_id text,
     workflow_name text,
@@ -419,7 +419,7 @@ CREATE TABLE ci_measurements (
     version text,
     job_id text,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE INDEX "ci_measurements_subselect" ON ci_measurements(repo, branch, workflow_id, created_at);
@@ -435,7 +435,7 @@ CREATE TABLE client_status (
     machine_id int REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     "data" TEXT,
     run_id uuid REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE TRIGGER client_status_moddatetime
@@ -447,7 +447,7 @@ CREATE TABLE watchlist (
     id SERIAL PRIMARY KEY,
     name text,
     image_url text,
-    repo_url text,
+    repo_url text NOT NULL,
     categories integer[],
     branch text NOT NULL,
     filename text NOT NULL,
@@ -457,7 +457,7 @@ CREATE TABLE watchlist (
     last_scheduled timestamp with time zone,
     last_marker text,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE TRIGGER watchlist_moddatetime
@@ -476,7 +476,7 @@ CREATE TABLE optimizations (
     description text NOT NULL,
     link text,
 
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 
@@ -489,15 +489,15 @@ CREATE INDEX optimizations_runs ON optimizations(run_id);
 
 
 CREATE TABLE ip_data (
-    ip_address INET,
-    data JSONB,
+    ip_address INET NOT NULL,
+    data JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (ip_address, created_at)
 );
 
 CREATE TABLE carbon_intensity (
-    latitude DOUBLE PRECISION,
-    longitude DOUBLE PRECISION,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
     data JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (latitude, longitude, created_at)
@@ -505,9 +505,9 @@ CREATE TABLE carbon_intensity (
 
 CREATE TABLE cluster_changelog (
     id SERIAL PRIMARY KEY,
-    message text,
+    message text NOT NULL,
     machine_id integer REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 
@@ -519,9 +519,9 @@ CREATE TRIGGER cluster_changelog_moddatetime
 
 CREATE TABLE cluster_status_messages (
     id SERIAL PRIMARY KEY,
-    message text,
-    resolved boolean DEFAULT false,
-    created_at timestamp with time zone DEFAULT now(),
+    message text NOT NULL,
+    resolved boolean NOT NULL DEFAULT false,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 
@@ -536,7 +536,7 @@ CREATE TABLE carbondb_types (
     id SERIAL PRIMARY KEY,
     type text NOT NULL,
     user_ids integer[] NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE UNIQUE INDEX carbondb_types_unique ON carbondb_types(type);
@@ -546,7 +546,7 @@ CREATE TABLE carbondb_tags (
     id SERIAL PRIMARY KEY,
     tag text NOT NULL,
     user_ids integer[] NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE UNIQUE INDEX carbondb_tags_unique ON carbondb_tags(tag);
@@ -556,7 +556,7 @@ CREATE TABLE carbondb_machines (
     id SERIAL PRIMARY KEY,
     machine text NOT NULL,
     user_ids integer[] NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE UNIQUE INDEX carbondb_machines_unique ON carbondb_machines(machine);
@@ -565,7 +565,7 @@ CREATE TABLE carbondb_projects (
     id SERIAL PRIMARY KEY,
     project text NOT NULL,
     user_ids integer[] NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE UNIQUE INDEX carbondb_projects_unique ON carbondb_projects(project);
@@ -574,7 +574,7 @@ CREATE TABLE carbondb_sources (
     id SERIAL PRIMARY KEY,
     source text NOT NULL,
     user_ids integer[] NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 CREATE UNIQUE INDEX carbondb_sources_unique ON carbondb_sources(source);
@@ -595,7 +595,7 @@ CREATE TABLE carbondb_data_raw (
     longitude DOUBLE PRECISION,
     ip_address INET,
     user_id int NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    created_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 
@@ -618,7 +618,7 @@ CREATE TABLE carbondb_data (
     energy_kwh_sum DOUBLE PRECISION NOT NULL,
     carbon_kg_sum DOUBLE PRECISION NOT NULL,
     carbon_intensity_g_avg int NOT NULL,
-    record_count INT,
+    record_count INT NOT NULL,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
@@ -634,7 +634,7 @@ LEFT JOIN carbondb_projects as p ON cd.project = p.id;
 
 CREATE TABLE hog_simplified_measurements (
     id SERIAL PRIMARY KEY,
-    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     machine_uuid UUID NOT NULL,
     timestamp BIGINT NOT NULL,
     timezone TEXT CHECK (char_length(timezone) <= 50),
@@ -649,7 +649,7 @@ CREATE TABLE hog_simplified_measurements (
     elapsed_ns BIGINT,
     thermal_pressure TEXT,
     embodied_carbon_ug FLOAT,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_measurements_user_id ON hog_simplified_measurements(user_id);
@@ -659,11 +659,10 @@ CREATE INDEX idx_measurements_machine_uuid ON hog_simplified_measurements(machin
 
 CREATE TABLE hog_top_processes (
     id SERIAL PRIMARY KEY,
-    measurement_id INTEGER NOT NULL,
+    measurement_id INTEGER NOT NULL REFERENCES hog_simplified_measurements(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    energy_impact INTEGER,
-    cputime_ms BIGINT,
-    FOREIGN KEY (measurement_id) REFERENCES hog_simplified_measurements(id) ON DELETE CASCADE
+    energy_impact INTEGER NOT NULL,
+    cputime_ms BIGINT NOT NULL
 );
 
 
