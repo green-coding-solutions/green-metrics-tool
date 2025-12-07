@@ -165,20 +165,23 @@ def copy_over_scenario_runner(interval=30):
 
 def validate_table_constraints():
     data = DB().fetch_all('''
-        SELECT
-            column_name,
-            is_nullable
+        SELECT id
         FROM
-            information_schema.columns
+            carbondb_data_raw
         WHERE
-            table_name = 'carbondb_data_raw'
-            AND column_name IN ('user_id', 'time', 'energy_kwh', 'carbon_kg', 'carbon_intensity_g', 'type', 'project', 'machine', 'source', 'tags')
-    ''')
+            user_id IS NULL
+            OR time IS NULL
+            OR energy_kwh IS NULL
+            OR carbon_kg IS NULL
+            OR carbon_intensity_g IS NULL
+            OR type IS NULL
+            OR project IS NULL
+            OR machine IS NULL
+            OR source IS NULL
+            OR tags IS NULL ''')
 
-    for row in data:
-        if row[1] == 'YES':
-            raise RuntimeError(f"{row[0]} was NULL-able: {row[1]}. CarbonDB cannot remove duplicates.")
-
+    if data:
+        raise RuntimeError(f"NULL values found `carbondb_data_raw` - {data}")
 
 def remove_duplicates():
     validate_table_constraints() # since the query works only if columns are not null
