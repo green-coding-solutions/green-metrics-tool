@@ -38,10 +38,10 @@ def test_insert_and_compress_eco_ci_with_two_users():
 
     for _ in range(RANGE_AMOUNT):
         response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=eco_ci_data, timeout=15)
-        assert response.status_code == 204, Tests.assertion_info('success', response.text)
+        assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
         response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=eco_ci_data_2, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER'})
-        assert response.status_code == 204, Tests.assertion_info('success', response.text)
+        assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     copy_over_eco_ci()
     compress_carbondb_raw()
@@ -85,10 +85,10 @@ def test_insert_and_compress_carbondb_with_two_users():
     for _ in range(RANGE_AMOUNT):
 
         response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data, timeout=15)
-        assert response.status_code == 204, Tests.assertion_info('success', response.text)
+        assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
         response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data_2, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER'})
-        assert response.status_code == 204, Tests.assertion_info('success', response.text)
+        assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     compress_carbondb_raw()
 
@@ -258,7 +258,7 @@ def test_big_values():
     for _ in range(RANGE_AMOUNT):
 
         response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data, timeout=15)
-        assert response.status_code == 204, Tests.assertion_info('success', response.text)
+        assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     compress_carbondb_raw()
 
@@ -276,10 +276,10 @@ def test_carbondb_filter_mapped_to_same_id():
 
     Tests.insert_user(345, 'ALTERNATIVE-USER-CARBONDB')
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15) # Insert ID 1
-    assert response.status_code == 204, Tests.assertion_info('success', response.text)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER-CARBONDB'}) # Insert ID 345
-    assert response.status_code == 204, Tests.assertion_info('success', response.text)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     compress_carbondb_raw()
 
@@ -302,7 +302,7 @@ def test_carbondb_filter_mapped_to_same_id():
     exp_data = ENERGY_DATA.copy()
     exp_data['type'] = 'asdasd' # this must map to the same tag ID later, but no other tags should be visible
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=exp_data, timeout=15)
-    assert response.status_code == 204, Tests.assertion_info('success', response.text)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     compress_carbondb_raw()
 
