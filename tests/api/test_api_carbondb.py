@@ -42,11 +42,36 @@ def test_carbondb_add():
     exp_data['longitude'] = 13.42486387066192  # API sets default to Berlin
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15)
-    assert response.status_code == 204, Tests.assertion_info('success', response.text)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
     assert data is not None or data != []
     assert_expected_data(exp_data, data)
+
+def test_carbondb_add_outdated():
+
+    energydata_modified = ENERGY_DATA.copy()
+    energydata_modified['time'] = int( (time.time() - 31*24*60*60) * 1e6)
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    assert response.status_code == 422, Tests.assertion_info('success', response.text)
+    assert json.loads(response.text)['err'] == f"CarbonDB is configured to not accept values older than 30 days. Your timestamp was: {energydata_modified['time']}"
+
+def test_carbondb_add_at_border():
+
+    energydata_modified = ENERGY_DATA.copy()
+    energydata_modified['time'] = int( (time.time() - 30*24*60*60 + 1) * 1e6)
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+def test_carbondb_add_future():
+
+    energydata_modified = ENERGY_DATA.copy()
+    energydata_modified['time'] = int((time.time()  + 5) * 1e6)
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    assert response.status_code == 422, Tests.assertion_info('success', response.text)
+
+    assert json.loads(response.text)['err'] == f"CarbonDB does not accept timestamps in the future. Your timestamp was: {energydata_modified['time']}"
+
 
 def test_carbondb_add_force_ip():
     energydata_modified = ENERGY_DATA.copy()
@@ -60,7 +85,7 @@ def test_carbondb_add_force_ip():
     exp_data['longitude'] = 12.3649 # Hmm, this can be flaky! But also we want to test the IP API
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
-    assert response.status_code == 204, Tests.assertion_info('success', response.text)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
     assert data is not None or data != []
@@ -78,7 +103,7 @@ def test_carbondb_add_force_carbon_intensity():
     exp_data['carbon_kg'] = 5.555555555555555e-14
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
-    assert response.status_code == 204, Tests.assertion_info('success', response.text)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
     assert data is not None or data != []
@@ -130,7 +155,7 @@ def test_carbondb_weird_tags():
     energydata_modified['tags'] = ['öla', '<asd>']
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
-    assert response.status_code == 204, Tests.assertion_info('success', response.text)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT tags FROM carbondb_data_raw', fetch_mode='dict')
     assert data['tags'] == energydata_modified['tags']

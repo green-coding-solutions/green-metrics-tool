@@ -68,7 +68,7 @@ def backfill_missing_carbon_intensity():
     '''
     DB().query(query)
 
-def copy_over_power_hog(interval=30):
+def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then we allow old data to arrive
     params = []
     query = '''
         INSERT INTO carbondb_data_raw
@@ -98,7 +98,7 @@ def copy_over_power_hog(interval=30):
     DB().query(query, params=params)
 
 
-def copy_over_eco_ci(interval=1):
+def copy_over_eco_ci(interval=30): # 30 days is the merge window. Until then we allow old data to arrive
     params = []
     query = '''
         INSERT INTO carbondb_data_raw
@@ -127,7 +127,7 @@ def copy_over_eco_ci(interval=1):
 
     DB().query(query, params=params)
 
-def copy_over_scenario_runner(interval=30):
+def copy_over_scenario_runner(interval=30): # 30 days is the merge window. Until then we allow old data to arrive
     params = []
     query = '''
         INSERT INTO carbondb_data_raw
