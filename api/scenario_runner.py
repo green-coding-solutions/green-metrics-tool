@@ -5,7 +5,7 @@ from xml.sax.saxutils import escape as xml_escape
 from datetime import date, datetime, timedelta
 import pprint
 
-from fastapi import APIRouter, HTTPException, Response, Depends
+from fastapi import APIRouter, Response, Depends, HTTPException
 from fastapi.responses import ORJSONResponse
 from fastapi.exceptions import RequestValidationError
 
