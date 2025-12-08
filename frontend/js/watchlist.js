@@ -79,7 +79,9 @@ $(document).ready(function () {
         });
 
         //Event listener for delete buttons
-        $(document).on("click", ".delete-watchlist", async function () {
+        $(document).on("click", ".delete-watchlist", async function (e) {
+            e.stopPropagation();
+            e.preventDefault();
             const id = $(this).data("id");
 
             if (!confirm("Are you sure you want to delete this watchlist entry?")) {
@@ -96,6 +98,7 @@ $(document).ready(function () {
             } catch (err) {
                 showNotification("Error deleting watchlist entry", err);
             }
+            return false;
         });
     })();
 });
