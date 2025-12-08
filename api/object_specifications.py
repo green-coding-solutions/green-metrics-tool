@@ -11,6 +11,14 @@ class JobChange(BaseModel):
 
     model_config = ConfigDict(extra='forbid')
 
+### Watchlist
+
+class WatchlistChange(BaseModel):
+    watchlist_id: int
+    action: Literal['delete']
+
+    model_config = ConfigDict(extra='forbid')
+
 ### Software Add
 
 class Software(BaseModel):

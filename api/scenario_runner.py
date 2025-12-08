@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 
 import anybadge
 
-from api.object_specifications import Software, JobChange
+from api.object_specifications import Software, JobChange, WatchlistChange
 from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics,
                          determine_comparison_case,get_comparison_details,
                          get_phase_stats, get_phase_stats_object, check_run_failed,
@@ -146,6 +146,32 @@ async def update_job(
     else:
         error_helpers.log_error('Job update did return unexpected result', params=params, status_message=status_message)
         raise RuntimeError('Could not update job due to database error')
+
+# A route for deleting watchlist entries
+@router.put('/v1/watchlist')
+async def update_watchlist(
+    change: WatchlistChange,
+    user: User = Depends(authenticate),  # consistent with jobs
+):
+    if change.action != 'delete':
+        raise RequestValidationError(f"Unsupported action: {change.action}")
+
+    query = """
+        DELETE FROM watchlist
+        WHERE id = %s
+          AND (TRUE = %s OR user_id = %s)
+        RETURNING id
+    """
+    params = (change.watchlist_id, user.is_super_user(), user._id)
+    deleted = DB().fetch_one(query, params=params, fetch_mode="dict")
+
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail="Watchlist entry not found or not owned by user",
+        )
+
+    return ORJSONResponse({'success': True, 'deleted_id': deleted['id']})
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v1/notes/{run_id}')
