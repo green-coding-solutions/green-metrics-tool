@@ -93,7 +93,7 @@ $(document).ready(function () {
                     action: "delete",
                     watchlist_id: id
                 }, false, true);
-                showNotification("Watchlist entry deleted successfully!", 'success');
+                showNotification("Watchlist entry deleted successfully!", '', 'success');
                 $(this).closest(".card").remove();
             } catch (err) {
                 showNotification("Error deleting watchlist entry", err);
