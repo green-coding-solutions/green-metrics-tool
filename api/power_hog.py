@@ -115,7 +115,7 @@ async def add_hog(
         if params:
             DB().query_multi(query=queries, params=params)
 
-    return Response(status_code=204)
+    return Response(status_code=202)
 
 @router.get('/v2/hog/top_processes')
 async def hog_get_top_processes():

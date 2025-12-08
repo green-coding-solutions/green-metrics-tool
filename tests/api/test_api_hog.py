@@ -31,7 +31,7 @@ def test_hogDB_add():
     }]
 
     response = requests.post(f"{API_URL}/v2/hog/add", json=hog_data_obj, timeout=15, headers={'X-Authentication': 'DEFAULT'})
-    assert response.status_code == 204, response.text
+    assert response.status_code == 202, response.text
 
     q = 'SELECT * FROM hog_simplified_measurements'#, 'SELECT * FROM hog_top_processes']
 
