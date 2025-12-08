@@ -171,7 +171,7 @@ async def update_watchlist(
             detail="Watchlist entry not found or not owned by user",
         )
 
-    return ORJSONResponse({'success': True, 'deleted_id': deleted['id']})
+    return ORJSONResponse({'success': True, 'deleted_id': deleted['id']}, status_code=202)
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v1/notes/{run_id}')
