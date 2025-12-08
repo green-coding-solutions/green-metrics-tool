@@ -89,10 +89,10 @@ $(document).ready(function () {
             }
 
             try {
-                await makeAPICall('/v1/watchlist', 'PUT', {
+                await makeAPICall('/v1/watchlist', {
                     action: "delete",
                     watchlist_id: id
-                });
+                }, false, true);
                 showNotification("Watchlist entry deleted successfully!");
                 $(this).closest(".card").remove();
             } catch (err) {
