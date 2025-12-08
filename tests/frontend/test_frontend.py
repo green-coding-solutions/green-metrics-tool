@@ -203,7 +203,7 @@ class TestFrontendFunctionality:
                         carbon_ug=323456
             )
             response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement.model_dump(), timeout=15)
-            assert response.status_code == 204, Tests.assertion_info('success', response.text)
+            assert response.status_code == 202, Tests.assertion_info('success', response.text)
         self.open_and_assert_ci_stats()
 
     def test_eco_ci_adding_data_v3(self):
@@ -231,7 +231,7 @@ class TestFrontendFunctionality:
                                            version='v1.2'
                                            )
             response = requests.post(f"{API_URL}/v3/ci/measurement/add", json=measurement.model_dump(), timeout=15)
-            assert response.status_code == 204, Tests.assertion_info('success', response.text)
+            assert response.status_code == 202, Tests.assertion_info('success', response.text)
         self.open_and_assert_ci_stats()
 
 
