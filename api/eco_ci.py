@@ -96,7 +96,7 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
             measurement=measurement
         )
 
-    return Response(status_code=204)
+    return Response(status_code=202)
 
 
 @router.post('/v1/ci/measurement/add', deprecated=True)
