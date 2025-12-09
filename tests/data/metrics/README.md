@@ -10,13 +10,11 @@ description: test
 
 services:
   test-container:
-    type: container
     image: alpine
     setup-commands:
       - command: apk add stress-ng
 
   net-container:
-    type: container
     image: alpine
     setup-commands:
       - command: apk add curl

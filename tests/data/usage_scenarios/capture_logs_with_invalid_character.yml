@@ -5,7 +5,6 @@ description: Test handling of invalid UTF-8 character in log output
 
 services:
   test-container:
-    type: container
     image: alpine
     setup-commands:
       - command: 'printf "Setup log with invalid UTF-8 character: \xff embedded\n"'
