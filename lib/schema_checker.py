@@ -57,12 +57,6 @@ class SchemaChecker():
 
         return value
 
-    def valid_service_types(self, value):
-        if value != 'container':
-            raise SchemaError(f"{value} is not 'container'")
-        return value
-
-
     def validate_networks_no_invalid_chars(self, value):
         if isinstance(value, list):
             for item in value:
@@ -105,7 +99,6 @@ class SchemaChecker():
                     Optional('restart'): str, # is part of compose. we ignore it as GMT has own orchestration
                     Optional('expose'): [str, int], # is part of compose. we ignore it as it is non functionaly anyway
                     Optional('init'): bool,
-                    Optional('type'): Use(self.valid_service_types),
                     Optional('image'): And(str, Use(self.not_empty)),
                     Optional('build'): Or(
                         And(str, Use(self.not_empty)),

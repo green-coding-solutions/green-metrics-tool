@@ -5,7 +5,6 @@ description: Testing SHM
 
 services:
   test-container:
-    type: container
     image: alpine
     deploy:
       resources:
@@ -16,7 +15,6 @@ services:
     shm_size: "30MB"
 
   test-container-2:
-    type: container
     image: alpine
     deploy:
       resources:

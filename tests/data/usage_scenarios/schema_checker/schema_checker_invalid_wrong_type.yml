@@ -12,7 +12,6 @@ networks:
 
 services:
   test-container:
-    type: container
     image: gcb_stress
     build: .
 
