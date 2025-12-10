@@ -101,7 +101,8 @@ VALUES (
                 "/v2/carbondb/filters",
                 "/v2/hog/add",
                 "/v2/hog/top_processes",
-                "/v2/hog/details"
+                "/v2/hog/details",
+                "/v1/run/{run_id}"
             ]
         },
         "data": {
@@ -277,6 +278,9 @@ CREATE TABLE runs (
     phases JSON,
     logs jsonb,
     failed boolean NOT NULL DEFAULT false,
+    archived boolean NOT NULL DEFAULT false,
+    note text NOT NULL DEFAULT '',
+    public boolean NOT NULL DEFAULT false,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone

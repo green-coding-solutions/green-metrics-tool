@@ -177,10 +177,68 @@ const fetchAndFillRunData = async (url_params) => {
                 uriDisplay = escapeString(uri);
             }
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
+        } else if(item == 'note') {
+            const note = run_data[item].trim();
+            if (note !== '') {
+                // no need to escape here as .value and .innerText will not execute HTML / JS
+                document.querySelector('textarea[name=note]').value = note;
+                document.querySelector('#run-note-text').innerText = note;
+                document.querySelector('#run-note').classList.remove('hidden')
+            }
+        } else if(item == 'archived') {
+            const archive_run_button = document.querySelector('#archive-run');
+            const unarchive_run_button = document.querySelector('#unarchive-run');
+
+            if (run_data[item] === true) {
+                archive_run_button.classList.add('hidden');
+                unarchive_run_button.classList.remove('hidden');
+            }
+
+            archive_run_button.addEventListener('click', async () => {
+                await makeAPICall(`/v1/run/${url_params['id']}`, {archived: true}, false, true);
+                archive_run_button.classList.add('hidden');
+                unarchive_run_button.classList.remove('hidden');
+                showNotification('Run Archived!', '', 'success')
+            })
+            unarchive_run_button.addEventListener('click', async () => {
+                await makeAPICall(`/v1/run/${url_params['id']}`, {archived: false}, false, true);
+                archive_run_button.classList.remove('hidden');
+                unarchive_run_button.classList.add('hidden');
+                showNotification('Run Unarchived!', '', 'success')
+            })
+
+        } else if(item == 'public') {
+            const public_button = document.querySelector('#make-run-public');
+            const non_public_button = document.querySelector('#make-run-non-public');
+
+            if (run_data[item] === true) {
+                public_button.classList.add('hidden');
+                non_public_button.classList.remove('hidden');
+            }
+
+            public_button.addEventListener('click', async () => {
+                await makeAPICall(`/v1/run/${url_params['id']}`, {public: true}, false, true);
+                public_button.classList.add('hidden');
+                non_public_button.classList.remove('hidden');
+                showNotification('Run Made Public!', '', 'success')
+            })
+            non_public_button.addEventListener('click', async () => {
+                await makeAPICall(`/v1/run/${url_params['id']}`, {public: false}, false, true);
+                public_button.classList.remove('hidden');
+                non_public_button.classList.add('hidden');
+                showNotification('Run Made Non-Public!', '', 'success')
+            })
+
         } else {
             document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
         }
     }
+
+    document.querySelector('#save-note').addEventListener('click', async () => {
+        const note_text = document.querySelector('textarea[name=note]').value;
+        await makeAPICall(`/v1/run/${url_params['id']}`, {note: note_text}, false, true);
+        showNotification('Note saved!', '', 'success')
+    });
 
     // create new custom field
     // timestamp is in microseconds, therefore divide by 10**6

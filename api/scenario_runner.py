@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 
 import anybadge
 
-from api.object_specifications import Software, JobChange, WatchlistChange
+from api.object_specifications import Software, JobChange, WatchlistChange, RunChange
 from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics,
                          determine_comparison_case,get_comparison_details,
                          get_phase_stats, get_phase_stats_object, check_run_failed,
@@ -184,7 +184,7 @@ async def get_notes(run_id, user: User = Depends(authenticate)):
             FROM notes as n
             JOIN runs as r on n.run_id = r.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND n.run_id = %s
             ORDER BY n.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             '''
@@ -207,7 +207,7 @@ async def get_warnings(run_id, user: User = Depends(authenticate)):
             FROM warnings as w
             JOIN runs as r on w.run_id = r.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND w.run_id = %s
             ORDER BY w.created_at DESC
             '''
@@ -237,7 +237,7 @@ async def get_network(run_id: str, user: User = Depends(authenticate)):
             FROM network_intercepts as ni
             JOIN runs as r on r.id = ni.run_id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND ni.run_id = %s
             ORDER BY ni.time
         '''
@@ -259,7 +259,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
     '''
 
     params = [user.is_super_user(), user.visible_users()]
@@ -304,7 +304,7 @@ def old_v1_runs_endpoint():
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v2/runs')
-async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, job_id: int | None = None, failed: bool | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, job_id: int | None = None, failed: bool | None = None, show_archived: bool | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
 
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at,
@@ -313,7 +313,7 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) or r.public = TRUE)
     '''
     params = [user.is_super_user(), user.visible_users()]
 
@@ -355,6 +355,9 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
     if failed is not None:
         query = f"{query} AND r.failed = %s \n"
         params.append(bool(failed))
+
+    if show_archived is not True:
+        query = f"{query} AND r.archived = False \n"
 
     query = f"{query} ORDER BY r.created_at DESC"
 
@@ -512,7 +515,7 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
             JOIN measurement_values as mv ON mv.measurement_metric_id = mm.id
             JOIN runs as r ON mm.run_id = r.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) or r.public = TRUE)
                 AND mm.run_id = %s
     '''
 
@@ -648,7 +651,7 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
         JOIN
             runs as r ON ps.run_id = r.id
         WHERE
-            (TRUE = %s OR r.user_id = ANY(%s::int[]))
+            (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
             AND ps.run_id = %s
             AND ps.metric = %s
             AND ps.phase LIKE %s
@@ -825,6 +828,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
 def old_v1_run_endpoint():
     return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/run/{run_id}'}, status_code=410)
 
+
 @router.get('/v2/run/{run_id}')
 async def get_run(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
@@ -839,6 +843,55 @@ async def get_run(run_id: str, user: User = Depends(authenticate)):
 
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
+@router.put('/v1/run/{run_id}')
+def update_run(
+    run_id: str,
+    run: RunChange,
+    user: User = Depends(authenticate) # pylint: disable=unused-argument
+    ):
+
+    if run_id is None or not is_valid_uuid(run_id):
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
+
+
+    columns = []
+    params = []
+
+    if run.archived is not None:
+        columns.append('archived = %s')
+        params.append(run.archived)
+
+    if run.note is not None:
+        columns.append('note = %s')
+        params.append(run.note.strip())
+
+    if run.public is not None:
+        columns.append('public = %s')
+        params.append(run.public)
+
+
+    if not columns:
+        raise RequestValidationError('No data submitted in PUT request to change run with. Please submit data.')
+
+
+
+    query = f"""
+        UPDATE runs
+        SET
+            {',\n'.join(columns)}
+        WHERE
+            user_id = %s
+            AND id = %s
+    """
+
+    params.append(user._id)
+    params.append(run_id)
+
+    DB().query(query, params=params)
+
+    return Response(status_code=202) # No-Content
+
+
 @router.get('/v1/optimizations/{run_id}')
 async def get_optimizations(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
@@ -849,7 +902,7 @@ async def get_optimizations(run_id: str, user: User = Depends(authenticate)):
             FROM optimizations as o
             JOIN runs as r ON o.run_id = r.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND o.run_id = %s
     '''
 

@@ -154,10 +154,10 @@ def get_run_info(user, run_id):
                 measurement_config, machine_specs, machine_id, usage_scenario, usage_scenario_variables, usage_scenario_dependencies,
                 created_at,
                 (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = runs.id) as warnings,
-                phases, logs, failed, gmt_hash, runner_arguments
+                phases, logs, failed, gmt_hash, runner_arguments, archived, note, public
             FROM runs
             WHERE
-                (TRUE = %s OR user_id = ANY(%s::int[]))
+                (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
                 AND id = %s
         """
     params = (user.is_super_user(), user.visible_users(), run_id)
@@ -223,7 +223,7 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
             LEFT JOIN phase_stats as p ON
                 r.id = p.run_id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND r.uri = %s
                 AND r.branch = %s
                 AND r.filename = %s
@@ -253,7 +253,7 @@ def get_comparison_details(user, ids, comparison_db_key):
             id, name, created_at, uri, commit_hash, commit_timestamp, gmt_hash, usage_scenario_variables, {}
         FROM runs
         WHERE
-            (TRUE = %s OR user_id = ANY(%s::int[]))
+            (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
             AND id = ANY(%s::uuid[])
         ORDER BY created_at ASC -- must be same order as get_phase_stats so that the order in the comparison bar charts aligns with the comparsion_details array
     ''').format(sql.Identifier(comparison_db_key))
@@ -295,7 +295,7 @@ def determine_comparison_case(user, ids, force_mode=None):
                 SELECT uri, filename, machine_id, commit_hash, branch, usage_scenario_variables
                 FROM runs
                 WHERE
-                    (TRUE = %s OR user_id = ANY(%s::int[]))
+                    (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
                     AND id = ANY(%s::uuid[])
                 GROUP BY uri, filename, usage_scenario_variables, machine_id, commit_hash, branch
             )
@@ -436,7 +436,7 @@ def check_run_failed(user, ids):
                COUNT(failed)
             FROM runs
             WHERE
-                (TRUE = %s OR user_id = ANY(%s::int[]))
+                (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
                 AND id = ANY(%s::uuid[])
                 AND failed IS TRUE
             """
@@ -455,7 +455,7 @@ def get_phase_stats(user, ids):
             LEFT JOIN machines as c on c.id = b.machine_id
 
             WHERE
-                (TRUE = %s OR b.user_id = ANY(%s::int[]))
+                (TRUE = %s OR b.user_id = ANY(%s::int[]) OR b.public = TRUE)
                 AND a.run_id = ANY(%s::uuid[])
             ORDER BY
                 b.created_at ASC, -- at least the first sorting key which determinse the order of run_ids must be same order as get_comparison_details so that the order in the comparison bar charts aligns with the comparsion_details array
