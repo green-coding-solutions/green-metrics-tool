@@ -172,34 +172,6 @@ static int parse_containers(container_t** containers, char* containers_string) {
     return length;
 }
 
-static int check_system() {
-    const char* file_path_cgroup_procs;
-    const char file_path_proc_net_dev[] = "/proc/net/dev";
-    int found_error = 0;
-
-    file_path_cgroup_procs = "/sys/fs/cgroup/cgroup.procs";
-    FILE* fd = fopen(file_path_cgroup_procs, "r");
-    if (fd == NULL) {
-        fprintf(stderr, "Couldn't open cgroup.procs file at %s\n", file_path_cgroup_procs);
-        found_error = 1;
-    }
-
-    fd = fopen(file_path_proc_net_dev, "r");
-    if (fd == NULL) {
-        fprintf(stderr, "Couldn't open /proc/net/dev file\n");
-        found_error = 1;
-    }
-
-    if (fd != NULL) {
-        fclose(fd);
-    }
-
-    if(found_error) {
-        exit(1);
-    }
-
-    return 0;
-}
 
 int main(int argc, char **argv) {
 
