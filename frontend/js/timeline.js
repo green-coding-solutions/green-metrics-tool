@@ -196,7 +196,7 @@ const loadCharts = async () => {
                             <i class="question circle icon link"></i>
                         </i>
                     </div>
-                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams(false, null, null, true)}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(false,series[my_series].metric_name,series[my_series].detail_name, true)}&unit=joules"></a></span>
+                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams(false, null, null, true)}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(false,series[my_series].metric_name,series[my_series].detail_name, true)}&unit=joules" onerror="this.parentNode.parentNode.parentNode.remove(); console.log('Could not render ${series[my_series].metric_name} badge - Likely due to non public visibility of the run.')"></a></span>
                     <a class="copy-badge"><i class="copy icon"></i></a>
                 </div>
                 <p></p>`

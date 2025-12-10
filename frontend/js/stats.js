@@ -680,7 +680,7 @@ const renderBadges = async (url_params, phase_stats) => {
         badge_container.innerHTML += `
             <div class="inline field">
                 <a href="${METRICS_URL}/stats.html?id=${url_params['id']}">
-                    <img src="${API_URL}/v1/badge/single/${url_params['id']}?metric=${encodeURIComponent(metric_name)}" loading="lazy">
+                    <img src="${API_URL}/v1/badge/single/${url_params['id']}?metric=${encodeURIComponent(metric_name)}" loading="lazy" onerror="this.parentNode.parentNode.remove(); console.log('Could not render ${metric_name} badge - Likely due to non public visibility of the run.')">
                 </a>
                 <a class="copy-badge"><i class="copy icon"></i></a>
                 <div class="ui left pointing blue basic label">
