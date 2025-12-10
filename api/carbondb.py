@@ -30,7 +30,7 @@ async def add_carbondb(
     except ValueError as exc:
         raise RequestValidationError(str(exc)) from exc
 
-    return Response(status_code=204)
+    return Response(status_code=202)
 
 
 @router.get('/v1/carbondb/')

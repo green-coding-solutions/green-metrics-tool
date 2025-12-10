@@ -11,6 +11,7 @@ import ipaddress
 import requests
 import json
 import math
+import time
 
 from starlette.background import BackgroundTask
 from fastapi.responses import ORJSONResponse
@@ -959,7 +960,7 @@ def get_carbon_intensity(latitude, longitude):
 
     if latitude is None or longitude is None:
         error_helpers.log_error('Calling get_carbon_intensity without lat/long')
-        return -1
+        return None
 
     query = "SELECT latitude, longitude, data FROM carbon_intensity WHERE created_at > NOW() - INTERVAL '1 hours' AND latitude=%s AND longitude=%s;"
     db_data = DB().fetch_all(query, (latitude, longitude))
@@ -988,10 +989,18 @@ def get_carbon_intensity(latitude, longitude):
 
     error_helpers.log_error(f"Could not get carbon intensity from Electricitymaps.org for {params}", response=response)
 
-    return -1
+    return None
 
 
 def carbondb_add(connecting_ip, data, source, user_id):
+
+    merge_window_max = 30 # merge window hardcoded for now. Might be a user setting later. This entails also that carbondb_copy_over_and_remove_duplicates.py makes queries PER USER
+    current_time_us = int(time.time()  * 1e6)
+    if data['time'] < current_time_us - merge_window_max * 24 * 60 * 60 * 1e6 : # microseconds
+        raise ValueError(f"CarbonDB is configured to not accept values older than {merge_window_max} days. Your timestamp was: {data['time']}")
+    if data['time'] > current_time_us:
+        raise ValueError(f"CarbonDB does not accept timestamps in the future. Your timestamp was: {data['time']}")
+
 
     query = '''
             INSERT INTO carbondb_data_raw
@@ -1015,7 +1024,10 @@ def carbondb_add(connecting_ip, data, source, user_id):
 
     energy_J = float(data['energy_uj']) / 1e6
     energy_kWh = energy_J / (3_600*1_000)
-    carbon_kg = (energy_kWh * carbon_intensity_g_per_kWh)/1_000
+    if carbon_intensity_g_per_kWh is None:
+        carbon_kg = None
+    else:
+        carbon_kg = (energy_kWh * carbon_intensity_g_per_kWh)/1_000
 
     DB().query(
         query=query,

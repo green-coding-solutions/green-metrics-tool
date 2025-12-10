@@ -162,7 +162,7 @@ def compress_carbondb_raw():
 
 if __name__ == '__main__':
     try:
-        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../../manager-config.yml")
+        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
         compress_carbondb_raw()
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])

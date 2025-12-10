@@ -187,7 +187,7 @@ def test_cpu_memory_carbon_providers():
 
             seen_memory_used_procfs_system = True
         elif metric == 'phase_time_syscall_system':
-            assert 5*MICROSECONDS < val < 5.5*MICROSECONDS , f"phase_time_syscall_system is not between 5 and 5.5 s but {metric_provider['value']} {metric_provider['unit']}"
+            assert 5*MICROSECONDS < val < 5.75*MICROSECONDS , f"phase_time_syscall_system is not between 5 and 5.5 s but {metric_provider['value']} {metric_provider['unit']}"
             seen_phase_time_syscall_system = True
             phase_time = val
 

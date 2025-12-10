@@ -6,7 +6,7 @@ from fastapi.responses import ORJSONResponse
 from fastapi.exceptions import RequestValidationError
 
 from api.api_helpers import authenticate, get_connecting_ip, convert_value
-from api.object_specifications import CI_Measurement
+from api.object_specifications import CI_Measurement, CI_MeasurementV3
 
 import anybadge
 
@@ -19,32 +19,31 @@ from lib.db import DB
 router = APIRouter()
 
 
-@router.post('/v1/ci/measurement/add', deprecated=True)
-def old_v1_measurement_add_endpoint():
-    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/ci/measurement/add'}, status_code=410)
-
-@router.post('/v2/ci/measurement/add')
-async def post_ci_measurement_add(
-    request: Request,
-    measurement: CI_Measurement,
-    user: User = Depends(authenticate) # pylint: disable=unused-argument
-    ):
+def _insert_ci_measurement(request: Request, measurement, user: User) -> Response:
+    """
+    Shared insert logic for CI measurements.
+    Works for both v2 (CI_Measurement) and v3 (CI_MeasurementV3),
+    as they share the same DB-relevant fields.
+    """
 
     params = [measurement.energy_uj, measurement.repo, measurement.branch,
-            measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
-            measurement.commit_hash, measurement.duration_us, measurement.cpu_util_avg, measurement.workflow_name,
-            measurement.lat, measurement.lon, measurement.city, measurement.carbon_intensity_g, measurement.carbon_ug,
-            measurement.filter_type, measurement.filter_project, measurement.filter_machine]
+              measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
+              measurement.commit_hash, measurement.duration_us, measurement.cpu_util_avg, measurement.workflow_name,
+              measurement.lat, measurement.lon, measurement.city, measurement.carbon_intensity_g, measurement.carbon_ug,
+              measurement.filter_type, measurement.filter_project, measurement.filter_machine]
 
     tags_replacer = ' ARRAY[]::text[] '
     if measurement.filter_tags:
         tags_replacer = f" ARRAY[{','.join(['%s']*len(measurement.filter_tags))}] "
         params = params + measurement.filter_tags
 
-    used_client_ip = measurement.ip # If an ip has been given with the data. We prioritize that
+    # If an IP has been given with the data, we prioritize that
+    used_client_ip = measurement.ip
     if used_client_ip is None:
         used_client_ip = get_connecting_ip(request)
 
+    for field in ['os_name', 'cpu_arch', 'job_id', 'version']:
+        params.append(getattr(measurement, field, None))
     params.append(used_client_ip)
     params.append(user._id)
 
@@ -55,35 +54,38 @@ async def post_ci_measurement_add(
     query = f"""
         INSERT INTO
             ci_measurements (energy_uj,
-                            repo,
-                            branch,
-                            workflow_id,
-                            run_id,
-                            label,
-                            source,
-                            cpu,
-                            commit_hash,
-                            duration_us,
-                            cpu_util_avg,
-                            workflow_name,
-                            lat,
-                            lon,
-                            city,
-                            carbon_intensity_g,
-                            carbon_ug,
-                            filter_type,
-                            filter_project,
-                            filter_machine,
-                            filter_tags,
-                            ip_address,
-                            user_id,
-                            note
-                            )
+                             repo,
+                             branch,
+                             workflow_id,
+                             run_id,
+                             label,
+                             source,
+                             cpu,
+                             commit_hash,
+                             duration_us,
+                             cpu_util_avg,
+                             workflow_name,
+                             lat,
+                             lon,
+                             city,
+                             carbon_intensity_g,
+                             carbon_ug,
+                             filter_type,
+                             filter_project,
+                             filter_machine,
+                             filter_tags,
+                             os_name,
+                             cpu_arch,
+                             job_id,
+                             version,
+                             ip_address,
+                             user_id,
+                             note
+                             )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 {tags_replacer},
-                %s, %s, %s)
-
+                %s, %s, %s, %s, %s, %s, %s)
         """
 
     DB().query(query=query, params=params)
@@ -94,12 +96,49 @@ async def post_ci_measurement_add(
             measurement=measurement
         )
 
-    return Response(status_code=204)
+    return Response(status_code=202)
+
+
+@router.post('/v1/ci/measurement/add', deprecated=True)
+def old_v1_measurement_add_endpoint():
+    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/ci/measurement/add'}, status_code=410)
+
+
+@router.post('/v2/ci/measurement/add')
+async def post_ci_measurement_add(
+    request: Request,
+    measurement: CI_Measurement,
+    user: User = Depends(authenticate)  # pylint: disable=unused-argument
+):
+    """
+    v2: backward-compatible behaviour (no new fields).
+    """
+    return _insert_ci_measurement(request, measurement, user)
+
+@router.post('/v3/ci/measurement/add')
+async def post_ci_measurement_add_v3(
+    request: Request,
+    measurement: CI_MeasurementV3,
+    user: User = Depends(authenticate)  # pylint: disable=unused-argument
+):
+    """
+    v3: accepts additional fields (os_name, cpu_arch, job_id, version) via CI_MeasurementV3.
+    For now, the insert logic is the same as v2 and ignores these extra fields.
+    """
+    return _insert_ci_measurement(request, measurement, user)
+
 
 @router.get('/v1/ci/measurements')
-async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date, user: User = Depends(authenticate)):
+async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date, job_id: str | None = None, user: User = Depends(authenticate)):
 
-    query = '''
+    params = [user.is_super_user(), user.visible_users(), repo, branch, workflow, str(start_date), str(end_date)]
+
+    job_id_condition = ''
+    if job_id is not None:
+        job_id_condition = 'AND job_id = %s'
+        params.append(job_id)
+
+    query = f"""
         SELECT energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util_avg,
                (SELECT workflow_name FROM ci_measurements AS latest_workflow
                 WHERE latest_workflow.repo = ci_measurements.repo
@@ -114,10 +153,10 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
             AND repo = %s AND branch = %s AND workflow_id = %s
             AND DATE(created_at) >= TO_DATE(%s, 'YYYY-MM-DD')
             AND DATE(created_at) <= TO_DATE(%s, 'YYYY-MM-DD')
+            {job_id_condition}
         ORDER BY run_id ASC, created_at ASC
-    '''
+    """
 
-    params = (user.is_super_user(), user.visible_users(), repo, branch, workflow, str(start_date), str(end_date))
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:

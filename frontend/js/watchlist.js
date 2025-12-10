@@ -19,6 +19,10 @@ $(document).ready(function () {
             chart_node.classList.add('ui')
             chart_node.classList.add("card");
 
+            //Giving each card a data-id
+            chart_node.setAttribute('data-id', id);
+
+
             const url_link = `${replaceRepoIcon(repo_url)} ${createExternalIconLink(repo_url)}`;
             let chart_node_html = `
                 <div class="image">
@@ -60,14 +64,42 @@ $(document).ready(function () {
                 <hr>
                 <a class="ui button grey" href="/runs.html?uri=${encodeURIComponent(repo_url)}&filename=${encodeURIComponent(filename)}&branch=${encodeURIComponent(branch)}&machine_id=${machine_id}" target="_blank">
                     Show All Measurements <i class="external alternate icon"></i>
-                </a>`
+                </a>
+                <hr>
+                <button class="ui red button delete-watchlist" data-id="${id}">
+                    <i class="trash icon"></i> Delete
+                </button>`;
+
+
             chart_node.innerHTML = chart_node_html;
             document.querySelector('#scenario-runner-watchlist').appendChild(chart_node)
         });
         document.querySelectorAll(".copy-badge").forEach(el => {
             el.addEventListener('click', copyToClipboard)
-        })
+        });
 
+        //Event listener for delete buttons
+        $(document).on("click", ".delete-watchlist", async function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const id = $(this).data("id");
+
+            if (!confirm("Are you sure you want to delete this watchlist entry?")) {
+                return;
+            }
+
+            try {
+                await makeAPICall('/v1/watchlist', {
+                    action: "delete",
+                    watchlist_id: id
+                }, false, true);
+                showNotification("Watchlist entry deleted successfully!", '', 'success');
+                $(this).closest(".card").remove();
+            } catch (err) {
+                showNotification("Error deleting watchlist entry", err);
+            }
+            return false;
+        });
     })();
 });
 

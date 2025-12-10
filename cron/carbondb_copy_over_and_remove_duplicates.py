@@ -31,7 +31,44 @@ def backfill_missing_carbon_intensity():
     '''
     DB().query(query)
 
-def copy_over_power_hog(interval=30):
+    query = '''
+        UPDATE ci_measurements as cim
+        SET carbon_intensity_g = (SELECT ci.data->>'carbonIntensity'
+            FROM carbon_intensity as ci
+            WHERE ci.data->>'zone' = 'DE'
+            ORDER BY ABS(EXTRACT(EPOCH FROM (cim.created_at - ci.created_at::timestamp)))
+            LIMIT 1)::int
+        WHERE cim.carbon_intensity_g IS NULL;
+    '''
+    DB().query(query)
+
+    query = '''
+        UPDATE ci_measurements
+        SET carbon_ug = ((energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*carbon_intensity_g
+        WHERE carbon_ug IS NULL;
+    '''
+    DB().query(query)
+
+    # we also need to update the carbondb_data_raw table as it gets direct inserts
+    query = '''
+        UPDATE carbondb_data_raw as cdb
+        SET carbon_intensity_g = (SELECT ci.data->>'carbonIntensity'
+            FROM carbon_intensity as ci
+            WHERE ci.data->>'zone' = 'DE'
+            ORDER BY ABS(EXTRACT(EPOCH FROM (cdb.created_at - ci.created_at::timestamp)))
+            LIMIT 1)::int
+        WHERE cdb.carbon_intensity_g IS NULL;
+    '''
+    DB().query(query)
+
+    query = '''
+        UPDATE carbondb_data_raw
+        SET carbon_kg = ((energy_kwh::DOUBLE PRECISION)*carbon_intensity_g)/1e3
+        WHERE carbon_kg IS NULL;
+    '''
+    DB().query(query)
+
+def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then we allow old data to arrive
     params = []
     query = '''
         INSERT INTO carbondb_data_raw
@@ -46,7 +83,7 @@ def copy_over_power_hog(interval=30):
                 EXTRACT(EPOCH FROM created_at) * 1e6,
                 (combined_energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
                 (operational_carbon_ug::DOUBLE PRECISION)/1e9 + (embodied_carbon_ug/1e9), -- to get to kg
-                -1,  -- (carbon_intensity_g) there is no need for this column for further processing
+                grid_intensity_cog,  -- (carbon_intensity_g) there is no need for this column for further processing
                 NULL,  -- (latitude) there is no need for this column for further processing
                 NULL,  -- (longitude) there is no need for this column for further processing
                 NULL,
@@ -61,7 +98,7 @@ def copy_over_power_hog(interval=30):
     DB().query(query, params=params)
 
 
-def copy_over_eco_ci(interval=1):
+def copy_over_eco_ci(interval=30): # 30 days is the merge window. Until then we allow old data to arrive
     params = []
     query = '''
         INSERT INTO carbondb_data_raw
@@ -90,7 +127,7 @@ def copy_over_eco_ci(interval=1):
 
     DB().query(query, params=params)
 
-def copy_over_scenario_runner(interval=30):
+def copy_over_scenario_runner(interval=30): # 30 days is the merge window. Until then we allow old data to arrive
     params = []
     query = '''
         INSERT INTO carbondb_data_raw
@@ -128,20 +165,23 @@ def copy_over_scenario_runner(interval=30):
 
 def validate_table_constraints():
     data = DB().fetch_all('''
-        SELECT
-            column_name,
-            is_nullable
+        SELECT id
         FROM
-            information_schema.columns
+            carbondb_data_raw
         WHERE
-            table_name = 'carbondb_data_raw'
-            AND column_name IN ('user_id', 'time', 'energy_kwh', 'carbon_kg', 'carbon_intensity_g', 'type', 'project', 'machine', 'source', 'tags')
-    ''')
+            user_id IS NULL
+            OR time IS NULL
+            OR energy_kwh IS NULL
+            OR carbon_kg IS NULL
+            OR carbon_intensity_g IS NULL
+            OR type IS NULL
+            OR project IS NULL
+            OR machine IS NULL
+            OR source IS NULL
+            OR tags IS NULL ''')
 
-    for row in data:
-        if row[1] == 'YES':
-            raise RuntimeError(f"{row[0]} was NULL-able: {row[1]}. CarbonDB cannot remove duplicates.")
-
+    if data:
+        raise RuntimeError(f"NULL values found `carbondb_data_raw` - {data}")
 
 def remove_duplicates():
     validate_table_constraints() # since the query works only if columns are not null
@@ -164,7 +204,7 @@ def remove_duplicates():
 
 if __name__ == '__main__':
     try:
-        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../../manager-config.yml")
+        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
         backfill_missing_carbon_intensity()
         copy_over_eco_ci()
         copy_over_scenario_runner()
