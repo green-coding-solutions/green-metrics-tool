@@ -173,36 +173,7 @@ static int parse_containers(container_t** containers, char* containers_string) {
     return length;
 }
 
-static int check_system() {
-    const char* file_path_cpu_stat;
-    const char* file_path_proc_stat;
-    int found_error = 0;
 
-    file_path_cpu_stat = "/sys/fs/cgroup/cpu.stat";
-    file_path_proc_stat = "/proc/stat";
-
-    FILE* fd = fopen(file_path_cpu_stat, "r");
-    if (fd == NULL) {
-        fprintf(stderr, "Couldn't open cpu.stat file at %s\n", file_path_cpu_stat);
-        found_error = 1;
-    }
-
-    fd = fopen(file_path_proc_stat, "r");
-    if (fd == NULL) {
-        fprintf(stderr, "Couldn't open /proc/stat file\n");
-        found_error = 1;
-    }
-
-    if (fd != NULL) {
-        fclose(fd);
-    }
-
-    if(found_error) {
-        exit(1);
-    }
-
-    return 0;
-}
 
 int main(int argc, char **argv) {
 

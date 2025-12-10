@@ -89,19 +89,6 @@ static int parse_containers(container_t** containers, char* containers_string) {
     return length;
 }
 
-static int check_system() {
-    const char* check_path;
-
-    check_path = "/sys/fs/cgroup/cpu.stat";
-    FILE* fd = fopen(check_path, "r");
-
-    if (fd == NULL) {
-        fprintf(stderr, "Couldn't open cpu.stat file at %s\n", check_path);
-        exit(1);
-    }
-    fclose(fd);
-    return 0;
-}
 
 int main(int argc, char **argv) {
 
@@ -167,7 +154,7 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system("/sys/fs/cgroup/cpu.stat"));
+        exit(check_path("/sys/fs/cgroup/cpu.stat"));
     }
 
     get_time_offset(&offset);
