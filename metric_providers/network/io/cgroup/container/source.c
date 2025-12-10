@@ -218,7 +218,7 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        if (check_path("/proc/net/dev") == 1) exit(1);
+        check_path("/proc/net/dev");
         exit(check_path("/sys/fs/cgroup/cgroup.procs"));
     }
 

@@ -231,7 +231,7 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        if (check_path("/proc/stat") == 1) exit(1);
+        check_path("/proc/stat");
         exit(check_path("/sys/fs/cgroup/cpu.stat"));
     }
 
