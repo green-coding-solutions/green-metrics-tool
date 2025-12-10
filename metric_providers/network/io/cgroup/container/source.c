@@ -254,7 +254,8 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system());
+        if (check_path("/proc/net/dev") == 1) exit(1)
+        exit(check_path("/sys/fs/cgroup/cgroup.procs"));
     }
 
     get_time_offset(&offset);

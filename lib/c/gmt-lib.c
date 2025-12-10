@@ -8,6 +8,17 @@
 #include <time.h>
 #include <sys/time.h>
 
+int check_path(const char* path) {
+    FILE* fd = fopen(path, "r");
+
+    if (fd == NULL) {
+        fprintf(stderr, "Couldn't open %s\n", path);
+        exit(1);
+    }
+    fclose(fd);
+    return 0;
+}
+
 unsigned int parse_int(char *argument) {
     unsigned int number = 0;
     char *endptr;
