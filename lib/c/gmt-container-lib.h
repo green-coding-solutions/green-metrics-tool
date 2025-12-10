@@ -5,11 +5,11 @@
 
 typedef struct container_t {
     char *path;
-    char[512] name;
+    char name[512];
     char id[DOCKER_CONTAINER_ID_BUFFER];
     unsigned int pid; // will be empty in many usages as only network currently needs it
 } container_t;
 
-int parse_containers(const char* cgroup_controller, container_t** containers, char* containers_string);
+int parse_containers(const char* cgroup_controller, container_t** containers, char* containers_string, bool get_container_pid);
 
 #endif // CONTAINER_H

@@ -103,41 +103,6 @@ static void output_stats(container_t *containers, int length) {
     usleep(msleep_time*1000);
 }
 
-static int parse_containers(container_t** containers, char* containers_string) {
-    if(containers_string == NULL) {
-        fprintf(stderr, "Please supply at least one container id or cgroup name with -s XXXX\n");
-        exit(1);
-    }
-
-    *containers = malloc(sizeof(container_t));
-    if (!containers) {
-        fprintf(stderr, "Could not allocate memory for containers string\n");
-        exit(1);
-    }
-    char *id = strtok(containers_string,",");
-    int length = 0;
-
-    for (; id != NULL; id = strtok(NULL, ",")) {
-        //printf("Token: %s\n", id);
-        length++;
-        *containers = realloc(*containers, length * sizeof(container_t));
-        if (!containers) {
-            fprintf(stderr, "Could not allocate memory for containers string\n");
-            exit(1);
-        }
-
-        strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
-        (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
-
-        (*containers)[length-1].path = detect_cgroup_path("io.stat", user_id, id);
-    }
-
-    if(length == 0) {
-        fprintf(stderr, "Please supply at least one container id or cgroup name with -s XXXX\n");
-        exit(1);
-    }
-    return length;
-}
 
 int main(int argc, char **argv) {
 
