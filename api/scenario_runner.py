@@ -163,13 +163,10 @@ async def update_watchlist(
         RETURNING id
     """
     params = (change.watchlist_id, user.is_super_user(), user._id)
-    deleted = DB().fetch_one(query, params=params, fetch_mode="dict")
+    deleted = DB().fetch_one(query, params=params)
 
     if not deleted:
-        raise HTTPException(
-            status_code=404,
-            detail="Watchlist entry not found or not owned by user",
-        )
+        raise HTTPException(status_code=404, detail='Watchlist entry not found or not owned by user')
 
     return ORJSONResponse({'success': True, 'deleted_id': deleted['id']}, status_code=202)
 
@@ -853,7 +850,6 @@ def update_run(
     if run_id is None or not is_valid_uuid(run_id):
         raise RequestValidationError('Run ID is not a valid UUID or empty')
 
-
     columns = []
     params = []
 
@@ -869,11 +865,8 @@ def update_run(
         columns.append('public = %s')
         params.append(run.public)
 
-
     if not columns:
         raise RequestValidationError('No data submitted in PUT request to change run with. Please submit data.')
-
-
 
     query = f"""
         UPDATE runs
@@ -882,12 +875,14 @@ def update_run(
         WHERE
             user_id = %s
             AND id = %s
+        RETURNING id;
     """
-
     params.append(user._id)
     params.append(run_id)
+    updated = DB().fetch_one(query, params=params)
 
-    DB().query(query, params=params)
+    if not updated:
+        raise HTTPException(status_code=404, detail='Run not found or not owned by user')
 
     return Response(status_code=202) # No-Content
 
