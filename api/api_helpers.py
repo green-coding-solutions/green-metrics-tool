@@ -13,6 +13,8 @@ import json
 import math
 import time
 
+import orjson
+
 from starlette.background import BackgroundTask
 from fastapi.responses import ORJSONResponse
 from fastapi import Depends, Request, HTTPException
@@ -177,10 +179,7 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
     if branch is None or branch.strip() == '':
         branch = 'main'
 
-    if usage_scenario_variables is None or usage_scenario_variables.strip() == '':
-        usage_scenario_variables = '{}'
-
-    params = [user.is_super_user(), user.visible_users(), uri, branch, filename, usage_scenario_variables, f"%{phase}"]
+    params = [user.is_super_user(), user.visible_users(), uri, branch, filename, f"%{phase}"]
 
     metric_condition = ''
     if metric is None or metric.strip() == '' or metric.strip() == 'key':
@@ -210,6 +209,15 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
         machine_id_condition =  "AND r.machine_id = %s"
         params.append(machine_id)
 
+    usage_scenario_variables_condition = ''
+    if usage_scenario_variables is not None and usage_scenario_variables.strip() != '':
+        try:
+            orjson.loads(usage_scenario_variables) # pylint: disable=no-member
+        except orjson.JSONDecodeError as exc: # pylint: disable=no-member
+            raise RequestValidationError(f"Usage Scenario Variables was not correctly JSON formatted: {exc}") from exc
+        usage_scenario_variables_condition = 'AND r.usage_scenario_variables::text = %s'
+        params.append(usage_scenario_variables)
+
     sorting_condition = 'r.commit_timestamp ASC, r.created_at ASC'
     if sorting is not None and sorting.strip() == 'run':
         sorting_condition = 'r.created_at ASC, r.commit_timestamp ASC'
@@ -227,7 +235,6 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
                 AND r.uri = %s
                 AND r.branch = %s
                 AND r.filename = %s
-                AND r.usage_scenario_variables::text = %s
                 AND r.end_measurement IS NOT NULL
                 AND r.failed != TRUE
                 AND p.phase LIKE %s
@@ -236,6 +243,7 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
                 {end_date_condition}
                 {detail_name_condition}
                 {machine_id_condition}
+                {usage_scenario_variables_condition}
                 AND r.commit_timestamp IS NOT NULL
                 AND r.failed IS FALSE
             ORDER BY
