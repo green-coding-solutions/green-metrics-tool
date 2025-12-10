@@ -150,21 +150,6 @@ static int parse_containers(container_t** containers, char* containers_string) {
     return length;
 }
 
-static int check_system() {
-    const char* check_path;
-
-    check_path = "/sys/fs/cgroup/memory.stat"; // note: the .current is only available in slices. if the memory.stat file is present, we expect the .current also in the slices
-
-    FILE* fd = fopen(check_path, "r");
-
-    if (fd == NULL) {
-        fprintf(stderr, "Couldn't open memory.stat file at %s\n", check_path);
-        exit(1);
-    }
-    fclose(fd);
-    return 0;
-}
-
 int main(int argc, char **argv) {
 
     int c;
