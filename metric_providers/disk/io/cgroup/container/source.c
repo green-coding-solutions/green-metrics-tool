@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system("/sys/fs/cgroup/io.stat"));
+        exit(check_path("/sys/fs/cgroup/io.stat"));
     }
 
     get_time_offset(&offset);
