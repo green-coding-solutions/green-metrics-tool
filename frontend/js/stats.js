@@ -686,8 +686,9 @@ const renderBadges = async (url_params, phase_stats) => {
                 <div class="ui left pointing blue basic label">
                     ${escapeString(METRIC_MAPPINGS[metric_name]['explanation'])}
                 </div>
-            </div>
-            <hr class="ui divider"></hr>`;
+                <hr class="ui divider"></hr>
+            </div>`;
+
 
     })
     document.querySelectorAll(".copy-badge").forEach(el => {
