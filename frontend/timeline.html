@@ -93,8 +93,11 @@
                                         <div class="header">
                                             Badge Info
                                         </div>
-                                        <p>Badges are showing always the trend over the last 30 days and calculations will always be on the Runtime phase as well as calculated by sorting on commit timestamp.</p>
-                                        <p>Badges are cached and will only update once per day, even if the charts already show new data.</p>
+                                        <ul>
+                                            <li>Badges are showing always the trend over the last 30 days and calculations will always be on the Runtime phase as well as calculated by sorting on commit timestamp. They can also only show if there at least 3 data points.</p>
+                                            <li>Badges are cached and will only update once per day, even if the charts already show new data.</p>
+                                            <li>Badges are only visible if the run is public since they are served as images. If badges do not show either make the run public or use a HTTP proxy like Cloudflare workers to tunnel the page if needed.</li>
+                                        </ul>
                                     </div>
                                 </div>
                             </div>
