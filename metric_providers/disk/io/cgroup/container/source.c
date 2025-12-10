@@ -9,15 +9,8 @@
 #include <limits.h>
 #include <stdbool.h>
 #include "gmt-lib.h"
+#include "gmt-container-lib.h"
 #include "detect_cgroup_path.h"
-
-
-#define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
-
-typedef struct container_t { // struct is a specification and this static makes no sense here
-    char* path;
-    char id[DOCKER_CONTAINER_ID_BUFFER];
-} container_t;
 
 typedef struct disk_io_t { // struct is a specification and this static makes no sense here
     unsigned long long int rbytes;
@@ -204,7 +197,7 @@ int main(int argc, char **argv) {
 
     get_time_offset(&offset);
 
-    int length = parse_containers(&containers, containers_string);
+    int length = parse_containers("io.stat", &containers, containers_string, false);
 
     while(1) {
         output_stats(containers, length);
