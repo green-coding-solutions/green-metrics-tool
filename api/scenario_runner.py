@@ -873,10 +873,12 @@ def update_run(
         SET
             {',\n'.join(columns)}
         WHERE
-            user_id = %s
+            (TRUE = %s OR user_id = %s)
             AND id = %s
         RETURNING id;
     """
+
+    params.append(user.is_super_user())
     params.append(user._id)
     params.append(run_id)
     updated = DB().fetch_one(query, params=params)
