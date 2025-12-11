@@ -18,6 +18,7 @@ import re
 from pathlib import Path
 import random
 import shutil
+import math
 import yaml
 from collections import OrderedDict
 from datetime import datetime
@@ -613,6 +614,56 @@ class ScenarioRunner:
                 else:
                     service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
+    def _populate_cpu_and_memory_limits(self):
+        services = self._usage_scenario.get('services', {})
+
+        DOCKER_AVAILABLE_MEMORY = int(subprocess.check_output(['docker', 'info', '--format', '{{.MemTotal}}'], encoding='UTF-8', errors='replace').strip())
+        unassigned_memory = DOCKER_AVAILABLE_MEMORY-1024**3 # we want to leave 1 GB free on the host / docker VM to avoid OOM situations
+
+        if unassigned_memory <= 0:
+            raise RuntimeError(f"Docker has insufficient memory available. Available: {DOCKER_AVAILABLE_MEMORY/1024**3:.2f}GB, Required: at least 1GB for GMT overhead")
+
+        SYSTEM_ASSIGNABLE_CPU_COUNT = int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip()) -1
+        if SYSTEM_ASSIGNABLE_CPU_COUNT <= 0:
+            raise RuntimeError(f"Cannot assign docker containers to any CPU as no CPUs are available to Docker. Available CPU count: {SYSTEM_ASSIGNABLE_CPU_COUNT}")
+
+        to_be_assigned_services = []
+        for service_name, service in services.items():
+            # wildly the docker compose spec allows deploy to be None
+            # ... thus we need to check and cannot .get()
+            if 'deploy' in service and service['deploy'] is not None and (memory := service['deploy'].get('resources', {}).get('limits', {}).get('memory', None)) is not None:
+                del service['deploy']['resources']['limits']['memory']
+                service['mem_limit'] = memory
+            if service.get('mem_limit', 0) == 0:
+                to_be_assigned_services.append(service_name)
+                self.__warnings.append(f"Service '{service_name}' had no memory limit set. GMT does not allow unbounded memory limits and auto value was applied.")
+            else:
+                memory_bytes = utils.docker_memory_to_bytes(service['mem_limit'])
+                if memory_bytes > unassigned_memory:
+                    raise ValueError(f"You are trying to assign more memory to service {service_name} than is left available on host system and already assigned containers. Requested memory: {memory_bytes} Bytes. Left unassigned memory: {unassigned_memory} Bytes")
+                unassigned_memory -= memory_bytes
+
+            if 'deploy' in service and service['deploy'] is not None and (cpus := service['deploy'].get('resources', {}).get('limits', {}).get('cpus', None)) is not None:
+                del service['deploy']['resources']['limits']['cpus']
+                service['cpus'] = cpus
+            REQUESTED_CPUS = float(service.get('cpus', 0))
+            if REQUESTED_CPUS == 0:
+                # we do not want to auto enforce CPU limits. So we re-map the limit spec here to the host system for transparency and for comparing with other runs
+                service['cpus'] = SYSTEM_ASSIGNABLE_CPU_COUNT
+            elif REQUESTED_CPUS > SYSTEM_ASSIGNABLE_CPU_COUNT:
+                raise ValueError(f"You are trying to assign more cpus to service {service_name} than is available host system. Requested CPUs: {REQUESTED_CPUS}. Available CPUs: {SYSTEM_ASSIGNABLE_CPU_COUNT}")
+
+
+
+        service_count = len(to_be_assigned_services)
+        if service_count > 0:
+            memory_per_service = math.floor(unassigned_memory/service_count)
+            if memory_per_service < 1024**3:
+                self.__warnings.append('Auto-assigned memory for containers was less than 1 GB per container because no more memory was available to the host. If you feel that this is too low please set memory limits manually or upgrade to a bigger host.')
+            for service_name in to_be_assigned_services:
+                services[service_name]['mem_limit'] = memory_per_service
+
+
     def _remove_docker_images(self):
         print(TerminalColors.HEADER, '\nRemoving all temporary GMT images', TerminalColors.ENDC)
 
@@ -1060,6 +1111,10 @@ class ScenarioRunner:
         # This use case is when you have running containers on your host and want to benchmark some code running in them
         services = self._usage_scenario.get('services', {})
 
+        SYSTEM_ASSIGNABLE_CPU_COUNT = int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip()) -1
+        if SYSTEM_ASSIGNABLE_CPU_COUNT <= 0:
+            raise RuntimeError(f"Cannot assign docker containers to any CPU as no CPUs are available to Docker. Available CPU count: {SYSTEM_ASSIGNABLE_CPU_COUNT}")
+
         # Check if there are service dependencies defined with 'depends_on'.
         # If so, change the order of the services accordingly.
         services_ordered = self._order_services(services)
@@ -1275,24 +1330,17 @@ class ScenarioRunner:
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
 
-            # wildly the docker compose spec allows deploy to be None ... thus we need to check and cannot .get()
-            if 'deploy' in service and service['deploy'] is not None and (memory := service['deploy'].get('resources', {}).get('limits', {}).get('memory', None)):
-                docker_run_string.append('--memory') # value in bytes
-                docker_run_string.append(str(memory))
-                print('Applying Memory Limit from deploy')
-            elif memory := service.get('mem_limit', None): # we only need to get resources or cpus. they must align anyway
-                docker_run_string.append('--memory')
-                docker_run_string.append(str(memory))  # value in bytes e.g. "10M"
-                print('Applying Memory Limit from services')
+            # apply cpuset but keep one core for GMT and metric providers free
+            # This cannot be configured via user as no knowledge of machine shall be required
+            docker_run_string.append('--cpuset-cpus')
+            docker_run_string.append(','.join(map(str, range(1,SYSTEM_ASSIGNABLE_CPU_COUNT+1)))) # range inclusive as we do not assign to 0
 
-            if 'deploy' in service and service['deploy'] is not None and (cpus := service['deploy'].get('resources', {}).get('limits', {}).get('cpus', None)):
-                docker_run_string.append('--cpus') # value in cores
-                docker_run_string.append(str(cpus))
-                print('Applying CPU Limit from deploy')
-            elif cpus := service.get('cpus', None): # we only need to get resources or cpus. they must align anyway
-                docker_run_string.append('--cpus')
-                docker_run_string.append(str(cpus)) # value in (fractional) cores
-                print('Applying CPU Limit from services')
+            docker_run_string.append('--memory-swappiness=0') # GMT should never swap as it gives hard to interpret / non-linear performance results
+            docker_run_string.append('--oom-score-adj=1000') # containers will be killed first so host does not OOM
+            docker_run_string.append(f"--memory={service['mem_limit']}")
+            docker_run_string.append(f"--memory-swap={service['mem_limit']}") # effectively disable swap
+
+            docker_run_string.append(f"--cpus={service['cpus']}")
 
             if 'healthcheck' in service:  # must come last
                 if 'disable' in service['healthcheck'] and service['healthcheck']['disable'] is True:
@@ -2378,6 +2426,7 @@ class ScenarioRunner:
             self._register_machine_id()
             self._import_metric_providers()
             self._populate_image_names()
+            self._populate_cpu_and_memory_limits()
             self._prepare_docker()
             self._check_running_containers_before_start()
             self._remove_docker_images()

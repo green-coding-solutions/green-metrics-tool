@@ -1,24 +1,14 @@
 ---
 name: Testing SHM
 author: Arne Tarara
-description: Testing SHM
+description: Testing Too high limits
 
 services:
   test-container:
     type: container
     image: alpine
-    cpus: "1.2"
-    mem_limit: "10MB"
+    cpus: 400
 
-    shm_size: "30MB"
-
-  test-container-2:
-    type: container
-    image: alpine
-    cpus: "1.2"
-    mem_limit: "10MB"
-
-    shm_size: 15728640
 
 flow:
   - name: Testing SHM

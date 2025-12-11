@@ -28,7 +28,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 GMT_Resources = {
     'free_disk': 1024 ** 3, # 1GB in bytes
-    'free_memory':  1024 ** 3, # 1GB in bytes
+    'free_memory': 2 * 1024 ** 3, # 2GB in bytes
 }
 
 ######## CHECK FUNCTIONS ########
@@ -77,6 +77,16 @@ def check_cpu_utilization(*_, **__):
 def check_free_disk(*_, **__):
     free_space_bytes = psutil.disk_usage(os.path.dirname(os.path.abspath(__file__))).free
     return free_space_bytes >= GMT_Resources['free_disk']
+
+def check_available_cpus(*_, **__):
+    docker_reported_cpus = int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip())
+    return os.cpu_count() >= 2 and docker_reported_cpus >= 2
+
+def check_docker_cpu_availability(*_, **__):
+    if platform.system() == 'Darwin':
+        return True # no checks on macOS as docker runs in VM here with custom CPU configuration
+    docker_reported_cpus = subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip()
+    return str(os.cpu_count()) == docker_reported_cpus # not casting to int to not get unexpected 0 or 1
 
 def check_free_memory(*_, **__):
     return psutil.virtual_memory().available >= GMT_Resources['free_memory']
@@ -154,8 +164,10 @@ start_checks = (
     (check_ntp, Status.WARN, 'ntp', 'You have NTP time syncing active. This can create noise in runs and should be deactivated.'),
     (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement.'),
     (check_largest_sampling_rate, Status.WARN, 'high sampling rate', 'You have chosen at least one provider with a sampling rate > 1000 ms. That is not recommended and might lead also to longer benchmarking times due to internal extra sleeps to adjust measurement frames.'),
-    (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'We recommend to free up some disk space (< 1GiB available)'),
-    (check_free_memory, Status.ERROR, '1 GiB free memory', 'No free memory! Please kill some programs (< 1GiB available)'),
+    (check_available_cpus, Status.ERROR, '< 2 CPUs', 'You need at least 2 CPU cores on the system (and assigned to Docker in case of macOS) to run GMT'),
+    (check_docker_cpu_availability, Status.ERROR, 'Docker CPU reporting', 'Docker reports a different amount of available CPUs than the system itself - GMT cannot handle this currently'),
+    (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'You need to free up some disk space to run GMT reliably (< 1GiB available)'),
+    (check_free_memory, Status.ERROR, '2 GiB free memory', 'No free memory! Please kill some programs (< 1GiB available)'),
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),
     (check_docker_host_env, Status.ERROR, 'docker host env', 'You seem to be running a rootless docker and in this case you must set the DOCKER_HOST environment variable so that the docker library we use can find the docker agent. Typically this should be DOCKER_HOST=unix:///$XDG_RUNTIME_DIR/docker.sock'),
     (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
