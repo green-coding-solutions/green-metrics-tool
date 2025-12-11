@@ -212,7 +212,6 @@ char* get_container_name(const char *container_id) {
         char *end = strchr(name_pos, '"');
         if (end) {
             *end = '\0';
-            printf("Container name: %s\n", name_pos);
             // Remove leading slash if present
             char *clean_name = (*name_pos == '/') ? name_pos + 1 : name_pos;
             result = strdup(clean_name); // caller must free
