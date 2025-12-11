@@ -47,7 +47,7 @@ static char *trimwhitespace(char *str) {
   return str;
 }
 
-static net_io_t get_network_cgroup(unsigned int pid) {
+static net_io_t get_network_cgroup(unsigned int pid, char* container_name) {
     char buf[200], ifname[20];
     unsigned long long int r_bytes, t_bytes, r_packets, t_packets;
     net_io_t net_io = {0};
@@ -57,14 +57,14 @@ static net_io_t get_network_cgroup(unsigned int pid) {
 
     int fd_ns = open(ns_path, O_RDONLY);   /* Get descriptor for namespace */
     if (fd_ns == -1) {
-        fprintf(stderr, "open namespace failed for pid %u", pid);
+        fprintf(stderr, "Error: open namespace failed for pid %u in container %s\n", pid, container_name);
         exit(1);
     }
 
     // printf("Entering namespace /proc/%u/ns/net \n", pid);
 
    if (setns(fd_ns, 0) == -1) { // argument 0 means that any type of NS (IPC, Network, UTS) is allowed
-        fprintf(stderr, "setns failed for pid %u", pid);
+        fprintf(stderr, "Error: setns failed for pid %u in container %s\n", pid, container_name);
         exit(1);
     }
 
@@ -73,7 +73,7 @@ static net_io_t get_network_cgroup(unsigned int pid) {
     // by testing on our machine though ip link also returned significantly smaller values (~50% less)
     FILE * fd = fopen("/proc/net/dev", "r");
     if ( fd == NULL) {
-        fprintf(stderr, "Error - file %s failed to open. Is the container still running? Errno: %d\n", "/proc/net/dev", errno);
+        fprintf(stderr, "Error - Could not open path %s (%s) for reading. Maybe the container is not running anymore? Errno: %d\n", "/proc/net/dev", container_name, errno);
         exit(1);
     }
 
@@ -114,7 +114,7 @@ static void output_stats(container_t *containers, int length) {
     get_adjusted_time(&now, &offset);
 
     for(i=0; i<length; i++) {
-        net_io_t net_io = get_network_cgroup(containers[i].pid);
+        net_io_t net_io = get_network_cgroup(containers[i].pid, containers[i].name);
         printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, net_io.r_bytes, net_io.t_bytes, containers[i].id);
     }
     usleep(msleep_time*1000);

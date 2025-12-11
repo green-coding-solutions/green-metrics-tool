@@ -20,7 +20,7 @@ static int user_id = -1;
 static unsigned int msleep_time=1000;
 static struct timespec offset;
 
-static long long int get_memory_cgroup(char* filename) {
+static long long int get_memory_cgroup(char* path, char* container_name) {
     long long int active_file = -1;
     long long int active_anon = -1;
     long long int slab_unreclaimable = -1;
@@ -30,9 +30,9 @@ static long long int get_memory_cgroup(char* filename) {
     unsigned long long int value = 0;
     char key[128];
 
-    FILE * fd = fopen(filename, "r");
+    FILE * fd = fopen(path, "r");
     if ( fd == NULL) {
-        fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Errno: %d\n", filename, errno);
+        fprintf(stderr, "Error - Could not open path %s (%s) for reading. Maybe the container is not running anymore? Errno: %d\n", path, container_name, errno);
         exit(1);
     }
 
@@ -102,7 +102,7 @@ static void output_stats(container_t *containers, int length) {
     get_adjusted_time(&now, &offset);
 
     for(i=0; i<length; i++) {
-        printf("%ld%06ld %lld %s\n", now.tv_sec, now.tv_usec, get_memory_cgroup(containers[i].path), containers[i].id);
+        printf("%ld%06ld %lld %s\n", now.tv_sec, now.tv_usec, get_memory_cgroup(containers[i].path, containers[i].name), containers[i].id);
     }
     usleep(msleep_time*1000);
 }

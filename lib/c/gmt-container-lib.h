@@ -17,7 +17,7 @@ struct string {
 
 typedef struct container_t {
     char *path;
-    char name[512];
+    char *name;
     char id[DOCKER_CONTAINER_ID_BUFFER];
     unsigned int pid; // will be empty in many usages as only network currently needs it
 } container_t;
@@ -26,7 +26,7 @@ typedef struct container_t {
 int parse_containers(const char* cgroup_controller, int user_id, container_t** containers, char* containers_string, bool get_container_pid);
 
 // find cgroup path in various location in /sys/fs
-char* detect_cgroup_path(const char* controller, int user_id, const char* id);
+char* detect_cgroup_path(const char* controller, int user_id, container_t container);
 
 // Initialize string struct
 void init_string(struct string *s);

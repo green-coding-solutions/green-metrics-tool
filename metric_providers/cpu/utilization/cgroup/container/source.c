@@ -21,7 +21,14 @@ static unsigned int msleep_time=1000;
 static struct timespec offset;
 
 static long int read_cpu_proc(FILE *fd) {
+    FILE* fd = fopen(path, "r");
+
     long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time;
+
+    if ( fd == NULL) {
+        fprintf(stderr, "Error - Could not open path %s (%s) for reading. Maybe the container is not running anymore? Errno: %d\n", path, container_name, errno);
+        exit(1);
+    }
 
     // technically here is also steal_time, guest_time, guest_nice time
     // but these values are not compatible with old systems (to be fair: < linux 2.6)
@@ -29,6 +36,8 @@ static long int read_cpu_proc(FILE *fd) {
     // and if you are in a virtualized environment we make the case, that this is not time we see as the utilization of the looked at system. It happended outside
     // gmt reporters are to capture the work done. Not all time executed somewhere out of scope
     int match_result = fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time);
+    fclose(fd);
+
     if (match_result != 7) {
         fprintf(stderr, "Could not match cpu usage pattern\n");
         exit(1);
@@ -37,42 +46,35 @@ static long int read_cpu_proc(FILE *fd) {
     // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time);
     if(idle_time <= 0) fprintf(stderr, "Idle time strange value %ld \n", idle_time);
 
+
     // after this multiplication we are on microseconds
     // integer division is deliberately, cause we don't loose precision as *1000000 is done before
     return ((user_time+nice_time+system_time+idle_time+iowait_time+irq_time+softirq_time)*1000000)/user_hz;
 }
 
 
-static long int read_cpu_cgroup(FILE *fd) {
+static long int read_cpu_cgroup(char* path, int mode, char* container_name) {
+    FILE* fd = fopen(path, "r");
+
+    long int result=-1;
     long int cpu_usage = -1;
+
+    if ( fd == NULL) {
+        fprintf(stderr, "Error - Could not open path %s (%s) for reading. Maybe the container is not running anymore? Errno: %d\n", path, container_name, errno);
+        exit(1);
+    }
+
     // in cgroups usage_usec and user_usec includes nice time! (this is not the case for user_time in /proc/stat)
     int match_result = fscanf(fd, "usage_usec %ld", &cpu_usage);
+    fclose(fd);
+
     if (match_result != 1) {
         fprintf(stderr, "Could not match usage_sec\n");
         exit(1);
     }
+
     return cpu_usage;
 }
-
-static long int get_cpu_stat(char* filename, int mode) {
-    long int result=-1;
-    FILE* fd = fopen(filename, "r");
-
-    if ( fd == NULL) {
-        fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Errno: %d\n", filename, errno);
-        exit(1);
-    }
-    if(mode == 1) {
-        result = read_cpu_cgroup(fd);
-        // printf("Got cgroup: %ld", result);
-    } else {
-        result = read_cpu_proc(fd);
-        // printf("Got /proc/stat: %ld", result);
-    }
-    fclose(fd);
-    return result;
-}
-
 
 static void output_stats(container_t* containers, int length) {
 
@@ -89,16 +91,16 @@ static void output_stats(container_t* containers, int length) {
 
     for(i=0; i<length; i++) {
         //printf("Looking at %s ", containers[i].path);
-        cpu_readings_before[i]=get_cpu_stat(containers[i].path, 1);
+        cpu_readings_before[i]=read_cpu_cgroup(containers[i].path, 1, containers[i].name);
     }
-    main_cpu_reading_before = get_cpu_stat("/proc/stat", 0);
+    main_cpu_reading_before = read_cpu_proc("/proc/stat", 0);
 
     usleep(msleep_time*1000);
 
     for(i=0; i<length; i++) {
-        cpu_readings_after[i]=get_cpu_stat(containers[i].path, 1);
+        cpu_readings_after[i]=read_cpu_cgroup(containers[i].path, 1, containers[i].name);
     }
-    main_cpu_reading_after = get_cpu_stat("/proc/stat", 0);
+    main_cpu_reading_after = read_cpu_proc("/proc/stat", 0);
 
     // Display Energy Readings
     // This is in a seperate loop, so that all energy readings are done beforehand as close together as possible
