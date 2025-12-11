@@ -24,7 +24,7 @@ static long int read_cpu_cgroup(char* path, char* container_name) {
     long int cpu_usage = -1;
     FILE* fd = fopen(path, "r");
     if ( fd == NULL) {
-        fprintf(stderr, "Error - Could not open path %s (%s) for reading. Maybe the container is not running anymore?  Errno: %d\n", path, errno);
+        fprintf(stderr, "Error - Could not open path %s (%s) for reading. Maybe the container is not running anymore?  Errno: %d\n", path, container_name, errno);
         exit(1);
     }
     int match_result = fscanf(fd, "usage_usec %ld", &cpu_usage);

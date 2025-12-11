@@ -20,7 +20,7 @@ static long int user_hz;
 static unsigned int msleep_time=1000;
 static struct timespec offset;
 
-static long int read_cpu_proc(FILE *fd) {
+static long int read_cpu_proc(char* path, int mode) {
     FILE* fd = fopen(path, "r");
 
     long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time;
