@@ -25,16 +25,16 @@ static int user_id = -1;
 static unsigned int msleep_time=1000;
 static struct timespec offset;
 
-static disk_io_t get_disk_cgroup(char* filename) {
+static disk_io_t get_disk_cgroup(char* path, char* container_name) {
     unsigned long long int rbytes = 0;
     unsigned long long int wbytes = 0;
     unsigned int major_number;
     unsigned int minor_number;
     disk_io_t disk_io = {0};
 
-    FILE * fd = fopen(filename, "r");
+    FILE * fd = fopen(path, "r");
     if ( fd == NULL) {
-        fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Errno: %d\n", filename, errno);
+        fprintf(stderr, "Error - Could not open path %s (%s) for reading. Maybe the container is not running anymore? Errno: %d\n", path, container_name, errno);
         exit(1);
     }
 
@@ -96,7 +96,7 @@ static void output_stats(container_t *containers, int length) {
 
     get_adjusted_time(&now, &offset);
     for(i=0; i<length; i++) {
-        disk_io_t disk_io = get_disk_cgroup(containers[i].path);
+        disk_io_t disk_io = get_disk_cgroup(containers[i].path, containers[i].name);
         printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, disk_io.rbytes, disk_io.wbytes, containers[i].id);
     }
     usleep(msleep_time*1000);

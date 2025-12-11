@@ -26,7 +26,7 @@ static long int read_cpu_proc(char* path, int mode) {
     long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time;
 
     if ( fd == NULL) {
-        fprintf(stderr, "Error - Could not open path %s (%s) for reading. Maybe the container is not running anymore? Errno: %d\n", path, container_name, errno);
+        fprintf(stderr, "Error - Could not open path %s for reading. Maybe the container is not running anymore? Errno: %d\n", path, errno);
         exit(1);
     }
 
@@ -56,7 +56,6 @@ static long int read_cpu_proc(char* path, int mode) {
 static long int read_cpu_cgroup(char* path, int mode, char* container_name) {
     FILE* fd = fopen(path, "r");
 
-    long int result=-1;
     long int cpu_usage = -1;
 
     if ( fd == NULL) {
