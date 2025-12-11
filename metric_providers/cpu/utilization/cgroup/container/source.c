@@ -9,14 +9,7 @@
 #include <limits.h>
 #include <stdbool.h>
 #include "gmt-lib.h"
-#include "detect_cgroup_path.h"
-
-#define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
-
-typedef struct container_t { // struct is a specification and this static makes no sense here
-    char* path;
-    char id[DOCKER_CONTAINER_ID_BUFFER];
-} container_t;
+#include "gmt-container-lib.h"
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
@@ -27,8 +20,15 @@ static long int user_hz;
 static unsigned int msleep_time=1000;
 static struct timespec offset;
 
-static long int read_cpu_proc(FILE *fd) {
+static long int read_cpu_proc(char* path, int mode) {
+    FILE* fd = fopen(path, "r");
+
     long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time;
+
+    if ( fd == NULL) {
+        fprintf(stderr, "Error - Could not open path %s for reading. Maybe the container is not running anymore? Errno: %d\n", path, errno);
+        exit(1);
+    }
 
     // technically here is also steal_time, guest_time, guest_nice time
     // but these values are not compatible with old systems (to be fair: < linux 2.6)
@@ -36,6 +36,8 @@ static long int read_cpu_proc(FILE *fd) {
     // and if you are in a virtualized environment we make the case, that this is not time we see as the utilization of the looked at system. It happended outside
     // gmt reporters are to capture the work done. Not all time executed somewhere out of scope
     int match_result = fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time);
+    fclose(fd);
+
     if (match_result != 7) {
         fprintf(stderr, "Could not match cpu usage pattern\n");
         exit(1);
@@ -44,42 +46,34 @@ static long int read_cpu_proc(FILE *fd) {
     // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time);
     if(idle_time <= 0) fprintf(stderr, "Idle time strange value %ld \n", idle_time);
 
+
     // after this multiplication we are on microseconds
     // integer division is deliberately, cause we don't loose precision as *1000000 is done before
     return ((user_time+nice_time+system_time+idle_time+iowait_time+irq_time+softirq_time)*1000000)/user_hz;
 }
 
 
-static long int read_cpu_cgroup(FILE *fd) {
+static long int read_cpu_cgroup(char* path, int mode, char* container_name) {
+    FILE* fd = fopen(path, "r");
+
     long int cpu_usage = -1;
+
+    if ( fd == NULL) {
+        fprintf(stderr, "Error - Could not open path %s (%s) for reading. Maybe the container is not running anymore? Errno: %d\n", path, container_name, errno);
+        exit(1);
+    }
+
     // in cgroups usage_usec and user_usec includes nice time! (this is not the case for user_time in /proc/stat)
     int match_result = fscanf(fd, "usage_usec %ld", &cpu_usage);
+    fclose(fd);
+
     if (match_result != 1) {
         fprintf(stderr, "Could not match usage_sec\n");
         exit(1);
     }
+
     return cpu_usage;
 }
-
-static long int get_cpu_stat(char* filename, int mode) {
-    long int result=-1;
-    FILE* fd = fopen(filename, "r");
-
-    if ( fd == NULL) {
-        fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Errno: %d\n", filename, errno);
-        exit(1);
-    }
-    if(mode == 1) {
-        result = read_cpu_cgroup(fd);
-        // printf("Got cgroup: %ld", result);
-    } else {
-        result = read_cpu_proc(fd);
-        // printf("Got /proc/stat: %ld", result);
-    }
-    fclose(fd);
-    return result;
-}
-
 
 static void output_stats(container_t* containers, int length) {
 
@@ -96,16 +90,16 @@ static void output_stats(container_t* containers, int length) {
 
     for(i=0; i<length; i++) {
         //printf("Looking at %s ", containers[i].path);
-        cpu_readings_before[i]=get_cpu_stat(containers[i].path, 1);
+        cpu_readings_before[i]=read_cpu_cgroup(containers[i].path, 1, containers[i].name);
     }
-    main_cpu_reading_before = get_cpu_stat("/proc/stat", 0);
+    main_cpu_reading_before = read_cpu_proc("/proc/stat", 0);
 
     usleep(msleep_time*1000);
 
     for(i=0; i<length; i++) {
-        cpu_readings_after[i]=get_cpu_stat(containers[i].path, 1);
+        cpu_readings_after[i]=read_cpu_cgroup(containers[i].path, 1, containers[i].name);
     }
-    main_cpu_reading_after = get_cpu_stat("/proc/stat", 0);
+    main_cpu_reading_after = read_cpu_proc("/proc/stat", 0);
 
     // Display Energy Readings
     // This is in a seperate loop, so that all energy readings are done beforehand as close together as possible
@@ -135,73 +129,6 @@ static void output_stats(container_t* containers, int length) {
 
         printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, reading, containers[i].id);
     }
-}
-
-static int parse_containers(container_t** containers, char* containers_string) {
-    if(containers_string == NULL) {
-        fprintf(stderr, "Please supply at least one container id or cgroup name with -s XXXX\n");
-        exit(1);
-    }
-
-    *containers = malloc(sizeof(container_t));
-    if (!containers) {
-        fprintf(stderr, "Could not allocate memory for containers string\n");
-        exit(1);
-    }
-    char *id = strtok(containers_string,",");
-    int length = 0;
-
-    for (; id != NULL; id = strtok(NULL, ",")) {
-        //printf("Token: %s\n", id);
-        length++;
-        *containers = realloc(*containers, length * sizeof(container_t));
-        if (!containers) {
-            fprintf(stderr, "Could not allocate memory for containers string\n");
-            exit(1);
-        }
-        strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
-        (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
-
-        (*containers)[length-1].path = detect_cgroup_path("cpu.stat", user_id, id);
-    }
-
-    if(length == 0) {
-        fprintf(stderr, "Please supply at least one container id or cgroup name with -s XXXX\n");
-        exit(1);
-    }
-
-    return length;
-}
-
-static int check_system() {
-    const char* file_path_cpu_stat;
-    const char* file_path_proc_stat;
-    int found_error = 0;
-
-    file_path_cpu_stat = "/sys/fs/cgroup/cpu.stat";
-    file_path_proc_stat = "/proc/stat";
-
-    FILE* fd = fopen(file_path_cpu_stat, "r");
-    if (fd == NULL) {
-        fprintf(stderr, "Couldn't open cpu.stat file at %s\n", file_path_cpu_stat);
-        found_error = 1;
-    }
-
-    fd = fopen(file_path_proc_stat, "r");
-    if (fd == NULL) {
-        fprintf(stderr, "Couldn't open /proc/stat file\n");
-        found_error = 1;
-    }
-
-    if (fd != NULL) {
-        fclose(fd);
-    }
-
-    if(found_error) {
-        exit(1);
-    }
-
-    return 0;
 }
 
 int main(int argc, char **argv) {
@@ -268,12 +195,13 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system());
+        check_path("/proc/stat");
+        exit(check_path("/sys/fs/cgroup/cpu.stat"));
     }
 
     get_time_offset(&offset);
 
-    int length = parse_containers(&containers, containers_string);
+    int length = parse_containers("cpu.stat", user_id, &containers, containers_string, false);
 
     while(1) {
         output_stats(containers, length);

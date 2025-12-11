@@ -8,6 +8,7 @@ import re
 import subprocess
 import json
 import time
+import platform
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
@@ -40,6 +41,7 @@ def get_env_vars():
         encoding='UTF-8'
     )
     env_var_output = ps.stdout
+
     return env_var_output
 
 def test_env_variable_allowed_characters():
@@ -970,3 +972,17 @@ def test_folder_destination_with_build():
 
     assert 'Repository mounted at custom path' in build_output, \
         Tests.assertion_info('Repository files should be accessible at folder-destination path during runtime', build_output)
+
+
+@pytest.mark.skipif(platform.system() == "Darwin", reason="Skipped on macOS")
+def test_provider_early_exit():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/container_early_exit.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(RuntimeError) as e:
+        runner.run()
+
+    assert 'Could not open path /sys/fs/cgroup' in str(e.value)
+    assert '(test-container-2) for reading' in str(e.value)

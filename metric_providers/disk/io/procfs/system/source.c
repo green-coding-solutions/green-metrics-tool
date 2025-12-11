@@ -88,18 +88,6 @@ static void output_get_disk_procfs() {
 }
 
 
-static int check_system() {
-    FILE* fd = fopen("/proc/diskstats", "r");
-
-    if (fd == NULL) {
-        fprintf(stderr, "Couldn't open /proc/diskstats file.\n");
-        return 1;
-    }
-    fclose(fd);
-
-    return 0;
-}
-
 int main(int argc, char **argv) {
 
     int c;
@@ -137,7 +125,7 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system());
+        exit(check_path("/proc/diskstats"));
     }
 
     get_time_offset(&offset);
