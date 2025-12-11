@@ -8,7 +8,7 @@
 #include <curl/curl.h>
 
 
-int parse_containers(const char* cgroup_controller, container_t** containers, char* containers_string, bool get_container_pid) {
+int parse_containers(const char* cgroup_controller, int user_id, container_t** containers, char* containers_string, bool get_container_pid) {
     if(containers_string == NULL) {
         fprintf(stderr, "Please supply at least one container id or cgroup name with -s XXXX\n");
         exit(1);
@@ -154,11 +154,6 @@ char* detect_cgroup_path(const char* controller, int user_id, const char* id) {
     Stuff for curl requests to the Docker API
 */
 
-struct string {
-    char *ptr;
-    size_t len;
-};
-
 void init_string(struct string *s) {
     s->len = 0;
     s->ptr = malloc(1);
@@ -174,16 +169,16 @@ size_t writefunc(void *ptr, size_t size, size_t nmemb, struct string *s) {
     return size * nmemb;
 }
 
-int main(int argc, char **argv) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <container_id>\n", argv[0]);
-        return 1;
-    }
+char* resolve_container_id(char *container_id) {
 
-    const char *container_id = argv[1];
+    char *result = NULL;
+    bool parsing_error = false;
 
     CURL *curl = curl_easy_init();
-    if (!curl) return 1;
+    if (!curl) {
+        fprintf(stderr, "Could not instantiate curl for metric provider. Is libcurl installed?\n");
+        exit(1);
+    }
 
     struct string s;
     init_string(&s);
@@ -191,7 +186,13 @@ int main(int argc, char **argv) {
     char url[512];
     snprintf(url, sizeof(url), "http://localhost/containers/%s/json", container_id);
 
-    curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, "/var/run/docker.sock");
+    const char* docker_host = getenv("DOCKER_HOST");
+    if (docker_host && strncmp(docker_host, "unix://", 7) == 0) {
+        curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, docker_host + 7); // skip "unix://"
+    } else {
+        curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, "/var/run/docker.sock");
+    }
+
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
@@ -199,8 +200,9 @@ int main(int argc, char **argv) {
     CURLcode res = curl_easy_perform(curl);
     if(res != CURLE_OK) {
         fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-        return 1;
+        exit(1);
     }
+
 
     // Simple parsing to extract the "Name" field
     char *name_pos = strstr(s.ptr, "\"Name\":\"");
@@ -212,13 +214,20 @@ int main(int argc, char **argv) {
             printf("Container name: %s\n", name_pos);
             // Remove leading slash if present
             char *clean_name = (*name_pos == '/') ? name_pos + 1 : name_pos;
-            char *result = strdup(clean_name); // caller must free
+            result = strdup(clean_name); // caller must free
+        } else {
+            fprintf(stderr, "Could not parse result from Docker API for container ID: %s. Result: %s\n", container_id, s.ptr);
+            parsing_error = true;
         }
     } else {
-        printf("Container name not found\n");
+        fprintf(stderr, "Container name not found for ID: %s\n", container_id);
+        parsing_error = true;
     }
 
     free(s.ptr);
     curl_easy_cleanup(curl);
-    return 0;
+
+    if (parsing_error) exit(1);
+
+    return result;
 }

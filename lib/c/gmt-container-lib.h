@@ -1,6 +1,11 @@
 #ifndef CONTAINER_H
 #define CONTAINER_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <curl/curl.h>
+
 #define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
 
 // response string for curl
@@ -17,7 +22,7 @@ typedef struct container_t {
 } container_t;
 
 // parse the containers from the -s XXXX string
-int parse_containers(const char* cgroup_controller, container_t** containers, char* containers_string, bool get_container_pid);
+int parse_containers(const char* cgroup_controller, int user_id, container_t** containers, char* containers_string, bool get_container_pid);
 
 // find cgroup path in various location in /sys/fs
 char* detect_cgroup_path(const char* controller, int user_id, const char* id);
