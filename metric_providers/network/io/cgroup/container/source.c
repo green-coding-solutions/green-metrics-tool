@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
 
     get_time_offset(&offset);
 
-    int length = parse_containers("cgroup.procs", &containers, containers_string, true);
+    int length = parse_containers("cgroup.procs", user_id, &containers, containers_string, true);
 
     while(1) {
         output_stats(containers, length);

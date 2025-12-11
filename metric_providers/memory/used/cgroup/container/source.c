@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
 
     get_time_offset(&offset);
 
-    int length = parse_containers("memory.stat", &containers, containers_string, false);
+    int length = parse_containers("memory.stat", user_id, &containers, containers_string, false);
 
     while(1) {
         output_stats(containers, length);
