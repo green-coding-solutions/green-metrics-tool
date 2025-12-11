@@ -14,7 +14,6 @@
 #include <stdbool.h>
 #include "gmt-lib.h"
 #include "gmt-container-lib.h"
-#include "detect_cgroup_path.h"
 
 typedef struct net_io_t {
     unsigned long long int r_bytes;

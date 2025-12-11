@@ -10,7 +10,6 @@
 #include <stdbool.h>
 #include "gmt-lib.h"
 #include "gmt-container-lib.h"
-#include "detect_cgroup_path.h"
 
 typedef struct disk_io_t { // struct is a specification and this static makes no sense here
     unsigned long long int rbytes;

@@ -10,7 +10,6 @@
 #include <stdbool.h>
 #include "gmt-lib.h"
 #include "gmt-container-lib.h"
-#include "detect_cgroup_path.h"
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
