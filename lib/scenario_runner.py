@@ -180,7 +180,7 @@ class ScenarioRunner:
         self.__image_sizes = {}
         self.__volume_sizes = {}
         self.__warnings = []
-        self.__usage_scenario_dependencies = None
+        self.__container_dependencies = None
         self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
         self.__include_playwright_ipc_version = None
 
@@ -596,11 +596,13 @@ class ScenarioRunner:
                 else:
                     raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
 
-    def _check_running_containers_after_boot_phase(self):
-        self._check_running_containers("boot phase")
-
-    def _check_running_containers_after_runtime_phase(self):
-        self._check_running_containers("runtime phase")
+    def _store_active_containers(self):
+        containers = [{'id': cid, 'name': ctr['name'], 'mem_limit': ctr['mem_limit'], 'cpus': ctr['cpus']} for cid, ctr in self.__containers.items()]
+        DB().query("""
+            UPDATE runs
+            SET containers = %s
+            WHERE id = %s
+            """, params=(json.dumps(containers), self._run_id))
 
     def _check_running_containers(self, step_description: str):
         for container_info in self.__containers.values():
@@ -1124,6 +1126,14 @@ class ScenarioRunner:
             else:
                 container_name = service_name
 
+            container_data = {
+                'name': container_name,
+                'log-stdout': service.get('log-stdout', True),
+                'log-stderr': service.get('log-stderr', True),
+                'read-notes-stdout': service.get('read-notes-stdout', False),
+                'read-sci-stdout': service.get('read-sci-stdout', False),
+            }
+
             print(TerminalColors.HEADER, '\nSetting up container for service:', service_name, TerminalColors.ENDC)
             print('Container name:', container_name)
 
@@ -1341,6 +1351,10 @@ class ScenarioRunner:
 
             docker_run_string.append(f"--cpus={service['cpus']}")
 
+            container_data['cpus'] = service['cpus']
+            container_data['mem_limit'] = service['mem_limit']
+
+
             if 'healthcheck' in service:  # must come last
                 if 'disable' in service['healthcheck'] and service['healthcheck']['disable'] is True:
                     docker_run_string.append('--no-healthcheck')
@@ -1503,6 +1517,7 @@ class ScenarioRunner:
                 else:
                     raise RuntimeError(f"Command in service '{service_name}' must be a string or a list but is: {type(service['command'])}")
 
+            container_data['docker_run_cmd'] = docker_run_string
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
@@ -1526,16 +1541,8 @@ class ScenarioRunner:
                         )
 
             container_id = ps.stdout.strip()
-            self.__containers[container_id] = {
-                'name': container_name,
-                'log-stdout': service.get('log-stdout', True),
-                'log-stderr': service.get('log-stderr', True),
-                'read-notes-stdout': service.get('read-notes-stdout', False),
-                'read-sci-stdout': service.get('read-sci-stdout', False),
-                'docker_run_cmd': docker_run_string,
-            }
-
             print('Stdout:', container_id)
+            self.__containers[container_id] = container_data
 
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
@@ -1685,9 +1692,9 @@ class ScenarioRunner:
         if self._run_id:
             DB().query("""
                 UPDATE runs
-                SET usage_scenario_dependencies = %s
+                SET container_dependencies = %s
                 WHERE id = %s
-                """, params=(json.dumps(self.__usage_scenario_dependencies) if self.__usage_scenario_dependencies is not None else None, self._run_id))
+                """, params=(json.dumps(self.__container_dependencies) if self.__container_dependencies is not None else None, self._run_id))
 
     def _collect_dependency_info(self):
         """Collect dependency information for all containers."""
@@ -1717,7 +1724,7 @@ class ScenarioRunner:
                 raise RuntimeError(f"Dependency resolution failed for container '{container_name}'. Aborting GMT run.")
 
         if container_dependencies:
-            self.__usage_scenario_dependencies = container_dependencies
+            self.__container_dependencies = container_dependencies
         else:
             raise RuntimeError("No dependency information collected. This indicates no containers were processed or all dependency resolution attempts failed.")
 
@@ -2461,7 +2468,9 @@ class ScenarioRunner:
             self._setup_services()
             self._end_phase('[BOOT]')
 
-            self._check_running_containers_after_boot_phase()
+            self._check_running_containers('[BOOT]')
+            self._store_active_containers() # should be separated from setup services to keep network delay out of the step
+
             self._check_process_returncodes()
 
             if self._debugger.active:
@@ -2489,7 +2498,7 @@ class ScenarioRunner:
             self._run_flows() # can trigger debug breakpoints;
             self._end_phase('[RUNTIME]')
 
-            self._check_running_containers_after_runtime_phase()
+            self._check_running_containers('[RUNTIME]')
 
             if self._debugger.active:
                 self._debugger.pause('Container flows complete. Waiting to start remove phase')
