@@ -19,12 +19,12 @@ build_containers
 if [[ $activate_scenario_runner == true ]] ; then
     print_message "Installing needed binaries for building ..."
     if cat /etc/os-release | grep -q "Fedora"; then
-        sudo dnf -y install glib2 glib2-devel tinyproxy stress-ng lshw
+        sudo dnf -y install glib2 glib2-devel tinyproxy stress-ng lshw libcurl-devel
     elif cat /etc/os-release | grep -q "openSUSE"; then
-        sudo zypper -n in glib2-tools glib2-devel tinyproxy stress-ng lshw
+        sudo zypper -n in glib2-tools glib2-devel tinyproxy stress-ng lshw libcurl-devel
     else
         sudo apt-get update
-        sudo apt-get install -y  libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw
+        sudo apt-get install -y  libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw libcurl4-openssl-dev
     fi
 
     if cat /etc/os-release | grep -q "Fedora"; then
