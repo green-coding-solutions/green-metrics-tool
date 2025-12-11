@@ -169,7 +169,7 @@ size_t writefunc(void *ptr, size_t size, size_t nmemb, struct string *s) {
     return size * nmemb;
 }
 
-char* resolve_container_id(char *container_id) {
+char* get_container_name(char *container_id) {
 
     char *result = NULL;
     bool parsing_error = false;
