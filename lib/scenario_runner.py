@@ -636,7 +636,6 @@ class ScenarioRunner:
                 service['mem_limit'] = memory
             if service.get('mem_limit', 0) == 0:
                 to_be_assigned_services.append(service_name)
-                self.__warnings.append(f"Service '{service_name}' had no memory limit set. GMT does not allow unbounded memory limits and auto value was applied.")
             else:
                 memory_bytes = utils.docker_memory_to_bytes(service['mem_limit'])
                 if memory_bytes > unassigned_memory:
