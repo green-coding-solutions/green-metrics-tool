@@ -636,13 +636,13 @@ class ScenarioRunner:
             if 'deploy' in service and service['deploy'] is not None and (memory := service['deploy'].get('resources', {}).get('limits', {}).get('memory', None)) is not None:
                 del service['deploy']['resources']['limits']['memory']
                 service['mem_limit'] = memory
-            if service.get('mem_limit', 0) == 0:
+            if service.get('mem_limit') is None:
                 to_be_assigned_services.append(service_name)
             else:
-                memory_bytes = utils.docker_memory_to_bytes(service['mem_limit'])
-                if memory_bytes > unassigned_memory:
-                    raise ValueError(f"You are trying to assign more memory to service {service_name} than is left available on host system and already assigned containers. Requested memory: {memory_bytes} Bytes. Left unassigned memory: {unassigned_memory} Bytes")
-                unassigned_memory -= memory_bytes
+                service['mem_limit'] = utils.docker_memory_to_bytes(service['mem_limit']) # always translate stuff like "4G" to pure numeric value
+                if service['mem_limit'] > unassigned_memory:
+                    raise ValueError(f"You are trying to assign more memory to service {service_name} than is left available on host system and already assigned containers. Requested memory: {service['mem_limit']} Bytes. Left unassigned memory: {unassigned_memory} Bytes")
+                unassigned_memory -= service['mem_limit']
 
             if 'deploy' in service and service['deploy'] is not None and (cpus := service['deploy'].get('resources', {}).get('limits', {}).get('cpus', None)) is not None:
                 del service['deploy']['resources']['limits']['cpus']
