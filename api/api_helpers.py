@@ -153,7 +153,7 @@ def get_run_info(user, run_id):
                 (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(runs.categories) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
                 filename, start_measurement, end_measurement,
-                measurement_config, machine_specs, machine_id, usage_scenario, usage_scenario_variables, usage_scenario_dependencies,
+                measurement_config, machine_specs, machine_id, usage_scenario, containers, container_dependencies,
                 created_at,
                 (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = runs.id) as warnings,
                 phases, logs, failed, gmt_hash, runner_arguments, archived, note, public

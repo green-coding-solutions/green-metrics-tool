@@ -84,10 +84,11 @@ const fetchAndFillRunData = async (url_params) => {
     }
 
     const run_data = run.data
+    const run_data_accordion_node = document.querySelector('#run-data-accordion');
 
     for (const item in run_data) {
         if (item == 'machine_id') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])} (${escapeString(GMT_MACHINES[run_data[item]] || run_data[item])})</td></tr>`);
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])} (${escapeString(GMT_MACHINES[run_data[item]] || run_data[item])})</td></tr>`);
         } else if (item == 'runner_arguments') {
             fillRunTab('#runner-arguments', run_data[item]); // recurse
         } else if (item == 'machine_specs') {
@@ -104,8 +105,26 @@ const fetchAndFillRunData = async (url_params) => {
             } else {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
-        } else if(item == 'usage_scenario_dependencies') {
-            renderUsageScenarioDependencies(run_data[item]);
+        } else if(item == 'containers') {
+            if (!Array.isArray(run_data[item])) continue; // can be null
+            const containers_node = document.querySelector('#containers');
+            run_data[item].forEach(container => {
+                containers_node.insertAdjacentHTML('beforeend', `
+                    <div id="container-${escapeString(container.name)}" class="ui segment">
+                        <h3>${escapeString(container.name)}</h3>
+                        <p>CPUS: ${escapeString(container.cpus)}</p>
+                        <p>Memory Limit: ${escapeString(container.mem_limit)} (${Math.round(container.mem_limit/1024**2)} MB)</p>
+                        <p>Image: ${escapeString(run_data?.container_dependencies?.[container.name]?.['source']?.['image'])}</p>
+                        <p>Hash: ${escapeString(run_data?.container_dependencies?.[container.name]?.['source']?.['hash'])}</p>
+                        <h4>Dependencies</h4>
+                        ${renderUsageScenarioDependencies(container.name, run_data?.container_dependencies)}
+                </div>`);
+            })
+            document.querySelectorAll('.ui.accordion.container-dependencies').forEach(accordion => {
+                $(accordion).accordion();
+            });
+
+
 
         } else if(item == 'logs') {
             const logsData = run_data[item];
@@ -161,11 +180,11 @@ const fetchAndFillRunData = async (url_params) => {
             });
             failedContainer.appendChild(rerunButton);
         } else if(item == 'start_measurement' || item == 'end_measurement') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item] / 1e3)}</td></tr>`)
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item] / 1e3)}</td></tr>`)
         } else if(item == 'created_at' ) {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item])}</td></tr>`)
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item])}</td></tr>`)
         } else if(item == 'gmt_hash') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data[item]}">${escapeString(run_data[item])}</a></td></tr>`);
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data[item]}">${escapeString(run_data[item])}</a></td></tr>`);
         } else if(item == 'uri') {
             const uri = run_data[item];
             let uriDisplay;
@@ -230,7 +249,7 @@ const fetchAndFillRunData = async (url_params) => {
             })
 
         } else {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
         }
     }
 
@@ -245,7 +264,7 @@ const fetchAndFillRunData = async (url_params) => {
     const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1e6
     const measurement_duration_display = (measurement_duration_in_s > 60) ? `${numberFormatter.format(measurement_duration_in_s / 60)} min` : `${numberFormatter.format(measurement_duration_in_s)} s`
 
-    document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
+    run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
 
     // warnings will be fetched separately
 
@@ -264,15 +283,16 @@ const buildCommitLink = (run_data) => {
 }
 
 const fillRunTab = async (selector, data, parent = '') => {
+    const node = document.querySelector(selector);
     for (const item in data) {
 
         if(data[item] != null && typeof data[item] == 'object') {
             if (parent == '') {
-                document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(item)}</h2></strong></td><td></td></tr>`)
+                node.insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(item)}</h2></strong></td><td></td></tr>`)
             }
             fillRunTab(selector, data[item], `${item}.`)
         } else {
-            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data[item])}</td></tr>`)
+            node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data[item])}</td></tr>`)
         }
     }
 }
@@ -737,9 +757,10 @@ const fetchAndFillNetworkIntercepts = async (url_params) => {
     if (network.data.length === 0) {
         document.querySelector("#network-divider").insertAdjacentHTML('afterEnd', '<p>No external network connections were detected.</p>')
     } else {
+        const node = document.querySelector("#network-intercepts");
         for (const item of network.data) {
             const date = (new Date(Number(item[2]))).toLocaleString();
-            document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(date)}</strong></td><td>${escapeString(item[3])}</td><td>${escapeString(item[4])}</td></tr>`)
+            node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(date)}</strong></td><td>${escapeString(item[3])}</td><td>${escapeString(item[4])}</td></tr>`)
         }
     }
 }
@@ -962,21 +983,10 @@ const fetchAndFillWarnings = async (url_params) => {
 
 
 // Templates for usage scenario dependencies
-const dependenciesTemplates = {
-    container: `
-        <div class="ui segment">
-            <h4 class="ui dividing header">Container: {{containerName}}</h4>
-            <div class="ui secondary segment">
-                <strong>Image:</strong> {{image}}<br>
-                <strong>Hash:</strong> <code>{{hash}}</code>
-            </div>
-            {{scopeContent}}
-        </div>
-    `,
-
+const dependencies_templates = {
     scopeAccordion: `
-        <div class="ui accordion">
-            {{accordionItems}}
+        <div class="ui accordion container-dependencies">
+            {{accordion_items}}
         </div>
     `,
 
@@ -1023,54 +1033,29 @@ const dependenciesTemplates = {
     noDepsMessage: `<div class="ui message">{{message}}</div>`
 };
 
-function renderUsageScenarioDependencies(dependenciesData) {
-    const dependenciesSection = document.querySelector("#usage-scenario-dependencies");
+function renderUsageScenarioDependencies(container_name, dependency_data) {
 
-    if (!dependenciesData || Object.keys(dependenciesData).length === 0) {
-        dependenciesSection.insertAdjacentHTML('beforeend',
-            dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependency information available</em>')
-        );
-        return;
+    if (dependency_data == null || dependency_data?.[container_name] == null) {
+        return '<em>No dependency information available</em>';
     }
 
-    let containersHTML = '';
+    const container_dependencies = dependency_data[container_name];
+    const container_data = container_dependencies['source'] || {};
 
-    for (const containerName in dependenciesData) {
-        const containerData = dependenciesData[containerName];
-        const containerInfo = containerData['source'] || {};
+    const package_managers = Object.keys(container_dependencies).filter(key => key !== 'source');
 
-        const image = escapeString(containerInfo.image || 'N/A');
-        const hash = escapeString(containerInfo.hash || 'N/A');
+    let package_manager_content = '';
 
-        const packageManagers = Object.keys(containerData).filter(key => key !== 'source');
+    if (package_managers.length > 0) {
+        const accordion_items = buildPackageManagerAccordionItems(package_managers, container_dependencies);
 
-        let packageManagerContent = '';
-
-        if (packageManagers.length > 0) {
-            const accordionItems = buildPackageManagerAccordionItems(packageManagers, containerData);
-
-            packageManagerContent = dependenciesTemplates.scopeAccordion.replace('{{accordionItems}}', accordionItems);
-        } else {
-            packageManagerContent = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
-        }
-
-        const containerHTML = dependenciesTemplates.container
-            .replace('{{containerName}}', escapeString(containerName))
-            .replace('{{image}}', image)
-            .replace('{{hash}}', hash)
-            .replace('{{scopeContent}}', packageManagerContent);
-
-        containersHTML += containerHTML;
+        package_manager_content = dependencies_templates.scopeAccordion.replace('{{accordion_items}}', accordion_items);
+    } else {
+        package_manager_content = dependencies_templates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
     }
 
-    dependenciesSection.insertAdjacentHTML('beforeend', containersHTML);
+    return package_manager_content;
 
-    // Initialize accordions
-    setTimeout(() => {
-        dependenciesSection.querySelectorAll('.ui.accordion').forEach(accordion => {
-            $(accordion).accordion();
-        });
-    }, 0);
 }
 
 function buildSingleAccordionItem(packageManager, displayName, data) {
@@ -1096,28 +1081,28 @@ function buildSingleAccordionItem(packageManager, displayName, data) {
     }
 
     const packageManagerMetadata = metadataContent ?
-        dependenciesTemplates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
+        dependencies_templates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
 
     let depsTable = '';
     if (totalDeps > 0) {
         const tableRows = buildDependencyTableRows(dependenciesArray);
-        depsTable = dependenciesTemplates.depsTable.replace('{{tableRows}}', tableRows);
+        depsTable = dependencies_templates.depsTable.replace('{{tableRows}}', tableRows);
     } else {
-        depsTable = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependencies found</em>');
+        depsTable = dependencies_templates.noDepsMessage.replace('{{message}}', '<em>No dependencies found</em>');
     }
 
-    return dependenciesTemplates.accordionItem
+    return dependencies_templates.accordionItem
         .replace('{{scopeDisplayName}}', escapeString(displayName))
         .replace('{{totalDeps}}', totalDeps)
         .replace('{{scopeMetadata}}', packageManagerMetadata)
         .replace('{{depsTable}}', depsTable);
 }
 
-function buildPackageManagerAccordionItems(packageManagers, containerData) {
-    let accordionItems = '';
+function buildPackageManagerAccordionItems(package_managers, container_dependencies) {
+    let accordion_items = '';
 
-    packageManagers.forEach(packageManager => {
-        const packageManagerData = containerData[packageManager];
+    package_managers.forEach(packageManager => {
+        const packageManagerData = container_dependencies[packageManager];
 
         // Check if this is a mixed-scope with multiple locations
         if (packageManagerData.locations) {
@@ -1126,15 +1111,15 @@ function buildPackageManagerAccordionItems(packageManagers, containerData) {
                 const scope = locationData.scope || 'unknown';
                 const displayName = `${packageManager} (${scope})`;
                 const dataWithLocation = { ...locationData, location: location };
-                accordionItems += buildSingleAccordionItem(packageManager, displayName, dataWithLocation);
+                accordion_items += buildSingleAccordionItem(packageManager, displayName, dataWithLocation);
             }
         } else {
             // Handle system or project scope with direct dependencies
-            accordionItems += buildSingleAccordionItem(packageManager, packageManager, packageManagerData);
+            accordion_items += buildSingleAccordionItem(packageManager, packageManager, packageManagerData);
         }
     });
 
-    return accordionItems;
+    return accordion_items;
 }
 
 function buildDependencyTableRows(packages) {
@@ -1145,7 +1130,7 @@ function buildDependencyTableRows(packages) {
         const depHash = pkg.hash || 'N/A';
         const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
 
-        const row = dependenciesTemplates.depsTableRow
+        const row = dependencies_templates.depsTableRow
             .replace('{{depName}}', escapeString(pkg.name || 'N/A'))
             .replace('{{version}}', version)
             .replace('{{fullHash}}', escapeString(depHash))

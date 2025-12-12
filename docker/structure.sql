@@ -266,7 +266,6 @@ CREATE TABLE runs (
     categories int[],
     usage_scenario json,
     usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
-    usage_scenario_dependencies jsonb,
     filename text NOT NULL,
     machine_specs jsonb,
     runner_arguments json,
@@ -275,6 +274,8 @@ CREATE TABLE runs (
     measurement_config jsonb,
     start_measurement bigint,
     end_measurement bigint,
+    containers jsonb, -- explicitely not null as entry in runs table gets created first. then filled. so NULL is different info than {}
+    container_dependencies jsonb,
     phases JSON,
     logs jsonb,
     failed boolean NOT NULL DEFAULT false,

@@ -694,7 +694,7 @@ def test_container_running_verification_after_boot_phase():
                     # Simulate container failure by stopping it manually
                     subprocess.run(['docker', 'stop', 'test-container'], check=False)
 
-    assert "Container 'test-container' failed during boot phase (exit code: 137)" in str(e.value)
+    assert "Container 'test-container' failed during [BOOT] (exit code: 137)" in str(e.value)
 
 def test_container_running_verification_after_runtime_phase():
     """Test that container verification catches containers that exit during runtime phase"""
@@ -709,7 +709,7 @@ def test_container_running_verification_after_runtime_phase():
                     # Simulate container failure by stopping it manually
                     subprocess.run(['docker', 'stop', 'test-container'], check=False)
 
-    assert "Container 'test-container' failed during runtime phase (exit code: 137)" in str(e.value)
+    assert "Container 'test-container' failed during [RUNTIME] (exit code: 137)" in str(e.value)
 
 
     ## rethink this one
