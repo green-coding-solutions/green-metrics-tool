@@ -385,7 +385,7 @@ class RunUntilManager:
                 return
             self.__runner._end_phase('[BOOT]')
 
-            self.__runner._check_running_containers_after_boot_phase()
+            self.__runner._check_running_containers('[BOOT]')
             self.__runner._check_process_returncodes()
 
             self.__runner._add_containers_to_metric_providers()
@@ -406,7 +406,7 @@ class RunUntilManager:
             if stop_at == 'runtime_complete':
                 return
 
-            self.__runner._check_running_containers_after_runtime_phase()
+            self.__runner._check_running_containers('[RUNTIME]')
 
             self.__runner._start_phase('[REMOVE]')
             self.__runner._custom_sleep(1)
