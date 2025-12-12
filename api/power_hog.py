@@ -19,6 +19,10 @@ from api.api_helpers import replace_nan_with_zero
 
 router = APIRouter()
 
+@router.post('/v1/hog/add', deprecated=True)
+def old_v1_hog_add_endpoint():
+    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/hog/add'}, status_code=410)
+
 @router.post('/v2/hog/add')
 async def add_hog(
     measurements: List[HogMeasurement],
