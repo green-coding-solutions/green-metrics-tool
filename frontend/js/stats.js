@@ -110,12 +110,12 @@ const fetchAndFillRunData = async (url_params) => {
             const containers_node = document.querySelector('#containers');
             run_data[item].forEach(container => {
                 containers_node.insertAdjacentHTML('beforeend', `
-                    <div id="container-${container.name}" class="ui segment">
-                        <h3>${container.name}</h3>
-                        <p>CPUS: ${container.cpus}</p>
-                        <p>Memory Limit: ${container.mem_limit} (${Math.round(container.mem_limit/1024**2)} MB)</p>
-                        <p>Image: ${run_data?.container_dependencies?.[container.name]?.['source']?.['image']}</p>
-                        <p>Hash: ${run_data?.container_dependencies?.[container.name]?.['source']?.['hash']}</p>
+                    <div id="container-${escapeString(container.name)}" class="ui segment">
+                        <h3>${escapeString(container.name)}</h3>
+                        <p>CPUS: ${escapeString(container.cpus)}</p>
+                        <p>Memory Limit: ${escapeString(container.mem_limit)} (${Math.round(container.mem_limit/1024**2)} MB)</p>
+                        <p>Image: ${escapeString(run_data?.container_dependencies?.[container.name]?.['source']?.['image'])}</p>
+                        <p>Hash: ${escapeString(run_data?.container_dependencies?.[container.name]?.['source']?.['hash'])}</p>
                         <h4>Dependencies</h4>
                         ${renderUsageScenarioDependencies(container.name, run_data?.container_dependencies)}
                 </div>`);
