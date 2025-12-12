@@ -521,7 +521,7 @@ class ScenarioRunner:
     def _initial_parse(self):
 
         schema_checker = SchemaChecker(validate_compose_flag=True)
-        # schema checker alters the dict as it usese type(old_dict) to create internal copies ... sadly no way around
+        # schema checker alters the dict as it uses type(old_dict) to create internal copies ... sadly no way around
         # this than to freeze the dict after checking at this stage
         schema_checker.check_usage_scenario(self._usage_scenario_original)
         self._usage_scenario_original = freeze_dict(self._usage_scenario_original)

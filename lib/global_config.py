@@ -29,7 +29,7 @@ def freeze_dict(d):
         # Convert lists to tuples (to make them immutable)
         return tuple(freeze_dict(item) for item in d)
     if not hasattr(d, '__class__') and isinstance(d, object): # hasattr __class__ separates actual defined classes from builtins like str
-        raise RuntimeError(f"GlobalConfig received object of type {type(d)} in it's config initalization. This is not expected and leads to issues as it cannot be made immutable!")
+        raise RuntimeError(f"GlobalConfig received object of type {type(d)} in its config initalization. This is not expected and leads to issues as it cannot be made immutable!")
 
     # Return the object itself if not a dict or list
     return d
