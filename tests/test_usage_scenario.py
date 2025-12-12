@@ -629,7 +629,7 @@ def test_container_immediate_exit_with_error():
                     time.sleep(0.5)
 
     error_message = str(e.value)
-    assert "failed during boot phase" in error_message, \
+    assert "failed during [BOOT]" in error_message, \
         Tests.assertion_info("Expected immediate exit with error message", error_message)
     assert "exit code: 1" in error_message, \
         Tests.assertion_info("Expected non-zero exit code in error message", error_message)
