@@ -39,7 +39,7 @@ from lib.debug_helper import DebugHelper
 from lib.terminal_colors import TerminalColors
 from lib.schema_checker import SchemaChecker
 from lib.db import DB
-from lib.global_config import GlobalConfig
+from lib.global_config import GlobalConfig, freeze_dict, FrozenDict
 from lib.notes import Notes
 from lib import system_checks
 from lib.machine import Machine
@@ -111,6 +111,7 @@ class ScenarioRunner:
         self._branch = branch
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
+        self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
         self._architecture = utils.get_architecture()
 
@@ -181,7 +182,6 @@ class ScenarioRunner:
         self.__volume_sizes = {}
         self.__warnings = []
         self.__container_dependencies = None
-        self.__usage_scenario_original = OrderedDict()
         self.__usage_scenario = OrderedDict()
         self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
         self.__include_playwright_ipc_version = None
@@ -515,7 +515,7 @@ class ScenarioRunner:
                 del yml_obj['services'][key]
 
             self.__usage_scenario = yml_obj
-            self.__usage_scenario_original = deepcopy(yml_obj) # not able to freeze dict here already .see comment in _inital_parse
+            self._usage_scenario_original = deepcopy(yml_obj) # not able to freeze dict here already .see comment in _inital_parse
 
 
     def _initial_parse(self):
@@ -523,8 +523,8 @@ class ScenarioRunner:
         schema_checker = SchemaChecker(validate_compose_flag=True)
         # schema checker alters the dict as it usese type(old_dict) to create internal copies ... sadly no way around
         # this than to freeze the dict after checking at this stage
-        schema_checker.check_usage_scenario(self.__usage_scenario_original)
-        self.__usage_scenario_original = utils.freeze_dict(self.__usage_scenario_original)
+        schema_checker.check_usage_scenario(self._usage_scenario_original)
+        self._usage_scenario_original = freeze_dict(self._usage_scenario_original)
 
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self.__usage_scenario['name'], TerminalColors.ENDC)
         print('From: ', self.__usage_scenario['author'])
@@ -780,7 +780,7 @@ class ScenarioRunner:
                     self._job_id, self._name, self._uri, self._branch, self._original_filename,
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
-                    json.dumps(self.__usage_scenario_original), json.dumps(self._usage_scenario_variables),
+                    json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables),
                     gmt_hash,
                     GlobalConfig().config['machine']['id'], self._user_id,
                 ))[0]
@@ -2407,7 +2407,6 @@ class ScenarioRunner:
         self.__volume_sizes.clear()
         self.__warnings.clear()
         self.__usage_scenario.clear()
-        self.__usage_scenario_original.clear()
         self.__usage_scenario_variables_used_buffer.clear()
         self.__include_playwright_ipc_version = None
 
