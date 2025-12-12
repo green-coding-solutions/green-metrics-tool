@@ -3,7 +3,7 @@ import yaml
 
 # It would be nice to put FrozenDict  and freeze_dict in the lib.utils
 # but since GlobalConfig is imported in so many places this will lead to circular imports
-# This we keep the classes in here as GlobalDict should have no extra imports
+# This we keep the classes in here as GlobalConfig should have no extra imports
 class FrozenDict(dict):
     def __setattr__(self, key, value):
         raise TypeError("GlobalConfig is immutable once loaded! (__setattr__)")
