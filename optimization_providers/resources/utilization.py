@@ -16,7 +16,7 @@ MIN_CPU_UTIL = 50 #%
 def container_memory_utilization(self, run, measurements, repo_path, network, notes, phases):
 
     mem = {}
-    for s, d in run.get('usage_scenario').get('services').items():
+    for s, d in run.get('containers').items():
         mem[s] = utils.docker_memory_to_bytes(d['mem_limit']) # will always be there bc populated by scenario_runner
 
     for service, measurement_stats in phases['data']['[RUNTIME]']['data']['memory_used_cgroup_container']['data'].items():
@@ -48,7 +48,7 @@ def container_memory_utilization(self, run, measurements, repo_path, network, no
 def container_cpu_utilization(self, run, measurements, repo_path, network, notes, phases):
 
     cpus = {}
-    for s, d in run.get('usage_scenario').get('services').items():
+    for s, d in run.get('containers').items():
         cpus[s]  = float(d['cpus']) # will always be there bc populated by scenario_runner
 
     for service, measurement_stats in phases['data']['[RUNTIME]']['data']['cpu_utilization_cgroup_container']['data'].items():

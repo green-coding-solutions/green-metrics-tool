@@ -48,26 +48,28 @@ def test_resource_limits_good():
     runner = ScenarioRunner(name=run_name, uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_good.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
 
     with Tests.RunUntilManager(runner) as context:
-        context.run_until('initialize_run')
+        context.run_until('check_process_returncodes')
 
     with open(f'{GMT_DIR}/tests/data/usage_scenarios/resource_limits_good.yml', 'r', encoding='utf-8') as f:
         usage_scenario_contents = yaml.safe_load(f)
-    usage_scenario_in_db = utils.get_run_data(run_name)['usage_scenario']
-    assert usage_scenario_in_db['services']['test-container-only-cpu']['deploy']['resources']['limits'] == {} # remove
-    assert usage_scenario_in_db['services']['test-container-only-cpu']['mem_limit'] > 0 # auto-fill
-    assert usage_scenario_in_db['services']['test-container-only-cpu']['cpus'] == usage_scenario_contents['services']['test-container-only-cpu']['deploy']['resources']['limits']['cpus'] # copy over
+    container_list = utils.get_run_data(run_name)['containers']
+    container_dict = { ctr['name'] : ctr for ctr in container_list }
 
-    assert usage_scenario_in_db['services']['test-container-only-memory']['deploy']['resources']['limits'] == {} # remove
-    assert usage_scenario_in_db['services']['test-container-only-memory']['cpus'] > 0 # auto-fill
-    assert usage_scenario_in_db['services']['test-container-only-memory']['mem_limit'] == usage_scenario_contents['services']['test-container-only-memory']['deploy']['resources']['limits']['memory'] # copy over
+    assert 'deploy' not in container_dict['test-container-only-cpu'] # not used
+    assert container_dict['test-container-only-cpu']['mem_limit'] > 0 # auto-fill
+    assert container_dict['test-container-only-cpu']['cpus'] == usage_scenario_contents['services']['test-container-only-cpu']['deploy']['resources']['limits']['cpus'] # copy over
 
-    assert usage_scenario_in_db['services']['test-container-both']['deploy']['resources']['limits'] == {} # remove
-    assert usage_scenario_in_db['services']['test-container-both']['mem_limit'] == usage_scenario_contents['services']['test-container-both']['deploy']['resources']['limits']['memory'] # copy over
-    assert usage_scenario_in_db['services']['test-container-both']['cpus'] == usage_scenario_contents['services']['test-container-both']['deploy']['resources']['limits']['cpus'] # copy over
+    assert 'deploy' not in container_dict['test-container-only-memory'] # not used
+    assert container_dict['test-container-only-memory']['cpus'] > 0 # auto-fill
+    assert container_dict['test-container-only-memory']['mem_limit'] == 104857600 # copy over but transformed from 100 MB. We use static value for test
 
-    assert usage_scenario_in_db['services']['test-container-cpu-and-memory-in-both']['deploy']['resources']['limits'] == {} # remove
-    assert usage_scenario_in_db['services']['test-container-cpu-and-memory-in-both']['mem_limit'] == usage_scenario_contents['services']['test-container-cpu-and-memory-in-both']['deploy']['resources']['limits']['memory'] # copy over
-    assert usage_scenario_in_db['services']['test-container-cpu-and-memory-in-both']['cpus'] == usage_scenario_contents['services']['test-container-cpu-and-memory-in-both']['deploy']['resources']['limits']['cpus'] # copy over
+    assert 'deploy' not in container_dict['test-container-both'] # not used
+    assert container_dict['test-container-both']['mem_limit'] == 10485760 # copy over but transformed from 100 MB. We use static value for test
+    assert container_dict['test-container-both']['cpus'] == usage_scenario_contents['services']['test-container-both']['deploy']['resources']['limits']['cpus'] # copy over
+
+    assert 'deploy' not in container_dict['test-container-cpu-and-memory-in-both'] # not used
+    assert container_dict['test-container-cpu-and-memory-in-both']['mem_limit'] == 10485760 # copy over but transformed from 100 MB. We use static value for test
+    assert container_dict['test-container-cpu-and-memory-in-both']['cpus'] == usage_scenario_contents['services']['test-container-cpu-and-memory-in-both']['deploy']['resources']['limits']['cpus'] # copy over
 
     MEMORY_DEFINED_IN_USAGE_SCENARIO = 199286402 # ~ 190.05 MB
     MEM_AVAILABLE = int(subprocess.check_output(['docker', 'info', '--format', '{{.MemTotal}}'], encoding='UTF-8', errors='replace').strip())
@@ -79,15 +81,15 @@ def test_resource_limits_good():
 
 
     # these are the only three containers that get auto assigned. Thus their values we can check
-    assert usage_scenario_in_db['services']['test-container-limits-partial']['deploy'] is None # no fill of deploy key
-    assert usage_scenario_in_db['services']['test-container-limits-partial']['mem_limit'] == MEM_PER_CONTAINER # auto-fill
-    assert usage_scenario_in_db['services']['test-container-limits-partial']['cpus'] == CPUS_ASSIGNABLE # auto-fill
+    assert 'deploy' not in container_dict['test-container-limits-partial'] # no fill of deploy key
+    assert container_dict['test-container-limits-partial']['mem_limit'] == MEM_PER_CONTAINER # auto-fill
+    assert container_dict['test-container-limits-partial']['cpus'] == CPUS_ASSIGNABLE # auto-fill
 
-    assert 'deploy' not in usage_scenario_in_db['services']['test-container-limits-none'] # no creation of deploy key
-    assert usage_scenario_in_db['services']['test-container-limits-none']['mem_limit'] == MEM_PER_CONTAINER # auto-fill
-    assert usage_scenario_in_db['services']['test-container-limits-none']['cpus'] == CPUS_ASSIGNABLE # auto-fill
+    assert 'deploy' not in container_dict['test-container-limits-none'] # no creation of deploy key
+    assert container_dict['test-container-limits-none']['mem_limit'] == MEM_PER_CONTAINER # auto-fill
+    assert container_dict['test-container-limits-none']['cpus'] == CPUS_ASSIGNABLE # auto-fill
 
-    assert usage_scenario_in_db['services']['test-container-only-cpu']['mem_limit'] == MEM_PER_CONTAINER # auto-fill
+    assert container_dict['test-container-only-cpu']['mem_limit'] == MEM_PER_CONTAINER # auto-fill
 
 
 
