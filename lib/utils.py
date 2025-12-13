@@ -12,6 +12,34 @@ from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+class FrozenDict(dict):
+    def __setattr__(self, key, value):
+        raise TypeError("GlobalConfig is immutable once loaded! (__setattr__)")
+
+    def __setitem__(self, key, value):
+        raise TypeError("GlobalConfig is immutable once loaded! (__setitem__)")
+
+    def __delitem__(self, key):
+        raise TypeError("GlobalConfig is immutable once loaded! (__delitem__)")
+
+    def update(self, *args, **kwargs):
+        raise TypeError("GlobalConfig is immutable once loaded! (update)")
+
+    def setdefault(self, *args, **kwargs):
+        raise TypeError("GlobalConfig is immutable once loaded! (setdefault)")
+
+def freeze_dict(d):
+    if isinstance(d, dict):
+        # Convert nested dicts to FrozenDict
+        return FrozenDict({k: freeze_dict(v) for k, v in d.items()})
+    if isinstance(d, list):
+        # Convert lists to tuples (to make them immutable)
+        return tuple(freeze_dict(item) for item in d)
+    if not hasattr(d, '__class__') and isinstance(d, object): # hasattr __class__ separates actual defined classes from builtins like str
+        raise RuntimeError(f"freeze_dict received object of type {type(d)} in it's config initalization. This is not expected and leads to issues as it cannot be made immutable!")
+
+    return d
+
 def is_outside_symlink(base_dir, symlink_path):
     try:
         abs_target = os.path.realpath(symlink_path)

@@ -241,9 +241,9 @@ def test_include_overwrites_string_values():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
 
-    assert runner._usage_scenario['name'] == 'Name overwritten'
-    assert runner._usage_scenario['author'] == 'Author overwritten'
-    assert runner._usage_scenario['description'] == 'Description as is'
+    assert runner._usage_scenario_original['name'] == 'Name overwritten'
+    assert runner._usage_scenario_original['author'] == 'Author overwritten'
+    assert runner._usage_scenario_original['description'] == 'Description as is'
 
 def test_include_overwrites_string_values_even_if_top_include():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/overwrite_string_from_include_even_if_top.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
@@ -251,9 +251,9 @@ def test_include_overwrites_string_values_even_if_top_include():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
 
-    assert runner._usage_scenario['name'] == 'Name overwritten'
-    assert runner._usage_scenario['author'] == 'Author overwritten'
-    assert runner._usage_scenario['description'] == 'Description as is'
+    assert runner._usage_scenario_original['name'] == 'Name overwritten'
+    assert runner._usage_scenario_original['author'] == 'Author overwritten'
+    assert runner._usage_scenario_original['description'] == 'Description as is'
 
 
 def test_unsupported_compose():

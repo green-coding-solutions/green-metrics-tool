@@ -106,20 +106,20 @@ const fetchAndFillRunData = async (url_params) => {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
         } else if(item == 'containers') {
-            if (!Array.isArray(run_data[item])) continue; // can be null
+            if (run_data[item] == null) continue; // can be null
             const containers_node = document.querySelector('#containers');
-            run_data[item].forEach(container => {
+            for (const ctr_name in run_data[item]) {
                 containers_node.insertAdjacentHTML('beforeend', `
-                    <div id="container-${escapeString(container.name)}" class="ui segment">
-                        <h3>${escapeString(container.name)}</h3>
-                        <p>CPUS: ${escapeString(container.cpus)}</p>
-                        <p>Memory Limit: ${escapeString(container.mem_limit)} (${Math.round(container.mem_limit/1024**2)} MB)</p>
-                        <p>Image: ${escapeString(run_data?.container_dependencies?.[container.name]?.['source']?.['image'])}</p>
-                        <p>Hash: ${escapeString(run_data?.container_dependencies?.[container.name]?.['source']?.['hash'])}</p>
+                    <div id="container-${escapeString(ctr_name)}" class="ui segment">
+                        <h3>${escapeString(ctr_name)}</h3>
+                        <p>CPUS: ${escapeString(run_data[item][ctr_name].cpus)}</p>
+                        <p>Memory Limit: ${escapeString(run_data[item][ctr_name].mem_limit)} (${Math.round(run_data[item][ctr_name].mem_limit/1024**2)} MB)</p>
+                        <p>Image: ${escapeString(run_data?.container_dependencies?.[ctr_name]?.['source']?.['image'])}</p>
+                        <p>Hash: ${escapeString(run_data?.container_dependencies?.[ctr_name]?.['source']?.['hash'])}</p>
                         <h4>Dependencies</h4>
-                        ${renderUsageScenarioDependencies(container.name, run_data?.container_dependencies)}
+                        ${renderUsageScenarioDependencies(ctr_name, run_data?.container_dependencies)}
                 </div>`);
-            })
+            }
             document.querySelectorAll('.ui.accordion.container-dependencies').forEach(accordion => {
                 $(accordion).accordion();
             });
