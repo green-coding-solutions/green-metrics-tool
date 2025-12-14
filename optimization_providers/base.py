@@ -12,9 +12,10 @@ from lib.user import User
 from api.scenario_runner import get_run, get_measurements_single, get_network, get_notes, get_phase_stats_single
 
 class Criticality(Enum):
-    CRITICAL = 'red'
+    HIGH = 'red'
     MEDIUM = 'orange'
-    LOW = 'green'
+    LOW = 'yellow'
+    GOOD = 'green'
     INFO = 'blue'
 
 reporters = []
