@@ -1339,7 +1339,7 @@ class ScenarioRunner:
             # GMT core requirement is that the host has 2 CPUs so metric providers and user containers do never run on the same core
             # get_assignable_cpus will thus always result in one core less than on the system
             docker_run_string.append('--cpuset-cpus')
-            docker_run_string.append(','.join(map(str, range(1,resource_limits.get_assignable_cpus())))) # range is already exclusive, so no need to subtract 1
+            docker_run_string.append(','.join(map(str, range(1,resource_limits.get_assignable_cpus()+1)))) # range is already exclusive, so no need to subtract 1
 
             docker_run_string.append('--memory-swappiness=0') # GMT should never swap as it gives hard to interpret / non-linear performance results
             docker_run_string.append('--oom-score-adj=1000') # containers will be killed first so host does not OOM

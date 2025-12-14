@@ -43,8 +43,6 @@ def test_invalid_combination_measurement_flow_process_duration():
     assert str(err.value) == 'Cannot run flows due to configuration error. Measurement_total_duration must be >= measurement_flow_process_duration, otherwise the flow will run into a timeout in every case. Values are: measurement_flow_process_duration: 20 and measurement_total_duration: 10'
 
 def test_provider_disabling_not_active_by_default():
-
-
     out = io.StringIO()
     err = io.StringIO()
 
