@@ -1336,8 +1336,8 @@ class ScenarioRunner:
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
 
-            # apply cpuset but keep one core for GMT and metric providers free
-            # This cannot be configured via user as no knowledge of machine shall be required
+            # GMT core requirement is that the host has 2 CPUs so metric providers and user containers do never run on the same core
+            # get_assignable_cpus will thus always result in one core less than on the system
             docker_run_string.append('--cpuset-cpus')
             docker_run_string.append(','.join(map(str, range(1,resource_limits.get_assignable_cpus())))) # range is already exclusive, so no need to subtract 1
 

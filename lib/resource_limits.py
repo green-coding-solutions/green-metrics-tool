@@ -18,7 +18,10 @@ def get_docker_available_cpus():
 def get_assignable_cpus():
     GMT_CONFIG = GlobalConfig().config
     SYSTEM_ASSIGNABLE_CPU_COUNT = get_docker_available_cpus()
-    assignable_cpus = SYSTEM_ASSIGNABLE_CPU_COUNT - int(GMT_CONFIG['machine']['host_reserved_cpus'])
+    host_reserved_cpus = int(GMT_CONFIG['machine']['host_reserved_cpus'])
+    if host_reserved_cpus < 1:
+        raise ValueError(f"host_reserved_cpus in the config.yml must be at min. 1. Configured value: {host_reserved_cpus}. Please increase the value.")
+    assignable_cpus = SYSTEM_ASSIGNABLE_CPU_COUNT - host_reserved_cpus
     if assignable_cpus <= 0:
         raise RuntimeError(f"Cannot assign docker containers to any CPU as no more CPUs are available to Docker. System available CPU count for Docker: {SYSTEM_ASSIGNABLE_CPU_COUNT}. Reserved for GMT exclusively: {GMT_CONFIG['machine']['host_reserved_cpus']}")
     return assignable_cpus
