@@ -154,16 +154,25 @@ def test_resource_limits_alternate_cpuset():
     out = io.StringIO()
     err = io.StringIO()
 
-    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config-alternate-host-reserved-cpus.yml")
+    try:
+        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config-alternate-host-reserved-cpus.yml")
+        resource_limits.get_docker_available_cpus.cache_clear()
+        resource_limits.get_assignable_memory.cache_clear()
+        resource_limits.get_assignable_cpus.cache_clear()
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
 
-    with redirect_stdout(out), redirect_stderr(err), Tests.RunUntilManager(runner) as context:
-        context.run_until('setup_services')
+        with redirect_stdout(out), redirect_stderr(err), Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
 
-    docker_cpus = resource_limits.get_docker_available_cpus()
-    exp_string = ','.join(map(str, range(1,docker_cpus-2))) # we remove 1 CPU here as the file contains two more reserved CPUs
-    assert f"--cpuset-cpus {exp_string} --memory-swappiness=0" in out.getvalue() # we extend the check to --memory-swappiness to make sure nothing after 1,2 is cut off
+        docker_cpus = resource_limits.get_docker_available_cpus()
+        exp_string = ','.join(map(str, range(1,docker_cpus-2))) # we remove 1 CPU here as the file contains two more reserved CPUs
+        assert f"--cpuset-cpus {exp_string} --memory-swappiness=0" in out.getvalue() # we extend the check to --memory-swappiness to make sure nothing after 1,2 is cut off
+    finally:
+        resource_limits.get_docker_available_cpus.cache_clear()
+        resource_limits.get_docker_available_cpus.cache_clear()
+        resource_limits.get_assignable_memory.cache_clear()
+        resource_limits.get_assignable_cpus.cache_clear()
 
 
 def test_resource_limits_shm_good():
