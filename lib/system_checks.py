@@ -25,10 +25,12 @@ from lib.terminal_colors import TerminalColors
 from lib.configuration_check_error import ConfigurationCheckError, Status
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+GMT_CONFIG = GlobalConfig().config
 
-GMT_Resources = {
-    'free_disk': 1024 ** 3, # 1GB in bytes
-    'free_memory': 2 * 1024 ** 3, # 2GB in bytes
+GMT_RESOURCES = {
+    'min_cpus': 2,
+    'free_disk': 1024 ** 3, # 1 GB in Bytes
+    'free_memory': 2 * 1024**3, # 2 GB in Bytes
 }
 
 ######## CHECK FUNCTIONS ########
@@ -44,7 +46,7 @@ def check_docker_host_env(*_, **__):
     return 'rootless' not in subprocess.check_output(['docker', 'info'], encoding='UTF-8', errors='replace') or os.getenv('DOCKER_HOST', '') != ''
 
 def check_one_energy_and_scope_machine_provider(*_, **__):
-    metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
+    metric_providers = utils.get_metric_providers(GMT_CONFIG).keys()
     energy_machine_providers = [provider for provider in metric_providers if ".energy" in provider and ".machine" in provider]
     return len(energy_machine_providers) <= 1
 
@@ -62,7 +64,7 @@ def check_ntp(*_, **__):
     return True
 
 def check_largest_sampling_rate(*_, **__):
-    metric_providers = utils.get_metric_providers(GlobalConfig().config)
+    metric_providers = utils.get_metric_providers(GMT_CONFIG)
     if not metric_providers: # no provider provider configured passes this check
         return True
 
@@ -76,20 +78,14 @@ def check_cpu_utilization(*_, **__):
 
 def check_free_disk(*_, **__):
     free_space_bytes = psutil.disk_usage(os.path.dirname(os.path.abspath(__file__))).free
-    return free_space_bytes >= GMT_Resources['free_disk']
+    return free_space_bytes >= GMT_RESOURCES['free_disk']
 
-def check_available_cpus(*_, **__):
-    docker_reported_cpus = int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip())
-    return os.cpu_count() >= 2 and docker_reported_cpus >= 2
-
-def check_docker_cpu_availability(*_, **__):
-    if platform.system() == 'Darwin':
-        return True # no checks on macOS as docker runs in VM here with custom CPU configuration
-    docker_reported_cpus = subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip()
-    return str(os.cpu_count()) == docker_reported_cpus # not casting to int to not get unexpected 0 or 1
+def check_available_cpus(*_, **__): # GMT min system requirement
+    return os.cpu_count() >= GMT_RESOURCES['min_cpus']
 
 def check_free_memory(*_, **__):
-    return psutil.virtual_memory().available >= GMT_Resources['free_memory']
+    # Here we explicitely check on the host and not how much docker has assigned, as memory is not blocked exclusively by Docker
+    return psutil.virtual_memory().available >= GMT_RESOURCES['free_memory']
 
 def check_containers_running(*_, **__):
     result = subprocess.check_output(['docker', 'ps', '--format', '{{.Names}}'], encoding='UTF-8', errors='replace')
@@ -165,7 +161,6 @@ start_checks = (
     (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement.'),
     (check_largest_sampling_rate, Status.WARN, 'high sampling rate', 'You have chosen at least one provider with a sampling rate > 1000 ms. That is not recommended and might lead also to longer benchmarking times due to internal extra sleeps to adjust measurement frames.'),
     (check_available_cpus, Status.ERROR, '< 2 CPUs', 'You need at least 2 CPU cores on the system (and assigned to Docker in case of macOS) to run GMT'),
-    (check_docker_cpu_availability, Status.ERROR, 'Docker CPU reporting', 'Docker reports a different amount of available CPUs than the system itself - GMT cannot handle this currently'),
     (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'You need to free up some disk space to run GMT reliably (< 1 GiB available)'),
     (check_free_memory, Status.ERROR, '2 GiB free memory', 'No free memory! Please kill some programs (< 2 GiB available)'),
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),

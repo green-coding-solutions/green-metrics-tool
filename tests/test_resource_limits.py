@@ -17,6 +17,7 @@ from lib import utils
 from tests import test_functions as Tests
 from lib.scenario_runner import ScenarioRunner
 from lib.schema_checker import SchemaError
+from lib import resource_limits
 
 ## Note:
 # Always do asserts after try:finally: blocks
@@ -71,13 +72,11 @@ def test_resource_limits_good():
     assert container_dict['test-container-cpu-and-memory-in-both']['cpus'] == usage_scenario_contents['services']['test-container-cpu-and-memory-in-both']['deploy']['resources']['limits']['cpus'] # copy over
 
     MEMORY_DEFINED_IN_USAGE_SCENARIO = 199286402 # ~ 190.05 MB
-    MEM_AVAILABLE = int(subprocess.check_output(['docker', 'info', '--format', '{{.MemTotal}}'], encoding='UTF-8', errors='replace').strip())
-    MEM_ASSIGNABLE = MEM_AVAILABLE - 1024**3 - MEMORY_DEFINED_IN_USAGE_SCENARIO
+    MEM_AVAILABLE = resource_limits.get_assignable_memory()
+    MEM_ASSIGNABLE = MEM_AVAILABLE - MEMORY_DEFINED_IN_USAGE_SCENARIO
     MEM_PER_CONTAINER = math.floor(MEM_ASSIGNABLE/3)
 
-    CPUS_AVAILABLE = int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip())
-    CPUS_ASSIGNABLE = CPUS_AVAILABLE-1 # GMT reserves one core
-
+    CPUS_ASSIGNABLE = resource_limits.get_assignable_cpus()
 
     # these are the only three containers that get auto assigned. Thus their values we can check
     assert 'deploy' not in container_dict['test-container-limits-partial'] # no fill of deploy key
