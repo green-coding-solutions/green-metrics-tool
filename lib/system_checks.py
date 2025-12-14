@@ -19,6 +19,7 @@ from psycopg import OperationalError as psycopg_OperationalError
 
 from lib import utils
 from lib import error_helpers
+from lib import resource_limits
 from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
@@ -83,9 +84,18 @@ def check_free_disk(*_, **__):
 def check_available_cpus(*_, **__): # GMT min system requirement
     return os.cpu_count() >= GMT_RESOURCES['min_cpus']
 
+def check_assignable_cpus(*_, **__):
+    return resource_limits.get_assignable_cpus() > 0
+
 def check_free_memory(*_, **__):
     # Here we explicitely check on the host and not how much docker has assigned, as memory is not blocked exclusively by Docker
     return psutil.virtual_memory().available >= GMT_RESOURCES['free_memory']
+
+def check_assignable_memory(*_, **__):
+    return resource_limits.get_assignable_memory() >= 0
+
+def check_assignable_memory_oom(*_, **__):
+    return resource_limits.get_assignable_memory() <= psutil.virtual_memory().available
 
 def check_containers_running(*_, **__):
     result = subprocess.check_output(['docker', 'ps', '--format', '{{.Names}}'], encoding='UTF-8', errors='replace')
@@ -161,8 +171,11 @@ start_checks = (
     (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement.'),
     (check_largest_sampling_rate, Status.WARN, 'high sampling rate', 'You have chosen at least one provider with a sampling rate > 1000 ms. That is not recommended and might lead also to longer benchmarking times due to internal extra sleeps to adjust measurement frames.'),
     (check_available_cpus, Status.ERROR, '< 2 CPUs', 'You need at least 2 CPU cores on the system (and assigned to Docker in case of macOS) to run GMT'),
+    (check_assignable_cpus, Status.ERROR, 'No assignable cpus', 'GMT does not have any assignable CPUs for the docker containers available. Reserve less CPUs in the config.yml for GMT, increase the CPU count of the Docker VM (in case of macOS) or migrate to a bigger machine.'),
     (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'You need to free up some disk space to run GMT reliably (< 1 GiB available)'),
     (check_free_memory, Status.ERROR, '2 GiB free memory', 'No free memory! Please kill some programs (< 2 GiB available)'),
+    (check_assignable_memory, Status.ERROR, 'No assignable memory', 'GMT does not have any assignable memory for the docker containers available. Reserve less memory in the config.yml for GMT, increase the memory amount of the Docker VM (in case of macOS) or migrate to a bigger machine.'),
+    (check_assignable_memory_oom, Status.WARN, 'OOM risk', f"Your system available memory ({round(psutil.virtual_memory().available / 1024**3,2)} GB) is less than what can be assigned to the docker containers ({round(resource_limits.get_assignable_memory() / 1024**3,2)} GB). This can lead to the system running into OOM. For development this is fine, but for reliable measurements you should reserve more memory to the host system via 'host_reserved_memory' in config.yml."),
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),
     (check_docker_host_env, Status.ERROR, 'docker host env', 'You seem to be running a rootless docker and in this case you must set the DOCKER_HOST environment variable so that the docker library we use can find the docker agent. Typically this should be DOCKER_HOST=unix:///$XDG_RUNTIME_DIR/docker.sock'),
     (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
