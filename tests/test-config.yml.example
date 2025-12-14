@@ -57,6 +57,11 @@ machine:
   base_temperature_chip: "asd"
   base_temperature_feature: "asd"
 
+  # Reservations guarantee that GMT always cpu time to execute metric providers and system does not OOM
+  # Not recommended to set this in development, but when running on a cluster it should be set
+  host_reserved_cpus: 1
+  host_reserved_memory: 2147483648 # 2 GB
+
 measurement:
   metric_providers:
     linux:
