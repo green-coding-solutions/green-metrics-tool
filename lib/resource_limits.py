@@ -11,14 +11,20 @@ from lib.global_config import GlobalConfig
 CURRENT_PATH = os.path.dirname(__file__)
 GMT_CONFIG = GlobalConfig().config
 
+
+@cache
+def get_docker_available_cpus():
+    return int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip())
+
 @cache
 def get_assignable_cpus():
-    SYSTEM_ASSIGNABLE_CPU_COUNT = int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip())
+    SYSTEM_ASSIGNABLE_CPU_COUNT = get_docker_available_cpus()
     assignable_cpus = SYSTEM_ASSIGNABLE_CPU_COUNT - int(GMT_CONFIG['machine']['host_reserved_cpus'])
     if assignable_cpus <= 0:
         raise RuntimeError(f"Cannot assign docker containers to any CPU as no more CPUs are available to Docker. System available CPU count for Docker: {SYSTEM_ASSIGNABLE_CPU_COUNT}. Reserved for GMT exclusively: {GMT_CONFIG['machine']['host_reserved_cpus']}")
     return assignable_cpus
 
+@cache
 def get_assignable_memory():
     SYSTEM_ASSIGNABLE_MEMORY = int(subprocess.check_output(['docker', 'info', '--format', '{{.MemTotal}}'], encoding='UTF-8', errors='replace').strip())
     available_memory = SYSTEM_ASSIGNABLE_MEMORY - int(GMT_CONFIG['machine']['host_reserved_memory'])

@@ -65,7 +65,7 @@ def container_cpu_utilization(self, run, measurements, repo_path, network, notes
             error_helpers.log_error('Mean utilization was not present', data=data, run_id=run['id'])
             continue
 
-        adjusted_utilization = (actual_cpu_mean/100) * (resource_limits.get_assignable_cpus()/cpus[service]) # ändern wie das berechnet wird zu scenario runner style
+        adjusted_utilization = (actual_cpu_mean/100) * (resource_limits.get_docker_available_cpus()/cpus[service])
 
         if adjusted_utilization < MIN_CPU_UTIL:
             self.add_optimization(f"Cpu utilization is low in {service}", f'''

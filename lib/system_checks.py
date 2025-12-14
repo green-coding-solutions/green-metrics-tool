@@ -84,6 +84,11 @@ def check_free_disk(*_, **__):
 def check_available_cpus(*_, **__): # GMT min system requirement
     return os.cpu_count() >= GMT_RESOURCES['min_cpus']
 
+def check_docker_cpu_availability(*_, **__):
+    if platform.system() == 'Darwin':
+        return True # no checks on macOS as docker runs in VM here with custom CPU configuration
+    return os.cpu_count() == resource_limits.get_docker_available_cpus()
+
 def check_assignable_cpus(*_, **__):
     return resource_limits.get_assignable_cpus() > 0
 
@@ -171,6 +176,7 @@ start_checks = (
     (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement.'),
     (check_largest_sampling_rate, Status.WARN, 'high sampling rate', 'You have chosen at least one provider with a sampling rate > 1000 ms. That is not recommended and might lead also to longer benchmarking times due to internal extra sleeps to adjust measurement frames.'),
     (check_available_cpus, Status.ERROR, '< 2 CPUs', 'You need at least 2 CPU cores on the system (and assigned to Docker in case of macOS) to run GMT'),
+    (check_docker_cpu_availability, Status.WARN, 'Docker CPU reporting', 'Docker reports a different amount of available CPUs than the host sytem itself - This is expected when Docker is running in VM. In all other cases this will lead to inaccurate cgroup metrics reported.'),
     (check_assignable_cpus, Status.ERROR, 'No assignable cpus', 'GMT does not have any assignable CPUs for the docker containers available. Reserve less CPUs in the config.yml for GMT, increase the CPU count of the Docker VM (in case of macOS) or migrate to a bigger machine.'),
     (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'You need to free up some disk space to run GMT reliably (< 1 GiB available)'),
     (check_free_memory, Status.ERROR, '2 GiB free memory', 'No free memory! Please kill some programs (< 2 GiB available)'),
