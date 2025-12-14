@@ -83,14 +83,14 @@ def container_cpu_utilization(self, run, measurements, repo_path, network, notes
         if adjusted_utilization < MIN_CPU_UTIL:
             self.add_optimization(f"Cpu utilization is low in {service}", f'''
                                 The service {service} has the cpus set to: {cpus[service]}.
-                                The means that the utilization in the container was {adjusted_utilization}%.
+                                This means that the utilization in the container was {adjusted_utilization}%.
                                 You should try for being above {MIN_CPU_UTIL}% on average to best utilize reserved ressources.
                                 ''',
                                 criticality=Criticality.LOW)
         elif adjusted_utilization > MAX_CPU_UTIL:
             self.add_optimization(f"Cpu utilization is high in {service}", f'''
                                 The service {service} has the cpus set to: {cpus[service]}.
-                                The means that the utilization in the container was {adjusted_utilization}%.
+                                This means that the utilization in the container was {adjusted_utilization}%.
                                 You should try for being below {MAX_CPU_UTIL}% on average as CPUs and also the OS tend
                                 to be inefficient in these very high utilizations.
                                 ''',
@@ -98,6 +98,6 @@ def container_cpu_utilization(self, run, measurements, repo_path, network, notes
         else:
             self.add_optimization(f"Cpu utilization is good in {service}", f'''
                     The service {service} has the cpus set to: {cpus[service]}.
-                    The means that the utilization in the container was {adjusted_utilization}% which is in an optimal range.
+                    This means that the utilization in the container was {adjusted_utilization}% which is in an optimal range.
                     ''',
                     criticality=Criticality.GOOD)
