@@ -26,7 +26,6 @@ from lib.terminal_colors import TerminalColors
 from lib.configuration_check_error import ConfigurationCheckError, Status
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-GMT_CONFIG = GlobalConfig().config
 
 GMT_RESOURCES = {
     'min_cpus': 2,
@@ -47,7 +46,7 @@ def check_docker_host_env(*_, **__):
     return 'rootless' not in subprocess.check_output(['docker', 'info'], encoding='UTF-8', errors='replace') or os.getenv('DOCKER_HOST', '') != ''
 
 def check_one_energy_and_scope_machine_provider(*_, **__):
-    metric_providers = utils.get_metric_providers(GMT_CONFIG).keys()
+    metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
     energy_machine_providers = [provider for provider in metric_providers if ".energy" in provider and ".machine" in provider]
     return len(energy_machine_providers) <= 1
 
@@ -65,7 +64,7 @@ def check_ntp(*_, **__):
     return True
 
 def check_largest_sampling_rate(*_, **__):
-    metric_providers = utils.get_metric_providers(GMT_CONFIG)
+    metric_providers = utils.get_metric_providers(GlobalConfig().config)
     if not metric_providers: # no provider provider configured passes this check
         return True
 
@@ -181,7 +180,7 @@ start_checks = (
     (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'You need to free up some disk space to run GMT reliably (< 1 GiB available)'),
     (check_free_memory, Status.ERROR, '2 GiB free memory', 'No free memory! Please kill some programs (< 2 GiB available)'),
     (check_assignable_memory, Status.ERROR, 'No assignable memory', 'GMT does not have any assignable memory for the docker containers available. Reserve less memory in the config.yml for GMT, increase the memory amount of the Docker VM (in case of macOS) or migrate to a bigger machine.'),
-    (check_assignable_memory_oom, Status.WARN, 'OOM risk', f"Your system available memory ({round(psutil.virtual_memory().available / 1024**3,2)} GB) is less than what can be assigned to the docker containers ({round(resource_limits.get_assignable_memory() / 1024**3,2)} GB). This can lead to the system running into OOM. For development this is fine, but for reliable measurements you should reserve more memory to the host system via 'host_reserved_memory' in config.yml."),
+    (check_assignable_memory_oom, Status.WARN, 'OOM risk', f"Your system available memory ({round(psutil.virtual_memory().available / 1024**3,2)} GB) is less than what can be assigned to the docker containers. This can lead to the system running into OOM. For development this is fine, but for reliable measurements you should reserve more memory to the host system via 'host_reserved_memory' in config.yml."),
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),
     (check_docker_host_env, Status.ERROR, 'docker host env', 'You seem to be running a rootless docker and in this case you must set the DOCKER_HOST environment variable so that the docker library we use can find the docker agent. Typically this should be DOCKER_HOST=unix:///$XDG_RUNTIME_DIR/docker.sock'),
     (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
