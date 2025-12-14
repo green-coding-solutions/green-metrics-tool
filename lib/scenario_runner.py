@@ -20,6 +20,7 @@ import random
 import shutil
 import math
 import yaml
+from copy import deepcopy
 from collections import OrderedDict
 from datetime import datetime
 import platform
@@ -38,7 +39,7 @@ from lib.debug_helper import DebugHelper
 from lib.terminal_colors import TerminalColors
 from lib.schema_checker import SchemaChecker
 from lib.db import DB
-from lib.global_config import GlobalConfig
+from lib.global_config import GlobalConfig, freeze_dict, FrozenDict
 from lib.notes import Notes
 from lib import system_checks
 from lib.machine import Machine
@@ -110,7 +111,7 @@ class ScenarioRunner:
         self._branch = branch
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
-        self._usage_scenario = {}
+        self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
         self._architecture = utils.get_architecture()
 
@@ -181,6 +182,7 @@ class ScenarioRunner:
         self.__volume_sizes = {}
         self.__warnings = []
         self.__container_dependencies = None
+        self.__usage_scenario = OrderedDict()
         self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
         self.__include_playwright_ipc_version = None
 
@@ -212,7 +214,7 @@ class ScenarioRunner:
             time.sleep(sleep_time)
 
     def get_optimizations_ignore(self):
-        return self._usage_scenario.get('optimizations_ignore', [])
+        return self.__usage_scenario.get('optimizations_ignore', [])
 
     # This function takes a path and a file and joins them while making sure that no one is trying to escape the
     # path with `..`, symbolic links or similar.
@@ -512,24 +514,29 @@ class ScenarioRunner:
             for key in [sname for sname, content in yml_obj.get('services', {}).items() if content is None]:
                 del yml_obj['services'][key]
 
-            self._usage_scenario = yml_obj
+            self.__usage_scenario = yml_obj
+            self._usage_scenario_original = deepcopy(yml_obj) # not able to freeze dict here already .see comment in _inital_parse
+
 
     def _initial_parse(self):
 
         schema_checker = SchemaChecker(validate_compose_flag=True)
-        schema_checker.check_usage_scenario(self._usage_scenario)
+        # schema checker alters the dict as it uses type(old_dict) to create internal copies ... sadly no way around
+        # this than to freeze the dict after checking at this stage
+        schema_checker.check_usage_scenario(self._usage_scenario_original)
+        self._usage_scenario_original = freeze_dict(self._usage_scenario_original)
 
-        print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self._usage_scenario['name'], TerminalColors.ENDC)
-        print('From: ', self._usage_scenario['author'])
-        print('Description: ', self._usage_scenario['description'], '\n')
+        print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self.__usage_scenario['name'], TerminalColors.ENDC)
+        print('From: ', self.__usage_scenario['author'])
+        print('Description: ', self.__usage_scenario['description'], '\n')
 
         if self._allow_unsafe:
             print(TerminalColors.WARNING, arrows('Warning: Runner is running in unsafe mode'), TerminalColors.ENDC)
 
-        if self._usage_scenario.get('architecture') is not None and self._architecture != self._usage_scenario['architecture'].lower():
-            raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self._usage_scenario.get('architecture')})")
+        if self.__usage_scenario.get('architecture') is not None and self._architecture != self.__usage_scenario['architecture'].lower():
+            raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self.__usage_scenario.get('architecture')})")
 
-        self._sci['R_d'] = self._usage_scenario.get('sci', {}).get('R_d', None)
+        self._sci['R_d'] = self.__usage_scenario.get('sci', {}).get('R_d', None)
 
     def _prepare_docker(self):
         # Disable Docker CLI hints (e.g. "What's Next? ...")
@@ -542,9 +549,9 @@ class ScenarioRunner:
                                 check=True, encoding='UTF-8', errors='replace')
         for line in result.stdout.splitlines():
             for running_container in line.split(','): # if docker container has multiple tags, they will be split by comma, so we only want to
-                for service_name in self._usage_scenario.get('services', {}):
-                    if 'container_name' in self._usage_scenario['services'][service_name]:
-                        container_name = self._usage_scenario['services'][service_name]['container_name']
+                for service_name in self.__usage_scenario.get('services', {}):
+                    if 'container_name' in self.__usage_scenario['services'][service_name]:
+                        container_name = self.__usage_scenario['services'][service_name]['container_name']
                     else:
                         container_name = service_name
 
@@ -597,7 +604,7 @@ class ScenarioRunner:
                     raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
 
     def _store_active_containers(self):
-        containers = [{'id': cid, 'name': ctr['name'], 'mem_limit': ctr['mem_limit'], 'cpus': ctr['cpus']} for cid, ctr in self.__containers.items()]
+        containers = { ctr['name'] : {'id': cid, 'mem_limit': ctr['mem_limit'], 'cpus': ctr['cpus']} for cid, ctr in self.__containers.items()}
         DB().query("""
             UPDATE runs
             SET containers = %s
@@ -609,7 +616,7 @@ class ScenarioRunner:
             self._check_container_is_running(container_info['name'], step_description)
 
     def _populate_image_names(self):
-        for service_name, service in self._usage_scenario.get('services', {}).items():
+        for service_name, service in self.__usage_scenario.get('services', {}).items():
             if not service.get('image', None): # image is a non-mandatory field. But we need it, so we tmp it
                 if self._dev_cache_build:
                     service['image'] = f"{service_name}"
@@ -617,7 +624,7 @@ class ScenarioRunner:
                     service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
     def _populate_cpu_and_memory_limits(self):
-        services = self._usage_scenario.get('services', {})
+        services = self.__usage_scenario.get('services', {})
 
         DOCKER_AVAILABLE_MEMORY = int(subprocess.check_output(['docker', 'info', '--format', '{{.MemTotal}}'], encoding='UTF-8', errors='replace').strip())
         unassigned_memory = DOCKER_AVAILABLE_MEMORY-1024**3 # we want to leave 1 GB free on the host / docker VM to avoid OOM situations
@@ -773,7 +780,7 @@ class ScenarioRunner:
                     self._job_id, self._name, self._uri, self._branch, self._original_filename,
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
-                    json.dumps(self._usage_scenario), json.dumps(self._usage_scenario_variables),
+                    json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables),
                     gmt_hash,
                     GlobalConfig().config['machine']['id'], self._user_id,
                 ))[0]
@@ -822,7 +829,7 @@ class ScenarioRunner:
             self.__metric_providers.append(metric_provider_obj)
 
             if hasattr(metric_provider_obj, 'get_docker_params'):
-                services_list = ",".join(list(self._usage_scenario.get('services', {}).keys()))
+                services_list = ",".join(list(self.__usage_scenario.get('services', {}).keys()))
                 self.__docker_params += metric_provider_obj.get_docker_params(no_proxy_list=services_list)
 
 
@@ -862,7 +869,7 @@ class ScenarioRunner:
 
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
-        for _, service in self._usage_scenario.get('services', {}).items():
+        for _, service in self.__usage_scenario.get('services', {}).items():
             # minimal protection from possible shell escapes.
             # since we use subprocess without shell we should be safe though
             if re.findall(r'(\.\.|\$|\'|"|`|!)', service['image']):
@@ -1010,7 +1017,7 @@ class ScenarioRunner:
 
         print(TerminalColors.HEADER, '\nSaving image and volume sizes', TerminalColors.ENDC)
 
-        for _, service in self._usage_scenario.get('services', {}).items():
+        for _, service in self.__usage_scenario.get('services', {}).items():
             tmp_img_name = self._clean_image_name(service['image'])
 
             # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
@@ -1024,7 +1031,7 @@ class ScenarioRunner:
 
         # du -s -b does not work on macOS and also the docker image is in a VM and not accessible with du for us
         if not self._skip_volume_inspect and self._allow_unsafe and platform.system() != 'Darwin':
-            for volume in self._usage_scenario.get('volumes', {}):
+            for volume in self.__usage_scenario.get('volumes', {}):
                 # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
                 try:
                     output = subprocess.check_output(
@@ -1054,16 +1061,16 @@ class ScenarioRunner:
 
     def _setup_networks(self):
         # for some rare containers there is no network, like machine learning for example
-        if 'networks' in self._usage_scenario:
+        if 'networks' in self.__usage_scenario:
             print(TerminalColors.HEADER, '\nSetting up networks', TerminalColors.ENDC)
-            for network in self._usage_scenario['networks']:
+            for network in self.__usage_scenario['networks']:
                 if network in ('host', 'bridge', 'none'):
                     raise ValueError('Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined.')
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
 
-                if self._usage_scenario['networks'][network] and self._usage_scenario['networks'][network].get('internal', False):
+                if self.__usage_scenario['networks'][network] and self.__usage_scenario['networks'][network].get('internal', False):
                     subprocess.check_output(['docker', 'network', 'create', '--internal', network])
                 else:
                     subprocess.check_output(['docker', 'network', 'create', network])
@@ -1110,7 +1117,7 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nSetting up services', TerminalColors.ENDC)
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
-        services = self._usage_scenario.get('services', {})
+        services = self.__usage_scenario.get('services', {})
 
         SYSTEM_ASSIGNABLE_CPU_COUNT = int(subprocess.check_output(['docker', 'info', '--format', '{{.NCPU}}'], encoding='UTF-8', errors='replace').strip()) -1
         if SYSTEM_ASSIGNABLE_CPU_COUNT <= 0:
@@ -1833,10 +1840,10 @@ class ScenarioRunner:
         ps_to_kill_tmp = []
         ps_to_read_tmp = []
         flow_id = 0
-        flows_len = len(self._usage_scenario['flow'])
+        flows_len = len(self.__usage_scenario['flow'])
 
         while flow_id < flows_len:
-            flow = self._usage_scenario['flow'][flow_id]
+            flow = self.__usage_scenario['flow'][flow_id]
             ps_to_kill_tmp.clear()
             ps_to_read_tmp.clear()
 
@@ -2399,6 +2406,7 @@ class ScenarioRunner:
         self.__image_sizes.clear()
         self.__volume_sizes.clear()
         self.__warnings.clear()
+        self.__usage_scenario.clear()
         self.__usage_scenario_variables_used_buffer.clear()
         self.__include_playwright_ipc_version = None
 

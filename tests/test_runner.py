@@ -388,7 +388,7 @@ def test_usage_scenario_variable_replacement_done_correctly():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
 
-    assert runner._usage_scenario['flow'][0]['commands'][0]['command'] == 'stress-ng -c 1 -t 1 -q'
+    assert runner._usage_scenario_original['flow'][0]['commands'][0]['command'] == 'stress-ng -c 1 -t 1 -q'
 
 ## Check if metrics provider are already running
 def test_reporters_still_running():
@@ -488,7 +488,7 @@ def test_docker_pull_multiarch_image_succeeds():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
 
-    assert runner._usage_scenario['services']['test_service']['image'] == 'alpine:3.22.1'
+    assert runner._usage_scenario_original['services']['test_service']['image'] == 'alpine:3.22.1'
 
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
 def test_docker_pull_arm64_image_on_amd64_host_fails():

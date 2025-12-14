@@ -386,12 +386,18 @@ class RunUntilManager:
             self.__runner._end_phase('[BOOT]')
 
             self.__runner._check_running_containers('[BOOT]')
+            self.__runner._store_active_containers() # should be separated from setup services to keep network delay out of the step
             self.__runner._check_process_returncodes()
+
+            yield 'check_process_returncodes'
+            if stop_at == 'check_process_returncodes':
+                return
 
             self.__runner._add_containers_to_metric_providers()
             self.__runner._start_metric_providers(allow_container=True, allow_other=False)
 
             self.__runner._collect_container_dependencies()
+            yield 'collect_container_dependencies'
             if stop_at == 'collect_container_dependencies':
                 return
 
