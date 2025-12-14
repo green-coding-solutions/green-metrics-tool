@@ -52,8 +52,7 @@ def test_resource_limits_good():
 
     with open(f'{GMT_DIR}/tests/data/usage_scenarios/resource_limits_good.yml', 'r', encoding='utf-8') as f:
         usage_scenario_contents = yaml.safe_load(f)
-    container_list = utils.get_run_data(run_name)['containers']
-    container_dict = { ctr['name'] : ctr for ctr in container_list }
+    container_dict = utils.get_run_data(run_name)['containers']
 
     assert 'deploy' not in container_dict['test-container-only-cpu'] # not used
     assert container_dict['test-container-only-cpu']['mem_limit'] > 0 # auto-fill
