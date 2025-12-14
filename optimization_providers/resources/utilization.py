@@ -37,7 +37,7 @@ def container_memory_utilization(self, run, measurements, repo_path, network, no
         mem_service_mean_MB = round(data[first_item]['mean']/1_000_000, 2)
         mem_service_usage = round((mem_service_max_MB/mem_service_reserved_MB)*100,2)
 
-        if (mem_service_max_MB) < MIN_MEM_UTIL:
+        if (mem_service_usage) < MIN_MEM_UTIL:
             self.add_optimization(f"Memory utilization is low in {service}", f'''
                                 The service {service} has the memory reservation set to: {mem_service_reserved_MB} MB but the max
                                 usage was {mem_service_max_MB} MB. The mean was {mem_service_mean_MB} MB.
