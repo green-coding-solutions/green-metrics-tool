@@ -1,0 +1,42 @@
+postgresql:
+  host: test-green-coding-postgres-container
+  user: postgres
+  dbname: test-green-coding
+  password: testpw
+  port: 9574
+
+redis:
+  host: test-green-coding-redis-container
+  port: 6380
+
+
+machine:
+  id: 1
+  description: Development machine for testing
+  base_temperature_value: 10
+  base_temperature_chip: "asd"
+  base_temperature_feature: "asd"
+
+  # Reservations guarantee that GMT always cpu time to execute metric providers and system does not OOM
+  # Not recommended to set this in development, but when running on a cluster it should be set
+  host_reserved_cpus: 3
+  host_reserved_memory: 2147483648 # 2 GB
+
+measurement:
+  metric_providers:
+    common:
+      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
+        CPUChips: 1
+        HW_CPUFreq: 3200
+        CPUCores: 4
+        CPUThreads: 4
+        TDP: 65
+        HW_MemAmountGB: 16
+        Hardware_Availability_Year: 2011
+
+sci:
+  EL: 4
+  RS: 1
+  TE: 181000
+  I: 436
+  N: 0.001875

@@ -43,8 +43,6 @@ def test_invalid_combination_measurement_flow_process_duration():
     assert str(err.value) == 'Cannot run flows due to configuration error. Measurement_total_duration must be >= measurement_flow_process_duration, otherwise the flow will run into a timeout in every case. Values are: measurement_flow_process_duration: 20 and measurement_total_duration: 10'
 
 def test_provider_disabling_not_active_by_default():
-
-
     out = io.StringIO()
     err = io.StringIO()
 
@@ -57,10 +55,10 @@ def test_provider_disabling_not_active_by_default():
     assert 'Not importing' not in out.getvalue()
 
 def test_provider_disabling_working():
-    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config-extra-network-and-duplicate-psu-providers.yml")
-
     out = io.StringIO()
     err = io.StringIO()
+
+    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config-extra-network-and-duplicate-psu-providers.yml")
 
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True, disabled_metric_providers=['NetworkConnectionsProxyContainerProvider'])
 

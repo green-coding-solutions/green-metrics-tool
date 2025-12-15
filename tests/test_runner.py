@@ -349,11 +349,8 @@ def test_check_system(skip_system_checks, config_file, expectation):
     GlobalConfig().override_config(config_location=config_file)
     runner = ScenarioRunner(uri="not_relevant", uri_type="folder", skip_system_checks=skip_system_checks)
 
-    try:
-        with expectation:
-            runner._check_system('start')
-    finally:
-        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # reset, just in case. although done by fixture
+    with expectation:
+        runner._check_system('start')
 
 ## Variables
 def test_check_broken_variable_format():

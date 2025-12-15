@@ -9,44 +9,6 @@ redis:
   host: test-green-coding-redis-container
   port: 6380
 
-smtp:
-  server: null
-  sender: null
-  port: null
-  password: null
-  user: null
-
-admin:
-  notification_email: False
-  error_file: False
-  error_email: False
-  email_bcc: False
-
-cluster:
-  api_url: http://api.green-coding.internal:9143
-  metrics_url: http://metrics.green-coding.internal:9143
-  cors_allowed_origins:
-    - http://api.green-coding.internal:9143
-    - http://metrics.green-coding.internal:9143
-  client:
-    sleep_time_no_job: 300
-    jobs_processing: random
-    time_between_control_workload_validations: 21600
-    send_control_workload_status_mail: false
-    shutdown_on_job_no: false
-    control_workload:
-      name: Measurement control Workload
-      uri: https://github.com/green-coding-solutions/measurement-control-workload
-      filename: usage_scenario.yml
-      branch: main
-      comparison_window: 5
-      threshold: 0.01
-      phase: 004_[RUNTIME]
-      metrics:
-      - psu_energy_ac_mcp_machine
-      - psu_power_ac_mcp_machine
-      - cpu_power_rapl_msr_component
-      - cpu_energy_rapl_msr_component
 
 machine:
   id: 1
@@ -56,14 +18,6 @@ machine:
   base_temperature_feature: "asd"
 
 measurement:
-  system_check_threshold: 3
-  pre_test_sleep: 0
-  idle_duration: 0
-  baseline_duration: 0
-  post_test_sleep: 0
-  phase_transition_time: 0
-  boot:
-    wait_time_dependencies: 10
   metric_providers:
     linux:
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
@@ -101,8 +55,3 @@ sci:
   TE: 181000
   I: 436
 
-optimization:
-  ignore:
-    - example_optimization_test
-
-electricity_maps_token: 'testing'
