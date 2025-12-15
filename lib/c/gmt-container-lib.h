@@ -22,6 +22,8 @@ typedef struct container_t {
     unsigned int pid; // will be empty in many usages as only network currently needs it
 } container_t;
 
+bool is_croup_system_provider(void);
+
 // parse the containers from the -s XXXX string
 int parse_containers(const char* cgroup_controller, int user_id, container_t** containers, char* containers_string, bool get_container_pid);
 

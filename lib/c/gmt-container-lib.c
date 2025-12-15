@@ -4,9 +4,25 @@
 #include <stdbool.h>
 #include <string.h>
 #include <limits.h>
+#include <unistd.h>
 #include <errno.h>
 #include <curl/curl.h>
 
+bool is_croup_system_provider(void) {
+    char exe_path[PATH_MAX];
+    ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+    if (len == -1) {
+        fprintf(stderr, "Could not check if provider is system provider due to fail in opening /proc/self/exe\n");
+        exit(1);
+    }
+
+    exe_path[len] = '\0';
+
+    if (strstr(exe_path, "/cgroup/system/metric-provider-binary") != NULL) {
+        return true;
+    }
+    return false;
+}
 
 int parse_containers(const char* cgroup_controller, int user_id, container_t** containers, char* containers_string, bool get_container_pid) {
     if(containers_string == NULL) {
@@ -33,7 +49,11 @@ int parse_containers(const char* cgroup_controller, int user_id, container_t** c
         strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
         (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
 
-        (*containers)[length-1].name = get_container_name(id);
+        if (is_croup_system_provider()) {
+            (*containers)[length-1].name = id;
+        } else {
+            (*containers)[length-1].name = get_container_name(id);
+        }
         (*containers)[length-1].path = detect_cgroup_path(cgroup_controller, user_id, (*containers)[length-1]);
         if (get_container_pid) {
             FILE* fd = fopen((*containers)[length-1].path, "r");
