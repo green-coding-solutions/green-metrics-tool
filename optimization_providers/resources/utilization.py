@@ -28,7 +28,7 @@ def container_memory_utilization(self, run, measurements, repo_path, network, no
         data = measurement_stats.get('data')
         first_item = next(iter(data))
         mem_service_max = data[first_item].get('max', None)
-        if not mem_service_max:
+        if mem_service_max is None:
             error_helpers.log_error('Mem max was not present', data=data, run=run)
             continue
 
@@ -74,7 +74,7 @@ def container_cpu_utilization(self, run, measurements, repo_path, network, notes
 
         first_item = next(iter(data))
         actual_cpu_mean = data[first_item].get('mean', None)
-        if not actual_cpu_mean:
+        if actual_cpu_mean is None:
             error_helpers.log_error('Mean utilization was not present', data=data, run_id=run['id'])
             continue
 
