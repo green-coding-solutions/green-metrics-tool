@@ -244,6 +244,7 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
                 {detail_name_condition}
                 {machine_id_condition}
                 {usage_scenario_variables_condition}
+                AND r.archived = FALSE
                 AND r.commit_timestamp IS NOT NULL
                 AND r.failed IS FALSE
             ORDER BY
