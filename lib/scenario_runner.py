@@ -605,7 +605,8 @@ class ScenarioRunner:
                     raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
 
     def _store_active_containers(self):
-        containers = { ctr['name'] : {'id': cid, 'mem_limit': ctr['mem_limit'], 'cpus': ctr['cpus']} for cid, ctr in self.__containers.items()}
+        containers = { ctr['name'] : {'id': cid, 'mem_limit': ctr['mem_limit'], 'cpus': ctr['cpus'], 'cpuset': ctr['cpuset'], 'memory_swap': ctr['memory_swap'], 'memory_swappiness': ctr['memory_swappiness'], 'oom_score_adj': ctr['oom_score_adj']} for cid, ctr in self.__containers.items()}
+
         DB().query("""
             UPDATE runs
             SET containers = %s
