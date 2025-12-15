@@ -1338,19 +1338,22 @@ class ScenarioRunner:
 
             # GMT core requirement is that the host has 2 CPUs so metric providers and user containers do never run on the same core
             # get_assignable_cpus will thus always result in one core less than on the system
-            docker_run_string.append('--cpuset-cpus')
-            docker_run_string.append(','.join(map(str, range(1,resource_limits.get_assignable_cpus()+1)))) # range is already exclusive, so no need to subtract 1
-
-            docker_run_string.append('--memory-swappiness=0') # GMT should never swap as it gives hard to interpret / non-linear performance results
-            docker_run_string.append('--oom-score-adj=1000') # containers will be killed first so host does not OOM
-            docker_run_string.append(f"--memory={service['mem_limit']}")
-            docker_run_string.append(f"--memory-swap={service['mem_limit']}") # effectively disable swap
-
-            docker_run_string.append(f"--cpus={service['cpus']}")
+            cpuset = ','.join(map(str, range(1,resource_limits.get_assignable_cpus()+1)))
 
             container_data['cpus'] = service['cpus']
+            container_data['cpuset'] = cpuset
             container_data['mem_limit'] = service['mem_limit']
+            container_data['memory_swap'] = service['mem_limit']
+            container_data['memory_swappiness'] = 0
+            container_data['oom_score_adj'] = 0
 
+            docker_run_string.append('--cpuset-cpus')
+            docker_run_string.append(container_data['cpuset']) # range is already exclusive, so no need to subtract 1
+            docker_run_string.append(f"--cpus={container_data['cpus']}")
+            docker_run_string.append(f"--memory-swappiness={container_data['memory_swappiness']}") # GMT should never swap as it gives hard to interpret / non-linear performance results
+            docker_run_string.append(f"--oom-score-adj={container_data['oom_score_adj']}") # containers will be killed first so host does not OOM
+            docker_run_string.append(f"--memory={container_data['mem_limit']}")
+            docker_run_string.append(f"--memory-swap={container_data['mem_limit']}") # effectively disable swap
 
             if 'healthcheck' in service:  # must come last
                 if 'disable' in service['healthcheck'] and service['healthcheck']['disable'] is True:
