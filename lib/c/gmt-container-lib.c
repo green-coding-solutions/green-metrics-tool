@@ -220,10 +220,9 @@ char* get_container_name(const char *container_id) {
 
     CURLcode res = curl_easy_perform(curl);
     if(res != CURLE_OK) {
-        fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+        fprintf(stderr, "curl_easy_perform() failed: %s\nIf you are running a rootless docker maybe the DOCKER_HOST env is not correctly set?", curl_easy_strerror(res));
         exit(1);
     }
-
 
     // Simple parsing to extract the "Name" field
     char *name_pos = strstr(s.ptr, "\"Name\":\"");
@@ -240,7 +239,7 @@ char* get_container_name(const char *container_id) {
             parsing_error = true;
         }
     } else {
-        fprintf(stderr, "Container name not found for ID: %s. Maybe the container is not running anymore?\n", container_id);
+        fprintf(stderr, "Container name not found for ID: %s. Maybe the container is not running anymore? Or if you are running a rootless docker maybe the DOCKER_HOST env is not correctly set?\n", container_id);
         parsing_error = true;
     }
 
