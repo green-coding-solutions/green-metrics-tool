@@ -214,13 +214,23 @@ const fetchAndFillRunData = async (url_params) => {
             }
 
             archive_run_button.addEventListener('click', async () => {
-                await makeAPICall(`/v1/run/${url_params['id']}`, {archived: true}, false, true);
+                try {
+                    await makeAPICall(`/v1/run/${url_params['id']}`, {archived: true}, false, true);
+                } catch (err) {
+                    showNotification('Error while trying to archive run!', err);
+                    return;
+                }
                 archive_run_button.classList.add('hidden');
                 unarchive_run_button.classList.remove('hidden');
                 showNotification('Run Archived!', '', 'success')
             })
             unarchive_run_button.addEventListener('click', async () => {
-                await makeAPICall(`/v1/run/${url_params['id']}`, {archived: false}, false, true);
+                try {
+                    await makeAPICall(`/v1/run/${url_params['id']}`, {archived: false}, false, true);
+                } catch (err) {
+                    showNotification('Error while trying to un-archive run!', err);
+                    return;
+                }
                 archive_run_button.classList.remove('hidden');
                 unarchive_run_button.classList.add('hidden');
                 showNotification('Run Unarchived!', '', 'success')
@@ -236,13 +246,23 @@ const fetchAndFillRunData = async (url_params) => {
             }
 
             public_button.addEventListener('click', async () => {
-                await makeAPICall(`/v1/run/${url_params['id']}`, {public: true}, false, true);
+                try {
+                    await makeAPICall(`/v1/run/${url_params['id']}`, {public: true}, false, true);
+                } catch (err) {
+                    showNotification('Error while trying to make run public!', err);
+                    return;
+                }
                 public_button.classList.add('hidden');
                 non_public_button.classList.remove('hidden');
                 showNotification('Run Made Public!', '', 'success')
             })
             non_public_button.addEventListener('click', async () => {
-                await makeAPICall(`/v1/run/${url_params['id']}`, {public: false}, false, true);
+                try {
+                    await makeAPICall(`/v1/run/${url_params['id']}`, {public: false}, false, true);
+                } catch (err) {
+                    showNotification('Error while trying to make run non-public!', err);
+                    return;
+                }
                 public_button.classList.remove('hidden');
                 non_public_button.classList.add('hidden');
                 showNotification('Run Made Non-Public!', '', 'success')
@@ -255,7 +275,12 @@ const fetchAndFillRunData = async (url_params) => {
 
     document.querySelector('#save-note').addEventListener('click', async () => {
         const note_text = document.querySelector('textarea[name=note]').value;
-        await makeAPICall(`/v1/run/${url_params['id']}`, {note: note_text}, false, true);
+        try {
+            await makeAPICall(`/v1/run/${url_params['id']}`, {note: note_text}, false, true);
+        } catch (err) {
+            showNotification('Error while trying to save note!', err);
+            return;
+        }
         showNotification('Note saved!', '', 'success')
     });
 
