@@ -115,7 +115,7 @@ const fetchAndFillRunData = async (url_params) => {
                         <p>CPUS: ${escapeString(run_data[item][ctr_name].cpus)}</p>
                         <p>CPUSet: ${escapeString(run_data[item][ctr_name].cpuset)}</p>
                         <p>Memory Limit: ${escapeString(run_data[item][ctr_name].mem_limit)} (${Math.round(run_data[item][ctr_name].mem_limit/1024**2)} MB)</p>
-                        <p>Memory Swap: ${escapeString(run_data[item][ctr_name].memory_swap)}</p>
+                        <p>Memory Swap: ${escapeString(run_data[item][ctr_name].memory_swap)} (${Math.round(run_data[item][ctr_name].memory_swap/1024**2)} MB)</p>
                         <p>Memory Swappiness: ${escapeString(run_data[item][ctr_name].memory_swappiness)}</p>
                         <p>OOM Score Adj.: ${escapeString(run_data[item][ctr_name].oom_score_adj)}</p>
                         <p>Image: ${escapeString(run_data?.container_dependencies?.[ctr_name]?.['source']?.['image'])}</p>
