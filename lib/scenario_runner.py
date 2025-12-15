@@ -1346,7 +1346,7 @@ class ScenarioRunner:
             container_data['mem_limit'] = service['mem_limit']
             container_data['memory_swap'] = service['mem_limit']
             container_data['memory_swappiness'] = 0
-            container_data['oom_score_adj'] = 0
+            container_data['oom_score_adj'] = 1000
 
             docker_run_string.append('--cpuset-cpus')
             docker_run_string.append(container_data['cpuset']) # range is already exclusive, so no need to subtract 1
