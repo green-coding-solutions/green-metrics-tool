@@ -4,7 +4,6 @@ import subprocess
 import os
 import requests
 from urllib.parse import urlparse
-from fastapi.exceptions import RequestValidationError
 from functools import cache
 
 from lib import error_helpers
@@ -65,13 +64,13 @@ def check_repo(repo_url, branch='main'):
         response = requests.get(url, timeout=10)
     except Exception as exc:
         error_helpers.log_error(f"Request to {git_api} API failed",url=url,exception=str(exc))
-        raise RequestValidationError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?") from exc
+        raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?") from exc
 
     # We do not fail here, but only do a warning, bc often times the SSH or token which might be supplied in the URL is too restrictive then and cannot be used to query the commits also
     # However we do check the commits endpoint bc this tells us if the repo is non empty or not
     if response.status_code != 200:
         if git_api in ('gitlab', 'github'):
-            raise RequestValidationError(f"Could not read from repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?")
+            raise RuntimeError(f"Could not read from repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?")
         else:
             error_helpers.log_error(f"Connect to {git_api} API was possible, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
 
@@ -93,11 +92,11 @@ def get_repo_last_marker(repo_url, marker):
         response = requests.get(url, timeout=10)
     except Exception as exc:
         error_helpers.log_error('Request to GitHub API failed',url=url,exception=str(exc))
-        raise RequestValidationError(f"Could not find repository {repo_url}. Is the repository publicly accessible and not empty?") from exc
+        raise RuntimeError(f"Could not find repository {repo_url}. Is the repository publicly accessible and not empty?") from exc
 
     if response.status_code != 200:
         error_helpers.log_error('Request to GitHub API failed',url=url,status_code=response.status_code,status_text=response.text)
-        raise RequestValidationError(f"Could not find repository {repo_url} - Is the repository public and a GitHub or GitLab repository?")
+        raise RuntimeError(f"Could not find repository {repo_url} - Is the repository public and a GitHub or GitLab repository?")
     data = response.json()
     if not data:
         return None

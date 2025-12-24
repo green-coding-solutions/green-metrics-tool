@@ -786,20 +786,19 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if not user.can_schedule_job(software.schedule_mode):
         raise RequestValidationError('Your user does not have the permissions to use that schedule mode.')
 
-    try:
-        utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
-    except ValueError as exc: # We accept the value error here if the repository is unknown, but log it for now
-        error_helpers.log_error('Repository could not be checked in /v1/software/add.', exception=exc)
-
+    utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 
         last_marker = None
-        if 'tag' in software.schedule_mode:
-            last_marker = utils.get_repo_last_marker(software.repo_url, 'tags')
+        try:
+            if 'tag' in software.schedule_mode:
+                last_marker = utils.get_repo_last_marker(software.repo_url, 'tags')
 
-        if 'commit' in software.schedule_mode:
-            last_marker = utils.get_repo_last_marker(software.repo_url, 'commits')
+            if 'commit' in software.schedule_mode:
+                last_marker = utils.get_repo_last_marker(software.repo_url, 'commits')
+        except RuntimeError as exc:
+            raise RequestValidationError(str(exc)) from exc
 
         Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
