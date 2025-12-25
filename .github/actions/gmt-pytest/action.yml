@@ -128,9 +128,23 @@ runs:
     - name: Run Tests
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
+      env:
+        DEFAULT_TEST_PATH: ${{ inputs.test-path }}
       run: |
         source ../venv/bin/activate
-        python3 -m ${{ inputs.tests-command }} ${{ inputs.test-path }} -rA | tee /tmp/test-results.txt
+        COMMIT_MSG="$(git log -1 --pretty=%B)"
+        echo "Commit message:"
+        echo "$COMMIT_MSG"
+
+        if [[ "$COMMIT_MSG" =~ \[test-path:\ ([^]]+)\] ]]; then
+          TEST_PATH="${BASH_REMATCH[1]}"
+          echo "Detected test-path keyword: $TEST_PATH"
+        else
+          echo "No test keyword detected. Using default: ${{ inputs.test-path }}"
+          TEST_PATH="${DEFAULT_TEST_PATH}"
+        fi
+
+        python3 -m ${{ inputs.tests-command }} "${TEST_PATH}" -rA | tee /tmp/test-results.txt
 
     - name: Display Results
       shell: bash
