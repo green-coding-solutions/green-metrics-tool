@@ -224,8 +224,9 @@ def test_cpu_time_carbon_providers():
             seen_cpu_utilization_cgroup_container = True
 
         elif metric == 'cpu_utilization_procfs_system':
-            assert 9000 * max_utilization_factor < val <= 10000 * max_utilization_factor , f"{metric} is not between {9000 * max_utilization_factor} and {10000 * max_utilization_factor} but {val} {metric_provider['unit']}"
-            assert 9500 * max_utilization_factor < max_value <= 110_00 * max_utilization_factor , f"{metric} max is not between {9500 * max_utilization_factor} and {110_00 * max_utilization_factor} but {max_value} {metric_provider['unit']}"
+            # It can be actually up to a 100% (plus a bit calculatory overhead ... so we do 110%)
+            assert 90_00 * max_utilization_factor < val <= 110_00 * max_utilization_factor , f"{metric} is not between {90_00 * max_utilization_factor} and {110_00 * max_utilization_factor} but {val} {metric_provider['unit']}"
+            assert 95_00 * max_utilization_factor < max_value <= 110_00 * max_utilization_factor , f"{metric} max is not between {95_00 * max_utilization_factor} and {110_00 * max_utilization_factor} but {max_value} {metric_provider['unit']}"
 
             seen_cpu_utilization_system = True
 
