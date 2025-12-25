@@ -12,12 +12,6 @@ on:
         description: 'Specific test path to run'
         required: false
         type: string
-      test-branch:
-        description: 'Branch to run tests on'
-        required: false
-        type: string
-        default: ${{ github.ref }}
-
 
 jobs:
   run-tests:
@@ -41,7 +35,7 @@ jobs:
       - name: 'Checkout repository'
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.test-branch }}
+          ref: ${{ github.ref }}
           submodules: 'false'
 
 
