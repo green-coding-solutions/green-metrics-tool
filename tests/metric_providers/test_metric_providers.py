@@ -187,27 +187,27 @@ def test_cpu_time_carbon_providers():
 
 
         if metric == 'cpu_utilization_cgroup_container':
-            assert 9000 < val <= 10000, f"cpu_utilization_cgroup_container is not between 90_00 and 100_00 but {metric_provider['value']} {metric_provider['unit']}"
-            assert 9500 < max_value <= 10500, f"cpu_utilization_cgroup_container max is not between 95_00 and 105_00 but {metric_provider['value']} {metric_provider['unit']}"
+            assert 9000 < val <= 10000, f"cpu_utilization_cgroup_container is not between 90_00 and 100_00 but {val} {metric_provider['unit']}"
+            assert 9500 < max_value <= 10500, f"cpu_utilization_cgroup_container max is not between 95_00 and 105_00 but {max_value} {metric_provider['unit']}"
 
             seen_cpu_utilization_cgroup_container = True
 
         elif metric == 'cpu_utilization_procfs_system':
-            assert 9000 * max_utilization_factor < val <= 10000 * max_utilization_factor , f"{metric} is not between {9000 * max_utilization_factor} and {10000 * max_utilization_factor} but {metric_provider['value']} {metric_provider['unit']}"
-            assert 9500 * max_utilization_factor < max_value <= 10500 * max_utilization_factor , f"{metric} max is not between {9500 * max_utilization_factor} and {10500 * max_utilization_factor} but {metric_provider['value']} {metric_provider['unit']}"
+            assert 9000 * max_utilization_factor < val <= 10000 * max_utilization_factor , f"{metric} is not between {9000 * max_utilization_factor} and {10000 * max_utilization_factor} but {val} {metric_provider['unit']}"
+            assert 9500 * max_utilization_factor < max_value <= 10500 * max_utilization_factor , f"{metric} max is not between {9500 * max_utilization_factor} and {10500 * max_utilization_factor} but {max_value} {metric_provider['unit']}"
 
             seen_cpu_utilization_system = True
 
         elif metric == 'cpu_utilization_mach_system':
             # Since macOS is such a noisy system it is hard to find a "range" where the numbers shall be. The only thing we really know is that it must be higher than what is happening in the VM. but it can be actually up to a 100% (plus a bit calculatory overhead ... so we do 105%)
-            assert 100_00 * max_utilization_factor < val <= 105_00, f"{metric} is not greater than {100_00 * max_utilization_factor} but {metric_provider['value']} {metric_provider['unit']}"
+            assert 100_00 * max_utilization_factor < val <= 105_00, f"{metric} is not greater than {100_00 * max_utilization_factor} but {val} {metric_provider['unit']}"
             seen_cpu_utilization_system = True
 
         elif metric == 'phase_time_syscall_system':
             seen_phase_time_syscall_system = True
             phase_time = val
 
-            assert 5*MICROSECONDS < val < 6*MICROSECONDS , f"phase_time_syscall_system is not between 5 and 6 s but {metric_provider['value']} {metric_provider['unit']}"
+            assert 5*MICROSECONDS < val < 6*MICROSECONDS , f"phase_time_syscall_system is not between 5 and 6 s but {val} {metric_provider['unit']}"
 
         elif metric == 'embodied_carbon_share_machine':
             # we have the phase time value as we sort by metric DESC
@@ -215,7 +215,7 @@ def test_cpu_time_carbon_providers():
             sci = {"EL": 4, "TE": 181000, "RS": 1}
             embodied_carbon_expected = int((phase_time_in_years / sci['EL']) * sci['TE'] * sci['RS'] * 1_000_000)
             # Make a range because of rounding errors
-            assert embodied_carbon_expected*0.99 < val < embodied_carbon_expected*1.01  , f"embodied_carbon_share_machine is not {embodied_carbon_expected} but {metric_provider['value']} {metric_provider['unit']}\n. This might be also because the values in the test are hardcoded. Check reporter but also if test-config.yml configuration is still accurate"
+            assert embodied_carbon_expected*0.99 < val < embodied_carbon_expected*1.01  , f"embodied_carbon_share_machine is not {embodied_carbon_expected} but {val} {metric_provider['unit']}\n. This might be also because the values in the test are hardcoded. Check reporter but also if test-config.yml configuration is still accurate"
             seen_embodied_carbon_share_machine = True
 
     assert seen_phase_time_syscall_system is True, "Did not see phase_time_syscall_system metric"
