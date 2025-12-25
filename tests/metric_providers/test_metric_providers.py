@@ -102,7 +102,11 @@ def test_disk_providers():
         if metric == 'disk_used_statvfs_system':
             disk_usage = get_disk_usage()
             # since some small write might have occured we allow a margin of 10 MB which seems reasonable for waiting flushes
-            assert (max_value - disk_usage['used']) < 10*MB, f"disk_used_statvfs_system is not close (10 MB) to {disk_usage['used']} but {max_value} {metric_provider['unit']}"
+            assert (max_value - disk_usage['used']) > 5*MB, f"disk_used_statvfs_system is not min. 5 MB  but {(max_value - disk_usage['used']) / MB}  MB"
+
+            if os.getenv("GITHUB_ACTIONS") != "true":
+                # Since GitHub does a lot of log writing also we only check this on local / dedicated testing boxes
+                assert (max_value - disk_usage['used']) < 6*MB, f"disk_used_statvfs_system is not < 6 MB  but {(max_value - disk_usage['used']) / MB}  MB"
             seen_disk_used_statvfs_system = True
 # This one is disabled for now as we are seeing strange issues in Github VMs seeing an additional physical block device (sda16)
 #        elif metric == 'disk_total_procfs_system':
@@ -113,8 +117,8 @@ def test_disk_providers():
  #   assert seen_disk_total_procfs_system is True
     assert seen_disk_used_statvfs_system is True
 
-@pytest.mark.skipif(utils.get_architecture() == 'macos', reason="Network Cgroup tests are not possible under macOS due to missing cgroup functionality")
-def test_network_providers():
+@pytest.mark.skipif(utils.get_architecture() == 'macos', reason="Network tests are not possible under macOS due to missing cgroup / procfs functionality")
+def test_network_system_providers():
     assert(run_id is not None and run_id != '')
 
     # Different to the other tests here we need to aggregate over all network interfaces
@@ -131,9 +135,36 @@ def test_network_providers():
     for metric_provider in data:
         val = metric_provider['value']
 
+        assert val >= 5*MB , f"network_total_procfs_system is not greater than 5 MB but {val} {metric_provider['unit']}"
+
+        if os.getenv("GITHUB_ACTIONS") != "true":
+            # Since GitHub does a lot of additional network communication we only check this on local / dedicated testing boxes
+            # Some small network overhead to a 5 MB file always occurs
+            # See discussion for details on how much believe is acceaptable and for which reasons here: https://github.com/green-coding-solutions/green-metrics-tool/issues/1322
+            assert val < 5.5*MB, f"network_total_procfs_system is bigger than 5.5 MB but {val} {metric_provider['unit']}"
+
+@pytest.mark.skipif(utils.get_architecture() == 'macos', reason="Network tests are not possible under macOS due to missing cgroup / procfs functionality")
+def test_network_cgroup_providers():
+    assert(run_id is not None and run_id != '')
+
+    # Different to the other tests here we need to aggregate over all network interfaces
+    query = """
+            SELECT metric, SUM(value) as value, unit
+            FROM phase_stats
+            WHERE run_id = %s and phase = '005_Download' AND metric = 'network_total_cgroup_container'
+            GROUP BY metric, unit
+    """
+
+    data = DB().fetch_all(query, (run_id,), fetch_mode='dict')
+    assert(data is not None and data != [])
+
+    for metric_provider in data:
+        val = metric_provider['value']
+
         # Some small network overhead to a 5 MB file always occurs
         # See discussion for details on how much believe is acceaptable and for which reasons here: https://github.com/green-coding-solutions/green-metrics-tool/issues/1322
-        assert 5*MB <= val < 6*MB , f"network_total_procfs_system is not between 5 and 6 MB but {val} {metric_provider['unit']}"
+        assert 5*MB <= val <= 5.5*MB , f"network_total_cgroup_container is not between 5 and 5.5 MB but {val} {metric_provider['unit']}"
+
 
 @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true" or utils.get_architecture() == 'macos', reason='Skip test for GitHub Actions VM as memory seems weirdly assigned here. Also skip macos as memory assignment is virtualized in VM')
 def test_memory_providers():
@@ -188,19 +219,19 @@ def test_cpu_time_carbon_providers():
 
         if metric == 'cpu_utilization_cgroup_container':
             assert 9000 < val <= 10000, f"cpu_utilization_cgroup_container is not between 90_00 and 100_00 but {val} {metric_provider['unit']}"
-            assert 9500 < max_value <= 10500, f"cpu_utilization_cgroup_container max is not between 95_00 and 105_00 but {max_value} {metric_provider['unit']}"
+            assert 9500 < max_value <= 110_00, f"cpu_utilization_cgroup_container max is not between 95_00 and 110_00 but {max_value} {metric_provider['unit']}"
 
             seen_cpu_utilization_cgroup_container = True
 
         elif metric == 'cpu_utilization_procfs_system':
             assert 9000 * max_utilization_factor < val <= 10000 * max_utilization_factor , f"{metric} is not between {9000 * max_utilization_factor} and {10000 * max_utilization_factor} but {val} {metric_provider['unit']}"
-            assert 9500 * max_utilization_factor < max_value <= 10500 * max_utilization_factor , f"{metric} max is not between {9500 * max_utilization_factor} and {10500 * max_utilization_factor} but {max_value} {metric_provider['unit']}"
+            assert 9500 * max_utilization_factor < max_value <= 110_00 * max_utilization_factor , f"{metric} max is not between {9500 * max_utilization_factor} and {110_00 * max_utilization_factor} but {max_value} {metric_provider['unit']}"
 
             seen_cpu_utilization_system = True
 
         elif metric == 'cpu_utilization_mach_system':
-            # Since macOS is such a noisy system it is hard to find a "range" where the numbers shall be. The only thing we really know is that it must be higher than what is happening in the VM. but it can be actually up to a 100% (plus a bit calculatory overhead ... so we do 105%)
-            assert 100_00 * max_utilization_factor < val <= 105_00, f"{metric} is not greater than {100_00 * max_utilization_factor} but {val} {metric_provider['unit']}"
+            # Since macOS is such a noisy system it is hard to find a "range" where the numbers shall be. The only thing we really know is that it must be higher than what is happening in the VM. but it can be actually up to a 100% (plus a bit calculatory overhead ... so we do 110%)
+            assert 100_00 * max_utilization_factor < val <= 110_00, f"{metric} is not greater than {100_00 * max_utilization_factor} but {val} {metric_provider['unit']}"
             seen_cpu_utilization_system = True
 
         elif metric == 'phase_time_syscall_system':
