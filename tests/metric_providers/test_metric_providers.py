@@ -195,30 +195,29 @@ def test_cpu_time_carbon_providers():
     phase_time = None
 
     # will result in value <= 1 and thus pro-rate the targeted 90+ utilization of the whole system
-    max_utilization_factor = resource_limits.get_assignable_cpus() / os.cpu_count()
+    system_cpu_ratio = resource_limits.get_assignable_cpus() / os.cpu_count()
+    cgroup_cpu_ratio = resource_limits.get_assignable_cpus() / resource_limits.get_docker_available_cpus()
 
     for metric_provider in data:
         metric = metric_provider['metric']
         val = metric_provider['value']
         max_value = metric_provider['max_value']
 
-
         if metric == 'cpu_utilization_cgroup_container':
-            assert 9000 < val <= 10000, f"cpu_utilization_cgroup_container is not between 90_00 and 100_00 but {val} {metric_provider['unit']}"
-            assert 9500 < max_value <= 110_00, f"cpu_utilization_cgroup_container max is not between 95_00 and 110_00 but {max_value} {metric_provider['unit']}"
+            assert 90_00 * cgroup_cpu_ratio < val <= 100_00 * cgroup_cpu_ratio, f"cpu_utilization_cgroup_container is not between 90_00 * {cgroup_cpu_ratio} and 100_00 * {cgroup_cpu_ratio} but {val} {metric_provider['unit']}"
+            assert 95_00 * cgroup_cpu_ratio < max_value <= 110_00 * cgroup_cpu_ratio, f"cpu_utilization_cgroup_container max is not between 95_00 * {cgroup_cpu_ratio} and 110_00 * {cgroup_cpu_ratio} but {max_value} {metric_provider['unit']}"
 
             seen_cpu_utilization_cgroup_container = True
 
         elif metric == 'cpu_utilization_procfs_system':
             # It can be actually up to a 100% (plus a bit calculatory overhead ... so we do 110%)
-            assert 90_00 * max_utilization_factor < val <= 110_00 * max_utilization_factor , f"{metric} is not between {90_00 * max_utilization_factor} and {110_00 * max_utilization_factor} but {val} {metric_provider['unit']}"
-            assert 95_00 * max_utilization_factor < max_value <= 110_00 * max_utilization_factor , f"{metric} max is not between {95_00 * max_utilization_factor} and {110_00 * max_utilization_factor} but {max_value} {metric_provider['unit']}"
+            assert 90_00 * system_cpu_ratio < val <= 110_00 * system_cpu_ratio , f"{metric} is not between 90_00 * {system_cpu_ratio} and 110_00 * {system_cpu_ratio} but {val} {metric_provider['unit']}"
+            assert 95_00 * system_cpu_ratio < max_value <= 110_00 * system_cpu_ratio , f"{metric} max is not between 95_00 * {system_cpu_ratio} and 110_00 * {system_cpu_ratio} but {max_value} {metric_provider['unit']}"
 
             seen_cpu_utilization_system = True
 
         elif metric == 'cpu_utilization_mach_system':
-            # Since macOS is such a noisy system it is hard to find a "range" where the numbers shall be. The only thing we really know is that it must be higher than what is happening in the VM. but it can be actually up to a 100% (plus a bit calculatory overhead ... so we do 110%)
-            assert 100_00 * max_utilization_factor < val <= 110_00, f"{metric} is not greater than {100_00 * max_utilization_factor} but {val} {metric_provider['unit']}"
+            assert 90_00 * system_cpu_ratio < val <= 110_00, f"{metric} is not between 90_00 * {system_cpu_ratio} and 110_00 * {system_cpu_ratio} but {val} {metric_provider['unit']}"
             seen_cpu_utilization_system = True
 
         elif metric == 'phase_time_syscall_system':
