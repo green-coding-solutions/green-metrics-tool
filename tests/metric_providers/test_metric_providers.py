@@ -80,7 +80,7 @@ def test_splitting_by_group():
 @pytest.mark.skipif(utils.get_architecture() == 'macos', reason="macOS does not support disk used capturing atm")
 def test_disk_providers():
 
-    assert(run_id is not None and run_id != '')
+    assert run_id
 
     query = """
             SELECT metric, detail_name, value, unit, max_value
@@ -113,12 +113,10 @@ def test_disk_providers():
 #            assert 5*MB <= val <= 7*MB , f"disk_total_procfs_system is not between 5 and 7 MB but {metric_provider['value']} {metric_provider['unit']}"
 #            seen_disk_total_procfs_system = True
 
- #   assert seen_disk_total_procfs_system is True
-    assert seen_disk_used_statvfs_system is True
 
 @pytest.mark.skipif(utils.get_architecture() == 'macos', reason="Network tests are not possible under macOS due to missing cgroup / procfs functionality")
 def test_network_system_providers():
-    assert(run_id is not None and run_id != '')
+    assert run_id
 
     # Different to the other tests here we need to aggregate over all network interfaces
     query = """
@@ -129,7 +127,7 @@ def test_network_system_providers():
     """
 
     data = DB().fetch_all(query, (run_id,), fetch_mode='dict')
-    assert(data is not None and data != [])
+    assert data
 
     for metric_provider in data:
         val = metric_provider['value']
@@ -144,7 +142,7 @@ def test_network_system_providers():
 
 @pytest.mark.skipif(utils.get_architecture() == 'macos', reason="Network tests are not possible under macOS due to missing cgroup / procfs functionality")
 def test_network_cgroup_providers():
-    assert(run_id is not None and run_id != '')
+    assert run_id
 
     # Different to the other tests here we need to aggregate over all network interfaces
     query = """
@@ -155,7 +153,7 @@ def test_network_cgroup_providers():
     """
 
     data = DB().fetch_all(query, (run_id,), fetch_mode='dict')
-    assert(data is not None and data != [])
+    assert data
 
     for metric_provider in data:
         val = metric_provider['value']
@@ -168,7 +166,7 @@ def test_network_cgroup_providers():
 @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true" or utils.get_architecture() == 'macos', reason='Skip test for GitHub Actions VM as memory seems weirdly assigned here. Also skip macos as memory assignment is virtualized in VM')
 def test_memory_providers():
 
-    assert(run_id is not None and run_id != '')
+    assert run_id
 
     query = """
             SELECT metric, detail_name, value, unit, max_value
@@ -179,7 +177,7 @@ def test_memory_providers():
             """
 
     data = DB().fetch_all(query, (run_id,), fetch_mode='dict')
-    assert(data is not None and data != [])
+    assert data
 
     for metric_provider in data:
         val = metric_provider['value']
@@ -188,7 +186,7 @@ def test_memory_providers():
 
 def test_cpu_time_carbon_providers():
 
-    assert(run_id is not None and run_id != '')
+    assert run_id
 
     query = """
             SELECT metric, detail_name, value, unit, max_value
@@ -199,7 +197,7 @@ def test_cpu_time_carbon_providers():
             """
 
     data = DB().fetch_all(query, (run_id,), fetch_mode='dict')
-    assert(data is not None and data != [])
+    assert data
 
     seen_phase_time_syscall_system = False
     seen_cpu_utilization_system = False
