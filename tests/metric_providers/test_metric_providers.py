@@ -37,13 +37,6 @@ def setup_module(module):
 
     run_id = runner.run()
 
-def get_disk_usage(path="/"):
-    usage = psutil.disk_usage(path)
-    total = usage.total
-    used = usage.used
-    free = usage.free
-    return {'total': total, 'used': used, 'free': free}
-
 # Is used when the file needs to be modified
 def mock_temporary_file(file_path, temp_file):
     with open(file_path, 'r', encoding='utf-8') as file:
@@ -78,40 +71,36 @@ def test_splitting_by_group():
     assert df[df['detail_name'] == 'lo']['value'].count() != 0, 'Grouping and filtering resulted in zero result lines for network_io'
 
 @pytest.mark.skipif(utils.get_architecture() == 'macos', reason="macOS does not support disk used capturing atm")
-def test_disk_providers():
+def test_disk_statvfs_providers():
+    disk_id_docker = subprocess.check_output("stat -c '%d' $(docker info --format '{{.DockerRootDir}}')", shell=True, encoding='UTF-8')
+
+    disk_id_root = subprocess.check_output(['stat', '-c', '%d', '/'], encoding='UTF-8')
+
+    if disk_id_docker != disk_id_root:
+        pytest.skip('Docker data root is not on same disk and thus cannot determine disk use through standard provider')
 
     assert run_id
 
     query = """
-            SELECT metric, detail_name, value, unit, max_value
+            SELECT metric, detail_name, value, unit, max_value, min_value
             FROM phase_stats
-            WHERE run_id = %s and phase = '005_Download' and metric IN ('disk_used_statvfs_system', 'disk_total_procfs_system')
+            WHERE run_id = %s and phase = '005_Download' and metric = 'disk_used_statvfs_system'
             """
     data = DB().fetch_all(query, (run_id,), fetch_mode='dict')
-    assert(data is not None and data != [])
-
-    ## get the current used disk
-#    seen_disk_total_procfs_system = False
-    seen_disk_used_statvfs_system = False
+    assert data
 
     for metric_provider in data:
         metric = metric_provider['metric']
         val = metric_provider['value'] #pylint: disable=unused-variable
         max_value = metric_provider['max_value']
+        min_value = metric_provider['min_value']
 
         if metric == 'disk_used_statvfs_system':
-            disk_usage = get_disk_usage()
-            assert (max_value - disk_usage['used']) > 5*MB, f"disk_used_statvfs_system is not min. 5 MB  but {(max_value - disk_usage['used']) / MB}  MB"
+            assert (max_value - min_value) > 5*MB, f"disk_used_statvfs_system is not min. 5 MB  but {(max_value - min_value) / MB}  MB"
 
             if os.getenv("GITHUB_ACTIONS") != "true":
                 # Since GitHub does a lot of log writing also we only check this on local / dedicated testing boxes
-                assert (max_value - disk_usage['used']) < 6*MB, f"disk_used_statvfs_system is not < 6 MB  but {(max_value - disk_usage['used']) / MB}  MB"
-            seen_disk_used_statvfs_system = True
-# This one is disabled for now as we are seeing strange issues in Github VMs seeing an additional physical block device (sda16)
-#        elif metric == 'disk_total_procfs_system':
-#            # Since some other sectors are flushed we need to account for a margin
-#            assert 5*MB <= val <= 7*MB , f"disk_total_procfs_system is not between 5 and 7 MB but {metric_provider['value']} {metric_provider['unit']}"
-#            seen_disk_total_procfs_system = True
+                assert (max_value - min_value) < 6*MB, f"disk_used_statvfs_system is not < 6 MB  but {(max_value - min_value) / MB}  MB"
 
 
 @pytest.mark.skipif(utils.get_architecture() == 'macos', reason="Network tests are not possible under macOS due to missing cgroup / procfs functionality")
