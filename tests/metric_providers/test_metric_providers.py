@@ -85,12 +85,12 @@ def test_disk_providers():
     query = """
             SELECT metric, detail_name, value, unit, max_value
             FROM phase_stats
-            WHERE run_id = %s and phase = '005_Download'
+            WHERE run_id = %s and phase = '005_Download' and metric IN ('disk_used_statvfs_system', 'disk_total_procfs_system')
             """
     data = DB().fetch_all(query, (run_id,), fetch_mode='dict')
     assert(data is not None and data != [])
 
-    ## get the current used disj
+    ## get the current used disk
 #    seen_disk_total_procfs_system = False
     seen_disk_used_statvfs_system = False
 
@@ -101,7 +101,6 @@ def test_disk_providers():
 
         if metric == 'disk_used_statvfs_system':
             disk_usage = get_disk_usage()
-            # since some small write might have occured we allow a margin of 10 MB which seems reasonable for waiting flushes
             assert (max_value - disk_usage['used']) > 5*MB, f"disk_used_statvfs_system is not min. 5 MB  but {(max_value - disk_usage['used']) / MB}  MB"
 
             if os.getenv("GITHUB_ACTIONS") != "true":
