@@ -157,6 +157,7 @@ class ScenarioRunner:
                 ('_save_run_logs', {}),
                 ('_save_warnings', {}),
                 ('_process_phase_stats', {}),
+                ('_store_cumulative_run_logs', {}),
             )
 
         # transient variables that are created by the runner itself
@@ -2309,6 +2310,26 @@ class ScenarioRunner:
         from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
         build_and_store_phase_stats(self._run_id, self._sci)
 
+    def _store_cumulative_run_logs(self):
+        """
+           Store current run in cumulative logs with iteration and filename tracking
+           All runs are tracked regardless of log generation for consistent --print-logs output
+        """
+        iteration = 1
+        for existing_run in self.__all_runs_logs:
+            if existing_run['filename'] == self._original_filename:
+                iteration = max(iteration, existing_run['iteration'] + 1)
+
+        run_entry = {
+            'iteration': iteration,
+            'filename': self._original_filename,
+            'containers': {}
+        }
+
+        for container_name, logs in self.__current_run_logs.items():
+            run_entry['containers'][container_name] = logs.copy()
+        self.__all_runs_logs.append(run_entry)
+
     def _post_process(self, index):
         try:
             for step in self._safe_post_processing_steps[index:]:
@@ -2338,8 +2359,7 @@ class ScenarioRunner:
         for metric_provider in self.__metric_providers:
             try:
                 metric_provider.stop_profiling()
-            # pylint: disable=broad-exception-caught
-            except Exception as exc:
+            except Exception as exc: # pylint: disable=broad-exception-caught
                 error_helpers.log_error(f"Could not stop profiling on {metric_provider.__class__.__name__}", exception=exc)
         self.__metric_providers.clear()
 
@@ -2369,25 +2389,6 @@ class ScenarioRunner:
         self.__start_measurement_seconds = None
         self.__notes_helper = Notes()
 
-        # Store current run in cumulative logs with iteration and filename tracking
-        # All runs are tracked regardless of log generation for consistent --print-logs output
-        filename = self._original_filename
-        iteration = 1
-        for existing_run in self.__all_runs_logs:
-            if existing_run['filename'] == filename:
-                iteration = max(iteration, existing_run['iteration'] + 1)
-
-        run_entry = {
-            'iteration': iteration,
-            'filename': filename,
-            'containers': {}
-        }
-
-        for container_name, logs in self.__current_run_logs.items():
-            run_entry['containers'][container_name] = logs.copy()
-        self.__all_runs_logs.append(run_entry)
-
-        # Clear current run logs now that they've been copied to cumulative
         self.__current_run_logs.clear()
         self.__phases.clear()
         self.__end_measurement = None
