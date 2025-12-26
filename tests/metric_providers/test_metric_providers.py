@@ -251,4 +251,4 @@ def test_cpu_time_carbon_providers():
     assert seen_cpu_utilization_system is True, "Did not see cpu_utilization_[procfs|mach]_system metric"
     assert seen_embodied_carbon_share_machine is True, "Did not see seen_embodied_carbon_share_machine metric"
 
-    assert seen_cpu_utilization_cgroup_container is True or utils.get_architecture() == 'macos', "Did not see cpu_utilization_cgroup_container metric"
+    assert (seen_cpu_utilization_cgroup_container is True) or (utils.get_architecture() == 'macos'), "Did not see cpu_utilization_cgroup_container metric"
