@@ -123,10 +123,12 @@ def validate_temperature():
         print(f"Machine is too cool: {current_temperature}°. Warming up and retrying")
         set_status('warmup')
         validate_temperature.temperature_errors += 1
-        current_time = time.time()
-        while True: # spinlock
-            if time.time() > (current_time + 10):
-                break
+
+        # stress all cores with constant yes operation
+        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True)
+        time.sleep(300)
+        subprocess.check_output(['killall', 'yes'])
+
         return False
 
     DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(validate_temperature.cooldown_time, config['machine']['id']))
