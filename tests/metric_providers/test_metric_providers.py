@@ -205,19 +205,31 @@ def test_cpu_time_carbon_providers():
 
         if metric == 'cpu_utilization_cgroup_container':
             assert 90_00 * cgroup_cpu_ratio < val <= 100_00 * cgroup_cpu_ratio, f"cpu_utilization_cgroup_container is not between 90_00 * {cgroup_cpu_ratio} and 100_00 * {cgroup_cpu_ratio} but {val} {metric_provider['unit']}"
-            assert 95_00 * cgroup_cpu_ratio < max_value <= 110_00 * cgroup_cpu_ratio, f"cpu_utilization_cgroup_container max is not between 95_00 * {cgroup_cpu_ratio} and 110_00 * {cgroup_cpu_ratio} but {max_value} {metric_provider['unit']}"
+            assert 95_00 * cgroup_cpu_ratio < max_value <= 105_00 * cgroup_cpu_ratio, f"cpu_utilization_cgroup_container max is not between 95_00 * {cgroup_cpu_ratio} and 105_00 * {cgroup_cpu_ratio} but {max_value} {metric_provider['unit']}"
 
             seen_cpu_utilization_cgroup_container = True
 
         elif metric == 'cpu_utilization_procfs_system':
-            # It can be actually up to a 100% (plus a bit calculatory overhead ... so we do 110%)
-            assert 90_00 * system_cpu_ratio < val <= 110_00 * system_cpu_ratio , f"{metric} is not between 90_00 * {system_cpu_ratio} and 110_00 * {system_cpu_ratio} but {val} {metric_provider['unit']}"
-            assert 95_00 * system_cpu_ratio < max_value <= 110_00 * system_cpu_ratio , f"{metric} max is not between 95_00 * {system_cpu_ratio} and 110_00 * {system_cpu_ratio} but {max_value} {metric_provider['unit']}"
+
+            assert val > 90_00 * system_cpu_ratio, f"{metric} is not greater 90_00 * {system_cpu_ratio} but {val} {metric_provider['unit']}"
+            assert max_value > 95_00 * system_cpu_ratio, f"{metric} max is not greater 95_00 * {system_cpu_ratio} but {max_value} {metric_provider['unit']}"
+
+            # Peak utilization can be actually up to a 100% (plus a bit calculatory overhead ... so we do 105%) bc there are other actions on the system.
+            # So we use the pro-rated overhead calculation if we know we have a non-noisy system and
+            # and use the absolute overhead calculation if we have a noisy system (similar as in macOS)
+
+            if os.getenv("GITHUB_ACTIONS") == "true":
+                assert val <= 105_00, f"{metric} is not <= 105_00 but {val} {metric_provider['unit']}"
+                assert max_value <= 105_00, f"{metric} max is not <= 105_00 but {max_value} {metric_provider['unit']}"
+            else:
+                assert val <= 105_00 * system_cpu_ratio, f"{metric} is not <= 105_00 * {system_cpu_ratio} but {val} {metric_provider['unit']}"
+                assert max_value <= 105_00 * system_cpu_ratio, f"{metric} max is not <= 105_00 * {system_cpu_ratio} but {max_value} {metric_provider['unit']}"
 
             seen_cpu_utilization_system = True
 
         elif metric == 'cpu_utilization_mach_system':
-            assert 90_00 * system_cpu_ratio < val <= 110_00, f"{metric} is not between 90_00 * {system_cpu_ratio} and 110_00 * {system_cpu_ratio} but {val} {metric_provider['unit']}"
+            # Upper boundary is NOT pro-rated as system can be noisy and other CPU activity can be
+            assert 90_00 * system_cpu_ratio < val <= 105_00, f"{metric} is not between 90_00 * {system_cpu_ratio} and 110_00 * {system_cpu_ratio} but {val} {metric_provider['unit']}"
             seen_cpu_utilization_system = True
 
         elif metric == 'phase_time_syscall_system':
