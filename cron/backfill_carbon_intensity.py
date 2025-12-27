@@ -104,29 +104,29 @@ def update_eco_ci_carbon():
         WHERE
             carbon_ug IS NULL
             AND carbon_intensity_g IS NOT NULL -- needed so we do not make useless NULL updates
-        RETURNING id;
+        RETURNING id, carbon_ug;
     '''
     return DB().fetch_all(query)
 
 def update_power_hog_carbon():
     query = '''
-        UPDATE ci_measurements
-        SET carbon_ug = ((energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*carbon_intensity_g
+        UPDATE hog_simplified_measurements
+        SET operational_carbon_ug = ((combined_energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*carbon_intensity_g
         WHERE
-            carbon_ug IS NULL
+            operational_carbon_ug IS NULL
             AND carbon_intensity_g IS NOT NULL -- needed so we do not make useless NULL updates
-        RETURNING id;
+        RETURNING id, operational_carbon_ug;
     '''
     return DB().fetch_all(query)
 
-def update_carbondb_carbon():
+def update_carbondb_data_raw_carbon():
     query = '''
-        UPDATE ci_measurements
-        SET carbon_ug = ((energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*carbon_intensity_g
+        UPDATE carbondb_data_raw
+        SET carbon_kg = (energy_kwh*carbon_intensity_g)/1e3
         WHERE
-            carbon_ug IS NULL
+            carbon_kg IS NULL
             AND carbon_intensity_g IS NOT NULL -- needed so we do not make useless NULL updates
-        RETURNING id;
+        RETURNING id, carbon_kg;
     '''
     return DB().fetch_all(query)
 
@@ -176,6 +176,11 @@ if __name__ == '__main__':
             result = update_eco_ci_carbon()
             print('Updated carbon values for eco ci', result)
 
+            result = update_power_hog_carbon()
+            print('Updated carbon values for power hog', result)
+
+            result = update_carbondb_data_raw_carbon()
+            print('Updated carbon values for carbondb data raw', result)
 
             fcntl.flock(lock_file, fcntl.LOCK_UN) # release lock here only after successful processing. not in finally
 
