@@ -7,66 +7,6 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
 
-# TODO: Currently this assumes all data is coming from Germany!
-# We need need a mean to discern where the connection from Power HOG was coming from.
-# Either we supply the power region, ip address or the coordinates
-
-# TODO 2: This is currently only for PowerHOG. Waiting till other services fail so we can test and add it there too ...
-def backfill_missing_carbon_intensity():
-    query = '''
-        UPDATE hog_simplified_measurements as hsm
-        SET grid_intensity_cog = (SELECT ci.data->>'carbonIntensity'
-            FROM carbon_intensity as ci
-            WHERE ci.data->>'zone' = 'DE'
-            ORDER BY ABS(EXTRACT(EPOCH FROM (hsm.created_at - ci.created_at::timestamp)))
-            LIMIT 1)::int
-        WHERE hsm.grid_intensity_cog IS NULL;
-    '''
-    DB().query(query)
-
-    query = '''
-        UPDATE hog_simplified_measurements
-        SET operational_carbon_ug = ((combined_energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*grid_intensity_cog
-        WHERE operational_carbon_ug IS NULL;
-    '''
-    DB().query(query)
-
-    query = '''
-        UPDATE ci_measurements as cim
-        SET carbon_intensity_g = (SELECT ci.data->>'carbonIntensity'
-            FROM carbon_intensity as ci
-            WHERE ci.data->>'zone' = 'DE'
-            ORDER BY ABS(EXTRACT(EPOCH FROM (cim.created_at - ci.created_at::timestamp)))
-            LIMIT 1)::int
-        WHERE cim.carbon_intensity_g IS NULL;
-    '''
-    DB().query(query)
-
-    query = '''
-        UPDATE ci_measurements
-        SET carbon_ug = ((energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*carbon_intensity_g
-        WHERE carbon_ug IS NULL;
-    '''
-    DB().query(query)
-
-    # we also need to update the carbondb_data_raw table as it gets direct inserts
-    query = '''
-        UPDATE carbondb_data_raw as cdb
-        SET carbon_intensity_g = (SELECT ci.data->>'carbonIntensity'
-            FROM carbon_intensity as ci
-            WHERE ci.data->>'zone' = 'DE'
-            ORDER BY ABS(EXTRACT(EPOCH FROM (cdb.created_at - ci.created_at::timestamp)))
-            LIMIT 1)::int
-        WHERE cdb.carbon_intensity_g IS NULL;
-    '''
-    DB().query(query)
-
-    query = '''
-        UPDATE carbondb_data_raw
-        SET carbon_kg = ((energy_kwh::DOUBLE PRECISION)*carbon_intensity_g)/1e3
-        WHERE carbon_kg IS NULL;
-    '''
-    DB().query(query)
 
 def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then we allow old data to arrive
     params = []
@@ -205,7 +145,6 @@ def remove_duplicates():
 if __name__ == '__main__':
     try:
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
-        backfill_missing_carbon_intensity()
         copy_over_eco_ci()
         copy_over_scenario_runner()
         copy_over_power_hog()
