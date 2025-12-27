@@ -858,7 +858,7 @@ def carbondb_add(connecting_ip, data, source, user_id):
             INSERT INTO carbondb_data_raw
                 ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","ip_address","user_id","created_at")
             VALUES
-                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
     '''
 
     used_client_ip = data.get('ip', None) # An ip has been given with the data. We prioritize that

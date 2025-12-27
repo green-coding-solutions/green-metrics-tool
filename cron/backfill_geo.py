@@ -56,7 +56,7 @@ def update_geo_from_db_cache(table):
                 from_table.id,
                 ABS(EXTRACT(EPOCH FROM (from_table.created_at - ip.created_at::timestamp))) ASC
         )
-        UPDATE ci_measurements cim
+        UPDATE {table} from_table
         SET
             lat = gm.latitude,
             lon = gm.longitude
