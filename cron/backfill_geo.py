@@ -83,7 +83,8 @@ def fetch_geo_missing(table, count_only=False):
         FROM {table} as from_table
         WHERE
             (from_table.longitude is NULL OR from_table.latitude IS NULL)
-            AND (from_table.carbon_intensity_g IS NULL) -- indicates it is not user set
+            AND from_table.carbon_intensity_g IS NULL -- indicates it is not user set
+            AND from_table.ip_address IS NOT NULL
             AND created_at > NOW() - INTERVAL '30 DAYS'
     """
     data = DB().fetch_all(query)
