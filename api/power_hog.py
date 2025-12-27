@@ -7,11 +7,11 @@ from datetime import date, timedelta, datetime
 from pydantic import ValidationError
 
 from fastapi import APIRouter
-from fastapi import Response, Depends
+from fastapi import Response, Depends, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import ORJSONResponse
 
-from api.api_helpers import authenticate
+from api.api_helpers import authenticate, get_connecting_ip
 from lib.user import User
 from lib.db import DB
 from api.object_specifications import HogMeasurement, SimplifiedMeasurement
@@ -25,6 +25,7 @@ def old_v1_hog_add_endpoint():
 
 @router.post('/v2/hog/add')
 async def add_hog(
+    request: Request,
     measurements: List[HogMeasurement],
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
@@ -63,9 +64,10 @@ async def add_hog(
             hw_model,
             elapsed_ns,
             embodied_carbon_ug,
-            thermal_pressure
+            thermal_pressure,
+            ip_address
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id
         """
 
@@ -89,6 +91,7 @@ async def add_hog(
             validated_measurement.elapsed_ns,
             validated_embodied_carbon_g * 1_000_000, # Convert to micrograms
             validated_measurement.thermal_pressure,
+            get_connecting_ip(request)
         )
         measurement_db_id = DB().fetch_one(query=query_measurement, params=params_measurement)[0]
 
