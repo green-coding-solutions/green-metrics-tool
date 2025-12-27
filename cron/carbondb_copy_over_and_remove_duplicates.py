@@ -23,16 +23,16 @@ def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then 
                 EXTRACT(EPOCH FROM created_at) * 1e6,
                 (combined_energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
                 (operational_carbon_ug::DOUBLE PRECISION)/1e9 + (embodied_carbon_ug/1e9), -- to get to kg
-                carbon_intensity_g,  -- (carbon_intensity_g) there is no need for this column for further processing
-                NULL,  -- (latitude) there is no need for this column for further processing
-                NULL,  -- (longitude) there is no need for this column for further processing
-                NULL,
+                carbon_intensity_g,
+                latitude,
+                longitude,
+                ip_address,
                 user_id,
                 created_at
             FROM hog_simplified_measurements
     '''
     if interval:
-        query = f"{query} WHERE created_at >= CURRENT_DATE - make_interval(days => %s)"
+        query = f"{query} WHERE created_at > CURRENT_DATE - make_interval(days => %s)"
         params.append(interval)
 
     DB().query(query, params=params)
@@ -53,16 +53,16 @@ def copy_over_eco_ci(interval=30): # 30 days is the merge window. Until then we 
                 EXTRACT(EPOCH FROM created_at) * 1e6,
                 (energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
                 (carbon_ug::DOUBLE PRECISION)/1e9, -- to get to kg
-                -1,  -- (carbon_intensity_g) there is no need for this column for further processing
-                NULL,  -- (latitude) there is no need for this column for further processing
-                NULL,  -- (longitude) there is no need for this column for further processing
+                carbon_intensity_g,
+                latitude,
+                longitude,
                 ip_address,
                 user_id,
                 created_at
             FROM ci_measurements
     '''
     if interval:
-        query = f"{query} WHERE created_at >= CURRENT_DATE - make_interval(days => %s)"
+        query = f"{query} WHERE created_at > CURRENT_DATE - make_interval(days => %s)"
         params.append(interval)
 
     DB().query(query, params=params)
@@ -84,10 +84,10 @@ def copy_over_scenario_runner(interval=30): # 30 days is the merge window. Until
                 COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p WHERE p.run_id = r.id AND p.unit = 'uJ' AND p.phase != '004_[RUNTIME]' AND p.metric LIKE '%%_energy_%%_machine')/1e6/3600/1000, 0) as energy_kwh,
                 COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p2 WHERE p2.run_id = r.id AND p2.unit = 'ug' AND p2.phase != '004_[RUNTIME]' AND p2.metric LIKE '%%_carbon_%%_machine')/1e9, 0) as carbon_kg,
 
-                -1, -- there is no need for this column for further processing
-                NULL,  -- there is no need for this column for further processing
-                NULL,  -- there is no need for this column for further processing
-                NULL,
+                NULL, -- there simply is no carbon intensity atm
+                NULL, -- there simply is no latitude as no IP is present
+                NULL, -- there simply is no longitude as no IP is present
+                NULL, -- no connecting IP was used to transmit the data
                 r.user_id,
                 r.created_at
             FROM runs as r
@@ -95,7 +95,7 @@ def copy_over_scenario_runner(interval=30): # 30 days is the merge window. Until
             LEFT JOIN machines as m ON m.id = r.machine_id
     '''
     if interval:
-        query = f"{query} WHERE r.created_at >= CURRENT_DATE - make_interval(days => %s)"
+        query = f"{query} WHERE r.created_at > CURRENT_DATE - make_interval(days => %s)"
         params.append(interval)
 
     query = f"{query} GROUP BY r.id, m.description"
@@ -109,16 +109,18 @@ def validate_table_constraints():
         FROM
             carbondb_data_raw
         WHERE
-            user_id IS NULL
+            (user_id IS NULL
             OR time IS NULL
             OR energy_kwh IS NULL
             OR carbon_kg IS NULL
-            OR carbon_intensity_g IS NULL
             OR type IS NULL
             OR project IS NULL
             OR machine IS NULL
             OR source IS NULL
-            OR tags IS NULL ''')
+            OR tags IS NULL)
+            AND created_at > NOW() - INTERVAL '30 DAYS'
+            AND created_at < NOW() - INTERVAL '30 MINUTES';
+     ''')
 
     if data:
         raise RuntimeError(f"NULL values found `carbondb_data_raw` - {data}")
@@ -138,7 +140,7 @@ def remove_duplicates():
             AND a.tags = b.tags
             AND a.energy_kwh = b.energy_kwh
             AND a.carbon_kg = b.carbon_kg
-            AND a.user_id = b.user_id;
+            AND a.user_id = b.user_id
     ''')
 
 
