@@ -2,6 +2,7 @@ name: Pull Request Tests
 run-name: PR check
 on:
   pull_request:
+    types: [opened, synchronize]
   workflow_dispatch:
     inputs:
       enable-ssh:
