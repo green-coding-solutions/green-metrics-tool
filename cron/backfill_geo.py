@@ -52,7 +52,7 @@ def update_geo_from_db_cache(table):
                   ip.ip_address = from_table.ip_address
                   AND ABS(EXTRACT(EPOCH FROM (from_table.created_at - ip.created_at::timestamp))) < EXTRACT(EPOCH FROM INTERVAL '30 DAYS')
             WHERE
-                (from_table.lat IS NULL OR from_table.lon IS NULL)
+                (from_table.latitude IS NULL OR from_table.longitude IS NULL)
                 AND (from_table.carbon_intensity_g IS NULL) -- indicates it is not user set
             ORDER BY
                 from_table.id,
@@ -60,13 +60,13 @@ def update_geo_from_db_cache(table):
         )
         UPDATE {table} from_table
         SET
-            lat = gm.latitude,
-            lon = gm.longitude
+            latitude = gm.latitude,
+            longitude = gm.longitude
         FROM geo_missing gm
         WHERE from_table.id = gm.id
           AND gm.latitude IS NOT NULL
           AND gm.longitude IS NOT NULL
-        RETURNING from_table.id, from_table.lat, from_table.lon;
+        RETURNING from_table.id, from_table.latitude, from_table.longitude;
     """
 
     return DB().fetch_all(query)
@@ -82,7 +82,7 @@ def fetch_geo_missing(table, count_only=False):
         SELECT {selection}
         FROM {table} as from_table
         WHERE
-            (from_table.lon is NULL OR from_table.lat IS NULL)
+            (from_table.longitude is NULL OR from_table.latitude IS NULL)
             AND (from_table.carbon_intensity_g IS NULL) -- indicates it is not user set
             AND created_at > NOW() - INTERVAL '30 DAYS'
     """
