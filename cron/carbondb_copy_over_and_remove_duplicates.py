@@ -141,6 +141,8 @@ def remove_duplicates():
             AND a.energy_kwh = b.energy_kwh
             AND a.carbon_kg = b.carbon_kg
             AND a.user_id = b.user_id
+            AND a.created_at > NOW() - INTERVAL '31 DAYS' -- to avoid race condition increase interval
+            AND b.created_at > NOW() - INTERVAL '31 DAYS' -- to avoid race condition increase interval
     ''')
 
 
