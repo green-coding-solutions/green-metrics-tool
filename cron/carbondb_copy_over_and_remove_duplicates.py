@@ -23,7 +23,7 @@ def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then 
                 EXTRACT(EPOCH FROM created_at) * 1e6,
                 (combined_energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
                 (operational_carbon_ug::DOUBLE PRECISION)/1e9 + (embodied_carbon_ug/1e9), -- to get to kg
-                grid_intensity_cog,  -- (carbon_intensity_g) there is no need for this column for further processing
+                grid_intensity_g,  -- (carbon_intensity_g) there is no need for this column for further processing
                 NULL,  -- (latitude) there is no need for this column for further processing
                 NULL,  -- (longitude) there is no need for this column for further processing
                 NULL,
