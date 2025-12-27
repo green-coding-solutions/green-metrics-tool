@@ -54,7 +54,8 @@ ALTER TABLE "ip_data"
 ALTER TABLE "hog_simplified_measurements"
     ADD COLUMN "ip_address" inet,
     ADD COLUMN latitude DOUBLE PRECISION,
-    ADD COLUMN longitude DOUBLE PRECISION;
+    ADD COLUMN longitude DOUBLE PRECISION
+    RENAME COLUMN grid_intensity_cog TO carbon_intensity_g;
 
 ALTER TABLE "carbondb_data_raw"
     ADD COLUMN "ip_address" inet,

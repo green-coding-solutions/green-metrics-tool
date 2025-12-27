@@ -54,7 +54,7 @@ async def add_hog(
             machine_uuid,
             timestamp,
             timezone,
-            grid_intensity_cog,
+            carbon_intensity_g,
             combined_energy_uj,
             cpu_energy_uj,
             gpu_energy_uj,

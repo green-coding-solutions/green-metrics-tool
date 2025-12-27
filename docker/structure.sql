@@ -649,7 +649,7 @@ CREATE TABLE hog_simplified_measurements (
     machine_uuid UUID NOT NULL,
     timestamp BIGINT NOT NULL,
     timezone TEXT CHECK (char_length(timezone) <= 50),
-    grid_intensity_cog FLOAT,
+    carbon_intensity_g DOUBLE PRECISION,
     combined_energy_uj BIGINT,
     cpu_energy_uj BIGINT,
     gpu_energy_uj BIGINT,
