@@ -6,6 +6,7 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
+import fcntl
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -16,6 +17,7 @@ from cachetools import cached
 from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib import error_helpers
+from lib.utils import runtime_dir
 from lib.cache_definitions import NoNoneOrNegativeValuesCache
 
 ################################################
@@ -205,9 +207,16 @@ if __name__ == '__main__':
     try:
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
 
-        process('ci_measurements')
-        #process('hog_simplified_measurements')
-        #process('carbondb_data_raw')
+        lock_path = os.path.join(runtime_dir(), "gmt_backfill_geo.lock")
+        with open(lock_path, "w", encoding='UTF-8') as lock_file:
+
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB) # can raise BlockingIOError
+
+            process('ci_measurements')
+            #process('hog_simplified_measurements')
+            #process('carbondb_data_raw')
+
+            fcntl.flock(lock_file, fcntl.LOCK_UN) # release lock here only after successful processing. not in finally
 
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])

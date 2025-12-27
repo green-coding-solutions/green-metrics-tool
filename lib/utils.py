@@ -225,3 +225,17 @@ def find_own_cgroup_name():
         if found_cgroups != 1:
             raise RuntimeError(f"Could not find GMT\'s own cgroup or found too many. Amount: {found_cgroups}")
         return lines[0].split('/')[-1].strip()
+
+
+def runtime_dir():
+    uid = os.getuid()
+
+    xdg = os.environ.get("XDG_RUNTIME_DIR")
+    if xdg and os.access(xdg, os.W_OK):
+        return xdg
+
+    run_user = f"/run/user/{uid}"
+    if os.path.isdir(run_user) and os.access(run_user, os.W_OK):
+        return run_user
+
+    return "/tmp"
