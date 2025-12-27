@@ -53,11 +53,11 @@ ALTER TABLE "ip_data"
 
 ALTER TABLE "hog_simplified_measurements"
     ADD COLUMN "ip_address" inet,
-    latitude DOUBLE PRECISION,
-    longitude DOUBLE PRECISION;
+    ADD COLUMN latitude DOUBLE PRECISION,
+    ADD COLUMN longitude DOUBLE PRECISION;
 
 ALTER TABLE "carbondb_data_raw"
     ADD COLUMN "ip_address" inet,
-    latitude DOUBLE PRECISION,
-    longitude DOUBLE PRECISION;
+    ADD COLUMN latitude DOUBLE PRECISION,
+    ADD COLUMN longitude DOUBLE PRECISION;
 
