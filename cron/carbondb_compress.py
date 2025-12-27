@@ -26,7 +26,7 @@ def compress_carbondb_raw():
         FROM carbondb_data_raw
         GROUP BY type
         ON CONFLICT (type) DO UPDATE
-       SET user_ids = (
+        SET user_ids = (
             SELECT ARRAY(
                 SELECT DISTINCT unnest(carbondb_types.user_ids || excluded.user_ids)
             )
