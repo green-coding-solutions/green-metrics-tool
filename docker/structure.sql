@@ -494,11 +494,17 @@ CREATE INDEX optimizations_runs ON optimizations(run_id);
 
 
 CREATE TABLE ip_data (
-    ip_address INET NOT NULL,
-    data JSONB NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (ip_address, created_at)
+    id SERIAL PRIMARY KEY,
+    ip_address inet NOT NULL,
+    latitude double precision NOT NULL,
+    longitude double precision NOT NULL,
+    city text NOT NULL,
+    zip text NOT NULL,
+    org text NOT NULL,
+    country_code text NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now()
 );
+
 
 CREATE TABLE carbon_intensity (
     latitude DOUBLE PRECISION NOT NULL,
@@ -654,6 +660,9 @@ CREATE TABLE hog_simplified_measurements (
     elapsed_ns BIGINT,
     thermal_pressure TEXT,
     embodied_carbon_ug FLOAT,
+    ip_address INET NOT NULL,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
     created_at timestamp with time zone NOT NULL DEFAULT now()
 );
 
