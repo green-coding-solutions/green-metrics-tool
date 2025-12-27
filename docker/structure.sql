@@ -428,6 +428,8 @@ CREATE TABLE ci_measurements (
     updated_at timestamp with time zone
 );
 CREATE INDEX "ci_measurements_subselect" ON ci_measurements(repo, branch, workflow_id, created_at);
+CREATE INDEX "ci_measurements_backfill_geo" ON "ci_measurements"("latitude","longitude","carbon_intensity_g","created_at");
+
 CREATE TRIGGER ci_measurements_moddatetime
     BEFORE UPDATE ON ci_measurements
     FOR EACH ROW
@@ -610,6 +612,8 @@ CREATE TABLE carbondb_data_raw (
     updated_at timestamp with time zone
 );
 
+CREATE INDEX "carbondb_data_raw_backfill_geo" ON "carbondb_data_raw"("latitude","longitude","carbon_intensity_g","created_at");
+
 CREATE TRIGGER carbondb_data_raw_moddatetime
     BEFORE UPDATE ON carbondb_data_raw
     FOR EACH ROW
@@ -669,6 +673,7 @@ CREATE TABLE hog_simplified_measurements (
 CREATE INDEX idx_measurements_user_id ON hog_simplified_measurements(user_id);
 CREATE INDEX idx_measurements_timestamp ON hog_simplified_measurements(timestamp);
 CREATE INDEX idx_measurements_machine_uuid ON hog_simplified_measurements(machine_uuid);
+CREATE INDEX "hog_simplified_measurements_backfill_geo" ON "hog_simplified_measurements"("latitude","longitude","carbon_intensity_g","created_at");
 
 
 CREATE TABLE hog_top_processes (

@@ -62,3 +62,8 @@ ALTER TABLE "carbondb_data_raw"
     ADD COLUMN latitude DOUBLE PRECISION,
     ADD COLUMN longitude DOUBLE PRECISION;
 
+CREATE INDEX "ci_measurements_backfill_geo" ON "ci_measurements"("latitude","longitude","carbon_intensity_g","created_at");
+
+CREATE INDEX "carbondb_data_raw_backfill_geo" ON "carbondb_data_raw"("latitude","longitude","carbon_intensity_g","created_at");
+
+CREATE INDEX "hog_simplified_measurements_backfill_geo" ON "hog_simplified_measurements"("latitude","longitude","carbon_intensity_g","created_at");
