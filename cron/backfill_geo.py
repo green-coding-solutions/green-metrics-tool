@@ -213,8 +213,8 @@ if __name__ == '__main__':
             fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB) # can raise BlockingIOError
 
             process('ci_measurements')
-            #process('hog_simplified_measurements')
-            #process('carbondb_data_raw')
+            process('hog_simplified_measurements')
+            process('carbondb_data_raw')
 
             fcntl.flock(lock_file, fcntl.LOCK_UN) # release lock here only after successful processing. not in finally
 
