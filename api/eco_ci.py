@@ -26,6 +26,16 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
     as they share the same DB-relevant fields.
     """
 
+    if measurement.lon is None or measurement.lon.strip() == '':
+        measurement.lon = None
+
+    if measurement.lat is None or measurement.lat.strip() == '':
+        measurement.lat = None
+
+    if measurement.city is None or measurement.city.strip() == '':
+        measurement.city = None
+
+
     params = [measurement.energy_uj, measurement.repo, measurement.branch,
               measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
               measurement.commit_hash, measurement.duration_us, measurement.cpu_util_avg, measurement.workflow_name,
@@ -65,8 +75,8 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
                              duration_us,
                              cpu_util_avg,
                              workflow_name,
-                             lat,
-                             lon,
+                             latitude,
+                             longitude,
                              city,
                              carbon_intensity_g,
                              carbon_ug,
@@ -94,7 +104,7 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
         error_helpers.log_error(
             'Extremely small energy budget was submitted to Eco CI API',
             measurement=measurement
-        )
+    )
 
     return Response(status_code=202)
 
@@ -146,7 +156,7 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
                 AND latest_workflow.workflow_id = ci_measurements.workflow_id
                 ORDER BY latest_workflow.created_at DESC
                 LIMIT 1) AS workflow_name,
-               lat, lon, city, carbon_intensity_g, carbon_ug, note
+               latitude, longitude, city, carbon_intensity_g, carbon_ug, note
         FROM ci_measurements
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))

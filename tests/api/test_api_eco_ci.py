@@ -52,7 +52,7 @@ def test_ci_measurement_add_default_user():
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
-    compare_carbondb_data(measurement_model, data)
+    compare_data(measurement_model, data)
 
     assert data['user_id'] == 1
     # assert the defaults set by the model
@@ -71,7 +71,7 @@ def test_ci_measurement_add_different_user():
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
-    compare_carbondb_data(measurement_model, data)
+    compare_data(measurement_model, data)
 
     assert data['user_id'] == 2
 
@@ -90,7 +90,7 @@ def test_ci_measurement_add_co2():
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
-    compare_carbondb_data(measurement_model, data)
+    compare_data(measurement_model, data)
 
 
 def test_ci_measurement_add_small_with_warning():
@@ -103,7 +103,7 @@ def test_ci_measurement_add_small_with_warning():
     logs = subprocess.check_output(['docker', 'logs', 'test-green-coding-gunicorn-container', '-n', '10'], stderr=subprocess.STDOUT, encoding='UTF-8').strip()
 
     data = fetch_data_from_db(measurement_model['run_id'])
-    compare_carbondb_data(measurement_model, data)
+    compare_data(measurement_model, data)
 
 
     assert 'Extremely small energy budget was submitted to Eco CI API' in logs
@@ -122,7 +122,7 @@ def test_ci_measurement_add_force_ip():
     data['ip'] = str(data['ip_address']) # model as a different key in DB
     del data['ip_address']
 
-    compare_carbondb_data(measurement_model, data)
+    compare_data(measurement_model, data)
 
 def test_ci_measurement_add_filters():
 
@@ -136,7 +136,7 @@ def test_ci_measurement_add_filters():
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
-    compare_carbondb_data(measurement_model, data)
+    compare_data(measurement_model, data)
 
 def test_ci_badge_duration_error():
     response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=avg&duration_days=900", timeout=15)
@@ -233,7 +233,7 @@ def test_ci_measurement_add_default_user_v3():
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
-    compare_carbondb_data(measurement_model, data)
+    compare_data(measurement_model, data)
 
     assert data['user_id'] == 1
     # assert the defaults set by the model
@@ -252,7 +252,7 @@ def test_ci_measurement_add_different_user_v3():
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
-    compare_carbondb_data(measurement_model, data)
+    compare_data(measurement_model, data)
 
     assert data['user_id'] == 2
 
@@ -271,7 +271,7 @@ def test_ci_measurement_add_co2_v3():
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
-    compare_carbondb_data(measurement_model, data)
+    compare_data(measurement_model, data)
 
 
 def test_ci_measurement_add_small_with_warning_v3():
@@ -284,7 +284,7 @@ def test_ci_measurement_add_small_with_warning_v3():
     logs = subprocess.check_output(['docker', 'logs', 'test-green-coding-gunicorn-container', '-n', '10'], stderr=subprocess.STDOUT, encoding='UTF-8').strip()
 
     data = fetch_data_from_db(measurement_model['run_id'])
-    compare_carbondb_data(measurement_model, data)
+    compare_data(measurement_model, data)
 
 
     assert 'Extremely small energy budget was submitted to Eco CI API' in logs
@@ -303,7 +303,7 @@ def test_ci_measurement_add_force_ip_v3():
     data['ip'] = str(data['ip_address']) # model as a different key in DB
     del data['ip_address']
 
-    compare_carbondb_data(measurement_model, data)
+    compare_data(measurement_model, data)
 
 def test_ci_measurement_add_filters_v3():
 
@@ -317,7 +317,7 @@ def test_ci_measurement_add_filters_v3():
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
-    compare_carbondb_data(measurement_model, data)
+    compare_data(measurement_model, data)
 
 ## helpers
 
@@ -325,8 +325,12 @@ def fetch_data_from_db(run_id):
     query = 'SELECT * FROM ci_measurements WHERE run_id = %s' # we make * match to always test all columns. Even if we add some in the future. However they must be part of CI_Measurement
     return DB().fetch_one(query, (run_id, ), fetch_mode='dict')
 
-def compare_carbondb_data(measurement_model, data):
+def compare_data(measurement_model, data):
     for key in measurement_model.keys():
         if key in['workflow']: continue
-        assert key in data
-        assert data[key] == measurement_model[key]
+        if key == 'lat':
+            assert data['latitude'] == float(measurement_model[key])
+        elif key == 'lon':
+            assert data['longitude'] == float(measurement_model[key])
+        else:
+            assert data[key] == measurement_model[key]

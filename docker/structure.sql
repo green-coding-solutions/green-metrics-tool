@@ -408,12 +408,12 @@ CREATE TABLE ci_measurements (
     label text,
     duration_us bigint,
     source text,
-    lat text,
-    lon text,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
     city text,
     carbon_intensity_g int,
     carbon_ug bigint,
-    ip_address INET,
+    ip_address INET NOT NULL,
     note text CHECK (length(note) <= 1024),
     filter_type text NOT NULL,
     filter_project text NOT NULL,
@@ -428,6 +428,8 @@ CREATE TABLE ci_measurements (
     updated_at timestamp with time zone
 );
 CREATE INDEX "ci_measurements_subselect" ON ci_measurements(repo, branch, workflow_id, created_at);
+CREATE INDEX "ci_measurements_backfill_geo" ON "ci_measurements"("latitude","longitude","carbon_intensity_g","created_at");
+
 CREATE TRIGGER ci_measurements_moddatetime
     BEFORE UPDATE ON ci_measurements
     FOR EACH ROW
@@ -494,11 +496,17 @@ CREATE INDEX optimizations_runs ON optimizations(run_id);
 
 
 CREATE TABLE ip_data (
-    ip_address INET NOT NULL,
-    data JSONB NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (ip_address, created_at)
+    id SERIAL PRIMARY KEY,
+    ip_address inet NOT NULL,
+    latitude double precision NOT NULL,
+    longitude double precision NOT NULL,
+    city text NOT NULL,
+    zip text NOT NULL,
+    org text NOT NULL,
+    country_code text NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now()
 );
+
 
 CREATE TABLE carbon_intensity (
     latitude DOUBLE PRECISION NOT NULL,
@@ -604,6 +612,8 @@ CREATE TABLE carbondb_data_raw (
     updated_at timestamp with time zone
 );
 
+CREATE INDEX "carbondb_data_raw_backfill_geo" ON "carbondb_data_raw"("latitude","longitude","carbon_intensity_g","created_at");
+
 CREATE TRIGGER carbondb_data_raw_moddatetime
     BEFORE UPDATE ON carbondb_data_raw
     FOR EACH ROW
@@ -643,7 +653,7 @@ CREATE TABLE hog_simplified_measurements (
     machine_uuid UUID NOT NULL,
     timestamp BIGINT NOT NULL,
     timezone TEXT CHECK (char_length(timezone) <= 50),
-    grid_intensity_cog FLOAT,
+    carbon_intensity_g DOUBLE PRECISION,
     combined_energy_uj BIGINT,
     cpu_energy_uj BIGINT,
     gpu_energy_uj BIGINT,
@@ -654,12 +664,16 @@ CREATE TABLE hog_simplified_measurements (
     elapsed_ns BIGINT,
     thermal_pressure TEXT,
     embodied_carbon_ug FLOAT,
+    ip_address INET NOT NULL,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
     created_at timestamp with time zone NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_measurements_user_id ON hog_simplified_measurements(user_id);
 CREATE INDEX idx_measurements_timestamp ON hog_simplified_measurements(timestamp);
 CREATE INDEX idx_measurements_machine_uuid ON hog_simplified_measurements(machine_uuid);
+CREATE INDEX "hog_simplified_measurements_backfill_geo" ON "hog_simplified_measurements"("latitude","longitude","carbon_intensity_g","created_at");
 
 
 CREATE TABLE hog_top_processes (

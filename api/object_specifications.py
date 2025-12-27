@@ -69,9 +69,9 @@ class CI_MeasurementBase(BaseModel):
     filter_project: Optional[str] = 'CI/CD'
     filter_machine: Optional[str] = 'unknown'
     filter_tags: Optional[list] = Field(default_factory=list) # never do a reference object as default as it will be shared
-    lat: Optional[str] = ''
-    lon: Optional[str] = ''
-    city: Optional[str] = ''
+    lat: Optional[str] = None
+    lon: Optional[str] = None
+    city: Optional[str] = None
     carbon_intensity_g: Optional[int] = None
     carbon_ug: Optional[int] = None
     ip: Optional[str] = None

@@ -17,7 +17,7 @@ API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with 
 ENERGY_DATA = {
     'type': 'machine.ci',
     'energy_uj': 1,
-    'time': int(time.time() * 1e6),
+    'time': int(time.time() * 1e6)-1, # slightly in the past to avoid race conditions
     'project': 'my-project',
     'machine': 'my-machine',
     'tags': ['mystery', 'cool']
@@ -36,10 +36,7 @@ def test_carbondb_add():
     exp_data = ENERGY_DATA.copy()
     del exp_data['energy_uj']
     exp_data['energy_kwh'] = 2.7777777777777774e-13 # 1 uJ
-    exp_data['carbon_kg'] = 2.7777777777777777e-13 # 1e-6J / (3600 * 1000) = kwH = 2.7777777777777774e-13 => * 1000 => 2.77e-10 g = 2.77e-13 kg
-    exp_data['carbon_intensity_g'] = 1000.0 # because we have no electricitymaps token set
-    exp_data['latitude'] = 52.53721666833642 # API sets default to Berlin
-    exp_data['longitude'] = 13.42486387066192  # API sets default to Berlin
+    exp_data['carbon_kg'] = None # as we have no further carbon intensity supplied
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
@@ -47,6 +44,10 @@ def test_carbondb_add():
     data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
     assert data is not None or data != []
     assert_expected_data(exp_data, data)
+
+    assert data['ip_address'] is not None # some auto fill is happening
+    assert ipaddress.ip_address(data['ip_address']).is_private
+
 
 def test_carbondb_add_outdated():
 
@@ -77,12 +78,9 @@ def test_carbondb_add_force_ip():
     energydata_modified = ENERGY_DATA.copy()
     energydata_modified['ip'] = '5.75.242.14'
 
-
     exp_data = energydata_modified.copy()
     del exp_data['energy_uj']
     exp_data['ip_address'] = ipaddress.IPv4Address('5.75.242.14')
-    exp_data['latitude'] = 50.4777 # Hmm, this can be flaky! But also we want to test the IP API
-    exp_data['longitude'] = 12.3649 # Hmm, this can be flaky! But also we want to test the IP API
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
