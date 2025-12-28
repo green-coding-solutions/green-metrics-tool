@@ -103,7 +103,7 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
         error_helpers.log_error(
             'Extremely small energy budget was submitted to Eco CI API',
             measurement=measurement
-    )
+        )
 
     return Response(status_code=202)
 
