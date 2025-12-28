@@ -6,9 +6,7 @@ from datetime import date, timedelta, datetime
 
 from pydantic import ValidationError
 
-from fastapi import APIRouter
-from fastapi import Response, Depends
-from fastapi.exceptions import RequestValidationError
+from fastapi import APIRouter, Response, Depends, HTTPException
 from fastapi.responses import ORJSONResponse
 
 from api.api_helpers import authenticate
@@ -45,7 +43,7 @@ async def add_hog(
             print('Hog parsing error. Missing expected, but non critical key', str(exc))
             # Output is extremely verbose. Please only turn on if debugging manually
             # print(f"Errors are: {exc.errors()}")
-            raise RequestValidationError(f"Invalid measurement data: {str(exc)}") from exc
+            raise HTTPException(status_code=422, detail=f"Invalid measurement data: {str(exc)}") from exc
 
         query_measurement = """
         INSERT INTO hog_simplified_measurements (

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
 from typing import List, Optional, Dict, Literal, Union
 
-from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException
 
 ### Run
 class RunChange(BaseModel):
@@ -83,7 +83,7 @@ class CI_MeasurementBase(BaseModel):
     @classmethod
     def check_not_empty(cls, values, data):
         if not values or values == '':
-            raise RequestValidationError(f"{data.field_name} must be set and not empty")
+            raise HTTPException(status_code=422, detail=f"{data.field_name} must be set and not empty")
         return values
 
     @field_validator('filter_type', 'filter_project', 'filter_machine', 'ip')

@@ -1,9 +1,8 @@
 from datetime import date
 
 from fastapi import APIRouter
-from fastapi import Request, Response, Depends
+from fastapi import Request, Response, Depends, HTTPException
 from fastapi.responses import ORJSONResponse
-from fastapi.exceptions import RequestValidationError
 
 from api.api_helpers import authenticate, get_connecting_ip
 from api.api_helpers import carbondb_add
@@ -28,7 +27,7 @@ async def add_carbondb(
     try:
         carbondb_add(get_connecting_ip(request), energydata.dict(), 'CUSTOM', user._id)
     except ValueError as exc:
-        raise RequestValidationError(str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     return Response(status_code=202)
 
@@ -125,7 +124,7 @@ async def carbondb_get(
     if users_include:
         users_include_list = { int(el) for el in users_include.split(',') } # set comprehension ... hate this overloaded syntax ...
         if not user.is_super_user() and not users_include_list.issubset(set(user.visible_users())):
-            raise RequestValidationError('You cannot filter for these other users than yourself. Missing visibility permissions.')
+            raise HTTPException(status_code=422, detail='You cannot filter for these other users than yourself. Missing visibility permissions.')
 
         users_include_condition = ' AND cedd.user_id = ANY(%s::int[])'
         params.append(list(users_include_list))
@@ -138,7 +137,7 @@ async def carbondb_get(
     if users_exclude:
         users_exclude_list = { int(el) for el in users_exclude.split(',') } # set comprehension ... hate this overloaded syntax ...
         if not user.is_super_user() and not users_exclude_list.issubset(set(user.visible_users())):
-            raise RequestValidationError('You cannot filter for these other users than yourself. Missing visibility permissions.')
+            raise HTTPException(status_code=422, detail='You cannot filter for these other users than yourself. Missing visibility permissions.')
 
         users_exclude_condition = ' AND cedd.user_id != ANY(%s::int[])'
         params.append(list(users_exclude_list))

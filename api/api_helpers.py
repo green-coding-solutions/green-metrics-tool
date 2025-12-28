@@ -19,7 +19,6 @@ from starlette.background import BackgroundTask
 from fastapi.responses import ORJSONResponse
 from fastapi import Depends, Request, HTTPException
 from fastapi.security import APIKeyHeader
-from fastapi.exceptions import RequestValidationError
 import numpy as np
 import scipy.stats
 
@@ -214,7 +213,7 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
         try:
             orjson.loads(usage_scenario_variables) # pylint: disable=no-member
         except orjson.JSONDecodeError as exc: # pylint: disable=no-member
-            raise RequestValidationError(f"Usage Scenario Variables was not correctly JSON formatted: {exc}") from exc
+            raise HTTPException(status_code=422, detail=f"Usage Scenario Variables was not correctly JSON formatted: {exc}") from exc
         usage_scenario_variables_condition = 'AND r.usage_scenario_variables::text = %s'
         params.append(usage_scenario_variables)
 
@@ -838,13 +837,13 @@ def get_connecting_ip(request):
 
 def check_int_field_api(field, name, max_value):
     if not isinstance(field, int):
-        raise RequestValidationError(f'{name} must be integer')
+        raise HTTPException(status_code=422, detail=f'{name} must be integer')
 
     if field <= 0:
-        raise RequestValidationError(f'{name} must be > 0')
+        raise HTTPException(status_code=422, detail=f'{name} must be > 0')
 
     if field > max_value:
-        raise RequestValidationError(f'{name} must be <= {max_value}')
+        raise HTTPException(status_code=422, detail=f'{name} must be <= {max_value}')
 
     return True
 

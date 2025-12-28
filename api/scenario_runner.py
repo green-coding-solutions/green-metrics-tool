@@ -7,7 +7,6 @@ import pprint
 
 from fastapi import APIRouter, Response, Depends, HTTPException
 from fastapi.responses import ORJSONResponse
-from fastapi.exceptions import RequestValidationError
 
 import anybadge
 
@@ -117,19 +116,19 @@ async def update_job(
 
     job_state = DB().fetch_one(query, params)
     if job_state is None or job_state == []:
-        raise RequestValidationError('The job you wanted to change does not exist in the database or is not assigned to your user_id.')
+        raise HTTPException(status_code=422, detail='The job you wanted to change does not exist in the database or is not assigned to your user_id.')
 
     if job_state[0] == 'RUNNING':
-        raise RequestValidationError('The job you are trying to change is already running and cannot be cancelled anymore.')
+        raise HTTPException(status_code=422, detail='The job you are trying to change is already running and cannot be cancelled anymore.')
 
     if job_state[0] == 'CANCELLED':
-        raise RequestValidationError('The job you are trying to change is already cancelled.')
+        raise HTTPException(status_code=422, detail='The job you are trying to change is already cancelled.')
 
     if job_state[0] != 'WAITING':
-        raise RequestValidationError('The job you are trying to change is not in the waiting state anymore and thus cannot be cancelled.')
+        raise HTTPException(status_code=422, detail='The job you are trying to change is not in the waiting state anymore and thus cannot be cancelled.')
 
     if job.action != 'cancel':
-        raise RequestValidationError(f"You are trying to make an unsupported action: {job.action}")
+        raise HTTPException(status_code=422, detail=f"You are trying to make an unsupported action: {job.action}")
 
     query = '''
         UPDATE jobs
@@ -154,7 +153,7 @@ async def update_watchlist(
     user: User = Depends(authenticate),  # consistent with jobs
 ):
     if change.action != 'delete':
-        raise RequestValidationError(f"Unsupported action: {change.action}")
+        raise HTTPException(status_code=422, detail=f"Unsupported action: {change.action}")
 
     query = """
         DELETE FROM watchlist
@@ -174,7 +173,7 @@ async def update_watchlist(
 @router.get('/v1/notes/{run_id}')
 async def get_notes(run_id, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     query = '''
             SELECT n.run_id, n.detail_name, n.note, n.time
@@ -197,7 +196,7 @@ async def get_notes(run_id, user: User = Depends(authenticate)):
 @router.get('/v1/warnings/{run_id}')
 async def get_warnings(run_id, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     query = '''
             SELECT w.run_id, w.message, w.created_at
@@ -378,10 +377,10 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
 @router.get('/v1/compare')
 async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = Depends(authenticate)):
     if ids is None or not ids.strip():
-        raise RequestValidationError('run_id is empty')
+        raise HTTPException(status_code=422, detail='run_id is empty')
     ids = ids.split(',')
     if not all(is_valid_uuid(id) for id in ids):
-        raise RequestValidationError('One of Run IDs is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='One of Run IDs is not a valid UUID or empty')
 
 
     if not force_mode: # force_mode must always get fresh data
@@ -391,14 +390,14 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
     try:
         case, comparison_db_key = determine_comparison_case(user, ids, force_mode=force_mode)
     except (RuntimeError, ValueError) as exc:
-        raise RequestValidationError(str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     comparison_details = get_comparison_details(user, ids, comparison_db_key)
 
     # check if a run failed
 
     if check_run_failed(user, ids) >= 1:
-        raise RequestValidationError('At least one run in your runs to compare failed. Comparsion for failed runs is not supported.')
+        raise HTTPException(status_code=422, detail='At least one run in your runs to compare failed. Comparsion for failed runs is not supported.')
 
 
     if not (phase_stats := get_phase_stats(user, ids)):
@@ -408,7 +407,7 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
         phase_stats_object = get_phase_stats_object(phase_stats, case, comparison_details)
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
     except ValueError as exc:
-        raise RequestValidationError(str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     phase_stats_object['common_info'] = {}
 
@@ -465,7 +464,7 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
                 phase_stats_object['common_info']['Machine'] = machine
 
     except RuntimeError as err:
-        raise RequestValidationError(str(err)) from err
+        raise HTTPException(status_code=422, detail=str(err)) from err
     except HTTPException as err:
         return ORJSONResponseObjKeep({'success': False, 'data': err.detail}, status_code=err.status_code)
 
@@ -479,7 +478,7 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
 @router.get('/v1/phase_stats/single/{run_id}')
 async def get_phase_stats_single(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     if artifact := get_artifact(ArtifactType.STATS, f"{user._id}_{str(run_id)}"):
         return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
@@ -491,7 +490,7 @@ async def get_phase_stats_single(run_id: str, user: User = Depends(authenticate)
         phase_stats_object = get_phase_stats_object(phase_stats, None, None, [run_id])
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
     except ValueError as exc:
-        raise RequestValidationError(str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     store_artifact(ArtifactType.STATS, f"{user._id}_{str(run_id)}", orjson.dumps(phase_stats_object)) # pylint: disable=no-member
 
@@ -502,7 +501,7 @@ async def get_phase_stats_single(run_id: str, user: User = Depends(authenticate)
 @router.get('/v1/measurements/single/{run_id}')
 async def get_measurements_single(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     query = '''
             SELECT
@@ -531,10 +530,10 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
 @router.get('/v1/timeline')
 async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, start_date: date | None = None, end_date: date | None = None, metric: str | None = None, phase: str | None = None, sorting: str | None = None, user: User = Depends(authenticate)):
     if uri is None or uri.strip() == '':
-        raise RequestValidationError('URI is empty')
+        raise HTTPException(status_code=422, detail='URI is empty')
 
     if phase is None or phase.strip() == '':
-        raise RequestValidationError('Phase is empty')
+        raise HTTPException(status_code=422, detail='Phase is empty')
 
     check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
 
@@ -557,17 +556,17 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
 @router.get('/v1/badge/timeline')
 async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
     if uri is None or uri.strip() == '':
-        raise RequestValidationError('URI is empty')
+        raise HTTPException(status_code=422, detail='URI is empty')
 
     if metric is None or metric.strip() == '':
-        raise RequestValidationError('Metric is mandatory')
+        raise HTTPException(status_code=422, detail='Metric is mandatory')
 
     if machine_id is not None:
         check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
 
 
     if unit not in ('watt-hours', 'joules'):
-        raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
+        raise HTTPException(status_code=422, detail='Requested unit is not in allow list: watt-hours, joules')
 
     # we believe that there is no injection possible to the artifact store and any string can be constructured here ...
     if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metric}_{detail_name}_{unit}"):
@@ -597,7 +596,7 @@ async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = No
 
     if data[4] != 1:
         error_helpers.log_error('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', query=query, params=params)
-        return Response('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual RequestValidationError as we log error separately
+        return Response('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual Response as we log error separately
 
     cost = data[1]
     display_in_joules = (unit == 'joules') #pylint: disable=superfluous-parens
@@ -624,10 +623,10 @@ async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = No
 async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_component', unit: str = 'watt-hours', phase: str | None = None, user: User = Depends(authenticate)):
 
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     if unit not in ('watt-hours', 'joules'):
-        raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
+        raise HTTPException(status_code=422, detail='Requested unit is not in allow list: watt-hours, joules')
 
     if phase:
         phase_label = phase
@@ -663,11 +662,11 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
     else:
         if data[2] != 'TOTAL':
             error_helpers.log_error('Your request tried to request a metric that is averaged. Only metrics that can be totaled (like energy, network, carbon etc.) can be requested. Please select a different metric.', query=query, params=params)
-            return Response('Your request tried to request a metric that is averaged. Only metrics that can be totaled (like energy, network, carbon etc.) can be requested. Please select a different metric.', status_code=422) # manual RequestValidationError as we log error separately
+            return Response('Your request tried to request a metric that is averaged. Only metrics that can be totaled (like energy, network, carbon etc.) can be requested. Please select a different metric.', status_code=422) # manual Response as we log error separately
 
         if data[3] != 1:
             error_helpers.log_error('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', query=query, params=params)
-            return Response('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual RequestValidationError as we log error separately
+            return Response('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual Response as we log error separately
 
         display_in_joules = (unit == 'joules') #pylint: disable=superfluous-parens
         [metric_value, energy_unit] = convert_value(data[0], data[1], display_in_joules)
@@ -753,11 +752,11 @@ async def get_watchlist(user: User = Depends(authenticate)):
 async def software_add(software: Software, user: User = Depends(authenticate)):
 
     if software.name is None or software.name.strip() == '':
-        raise RequestValidationError('Name is empty')
+        raise HTTPException(status_code=422, detail='Name is empty')
 
     # Note that we use uri as the general identifier, however when adding through web interface we only allow urls
     if software.repo_url is None or software.repo_url.strip() == '':
-        raise RequestValidationError('URL is empty')
+        raise HTTPException(status_code=422, detail='URL is empty')
 
     if software.image_url is None:
         software.image_url = ''
@@ -775,18 +774,21 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         software.usage_scenario_variables = {}
 
     if not DB().fetch_one('SELECT id FROM machines WHERE id=%s AND available=TRUE', params=(software.machine_id,)):
-        raise RequestValidationError('Machine does not exist')
+        raise HTTPException(status_code=422, detail='Machine does not exist')
 
     if not user.can_use_machine(software.machine_id):
-        raise RequestValidationError('Your user does not have the permissions to use that machine.')
+        raise HTTPException(status_code=422, detail='Your user does not have the permissions to use that machine.')
 
     if software.schedule_mode not in ['one-off', 'daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance', 'variance', 'statistical-significance']:
-        raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
+        raise HTTPException(status_code=422, detail=f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
 
     if not user.can_schedule_job(software.schedule_mode):
-        raise RequestValidationError('Your user does not have the permissions to use that schedule mode.')
+        raise HTTPException(status_code=422, detail='Your user does not have the permissions to use that schedule mode.')
 
-    utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
+    try:
+        utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 
@@ -798,7 +800,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
             if 'commit' in software.schedule_mode:
                 last_marker = utils.get_repo_last_marker(software.repo_url, 'commits')
         except RuntimeError as exc:
-            raise RequestValidationError(str(exc)) from exc
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
         Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
@@ -828,7 +830,7 @@ def old_v1_run_endpoint():
 @router.get('/v2/run/{run_id}')
 async def get_run(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
     try:
         data = get_run_info(user, run_id)
     except HTTPException as err:
@@ -847,7 +849,7 @@ def update_run(
     ):
 
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     columns = []
     params = []
@@ -865,7 +867,7 @@ def update_run(
         params.append(run.public)
 
     if not columns:
-        raise RequestValidationError('No data submitted in PUT request to change run with. Please submit data.')
+        raise HTTPException(status_code=422, detail='No data submitted in PUT request to change run with. Please submit data.')
 
     query = f"""
         UPDATE runs
@@ -891,7 +893,7 @@ def update_run(
 @router.get('/v1/optimizations/{run_id}')
 async def get_optimizations(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     query = '''
             SELECT o.title, o.label, o.criticality, o.reporter, o.icon, o.description, o.link
@@ -915,12 +917,12 @@ async def get_optimizations(run_id: str, user: User = Depends(authenticate)):
 @router.get('/v1/diff')
 async def diff(ids: str, user: User = Depends(authenticate)):
     if ids is None or not ids.strip():
-        raise RequestValidationError('run_ids are empty')
+        raise HTTPException(status_code=422, detail='run_ids are empty')
     ids = ids.split(',')
     if not all(is_valid_uuid(id) for id in ids):
-        raise RequestValidationError('One of Run IDs is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='One of Run IDs is not a valid UUID or empty')
     if len(ids) != 2:
-        raise RequestValidationError('Run IDs != 2. Only exactly 2 Run IDs can be diffed.')
+        raise HTTPException(status_code=422, detail='Run IDs != 2. Only exactly 2 Run IDs can be diffed.')
 
     if artifact := get_artifact(ArtifactType.DIFF, f"{user._id}_{str(ids)}"):
         return ORJSONResponse({'success': True, 'data': artifact})
@@ -928,7 +930,7 @@ async def diff(ids: str, user: User = Depends(authenticate)):
     try:
         diff_runs = diff_rows(get_diffable_rows(user, ids))
     except ValueError as exc:
-        raise RequestValidationError(str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     store_artifact(ArtifactType.DIFF, f"{user._id}_{str(ids)}", diff_runs)
 

@@ -4,7 +4,7 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
-from fastapi import FastAPI, Request, Response, Depends
+from fastapi import FastAPI, Request, Response, Depends, HTTPException
 from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -167,7 +167,7 @@ async def update_user_setting(setting: UserSetting, user: User = Depends(authent
     try:
         user.change_setting(setting.name, setting.value)
     except ValueError as exc:
-        raise RequestValidationError(str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     return Response(status_code=202) # No-Content
 
