@@ -141,7 +141,7 @@ def test_ci_measurement_add_filters():
 def test_ci_badge_duration_error():
     response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=avg&duration_days=900", timeout=15)
     assert response.status_code == 422
-    assert response.text == '{"success":false,"err":"Duration days must be between 1 and 365 days","body":null}'
+    assert response.text == '{"success":false,"err":"Duration days must be between 1 and 365 days"}'
 
 
 def test_ci_badge_get_last():
