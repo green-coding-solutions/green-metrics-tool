@@ -1112,7 +1112,7 @@ class TestXssSecurity:
         ci_query = f"""
         INSERT INTO ci_measurements (
             energy_uj, repo, branch, workflow_id, run_id, label, source, cpu, commit_hash,
-            duration_us, cpu_util_avg, workflow_name, lat, lon, city, carbon_intensity_g,
+            duration_us, cpu_util_avg, workflow_name, latitude, longitude, city, carbon_intensity_g,
             carbon_ug, filter_type, filter_project, filter_machine, filter_tags,
             ip_address, user_id, note, created_at
         ) VALUES (
