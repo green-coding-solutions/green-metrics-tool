@@ -1,9 +1,8 @@
 from datetime import date
 
 from fastapi import APIRouter
-from fastapi import Request, Response, Depends
+from fastapi import Request, Response, Depends, HTTPException
 from fastapi.responses import ORJSONResponse
-from fastapi.exceptions import RequestValidationError
 
 from api.api_helpers import authenticate, get_connecting_ip, convert_value
 from api.object_specifications import CI_Measurement, CI_MeasurementV3
@@ -309,13 +308,13 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         default_color = 'black'
     # Do not easily add values like cpu_util or carbon_intensity_g here. They need a weighted average in the SQL query later!
     else:
-        raise RequestValidationError('Unsupported metric requested')
+        raise HTTPException(status_code=422, detail='Unsupported metric requested')
 
     if unit not in ('watt-hours', 'joules'):
-        raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
+        raise HTTPException(status_code=422, detail='Requested unit is not in allow list: watt-hours, joules')
 
     if duration_days and (duration_days < 1 or duration_days > 365):
-        raise RequestValidationError('Duration days must be between 1 and 365 days')
+        raise HTTPException(status_code=422, detail='Duration days must be between 1 and 365 days')
 
     query = f"""
         SELECT SUM({metric})
@@ -328,7 +327,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
 
     if mode == 'avg':
         if not duration_days:
-            raise RequestValidationError('Duration days must be set for average')
+            raise HTTPException(status_code=422, detail='Duration days must be set for average')
         query = f"""
             WITH my_table as (
                 SELECT SUM({metric}) my_sum
