@@ -2,14 +2,10 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
-from cachetools import cached, TTLCache, Cache
 from collections import OrderedDict
 from functools import cache
 import typing
 import uuid
-import ipaddress
-import requests
-import json
 import math
 import time
 
@@ -847,159 +843,6 @@ def check_int_field_api(field, name, max_value):
 
     return True
 
-class NoNoneOrNegativeValuesCache(TTLCache):
-    def __setitem__(self, key, value, cache_setitem=Cache.__setitem__):
-        if value and value != -1 and value != (None, None):  # Only cache valid values
-            super().__setitem__(key, value, cache_setitem)
-
-# The decorator will not work between workers, but since uvicorn_worker.UvicornWorker is using asyncIO it has some functionality between requests
-@cached(cache=NoNoneOrNegativeValuesCache(maxsize=1024, ttl=86400)) # 24 hours
-def get_geo(ip):
-    ip_obj = ipaddress.ip_address(ip) # may raise a ValueError
-    if ip_obj.is_private:
-        error_helpers.log_error(f"Private IP was submitted to get_geo {ip}. This is normal in development, but should not happen in production.")
-        return('52.53721666833642', '13.424863870661927')
-
-    query = "SELECT ip_address, data FROM ip_data WHERE created_at > NOW() - INTERVAL '24 hours' AND ip_address=%s;"
-    db_data = DB().fetch_all(query, (ip,))
-
-    if db_data is not None and len(db_data) != 0:
-        return (db_data[0][1].get('latitude'), db_data[0][1].get('longitude'))
-
-    latitude, longitude = get_geo_ip_api_com(ip)
-
-    if not latitude:
-        latitude, longitude = get_geo_ipapi_co(ip)
-    if not latitude:
-        latitude, longitude = get_geo_ip_ipinfo(ip)
-    if not latitude:
-        error_helpers.log_error(f"Could not get Geo-IP for {ip} after 3 tries")
-
-    return (latitude, longitude)
-
-
-def get_geo_ipapi_co(ip):
-
-    print(f"Accessing https://ipapi.co/{ip}/json/")
-    try:
-        response = requests.get(f"https://ipapi.co/{ip}/json/", timeout=10)
-    except Exception as exc: #pylint: disable=broad-exception-caught
-        error_helpers.log_error('API request to ipapi.co failed ...', exception=exc)
-        return (None, None)
-
-    if response.status_code == 200:
-        resp_data = response.json()
-
-        if 'error' in resp_data or 'latitude' not in resp_data or 'longitude' not in resp_data:
-            return (None, None)
-
-        resp_data['source'] = 'ipapi.co'
-
-        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
-        DB().query(query=query, params=(ip, json.dumps(resp_data)))
-
-        return (resp_data.get('latitude'), resp_data.get('longitude'))
-
-    error_helpers.log_error(f"Could not get Geo-IP from ipapi.co for {ip}. Trying next ...", response=response)
-
-    return (None, None)
-
-def get_geo_ip_api_com(ip):
-
-    print(f"Accessing http://ip-api.com/json/{ip}")
-    try:
-        response = requests.get(f"http://ip-api.com/json/{ip}", timeout=10)
-    except Exception as exc: #pylint: disable=broad-exception-caught
-        error_helpers.log_error('API request to ip-api.com failed ...', exception=exc)
-        return (None, None)
-
-    if response.status_code == 200:
-        resp_data = response.json()
-
-        if ('status' in resp_data and resp_data.get('status') == 'fail') or 'lat' not in resp_data or 'lon' not in resp_data:
-            return (None, None)
-
-        resp_data['latitude'] = resp_data.get('lat')
-        resp_data['longitude'] = resp_data.get('lon')
-        resp_data['source'] = 'ip-api.com'
-
-        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
-        DB().query(query=query, params=(ip, json.dumps(resp_data)))
-
-        return (resp_data.get('latitude'), resp_data.get('longitude'))
-
-    error_helpers.log_error(f"Could not get Geo-IP from ip-api.com for {ip}. Trying next ...", response=response)
-
-    return (None, None)
-
-def get_geo_ip_ipinfo(ip):
-
-    print(f"Accessing https://ipinfo.io/{ip}/json")
-    try:
-        response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=10)
-    except Exception as exc: #pylint: disable=broad-exception-caught
-        error_helpers.log_error('API request to ipinfo.io failed ...', exception=exc)
-        return (None, None)
-
-    if response.status_code == 200:
-        resp_data = response.json()
-
-        if 'bogon' in resp_data or 'loc' not in resp_data:
-            return (None, None)
-
-        lat_lng = resp_data.get('loc').split(',')
-
-        resp_data['latitude'] = lat_lng[0]
-        resp_data['longitude'] = lat_lng[1]
-        resp_data['source'] = 'ipinfo.io'
-
-        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
-        DB().query(query=query, params=(ip, json.dumps(resp_data)))
-
-        return (resp_data.get('latitude'), resp_data.get('longitude'))
-
-    error_helpers.log_error(f"Could not get Geo-IP from ipinfo.io for {ip}. Trying next ...", response=response)
-
-    return (None, None)
-
-# The decorator will not work between workers, but since uvicorn_worker.UvicornWorker is using asyncIO it has some functionality between requests
-@cached(cache=NoNoneOrNegativeValuesCache(maxsize=1024, ttl=3600)) # 60 Minutes
-def get_carbon_intensity(latitude, longitude):
-
-    if latitude is None or longitude is None:
-        error_helpers.log_error('Calling get_carbon_intensity without lat/long')
-        return None
-
-    query = "SELECT latitude, longitude, data FROM carbon_intensity WHERE created_at > NOW() - INTERVAL '1 hours' AND latitude=%s AND longitude=%s;"
-    db_data = DB().fetch_all(query, (latitude, longitude))
-
-    if db_data is not None and len(db_data) != 0:
-        return db_data[0][2].get('carbonIntensity')
-
-    if not (electricitymaps_token := GlobalConfig().config.get('electricity_maps_token')):
-        raise ValueError('You need to specify an electricitymap token in the config!')
-
-    if electricitymaps_token == 'testing':
-        # If we are running tests we always return 1000
-        return 1000
-
-    headers = {'auth-token': electricitymaps_token }
-    params = {'lat': latitude, 'lon': longitude }
-
-    response = requests.get('https://api.electricitymap.org/v3/carbon-intensity/latest', params=params, headers=headers, timeout=10)
-    print(f"Accessing electricitymap with {latitude} {longitude}")
-    if response.status_code == 200:
-        resp_data = response.json()
-        query = "INSERT INTO carbon_intensity (latitude, longitude, data) VALUES (%s, %s, %s)"
-        DB().query(query=query, params=(latitude, longitude, json.dumps(resp_data)))
-
-        return resp_data.get('carbonIntensity')
-
-    error_helpers.log_error(f"Could not get carbon intensity from Electricitymaps.org for {params}", response=response)
-
-    return None
-
-
 def carbondb_add(connecting_ip, data, source, user_id):
 
     merge_window_max = 30 # merge window hardcoded for now. Might be a user setting later. This entails also that carbondb_copy_over_and_remove_duplicates.py makes queries PER USER
@@ -1012,9 +855,9 @@ def carbondb_add(connecting_ip, data, source, user_id):
 
     query = '''
             INSERT INTO carbondb_data_raw
-                ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+                ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","ip_address","user_id","created_at")
             VALUES
-                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
     '''
 
     used_client_ip = data.get('ip', None) # An ip has been given with the data. We prioritize that
@@ -1022,13 +865,6 @@ def carbondb_add(connecting_ip, data, source, user_id):
         used_client_ip = connecting_ip
 
     carbon_intensity_g_per_kWh = data.get('carbon_intensity_g', None)
-
-    if carbon_intensity_g_per_kWh is not None: # we need this check explicitely as we want to allow 0 as possible value
-        latitude = None # no use to derive if we get supplied data. We rather indicate with NULL that user supplied
-        longitude = None # no use to derive if we get supplied data. We rather indicate with NULL that user supplied
-    else:
-        latitude, longitude = get_geo(used_client_ip) # cached
-        carbon_intensity_g_per_kWh = get_carbon_intensity(latitude, longitude) # cached
 
     energy_J = float(data['energy_uj']) / 1e6
     energy_kWh = energy_J / (3_600*1_000)
@@ -1041,7 +877,7 @@ def carbondb_add(connecting_ip, data, source, user_id):
         query=query,
         params=(
             data['type'],
-            data['project'], data['machine'], source, data['tags'], data['time'], energy_kWh, carbon_kg, carbon_intensity_g_per_kWh, latitude, longitude, used_client_ip, user_id))
+            data['project'], data['machine'], source, data['tags'], data['time'], energy_kWh, carbon_kg, carbon_intensity_g_per_kWh, used_client_ip, user_id))
 
 def replace_nan_with_zero(obj):
     if isinstance(obj, dict):

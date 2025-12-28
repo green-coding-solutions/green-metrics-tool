@@ -8,6 +8,8 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from tests import test_functions as Tests
 
+from cron import backfill_carbon_intensity
+from cron import backfill_geo
 from cron.carbondb_compress import compress_carbondb_raw
 from cron.carbondb_copy_over_and_remove_duplicates import copy_over_scenario_runner, copy_over_eco_ci, remove_duplicates
 
@@ -21,6 +23,8 @@ FROM_J_TO_KWH = 3_600 * 1_000
 FROM_UJ_TO_J = FROM_UG_TO_G = 1_000_000
 FROM_G_TO_KG = 1_000
 FROM_UG_TO_KG = 1_000_000_000
+
+CARBON_INTENSITY_TESTING_DEFAULT = 1000
 
 def test_insert_and_compress_eco_ci_with_two_users():
 
@@ -272,13 +276,37 @@ def test_big_values():
     assert data['carbon_intensity_g_avg'] == energy_data['carbon_intensity_g']
 
 
-def test_carbondb_filter_mapped_to_same_id():
+def test_carbondb_backfill():
 
-    Tests.insert_user(345, 'ALTERNATIVE-USER-CARBONDB')
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15) # Insert ID 1
+    energy_data = ENERGY_DATA.copy()
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data, timeout=15) # Insert ID 1
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER-CARBONDB'}) # Insert ID 345
+    backfill_geo.process('carbondb_data_raw')
+    backfill_carbon_intensity.process('carbondb_data_raw')
+    backfill_carbon_intensity.update_carbondb_data_raw_carbon()
+
+    compress_carbondb_raw()
+
+    data = DB().fetch_one('SELECT * FROM carbondb_data WHERE date = CURRENT_DATE and user_id = 1', fetch_mode='dict')
+    energy_kWh = (energy_data['energy_uj'])/(1_000_000*3_600*1_000)
+    assert math.isclose(data['energy_kwh_sum'], energy_kWh, rel_tol=1e-5)
+
+    carbon_kg = (energy_kWh*CARBON_INTENSITY_TESTING_DEFAULT)/1_000
+    assert math.isclose(data['carbon_kg_sum'], carbon_kg, rel_tol=1e-5)
+
+    assert data['carbon_intensity_g_avg'] == CARBON_INTENSITY_TESTING_DEFAULT
+
+def test_carbondb_filter_mapped_to_same_id():
+
+    energy_data = ENERGY_DATA.copy()
+    energy_data['carbon_intensity_g'] = 200
+
+    Tests.insert_user(345, 'ALTERNATIVE-USER-CARBONDB')
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data, timeout=15) # Insert ID 1
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER-CARBONDB'}) # Insert ID 345
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     compress_carbondb_raw()
@@ -294,13 +322,15 @@ def test_carbondb_filter_mapped_to_same_id():
     assert response.text == '{"success":true,"data":{"types":{"1":"machine.ci"},"tags":{"1":"cool","2":"mystery"},"machines":{"1":"my-machine"},"projects":{"1":"my-project"},"sources":{"1":"CUSTOM"},"users":{"345":"ALTERNATIVE-USER-CARBONDB"}}}'
 
     # Tag is mapped to two users
-    types = DB().fetch_all('SELECT user_ids FROM carbondb_types WHERE type = %s', params=(ENERGY_DATA['type'],))
-    assert len(types) == 1
-    assert types[0][0] == [1,345]
+    result = DB().fetch_all('SELECT user_ids FROM carbondb_types WHERE type = %s', params=(ENERGY_DATA['type'],))
+    assert len(result) == 1
+    assert result[0][0] == [1,345]
 
     # now we add a new type, only for user 1
     exp_data = ENERGY_DATA.copy()
     exp_data['type'] = 'asdasd' # this must map to the same tag ID later, but no other tags should be visible
+    exp_data['carbon_intensity_g'] = 200
+
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=exp_data, timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
