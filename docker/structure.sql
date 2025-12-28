@@ -535,6 +535,7 @@ CREATE TABLE cluster_status_messages (
     message text NOT NULL,
     resolved boolean NOT NULL DEFAULT false,
     created_at timestamp with time zone NOT NULL DEFAULT now(),
+    ended_at timestamp with time zone,
     updated_at timestamp with time zone
 );
 
