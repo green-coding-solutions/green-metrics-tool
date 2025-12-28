@@ -190,7 +190,8 @@ def test_cpu_time_carbon_providers():
 
     seen_phase_time_syscall_system = False
     seen_cpu_utilization_system = False
-    seen_cpu_utilization_cgroup_container = False
+    seen_cpu_utilization_cgroup_container_curl = False
+    seen_cpu_utilization_cgroup_container_stress = False
     seen_embodied_carbon_share_machine = False
     phase_time = None
 
@@ -203,11 +204,19 @@ def test_cpu_time_carbon_providers():
         val = metric_provider['value']
         max_value = metric_provider['max_value']
 
-        if metric == 'cpu_utilization_cgroup_container':
+
+        if metric == 'cpu_utilization_cgroup_container' and metric_provider['detail_name'] == 'curl-container':
+            assert val < 1_00, f"cpu_utilization_cgroup_container for idle curl container not below 1% but {val} {metric_provider['unit']}"
+            assert max_value < 1_00, f"cpu_utilization_cgroup_container for idle curl container not below 1% but {max_value} {metric_provider['unit']}"
+
+            seen_cpu_utilization_cgroup_container_curl = True
+
+
+        elif metric == 'cpu_utilization_cgroup_container' and metric_provider['detail_name'] == 'stress-container':
             assert 90_00 * cgroup_cpu_ratio < val <= 100_00 * cgroup_cpu_ratio, f"cpu_utilization_cgroup_container is not between 90_00 * {cgroup_cpu_ratio} and 100_00 * {cgroup_cpu_ratio} but {val} {metric_provider['unit']}"
             assert 95_00 * cgroup_cpu_ratio < max_value <= 105_00 * cgroup_cpu_ratio, f"cpu_utilization_cgroup_container max is not between 95_00 * {cgroup_cpu_ratio} and 105_00 * {cgroup_cpu_ratio} but {max_value} {metric_provider['unit']}"
 
-            seen_cpu_utilization_cgroup_container = True
+            seen_cpu_utilization_cgroup_container_stress = True
 
         elif metric == 'cpu_utilization_procfs_system':
 
@@ -251,4 +260,5 @@ def test_cpu_time_carbon_providers():
     assert seen_cpu_utilization_system is True, "Did not see cpu_utilization_[procfs|mach]_system metric"
     assert seen_embodied_carbon_share_machine is True, "Did not see seen_embodied_carbon_share_machine metric"
 
-    assert (seen_cpu_utilization_cgroup_container is True) or (utils.get_architecture() == 'macos'), "Did not see cpu_utilization_cgroup_container metric"
+    assert (seen_cpu_utilization_cgroup_container_curl is True) or (utils.get_architecture() == 'macos'), "Did not see cpu_utilization_cgroup_container_curl metric"
+    assert (seen_cpu_utilization_cgroup_container_stress is True) or (utils.get_architecture() == 'macos'), "Did not see cpu_utilization_cgroup_container_curl stress"
