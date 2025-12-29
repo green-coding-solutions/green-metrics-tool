@@ -93,6 +93,14 @@ const updateRemoveButtonsVisibility = () => {
 
     getClusterStatus();
 
+    $('#add-variable').on('click', () => addVariableField());
+    addVariableField() // always add one empty row
+
+    $('#variables-container').on('click', '.remove-variable', function (e) {
+        $(this).closest('.variable-row').remove();
+        updateRemoveButtonsVisibility();
+    });
+
     try {
         var machines_json = await makeAPICall('/v1/machines');
 
@@ -108,15 +116,6 @@ const updateRemoveButtonsVisibility = () => {
     } catch (err) {
         showNotification('Could not get machines data from API', err);
     }
-
-    $('#add-variable').on('click', () => addVariableField());
-    addVariableField() // always add one empty row
-
-    $('#variables-container').on('click', '.remove-variable', function (e) {
-        $(this).closest('.variable-row').remove();
-        updateRemoveButtonsVisibility();
-    });
-
 
     document.forms[0].onsubmit = async (event) => {
         event.preventDefault();
