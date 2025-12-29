@@ -91,7 +91,7 @@ const updateRemoveButtonsVisibility = () => {
 
 (async () => {
 
-    await getClusterStatus();
+    getClusterStatus();
 
     try {
         var machines_json = await makeAPICall('/v1/machines');
