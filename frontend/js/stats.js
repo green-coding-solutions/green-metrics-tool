@@ -105,6 +105,8 @@ const fetchAndFillRunData = async (url_params) => {
             } else {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
+        } else if(item == 'container_dependencies') {
+             // skip. Is used in 'containers'
         } else if(item == 'containers') {
             if (run_data[item] == null) continue; // can be null
             const containers_node = document.querySelector('#containers');
