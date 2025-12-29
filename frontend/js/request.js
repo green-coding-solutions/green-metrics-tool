@@ -110,12 +110,11 @@ const updateRemoveButtonsVisibility = () => {
                 const select = document.querySelector('select');
                 select.add(newOption,undefined);
             })
-
-        populateFieldsFromURL();
-
     } catch (err) {
         showNotification('Could not get machines data from API', err);
     }
+
+    populateFieldsFromURL(); // can run here as makeAPICall is anyway blocking and filling should take place even if API call fails
 
     document.forms[0].onsubmit = async (event) => {
         event.preventDefault();
