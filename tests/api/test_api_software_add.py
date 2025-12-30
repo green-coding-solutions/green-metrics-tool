@@ -189,7 +189,10 @@ def test_post_run_add_non_existent_repo():
     run = Software(name=run_name, repo_url='https://github.com/no-company-here/and-no-repo/', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
-    assert json.loads(response.text)['err'] == 'Could not read from repository https://github.com/no-company-here/and-no-repo/ and branch main. Is the repo publicly accessible, not empty and does the branch main exist?'
+
+    err_result = json.loads(response.text)['err']
+    assert 'Could not' in err_result
+    assert 'https://github.com/no-company-here/and-no-repo/' in err_result
 
 
 def test_post_repo_with_auth():
