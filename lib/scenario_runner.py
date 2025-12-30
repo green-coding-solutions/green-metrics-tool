@@ -112,6 +112,7 @@ class ScenarioRunner:
         self._branch = branch
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
+        self._relations_folder = os.path.realpath(os.path.join(self._tmp_folder, 'relations'))
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
         self._architecture = utils.get_architecture()
@@ -341,14 +342,15 @@ class ScenarioRunner:
             print(TerminalColors.HEADER, '\nNo relations found. Skipping ...', TerminalColors.ENDC)
             return
 
-        Path('/tmp/green-metrics-tool/relations').mkdir(parents=False, exist_ok=False)
 
+        Path(self._relations_folder).mkdir(parents=False, exist_ok=False)
 
         for relation_key, relation in self.__usage_scenario['relations'].items():
-            relation_path = f"/tmp/green-metrics-tool/relations/{relation_key}"
+            relation_path = os.path.realpath(os.path.join(self._relations_folder, relation_key))
 
             self.__relations[relation_key] = {
-                'url': relation['url']
+                'url': relation['url'],
+                'mount_path': relation_path,
             }
 
             command = ['git', 'clone', '--depth', '1']
@@ -1195,6 +1197,10 @@ class ScenarioRunner:
             repo_mount_path = service.get('folder-destination', '/tmp/repo')
             # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
             docker_run_string.append(f"{self._repo_folder}:{repo_mount_path}:ro")
+
+            for relation_key, relation in self.__relations.items():
+                docker_run_string.append('-v')
+                docker_run_string.append(f"{relation['mount_path']}:/tmp/relations/{relation_key}:ro")
 
             # this is a special feature container with a reserved name.
             # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc_version == True
