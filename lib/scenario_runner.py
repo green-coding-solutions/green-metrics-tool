@@ -187,6 +187,7 @@ class ScenarioRunner:
         self.__usage_scenario = OrderedDict()
         self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
         self.__include_playwright_ipc_version = None
+        self.__relations = {}
 
         self._check_all_durations()
 
@@ -290,41 +291,25 @@ class ScenarioRunner:
         if self._uri_type == 'URL':
             # always remove the folder if URL provided, cause -v directory binding always creates it
             # no check cause might fail when directory might be missing due to manual delete
+            command = ['git', 'clone', '--depth', '1']
+
             if self._branch:
                 print(f"Branch specified: {self._branch}")
-                # git clone -b <branchname> --single-branch <remote-repo-url>
-                subprocess.run(
-                    [
-                        'git',
-                        'clone',
-                        '--depth', '1',
-                        '-b', self._branch,
-                        '--single-branch',
-                        '--recurse-submodules',
-                        '--shallow-submodules',
-                        self._uri,
-                        self._repo_folder
-                    ],
-                    check=True,
-                    capture_output=True,
-                    encoding='UTF-8',
-                )
-            else:
-                subprocess.run(
-                    [
-                        'git',
-                        'clone',
-                        '--depth', '1',
-                        '--single-branch',
-                        '--recurse-submodules',
-                        '--shallow-submodules',
-                        self._uri,
-                        self._repo_folder
-                    ],
-                    check=True,
-                    capture_output=True,
-                    encoding='UTF-8'
-                )  # always name target-dir repo according to spec
+                command.append('-b')
+                command.append(self._branch)
+
+            command.append('--single-branch')
+            command.append('--recurse-submodules')
+            command.append('--shallow-submodules')
+            command.append(self._uri)
+            command.append(self._repo_folder)
+
+            subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                encoding='UTF-8',
+            )
 
             if problematic_symlink := utils.find_outside_symlinks(self._repo_folder):
                 raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
@@ -349,6 +334,59 @@ class ScenarioRunner:
         # running in CLI mode
         self._commit_hash, self._commit_timestamp = get_repo_info(self._join_paths(self._repo_folder, self._commit_hash_folder))
 
+    def _checkout_relations(self):
+        print(TerminalColors.HEADER, '\nChecking out relations', TerminalColors.ENDC)
+
+        if 'relations' not in self.__usage_scenario:
+            print(TerminalColors.HEADER, '\nNo relations found. Skipping ...', TerminalColors.ENDC)
+            return
+
+        Path('/tmp/green-metrics-tool/relations').mkdir(parents=False, exist_ok=False)
+
+
+        for relation_key, relation in self.__usage_scenario['relations'].items():
+            relation_path = f"/tmp/green-metrics-tool/relations/{relation_key}"
+
+            self.__relations[relation_key] = {
+                'url': relation['url']
+            }
+
+            command = ['git', 'clone', '--depth', '1']
+
+            if 'branch' in relation:
+                self.__relations[relation_key]['branch'] = relation['branch']
+                command.append('-b')
+                command.append(relation['branch'])
+
+            command.append('--single-branch')
+            command.append('--recurse-submodules')
+            command.append('--shallow-submodules')
+            command.append(relation['url'])
+            command.append(relation_path)
+
+            subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                encoding='UTF-8',
+            )
+
+            if 'commit_hash' in relation:
+                subprocess.run(
+                    ['git', 'checkout', relation['commit_hash']],
+                    check=True,
+                    capture_output=True,
+                    encoding='UTF-8',
+                    cwd=relation_path,
+                )
+
+            if problematic_symlink := utils.find_outside_symlinks(relation_path):
+                raise RuntimeError(f"Relation {relation_key} contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
+
+
+            self.__relations[relation_key]['commit_hash'], self.__relations[relation_key]['commit_timestamp'] = get_repo_info(relation_path)
+
+            self.__relations[relation_key]['commit_timestamp'] = str(self.__relations[relation_key]['commit_timestamp'])
 
 
     # This method loads the yml file and takes care that the includes work and are secure.
@@ -758,14 +796,14 @@ class ScenarioRunner:
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
                 INSERT INTO runs (
-                    job_id, name, uri, branch, filename,
+                    job_id, name, uri, branch, filename, relations,
                     commit_hash, commit_timestamp, runner_arguments,
                     machine_specs, measurement_config,
                     usage_scenario, usage_scenario_variables, gmt_hash,
                     machine_id, user_id, created_at
                 )
                 VALUES (
-                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s,
                     %s, %s, %s,
                     %s, %s,
                     %s, %s, %s,
@@ -773,7 +811,7 @@ class ScenarioRunner:
                 )
                 RETURNING id
                 """, params=(
-                    self._job_id, self._name, self._uri, self._branch, self._original_filename,
+                    self._job_id, self._name, self._uri, self._branch, self._original_filename, json.dumps(self.__relations),
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
                     json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables),
@@ -1150,7 +1188,7 @@ class ScenarioRunner:
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
             # injection of unwawnted params
-            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
+            docker_run_string = ['docker', 'run', '-d', '--name', container_name]
 
             docker_run_string.append('-v')
 
@@ -2404,6 +2442,7 @@ class ScenarioRunner:
         self.__usage_scenario.clear()
         self.__usage_scenario_variables_used_buffer.clear()
         self.__include_playwright_ipc_version = None
+        self.__relations.clear()
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
@@ -2432,6 +2471,7 @@ class ScenarioRunner:
             self._checkout_repository()
             self._load_yml_file()
             self._initial_parse()
+            self._checkout_relations()
             self._register_machine_id()
             self._import_metric_providers()
             self._populate_image_names()

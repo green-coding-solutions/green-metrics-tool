@@ -147,7 +147,7 @@ def get_run_info(user, run_id):
                 id, name, uri, branch, commit_hash,
                 (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(runs.categories) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
-                filename, start_measurement, end_measurement,
+                filename, relations, start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario, usage_scenario_variables, containers, container_dependencies,
                 created_at,
                 (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = runs.id) as warnings,
