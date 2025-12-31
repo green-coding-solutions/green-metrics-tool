@@ -1190,7 +1190,7 @@ class ScenarioRunner:
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
             # injection of unwawnted params
-            docker_run_string = ['docker', 'run', '-d', '--name', container_name]
+            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
 
             docker_run_string.append('-v')
 
