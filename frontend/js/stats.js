@@ -159,7 +159,7 @@ const fetchAndFillRunData = async (url_params) => {
         }  else if(item == 'relations') {
             if (run_data[item] == null) continue; // can be empty
             for (relation in run_data[item]) {
-                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td><a href="${run_data[item][relation]['url']}" target="_blank">${escapeString(run_data[item][relation]['url'])} (${run_data[item][relation]['commit_hash']})</a></td></tr>`)
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td><a href="${run_data[item][relation]['url']}" target="_blank">${escapeString(run_data[item][relation]['url'])} (${escapeString(run_data[item][relation]['commit_hash'])})</a></td></tr>`)
             }
         }  else if(item == 'commit_hash') {
             if (run_data[item] == null) continue; // some old runs did not save it
