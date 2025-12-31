@@ -344,6 +344,7 @@ class RunUntilManager:
             self.__runner._checkout_repository()
             self.__runner._load_yml_file()
             self.__runner._initial_parse()
+            self.__runner._checkout_relations()
             self.__runner._register_machine_id()
             self.__runner._import_metric_providers()
             yield 'import_metric_providers'
