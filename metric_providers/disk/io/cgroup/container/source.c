@@ -57,6 +57,7 @@ static disk_io_t get_disk_cgroup(char* path, char* container_name) {
         // 180    USB devices
         // 202    Xen virtual block devices
         // 254    Device-mapper (e.g., LVM, cryptsetup)
+        // 259    Block extended (NVMe devices, dynamically assigned)
 
         if (
             major_number == 1 || // 1    Memory devices (e.g., /dev/mem, /dev/null)
@@ -68,7 +69,8 @@ static disk_io_t get_disk_cgroup(char* path, char* container_name) {
         ) {
             continue;
         }
-        if (minor_number % 16 != 0) {
+        // NVMe devices (major 259) use a different minor numbering scheme, so skip the % 16 check for them
+        if (major_number != 259 && minor_number % 16 != 0) {
             fprintf(stderr, "Partion inside a docker container found. This should not happen: %u:%u rbytes=%llu wbytes=%llu\n", major_number, minor_number, rbytes, wbytes);
             exit(1);
         }
