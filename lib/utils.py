@@ -70,7 +70,7 @@ def check_repo(repo_url, branch='main'):
     # However we do check the commits endpoint bc this tells us if the repo is non empty or not
     if response.status_code != 200:
         if git_api in ('gitlab', 'github'):
-            raise RuntimeError(f"Could not read from repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?")
+            raise RuntimeError(f"Repository returned bad status code ({response.status_code}). Is the repo ({repo_url}) publicly accessible, not empty and does the branch {branch} exist?")
         else:
             error_helpers.log_error(f"Connect to {git_api} API was possible, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
 

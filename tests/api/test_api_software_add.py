@@ -190,10 +190,7 @@ def test_post_run_add_non_existent_repo():
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
 
-    err_result = json.loads(response.text)['err']
-    assert 'Could not' in err_result
-    assert 'https://github.com/no-company-here/and-no-repo/' in err_result
-
+    assert json.loads(response.text)['err'] == 'Repository returned bad status code (404). Is the repo (https://github.com/no-company-here/and-no-repo/) publicly accessible, not empty and does the branch main exist?'
 
 def test_post_repo_with_auth():
     run_name = 'test_' + utils.randomword(12)
