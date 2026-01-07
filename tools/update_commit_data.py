@@ -39,7 +39,7 @@ if __name__ == '__main__':
         run_id = str(row[0])
         commit_hash = row[1]
         commit_timestamp = subprocess.run(
-            ['git', 'show', '-s', row[1], '--format=%ci'],
+            ['git', 'show', '-s', row[1], '--format=%ci'],  # noqa: S607
             check=True,
             capture_output=True,
             encoding='UTF-8',

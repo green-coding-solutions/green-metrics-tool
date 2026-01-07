@@ -1,0 +1,18 @@
+select = ["ALL"]
+
+ignore = [
+  "E402",  # module level import not at top of file
+  "Q000", # Single quotes found but double quotes preferred
+  "E501", # Line too long
+  "EM102", # Exception must not use an f-string literal, assign to variable first
+  "COM812", # Trailing comma missing
+  "I001", # Import sorting
+  "D103", # Missing docstring in public function
+  "S603", # subprocess` call: check for execution of untrusted input
+  "TRY003", # raise-vanilla-args
+  "D100", # Missing docstring in public module
+]
+
+#[per-file-ignores]
+#"__init__.py" = ["F401"]
+#"tests/**" = ["S101"]
