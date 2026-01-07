@@ -267,6 +267,7 @@ CREATE TABLE runs (
     usage_scenario json,
     usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
     filename text NOT NULL,
+    relations jsonb,
     machine_specs jsonb,
     runner_arguments json,
     machine_id int NOT NULL REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,

@@ -16,6 +16,7 @@ def get_diffable_rows(user, uuids):
         phases,
         machine_id,
         filename,
+        relations,
         gmt_hash,
         commit_timestamp,
         usage_scenario,
