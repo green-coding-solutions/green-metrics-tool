@@ -61,14 +61,19 @@ class ScenarioRunner:
     def __init__(self,
         *, uri, uri_type, name=None, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False,  skip_system_checks=False,
-        skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
-        dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
-        dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
-        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False, dev_no_save=False,
-        skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None, phase_padding=True,
+        skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
+        docker_prune=False, job_id=None, user_id=1,
+        disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None,
+
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
-        measurement_wait_time_dependencies=60):
+        measurement_wait_time_dependencies=60, measurement_flow_process_duration=None, measurement_total_duration=None,
+
+        dev_no_phase_stats=False, dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
+        dev_flow_timetravel=False, dev_no_optimizations=False,
+
+        skip_volume_inspect=False, skip_download_dependencies=False,
+        ):
 
         self._arguments = locals() # safe the argument as first step before anything else to not expose local created variables
 
@@ -95,6 +100,7 @@ class ScenarioRunner:
         self._skip_unsafe = skip_unsafe
         self._skip_system_checks = skip_system_checks
         self._skip_volume_inspect = skip_volume_inspect
+        self._skip_download_dependencies = skip_download_dependencies
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._docker_prune = docker_prune
@@ -872,6 +878,11 @@ class ScenarioRunner:
 
     def _download_dependencies(self):
         print(TerminalColors.HEADER, '\nDownloading dependencies', TerminalColors.ENDC)
+
+        if self._skip_download_dependencies:
+            print('Skipping downloading dependencies due to --skip-download-dependencies')
+            return
+
         subprocess.run(['docker', 'pull', 'gcr.io/kaniko-project/executor:latest'], check=True)
 
     def _get_build_info(self, service):
