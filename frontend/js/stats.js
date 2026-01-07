@@ -210,6 +210,10 @@ const fetchAndFillRunData = async (url_params) => {
                 document.querySelector('#run-note-text').innerText = note;
                 document.querySelector('#run-note').classList.remove('hidden')
             }
+        } else if(item == 'user_id') {
+            continue
+        } else if (item == 'user_name') {
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>user</strong></td><td>${escapeString(run_data[item])} (${escapeString(run_data['user_id'])})</td></tr>`)
         } else if(item == 'archived') {
             const archive_run_button = document.querySelector('#archive-run');
             const unarchive_run_button = document.querySelector('#unarchive-run');
