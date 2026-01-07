@@ -192,7 +192,7 @@ class ScenarioRunner:
         self.__container_dependencies = None
         self.__usage_scenario = OrderedDict()
         self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
-        self.__include_playwright_ipc_version = None
+        self.__include_playwright_ipc = False
         self.__relations = {}
 
         self._check_all_durations()
@@ -463,8 +463,8 @@ class ScenarioRunner:
             def include_gmt_helper(loader: Loader, node):
                 nodes = loader.get_constructed_nodes(node)
 
-                if not re.fullmatch(r'gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml', nodes[0]):
-                    raise ValueError(f"You tried include unallowed files with !include-gmt-helper function. Included files must conform to regex gmt-playwright-(?:with-cache-)?(v\\d+.\\d+.\\d+)\\.yml but actually is {nodes[0]}")
+                if not re.fullmatch(r'gmt-playwright(?:-with-cache)?\.yml', nodes[0]):
+                    raise ValueError(f"You tried include unallowed files with !include-gmt-helper function. Included files must conform to regex gmt-playwright(?:-with-cache)?\\.yml but actually is {nodes[0]}")
 
                 filename = runner_join_paths(f"{GMT_ROOT_DIR}/templates/partials/", nodes[0], force_path_as_root=True, force_path_in_repo=False)
 
@@ -503,8 +503,8 @@ class ScenarioRunner:
                 usage_scenario_file=usage_scenario_file,
             )
 
-            if match := re.search(r'!include-gmt-helper gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml', usage_scenario):
-                self.__include_playwright_ipc_version = match[1]
+            if re.search(r'!include-gmt-helper gmt-playwright(?:-with-cache)?\.yml', usage_scenario):
+                self.__include_playwright_ipc = True
 
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(usage_scenario, Loader)
@@ -1213,10 +1213,10 @@ class ScenarioRunner:
                 docker_run_string.append(f"{relation['mount_path']}:/tmp/relations/{relation_key}:ro")
 
             # this is a special feature container with a reserved name.
-            # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc_version == True
-            if self.__include_playwright_ipc_version and container_name == 'gmt-playwright-nodejs':
+            # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc == True
+            if self.__include_playwright_ipc and container_name == 'gmt-playwright-nodejs':
                 docker_run_string.append('-v')
-                docker_run_string.append(f"{GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc-{self.__include_playwright_ipc_version}.js:/tmp/gmt-utils/gmt-playwright-ipc-{self.__include_playwright_ipc_version}.js:ro")
+                docker_run_string.append(f"{GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc.js:/tmp/gmt-utils/gmt-playwright-ipc.js:ro")
 
             if self.__docker_params:
                 docker_run_string[2:2] = self.__docker_params
@@ -1995,15 +1995,23 @@ class ScenarioRunner:
                     # this command will block until something is received
                     if cmd_obj['type'] == 'playwright':
                         print("Awaiting Playwright function return")
-                        ps = subprocess.run(
-                            ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
-                            check=True,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            encoding='UTF-8',
-                            errors='replace',
-                            timeout=60, # 60 seconds should be reasonable for any playwright command we know
-                        )
+                        try:
+                            ps = subprocess.run(
+                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
+                                check=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                encoding='UTF-8',
+                                errors='replace',
+                                timeout=60, # 60 seconds should be reasonable for any playwright command we know
+                            )
+                        except subprocess.TimeoutExpired as exc:
+                            error_message = subprocess.check_output(
+                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-error'],
+                                encoding='UTF-8',
+                                errors='replace',
+                            )
+                            raise RuntimeError(f"Error: {error_message}.\nExecuted command that produced error: {cmd_obj['command']}") from exc
 
 
                     if self._debugger.active:
@@ -2457,7 +2465,7 @@ class ScenarioRunner:
         self.__warnings.clear()
         self.__usage_scenario.clear()
         self.__usage_scenario_variables_used_buffer.clear()
-        self.__include_playwright_ipc_version = None
+        self.__include_playwright_ipc = False
         self.__relations.clear()
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)

@@ -6,14 +6,16 @@ description: "Opens __GMT_VAR_PAGE__ uncached and waits for full load + 5 second
 sci:
   R_d: Website load
 
-compose-file: !include-gmt-helper gmt-playwright-v1.1.0.yml
+compose-file: !include-gmt-helper gmt-playwright.yml
 
 flow:
   - name: Visit page and idle for __GMT_VAR_SLEEP__ s
     container: gmt-playwright-nodejs
     commands:
       - type: playwright
-        command: await page.goto("__GMT_VAR_PAGE__");
+        command: page_result = await page.goto("__GMT_VAR_PAGE__");
+      - type: playwright
+        command: if (!page_result.ok()) throw `Page was not accessible. HTTP Return code ${page_result.status()}`
       - type: console
         command: sleep '__GMT_VAR_SLEEP__'
 
