@@ -38,6 +38,8 @@ linux_info_list = [
     [rpwr, 'Uptime', '/usr/bin/uptime', r'(?P<o>.*)'],
     [rfwr, 'Hardware Vendor', '/sys/class/dmi/id/sys_vendor', r'(?P<o>.*)'],
     [rfwr, 'Hardware Model', '/sys/class/dmi/id/product_name', r'(?P<o>.*)'],
+    [rpwr, 'PCI Devices', 'lspci', r'(?P<o>.*)'], # partially duplicate to lshw, but gives more readable output
+    [rpwr, 'Block Devices', 'lsblk', r'(?P<o>.*)'], # partially duplicate to lshw but outputs major and minor number
     [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Images', 'docker images', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
