@@ -1411,6 +1411,7 @@ class ScenarioRunner:
             docker_run_string.append(f"--memory-swappiness={container_data['memory_swappiness']}") # GMT should never swap as it gives hard to interpret / non-linear performance results
             docker_run_string.append(f"--oom-score-adj={container_data['oom_score_adj']}") # containers will be killed first so host does not OOM
             docker_run_string.append(f"--memory={container_data['mem_limit']}")
+            docker_run_string.append(f"--env=GMT_CONTAINER_MEMORY_LIMIT={container_data['mem_limit']}")
             docker_run_string.append(f"--memory-swap={container_data['mem_limit']}") # effectively disable swap
 
             if 'healthcheck' in service:  # must come last

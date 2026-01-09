@@ -46,11 +46,14 @@ def get_env_vars():
 
 def test_resource_limits_good():
 
-    run_name = 'test_' + utils.randomword(12)
-    runner = ScenarioRunner(name=run_name, uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_good.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+    out = io.StringIO()
+    err = io.StringIO()
 
-    with Tests.RunUntilManager(runner) as context:
-        context.run_until('check_process_returncodes')
+    run_name = 'test_' + utils.randomword(12)
+    runner = ScenarioRunner(name=run_name, uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_good.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, skip_download_dependencies=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
 
     with open(f'{GMT_DIR}/tests/data/usage_scenarios/resource_limits_good.yml', 'r', encoding='utf-8') as f:
         usage_scenario_contents = yaml.safe_load(f)
@@ -90,7 +93,7 @@ def test_resource_limits_good():
 
     assert container_dict['test-container-only-cpu']['mem_limit'] == MEM_PER_CONTAINER # auto-fill
 
-
+    assert 'Container Memory Limit is 10000001\n' in out.getvalue()
 
 
 def test_resource_limits_too_high():
