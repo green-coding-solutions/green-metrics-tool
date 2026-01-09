@@ -187,3 +187,27 @@ def test_resource_limits_shm_good():
     assert 'SHM size is: Filesystem' in out.getvalue()
     assert "30.0M   0% /dev/shm" in out.getvalue()
     assert "15.0M   0% /dev/shm" in out.getvalue()
+
+def test_resource_limits_oom_setup():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_setup.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    with pytest.raises(MemoryError) as e:
+        runner.run()
+
+    assert str(e.value) == "Your process ['docker', 'exec', 'test-container', 'dd', 'if=/dev/zero', 'of=/dev/shm/test100mb', 'bs=1M', 'count=100'] failed due to an Out-of-Memory error (Code: 137). Please check if you can instruct the process to use less memory or higher resource limits on the container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT.\n\n========== Stdout ==========\n\n\n========== Stderr ==========\n"
+
+def test_resource_limits_oom_launch():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_launch.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    with pytest.raises(MemoryError) as e:
+        runner.run()
+
+    assert str(e.value) == "Container 'test-container' failed during [BOOT] due to an Out-of-Memory error (Code: 137). Please check if you can instruct the startup process to use less memory or higher resource limits on the container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\nContainer logs:\n\n========== Stdout ==========\n\n\n========== Stderr ==========\n"
+
+def test_resource_limits_oom_exec():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_exec.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    with pytest.raises(MemoryError) as e:
+        runner.run()
+
+    assert str(e.value) == "Your process ['docker', 'exec', 'test-container', 'dd', 'if=/dev/zero', 'of=/dev/shm/test100mb', 'bs=1M', 'count=100'] failed due to an Out-of-Memory error (Code: 137). Please check if you can instruct the process to use less memory or higher resource limits on the container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT.\n\nDetached process: False\n\n========== Stderr ==========\n"
