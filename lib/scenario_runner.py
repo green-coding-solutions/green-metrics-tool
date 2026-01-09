@@ -626,9 +626,11 @@ class ScenarioRunner:
             )
             exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
 
-            if exit_code == "0":
+            if exit_code == "0":  # string check cause we get exit code from Docker API
                 # Container exited with a successful exit code
                 raise RuntimeError(f"Container '{container_name}' exited during {step_description} (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
+            elif exit_code == "137": # string check cause we get exit code from Docker API
+                raise MemoryError(f"Container '{container_name}' failed during {step_description} due to an Out-of-Memory error (Code: 137). Please check if you can instruct the startup process to use less memory or higher resource limits on the container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
             else:
                 # Container failed with non-zero or unknown exit code
                 if not image_name:
@@ -1638,8 +1640,10 @@ class ScenarioRunner:
                         errors='replace',
                     )
 
-                    if ps.returncode != 0:
-                        raise RuntimeError(f"Process {d_command} failed.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                    if ps.returncode == 137:
+                        raise MemoryError(f"Your process {d_command} failed due to an Out-of-Memory error (Code: 137). Please check if you can instruct the process to use less memory or higher resource limits on the container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                    elif ps.returncode != 0:
+                        raise RuntimeError(f"Process {d_command} failed with return code {ps.returncode}.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
 
                 self.__ps_to_read.append({
                     'cmd': d_command,
@@ -2206,7 +2210,10 @@ class ScenarioRunner:
                     pass
 
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
-                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}. Please also check the stdout in the logs and / or enable stdout logging to debug further.")
+                    if ps['ps'].returncode == 137:
+                        raise MemoryError(f"Your process {ps['cmd']} failed due to an Out-of-Memory error (Code: 137). Please check if you can instruct the process to use less memory or higher resource limits on the container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT.\n\nDetached process: {ps['detach']}\n\n========== Stderr ==========\n{stderr}")
+                    else:
+                        raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}. Please also check the stdout in the logs and / or enable stdout logging to debug further.")
 
     def _start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
