@@ -220,13 +220,39 @@ if __name__ == '__main__':
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
                     set_status('job_error', data=str(exc), run_id=job._run_id)
                     if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
-                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception_context=exc.__context__, last_exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config['machine']['description'], sleep_duration=600)
+                        sleep_duration=600 # seconds = 5 Min
+                        error_helpers.log_error('Job processing in cluster failed (client.py)',
+                            exception_context=exc.__context__,
+                            last_exception=exc,
+                            status=exc.status,
+                            run_id=job._run_id,
+                            name=job._name,
+                            url=job._url,
+                            filename=job._filename,
+                            branch=job._branch,
+                            machine=config['machine']['description'],
+                            user_id=job._user_id,
+                            sleep_duration=sleep_duration,
+                        )
                         if not args.testing:
-                            time.sleep(600)
+                            time.sleep(sleep_duration)
                     else: # Hard fails won't resolve on it's own. We sleep until next cluster validation
-                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception_context=exc.__context__, last_exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config['machine']['description'], sleep_duration=config['cluster']['client']['time_between_control_workload_validations'])
+                        sleep_duration=config['cluster']['client']['time_between_control_workload_validations']
+                        error_helpers.log_error('Job processing in cluster failed (client.py)',
+                            exception_context=exc.__context__,
+                            last_exception=exc,
+                            status=exc.status,
+                            run_id=job._run_id,
+                            name=job._name,
+                            url=job._url,
+                            filename=job._filename,
+                            branch=job._branch,
+                            machine=config['machine']['description'],
+                            user_id=job._user_id,
+                            sleep_duration=sleep_duration,
+                        )
                         if not args.testing:
-                            time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
+                            time.sleep(sleep_duration)
 
                 except Exception as exc: # pylint: disable=broad-except
                     set_status('job_error', data=str(exc), run_id=job._run_id)
@@ -236,9 +262,12 @@ if __name__ == '__main__':
                         stdout=(exc.stdout if hasattr(exc, 'stdout') else None),
                         stderr=(exc.stderr if hasattr(exc, 'stderr') else None),
                         run_id=job._run_id,
-                        machine=config['machine']['description'],
                         name=job._name,
-                        url=job._url
+                        url=job._url,
+                        filename=job._filename,
+                        branch=job._branch,
+                        machine=config['machine']['description'],
+                        user_id=job._user_id,
                     )
 
                     # reduced error message to client, but only if no ConfigurationCheckError
