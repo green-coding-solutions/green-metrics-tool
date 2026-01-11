@@ -99,8 +99,8 @@ def check_assignable_memory(*_, **__):
     return resource_limits.get_assignable_memory() >= 0
 
 def check_assignable_memory_oom(*_, **__):
-    if resource_limits.get_assignable_memory() <= psutil.virtual_memory().available:
-        raise RuntimeError(f"Assignable memory is lower than virtual memory: {resource_limits.get_assignable_memory()} <= {psutil.virtual_memory().available}")
+    if resource_limits.get_assignable_memory() > psutil.virtual_memory().available:
+        raise RuntimeError(f"Assignable memory is lower than virtual memory: {resource_limits.get_assignable_memory()} > {psutil.virtual_memory().available}")
     return resource_limits.get_assignable_memory() <= psutil.virtual_memory().available
 
 def check_containers_running(*_, **__):
