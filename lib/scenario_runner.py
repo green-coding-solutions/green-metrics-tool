@@ -2203,7 +2203,7 @@ class ScenarioRunner:
                     else:
                         stderr = ps['ps'].stderr
                 except subprocess.TimeoutExpired:
-                    pass
+                    stderr = 'Could not read due to timeout'
 
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
                     raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}. Please also check the stdout in the logs and / or enable stdout logging to debug further.")
