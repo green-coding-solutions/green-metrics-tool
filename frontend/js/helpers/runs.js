@@ -30,17 +30,10 @@ const updateCompareCount = () => {
     if (checkedCount === 0) {
         document.querySelector('.ui.accordion.compare-force-mode').style.display = 'none';
         document.querySelector('#unselect-button').style.display = 'none';
-        if (localStorage.getItem('compare_mode') === 'true') {
-            document.querySelector('#compare-force-mode').style.display = 'none';
-        }
 
     } else {
         document.querySelector('#unselect-button').style.display = 'block';
         document.querySelector('.ui.accordion.compare-force-mode').style.display = 'block';
-        if (localStorage.getItem('compare_mode') === 'true') {
-            document.querySelector('#compare-force-mode').style.display = 'block';
-        }
-
     }
 }
 
