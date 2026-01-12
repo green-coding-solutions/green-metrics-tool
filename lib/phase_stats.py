@@ -5,6 +5,7 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from decimal import Decimal
+from bisect import bisect_right
 from io import StringIO
 
 from lib.db import DB
@@ -73,6 +74,81 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx):
 def generate_csv_line(hidden, run_id, metric, detail_name, phase_name, value, value_type, max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit):
     # else '' resolves to NULL
     return f"{hidden},{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{round(sampling_rate_avg) if sampling_rate_avg is not None else ''},{round(sampling_rate_max) if sampling_rate_max is not None else ''},{round(sampling_rate_95p) if sampling_rate_95p is not None else ''},{unit},NOW()\n"
+
+def calculate_co2_intensity(run_id):
+    carbon_intensity_metrics = DB().fetch_all('''
+        SELECT id, metric, detail_name
+        FROM measurement_metrics
+        WHERE run_id = %s AND metric LIKE 'carbon_intensity_%%' AND unit = 'gCO2e/kWh'
+        ORDER BY metric ASC, detail_name ASC
+    ''', params=(run_id, ))
+
+    if not carbon_intensity_metrics:
+        return
+
+    machine_energy_metrics = DB().fetch_all('''
+        SELECT id, metric, detail_name
+        FROM measurement_metrics
+        WHERE run_id = %s AND metric LIKE '%%_energy_%%_machine' AND unit = 'uJ'
+        ORDER BY metric ASC, detail_name ASC
+    ''', params=(run_id, ))
+
+    if not machine_energy_metrics:
+        return
+
+    derived_metric = 'carbon_intensity_energy_machine'
+
+    for carbon_metric_id, carbon_metric, carbon_detail_name in carbon_intensity_metrics:
+        carbon_values = DB().fetch_all('''
+            SELECT time, value
+            FROM measurement_values
+            WHERE measurement_metric_id = %s
+            ORDER BY time ASC
+        ''', params=(carbon_metric_id, ))
+
+        if not carbon_values:
+            continue
+
+        for energy_metric_id, energy_metric, energy_detail_name in machine_energy_metrics:
+            energy_values = DB().fetch_all('''
+                SELECT time, value
+                FROM measurement_values
+                WHERE measurement_metric_id = %s
+                ORDER BY time ASC
+            ''', params=(energy_metric_id, ))
+
+            if not energy_values:
+                continue
+
+            detail_name = f"{energy_metric}|{energy_detail_name}|{carbon_metric}|{carbon_detail_name}"
+            derived_metric_id = DB().fetch_one('''
+                INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+            ''', params=(run_id, derived_metric, detail_name, 'gCO2e'))[0]
+
+            csv_buffer = StringIO()
+            carbon_times = [entry[0] for entry in carbon_values]
+            carbon_intensities = [entry[1] for entry in carbon_values]
+
+            for energy_time, energy_value in energy_values:
+                carbon_index = bisect_right(carbon_times, energy_time) - 1
+                if carbon_index < 0:
+                    carbon_index = 0
+
+                current_carbon_value = carbon_intensities[carbon_index]
+                carbon_g = (Decimal(energy_value) * Decimal(current_carbon_value) / Decimal(3_600_000_000_000)).to_integral_value()
+                csv_buffer.write(f"{derived_metric_id},{int(carbon_g)},{energy_time}\n")
+
+            csv_buffer.seek(0)
+            DB().copy_from(
+                csv_buffer,
+                table='measurement_values',
+                sep=',',
+                columns=('measurement_metric_id', 'value', 'time')
+            )
+            csv_buffer.close()
+
 
 def build_and_store_phase_stats(run_id, sci=None):
     if not sci:
@@ -201,6 +277,8 @@ def build_and_store_phase_stats(run_id, sci=None):
                 'cpu_frequency_sysfs_core',
                 'cpu_throttling_thermal_msr_component',
                 'cpu_throttling_power_msr_component',
+                'carbon_intensity_elephant_machine',
+                'carbon_intensity_electricity_maps_machine'
             ):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_avg, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
@@ -235,7 +313,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                 if metric == 'network_io_cgroup_container': # save to calculate CO2 later. We do this only for the cgroups. Not for the system to not double count
                     network_bytes_total.append(value_sum)
 
-            elif "_energy_" in metric and unit == 'uJ':
+            elif '_energy_' in metric and unit == 'uJ':
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
                 power_avg_mW = derivative_avg * Decimal(1e3)
