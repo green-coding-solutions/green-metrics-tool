@@ -214,6 +214,7 @@ def edit_etc_hosts():
 
 def build_test_docker_image():
     subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build'], check=True)
+    subprocess.run(['docker', 'compose', '-f', test_compose_path, 'pull'], check=True)
 
 
 # We never want to set a different timezone than GMT for tests.
