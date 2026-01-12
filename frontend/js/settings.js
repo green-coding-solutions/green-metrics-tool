@@ -45,16 +45,6 @@ const getSettings = async () => {
     }
 }
 
-const toggleExpertCompareMode = () => {
-    const expert_compare_mode = localStorage.getItem('expert_compare_mode') === 'true';
-    localStorage.setItem('expert_compare_mode', !expert_compare_mode);
-    showDisplayExpertCompareMode(!expert_compare_mode)
-}
-const showDisplayExpertCompareMode = (expert_compare_mode) => {
-    if(expert_compare_mode) $("#expert-compare-mode").html("Expert compare mode is <b>on</b>");
-    else $("#expert-compare-mode").html("Expert compare mode is <b>off</b>");
-}
-
 const toggleJoules = () => {
     const display_in_joules = localStorage.getItem('display_in_joules') === 'true';
     localStorage.setItem('display_in_joules', !display_in_joules);
@@ -119,7 +109,6 @@ const resetHelpTexts = () => {
         $('select').dropdown({keepSearchTerm: true});
         $('.ui.checkbox').checkbox();
 
-        showDisplayExpertCompareMode(localStorage.getItem('expert_compare_mode') === 'true')
         showDisplayTextJoules(localStorage.getItem('display_in_joules') === 'true')
         showDisplayTextTransformTimelinesEnergyToPower(localStorage.getItem('transform_timelines_energy_to_power') === 'true')
         showDisplayTextMetricUnits(localStorage.getItem('display_in_metric_units') === 'true')
