@@ -74,7 +74,7 @@ def check_repo(repo_url, branch='main'):
         else:
             error_helpers.log_error(f"Connect to {git_api} API was possible, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
 
-def get_repo_last_marker(repo_url, marker):
+def get_repo_last_marker(repo_url, marker, branch=None):
 
     parsed_url = urlparse(repo_url)
     [url, git_api] = get_git_api(parsed_url)
@@ -87,6 +87,11 @@ def get_repo_last_marker(repo_url, marker):
         raise ValueError(f"Calling get_repo_last_marker with unknown marker: {marker}")
 
     url = f"{url}/{marker}?per_page=1"
+    if branch:
+        if git_api == 'github':
+            url += f"&sha={branch}"
+        elif git_api in ('gitlab', 'gitlab-custom'):
+            url += f"&ref_name={branch}"
 
     try:
         response = requests.get(url, timeout=10)

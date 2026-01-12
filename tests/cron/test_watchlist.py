@@ -21,7 +21,7 @@ WATCHLIST_ITEM = {
         'usage_scenario_variables': {}
 }
 
-GMT_LAST_COMMIT_HASH = utils.get_repo_last_marker(WATCHLIST_ITEM['repo_url'], 'commits')
+GMT_LAST_COMMIT_HASH = utils.get_repo_last_marker(WATCHLIST_ITEM['repo_url'], 'commits', branch='main')
 
 @pytest.fixture(autouse=True, scope="function")
 def delete_jobs_from_DB():
@@ -106,6 +106,17 @@ def test_run_schedule_watchlist_item_update_commit():
     watchlist_item_db = utils.get_watchlist_item(watchlist_item_modified['repo_url'])
     assert watchlist_item_db['last_marker'] == GMT_LAST_COMMIT_HASH
 
+
+def test_run_schedule_watchlist_item_non_existing_branch():
+    watchlist_item_modified = WATCHLIST_ITEM.copy()
+    watchlist_item_modified['branch'] = 'non-existing-branch-for-testing'
+    watchlist_item_modified['schedule_mode'] = 'commit'
+    watchlist_item_modified['last_marker'] = 'dummy'
+
+
+    Watchlist.insert(**watchlist_item_modified)
+    with pytest.raises(RuntimeError):
+        schedule_watchlist_item()
 
 ## helpers
 

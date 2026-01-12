@@ -60,7 +60,7 @@ def schedule_watchlist_item():
                 DB().query('UPDATE watchlist SET last_marker = %s WHERE id = %s', params=(last_marker_new, item_id, ))
 
         elif schedule_mode in ['commit', 'commit-variance']:
-            last_marker_new = utils.get_repo_last_marker(repo_url, 'commits')
+            last_marker_new = utils.get_repo_last_marker(repo_url, 'commits', branch=branch)
             print('Last marker is', last_marker, ' - Current maker is', last_marker_new)
             if last_marker == last_marker_new:
                 continue
