@@ -9,8 +9,7 @@ from metric_providers.base import BaseMetricProvider, MetricProviderConfiguratio
 error_string = ""
 
 class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
-    def __init__(self, *, location, elephant, simulation_uuid, provider=None, skip_check=False):
-    #def __init__(self, sampling_rate, skip_check=False):
+    def __init__(self, *, location, elephant, simulation_uuid=None, provider=None, skip_check=False):
 
         self.location = location
         self.provider_filter = provider
@@ -165,7 +164,7 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
             return df
 
         df = df.sort_values(by=['time', 'provider'], ascending=True)
-        df['value'] = df['value'].round().astype('int64')
+        df['value'] = df['value'].round().astype('int64') # We convert to int here. Could think about going to ugCO2e here.
 
         return df
 

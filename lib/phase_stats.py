@@ -11,6 +11,8 @@ from io import StringIO
 from lib.db import DB
 from lib import error_helpers
 
+DERIVED_METRIC = 'psu_carbon_elephant_machine'
+
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
     # First we create averages for all types. This includes means and totals
     DB().query('''
@@ -75,6 +77,7 @@ def generate_csv_line(hidden, run_id, metric, detail_name, phase_name, value, va
     # else '' resolves to NULL
     return f"{hidden},{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{round(sampling_rate_avg) if sampling_rate_avg is not None else ''},{round(sampling_rate_max) if sampling_rate_max is not None else ''},{round(sampling_rate_95p) if sampling_rate_95p is not None else ''},{unit},NOW()\n"
 
+
 def calculate_co2_intensity(run_id):
     carbon_intensity_metrics = DB().fetch_all('''
         SELECT id, metric, detail_name
@@ -96,7 +99,6 @@ def calculate_co2_intensity(run_id):
     if not machine_energy_metrics:
         return
 
-    derived_metric = 'carbon_intensity_energy_machine'
 
     for carbon_metric_id, carbon_metric, carbon_detail_name in carbon_intensity_metrics:
         carbon_values = DB().fetch_all('''
@@ -120,12 +122,12 @@ def calculate_co2_intensity(run_id):
             if not energy_values:
                 continue
 
-            detail_name = f"{energy_metric}|{energy_detail_name}|{carbon_metric}|{carbon_detail_name}"
+            detail_name = f"{energy_metric}_{energy_detail_name}_{carbon_metric}_{carbon_detail_name}"
             derived_metric_id = DB().fetch_one('''
                 INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
                 VALUES (%s, %s, %s, %s)
                 RETURNING id
-            ''', params=(run_id, derived_metric, detail_name, 'gCO2e'))[0]
+            ''', params=(run_id, DERIVED_METRIC, detail_name, 'ugCO2e'))[0]
 
             csv_buffer = StringIO()
             carbon_times = [entry[0] for entry in carbon_values]
@@ -137,8 +139,8 @@ def calculate_co2_intensity(run_id):
                     carbon_index = 0
 
                 current_carbon_value = carbon_intensities[carbon_index]
-                carbon_g = (Decimal(energy_value) * Decimal(current_carbon_value) / Decimal(3_600_000_000_000)).to_integral_value()
-                csv_buffer.write(f"{derived_metric_id},{int(carbon_g)},{energy_time}\n")
+                carbon_ug = Decimal(energy_value) * Decimal(current_carbon_value) / Decimal(3_600_000) * 1_000_000 # We need to pad this as we only save integers in the DB
+                csv_buffer.write(f"{derived_metric_id},{int(carbon_ug)},{energy_time}\n")
 
             csv_buffer.seek(0)
             DB().copy_from(
@@ -163,6 +165,7 @@ def build_and_store_phase_stats(run_id, sci=None):
             ORDER BY metric ASC -- we need this ordering for later, when we read again
     """
     metrics = DB().fetch_all(query, (run_id, ))
+    print(metrics) # DEBUG
 
     if not metrics:
         error_helpers.log_error('Metrics was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
@@ -199,6 +202,7 @@ def build_and_store_phase_stats(run_id, sci=None):
         cpu_utilization_containers = {} # reset
         cpu_utilization_machine = None
         network_io_carbon_in_ug = None
+        carbon_intesity = None
 
         select_query = """
             WITH lag_table as (
@@ -261,7 +265,6 @@ def build_and_store_phase_stats(run_id, sci=None):
             min_value = Decimal(min_value)
             value_count = Decimal(value_count)
 
-
             if metric in (
                 'lmsensors_temperature_component',
                 'lmsensors_fan_component',
@@ -278,7 +281,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                 'cpu_throttling_thermal_msr_component',
                 'cpu_throttling_power_msr_component',
                 'carbon_intensity_elephant_machine',
-                'carbon_intensity_electricity_maps_machine'
+                'carbon_intensity_electricity_maps_machine',
             ):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_avg, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
@@ -286,6 +289,8 @@ def build_and_store_phase_stats(run_id, sci=None):
                     cpu_utilization_machine = value_avg
                 if metric in ('cpu_utilization_cgroup_container', 'cpu_utilization_cgroup_system', ):
                     cpu_utilization_containers[detail_name] = value_avg
+                if metric in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', ):
+                    carbon_intesity = value_avg
 
             elif metric in ['network_io_cgroup_system',
                             'network_io_cgroup_container',
@@ -322,7 +327,7 @@ def build_and_store_phase_stats(run_id, sci=None):
 
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg_mW, 'MEAN', power_max_mW, power_min_mW, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
 
-                if sci.get('I', None) is not None:
+                if sci.get('I', None) is not None or carbon_intesity is not None:
                     value_carbon_ug = (value_sum / 3_600_000) * Decimal(sci['I'])
 
                     csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", value_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
@@ -340,7 +345,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                         machine_power_current_phase = power_avg_mW
 
             else: # Default
-                if metric not in ('cpu_time_powermetrics_vm', ):
+                if metric not in ('cpu_time_powermetrics_vm', DERIVED_METRIC ):
                     error_helpers.log_error('Unmapped phase_stat found, using default', metric=metric, detail_name=detail_name, run_id=run_id)
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 

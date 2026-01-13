@@ -13,7 +13,7 @@ API_FUTURE_URL = "https://api.electricitymaps.com/v3/carbon-intensity/forecast"
 
 TEMPORAL_GRANULARITY = "5_minutes"
 
-class CarbonIntensityMachineProvider(BaseMetricProvider):
+class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
     def __init__(self, location, token, provider=None, skip_check=False):
 
         self.location = location
@@ -32,20 +32,17 @@ class CarbonIntensityMachineProvider(BaseMetricProvider):
             skip_check=skip_check,
         )
 
-    def _build_params(self, start_time, end_time):
-
-        return params
 
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         super().check_system(check_command=None, check_parallel_provider=False)
 
         if not self.location:
             raise MetricProviderConfigurationError(
-                'Please set the location config option for CarbonIntensityMachineProvider (electricity_maps) in the config.yml')
+                'Please set the location config option for CarbonIntensityElectricityMapsMachineProvider (electricity_maps) in the config.yml')
 
         if not self.token:
             raise MetricProviderConfigurationError(
-                'Please set the token config option for CarbonIntensityMachineProvider (electricity_maps) in the config.yml')
+                'Please set the token config option for CarbonIntensityElectricityMapsMachineProvider (electricity_maps) in the config.yml')
 
         response = None
         try:

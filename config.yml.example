@@ -222,14 +222,14 @@ measurement:
 #        VHost_Ratio: 1
 #
 #--- Carbon intensity
-#      carbon.intensity.elephant.machine.provider.CarbonIntensityMachineProvider:
+#      carbon.intensity.elephant.machine.provider.CarbonIntensityElephantMachineProvider:
 #        location: 'DE'
 #        provider: 'electricity_maps' # optional
 #        elephant:
 #          host: localhost
 #          port: 8085
 #          protocol: http
-#      carbon.intensity.electricitymaps.machine.provider.CarbonIntensityMachineProvider:
+#      carbon.intensity.electricitymaps.machine.provider.CarbonIntensityElectricityMapsMachineProvider:
 #        location: 'DE'
 #        token: 'XXXX' # optional
 ###### DEBUG
