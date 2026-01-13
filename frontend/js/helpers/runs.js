@@ -84,37 +84,37 @@ const getFilterQueryStringFromURI = (only_saved_filters=false) => {
         if (url_params['uri'] != null && url_params['uri'].trim() != '') {
             const uri = url_params['uri'].trim()
             query_string += `&uri=${uri}`
-            document.querySelector('input[name=uri]').value = uri;
+            document.querySelector('input[name="uri"]').value = uri;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
         if (url_params['filename'] != null && url_params['filename'].trim() != '') {
             const filename = url_params['filename'].trim()
             query_string += `&filename=${filename}`
-            document.querySelector('input[name=filename]').value = filename;
+            document.querySelector('input[name="filename"]').value = filename;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
         if (url_params['branch'] != null && url_params['branch'].trim() != '') {
             const branch = url_params['branch'].trim()
             query_string += `&branch=${branch}`
-            document.querySelector('input[name=branch]').value = branch;
+            document.querySelector('input[name="branch"]').value = branch;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
         if (url_params['machine_id'] != null && url_params['machine_id'].trim() != '') {
             const machine_id = url_params['machine_id'].trim()
             query_string += `&machine_id=${machine_id}`
-            document.querySelector('input[name=machine_id]').value = machine_id;
+            document.querySelector('input[name="machine_id"]').value = machine_id;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
         if (url_params['machine'] != null && url_params['machine'].trim() != '') {
             const machine = url_params['machine'].trim()
             query_string += `&machine=${machine}`
-            document.querySelector('input[name=machine]').value = machine;
+            document.querySelector('input[name="machine"]').value = machine;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
         if (url_params['usage_scenario_variables'] != null && url_params['usage_scenario_variables'].trim() != '') {
             const usage_scenario_variables = url_params['usage_scenario_variables'].trim()
             query_string += `&usage_scenario_variables=${usage_scenario_variables}`
-            document.querySelector('input[name=usage_scenario_variables]').value = usage_scenario_variables;
+            document.querySelector('input[name="usage_scenario_variables"]').value = usage_scenario_variables;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
     }
@@ -129,7 +129,7 @@ const getFilterQueryStringFromURI = (only_saved_filters=false) => {
     } else {
         show_archived = 'false';
     }
-    document.querySelector(`input[name=show_archived][value=${show_archived}]`).checked = true;
+    document.querySelector(`input[name="show_archived"][value="${show_archived}"]`).checked = true;
     localStorage.setItem('show_archived', show_archived);
     query_string += `&show_archived=${show_archived}`
 
@@ -144,7 +144,7 @@ const getFilterQueryStringFromURI = (only_saved_filters=false) => {
         show_other_users = 'true';
     }
 
-    document.querySelector(`input[name=show_other_users][value=${show_other_users}]`).checked = true;
+    document.querySelector(`input[name="show_other_users"][value="${show_other_users}"]`).checked = true;
     localStorage.setItem('show_other_users', show_other_users);
     query_string += `&show_other_users=${show_other_users}`
 
@@ -154,15 +154,15 @@ const getFilterQueryStringFromURI = (only_saved_filters=false) => {
 const getFilterQueryStringFromInputs = () => {
     let query_string = '';
 
-    const uri = document.querySelector('input[name=uri]').value.trim()
-    const filename = document.querySelector('input[name=filename]').value.trim()
-    const branch = document.querySelector('input[name=branch]').value.trim()
-    const machine = document.querySelector('input[name=machine]').value.trim()
-    const machine_id = document.querySelector('input[name=machine_id]').value.trim()
-    const usage_scenario_variables = document.querySelector('input[name=usage_scenario_variables]').value.trim()
-    const show_archived = document.querySelector('input[name=show_archived]:checked')?.value?.trim()
+    const uri = document.querySelector('input[name="uri"]').value.trim()
+    const filename = document.querySelector('input[name="filename"]').value.trim()
+    const branch = document.querySelector('input[name="branch"]').value.trim()
+    const machine = document.querySelector('input[name="machine"]').value.trim()
+    const machine_id = document.querySelector('input[name="machine_id"]').value.trim()
+    const usage_scenario_variables = document.querySelector('input[name="usage_scenario_variables"]').value.trim()
+    const show_archived = document.querySelector('input[name="show_archived"]:checked')?.value?.trim()
     localStorage.setItem('show_archived', show_archived);
-    const show_other_users = document.querySelector('input[name=show_other_users]:checked')?.value?.trim()
+    const show_other_users = document.querySelector('input[name="show_other_users"]:checked')?.value?.trim()
     localStorage.setItem('show_other_users', show_other_users);
 
     if(uri != '') query_string += `&uri=${uri}`
