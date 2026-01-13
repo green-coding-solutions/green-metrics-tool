@@ -300,7 +300,7 @@ def old_v1_runs_endpoint():
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v2/runs')
-async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, job_id: int | None = None, failed: bool | None = None, show_archived: bool | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, job_id: int | None = None, failed: bool | None = None, show_archived: bool | None = None, show_other_users: bool | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
 
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at,
@@ -354,6 +354,11 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
 
     if show_archived is not True:
         query = f"{query} AND r.archived = False \n"
+
+    if show_other_users is not True:
+        query = f"{query} AND r.user_id = %s  \n"
+        params.append(user._id)
+
 
     query = f"{query} ORDER BY r.created_at DESC"
 
