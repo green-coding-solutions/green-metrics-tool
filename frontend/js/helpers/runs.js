@@ -129,9 +129,13 @@ const getFilterQueryStringFromURI = (only_saved_filters=false) => {
     } else {
         show_archived = 'false';
     }
-    document.querySelector(`input[name="show_archived"][value="${show_archived}"]`).checked = true;
-    localStorage.setItem('show_archived', show_archived);
-    query_string += `&show_archived=${show_archived}`
+
+    const archived_radio = document.querySelector(`input[name="show_archived"][value="${show_archived}"]`)
+    if (archived_radio != null) { // since user can submit bullshit we do not want to except on querySelector after accessing checkes
+        archived_radio.checked = true;
+        localStorage.setItem('show_archived', show_archived);
+        query_string += `&show_archived=${show_archived}`
+    }
 
     let show_other_users = null;
     if (url_params['show_other_users'] != null && url_params['show_other_users'].trim() != '') {
@@ -144,9 +148,12 @@ const getFilterQueryStringFromURI = (only_saved_filters=false) => {
         show_other_users = 'true';
     }
 
-    document.querySelector(`input[name="show_other_users"][value="${show_other_users}"]`).checked = true;
-    localStorage.setItem('show_other_users', show_other_users);
-    query_string += `&show_other_users=${show_other_users}`
+    const other_users_radio = document.querySelector(`input[name="show_other_users"][value="${show_other_users}"]`)
+    if (other_users_radio != null) { // since user can submit bullshit we do not want to except on querySelector after accessing checkes
+        document.querySelector(`input[name="show_other_users"][value="${show_other_users}"]`).checked = true;
+        localStorage.setItem('show_other_users', show_other_users);
+        query_string += `&show_other_users=${show_other_users}`
+    }
 
     return query_string
 }
