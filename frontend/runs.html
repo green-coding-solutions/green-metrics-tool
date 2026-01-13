@@ -134,15 +134,23 @@
                         <span id="runs-and-repos-table-title">Runs</span> (<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.)+
                         <div class="float-right">
                             <button id="compare-button" onclick="compareButton()" class="ui small button blue">Compare: 0 Run(s)</button>
-                            <select id="compare-force-mode" style="width: 160px; height: 40px; margin-top: 5px; display:none;">
-                                <option value="">--</option>
-                                <option value="branches">Branches</option>
-                                <option value="commit_hashes">Commits</option>
-                                <option value="machine_ids">Machines</option>
-                                <option value="usage_scenarios">Usage Scenarios</option>
-                                <option value="usage_scenario_variables">Usage Scenario Variables</option>
-                                <option value="repos">Repos</option>
-                            </select>
+                            <div class="ui accordion compare-force-mode" style="width: 100%;">
+                              <div class="title">
+                                <i class="dropdown icon"></i> Compare Mode
+                              </div>
+                              <div class="content">
+                                  <select id="compare-force-mode" style="width: 160px; height: 40px; margin-top: 5px;">
+                                    <option value="">Auto</option>
+                                    <option value="branches">Branches</option>
+                                    <option value="commit_hashes">Commits</option>
+                                    <option value="machine_ids">Machines</option>
+                                    <option value="usage_scenarios">Usage Scenarios</option>
+                                    <option value="usage_scenario_variables">Usage Scenario Variables</option>
+                                    <option value="repos">Repos</option>
+                                </select>
+                              </div>
+                            </div>
+
                             <button id="unselect-button" class="ui mini button red right " style="display:none">Unselect all</button>
                         </div>
                         <button id="sort-button" class="ui small button purple float-right"><i class="text icon"></i><span>Sort name</span></button>

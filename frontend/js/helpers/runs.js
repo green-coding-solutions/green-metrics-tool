@@ -10,11 +10,9 @@ const compareButton = () => {
     });
     link = link.substr(0,link.length-1);
 
-    if (localStorage.getItem('expert_compare_mode') === 'true'){
-        const value = document.querySelector('#compare-force-mode').value;
-        link = `${link}&force_mode=${value}`
-        localStorage.setItem('expert_compare_mode_last_value', value);
-    }
+    const value = document.querySelector('#compare-force-mode').value;
+    link = `${link}&force_mode=${value}`
+    localStorage.setItem('compare_mode_last_value', value);
 
     window.open(link, '_blank');
 }
@@ -30,17 +28,12 @@ const updateCompareCount = () => {
     const checkedCount = document.querySelectorAll('input[type=checkbox]:checked').length;
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
     if (checkedCount === 0) {
+        document.querySelector('.ui.accordion.compare-force-mode').style.display = 'none';
         document.querySelector('#unselect-button').style.display = 'none';
-        if (localStorage.getItem('expert_compare_mode') === 'true') {
-            document.querySelector('#compare-force-mode').style.display = 'none';
-        }
 
     } else {
         document.querySelector('#unselect-button').style.display = 'block';
-        if (localStorage.getItem('expert_compare_mode') === 'true') {
-            document.querySelector('#compare-force-mode').style.display = 'block';
-        }
-
+        document.querySelector('.ui.accordion.compare-force-mode').style.display = 'block';
     }
 }
 
@@ -341,13 +334,15 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?${getFilterQueryStringFromURI()}&limit=50`)
     }
 
-    if (localStorage.getItem('expert_compare_mode') === 'true') {
-        const value = localStorage.getItem('expert_compare_mode_last_value');
-        if (value != null) {
-            const el = document.querySelector('#compare-force-mode');
-            el.value = value;
-        }
+    const value = localStorage.getItem('compare_mode_last_value');
+    if (value != null && value != '') {
+        document.querySelector('#compare-force-mode').value = value;
+        $('.ui.accordion.compare-force-mode').accordion('open', 0);
+    } else {
+        $('.ui.accordion.compare-force-mode').accordion('close', 0);
     }
+
+
 
     // filters
     $('.ui.accordion.filter-dropdown').accordion();
@@ -365,7 +360,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             el.value = '';
         })
         getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?limit=50`)
-        $('.ui.accordion').accordion('close', 0);
+        $('.ui.accordion').accordion('close', 0); // close all accordions
         document.querySelector('#filters-active').classList.add('hidden');
     });
 
