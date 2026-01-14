@@ -106,7 +106,7 @@ runs:
         if [ "$DOCKER_EXIT_CODE" -ne 0 ]; then
           echo "Docker build failed with exit code $DOCKER_EXIT_CODE"
           echo "buildx output:"
-          echo $DOCKER_OUTPUT
+          echo "$DOCKER_OUTPUT"
           if echo "$DOCKER_OUTPUT" | grep -q "403 Forbidden"; then
             echo "Docker build failed due to permissions issue. Continuing..."
           else
