@@ -101,7 +101,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
       run: |
-        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --set test-green-coding-gunicorn.cache-from=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.cache-to=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.tags='green-metrics-tool-test-test-green-coding-gunicorn:latest' 2>&1); DOCKER_EXIT_CODE=$?; } || true
+        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --set test-green-coding-gunicorn.cache-from=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.cache-to=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.tags='green-metrics-tool-test-test-green-coding-gunicorn:latest' --load 2>&1); DOCKER_EXIT_CODE=$?; } || true
         if [ "$DOCKER_EXIT_CODE" -ne 0 ]; then
           echo "Docker build failed with exit code $DOCKER_EXIT_CODE"
           echo "buildx output:"
