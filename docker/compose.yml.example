@@ -59,10 +59,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile-gunicorn
-      cache_from:
-        - ${USE_GH_ACTIONS_CACHE:-} # Remote Cache only for GitHub Actions. Locally cache will be naturally used
-      cache_to:
-        - ${USE_GH_ACTIONS_CACHE:-} # Remote Cache only for GitHub Actions. Locally cache will be naturally used
     container_name: green-coding-gunicorn-container
     init: true
     depends_on:

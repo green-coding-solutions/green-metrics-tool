@@ -66,15 +66,6 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
 
-    # To save cache to packages
-    # https://github.com/green-coding-solutions/green-metrics-tool/pkgs/container/gunicorn-container-cache/versions
-    - name: Login to Docker Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ inputs.github-token }}
-
     - name: Install dev requirements and run test setup script
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
@@ -84,9 +75,43 @@ runs:
         playwright install --with-deps firefox
         export USE_GH_ACTIONS_CACHE='type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache'
         if ${{inputs.ee}}; then
-          cd tests && python3 setup-test-env.py --ee
+          cd tests && python3 setup-test-env.py --no-docker-build --ee
         else
-          cd tests && python3 setup-test-env.py
+          cd tests && python3 setup-test-env.py --no-docker-build
+        fi
+
+      # We skipped the build step earlier to now build with a cache.
+      # Sadly docker compose uses a different driver in GitHub Actions and cannot directly
+      # use the cache-from and cache-to directives in the compose.yml as it cannot connect to a remote cache.
+      # Thus, to save cache to packages we use buildx
+      # https://github.com/green-coding-solutions/green-metrics-tool/pkgs/container/gunicorn-container-cache/versions
+
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Docker Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.github-token }}
+
+    - name: Build docker-compose
+      id: build-docker-compose
+      shell: bash
+      working-directory: ${{ inputs.gmt-directory }}/docker
+      run: |
+        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --set test-green-coding-gunicorn.cache-from=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.cache-to=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.tags='green-metrics-tool-test-test-green-coding-gunicorn:latest' 2>&1); DOCKER_EXIT_CODE=$?; } || true
+        if [ "$DOCKER_EXIT_CODE" -ne 0 ]; then
+          echo "Docker build failed with exit code $DOCKER_EXIT_CODE"
+          echo "buildx output:"
+          echo $DOCKER_OUTPUT
+          if echo "$DOCKER_OUTPUT" | grep -q "403 Forbidden"; then
+            echo "Docker build failed due to permissions issue. Continuing..."
+          else
+              exit 1
+          fi
         fi
 
     - name: Start Test container
