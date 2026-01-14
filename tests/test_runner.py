@@ -691,7 +691,7 @@ def test_container_running_verification_after_boot_phase():
                     # Simulate container failure by stopping it manually
                     subprocess.run(['docker', 'stop', 'test-container'], check=False)
 
-    assert str(e.value).startswith("Container 'test-container' failed during [BOOT] due to an Out-of-Memory error (Code: 137). Please check if you can instruct the startup process to use less memory or higher resource limits on the container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
+    assert str(e.value).startswith("Container 'test-container' failed during [BOOT] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
 
 def test_container_running_verification_after_runtime_phase():
     """Test that container verification catches containers that exit during runtime phase"""
@@ -699,14 +699,14 @@ def test_container_running_verification_after_runtime_phase():
                           filename='tests/data/usage_scenarios/basic_stress.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
 
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(MemoryError) as e:
         with Tests.RunUntilManager(runner) as context:
             for step in context.run_steps():
                 if step == 'runtime_complete':
                     # Simulate container failure by stopping it manually
                     subprocess.run(['docker', 'stop', 'test-container'], check=False)
 
-    assert "Container 'test-container' failed during [RUNTIME] (exit code: 137)" in str(e.value)
+    assert str(e.value).startswith("Container 'test-container' failed during [RUNTIME] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
 
 
     ## rethink this one
