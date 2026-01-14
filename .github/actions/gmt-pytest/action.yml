@@ -73,7 +73,6 @@ runs:
         source venv/bin/activate
         python3 -m pip install -r requirements-dev.txt
         playwright install --with-deps firefox
-        export USE_GH_ACTIONS_CACHE='type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache'
         if ${{inputs.ee}}; then
           cd tests && python3 setup-test-env.py --no-docker-build --ee
         else
