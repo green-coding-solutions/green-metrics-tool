@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     try:
         parser = argparse.ArgumentParser()
-        parser.add_argument('type', help='Select the operation mode.', choices=['email', 'run'])
+        parser.add_argument('type', help='Select the operation mode.', choices=['email-simple', 'email-report', 'run'])
         parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
         parser.add_argument('--full-docker-prune', action='store_true', default=False, help='Prune all images and build caches on the system')
         parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
@@ -56,7 +56,7 @@ if __name__ == '__main__':
         print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'Processing Job ID#: ', job_main._id)
         if args.type == 'run':
             job_main.process(docker_prune=args.docker_prune, full_docker_prune=args.full_docker_prune)
-        elif args.type == 'email':
+        elif args.type in ('email-simple', 'email-report'):
             job_main.process()
         print('Successfully processed jobs queue item.')
     except Exception as exc: #pylint: disable=broad-except
@@ -66,7 +66,7 @@ if __name__ == '__main__':
             # reduced error message to client, but only if no ConfigurationCheckError
             if job_main._email and not isinstance(exc, ConfigurationCheckError):
                 Job.insert(
-                    'email',
+                    'email-simple',
                     user_id=job_main._user_id,
                     email=job_main._email,
                     name='Measurement Job on Green Metrics Tool Cluster failed',

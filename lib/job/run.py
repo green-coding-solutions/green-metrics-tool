@@ -78,7 +78,7 @@ class RunJob(Job):
 
             if self._email:
                 Job.insert(
-                    'email',
+                    'email-report',
                     user_id=self._user_id,
                     email=self._email,
                     run_id=self._run_id,

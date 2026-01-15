@@ -129,8 +129,9 @@ class Job(ABC):
         if not job:
             return False
 
-        module = importlib.import_module(f"lib.job.{job_type}")
-        class_name = f"{job_type.capitalize()}Job"
+        module = importlib.import_module(f"lib.job.{job_type.replace('-','_')}")
+        capitalized = "".join(word.capitalize() for word in job_type.split("-"))
+        class_name = f"{capitalized}Job"
 
         return getattr(module, class_name)(
             job_id=job[0],
@@ -158,6 +159,6 @@ class Job(ABC):
                 OR
                 (state = 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS')
                 OR
-                (state = 'RUNNING' AND type = 'email' AND updated_at < NOW() - INTERVAL '5 MINUTES')
+                (state = 'RUNNING' AND type IN ('email-simple', 'email-report') AND updated_at < NOW() - INTERVAL '5 MINUTES')
             '''
         DB().query(query)

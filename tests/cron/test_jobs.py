@@ -46,7 +46,7 @@ def test_no_run_job():
 
 def test_no_email_job():
     ps = subprocess.run(
-            ['python3', '../cron/jobs.py', 'email', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
+            ['python3', '../cron/jobs.py', 'email-simple', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -224,7 +224,7 @@ def todo_test_simple_email_job():
     message = 'simple job'
 
     Job.insert(
-        'email',
+        'email-simple',
         user_id=1,
         email=email,
         name=subject,
@@ -234,7 +234,7 @@ def todo_test_simple_email_job():
     # Why is this patch not working :-(
     with patch('email_helpers.send_email') as send_email:
         ps = subprocess.run(
-                ['python3', '../cron/jobs.py', 'email', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
+                ['python3', '../cron/jobs.py', 'email-simple', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
                 check=True,
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
