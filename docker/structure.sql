@@ -234,6 +234,7 @@ CREATE TABLE jobs (
     type text,
     state text,
     name text,
+    run_id uuid,
     email text,
     url text,
     branch text,

@@ -11,7 +11,6 @@ import os
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.job.base import Job
-from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.user import User
 from lib.terminal_colors import TerminalColors
@@ -82,9 +81,18 @@ class RunJob(Job):
                     'email',
                     user_id=self._user_id,
                     email=self._email,
+                    run_id=self._run_id,
                     name=f"Measurement Job '{self._name}' successfully processed on Green Metrics Tool Cluster",
-                    message=f"Your report is now accessible under the URL: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={self._run_id}"
                 )
+
         finally:
             self._run_id = runner._run_id # might not be set yet, but we try
+
+            if self._run_id:
+                DB().query("""
+                    UPDATE jobs
+                    SET run_id = %s
+                    WHERE id = %s
+                    """, params=(self._run_id, self._id))
+
             user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds

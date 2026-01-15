@@ -76,7 +76,7 @@ class Job(ABC):
         pass
 
     @classmethod
-    def insert(cls, job_type, *, user_id, name=None, url=None, email=None, branch=None, filename=None, machine_id=None, usage_scenario_variables=None, message=None):
+    def insert(cls, job_type, *, user_id, name=None, url=None, email=None, branch=None, filename=None, machine_id=None, usage_scenario_variables=None, run_id=None, message=None):
 
         if job_type == 'run' and (not branch or not url or not filename or not machine_id):
             raise RuntimeError('For adding runs branch, url, filename and machine_id must be set')
@@ -86,11 +86,11 @@ class Job(ABC):
 
         query = """
                 INSERT INTO
-                    jobs (type, name, url, email, branch, filename, usage_scenario_variables, machine_id, user_id, message, state, created_at)
+                    jobs (type, name, run_id, url, email, branch, filename, usage_scenario_variables, machine_id, user_id, message, state, created_at)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
                 """
-        params = (job_type, name, url, email, branch, filename, json.dumps(usage_scenario_variables),  machine_id, user_id, message)
+        params = (job_type, name, run_id, url, email, branch, filename, json.dumps(usage_scenario_variables),  machine_id, user_id, message)
         return DB().fetch_one(query, params=params)[0]
 
     # A static method to get a job object
