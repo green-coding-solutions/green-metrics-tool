@@ -40,13 +40,13 @@ def schedule_watchlist_item():
             if not scheduled_today:
                 print('\nWatchlist item was not scheduled today', scheduled_today)
                 DB().query('UPDATE watchlist SET last_scheduled = NOW() WHERE id = %s', params=(item_id,))
-                Job.insert('run', user_id=user_id, name=name, url=repo_url, email=None, branch=branch, filename=filename, usage_scenario_variables=usage_scenario_variables, machine_id=machine_id)
+                Job.insert('run', user_id=user_id, name=name, url=repo_url, branch=branch, filename=filename, usage_scenario_variables=usage_scenario_variables, machine_id=machine_id)
                 print('\tInserted')
         elif schedule_mode == 'weekly':
             if not scheduled_last_week:
                 print('\tWatchlist item was not scheduled in last 7 days', scheduled_last_week)
                 DB().query('UPDATE watchlist SET last_scheduled = NOW() WHERE id = %s', params=(item_id,))
-                Job.insert('run', user_id=user_id, name=name, url=repo_url, email=None, branch=branch, filename=filename, usage_scenario_variables=usage_scenario_variables, machine_id=machine_id)
+                Job.insert('run', user_id=user_id, name=name, url=repo_url, branch=branch, filename=filename, usage_scenario_variables=usage_scenario_variables, machine_id=machine_id)
                 print('\tInserted')
         elif schedule_mode in ['tag', 'tag-variance']:
             last_marker_new = utils.get_repo_last_marker(repo_url, 'tags')
@@ -55,7 +55,7 @@ def schedule_watchlist_item():
                 continue
             amount = 3 if 'variance' in schedule_mode else 1
             for _ in range(0,amount):
-                Job.insert('run', user_id=user_id, name=name, url=repo_url, email=None, branch=branch, filename=filename, usage_scenario_variables=usage_scenario_variables, machine_id=machine_id)
+                Job.insert('run', user_id=user_id, name=name, url=repo_url, branch=branch, filename=filename, usage_scenario_variables=usage_scenario_variables, machine_id=machine_id)
                 print('Updating Hash', last_marker_new)
                 DB().query('UPDATE watchlist SET last_marker = %s WHERE id = %s', params=(last_marker_new, item_id, ))
 
@@ -67,7 +67,7 @@ def schedule_watchlist_item():
             amount = 3 if 'variance' in schedule_mode else 1
             for _ in range(0,amount):
                 print('Updating Hash', last_marker_new)
-                Job.insert('run', user_id=user_id, name=name, url=repo_url, email=None, branch=branch, filename=filename, usage_scenario_variables=usage_scenario_variables, machine_id=machine_id)
+                Job.insert('run', user_id=user_id, name=name, url=repo_url, branch=branch, filename=filename, usage_scenario_variables=usage_scenario_variables, machine_id=machine_id)
                 DB().query('UPDATE watchlist SET last_marker = %s WHERE id = %s', params=(last_marker_new, item_id, ))
 
 if __name__ == '__main__':
