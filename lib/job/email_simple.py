@@ -5,6 +5,7 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
+from lib.global_config import GlobalConfig
 from lib import email_helpers
 from lib.job.email import EmailJob
 
@@ -12,4 +13,5 @@ class EmailSimpleJob(EmailJob):
 
     #pylint: disable=arguments-differ
     def _process(self):
-        email_helpers.send_email(self._email, self._name, self._message)
+        message = f"{self._message}\n\n---\n{GlobalConfig().config['cluster']['metrics_url']}"
+        email_helpers.send_email(self._email, self._name, message)
