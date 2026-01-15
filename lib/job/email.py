@@ -22,6 +22,4 @@ class EmailJob(Job):
 
     #pylint: disable=arguments-differ
     def _process(self):
-        if self._created_at:
-            self._message = f"{self._message}\n\nOriginal date and time: {self._created_at}"
         email_helpers.send_email(self._email, self._name, self._message)
