@@ -1,7 +1,6 @@
 import smtplib
 import ssl
 from datetime import datetime, timedelta
-#from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from lib.global_config import GlobalConfig
@@ -29,11 +28,19 @@ def send_email(receiver, subject, text_message, html_message=None):
     text_message_chunked = chunk_message(text_message)
     text_message_chunked = '\n'.join(text_message_chunked)
 
-    msg = MIMEMultipart("alternative")
+    if html_message:
+        msg = MIMEMultipart("alternative")
+        part1 = MIMEText(text_message_chunked, "plain", "utf-8")
+        msg.attach(part1)
+        part2 = MIMEText(html_message, "html", "utf-8")
+        msg.attach(part2)
+    else:
+        msg = MIMEText(text_message_chunked, "plain")
+
 
     msg["From"] = config['smtp']['sender']
     msg["To"] = receiver
-    msg["Subject"] = subject[0:998] # maximum of 1000 characters + \r\n
+    msg["Subject"] = subject[0:989] # maximum of 1000 characters - \r\n  - "subject: "
     msg["Expires"] = (datetime.utcnow() + timedelta(days=7)).strftime('%a, %d %b %Y %H:%M:%S +0000')
 
     if config['admin']['email_bcc']:
@@ -41,10 +48,6 @@ def send_email(receiver, subject, text_message, html_message=None):
         msg['Bcc'] = config['admin']['email_bcc']
         receiver.append(config['admin']['email_bcc'])
 
-    part1 = MIMEText(text_message_chunked, "plain", "utf-8")
-    part2 = MIMEText(html_message, "html", "utf-8")
-    msg.attach(part1)
-    msg.attach(part2)
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL(config['smtp']['server'], config['smtp']['port'], context=context) as server:
