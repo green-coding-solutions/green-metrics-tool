@@ -25,7 +25,7 @@ from lib.configuration_check_error import ConfigurationCheckError
 """
 
 class Job(ABC):
-    def __init__(self, *, state, name, email, url,  branch, filename, usage_scenario_variables, machine_id, user_id, run_id, job_id, machine_description, message, created_at = None):
+    def __init__(self, *, state, name, email, url,  branch, filename, usage_scenario_variables, machine_id, user_id, run_id, job_id, machine_description, message, created_at):
         self._id = job_id
         self._state = state
         self._name = name
