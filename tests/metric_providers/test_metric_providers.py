@@ -72,9 +72,9 @@ def test_splitting_by_group():
 
 @pytest.mark.skipif(utils.get_architecture() == 'macos', reason="macOS does not support disk used capturing atm")
 def test_disk_statvfs_providers():
-    disk_id_docker = subprocess.check_output("stat -c '%d' $(docker info --format '{{.DockerRootDir}}')", shell=True, encoding='UTF-8')
+    disk_id_docker = subprocess.check_output("stat -c '%d' $(docker info --format '{{.DockerRootDir}}')", shell=True, encoding='UTF-8', errors='replace')
 
-    disk_id_root = subprocess.check_output(['stat', '-c', '%d', '/'], encoding='UTF-8')
+    disk_id_root = subprocess.check_output(['stat', '-c', '%d', '/'], encoding='UTF-8', errors='replace')
 
     if disk_id_docker != disk_id_root:
         pytest.skip('Docker data root is not on same disk and thus cannot determine disk use through standard provider')

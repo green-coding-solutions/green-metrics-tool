@@ -74,7 +74,7 @@ class PowermetricsProvider(BaseMetricProvider):
             # There is really no better way of doing this as of now. Keeping the process id for instance in a hash and
             # killing only that would also fail du to root permissions missing. If we add an /etc/sudoers entry with a
             # wildcard for a PID we open up a security hole. Happy to take suggestions on this one!
-            subprocess.check_output('sudo /usr/bin/killall powermetrics', shell=True)
+            subprocess.check_output('sudo /usr/bin/killall powermetrics', shell=True, encoding='UTF-8', errors='replace')
             print('Killed powermetrics process with killall!')
             if self._pm_process_count > 0:
                 print('-----------------------------------------------------------------------------------------------------------------')
@@ -89,7 +89,7 @@ class PowermetricsProvider(BaseMetricProvider):
             time.sleep(1)
             count += 1
             if count >= 60:
-                subprocess.check_output('sudo /usr/bin/killall -9 powermetrics', shell=True)
+                subprocess.check_output('sudo /usr/bin/killall -9 powermetrics', shell=True, encoding='UTF-8', errors='replace')
                 raise RuntimeError('powermetrics had to be killed with kill -9. Values can not be trusted!')
 
         self._ps = None
