@@ -204,8 +204,7 @@ def get_metric_providers_names(config):
     return [(m.split('.')[-1]) for m in metric_providers_keys]
 
 def get_architecture():
-    ps = subprocess.run(['uname', '-s'],
-            check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8', errors='replace')
+    ps = subprocess.run(['uname', '-s'], check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8', errors='replace')
     output = ps.stdout.strip().lower()
 
     if output == 'darwin':

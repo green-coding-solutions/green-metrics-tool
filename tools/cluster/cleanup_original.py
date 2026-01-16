@@ -93,6 +93,7 @@ if (not os.path.exists('/var/log/apt/history.log')) or ((now - os.path.getmtime(
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, # put both in one stream
         encoding='UTF-8',
+        errors='replace'
     )
     if ps.returncode != 0:
         raise RuntimeError(f"sudo apt update failed: {ps.stdout}")
@@ -116,6 +117,7 @@ if (not os.path.exists('/var/log/apt/history.log')) or ((now - os.path.getmtime(
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, # put both in one stream
         encoding='UTF-8',
+        errors='replace'
     )
     if ps.returncode != 0:
         raise RuntimeError(f"sudo apt full-upgrade -y failed: {ps.stdout}")

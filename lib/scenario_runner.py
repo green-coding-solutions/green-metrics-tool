@@ -315,6 +315,7 @@ class ScenarioRunner:
                 check=True,
                 capture_output=True,
                 encoding='UTF-8',
+                errors='replace'
             )
 
             if problematic_symlink := utils.find_outside_symlinks(self._repo_folder):
@@ -376,6 +377,7 @@ class ScenarioRunner:
                 check=True,
                 capture_output=True,
                 encoding='UTF-8',
+                errors='replace'
             )
 
             if 'commit_hash' in relation:
@@ -384,6 +386,7 @@ class ScenarioRunner:
                     check=True,
                     capture_output=True,
                     encoding='UTF-8',
+                    errors='replace',
                     cwd=relation_path,
                 )
 
@@ -616,13 +619,15 @@ class ScenarioRunner:
                 ['docker', 'logs', container_name],
                 check=False,
                 capture_output=True,
-                encoding='UTF-8'
+                encoding='UTF-8',
+                errors='replace',
             )
             inspect_ps = subprocess.run(
                 ['docker', 'inspect', '--format={{.State.ExitCode}}', container_name],
                 check=False,
                 capture_output=True,
-                encoding='UTF-8'
+                encoding='UTF-8',
+                errors='replace',
             )
             exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
 
