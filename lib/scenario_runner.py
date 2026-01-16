@@ -273,12 +273,12 @@ class ScenarioRunner:
         self.__notes_helper.save_to_db(self._run_id)
 
     def _clear_caches(self):
-        subprocess.check_output(['sync'])
+        subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
 
         if platform.system() == 'Darwin':
             return
         # 3 instructs kernel to drops page caches AND inode caches
-        subprocess.check_output(['sudo', '/usr/sbin/sysctl', '-w', 'vm.drop_caches=3'])
+        subprocess.check_output(['sudo', '/usr/sbin/sysctl', '-w', 'vm.drop_caches=3'], encoding='UTF-8', errors='replace')
 
     def _check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
@@ -1119,9 +1119,9 @@ class ScenarioRunner:
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
 
                 if self.__usage_scenario['networks'][network] and self.__usage_scenario['networks'][network].get('internal', False):
-                    subprocess.check_output(['docker', 'network', 'create', '--internal', network])
+                    subprocess.check_output(['docker', 'network', 'create', '--internal', network], encoding='UTF-8', errors='replace')
                 else:
-                    subprocess.check_output(['docker', 'network', 'create', network])
+                    subprocess.check_output(['docker', 'network', 'create', network], encoding='UTF-8', errors='replace')
 
                 self.__networks.append(network)
         else:

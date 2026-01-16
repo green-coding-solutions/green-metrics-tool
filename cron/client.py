@@ -124,9 +124,9 @@ def validate_temperature():
         validate_temperature.temperature_errors += 1
 
         # stress all cores with constant yes operation
-        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True)
+        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
         time.sleep(300)
-        subprocess.check_output(['killall', 'yes'])
+        subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
 
         return False
 
@@ -287,9 +287,9 @@ if __name__ == '__main__':
             else:
                 set_status('job_no')
                 if config['cluster']['client']['shutdown_on_job_no']:
-                    subprocess.check_output(['sync'])
+                    subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
                     time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
-                    subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']])
+                    subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
 
                 if not args.testing:
                     time.sleep(config['cluster']['client']['sleep_time_no_job'])
