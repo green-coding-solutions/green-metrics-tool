@@ -43,10 +43,10 @@ def send_email(receiver, subject, text_message, html_message=None):
     msg["Subject"] = subject[0:989] # maximum of 1000 characters - \r\n  - "subject: "
     msg["Expires"] = (datetime.utcnow() + timedelta(days=7)).strftime('%a, %d %b %Y %H:%M:%S +0000')
 
+    recipients = [receiver]
     if config['admin']['email_bcc']:
-        receiver = [receiver] # make a list
         msg['Bcc'] = config['admin']['email_bcc']
-        receiver.append(config['admin']['email_bcc'])
+        recipients.append(config['admin']['email_bcc'])
 
 
     context = ssl.create_default_context()
@@ -54,7 +54,7 @@ def send_email(receiver, subject, text_message, html_message=None):
         # No need to set server.auth manually. server.login will iterater over all available methods
         # see https://github.com/python/cpython/blob/main/Lib/smtplib.py
         server.login(config['smtp']['user'], config['smtp']['password'])
-        server.sendmail(config['smtp']['sender'], receiver, msg.as_string())
+        server.sendmail(config['smtp']['sender'], recipients, msg.as_string())
 
 if __name__ == '__main__':
     import argparse
