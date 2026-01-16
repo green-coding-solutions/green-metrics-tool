@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <time.h>
+#include <stdbool.h>
 #include <sys/time.h>
 
 bool is_partition_sysfs(unsigned int major_number, unsigned int minor_number) {

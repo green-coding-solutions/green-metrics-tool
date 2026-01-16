@@ -3,6 +3,7 @@
 
 #include <time.h>
 #include <sys/time.h>
+#include <stdbool.h>
 
 int check_path(const char* path);
 unsigned int parse_int(char *argument);
