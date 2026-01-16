@@ -70,12 +70,12 @@ static void output_get_disk_procfs() {
         // => If this code runs into trouble in the future we might need to migrate to a better detection mechanism
         // However lsblk -o NAME,MAJ:MIN,TYPE is not too helpful, as the type is not useful to use
         // (resolves to sysfs virtual / physical classification)
-        // but especially the dynamic devive block mapper might contain unknown disk we want to track or exclude
+        // but especially the dynamic device block mapper might contain unknown disk we want to track or exclude
         // we will touch this when errors are reported :)
 
         ///////////////////// Guideline ///////////////////////////
         // This code should only detect non-partitions and only the main disk, as this is where data is effectively stored
-        // This includes network storage as well (as in the end a phyiscal disk is somewhere) - Thus the physical / virtual
+        // This includes network storage as well (as in the end a physical disk is somewhere) - Thus the physical / virtual
         // distinciton of the sysfs is not too helpful for us.
         // Disk that reside in memory though should NOT be detected as this is already covered by the memory provider
 
@@ -94,7 +94,7 @@ static void output_get_disk_procfs() {
             continue;
         }
 
-        if (minor_number % 16 != 0) {
+        if (is_partition_sysfs(device_name)) {
             continue; // we skip when we have found a non root level device (aka partition)
         }
 

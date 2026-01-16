@@ -8,6 +8,12 @@
 #include <time.h>
 #include <sys/time.h>
 
+bool is_partition_sysfs(const char *devname) {
+    char path[PATH_MAX];
+    snprintf(path, sizeof(path), "/sys/class/block/%s/partition", devname);
+    return access(path, F_OK) == 0;
+}
+
 int check_path(const char* path) {
     FILE* fd = fopen(path, "r");
 
