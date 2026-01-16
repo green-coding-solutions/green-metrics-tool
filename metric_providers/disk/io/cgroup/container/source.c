@@ -89,7 +89,7 @@ static disk_io_t get_disk_cgroup(char* path, char* container_name) {
         }
 
         if (is_partition_sysfs(major_number, minor_number)) {
-            fprintf(stderr, "Partition inside a docker container found: %s. This should not happen: %u:%u rbytes=%llu wbytes=%llu\n", device_name, major_number, minor_number, rbytes, wbytes);
+            fprintf(stderr, "Partition inside a docker container found. This should not happen: %u:%u rbytes=%llu wbytes=%llu\n", major_number, minor_number, rbytes, wbytes);
             exit(1);
         }
         disk_io.rbytes += rbytes;
