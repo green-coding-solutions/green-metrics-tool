@@ -83,7 +83,7 @@ class EmailReportJob(EmailJob):
         #         measurement_data['NETWORK_TRANSFER'] += phase_stat['value']/1e6
 
 
-        if 'Websites' in run['categories']:
+        if run['categories'] and 'Websites' in run['categories']:
             title = f"webNRG⚡️ run '{self._name}' successfully processed on Green Metrics Tool Cluster"
             text_template_path = os.path.join(GMT_DIR, 'templates/emails/email_report_website.txt')
             html_template_path = os.path.join(GMT_DIR, 'templates/emails/email_report_website.html')
