@@ -22,8 +22,8 @@ static struct timespec offset;
 static void output_get_disk_procfs() {
     unsigned long long int sectors_read = 0;
     unsigned long long int sectors_written = 0;
-    int minor_number;
-    int major_number;
+    unsigned int major_number;
+    unsigned int minor_number;
     char device_name[16];
     int match_result = 0;
     char buf[1024];
@@ -94,7 +94,7 @@ static void output_get_disk_procfs() {
             continue;
         }
 
-        if (is_partition_sysfs(device_name)) {
+        if (is_partition_sysfs(major_number, minor_number)) {
             continue; // we skip when we have found a non root level device (aka partition)
         }
 

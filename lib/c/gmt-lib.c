@@ -8,9 +8,9 @@
 #include <time.h>
 #include <sys/time.h>
 
-bool is_partition_sysfs(const char *devname) {
+bool is_partition_sysfs(unsigned int major_number, unsigned int minor_number) {
     char path[PATH_MAX];
-    snprintf(path, sizeof(path), "/sys/class/block/%s/partition", devname);
+    snprintf(path, sizeof(path), "/sys/dev/block/%u:%u/partition", major_number, minor_number);
     return access(path, F_OK) == 0;
 }
 
