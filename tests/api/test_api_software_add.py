@@ -2,7 +2,6 @@ import json
 import os
 import requests
 import re
-import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -11,8 +10,6 @@ from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
-# must be imported separate bc shall be used as fixture / function argument and pylint does not understand the use
-from tests.test_functions import delete_jobs_from_DB # pylint: disable=unused-import
 
 API_URL = GlobalConfig().config['cluster']['api_url']
 
@@ -50,7 +47,6 @@ def test_post_run_add_github_tags():
     assert watchlist_item['schedule_mode'] == 'tag'
     assert watchlist_item['image_url'] == 'test-image'
 
-@pytest.mark.usefixtures('delete_jobs_from_DB')
 def test_post_run_add_github_commit():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='commit-variance')
@@ -71,7 +67,7 @@ def test_post_run_add_github_commit():
     assert watchlist_item['usage_scenario_variables'] == {}
 
     # also retrieve from API
-    response = requests.get(f"{API_URL}/v2/jobs?id={job_ids[0]}", timeout=15)
+    response = requests.get(f"{API_URL}/v2/jobs?job_id={job_ids[0]}", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     data = response.json()
 
@@ -79,7 +75,6 @@ def test_post_run_add_github_commit():
     assert data['data'][0][3] == 'https://github.com/green-coding-solutions/green-metrics-tool'
     assert data['data'][0][5] == {}
 
-@pytest.mark.usefixtures('delete_jobs_from_DB')
 def test_post_run_add_github_commit_with_variables():
     run_name = 'test_' + utils.randomword(12)
     GMT_VARIABLES = {"__GMT_VAR_COMMAND__": "300"}
@@ -101,7 +96,7 @@ def test_post_run_add_github_commit_with_variables():
     assert watchlist_item['usage_scenario_variables'] == GMT_VARIABLES
 
     # also retrieve from API
-    response = requests.get(f"{API_URL}/v2/jobs?id={job_ids[0]}", timeout=15)
+    response = requests.get(f"{API_URL}/v2/jobs?job_id={job_ids[0]}", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     data = response.json()
 
