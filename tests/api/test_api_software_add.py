@@ -205,6 +205,36 @@ def test_post_repo_ssh():
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
+def test_category_insertion():
+
+    categories_list = [
+        [1], # single
+        [1,3], # multi
+    ]
+
+    for category_ids in categories_list:
+        run_name = 'test_' + utils.randomword(12)
+        run = Software(name=run_name, repo_url='git@github.com:green-coding-solutions/green-metrics-tool.git', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='daily', category_ids=category_ids)
+        response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+        assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+        # also retrieve from API
+        job_ids = get_job_ids(run_name)
+        response = requests.get(f"{API_URL}/v2/jobs?job_id={job_ids[0]}", timeout=15)
+        assert response.status_code == 200, Tests.assertion_info('success', response.text)
+        data = response.json()
+
+        assert data['data'][0][0] == job_ids[0]
+        assert data['data'][0][3] == 'git@github.com:green-coding-solutions/green-metrics-tool.git'
+        assert data['data'][0][11] == category_ids
+
+def test_category_insertion_missing():
+
+    run_name = 'test_' + utils.randomword(12)
+    run = Software(name=run_name, repo_url='git@github.com:green-coding-solutions/green-metrics-tool.git', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='daily', category_ids=[30000])
+    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    assert response.status_code == 422, Tests.assertion_info('error', response.text)
+    assert response.json()['err'] == 'Categories not known: [30000]'
 
 
 ## helpers

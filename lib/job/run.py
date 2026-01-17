@@ -50,6 +50,7 @@ class RunJob(Job):
             job_id=self._id,
             user_id=self._user_id,
             usage_scenario_variables=self._usage_scenario_variables,
+            category_ids=self._category_ids,
             measurement_flow_process_duration=user._capabilities['measurement']['flow_process_duration'],
             measurement_total_duration=user._capabilities['measurement']['total_duration'],
             measurement_system_check_threshold=user._capabilities['measurement']['system_check_threshold'],

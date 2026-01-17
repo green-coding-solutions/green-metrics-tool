@@ -26,13 +26,10 @@ class EmailReportJob(EmailJob):
         run = DB().fetch_one(
             '''
                 SELECT r.name,
-                    array_agg(c.name ORDER BY cat_idx) AS categories,
+                    (SELECT array_agg(t.name) FROM unnest(r.category_ids) as elements
+                    LEFT JOIN categories as t on t.id = elements) as categories,
                     r.uri, r.filename, r.branch, r.usage_scenario_variables, r.created_at
                 FROM runs r
-                LEFT JOIN LATERAL (
-                    SELECT unnest(r.categories) AS cat_id, generate_series(1, array_length(r.categories, 1)) AS cat_idx
-                ) cat_ids ON true
-                LEFT JOIN categories c ON c.id = cat_ids.cat_id
                 WHERE r.id = %s
                 GROUP BY r.id
             ''',

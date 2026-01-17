@@ -239,7 +239,7 @@ CREATE TABLE jobs (
     branch text,
     filename text,
     usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
-    categories int[],
+    category_ids int[],
     machine_id int REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     message text,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -251,7 +251,8 @@ CREATE TRIGGER jobs_moddatetime
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 
-INSERT INTO "jobs"("type","state","name","email","url","branch","filename","usage_scenario_variables","categories","machine_id","message","user_id","created_at","updated_at")
+
+INSERT INTO "jobs"("type","state","name","email","url","branch","filename","usage_scenario_variables","category_ids","machine_id","message","user_id","created_at","updated_at")
 	VALUES
 	(E'run',E'FINISHED',E'This is a demo job - Please delete when you run in cluster mode',NULL,E'demo-url',E'demo-branch',E'demo-filename',E'{}',NULL,1,NULL,1,E'2025-10-03 07:57:29.829712+00',NULL);
 
@@ -263,7 +264,7 @@ CREATE TABLE runs (
     branch text NOT NULL,
     commit_hash text,
     commit_timestamp timestamp with time zone,
-    categories int[],
+    category_ids int[],
     usage_scenario json,
     usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
     filename text NOT NULL,
@@ -341,6 +342,16 @@ CREATE TRIGGER categories_moddatetime
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 
+INSERT INTO "categories"("id","name","parent_id")
+VALUES
+(1,'macOS',NULL),
+(2,'Linux',NULL),
+(3,'Windows',NULL),
+(4,'Websites',NULL),
+(5,'Command Line Programs', 2),
+(6,'GUI Applications', NULL);
+
+SELECT setval('categories_id_seq', (SELECT MAX(id) FROM categories));
 
 CREATE TABLE phase_stats (
     id SERIAL PRIMARY KEY,
@@ -456,7 +467,7 @@ CREATE TABLE watchlist (
     name text,
     image_url text,
     repo_url text NOT NULL,
-    categories integer[],
+    category_ids integer[],
     branch text NOT NULL,
     filename text NOT NULL,
     usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
@@ -472,6 +483,8 @@ CREATE TRIGGER watchlist_moddatetime
     BEFORE UPDATE ON watchlist
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
+
+
 
 CREATE TABLE optimizations (
     id SERIAL PRIMARY KEY,
@@ -686,4 +699,42 @@ CREATE TABLE hog_top_processes (
     cputime_ms BIGINT NOT NULL
 );
 
+-- --------------------------------------------------
+
+-- Trigger function to validate category array elements are present in reference table
+--
+-- We decided for putting this trigger into the DB to guarantee internal consistency.
+-- Although we also check on insertion as a job if the ID exists to provider nicer errors this DB check
+-- guarantees that even if an admin fiddles with the DB the data is consistent
+CREATE OR REPLACE FUNCTION validate_category_ids()
+RETURNS TRIGGER AS $$
+DECLARE
+    invalid_ids INT[];
+BEGIN
+    SELECT ARRAY_AGG(cid)
+    INTO invalid_ids
+    FROM unnest(NEW.category_ids) AS cid
+    LEFT JOIN categories c ON c.id = cid
+    WHERE c.id IS NULL;
+
+    IF invalid_ids IS NOT NULL THEN
+        RAISE EXCEPTION 'At least one category ID supplied (%) does not exist as category. Please check if category is a typo otherwise add category first', invalid_ids;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger before insert or update
+CREATE TRIGGER trg_validate_category_ids
+BEFORE INSERT OR UPDATE ON runs
+FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
+
+-- Trigger before insert or update
+CREATE TRIGGER trg_validate_category_ids
+BEFORE INSERT OR UPDATE ON jobs
+FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
+-- Trigger before insert or update
+CREATE TRIGGER trg_validate_category_ids
+BEFORE INSERT OR UPDATE ON watchlist
+FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
 

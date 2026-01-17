@@ -81,7 +81,7 @@ if __name__ == '__main__':
             show_query = """
                 SELECT
                     w.id, w.name, w.repo_url,
-                    (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(w.categories) as elements
+                    (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(w.category_ids) as elements
                             LEFT JOIN categories as t on t.id = elements) as categories,
                     w.branch, w.filename, m.description, w.last_scheduled, w.schedule_mode,
                     w.created_at, w.updated_at
