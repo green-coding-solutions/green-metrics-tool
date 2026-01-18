@@ -39,6 +39,7 @@ class Software(BaseModel):
     machine_id: int
     schedule_mode: str
     usage_scenario_variables: Optional[Dict[str, str]] = None
+    category_ids: Optional[List[int]] = None
 
     model_config = ConfigDict(extra='forbid')
 

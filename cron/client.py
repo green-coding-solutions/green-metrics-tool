@@ -152,7 +152,7 @@ def do_measurement_control():
         message = validate.validate_workload_stddev(stddev_data, cwl['metrics'])
         if config['cluster']['client']['send_control_workload_status_mail'] and config['admin']['notification_email']:
             Job.insert(
-                'email',
+                'email-simple',
                 user_id=0, # User 0 is the [GMT-SYSTEM] user
                 email=config['admin']['notification_email'],
                 name=f"{config['machine']['description']} is operating normally. All STDDEV fine.",
@@ -273,7 +273,7 @@ if __name__ == '__main__':
                     # reduced error message to client, but only if no ConfigurationCheckError
                     if job._email:
                         Job.insert(
-                            'email',
+                            'email-simple',
                             user_id=job._user_id,
                             email=job._email,
                             name='Measurement Job on Green Metrics Tool Cluster failed',

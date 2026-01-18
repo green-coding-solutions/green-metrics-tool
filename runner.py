@@ -34,6 +34,8 @@ if __name__ == '__main__':
     parser.add_argument('--filename', type=str, action='append', help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported. Duplicate filenames are allowed and will be processed multiple times.')
 
     parser.add_argument('--variable', action='append', help='Variable that will be replaced into the usage_scenario.yml file. Use multiple times for multiple variables.')
+    parser.add_argument('--category', action='append', type=int, help='Category to store for this run. Use multiple times for multiple categories.')
+
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
 
     parser.add_argument('--user-id', type=int, default=1, help='A user-ID the run shall be mapped to. Defaults to 1 (the default user)')
@@ -158,7 +160,8 @@ if __name__ == '__main__':
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
                     docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
                     skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder,
-                    usage_scenario_variables=variables_dict, phase_padding=not args.no_phase_padding,
+                    usage_scenario_variables=variables_dict, category_ids=args.category,
+                    phase_padding=not args.no_phase_padding,
                     measurement_system_check_threshold=args.measurement_system_check_threshold,
                     measurement_pre_test_sleep=args.measurement_pre_test_sleep,
                     measurement_idle_duration=args.measurement_idle_duration,

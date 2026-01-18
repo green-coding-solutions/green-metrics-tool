@@ -64,6 +64,7 @@ class ScenarioRunner:
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
         docker_prune=False, job_id=None, user_id=1,
         disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None,
+        category_ids=None,
 
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
@@ -120,6 +121,7 @@ class ScenarioRunner:
         self._relations_folder = os.path.realpath(os.path.join(self._tmp_folder, 'relations'))
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
+        self._category_ids = set(category_ids) if category_ids else None # deduplicate
         self._architecture = utils.get_architecture()
 
         self._sci = {'R_d': None, 'R': 0}
@@ -813,14 +815,14 @@ class ScenarioRunner:
                     job_id, name, uri, branch, filename, relations,
                     commit_hash, commit_timestamp, runner_arguments,
                     machine_specs, measurement_config,
-                    usage_scenario, usage_scenario_variables, gmt_hash,
+                    usage_scenario, usage_scenario_variables, category_ids, gmt_hash,
                     machine_id, user_id, created_at
                 )
                 VALUES (
                     %s, %s, %s, %s, %s, %s,
                     %s, %s, %s,
                     %s, %s,
-                    %s, %s, %s,
+                    %s, %s, %s, %s,
                     %s, %s, NOW()
                 )
                 RETURNING id
@@ -828,7 +830,7 @@ class ScenarioRunner:
                     self._job_id, self._name, self._uri, self._branch, self._original_filename, json.dumps(self.__relations),
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
-                    json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables),
+                    json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
                     gmt_hash,
                     GlobalConfig().config['machine']['id'], self._user_id,
                 ))[0]

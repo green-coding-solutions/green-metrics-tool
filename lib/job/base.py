@@ -25,7 +25,7 @@ from lib.configuration_check_error import ConfigurationCheckError
 """
 
 class Job(ABC):
-    def __init__(self, *, state, name, email, url,  branch, filename, usage_scenario_variables, machine_id, user_id, run_id, job_id, machine_description, message, created_at = None):
+    def __init__(self, *, state, name, email, url,  branch, filename, usage_scenario_variables, category_ids, machine_id, user_id, run_id, job_id, machine_description, message, created_at):
         self._id = job_id
         self._state = state
         self._name = name
@@ -34,6 +34,7 @@ class Job(ABC):
         self._branch = branch
         self._filename = filename
         self._usage_scenario_variables = usage_scenario_variables
+        self._category_ids = category_ids
         self._machine_id = machine_id
         self._user_id = user_id
         self._machine_description = machine_description
@@ -76,7 +77,7 @@ class Job(ABC):
         pass
 
     @classmethod
-    def insert(cls, job_type, *, user_id, name=None, url=None, email=None, branch=None, filename=None, machine_id=None, usage_scenario_variables=None, message=None):
+    def insert(cls, job_type, *, user_id, name=None, url=None, email=None, branch=None, filename=None, machine_id=None, usage_scenario_variables=None, category_ids=None, message=None):
 
         if job_type == 'run' and (not branch or not url or not filename or not machine_id):
             raise RuntimeError('For adding runs branch, url, filename and machine_id must be set')
@@ -86,11 +87,11 @@ class Job(ABC):
 
         query = """
                 INSERT INTO
-                    jobs (type, name, url, email, branch, filename, usage_scenario_variables, machine_id, user_id, message, state, created_at)
+                    jobs (type, name, url, email, branch, filename, usage_scenario_variables, category_ids, machine_id, user_id, message, state, created_at)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
                 """
-        params = (job_type, name, url, email, branch, filename, json.dumps(usage_scenario_variables),  machine_id, user_id, message)
+        params = (job_type, name, url, email, branch, filename, json.dumps(usage_scenario_variables), category_ids, machine_id, user_id, message)
         return DB().fetch_one(query, params=params)[0]
 
     # A static method to get a job object
@@ -101,7 +102,7 @@ class Job(ABC):
         query = '''
             SELECT
                 j.id, j.state, j.name, j.email, j.url, j.branch,
-                j.filename, j.usage_scenario_variables, j.machine_id, j.user_id, m.description, j.message, r.id as run_id, j.created_at
+                j.filename, j.usage_scenario_variables, j.category_ids, j.machine_id, j.user_id, m.description, j.message, r.id as run_id, j.created_at
 
             FROM jobs as j
             LEFT JOIN machines as m on m.id = j.machine_id
@@ -129,8 +130,9 @@ class Job(ABC):
         if not job:
             return False
 
-        module = importlib.import_module(f"lib.job.{job_type}")
-        class_name = f"{job_type.capitalize()}Job"
+        module = importlib.import_module(f"lib.job.{job_type.replace('-','_')}")
+        capitalized = "".join(word.capitalize() for word in job_type.split("-"))
+        class_name = f"{capitalized}Job"
 
         return getattr(module, class_name)(
             job_id=job[0],
@@ -141,12 +143,13 @@ class Job(ABC):
             branch=job[5],
             filename=job[6],
             usage_scenario_variables=job[7],
-            machine_id=job[8],
-            user_id=job[9],
-            machine_description=job[10],
-            message=job[11],
-            run_id=job[12],
-            created_at=job[13],
+            category_ids=job[8],
+            machine_id=job[9],
+            user_id=job[10],
+            machine_description=job[11],
+            message=job[12],
+            run_id=job[13],
+            created_at=job[14],
         )
 
     @classmethod
@@ -158,6 +161,6 @@ class Job(ABC):
                 OR
                 (state = 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS')
                 OR
-                (state = 'RUNNING' AND type = 'email' AND updated_at < NOW() - INTERVAL '5 MINUTES')
+                (state = 'RUNNING' AND type IN ('email-simple', 'email-report') AND updated_at < NOW() - INTERVAL '5 MINUTES')
             '''
         DB().query(query)

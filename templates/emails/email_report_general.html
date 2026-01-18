@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Green Metrics Tool - Run Successful</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f6f6f6;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 20px;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: normal;
+    }
+    .section {
+      margin-top: 20px;
+    }
+    .section h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+      text-align: center;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="header">
+      <h1>Green Metrics Tool Report</h1>
+      <p>Run Name: <strong>{{__GMT_RUN_NAME__}}</strong></p>
+      <p>Repository: <strong>{{__GMT_RUN_REPO__}}</strong></p>
+      <p>Filename: <strong>{{__GMT_RUN_FILENAME__}}</strong></p>
+      <p>Branch: <strong>{{__GMT_RUN_BRANCH__}}</strong></p>
+      <p>Report Date: <strong>{{__GMT_RUN_DATE__}}</strong></p>
+    </div>
+    <br>
+
+
+    <div class="section">
+        <h2>Report Details</h2>
+        <p>Go to the details page: <a href="{{__GMT_DASHBOARD_URL__}}/stats.html?id={{__GMT_RUN_ID__}}">Details Page</a></p>
+    </div>
+    <br>
+
+
+    <div class="footer">
+      Generated <a href="{{__GMT_DASHBOARD_URL__}}">Green Metrics Tool</a> - a Green Coding Solutions (<a href="https://www.green-coding.io">https://www.green-coding.io</a>) product
+    </div>
+
+  </div>
+</body>
+</html>
