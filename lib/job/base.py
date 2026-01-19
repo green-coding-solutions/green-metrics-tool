@@ -101,7 +101,7 @@ class Job(ABC):
 
         query = '''
             SELECT
-                j.id, j.state, j.name, j.email, j.url, j.branch,
+                j.id, j.type, j.state, j.name, j.email, j.url, j.branch,
                 j.filename, j.usage_scenario_variables, j.category_ids, j.machine_id, j.user_id, m.description, j.message, r.id as run_id, j.created_at
 
             FROM jobs as j
@@ -129,30 +129,30 @@ class Job(ABC):
 
         query = f"{query} LIMIT 1"
 
-        job = DB().fetch_one(query, params=params)
+        job = DB().fetch_one(query, params=params, fetch_mode='dict')
         if not job:
             return False
 
-        module = importlib.import_module(f"lib.job.{job_type.replace('-','_')}")
-        capitalized = "".join(word.capitalize() for word in job_type.split("-"))
+        module = importlib.import_module(f"lib.job.{job['type'].replace('-','_')}")
+        capitalized = "".join(word.capitalize() for word in job['type'].split("-"))
         class_name = f"{capitalized}Job"
 
         return getattr(module, class_name)(
-            job_id=job[0],
-            state=job[1],
-            name=job[2],
-            email=job[3],
-            url=job[4],
-            branch=job[5],
-            filename=job[6],
-            usage_scenario_variables=job[7],
-            category_ids=job[8],
-            machine_id=job[9],
-            user_id=job[10],
-            machine_description=job[11],
-            message=job[12],
-            run_id=job[13],
-            created_at=job[14],
+            job_id=job['id'],
+            state=job['state'],
+            name=job['name'],
+            email=job['email'],
+            url=job['url'],
+            branch=job['branch'],
+            filename=job['filename'],
+            usage_scenario_variables=job['usage_scenario_variables'],
+            category_ids=job['category_ids'],
+            machine_id=job['machine_id'],
+            user_id=job['user_id'],
+            machine_description=job['description'],
+            message=job['message'],
+            run_id=job['run_id'],
+            created_at=job['created_at'],
         )
 
     @classmethod
