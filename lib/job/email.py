@@ -12,7 +12,7 @@ from lib.job.base import Job
 class EmailJob(Job):
 
     def check_job_running(self):
-        query = "SELECT id FROM jobs WHERE type IN ('email-simple', 'email-report') AND state = 'RUNNING'"
+        query = "SELECT id FROM jobs WHERE type LIKE 'email-%' AND state = 'RUNNING'"
         return DB().fetch_one(query)
 
     #pylint: disable=arguments-differ

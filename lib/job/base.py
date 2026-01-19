@@ -161,6 +161,6 @@ class Job(ABC):
                 OR
                 (state = 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS')
                 OR
-                (state = 'RUNNING' AND type IN ('email-simple', 'email-report') AND updated_at < NOW() - INTERVAL '5 MINUTES')
+                (state = 'RUNNING' AND type LIKE 'email-%' AND updated_at < NOW() - INTERVAL '5 MINUTES')
             '''
         DB().query(query)
