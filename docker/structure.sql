@@ -231,6 +231,7 @@ VALUES
 
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
+    run_id uuid REFERENCES runs(id) DELETE SET NULL ON UPDATE CASCADE,
     type text,
     state text,
     name text,

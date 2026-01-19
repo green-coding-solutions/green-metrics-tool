@@ -83,8 +83,11 @@ class RunJob(Job):
                     user_id=self._user_id,
                     email=self._email,
                     name=f"Measurement Job '{self._name}' successfully processed on Green Metrics Tool Cluster",
+                    run_id=self._run_id,
                 )
 
         finally:
-            self._run_id = runner._run_id # might not be set yet, but we try
+            if runner._run_id: # might not be set yet due to error. But if we need to safe and insert
+                self._run_id = runner._run_id
+                DB().query('UPDATE jobs SET run_id = %s WHERE id = %s', params=(self._run_id ,self._id))
             user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds

@@ -25,7 +25,7 @@ from lib.configuration_check_error import ConfigurationCheckError
 """
 
 class Job(ABC):
-    def __init__(self, *, state, name, email, url,  branch, filename, usage_scenario_variables, category_ids, machine_id, user_id, run_id, job_id, machine_description, message, created_at):
+    def __init__(self, *, job_id, run_id, state, name, email, url,  branch, filename, usage_scenario_variables, category_ids, machine_id, user_id, machine_description, message, created_at):
         self._id = job_id
         self._state = state
         self._name = name
@@ -77,7 +77,7 @@ class Job(ABC):
         pass
 
     @classmethod
-    def insert(cls, job_type, *, user_id, name=None, url=None, email=None, branch=None, filename=None, machine_id=None, usage_scenario_variables=None, category_ids=None, message=None):
+    def insert(cls, job_type, *, user_id, run_id=None, name=None, url=None, email=None, branch=None, filename=None, machine_id=None, usage_scenario_variables=None, category_ids=None, message=None):
 
         if job_type == 'run' and (not branch or not url or not filename or not machine_id):
             raise RuntimeError('For adding runs branch, url, filename and machine_id must be set')
@@ -87,11 +87,11 @@ class Job(ABC):
 
         query = """
                 INSERT INTO
-                    jobs (type, name, url, email, branch, filename, usage_scenario_variables, category_ids, machine_id, user_id, message, state, created_at)
+                    jobs (run_id, type, name, url, email, branch, filename, usage_scenario_variables, category_ids, machine_id, user_id, message, state, created_at)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
                 """
-        params = (job_type, name, url, email, branch, filename, json.dumps(usage_scenario_variables), category_ids, machine_id, user_id, message)
+        params = (run_id, job_type, name, url, email, branch, filename, json.dumps(usage_scenario_variables), category_ids, machine_id, user_id, message)
         return DB().fetch_one(query, params=params)[0]
 
     # A static method to get a job object
@@ -101,12 +101,11 @@ class Job(ABC):
 
         query = '''
             SELECT
-                j.id, j.type, j.state, j.name, j.email, j.url, j.branch,
-                j.filename, j.usage_scenario_variables, j.category_ids, j.machine_id, j.user_id, m.description, j.message, r.id as run_id, j.created_at
+                j.id, j.run_id, j.type, j.state, j.name, j.email, j.url, j.branch,
+                j.filename, j.usage_scenario_variables, j.category_ids, j.machine_id, j.user_id, m.description, j.message, j.created_at
 
             FROM jobs as j
             LEFT JOIN machines as m on m.id = j.machine_id
-            LEFT JOIN runs as r on r.job_id = j.id
             WHERE
         '''
         params = []
@@ -139,6 +138,7 @@ class Job(ABC):
 
         return getattr(module, class_name)(
             job_id=job['id'],
+            run_id=job['run_id'],
             state=job['state'],
             name=job['name'],
             email=job['email'],
@@ -151,7 +151,6 @@ class Job(ABC):
             user_id=job['user_id'],
             machine_description=job['description'],
             message=job['message'],
-            run_id=job['run_id'],
             created_at=job['created_at'],
         )
 
