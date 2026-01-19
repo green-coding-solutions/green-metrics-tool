@@ -115,6 +115,9 @@ class Job(ABC):
         if job_type == 'run':
             query = f"{query} j.type = 'run' AND j.state = 'WAITING' AND j.machine_id = %s "
             params.append(config['machine']['id'])
+        elif job_type == 'email':
+            query = f"{query} j.type LIKE %s AND j.state = 'WAITING'"
+            params.append(f"{job_type}-%")
         else:
             query = f"{query} j.type = %s AND j.state = 'WAITING'"
             params.append(job_type)
