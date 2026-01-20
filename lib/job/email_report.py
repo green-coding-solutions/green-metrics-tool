@@ -28,10 +28,12 @@ class EmailReportJob(EmailJob):
                 SELECT r.name,
                     (SELECT array_agg(t.name) FROM unnest(r.category_ids) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
+                    m.description as machine_description, m.id as machine_id,
                     r.uri, r.filename, r.branch, r.usage_scenario_variables, r.created_at
                 FROM runs r
+                LEFT JOIN machines m ON m.id = r.machine_id
                 WHERE r.id = %s
-                GROUP BY r.id
+                GROUP BY r.id, m.id
             ''',
             params=(self._run_id, ),
             fetch_mode='dict')
@@ -112,6 +114,7 @@ def replace_variables(template, run_id, run):
     template = template.replace('{{__GMT_RUN_REPO__}}', run['uri'])
     template = template.replace('{{__GMT_RUN_FILENAME__}}', run['filename'])
     template = template.replace('{{__GMT_RUN_BRANCH__}}', run['branch'])
+    template = template.replace('{{__GMT_RUN_MACHINE__}}', f"{run['machine_description']} ({run['machine_id']})")
     template = template.replace('{{__GMT_RUN_DATE__}}', datetime.fromisoformat(str(run['created_at'])).astimezone().strftime("%Y-%m-%d %H:%M %z"))
 
     # optionals
