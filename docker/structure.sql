@@ -231,7 +231,7 @@ VALUES
 
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
-    run_id uuid REFERENCES runs(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    run_id uuid,
     type text,
     state text,
     name text,
@@ -294,6 +294,8 @@ CREATE TRIGGER runs_moddatetime
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 
+-- must happen here, bc we need the runs table first and cannot change order as both depend on each other
+ALTER TABLE "jobs" ADD FOREIGN KEY ("run_id") REFERENCES "runs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 CREATE TABLE measurement_metrics (
     id SERIAL PRIMARY KEY,
