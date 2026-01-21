@@ -11,6 +11,9 @@ ignore = [
   "S603", # subprocess` call: check for execution of untrusted input
   "TRY003", # raise-vanilla-args
   "D100", # Missing docstring in public module
+  "T201", # print found
+  "Q001", # Single quote multiline found but double quotes preferred
+  "SLF001", # Private member accessed
 ]
 
 #[per-file-ignores]

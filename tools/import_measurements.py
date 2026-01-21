@@ -23,9 +23,8 @@ def import_metric_provider(metric_provider):
     module = importlib.import_module(module_path)
 
     stub_config = { 'sampling_rate' : 99, 'skip_check': True}
-    obj = getattr(module, class_name)(**stub_config)
 
-    return obj
+    return getattr(module, class_name)(**stub_config)
 
 
 if __name__ == '__main__':
