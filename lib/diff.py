@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
