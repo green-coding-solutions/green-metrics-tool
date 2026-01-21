@@ -5,7 +5,6 @@ description: Capture logs from stdout and sterr
 
 services:
   test-container:
-    type: container
     image: alpine
     setup-commands:
       - command: echo "Test log from setup-commands"

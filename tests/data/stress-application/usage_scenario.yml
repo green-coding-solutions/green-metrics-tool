@@ -15,7 +15,6 @@ networks:
 
 services:
   ubuntu-stress:
-    type: container
     image: gcb_stress
     networks:
       - network-for-pytests
@@ -24,7 +23,6 @@ services:
       dockerfile: Dockerfile
 
   ubuntu-stress-2:
-    type: container
     image: gcb_stress # this will reuse the image earlier built
     networks:
       - network-for-pytests

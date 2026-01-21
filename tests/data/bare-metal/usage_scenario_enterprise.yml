@@ -6,7 +6,6 @@ description: Run GMT Tests inside systemd and DinD compatible sysbox-runc contai
 
 services:
   ubuntu-systemd-docker:
-    type: container
     image: greencoding/ubuntu-systemd-docker
 
 flow:

@@ -5,7 +5,6 @@ description: Testing Noop
 
 services:
   test-container:
-    type: container
     image: alpine
 
 flow:
