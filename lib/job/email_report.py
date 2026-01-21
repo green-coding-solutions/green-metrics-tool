@@ -83,11 +83,11 @@ class EmailReportJob(EmailJob):
 
 
         if run['categories'] and 'Websites' in run['categories']:
-            title = f"webNRG⚡️ run '{self._name}' successfully processed on Green Metrics Tool Cluster"
+            title = f"webNRG⚡️ run '{run['name']}' successfully processed on Green Metrics Tool Cluster"
             text_template_path = os.path.join(GMT_DIR, 'templates/emails/email_report_website.txt')
             html_template_path = os.path.join(GMT_DIR, 'templates/emails/email_report_website.html')
         else:
-            title = f"Run '{self._name}' successfully processed on Cluster"
+            title = f"Run '{run['name']}' successfully processed on Green Metrics Tool Cluster"
             text_template_path = os.path.join(GMT_DIR, 'templates/emails/email_report_general.txt')
             html_template_path = os.path.join(GMT_DIR, 'templates/emails/email_report_general.html')
 
