@@ -239,6 +239,7 @@ CREATE TABLE jobs (
     branch text,
     filename text,
     usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
+    carbon-simulation jsonb NOT NULL DEFAULT '{}',
     categories int[],
     machine_id int REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     message text,

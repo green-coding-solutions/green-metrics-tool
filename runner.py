@@ -12,6 +12,8 @@ import shutil
 import os
 import re
 import subprocess
+import json
+import uuid
 from pathlib import Path
 
 GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -34,6 +36,8 @@ if __name__ == '__main__':
     parser.add_argument('--filename', type=str, action='append', help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported. Duplicate filenames are allowed and will be processed multiple times.')
 
     parser.add_argument('--variable', action='append', help='Variable that will be replaced into the usage_scenario.yml file. Use multiple times for multiple variables.')
+    parser.add_argument('--simulate-carbon', type=str, help='The grid intensity when running the job. Can be an int which will be applied to the whole run, a list which will be sent to elephant or a uuid which will be used as simulation id for elephant.')
+
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
 
     parser.add_argument('--user-id', type=int, default=1, help='A user-ID the run shall be mapped to. Defaults to 1 (the default user)')
@@ -114,6 +118,22 @@ if __name__ == '__main__':
             sys.exit(1)
         GlobalConfig(config_location=args.config_override)
 
+
+    simulate_carbon_to_pass = None
+    if args.simulate_carbon is not None:
+        try:
+            simulate_carbon_value = json.loads(args.simulate_carbon) # this will catch number and [...] lists
+            if isinstance(simulate_carbon_value, int):
+                simulate_carbon_value = [simulate_carbon_value]
+            simulate_carbon_to_pass = simulate_carbon_value
+        except json.JSONDecodeError:
+            try:
+                simulate_carbon_to_pass = str(uuid.UUID(args.simulate_carbon))
+            except ValueError:  # not a valid uuid
+                error_helpers.log_error('Could not parse --simulate-carbon value. Please provide either an integer, a list of integers or a uuid string.')
+                sys.exit(1)
+
+
     # Use default filename if none provided
     filename_patterns = args.filename if args.filename else ['usage_scenario.yml']
     using_default_filename = not args.filename
@@ -158,7 +178,7 @@ if __name__ == '__main__':
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
                     docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
                     skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder,
-                    usage_scenario_variables=variables_dict, phase_padding=not args.no_phase_padding,
+                    usage_scenario_variables=variables_dict, phase_padding=not args.no_phase_padding, simulate_carbon=simulate_carbon_to_pass,
                     measurement_system_check_threshold=args.measurement_system_check_threshold,
                     measurement_pre_test_sleep=args.measurement_pre_test_sleep,
                     measurement_idle_duration=args.measurement_idle_duration,
