@@ -90,9 +90,9 @@ class Job(ABC):
                 INSERT INTO
                     jobs (run_id, type, name, url, email, branch, filename, usage_scenario_variables, category_ids, carbon_simulation, machine_id, user_id, message, state, created_at)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
                 """
-        params = (run_id, job_type, name, url, email, branch, filename, json.dumps(usage_scenario_variables), category_ids, carbon_simulation, machine_id, user_id, message)
+        params = (run_id, job_type, name, url, email, branch, filename, json.dumps(usage_scenario_variables), category_ids, json.dumps(carbon_simulation), machine_id, user_id, message)
 
         return DB().fetch_one(query, params=params)[0]
 
