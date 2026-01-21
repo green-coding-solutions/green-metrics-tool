@@ -221,6 +221,17 @@ measurement:
 ######### vhost_ratio is the virtualization degree of the machine. For Bare Metal this is 1. For 1 out of 4 VMs this would be 0.25 etc.
 #        VHost_Ratio: 1
 #
+#--- Carbon intensity
+#      carbon.intensity.elephant.machine.provider.CarbonIntensityElephantMachineProvider:
+#        location: 'DE'
+#        provider: 'electricity_maps' # optional
+#        elephant:
+#          host: localhost
+#          port: 8085
+#          protocol: http
+#      carbon.intensity.electricitymaps.machine.provider.CarbonIntensityElectricityMapsMachineProvider:
+#        location: 'DE'
+#        token: 'XXXX' # optional
 ###### DEBUG
 #      network.connections.tcpdump.system.provider.NetworkConnectionsTcpdumpSystemProvider:
 #        split_ports: True
