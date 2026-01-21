@@ -68,8 +68,8 @@ class ScenarioRunner:
         debug_mode=False, allow_unsafe=False,  skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
         docker_prune=False, job_id=None, user_id=1,
-        disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None, simulate_carbon=None,
-
+        disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None, carbon_simulation=None,
+        category_ids=None,
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
         measurement_wait_time_dependencies=60, measurement_flow_process_duration=None, measurement_total_duration=None,
@@ -125,7 +125,8 @@ class ScenarioRunner:
         self._relations_folder = os.path.realpath(os.path.join(self._tmp_folder, 'relations'))
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
-        self._simulate_carbon = simulate_carbon
+        self._carbon_simulation = carbon_simulation
+        self._category_ids = set(category_ids) if category_ids else None # deduplicate
         self._architecture = utils.get_architecture()
 
         self._sci = {'R_d': None, 'R': 0}
@@ -200,7 +201,7 @@ class ScenarioRunner:
         self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
         self.__include_playwright_ipc = False
         self.__relations = {}
-        self.__simulate_carbon_uuid = None
+        self.__carbon_simulation_uuid = None
 
         self._check_all_durations()
 
@@ -280,12 +281,12 @@ class ScenarioRunner:
         self.__notes_helper.save_to_db(self._run_id)
 
     def _clear_caches(self):
-        subprocess.check_output(['sync'])
+        subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
 
         if platform.system() == 'Darwin':
             return
         # 3 instructs kernel to drops page caches AND inode caches
-        subprocess.check_output(['sudo', '/usr/sbin/sysctl', '-w', 'vm.drop_caches=3'])
+        subprocess.check_output(['sudo', '/usr/sbin/sysctl', '-w', 'vm.drop_caches=3'], encoding='UTF-8', errors='replace')
 
     def _check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
@@ -322,6 +323,7 @@ class ScenarioRunner:
                 check=True,
                 capture_output=True,
                 encoding='UTF-8',
+                errors='replace'
             )
 
             if problematic_symlink := utils.find_outside_symlinks(self._repo_folder):
@@ -383,6 +385,7 @@ class ScenarioRunner:
                 check=True,
                 capture_output=True,
                 encoding='UTF-8',
+                errors='replace'
             )
 
             if 'commit_hash' in relation:
@@ -391,6 +394,7 @@ class ScenarioRunner:
                     check=True,
                     capture_output=True,
                     encoding='UTF-8',
+                    errors='replace',
                     cwd=relation_path,
                 )
 
@@ -623,13 +627,15 @@ class ScenarioRunner:
                 ['docker', 'logs', container_name],
                 check=False,
                 capture_output=True,
-                encoding='UTF-8'
+                encoding='UTF-8',
+                errors='replace',
             )
             inspect_ps = subprocess.run(
                 ['docker', 'inspect', '--format={{.State.ExitCode}}', container_name],
                 check=False,
                 capture_output=True,
-                encoding='UTF-8'
+                encoding='UTF-8',
+                errors='replace',
             )
             exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
 
@@ -637,7 +643,7 @@ class ScenarioRunner:
                 # Container exited with a successful exit code
                 raise RuntimeError(f"Container '{container_name}' exited during {step_description} (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
             elif exit_code == "137": # string check cause we get exit code from Docker API
-                raise MemoryError(f"Container '{container_name}' failed during {step_description} due to an Out-of-Memory error (Code: 137). Please check if you can instruct the startup process to use less memory or higher resource limits on the container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
+                raise MemoryError(f"Container '{container_name}' failed during {step_description} with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
             else:
                 # Container failed with non-zero or unknown exit code
                 if not image_name:
@@ -785,7 +791,6 @@ class ScenarioRunner:
             print(TerminalColors.WARNING, arrows('No configuration found for carbon intensity elephant machine provider. Skipping setup of carbon simulator.'), TerminalColors.ENDC)
             return
 
-        print(config)
         if not config['location'] or not isinstance(config['elephant'], dict):
             raise MetricProviderConfigurationError('Please set the location config option for CarbonIntensityElephantMachineProvider in the config.yml')
 
@@ -797,15 +802,15 @@ class ScenarioRunner:
         base_url = f"{protocol}://{host}:{port}"
 
         try:
-            self.__simulate_carbon_uuid = uuid.UUID(str(self._simulate_carbon), version=4)
+            self.__carbon_simulation_uuid = uuid.UUID(str(self._carbon_simulation), version=4)
         except ValueError:
             response = requests.post(
                 f"{base_url}/simulation",
-                json={'carbon_values': self._simulate_carbon,},
+                json={'carbon_values': self._carbon_simulation,},
                 timeout=30
             )
             response.raise_for_status()
-            self.__simulate_carbon_uuid = uuid.UUID(response.json().get('simulation_id'))
+            self.__carbon_simulation_uuid = uuid.UUID(response.json().get('simulation_id'))
 
     def _initialize_run(self):
         print(TerminalColors.HEADER, '\nInitializing run', TerminalColors.ENDC)
@@ -846,14 +851,14 @@ class ScenarioRunner:
                     job_id, name, uri, branch, filename, relations,
                     commit_hash, commit_timestamp, runner_arguments,
                     machine_specs, measurement_config,
-                    usage_scenario, usage_scenario_variables, gmt_hash,
+                    usage_scenario, usage_scenario_variables, category_ids, gmt_hash,
                     machine_id, user_id, created_at
                 )
                 VALUES (
                     %s, %s, %s, %s, %s, %s,
                     %s, %s, %s,
                     %s, %s,
-                    %s, %s, %s,
+                    %s, %s, %s, %s,
                     %s, %s, NOW()
                 )
                 RETURNING id
@@ -861,7 +866,7 @@ class ScenarioRunner:
                     self._job_id, self._name, self._uri, self._branch, self._original_filename, json.dumps(self.__relations),
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
-                    json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables),
+                    json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
                     gmt_hash,
                     GlobalConfig().config['machine']['id'], self._user_id,
                 ))[0]
@@ -876,12 +881,12 @@ class ScenarioRunner:
 
         config = json.loads(json.dumps(GlobalConfig().config))
 
-        if self.__simulate_carbon_uuid is not None:
+        if self.__carbon_simulation_uuid is not None:
             # We need to pass in the uuid to the metric provier. The easiest way is to patch the config as we don't have a standard way to pass
             # extra arguments to metric providers yet.
             elephant_config = config.get('measurement', {}).get('metric_providers', {}).get('common', {}).get('carbon.intensity.elephant.machine.provider.CarbonIntensityElephantMachineProvider', {})
             if elephant_config != {}:
-                config['measurement']['metric_providers']['common']['carbon.intensity.elephant.machine.provider.CarbonIntensityElephantMachineProvider']['simulation_uuid'] = str(self.__simulate_carbon_uuid)
+                config['measurement']['metric_providers']['common']['carbon.intensity.elephant.machine.provider.CarbonIntensityElephantMachineProvider']['simulation_uuid'] = str(self.__carbon_simulation_uuid)
 
         metric_providers = utils.get_metric_providers(config)
 
@@ -1158,9 +1163,9 @@ class ScenarioRunner:
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
 
                 if self.__usage_scenario['networks'][network] and self.__usage_scenario['networks'][network].get('internal', False):
-                    subprocess.check_output(['docker', 'network', 'create', '--internal', network])
+                    subprocess.check_output(['docker', 'network', 'create', '--internal', network], encoding='UTF-8', errors='replace')
                 else:
-                    subprocess.check_output(['docker', 'network', 'create', network])
+                    subprocess.check_output(['docker', 'network', 'create', network], encoding='UTF-8', errors='replace')
 
                 self.__networks.append(network)
         else:
@@ -1681,7 +1686,7 @@ class ScenarioRunner:
                     )
 
                     if ps.returncode == 137:
-                        raise MemoryError(f"Your process {d_command} failed due to an Out-of-Memory error (Code: 137). Please check if you can instruct the process to use less memory or higher resource limits on the container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                        raise MemoryError(f"Your process {d_command} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
                     elif ps.returncode != 0:
                         raise RuntimeError(f"Process {d_command} failed with return code {ps.returncode}.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
 
@@ -2251,7 +2256,7 @@ class ScenarioRunner:
 
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
                     if ps['ps'].returncode == 137:
-                        raise MemoryError(f"Your process {ps['cmd']} failed due to an Out-of-Memory error (Code: 137). Please check if you can instruct the process to use less memory or higher resource limits on the container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT.\n\nDetached process: {ps['detach']}\n\n========== Stderr ==========\n{stderr}")
+                        raise MemoryError(f"Your process {ps['cmd']} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\nDetached process: {ps['detach']}\n\n========== Stderr ==========\n{stderr}")
                     else:
                         raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}. Please also check the stdout in the logs and / or enable stdout logging to debug further.")
 
@@ -2548,7 +2553,7 @@ class ScenarioRunner:
             self._initial_parse()
             self._checkout_relations()
             self._register_machine_id()
-            if self._simulate_carbon:
+            if self._carbon_simulation:
                 self._setup_carbon_simulator()
 
             self._import_metric_providers()

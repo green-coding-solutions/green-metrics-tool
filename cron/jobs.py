@@ -56,7 +56,7 @@ if __name__ == '__main__':
         print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'Processing Job ID#: ', job_main._id)
         if args.type == 'run':
             job_main.process(docker_prune=args.docker_prune, full_docker_prune=args.full_docker_prune)
-        elif args.type == 'email':
+        else:
             job_main.process()
         print('Successfully processed jobs queue item.')
     except Exception as exc: #pylint: disable=broad-except
@@ -66,7 +66,7 @@ if __name__ == '__main__':
             # reduced error message to client, but only if no ConfigurationCheckError
             if job_main._email and not isinstance(exc, ConfigurationCheckError):
                 Job.insert(
-                    'email',
+                    'email-simple',
                     user_id=job_main._user_id,
                     email=job_main._email,
                     name='Measurement Job on Green Metrics Tool Cluster failed',

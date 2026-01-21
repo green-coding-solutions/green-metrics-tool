@@ -18,6 +18,7 @@ WATCHLIST_ITEM = {
         'user_id':1,
         'schedule_mode':'daily',
         'last_marker':None,
+        'category_ids': None,
         'usage_scenario_variables': {}
 }
 
@@ -64,6 +65,25 @@ def test_run_schedule_daily():
     assert jobs[0]['branch'] == WATCHLIST_ITEM['branch']
     assert jobs[0]['name'] == WATCHLIST_ITEM['name']
     assert jobs[0]['state'] == 'WAITING'
+    assert jobs[0]['category_ids'] == WATCHLIST_ITEM['category_ids']
+
+def test_run_schedule_with_category():
+    jobs = get_jobs()
+    assert len(jobs) == 0
+
+    watchlist_item_modified = WATCHLIST_ITEM.copy()
+    watchlist_item_modified['category_ids'] = [2,1]
+
+    Watchlist.insert(**watchlist_item_modified)
+    schedule_watchlist_item()
+
+    jobs = get_jobs()
+    assert len(jobs) == 1
+    assert jobs[0]['url'] == watchlist_item_modified['repo_url']
+    assert jobs[0]['branch'] == watchlist_item_modified['branch']
+    assert jobs[0]['name'] == watchlist_item_modified['name']
+    assert jobs[0]['state'] == 'WAITING'
+    assert jobs[0]['category_ids'] == watchlist_item_modified['category_ids']
 
 def test_run_schedule_daily_repeated():
     jobs = get_jobs()

@@ -1,6 +1,8 @@
 import sys
 import traceback
 
+from datetime import datetime
+
 from lib.terminal_colors import TerminalColors
 from lib.global_config import GlobalConfig
 from lib.job.base import Job
@@ -51,5 +53,8 @@ def log_error(*messages, **kwargs):
     print(TerminalColors.FAIL, err, TerminalColors.ENDC, file=sys.stderr)
 
     if error_email := GlobalConfig().config['admin']['error_email']:
+        final_message = format_error(*messages, **kwargs, traceback_first=False)
+        final_message = f"{final_message}\n\nOriginal date and time: {datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z%z")}"
+
         # User 0 is the [GMT-SYSTEM] user
-        Job.insert('email', user_id=0, email=error_email, name='Green Metrics Tool Error', message=format_error(*messages, **kwargs, traceback_first=False))
+        Job.insert('email-simple', user_id=0, email=error_email, name='Green Metrics Tool Error', message=final_message)

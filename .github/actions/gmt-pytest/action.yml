@@ -40,7 +40,7 @@ runs:
     - name: setup_python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: '3.13'
 
     - id: python_cache
       uses: actions/cache@v4
@@ -79,6 +79,12 @@ runs:
           cd tests && python3 setup-test-env.py --no-docker-build
         fi
 
+      # We skipped the build step earlier to now build with a cache.
+      # Sadly docker compose uses a different driver in GitHub Actions and cannot directly
+      # use the cache-from and cache-to directives in the compose.yml as it cannot connect to a remote cache.
+      # Thus, to save cache to packages we use buildx
+      # https://github.com/green-coding-solutions/green-metrics-tool/pkgs/container/gunicorn-container-cache/versions
+
     - name: Set up Docker Buildx
       id: buildx
       uses: docker/setup-buildx-action@v3
@@ -95,11 +101,11 @@ runs:
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
       run: |
-        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1); DOCKER_EXIT_CODE=$?; } || true
+        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --set test-green-coding-gunicorn.cache-from=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.cache-to=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.tags='green-metrics-tool-test-test-green-coding-gunicorn:latest' --load 2>&1); DOCKER_EXIT_CODE=$?; } || true
         if [ "$DOCKER_EXIT_CODE" -ne 0 ]; then
           echo "Docker build failed with exit code $DOCKER_EXIT_CODE"
           echo "buildx output:"
-          echo $DOCKER_OUTPUT
+          echo "$DOCKER_OUTPUT"
           if echo "$DOCKER_OUTPUT" | grep -q "403 Forbidden"; then
             echo "Docker build failed due to permissions issue. Continuing..."
           else

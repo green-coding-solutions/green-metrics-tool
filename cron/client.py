@@ -124,9 +124,9 @@ def validate_temperature():
         validate_temperature.temperature_errors += 1
 
         # stress all cores with constant yes operation
-        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True)
+        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
         time.sleep(300)
-        subprocess.check_output(['killall', 'yes'])
+        subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
 
         return False
 
@@ -152,7 +152,7 @@ def do_measurement_control():
         message = validate.validate_workload_stddev(stddev_data, cwl['metrics'])
         if config['cluster']['client']['send_control_workload_status_mail'] and config['admin']['notification_email']:
             Job.insert(
-                'email',
+                'email-simple',
                 user_id=0, # User 0 is the [GMT-SYSTEM] user
                 email=config['admin']['notification_email'],
                 name=f"{config['machine']['description']} is operating normally. All STDDEV fine.",
@@ -273,7 +273,7 @@ if __name__ == '__main__':
                     # reduced error message to client, but only if no ConfigurationCheckError
                     if job._email:
                         Job.insert(
-                            'email',
+                            'email-simple',
                             user_id=job._user_id,
                             email=job._email,
                             name='Measurement Job on Green Metrics Tool Cluster failed',
@@ -287,9 +287,9 @@ if __name__ == '__main__':
             else:
                 set_status('job_no')
                 if config['cluster']['client']['shutdown_on_job_no']:
-                    subprocess.check_output(['sync'])
+                    subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
                     time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
-                    subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']])
+                    subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
 
                 if not args.testing:
                     time.sleep(config['cluster']['client']['sleep_time_no_job'])

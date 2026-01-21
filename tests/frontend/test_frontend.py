@@ -558,14 +558,7 @@ class TestFrontendFunctionality:
     def test_expert_compare_mode(self):
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-        page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
         page.wait_for_load_state("load")  # wait JS
-        assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is off'
-
-        page.locator('#toggle-expert-compare-mode').click()
-
-        page.wait_for_load_state("load") # wait JS
-        assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is on'
 
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
@@ -595,6 +588,8 @@ class TestFrontendFunctionality:
         elements[3].click()
         elements[5].click()
 
+        page.locator('.ui.accordion.compare-force-mode .title').click() # open accordion
+
         page.locator('#compare-force-mode').select_option("Machines")
 
         with context.expect_page() as new_page_info:
@@ -619,14 +614,6 @@ class TestFrontendFunctionality:
 
     def test_new_usage_scenario_variables_compare_mode(self):
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-        page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
-        page.wait_for_load_state("load")  # wait JS
-        assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is off'
-
-        page.locator('#toggle-expert-compare-mode').click()
-
-        page.wait_for_load_state("load") # wait JS
-        assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is on'
 
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
@@ -636,7 +623,7 @@ class TestFrontendFunctionality:
         for element in elements:
             element.click()
 
-        # #compare-force-mode is only visible when click was successful
+        page.locator('.ui.accordion.compare-force-mode .title').click() # open accordion
         page.locator('#compare-force-mode').select_option("Usage Scenario Variables")
 
 

@@ -7,7 +7,7 @@ services:
   test-container:
     type: container
     image: ubuntu
-    entrypoint: ["dd", "if=/dev/zero", "of=/dev/shm/test100mb", "bs=1M", "count=100"]
+    entrypoint: ["dd", "if=/dev/zero", "of=/dev/shm/test100mb", "bs=1M", "count=1000"]
     mem_limit: 10 MB
 
 flow:

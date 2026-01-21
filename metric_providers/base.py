@@ -56,7 +56,7 @@ class BaseMetricProvider:
                     call_string = f"{self._current_dir}/{call_string}"
                 check_command = [f"{call_string}", '-c']
 
-            ps = subprocess.run(check_command, capture_output=True, encoding='UTF-8', check=False)
+            ps = subprocess.run(check_command, capture_output=True, encoding='UTF-8', errors='replace', check=False)
             if ps.returncode != 0:
                 if check_error_message is None:
                     check_error_message = ps.stderr
