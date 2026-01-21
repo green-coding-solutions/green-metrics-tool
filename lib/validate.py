@@ -87,6 +87,7 @@ def run_workload(name, uri, filename, branch):
         docker_prune=True,
         job_id=None,
         user_id=0, # User id 0 is the [GMT-SYSTEM] user
+        measurement_system_check_threshold=2, # will also fail on WARN
         measurement_flow_process_duration=1800,
         measurement_total_duration=1800,
     )

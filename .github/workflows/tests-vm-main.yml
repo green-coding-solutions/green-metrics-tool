@@ -17,8 +17,9 @@ on:
 jobs:
   run-tests-main:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
     steps:
-
       - name: Eco CI Energy Estimation - Initialize
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:

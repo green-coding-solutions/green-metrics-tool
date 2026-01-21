@@ -43,7 +43,7 @@ class LmsensorsProvider(BaseMetricProvider):
         super().check_system(check_command=None)
 
         # Run 'sensors' command and capture the output
-        ps = subprocess.run(['sensors'], capture_output=True, text=True, check=False)
+        ps = subprocess.run(['sensors'], capture_output=True, encoding='UTF-8', errors='replace', check=False)
         if ps.returncode != 0:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot run the 'sensors' command. Did you install lm-sensors?.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
 

@@ -79,7 +79,7 @@ async def get_jobs(
 
 
     query = f"""
-        SELECT j.id, r.id as run_id, j.name, j.url, j.filename, j.usage_scenario_variables, j.branch, m.description, j.state, j.updated_at, j.created_at
+        SELECT j.id, r.id as run_id, j.name, j.url, j.filename, j.usage_scenario_variables, j.branch, m.description, j.state, j.updated_at, j.created_at, j.category_ids
         FROM jobs as j
         LEFT JOIN machines as m on m.id = j.machine_id
         LEFT JOIN runs as r on r.job_id = j.id
@@ -300,7 +300,7 @@ def old_v1_runs_endpoint():
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v2/runs')
-async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, job_id: int | None = None, failed: bool | None = None, show_archived: bool | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, job_id: int | None = None, failed: bool | None = None, show_archived: bool | None = None, show_other_users: bool | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
 
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at,
@@ -309,9 +309,16 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]) or r.public = TRUE)
     '''
-    params = [user.is_super_user(), user.visible_users()]
+    params = []
+
+    if show_other_users is False:
+        query = f"{query} r.user_id = %s  \n"
+        params.append(user._id)
+    else:
+        query = f"{query} (TRUE = %s OR r.user_id = ANY(%s::int[]) or r.public = TRUE) \n"
+        params.append(user.is_super_user())
+        params.append(user.visible_users())
 
     if uri:
         if uri_mode == 'exact':
@@ -354,6 +361,8 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
 
     if show_archived is not True:
         query = f"{query} AND r.archived = False \n"
+
+
 
     query = f"{query} ORDER BY r.created_at DESC"
 
@@ -719,7 +728,7 @@ async def get_watchlist(user: User = Depends(authenticate)):
             tp.id, tp.name, tp.image_url, tp.repo_url,
             (
                 SELECT STRING_AGG(t.name, ', ' )
-                FROM unnest(tp.categories) as elements
+                FROM unnest(tp.category_ids) as elements
                 LEFT JOIN categories as t on t.id = elements
             ) as categories,
             tp.branch, tp.filename, tp.machine_id, m.description, tp.schedule_mode, tp.last_scheduled, tp.created_at, tp.updated_at,
@@ -773,6 +782,19 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if software.usage_scenario_variables is None:
         software.usage_scenario_variables = {}
 
+    unique_category_ids = None
+    if software.category_ids:
+        result = DB().fetch_one("SELECT array_agg(id) FROM categories WHERE id = ANY(%s)", (software.category_ids,))[0]
+        if not result:
+            raise HTTPException(status_code=422, detail=f"Categories not known: {software.category_ids}")
+
+        existing_ids = set(result)
+        unique_category_ids = set(software.category_ids) # deduplicate
+        unknown_ids = unique_category_ids - existing_ids
+        if unknown_ids:
+            raise HTTPException(status_code=422, detail=f"Categories not known: {unknown_ids}")
+        unique_category_ids = list(unique_category_ids) # transform back to list so we can insert it. psycopg does not understand sets
+
     if not DB().fetch_one('SELECT id FROM machines WHERE id=%s AND available=TRUE', params=(software.machine_id,)):
         raise HTTPException(status_code=422, detail='Machine does not exist')
 
@@ -802,7 +824,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         except RuntimeError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
     job_ids_inserted = []
 
@@ -814,11 +836,11 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         amount = 1
 
     for _ in range(0,amount):
-        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables))
+        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids))
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:
-        Job.insert('email', user_id=user._id, name='New run added from Web Interface', message=pprint.pformat(software.model_dump(), width=60, indent=2), email=notification_email)
+        Job.insert('email-simple', user_id=user._id, name='New run added from Web Interface', message=pprint.pformat(software.model_dump(), width=60, indent=2), email=notification_email)
 
     return ORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
 

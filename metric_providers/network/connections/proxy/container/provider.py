@@ -50,8 +50,8 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
         elif platform.system() == 'Linux':
             # Under Linux there is no way to directly link to the host
             cmd =  "ip addr show dev $(ip route | grep default | awk '{print $5}') | grep 'inet '| awk '{print $2}'| cut -f1 -d'/'"
-            ps = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
-            proxy_addr = ps.stdout.strip()
+            output = subprocess.check_output(cmd, shell=True, encoding='UTF-8', errors='replace')
+            proxy_addr = output.strip()
         else:
             proxy_addr = 'host.docker.internal'
 

@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       pull-requests: write
+      packages: write
     steps:
       - name: Eco CI Energy Estimation - Initialize
         uses: green-coding-solutions/eco-ci-energy-estimation@main

@@ -6,7 +6,7 @@ sudo apt install acl -y
 
 sudo setfacl -bk /tmp
 
-/workspaces/green-metrics-tool/install_linux.sh -p testpw -a "https://${CODESPACE_NAME}-9142.app.github.dev" -m "https://${CODESPACE_NAME}-9143.app.github.dev" -T -I -S -L -z -Z -f --tz Europe/Berlin
+/workspaces/green-metrics-tool/install_linux.sh -p testpw -a "https://${CODESPACE_NAME}-9142.app.github.dev" -m "https://${CODESPACE_NAME}-9143.app.github.dev" -T -I -S -L -z -Z -f -j -g -d --tz Europe/Berlin
 source venv/bin/activate
 
 # Also add XGBoost, as we need it

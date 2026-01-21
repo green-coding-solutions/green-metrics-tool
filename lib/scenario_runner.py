@@ -61,14 +61,20 @@ class ScenarioRunner:
     def __init__(self,
         *, uri, uri_type, name=None, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False,  skip_system_checks=False,
-        skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
-        dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
-        dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
-        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False, dev_no_save=False,
-        skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None, phase_padding=True,
+        skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
+        docker_prune=False, job_id=None, user_id=1,
+        disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None,
+        category_ids=None,
+
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
-        measurement_wait_time_dependencies=60):
+        measurement_wait_time_dependencies=60, measurement_flow_process_duration=None, measurement_total_duration=None,
+
+        dev_no_phase_stats=False, dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
+        dev_flow_timetravel=False, dev_no_optimizations=False,
+
+        skip_volume_inspect=False, skip_download_dependencies=False,
+        ):
 
         self._arguments = locals() # safe the argument as first step before anything else to not expose local created variables
 
@@ -95,6 +101,7 @@ class ScenarioRunner:
         self._skip_unsafe = skip_unsafe
         self._skip_system_checks = skip_system_checks
         self._skip_volume_inspect = skip_volume_inspect
+        self._skip_download_dependencies = skip_download_dependencies
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._docker_prune = docker_prune
@@ -111,8 +118,10 @@ class ScenarioRunner:
         self._branch = branch
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
+        self._relations_folder = os.path.realpath(os.path.join(self._tmp_folder, 'relations'))
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
+        self._category_ids = set(category_ids) if category_ids else None # deduplicate
         self._architecture = utils.get_architecture()
 
         self._sci = {'R_d': None, 'R': 0}
@@ -185,7 +194,8 @@ class ScenarioRunner:
         self.__container_dependencies = None
         self.__usage_scenario = OrderedDict()
         self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
-        self.__include_playwright_ipc_version = None
+        self.__include_playwright_ipc = False
+        self.__relations = {}
 
         self._check_all_durations()
 
@@ -265,12 +275,12 @@ class ScenarioRunner:
         self.__notes_helper.save_to_db(self._run_id)
 
     def _clear_caches(self):
-        subprocess.check_output(['sync'])
+        subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
 
         if platform.system() == 'Darwin':
             return
         # 3 instructs kernel to drops page caches AND inode caches
-        subprocess.check_output(['sudo', '/usr/sbin/sysctl', '-w', 'vm.drop_caches=3'])
+        subprocess.check_output(['sudo', '/usr/sbin/sysctl', '-w', 'vm.drop_caches=3'], encoding='UTF-8', errors='replace')
 
     def _check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
@@ -289,41 +299,26 @@ class ScenarioRunner:
         if self._uri_type == 'URL':
             # always remove the folder if URL provided, cause -v directory binding always creates it
             # no check cause might fail when directory might be missing due to manual delete
+            command = ['git', 'clone', '--depth', '1']
+
             if self._branch:
                 print(f"Branch specified: {self._branch}")
-                # git clone -b <branchname> --single-branch <remote-repo-url>
-                subprocess.run(
-                    [
-                        'git',
-                        'clone',
-                        '--depth', '1',
-                        '-b', self._branch,
-                        '--single-branch',
-                        '--recurse-submodules',
-                        '--shallow-submodules',
-                        self._uri,
-                        self._repo_folder
-                    ],
-                    check=True,
-                    capture_output=True,
-                    encoding='UTF-8',
-                )
-            else:
-                subprocess.run(
-                    [
-                        'git',
-                        'clone',
-                        '--depth', '1',
-                        '--single-branch',
-                        '--recurse-submodules',
-                        '--shallow-submodules',
-                        self._uri,
-                        self._repo_folder
-                    ],
-                    check=True,
-                    capture_output=True,
-                    encoding='UTF-8'
-                )  # always name target-dir repo according to spec
+                command.append('-b')
+                command.append(self._branch)
+
+            command.append('--single-branch')
+            command.append('--recurse-submodules')
+            command.append('--shallow-submodules')
+            command.append(self._uri)
+            command.append(self._repo_folder)
+
+            subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                encoding='UTF-8',
+                errors='replace'
+            )
 
             if problematic_symlink := utils.find_outside_symlinks(self._repo_folder):
                 raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
@@ -348,6 +343,62 @@ class ScenarioRunner:
         # running in CLI mode
         self._commit_hash, self._commit_timestamp = get_repo_info(self._join_paths(self._repo_folder, self._commit_hash_folder))
 
+    def _checkout_relations(self):
+        print(TerminalColors.HEADER, '\nChecking out relations', TerminalColors.ENDC)
+
+        if 'relations' not in self.__usage_scenario:
+            print(TerminalColors.HEADER, '\nNo relations found. Skipping ...', TerminalColors.ENDC)
+            return
+
+
+        Path(self._relations_folder).mkdir(parents=False, exist_ok=False)
+
+        for relation_key, relation in self.__usage_scenario['relations'].items():
+            relation_path = os.path.realpath(os.path.join(self._relations_folder, relation_key))
+
+            self.__relations[relation_key] = {
+                'url': relation['url'],
+                'mount_path': relation_path,
+            }
+
+            command = ['git', 'clone', '--depth', '1']
+
+            if 'branch' in relation:
+                self.__relations[relation_key]['branch'] = relation['branch']
+                command.append('-b')
+                command.append(relation['branch'])
+
+            command.append('--single-branch')
+            command.append('--recurse-submodules')
+            command.append('--shallow-submodules')
+            command.append(relation['url'])
+            command.append(relation_path)
+
+            subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                encoding='UTF-8',
+                errors='replace'
+            )
+
+            if 'commit_hash' in relation:
+                subprocess.run(
+                    ['git', 'checkout', relation['commit_hash']],
+                    check=True,
+                    capture_output=True,
+                    encoding='UTF-8',
+                    errors='replace',
+                    cwd=relation_path,
+                )
+
+            if problematic_symlink := utils.find_outside_symlinks(relation_path):
+                raise RuntimeError(f"Relation {relation_key} contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
+
+
+            self.__relations[relation_key]['commit_hash'], self.__relations[relation_key]['commit_timestamp'] = get_repo_info(relation_path)
+
+            self.__relations[relation_key]['commit_timestamp'] = str(self.__relations[relation_key]['commit_timestamp'])
 
 
     # This method loads the yml file and takes care that the includes work and are secure.
@@ -417,8 +468,8 @@ class ScenarioRunner:
             def include_gmt_helper(loader: Loader, node):
                 nodes = loader.get_constructed_nodes(node)
 
-                if not re.fullmatch(r'gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml', nodes[0]):
-                    raise ValueError(f"You tried include unallowed files with !include-gmt-helper function. Included files must conform to regex gmt-playwright-(?:with-cache-)?(v\\d+.\\d+.\\d+)\\.yml but actually is {nodes[0]}")
+                if not re.fullmatch(r'gmt-playwright(?:-with-cache)?\.yml', nodes[0]):
+                    raise ValueError(f"You tried include unallowed files with !include-gmt-helper function. Included files must conform to regex gmt-playwright(?:-with-cache)?\\.yml but actually is {nodes[0]}")
 
                 filename = runner_join_paths(f"{GMT_ROOT_DIR}/templates/partials/", nodes[0], force_path_as_root=True, force_path_in_repo=False)
 
@@ -457,8 +508,8 @@ class ScenarioRunner:
                 usage_scenario_file=usage_scenario_file,
             )
 
-            if match := re.search(r'!include-gmt-helper gmt-playwright-(?:with-cache-)?(v\d+.\d+.\d+)\.yml', usage_scenario):
-                self.__include_playwright_ipc_version = match[1]
+            if re.search(r'!include-gmt-helper gmt-playwright(?:-with-cache)?\.yml', usage_scenario):
+                self.__include_playwright_ipc = True
 
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(usage_scenario, Loader)
@@ -570,19 +621,23 @@ class ScenarioRunner:
                 ['docker', 'logs', container_name],
                 check=False,
                 capture_output=True,
-                encoding='UTF-8'
+                encoding='UTF-8',
+                errors='replace',
             )
             inspect_ps = subprocess.run(
                 ['docker', 'inspect', '--format={{.State.ExitCode}}', container_name],
                 check=False,
                 capture_output=True,
-                encoding='UTF-8'
+                encoding='UTF-8',
+                errors='replace',
             )
             exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
 
-            if exit_code == "0":
+            if exit_code == "0":  # string check cause we get exit code from Docker API
                 # Container exited with a successful exit code
                 raise RuntimeError(f"Container '{container_name}' exited during {step_description} (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
+            elif exit_code == "137": # string check cause we get exit code from Docker API
+                raise MemoryError(f"Container '{container_name}' failed during {step_description} with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
             else:
                 # Container failed with non-zero or unknown exit code
                 if not image_name:
@@ -757,25 +812,25 @@ class ScenarioRunner:
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
                 INSERT INTO runs (
-                    job_id, name, uri, branch, filename,
+                    job_id, name, uri, branch, filename, relations,
                     commit_hash, commit_timestamp, runner_arguments,
                     machine_specs, measurement_config,
-                    usage_scenario, usage_scenario_variables, gmt_hash,
+                    usage_scenario, usage_scenario_variables, category_ids, gmt_hash,
                     machine_id, user_id, created_at
                 )
                 VALUES (
-                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s,
                     %s, %s, %s,
                     %s, %s,
-                    %s, %s, %s,
+                    %s, %s, %s, %s,
                     %s, %s, NOW()
                 )
                 RETURNING id
                 """, params=(
-                    self._job_id, self._name, self._uri, self._branch, self._original_filename,
+                    self._job_id, self._name, self._uri, self._branch, self._original_filename, json.dumps(self.__relations),
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
-                    json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables),
+                    json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
                     gmt_hash,
                     GlobalConfig().config['machine']['id'], self._user_id,
                 ))[0]
@@ -832,6 +887,11 @@ class ScenarioRunner:
 
     def _download_dependencies(self):
         print(TerminalColors.HEADER, '\nDownloading dependencies', TerminalColors.ENDC)
+
+        if self._skip_download_dependencies:
+            print('Skipping downloading dependencies due to --skip-download-dependencies')
+            return
+
         subprocess.run(['docker', 'pull', 'gcr.io/kaniko-project/executor:latest'], check=True)
 
     def _get_build_info(self, service):
@@ -1066,9 +1126,9 @@ class ScenarioRunner:
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
 
                 if self.__usage_scenario['networks'][network] and self.__usage_scenario['networks'][network].get('internal', False):
-                    subprocess.check_output(['docker', 'network', 'create', '--internal', network])
+                    subprocess.check_output(['docker', 'network', 'create', '--internal', network], encoding='UTF-8', errors='replace')
                 else:
-                    subprocess.check_output(['docker', 'network', 'create', network])
+                    subprocess.check_output(['docker', 'network', 'create', network], encoding='UTF-8', errors='replace')
 
                 self.__networks.append(network)
         else:
@@ -1157,11 +1217,15 @@ class ScenarioRunner:
             # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
             docker_run_string.append(f"{self._repo_folder}:{repo_mount_path}:ro")
 
-            # this is a special feature container with a reserved name.
-            # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc_version == True
-            if self.__include_playwright_ipc_version and container_name == 'gmt-playwright-nodejs':
+            for relation_key, relation in self.__relations.items():
                 docker_run_string.append('-v')
-                docker_run_string.append(f"{GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc-{self.__include_playwright_ipc_version}.js:/tmp/gmt-utils/gmt-playwright-ipc-{self.__include_playwright_ipc_version}.js:ro")
+                docker_run_string.append(f"{relation['mount_path']}:/tmp/relations/{relation_key}:ro")
+
+            # this is a special feature container with a reserved name.
+            # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc == True
+            if self.__include_playwright_ipc and container_name == 'gmt-playwright-nodejs':
+                docker_run_string.append('-v')
+                docker_run_string.append(f"{GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc.js:/tmp/gmt-utils/gmt-playwright-ipc.js:ro")
 
             if self.__docker_params:
                 docker_run_string[2:2] = self.__docker_params
@@ -1354,6 +1418,7 @@ class ScenarioRunner:
             docker_run_string.append(f"--memory-swappiness={container_data['memory_swappiness']}") # GMT should never swap as it gives hard to interpret / non-linear performance results
             docker_run_string.append(f"--oom-score-adj={container_data['oom_score_adj']}") # containers will be killed first so host does not OOM
             docker_run_string.append(f"--memory={container_data['mem_limit']}")
+            docker_run_string.append(f"--env=GMT_CONTAINER_MEMORY_LIMIT={container_data['mem_limit']}")
             docker_run_string.append(f"--memory-swap={container_data['mem_limit']}") # effectively disable swap
 
             if 'healthcheck' in service:  # must come last
@@ -1583,8 +1648,10 @@ class ScenarioRunner:
                         errors='replace',
                     )
 
-                    if ps.returncode != 0:
-                        raise RuntimeError(f"Process {d_command} failed.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                    if ps.returncode == 137:
+                        raise MemoryError(f"Your process {d_command} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                    elif ps.returncode != 0:
+                        raise RuntimeError(f"Process {d_command} failed with return code {ps.returncode}.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
 
                 self.__ps_to_read.append({
                     'cmd': d_command,
@@ -1940,15 +2007,23 @@ class ScenarioRunner:
                     # this command will block until something is received
                     if cmd_obj['type'] == 'playwright':
                         print("Awaiting Playwright function return")
-                        ps = subprocess.run(
-                            ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
-                            check=True,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            encoding='UTF-8',
-                            errors='replace',
-                            timeout=60, # 60 seconds should be reasonable for any playwright command we know
-                        )
+                        try:
+                            ps = subprocess.run(
+                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
+                                check=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                encoding='UTF-8',
+                                errors='replace',
+                                timeout=60, # 60 seconds should be reasonable for any playwright command we know
+                            )
+                        except subprocess.TimeoutExpired as exc:
+                            error_message = subprocess.check_output(
+                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-error'],
+                                encoding='UTF-8',
+                                errors='replace',
+                            )
+                            raise RuntimeError(f"Error: {error_message}.\nExecuted command that produced error: {cmd_obj['command']}") from exc
 
 
                     if self._debugger.active:
@@ -2140,10 +2215,13 @@ class ScenarioRunner:
                     else:
                         stderr = ps['ps'].stderr
                 except subprocess.TimeoutExpired:
-                    pass
+                    stderr = 'Could not read due to timeout'
 
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
-                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}. Please also check the stdout in the logs and / or enable stdout logging to debug further.")
+                    if ps['ps'].returncode == 137:
+                        raise MemoryError(f"Your process {ps['cmd']} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\nDetached process: {ps['detach']}\n\n========== Stderr ==========\n{stderr}")
+                    else:
+                        raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}. Please also check the stdout in the logs and / or enable stdout logging to debug further.")
 
     def _start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
@@ -2402,7 +2480,8 @@ class ScenarioRunner:
         self.__warnings.clear()
         self.__usage_scenario.clear()
         self.__usage_scenario_variables_used_buffer.clear()
-        self.__include_playwright_ipc_version = None
+        self.__include_playwright_ipc = False
+        self.__relations.clear()
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
@@ -2431,6 +2510,7 @@ class ScenarioRunner:
             self._checkout_repository()
             self._load_yml_file()
             self._initial_parse()
+            self._checkout_relations()
             self._register_machine_id()
             self._import_metric_providers()
             self._populate_image_names()

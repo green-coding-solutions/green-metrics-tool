@@ -44,6 +44,7 @@
 
             localStorage.setItem('authentication_token', authentication_token);
             localStorage.setItem('user_name', user_data.data._name);
+            localStorage.setItem('show_other_users', 'false'); // default setting on new login different from DEFAULT user
 
             $('#login-successful-message').show();
             $('#token-details-message').show();

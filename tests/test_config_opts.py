@@ -3,6 +3,7 @@ import pytest
 import io
 from contextlib import redirect_stdout, redirect_stderr
 import subprocess
+from psycopg.errors import RaiseException as psycopg_RaiseException
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -129,3 +130,12 @@ def test_phase_padding_active():
     assert notes[-7][0] - notes[-8][0] == runner._phase_padding_ms*FROM_MS_TO_US
 
     assert notes[-6][1] == 'Ending phase [RUNTIME] [UNPADDED]'
+
+
+def test_invalid_category():
+
+    with pytest.raises(psycopg_RaiseException) as err:
+        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', category_ids=[3000], skip_download_dependencies=True, skip_system_checks=True)
+        runner.run()
+
+    assert str(err.value) == 'At least one category ID supplied ({3000}) does not exist as category. Please check if category is a typo otherwise add category first\nCONTEXT:  PL/pgSQL function validate_category_ids() line 12 at RAISE'

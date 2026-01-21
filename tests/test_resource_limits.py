@@ -46,11 +46,14 @@ def get_env_vars():
 
 def test_resource_limits_good():
 
-    run_name = 'test_' + utils.randomword(12)
-    runner = ScenarioRunner(name=run_name, uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_good.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+    out = io.StringIO()
+    err = io.StringIO()
 
-    with Tests.RunUntilManager(runner) as context:
-        context.run_until('check_process_returncodes')
+    run_name = 'test_' + utils.randomword(12)
+    runner = ScenarioRunner(name=run_name, uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_good.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, skip_download_dependencies=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
 
     with open(f'{GMT_DIR}/tests/data/usage_scenarios/resource_limits_good.yml', 'r', encoding='utf-8') as f:
         usage_scenario_contents = yaml.safe_load(f)
@@ -90,7 +93,7 @@ def test_resource_limits_good():
 
     assert container_dict['test-container-only-cpu']['mem_limit'] == MEM_PER_CONTAINER # auto-fill
 
-
+    assert 'Container Memory Limit is 10000001\n' in out.getvalue()
 
 
 def test_resource_limits_too_high():
@@ -187,3 +190,28 @@ def test_resource_limits_shm_good():
     assert 'SHM size is: Filesystem' in out.getvalue()
     assert "30.0M   0% /dev/shm" in out.getvalue()
     assert "15.0M   0% /dev/shm" in out.getvalue()
+
+def test_resource_limits_oom_setup():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_setup.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    with pytest.raises(MemoryError) as e:
+        runner.run()
+
+    assert str(e.value) == "Your process ['docker', 'exec', 'test-container', 'dd', 'if=/dev/zero', 'of=/dev/shm/test100mb', 'bs=1M', 'count=100'] failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n\n\n========== Stderr ==========\n"
+
+
+def test_resource_limits_oom_launch():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_launch.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    with pytest.raises(MemoryError) as e:
+        runner.run()
+
+    assert str(e.value) == "Container 'test-container' failed during [BOOT] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\nContainer logs:\n\n========== Stdout ==========\n\n\n========== Stderr ==========\n"
+
+def test_resource_limits_oom_exec():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_exec.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    with pytest.raises(MemoryError) as e:
+        runner.run()
+
+    assert str(e.value) == "Your process ['docker', 'exec', 'test-container', 'dd', 'if=/dev/zero', 'of=/dev/shm/test100mb', 'bs=1M', 'count=100'] failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\nDetached process: False\n\n========== Stderr ==========\n"
