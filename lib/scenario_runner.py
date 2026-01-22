@@ -1235,10 +1235,6 @@ class ScenarioRunner:
 
             if 'volumes' in service:
                 if self._allow_unsafe:
-                    # On old docker clients we experience some weird error, that we deem legacy
-                    # If a volume is supplied in the compose.yml file in this form: ./file.txt:/tmp/file.txt
-                    # and the file does NOT exist, then docker will create the folder in the current running dir
-                    # This is however not enabled anymore and hard to circumvent. We keep this as unfixed for now.
                     if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Service '{service_name}' volumes must be a list but is: {type(service['volumes'])}")
 
