@@ -1085,6 +1085,8 @@ class ScenarioRunner:
             self.__image_sizes[service['image']] = int(output.strip())
 
         # du -s -b does not work on macOS and also the docker image is in a VM and not accessible with du for us
+        # This call is guarded with --allow-unsafe bc volume information reveals host filesystem paths
+        # and potentially also volumes from other users can be probed through this
         if not self._skip_volume_inspect and self._allow_unsafe and platform.system() != 'Darwin':
             for volume in self.__usage_scenario.get('volumes', {}):
                 # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
