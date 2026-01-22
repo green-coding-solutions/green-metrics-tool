@@ -1235,9 +1235,6 @@ class ScenarioRunner:
 
             if 'volumes' in service:
                 if self._allow_unsafe:
-                    if not isinstance(service['volumes'], list):
-                        raise RuntimeError(f"Service '{service_name}' volumes must be a list but is: {type(service['volumes'])}")
-
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
                         if volume.startswith('./'): # we have a bind-mount with relative path
@@ -1249,8 +1246,6 @@ class ScenarioRunner:
                         else:
                             docker_run_string.append(f"{volume}")
                 else: # safe volume bindings are active by default
-                    if not isinstance(service['volumes'], list):
-                        raise RuntimeError(f"Service '{service_name}' volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:
                         vol = volume.split(':')
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
