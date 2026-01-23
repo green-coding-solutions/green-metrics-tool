@@ -46,7 +46,7 @@ def test_no_run_job():
 
 def test_no_email_job():
     ps = subprocess.run(
-            ['python3', '../cron/jobs.py', 'email-simple', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
+            ['python3', '../cron/jobs.py', 'email', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
