@@ -42,7 +42,7 @@ class RunJob(Job):
             filename=self._filename,
             branch=self._branch,
             skip_unsafe=user._capabilities['measurement']['skip_unsafe'],
-            allow_unsafe=user._capabilities['measurement']['allow_unsafe'],
+            allow_unsafe=False, # cluster runs should never allow this. All should go through individual user permissions
             skip_system_checks=user._capabilities['measurement']['skip_system_checks'],
             skip_volume_inspect=user._capabilities['measurement']['skip_volume_inspect'],
             full_docker_prune=full_docker_prune, # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
