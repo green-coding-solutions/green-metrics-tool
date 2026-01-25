@@ -129,7 +129,7 @@ VALUES (
             "quotas": {},
             "dev_no_sleeps": false,
             "dev_no_optimizations": false,
-            "allow_unsafe": false,
+            "allowed_volume_mounts": [],
             "skip_unsafe": true,
             "skip_system_checks": false,
             "skip_volume_inspect": false,
