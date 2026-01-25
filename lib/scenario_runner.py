@@ -956,12 +956,14 @@ class ScenarioRunner:
                 self._join_paths(context_path, dockerfile)
 
                 repo_mount_path = service.get('folder-destination', '/tmp/repo')
+                if ',' in repo_mount_path: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                    raise ValueError(f"Repo mount path may not contain commas (,) in the name: {repo_mount_path}")
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', '/workspace',
+                    '-mount', 'type=volume,dst=/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                    '-v', f"{self._repo_folder}:{repo_mount_path}:ro", # this is the folder where the usage_scenario is!
-                    '-v', f"{temp_dir}:/output",
+                    '--mount', f"type=bind,source={self._repo_folder},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
+                    '--mount', f"type=bind,source={temp_dir},target=/output",
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile={repo_mount_path}/{self.__working_folder_rel}/{context}/{dockerfile}",
                     '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel}/{context}',
@@ -1402,13 +1404,11 @@ class ScenarioRunner:
             container_data['cpuset'] = cpuset
             container_data['mem_limit'] = service['mem_limit']
             container_data['memory_swap'] = service['mem_limit']
-            container_data['memory_swappiness'] = 0
             container_data['oom_score_adj'] = 1000
 
             docker_run_string.append('--cpuset-cpus')
             docker_run_string.append(container_data['cpuset']) # range is already exclusive, so no need to subtract 1
             docker_run_string.append(f"--cpus={container_data['cpus']}")
-            docker_run_string.append(f"--memory-swappiness={container_data['memory_swappiness']}") # GMT should never swap as it gives hard to interpret / non-linear performance results
             docker_run_string.append(f"--oom-score-adj={container_data['oom_score_adj']}") # containers will be killed first so host does not OOM
             docker_run_string.append(f"--memory={container_data['mem_limit']}")
             docker_run_string.append(f"--env=GMT_CONTAINER_MEMORY_LIMIT={container_data['mem_limit']}")
@@ -1584,7 +1584,7 @@ class ScenarioRunner:
 
             ps = subprocess.run(
                 docker_run_string,
-                check=False,
+                check=False, # We want to throw custom error with stderr attached
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 encoding='UTF-8',
@@ -1602,6 +1602,12 @@ class ScenarioRunner:
             container_id = ps.stdout.strip()
             print('Stdout:', container_id)
             self.__containers[container_id] = container_data
+
+            print('Checking stderr ...')
+            docker_run_stderr = ps.stderr.strip()
+            if docker_run_stderr != '':
+                raise RuntimeError(f"Docker run command had non empty stderr: {docker_run_stderr}.\nCommand: {docker_run_string}")
+
 
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
