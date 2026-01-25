@@ -956,12 +956,14 @@ class ScenarioRunner:
                 self._join_paths(context_path, dockerfile)
 
                 repo_mount_path = service.get('folder-destination', '/tmp/repo')
+                if ',' in repo_mount_path: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                    raise ValueError(f"Repo mount path may not contain commas (,) in the name: {repo_mount_path}")
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', '/workspace',
+                    '-mount', 'type=volume,dst=/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                    '-v', f"{self._repo_folder}:{repo_mount_path}:ro", # this is the folder where the usage_scenario is!
-                    '-v', f"{temp_dir}:/output",
+                    '--mount', f"type=bind,source={self._repo_folder},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
+                    '--mount', f"type=bind,source={temp_dir},target=/output",
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile={repo_mount_path}/{self.__working_folder_rel}/{context}/{dockerfile}",
                     '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel}/{context}',
