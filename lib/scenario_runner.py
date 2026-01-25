@@ -1404,13 +1404,11 @@ class ScenarioRunner:
             container_data['cpuset'] = cpuset
             container_data['mem_limit'] = service['mem_limit']
             container_data['memory_swap'] = service['mem_limit']
-            container_data['memory_swappiness'] = 0
             container_data['oom_score_adj'] = 1000
 
             docker_run_string.append('--cpuset-cpus')
             docker_run_string.append(container_data['cpuset']) # range is already exclusive, so no need to subtract 1
             docker_run_string.append(f"--cpus={container_data['cpus']}")
-            docker_run_string.append(f"--memory-swappiness={container_data['memory_swappiness']}") # GMT should never swap as it gives hard to interpret / non-linear performance results
             docker_run_string.append(f"--oom-score-adj={container_data['oom_score_adj']}") # containers will be killed first so host does not OOM
             docker_run_string.append(f"--memory={container_data['mem_limit']}")
             docker_run_string.append(f"--env=GMT_CONTAINER_MEMORY_LIMIT={container_data['mem_limit']}")
