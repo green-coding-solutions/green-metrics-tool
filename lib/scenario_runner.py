@@ -1584,7 +1584,7 @@ class ScenarioRunner:
 
             ps = subprocess.run(
                 docker_run_string,
-                check=False,
+                check=False, # We want to throw custom error with stderr attached
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 encoding='UTF-8',
@@ -1602,6 +1602,12 @@ class ScenarioRunner:
             container_id = ps.stdout.strip()
             print('Stdout:', container_id)
             self.__containers[container_id] = container_data
+
+            print('Checking stderr ...')
+            docker_run_stderr = ps.stderr.strip()
+            if docker_run_stderr != '':
+                raise RuntimeError(f"Docker run command had non empty stderr: {docker_run_stderr}.\nCommand: {docker_run_string}")
+
 
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
