@@ -961,7 +961,7 @@ class ScenarioRunner:
                     raise ValueError(f"Repo mount path may not contain commas (,) in the name: {repo_mount_path}")
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-mount', 'type=volume,dst=/workspace',
+                    '--mount', 'type=volume,dst=/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
                     '--mount', f"type=bind,source={self._repo_folder},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
                     '--mount', f"type=bind,source={temp_dir},target=/output",
