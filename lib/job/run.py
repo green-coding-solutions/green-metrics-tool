@@ -64,7 +64,7 @@ class RunJob(Job):
             dev_no_optimizations=user._capabilities['measurement']['dev_no_optimizations'],
             disabled_metric_providers=user._capabilities['measurement']['disabled_metric_providers'],
             allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'], # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
-            allowed_run_args=user._capabilities['measurement']['allowed_run_args'],
+            allowed_volume_mounts=user._capabilities['measurement']['allowed_volume_mounts'],
 
 
         )
