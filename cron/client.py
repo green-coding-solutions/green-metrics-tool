@@ -22,7 +22,8 @@ from lib.configuration_check_error import ConfigurationCheckError, Status
 
 # We currently have this dynamically as it will probably change quite a bit
 STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_end', 'maintenance_start', 'maintenance_end', 'maintenance_error', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+GMT_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 def set_status(status_code, data=None, run_id=None):
     if not hasattr(set_status, "last_status"):
@@ -50,7 +51,7 @@ def set_status(status_code, data=None, run_id=None):
         WHERE id = %s
     """
 
-    gmt_hash, gmt_timestamp = get_repo_info(CURRENT_DIR)
+    gmt_hash, gmt_timestamp = get_repo_info(GMT_ROOT_DIR)
 
     params = (
         status_code,
