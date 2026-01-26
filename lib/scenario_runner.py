@@ -1284,11 +1284,13 @@ class ScenarioRunner:
                                 )
                                 if ps.returncode != 0:
                                     raise RuntimeError(f"Could not find volume '{mount_src}' locally from service: {service_name}. The volume must be created manually before it can be loaded. GMT does not create named volumes. - Error from Docker: {ps.stderr}")
+                                # no comma validation needed as mount is already verified through allow-list
                                 docker_run_string.append('--mount')
                                 docker_run_string.append(f"type=volume,source={mount_src},target={mount_target}{mount_option}")
 
                             else: # path case. Check path if on machine as -v will create folder otherwise
                                 mount_src_absolute = Path(mount_src).resolve(strict=True)
+                                # no comma validation needed as mount is already verified through allow-list
                                 docker_run_string.append('--mount')
                                 docker_run_string.append(f"type=bind,source={mount_src_absolute},target={mount_target}{mount_option}")
 
@@ -1299,8 +1301,8 @@ class ScenarioRunner:
                             except FileNotFoundError as exc:
                                 raise RuntimeError(f"The volume {mount_src} could not be loaded or found at the specified path.") from exc
 
-                            if mount_option != 'ro':
-                                raise RuntimeError(f"Service '{service_name}': We only allow ro as parameter in volume mounts in unsafe mode. Volume: {volume}")
+                            if mount_option != ',readonly':
+                                raise RuntimeError(f"Service '{service_name}': We only allow readonly (ro) as parameter in volume mounts in unsafe mode. Volume: {volume}")
 
                             if ',' in mount_src_absolute: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
                                 raise ValueError(f"Mount source path may not contain commas (,) in the name: {mount_src_absolute}")
