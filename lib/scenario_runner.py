@@ -1223,7 +1223,7 @@ class ScenarioRunner:
 
             # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
             docker_run_string.append('--mount')
-            docker_run_string.append(f"type=bind,source={self._repo_folder},target={repo_mount_path},readonly")
+            docker_run_string.append(f"type=bind,source={self._repo_folder},target={repo_mount_path}")
 
             for relation_key, relation in self.__relations.items():
                 if ',' in relation['mount_path']: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
