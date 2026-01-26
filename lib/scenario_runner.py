@@ -1269,7 +1269,11 @@ class ScenarioRunner:
 
                         mount_src = vol[0]
                         mount_target = vol[1]
-                        mount_option = ',readonly' if vol_len == 3 and (vol[2] == 'ro' or vol[2] == 'readonly') else '' # we only allow no mount option or readonly
+                        mount_option = '' # writeable mount by default. This is safe as it is either in allow list or only in safe paths
+                        if vol_len == 3:
+                            if vol[2] != 'ro' and vol[2] != 'readonly':
+                                raise ValueError(f"Service '{service_name}': We only allow readonly (ro) or no parameter (writeable) for volume mounts. Volume: {volume}")
+                            mount_option = ',readonly'
 
                         mount_string = f"{mount_src}{mount_option}"
                         if mount_string in self._allowed_volume_mounts:
@@ -1301,15 +1305,12 @@ class ScenarioRunner:
                             except FileNotFoundError as exc:
                                 raise RuntimeError(f"The volume {mount_src} could not be loaded or found at the specified path.") from exc
 
-                            if mount_option != ',readonly':
-                                raise RuntimeError(f"Service '{service_name}': We only allow readonly (ro) as parameter in volume mounts in unsafe mode. Volume: {volume}")
-
                             if ',' in mount_src_absolute: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
                                 raise ValueError(f"Mount source path may not contain commas (,) in the name: {mount_src_absolute}")
                             if ',' in mount_target: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
                                 raise ValueError(f"Mount target path may not contain commas (,) in the name: {mount_target}")
                             docker_run_string.append('--mount')
-                            docker_run_string.append(f"type=bind,source={mount_src_absolute},target={mount_target},readonly") # only readonly mounts for non allow list mounts
+                            docker_run_string.append(f"type=bind,source={mount_src_absolute},target={mount_target}{mount_option}")
 
 
 
