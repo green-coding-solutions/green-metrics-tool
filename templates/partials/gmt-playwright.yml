@@ -21,6 +21,6 @@ flow-prepend:
         note: Starting browser in background process with IPC
         detach: true
       - type: console
-        command: timeout 5 bash -c 'until [ -p "/tmp/playwright-ipc-ready" ]; do sleep 1; done && echo "Browser ready!"'
+        command: timeout 10 bash -c 'until [ -p "/tmp/playwright-ipc-ready" ]; do sleep 1; done && echo "Browser ready!"'
         shell: bash
         note: Waiting for website stepper loop to start by monitoring rendezvous file endpoint
