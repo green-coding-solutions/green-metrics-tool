@@ -84,7 +84,7 @@ def diff_rows(rows):
             elif key == "iterable_item_removed":
                 unified_diff.append(f"diff --git a/{field} b/{field}\n---\n+++\n@@ -1 +1 @@")
                 for k, v in value.items():
-                    unified_diff.append(f"+ {k}: {v}")
+                    unified_diff.append(f"- {k}: {v}")
             elif key == "dictionary_item_removed":
                 unified_diff.append(f"diff --git a/{field} b/{field}\n---\n+++\n@@ -1 +1 @@")
                 for v in value:
