@@ -180,7 +180,7 @@ def parse_tcpdump(lines, split_ports=False):
                 continue
             elif not line.strip(): # ignore empty lines
                 continue
-            elif 'ARP, Ethernet' in line: # we ignore ARP for now
+            elif 'ARP, Ethernet' in line or 'ARP, Request who-has' in line: # we ignore ARP for now
                 continue
             elif line.startswith('    ') or line.startswith('\t'): # these are all detail infos for specific control packets. 4-6 indents indicate deep detail infos
                 continue
