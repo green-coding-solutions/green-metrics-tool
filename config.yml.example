@@ -39,8 +39,8 @@ cluster:
     jobs_processing: "random"
     shutdown_on_job_no: suspend
     # These two parameters have only effect in cluster mode. When using CLI they will be set via flags --docker-prune and --full-docker-prune only
-    docker_prune: True
-    full_docker_prune: False
+    docker_prune: False
+    full_docker_prune: True
     # define a workload to check cluster noise floor
     time_between_control_workload_validations: 21600
     send_control_workload_status_mail: False
