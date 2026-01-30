@@ -262,10 +262,12 @@ function setup_python() {
 
     print_message "Adding python3 lib.hardware_info_root to sudoers file"
     check_file_permissions "/usr/bin/python3"
-    # Please note the -m as here we will later call python3 without venv. It must understand the .lib imports
-    # and not depend on venv installed packages
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root" | sudo tee /etc/sudoers.d/green-coding-hardware-info
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
+    # Please note the -m as here we will later call python3 without venv.
+    # It must only use python root installed packages and no venv packages
+    # furthermore it may only use an absolute path
+    hardware_info_root_path="$(pwd)/lib/hardware_info_root.py"
+    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 ${hardware_info_root_path}" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 ${hardware_info_root_path} --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
     sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
     # remove old file name
     sudo rm -f /etc/sudoers.d/green_coding_hardware_info
