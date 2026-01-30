@@ -301,7 +301,7 @@ function setup_python() {
     # Please note the -m as here we will later call python3 without venv.
     # It must only use python root installed packages and no venv packages
     # furthermore it may only use an absolute path
-    local hardware_info_root_path="$(pwd)/lib/hardware_info_root.py"
+    local hardware_info_root_path=$(readlink -f "${PWD}/lib/hardware_info_root.py")
     echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${hardware_info_root_path}" | sudo tee /etc/sudoers.d/green-coding-hardware-info
     echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${hardware_info_root_path} --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
     sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
