@@ -55,8 +55,8 @@ def diff_rows(rows):
 
     unified_diff = []
     for field in row_a:
-        field_a = json.dumps(row_a[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_a[field], (dict, list))  else str(row_a[field])
-        field_b = json.dumps(row_b[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_b[field], (dict, list)) else str(row_b[field])
+        field_a = json.dumps(row_a[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_a.get(field, '[NOT PRESENT]'), (dict, list))  else str(row_a.get(field, '[NOT PRESENT]'))
+        field_b = json.dumps(row_b[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_b.get(field, '[NOT PRESENT]'), (dict, list)) else str(row_b.get(field, '[NOT PRESENT]'))
 
         # although not strictly needed we use DeepDiff as this is WAY faster than difflib suprisingly
         diff = DeepDiff(field_a, field_b,
@@ -89,6 +89,16 @@ def diff_rows(rows):
                 unified_diff.append(f"diff --git a/{field} b/{field}\n---\n+++\n@@ -1 +1 @@")
                 for v in value:
                     unified_diff.append(f"- {key}: {v}")
+            elif key == "type_changes":
+                for k, v in value.items():
+
+                    if v.get('diff', False):
+                        unified_diff.append(f"diff --git a/{field} b/{field}")
+                        unified_diff.append(str(v['diff']))
+                    else:
+                        unified_diff.append(f"diff --git a/{field} b/{field}\n---\n+++\n@@ -1 +1 @@")
+                        unified_diff.append(f"- {v['old_value']} (Type: {v['old_type']})")
+                        unified_diff.append(f"+ {v['new_value']} (Type: {v['new_type']})")
             elif key == "values_changed":
                 for k, v in value.items():
 
@@ -107,5 +117,5 @@ def diff_rows(rows):
 
 if __name__ == '__main__':
     from lib.user import User
-    diffable_rows = get_diffable_rows(User(1), ['6f34b31e-f35c-4601-ae0d-6fd04a951aaf', '70ed5b3f-fa90-43fe-abcc-d4bf8048786a'])
+    diffable_rows = get_diffable_rows(User(1), ['14f95398-a62e-464b-8f25-b82645895cef', '382f61ae-c5fb-4c8f-b973-d2b1eede6bd4'])
     print(diff_rows(diffable_rows))
