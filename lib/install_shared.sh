@@ -308,7 +308,7 @@ function setup_python() {
     # remove old file name
     sudo rm -f /etc/sudoers.d/green_coding_hardware_info
 
-    print_message "Setting the hardare hardware_info to be owned by root"
+    print_message "Making hardware_info_root.py to be owned by root"
     sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
     sudo chown root:$(id -gn root) $PWD/lib/hardware_info_root.py
     sudo chmod 755 $PWD/lib/hardware_info_root.py
