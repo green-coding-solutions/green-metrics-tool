@@ -61,48 +61,83 @@ function check_python_version() {
 function check_file_permissions() {
     local file=$1
 
-    # Check if the file exists
     if [ ! -e "$file" ]; then
         echo "File '$file' does not exist."
         return 1
     fi
 
-    # Check if the file is owned by root
-    if [[ $(uname) == "Darwin" ]]; then
-        if [ "$(stat -f %Su "$file")" != "root" ]; then
-            echo "File '$file' is not owned by root."
-            return 1
-        fi
-    else
-        if [ "$(stat -c %U "$file")" != "root" ]; then
-            echo "File '$file' is not owned by root."
-            return 1
-        fi
-    fi
-
-        # Check if the file is owned by root
-
-    # Check if the file permissions are read-only for group and others using regex
-
-    if [[ $(uname) == "Darwin" ]]; then
-        local permissions=$(stat -f %Sp "$file")
-    else
-        local permissions=$(stat -c %A "$file") # Linux
-    fi
-
     if [ -L "$file" ]; then
-        echo "File '$file' is a symbolic link. Following ..."
-        check_file_permissions $(readlink -f $file)
-        return $?
-    elif [[ ! $permissions =~ ^-r..r-.r-.$ ]]; then
-        echo "File '$file' is not read-only for group and others or not a regular file"
+        echo "File '$file' is a symbolic link. This is not allowed."
         return 1
     fi
 
-    echo "File $file is save to create sudoers entry for"
+    # Determine stat commands based on OS
+    local owner file_mode dir_owner dir_mode
+    local dir=$(dirname "$file")
 
+    if [[ $(uname) == "Darwin" ]]; then
+        if ls -lde "$file" | grep -q " 0:"; then
+            echo "File '$file' has an ACL. Unsafe!"
+            return 1
+        fi
+        if ls -lde "$dir" | grep -q " 0:"; then
+            echo "Directory '$dir' has an ACL. Unsafe!"
+            return 1
+        fi
+        # Numeric mode
+        owner=$(stat -f %Su "$file")
+        file_mode=$(stat -f %Lp "$file")   # outputs octal like 100400
+        dir_owner=$(stat -f %Su "$dir")
+        dir_mode=$(stat -f %Lp "$dir")     # outputs octal like 40755
+    else
+        owner=$(stat -c %U "$file")
+        file_mode=$(stat -c %a "$file")       # numeric mode, e.g., 400
+        dir_owner=$(stat -c %U "$dir")
+        dir_mode=$(stat -c %a "$dir")         # numeric mode, e.g., 755
+        # Check ACLs
+        if getfacl -c "$file" 2>/dev/null | awk '!/^#|^user::|^group::|^other::/' | grep -q; then
+            echo "File '$file' has an ACL. Unsafe!"
+            return 1
+        fi
+        if getfacl -c "$dir" 2>/dev/null | awk '!/^#|^user::|^group::|^other::/' | grep -q; then
+            echo "Directory '$dir' has an ACL. Unsafe!"
+            return 1
+        fi
+
+    fi
+
+    # Check ownership
+    if [[ "$owner" != "root" ]]; then
+        echo "File '$file' is not owned by root."
+        return 1
+    fi
+    if [[ "$dir_owner" != "root" ]]; then
+        echo "Parent directory '$dir' is not owned by root."
+        return 1
+    fi
+
+    local file_perm_numeric=$((10#${file_mode: -3}))  # last 3 digits
+    local file_group=$(( (file_perm_numeric / 10 % 10) ))
+    local file_other=$(( file_perm_numeric % 10 ))
+
+    if (( file_group & 2 )) || (( file_other & 2 )); then
+        echo "File '$file' is writable by group or others. Unsafe!"
+        return 1
+    fi
+    # Check directory permissions: group/others must NOT have write (0x2 in octal)
+    local dir_perm_numeric=$((10#${dir_mode: -3}))
+    local dir_group=$(( (dir_perm_numeric / 10 % 10) ))
+    local dir_other=$(( dir_perm_numeric % 10 ))
+
+    if (( dir_group & 2 )) || (( dir_other & 2 )); then
+        echo "Parent directory '$dir' is writable by group or others. Unsafe!"
+        return 1
+    fi
+
+    echo "File '$file' and its parent directory are secure."
     return 0
 }
+
 
 function copy_backup() {
     local file=$1
@@ -261,13 +296,14 @@ function setup_python() {
     find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
     print_message "Adding python3 hardware_info_root.py to sudoers file"
-    check_file_permissions "/usr/bin/python3"
+    local python_path=$(readlink -f "/usr/bin/python3")
+    check_file_permissions $python_path
     # Please note the -m as here we will later call python3 without venv.
     # It must only use python root installed packages and no venv packages
     # furthermore it may only use an absolute path
-    hardware_info_root_path="$(pwd)/lib/hardware_info_root.py"
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 ${hardware_info_root_path}" | sudo tee /etc/sudoers.d/green-coding-hardware-info
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 ${hardware_info_root_path} --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
+    local hardware_info_root_path="$(pwd)/lib/hardware_info_root.py"
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${hardware_info_root_path}" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${hardware_info_root_path} --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
     sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
     # remove old file name
     sudo rm -f /etc/sudoers.d/green_coding_hardware_info
