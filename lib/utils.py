@@ -213,7 +213,7 @@ def get_architecture():
 
 
 def is_rapl_energy_filtering_deactivated():
-    result = subprocess.run(['sudo', 'python3', os.path.realpath(os.path.join(CURRENT_DIR, 'hardware_info_root.py')), '--read-rapl-energy-filtering'],
+    result = subprocess.run(['sudo', '/usr/bin/python3', os.path.realpath(os.path.join(CURRENT_DIR, 'hardware_info_root.py')), '--read-rapl-energy-filtering'],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             cwd=os.path.abspath(os.path.join(CURRENT_DIR, '..')),
