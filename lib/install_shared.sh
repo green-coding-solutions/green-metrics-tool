@@ -260,7 +260,7 @@ function setup_python() {
     print_message "Setting GMT in include path for python via .pth file"
     find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
-    print_message "Adding python3 lib.hardware_info_root to sudoers file"
+    print_message "Adding python3 hardware_info_root.py to sudoers file"
     check_file_permissions "/usr/bin/python3"
     # Please note the -m as here we will later call python3 without venv.
     # It must only use python root installed packages and no venv packages
