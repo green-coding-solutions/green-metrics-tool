@@ -54,10 +54,19 @@ def diff_rows(rows):
     row_b_machine_specs = row_b.pop('machine_specs')
     row_b.update({f"machine_specs.{k}": v for k, v in row_b_machine_specs.items()})
 
+    # fill missing keys both ways
+    for key in row_b.keys():
+        if key not in row_a:
+            row_a[key] = '[NOT PRESENT]'
+
+    for key in row_a.keys():
+        if key not in row_b:
+            row_b[key] = '[NOT PRESENT]'
+
     unified_diff = []
     for field in row_a:
-        field_a = json.dumps(row_a[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_a.get(field, '[NOT PRESENT]'), (dict, list))  else str(row_a.get(field, '[NOT PRESENT]'))
-        field_b = json.dumps(row_b[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_b.get(field, '[NOT PRESENT]'), (dict, list)) else str(row_b.get(field, '[NOT PRESENT]'))
+        field_a = json.dumps(row_a[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_a[field], (dict, list)) else str(row_a[field])
+        field_b = json.dumps(row_b[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_b[field], (dict, list)) else str(row_b[field])
 
         # although not strictly needed we use DeepDiff as this is WAY faster than difflib suprisingly
         diff = DeepDiff(field_a, field_b,
