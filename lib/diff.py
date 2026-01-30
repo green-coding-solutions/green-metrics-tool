@@ -30,7 +30,7 @@ def get_diffable_rows(user, uuids):
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))
             AND id = ANY(%s::uuid[])
-        ORDER BY created_at DESC -- this will ensure that we diff newer vs older. Since we only used keys from first object this means we check all keys
+        ORDER BY created_at ASC -- this will ensure that we diff newer vs older. Since we only used keys from first object this means we check all keys
     """
 
     params = (user.is_super_user(), user.visible_users(), uuids)
