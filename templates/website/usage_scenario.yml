@@ -22,7 +22,10 @@ flow:
     commands:
       - type: playwright
         command: |
-          while (true) {
+          let loop_ticks = 0;
+          const max_loop_ticks = 200;
+
+          while (loop_ticks < max_loop_ticks) {
             const atBottom = await page.evaluate(() => {
               const d = document.documentElement;
               return d.scrollTop + window.innerHeight >= d.scrollHeight;
@@ -31,6 +34,8 @@ flow:
 
             await page.mouse.wheel(0, 200);
             await page.waitForTimeout(200);
+
+            loop_ticks++;
           }
       - type: console
         command: sleep '__GMT_VAR_SLEEP__'
