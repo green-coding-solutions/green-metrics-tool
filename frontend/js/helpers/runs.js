@@ -83,43 +83,43 @@ const getFilterQueryStringFromURI = (only_saved_filters=false) => {
     if (only_saved_filters === true) {
         if (url_params['name'] != null && url_params['name'].trim() != '') {
             const name = url_params['name'].trim()
-            query_string += `&name=${name}`
+            query_string += `&name=${encodeURIComponent(name}`
             document.querySelector('input[name="name"]').value = name;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
         if (url_params['uri'] != null && url_params['uri'].trim() != '') {
             const uri = url_params['uri'].trim()
-            query_string += `&uri=${uri}`
+            query_string += `&uri=${encodeURIComponent(uri}`
             document.querySelector('input[name="uri"]').value = uri;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
         if (url_params['filename'] != null && url_params['filename'].trim() != '') {
             const filename = url_params['filename'].trim()
-            query_string += `&filename=${filename}`
+            query_string += `&filename=${encodeURIComponent(filename}`
             document.querySelector('input[name="filename"]').value = filename;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
         if (url_params['branch'] != null && url_params['branch'].trim() != '') {
             const branch = url_params['branch'].trim()
-            query_string += `&branch=${branch}`
+            query_string += `&branch=${encodeURIComponent(branch}`
             document.querySelector('input[name="branch"]').value = branch;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
         if (url_params['machine_id'] != null && url_params['machine_id'].trim() != '') {
             const machine_id = url_params['machine_id'].trim()
-            query_string += `&machine_id=${machine_id}`
+            query_string += `&machine_id=${encodeURIComponent(machine_id}`
             document.querySelector('input[name="machine_id"]').value = machine_id;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
         if (url_params['machine'] != null && url_params['machine'].trim() != '') {
             const machine = url_params['machine'].trim()
-            query_string += `&machine=${machine}`
+            query_string += `&machine=${encodeURIComponent(machine}`
             document.querySelector('input[name="machine"]').value = machine;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
         if (url_params['usage_scenario_variables'] != null && url_params['usage_scenario_variables'].trim() != '') {
             const usage_scenario_variables = url_params['usage_scenario_variables'].trim()
-            query_string += `&usage_scenario_variables=${usage_scenario_variables}`
+            query_string += `&usage_scenario_variables=${encodeURIComponent(usage_scenario_variables}`
             document.querySelector('input[name="usage_scenario_variables"]').value = usage_scenario_variables;
             document.querySelector('#filters-active').classList.remove('hidden');
         }
@@ -179,15 +179,15 @@ const getFilterQueryStringFromInputs = () => {
     const show_other_users = document.querySelector('input[name="show_other_users"]:checked')?.value?.trim()
     localStorage.setItem('show_other_users', show_other_users);
 
-    if(name != '') query_string += `&name=${name}`
-    if(uri != '') query_string += `&uri=${uri}`
-    if(filename != '') query_string += `&filename=${filename}`
-    if(branch != '') query_string += `&branch=${branch}`
-    if(machine != '') query_string += `&machine=${machine}`
-    if(machine_id != '') query_string += `&machine_id=${machine_id}`
-    if(usage_scenario_variables != '') query_string += `&usage_scenario_variables=${usage_scenario_variables}`
-    if(show_archived != null && show_archived != '') query_string += `&show_archived=${show_archived}`
-    if(show_other_users != null && show_other_users != '') query_string += `&show_other_users=${show_other_users}`
+    if(name != '') query_string += `&name=${encodeURIComponent(name)}`
+    if(uri != '') query_string += `&uri=${encodeURIComponent(uri)}`
+    if(filename != '') query_string += `&filename=${encodeURIComponent(filename)}`
+    if(branch != '') query_string += `&branch=${encodeURIComponent(branch)}`
+    if(machine != '') query_string += `&machine=${encodeURIComponent(machine)}`
+    if(machine_id != '') query_string += `&machine_id=${encodeURIComponent(machine_id)}`
+    if(usage_scenario_variables != '') query_string += `&usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}`
+    if(show_archived != null && show_archived != '') query_string += `&show_archived=${(encodeURIComponent(show_archived))}`
+    if(show_other_users != null && show_other_users != '') query_string += `&show_other_users=${(encodeURIComponent(show_other_users))}`
 
     document.querySelector('#filters-active').classList.remove('hidden');
 
