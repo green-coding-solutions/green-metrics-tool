@@ -30,7 +30,7 @@ flow:
             if (atBottom) break;
 
             await page.mouse.wheel(0, 200);
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(200);
           }
       - type: console
         command: sleep '__GMT_VAR_SLEEP__'
