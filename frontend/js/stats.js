@@ -741,7 +741,7 @@ const renderBadges = async (url_params, phase_stats) => {
                 </a>
                 <a class="copy-badge"><i class="copy icon"></i></a>
                 <div class="ui left pointing blue basic label">
-                    ${escapeString(METRIC_MAPPINGS[metric_name]['explanation'])}
+                    ${escapeString(METRIC_MAPPINGS[metric_name]?.['explanation'])}
                 </div>
                 <hr class="ui divider"></hr>
             </div>`;
