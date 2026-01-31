@@ -81,6 +81,12 @@ const getFilterQueryStringFromURI = (only_saved_filters=false) => {
 
     let query_string = '';
     if (only_saved_filters === true) {
+        if (url_params['name'] != null && url_params['name'].trim() != '') {
+            const name = url_params['name'].trim()
+            query_string += `&name=${name}`
+            document.querySelector('input[name="name"]').value = name;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
         if (url_params['uri'] != null && url_params['uri'].trim() != '') {
             const uri = url_params['uri'].trim()
             query_string += `&uri=${uri}`
@@ -161,6 +167,7 @@ const getFilterQueryStringFromURI = (only_saved_filters=false) => {
 const getFilterQueryStringFromInputs = () => {
     let query_string = '';
 
+    const name = document.querySelector('input[name="name"]').value.trim()
     const uri = document.querySelector('input[name="uri"]').value.trim()
     const filename = document.querySelector('input[name="filename"]').value.trim()
     const branch = document.querySelector('input[name="branch"]').value.trim()
@@ -172,6 +179,7 @@ const getFilterQueryStringFromInputs = () => {
     const show_other_users = document.querySelector('input[name="show_other_users"]:checked')?.value?.trim()
     localStorage.setItem('show_other_users', show_other_users);
 
+    if(name != '') query_string += `&name=${name}`
     if(uri != '') query_string += `&uri=${uri}`
     if(filename != '') query_string += `&filename=${filename}`
     if(branch != '') query_string += `&branch=${branch}`
