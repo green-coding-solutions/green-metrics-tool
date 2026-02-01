@@ -17,6 +17,13 @@ flow:
       - type: console
         command: sleep '__GMT_VAR_SLEEP__'
 
+  - name: Check HTTP Status Code
+    container: gmt-playwright-nodejs
+    hidden: true
+    commands:
+      - type: playwright
+        command: if (!page_result.ok()) throw `Page was not accessible. HTTP Return code ${page_result.status()}`
+
   - name: Scroll down and wait for __GMT_VAR_SLEEP__ s
     container: gmt-playwright-nodejs
     commands:
@@ -39,10 +46,3 @@ flow:
           }
       - type: console
         command: sleep '__GMT_VAR_SLEEP__'
-
-  - name: Check HTTP Status Code
-    container: gmt-playwright-nodejs
-    hidden: true
-    commands:
-      - type: playwright
-        command: if (!page_result.ok()) throw `Page was not accessible. HTTP Return code ${page_result.status()}`
