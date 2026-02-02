@@ -242,7 +242,6 @@ async function getRepositories(sort_by = 'date') {
 const getRunsTable = async (el, url, include_uri=true, include_button=true, searching=false) => {
 
     let runs = null;
-    el.DataTable().clear().destroy() // clear old
 
     try {
         runs = await makeAPICall(url)
@@ -325,32 +324,40 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         }
     });
 
-    el.DataTable({
-        // searchPanes: {
-        //     initCollapsed: true,
-        // },
-        searching: searching,
-        data: runs.data,
-        columns: columns,
-        deferRender: true,
-        layout: {
-    topStart: '',
-    topEnd: '',
-    bottomStart: 'pageLength',
-    bottomEnd: 'paging'
-},
-        drawCallback: function(settings) {
-            document.querySelectorAll('input[type="checkbox"]').forEach((e) =>{
-                e.removeEventListener('change', updateCompareCount);
-                e.addEventListener('change', updateCompareCount);
-            })
-            document.querySelector('#unselect-button').removeEventListener('click', unselectHandler);
-            document.querySelector('#unselect-button').addEventListener('click', unselectHandler)
-            allow_group_select_checkboxes();
-            updateCompareCount();
-        },
-        order: [[columns.length-2, 'desc']] // API also orders, but we need to indicate order for the user
-    });
+
+   if ($.fn.DataTable.isDataTable(el)) { // just refill. A clean .destroy and .clear will break sorting sadly ...
+        const dt = el.DataTable();
+        dt.clear();
+        dt.rows.add(runs.data); // array or Ajax-style data
+        dt.draw();
+    } else { // init
+        el.DataTable({
+            // searchPanes: {
+            //     initCollapsed: true,
+            // },
+            searching: searching,
+            data: runs.data,
+            columns: columns,
+            deferRender: true,
+            layout: {
+                topStart: '',
+                topEnd: '',
+                bottomStart: 'pageLength',
+                bottomEnd: 'paging'
+            },
+            drawCallback: function(settings) {
+                document.querySelectorAll('input[type="checkbox"]').forEach((e) =>{
+                    e.removeEventListener('change', updateCompareCount);
+                    e.addEventListener('change', updateCompareCount);
+                })
+                document.querySelector('#unselect-button').removeEventListener('click', unselectHandler);
+                document.querySelector('#unselect-button').addEventListener('click', unselectHandler)
+                allow_group_select_checkboxes();
+                updateCompareCount();
+            },
+            order: [[columns.length-2, 'desc']] // API also orders, but we need to indicate order for the user
+        });
+    }
 
 }
 
