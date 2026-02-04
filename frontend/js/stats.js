@@ -72,6 +72,13 @@ class CO2Tangible extends HTMLElement {
 
 customElements.define('co2-tangible', CO2Tangible);
 
+const getElephantServiceUrl = () => {
+    if (typeof ELEPHANT_URL === 'string' && ELEPHANT_URL.trim() !== '') {
+        return ELEPHANT_URL.trim();
+    }
+    return '';
+};
+
 const fetchAndFillRunData = async (url_params) => {
 
     let run = null;
@@ -85,6 +92,11 @@ const fetchAndFillRunData = async (url_params) => {
 
     const run_data = run.data
     const run_data_accordion_node = document.querySelector('#run-data-accordion');
+
+    if (getElephantServiceUrl() !== '') {
+        document.querySelector('#simulate-run-link').href = `simulation.html?id=${encodeURIComponent(url_params['id'])}`;
+        document.querySelector('#simulate-run-action').classList.remove('hidden');
+    }
 
     for (const item in run_data) {
         if (item == 'machine_id') {
@@ -1239,4 +1251,3 @@ $(document).ready( () => {
         }
     })();
 });
-

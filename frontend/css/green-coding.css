@@ -82,6 +82,33 @@ a.project-item>i.icon {
     min-height: 300px;
 }
 
+.simulation-mini-chart {
+    width: 100%;
+    height: 140px;
+    margin-top: 8px;
+    border: 1px solid #e3e3e3;
+    border-radius: 6px;
+    background: #fafafa;
+}
+
+.simulation-mini-chart-placeholder {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-size: 12px;
+    text-align: center;
+    padding: 8px;
+}
+
+.simulation-provider-range-input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
 .article {
     background: #e9eaef;
 }
@@ -130,6 +157,167 @@ a.project-item>i.icon {
 }
 #chart-container .card {
     margin-top: 0 !important;
+}
+
+.simulation-chart-row {
+    display: flex;
+    align-items: stretch;
+    gap: 20px;
+}
+
+.simulation-chart-row #chart-container {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+#carbon-summary-card {
+    width: 260px;
+    flex: 0 0 260px;
+    margin-top: 14px;
+    height: fit-content;
+}
+
+.simulation-carbon-value {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.simulation-carbon-unit {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #666;
+}
+
+.simulation-carbon-status {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #888;
+}
+
+
+
+
+.simulation-runtime-value {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.simulation-runtime-unit {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #666;
+}
+
+.simulation-runtime-time {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #444;
+}
+
+.simulation-runtime-status {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #888;
+}
+
+.simulation-runtime-actions {
+    margin-top: 10px;
+}
+
+.simulation-runtime-actions .button + .button {
+    margin-top: 8px;
+}
+
+.simulation-provider-dialog {
+    width: min(960px, calc(100vw - 40px));
+    max-height: 80vh;
+    border: 0;
+    border-radius: 8px;
+    padding: 0;
+}
+
+.simulation-provider-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.simulation-provider-dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.simulation-provider-dialog-header .ui.header {
+    margin: 0;
+}
+
+.simulation-provider-dialog-body {
+    padding: 12px 16px 16px;
+    overflow: auto;
+    max-height: calc(80vh - 62px);
+}
+
+.provider-scan-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.provider-scan-status-loading {
+    color: #4a7a9c;
+}
+
+.provider-scan-status-error {
+    color: #b03060;
+}
+
+.provider-scan-status-done {
+    color: #2a7f62;
+}
+
+.provider-scan-status-queued {
+    color: #888;
+}
+
+.provider-scan-spinner {
+    width: 11px;
+    height: 11px;
+    border: 2px solid rgba(74, 122, 156, 0.25);
+    border-top-color: #4a7a9c;
+    border-radius: 50%;
+    animation: provider-scan-spin 0.9s linear infinite;
+}
+
+@keyframes provider-scan-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes simulation-runtime-scan {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@media (max-width: 900px) {
+    .simulation-chart-row {
+        flex-direction: column;
+    }
+    #carbon-summary-card {
+        width: 100%;
+        flex: 0 0 auto;
+    }
 }
 /* Layouting for menu and main content ========== */
 
@@ -447,7 +635,7 @@ a {
 }
 
 .custom-mobile-divider {
-    display: none !important; 
+    display: none !important;
 }
 
 @media only screen and (max-width: 767px) {

@@ -190,6 +190,7 @@ def create_frontend_config_file(ee=False, ai=False):
 
     content = content.replace('__API_URL__', 'http://api.green-coding.internal:9143')
     content = content.replace('__METRICS_URL__', 'http://metrics.green-coding.internal:9143')
+    content = content.replace('__ELEPHANT_URL__', 'http://elephant.green-coding.internal:8085')
 
     content = re.sub(r'ACTIVATE_SCENARIO_RUNNER.*$', 'ACTIVATE_SCENARIO_RUNNER = true;', content, flags=re.MULTILINE)
     content = re.sub(r'ACTIVATE_ECO_CI.*$', 'ACTIVATE_ECO_CI = true;', content, flags=re.MULTILINE)
