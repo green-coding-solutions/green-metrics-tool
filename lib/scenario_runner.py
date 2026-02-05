@@ -1018,6 +1018,11 @@ class ScenarioRunner:
             else:
                 print(f"Pulling {service['image']}")
                 self.__notes_helper.add_note( note=f"Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
+
+                # We decided here against an implementation with subprocess.Popen and then iterative calling process.stdout.readline to stream the output
+                # bc the docker pull command does not stream the interactive progress bar. Only the lines when a layer finished with downloading
+                # Since this information does not provide info how long the image download still will take we opted for keeping this pull call less complex
+                # So you have to stare at the "Pulling XYZ" command until it is finished :)
                 ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
                 if ps_pull.returncode != 0:
