@@ -643,7 +643,7 @@ const fetchAndFillPhaseStatsData = async (url_params) => {
 
         if (!segment) return;
 
-        const tabs = $(segment).find('#unit-tabs .item');
+        const tabs = $(segment).find('.ui.pointing.menu .item');
 
         if (activeTab) {
             tabs.tab('change tab', activeTab);
