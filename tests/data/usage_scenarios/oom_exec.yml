@@ -5,7 +5,6 @@ description: Functional Test
 
 services:
   test-container:
-    type: container
     image: ubuntu
     entrypoint: ["tail", "-f", "/dev/null"]
     mem_limit: 10MB
