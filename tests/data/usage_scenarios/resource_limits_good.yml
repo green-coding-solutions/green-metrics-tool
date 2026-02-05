@@ -64,7 +64,6 @@ services:
     deploy: # allowed to be None
 
   test-container-limits-none:
-    type: container
     image: alpine
     # no deploy key at all
 
