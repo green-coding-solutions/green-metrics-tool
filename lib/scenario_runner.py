@@ -1651,7 +1651,6 @@ class ScenarioRunner:
                     output_behaviour = subprocess.PIPE
                     if self._dev_stream_outputs: # overwrite all previous if set
                         output_behaviour = None
-                        output_behaviour = None
                         print(TerminalColors.WARNING, arrows('Process output is streamed. Please note that this disallows capturing of errors and build outputs in logs and error messages.'), TerminalColors.ENDC)
                     # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
                     # injection of unwawnted params
