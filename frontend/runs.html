@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <!-- Standard Meta -->
     <meta charset="utf-8" />
@@ -21,11 +22,11 @@
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
     <script src="/js/helpers/runs.js" defer></script>
-
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
     <link rel="stylesheet" type="text/css" href="/dist/css/datatables.min.css">
 </head>
+
 <body class="preload">
     <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
@@ -33,7 +34,6 @@
             <a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon opened"></i></a>
             <span>ScenarioRunner - Last 50 Runs</span>
             <button id="home-toggle-button" class="ui button green float-right">Switch to repository view</button>
-
         </h1>
         <div id="scenario-runner-repositories-description" class="ui full-width-card segment card">
             <div class="content">
@@ -48,7 +48,6 @@
                 </div>
             </div>
         </div>
-
         <div id="scenario-runner-runs-description" class="ui full-width-card segment card">
             <div class="content">
                 <div class="header">Last runs</div>
@@ -61,21 +60,24 @@
                 </div>
             </div>
         </div>
-
         <div class="ui styled accordion filter-dropdown full-width-card card">
             <div id="show-filters" class="title">
                 <i class="dropdown icon"></i> Show Filters <i class="filter icon"></i>
                 <span id="filters-active" class="ui blue label hidden float-right"><i class="info icon"></i> Filters are active! Open Dropdown for details </span>
             </div>
-
             <div class="content">
-
                 <form class="ui form">
                     <h3>Filters</h3>
-
-                    <div class="field">
-                        <label>URI</label>
-                        <input placeholder="URI (Example: github.com)" class="filter-option" name="uri" value="">
+                    <p class="ui label"><i class="ui icon save"></i> Filters with this icon are kept between reloads.</p>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Name</label>
+                            <input placeholder="Name for the run ..." class="filter-option" name="name" value="">
+                        </div>
+                        <div class="field">
+                            <label>URI</label>
+                            <input placeholder="URI (Example: github.com)" class="filter-option" name="uri" value="">
+                        </div>
                     </div>
                     <div class="equal width fields">
                         <div class="field">
@@ -99,7 +101,40 @@
                     </div>
                     <div class="field">
                         <label>Usage Scenario Variables</label>
-                        <input placeholder="Usage Scenario Variables (takes input or value. All filters allow even partial matches)"class="filter-option" name="usage_scenario_variables" value="">
+                        <input placeholder="Usage Scenario Variables (takes input or value. All filters allow even partial matches)" class="filter-option" name="usage_scenario_variables" value="">
+                    </div>
+                    <div class="field">
+                        <h4>Extra Settings</h4>
+                        <div class="inline fields">
+                            <label><i class="ui icon save"></i>Show archived runs:</label>
+                            <div class="field">
+                                <div class="ui radio checkbox checked">
+                                    <input type="radio" name="show_archived" value="false">
+                                    <label>No</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui radio checkbox">
+                                    <input type="radio" name="show_archived" value="true">
+                                    <label>Yes</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inline fields">
+                            <label><i class="ui icon save"></i>Show runs from other users (visible users / public):</label>
+                            <div class="field">
+                                <div class="ui radio checkbox checked">
+                                    <input type="radio" name="show_other_users" value="false">
+                                    <label>No</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui radio checkbox">
+                                    <input type="radio" name="show_other_users" value="true">
+                                    <label>Yes</label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="field">
                         <input class="positive ui button" type="submit" name="submit" value="Search">
@@ -108,7 +143,6 @@
                 </form>
             </div>
         </div>
-
         <table id="runs-and-repos-table" class="ui table">
             <thead>
                 <tr>
@@ -116,15 +150,22 @@
                         <span id="runs-and-repos-table-title">Runs</span> (<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.)+
                         <div class="float-right">
                             <button id="compare-button" onclick="compareButton()" class="ui small button blue">Compare: 0 Run(s)</button>
-                            <select id="compare-force-mode" style="width: 160px; height: 40px; margin-top: 5px; display:none;">
-                                <option value="">--</option>
-                                <option value="branches">Branches</option>
-                                <option value="commit_hashes">Commits</option>
-                                <option value="machine_ids">Machines</option>
-                                <option value="usage_scenarios">Usage Scenarios</option>
-                                <option value="usage_scenario_variables">Usage Scenario Variables</option>
-                                <option value="repos">Repos</option>
-                            </select>
+                            <div class="ui accordion compare-force-mode" style="width: 100%;">
+                                <div class="title">
+                                    <i class="dropdown icon"></i> Compare Mode
+                                </div>
+                                <div class="content">
+                                    <select id="compare-force-mode" style="width: 160px; height: 40px; margin-top: 5px;">
+                                        <option value="">Auto</option>
+                                        <option value="branches">Branches</option>
+                                        <option value="commit_hashes">Commits</option>
+                                        <option value="machine_ids">Machines</option>
+                                        <option value="usage_scenarios">Usage Scenarios</option>
+                                        <option value="usage_scenario_variables">Usage Scenario Variables</option>
+                                        <option value="repos">Repos</option>
+                                    </select>
+                                </div>
+                            </div>
                             <button id="unselect-button" class="ui mini button red right " style="display:none">Unselect all</button>
                         </div>
                         <button id="sort-button" class="ui small button purple float-right"><i class="text icon"></i><span>Sort name</span></button>
@@ -133,12 +174,14 @@
             </thead>
             <tbody>
                 <tr>
-                    <td><table class="ui celled striped table"></table></td>
+                    <td>
+                        <table class="ui celled striped table"></table>
+                    </td>
                 </tr>
             </tbody>
         </table>
         <div class="clearing" style="display:block; height: 10px;"></div>
     </div>
-
 </body>
+
 </html>

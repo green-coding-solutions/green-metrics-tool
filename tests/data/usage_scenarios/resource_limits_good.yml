@@ -63,6 +63,11 @@ services:
     image: alpine
     deploy: # allowed to be None
 
+  test-container-limits-none:
+    type: container
+    image: alpine
+    # no deploy key at all
+
   test-container-cpu-and-memory-in-both:
     image: alpine
     deploy:
@@ -92,9 +97,9 @@ services:
 
 
 flow:
-  - name: Stress
-    container: test-container
+  - name: Output Resource Limits
+    container: test-container-memory-float
     commands:
       - type: console
-        command: stress-ng -c 1 -t 1 -q
-        note: Starting Stress
+        command: echo "Container Memory Limit is $GMT_CONTAINER_MEMORY_LIMIT"
+        shell: ash

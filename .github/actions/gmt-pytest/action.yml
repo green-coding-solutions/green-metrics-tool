@@ -40,7 +40,7 @@ runs:
     - name: setup_python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: '3.13'
 
     - id: python_cache
       uses: actions/cache@v4
@@ -79,6 +79,12 @@ runs:
           cd tests && python3 setup-test-env.py --no-docker-build
         fi
 
+      # We skipped the build step earlier to now build with a cache.
+      # Sadly docker compose uses a different driver in GitHub Actions and cannot directly
+      # use the cache-from and cache-to directives in the compose.yml as it cannot connect to a remote cache.
+      # Thus, to save cache to packages we use buildx
+      # https://github.com/green-coding-solutions/green-metrics-tool/pkgs/container/gunicorn-container-cache/versions
+
     - name: Set up Docker Buildx
       id: buildx
       uses: docker/setup-buildx-action@v3
@@ -95,11 +101,11 @@ runs:
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
       run: |
-        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1); DOCKER_EXIT_CODE=$?; } || true
+        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --set test-green-coding-gunicorn.cache-from=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.cache-to=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.tags='green-metrics-tool-test-test-green-coding-gunicorn:latest' --load 2>&1); DOCKER_EXIT_CODE=$?; } || true
         if [ "$DOCKER_EXIT_CODE" -ne 0 ]; then
           echo "Docker build failed with exit code $DOCKER_EXIT_CODE"
           echo "buildx output:"
-          echo $DOCKER_OUTPUT
+          echo "$DOCKER_OUTPUT"
           if echo "$DOCKER_OUTPUT" | grep -q "403 Forbidden"; then
             echo "Docker build failed due to permissions issue. Continuing..."
           else
@@ -116,7 +122,7 @@ runs:
     # for debugging purposes you can setup a ssh connection by setting 'inputs.enable-ssh' to true
     - name: Setup upterm session
       if: ${{ inputs.enable-ssh == 'true' }}
-      uses: owenthereal/action-upterm@77f40a48f26e70aa301b03ade2e4e58b6aa1c4ef
+      uses: owenthereal/action-upterm@de23d094ff41be3a09894c4e2b8dd74378013f2e
       with:
         limit-access-to-actor: true # Restrict to the user who triggered the workflow
 
@@ -128,9 +134,23 @@ runs:
     - name: Run Tests
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
+      env:
+        DEFAULT_TEST_PATH: ${{ inputs.test-path }}
       run: |
         source ../venv/bin/activate
-        python3 -m ${{ inputs.tests-command }} ${{ inputs.test-path }} -rA | tee /tmp/test-results.txt
+        COMMIT_MSG="$(git log -1 --pretty=%B)"
+        echo "Commit message:"
+        echo "$COMMIT_MSG"
+
+        if [[ "$COMMIT_MSG" =~ \[test-path:\ ([^]]+)\] ]]; then
+          TEST_PATH="${BASH_REMATCH[1]}"
+          echo "Detected test-path keyword: $TEST_PATH"
+        else
+          echo "No test keyword detected. Using default: ${{ inputs.test-path }}"
+          TEST_PATH="${DEFAULT_TEST_PATH}"
+        fi
+
+        python3 -m ${{ inputs.tests-command }} "${TEST_PATH}" -rA | tee /tmp/test-results.txt
 
     - name: Display Results
       shell: bash

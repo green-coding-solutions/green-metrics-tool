@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 # pylint: disable=cyclic-import
 
 import sys
@@ -11,7 +11,6 @@ import os
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.job.base import Job
-from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.user import User
 from lib.terminal_colors import TerminalColors
@@ -51,6 +50,7 @@ class RunJob(Job):
             job_id=self._id,
             user_id=self._user_id,
             usage_scenario_variables=self._usage_scenario_variables,
+            category_ids=self._category_ids,
             measurement_flow_process_duration=user._capabilities['measurement']['flow_process_duration'],
             measurement_total_duration=user._capabilities['measurement']['total_duration'],
             measurement_system_check_threshold=user._capabilities['measurement']['system_check_threshold'],
@@ -79,12 +79,13 @@ class RunJob(Job):
 
             if self._email:
                 Job.insert(
-                    'email',
+                    'email-report',
                     user_id=self._user_id,
                     email=self._email,
                     name=f"Measurement Job '{self._name}' successfully processed on Green Metrics Tool Cluster",
-                    message=f"Your report is now accessible under the URL: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={self._run_id}"
+                    run_id=self._run_id,
                 )
+
         finally:
-            self._run_id = runner._run_id # might not be set yet, but we try
+            self._run_id = runner._run_id # might not be set yet due to error
             user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds

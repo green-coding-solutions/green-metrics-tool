@@ -2,22 +2,19 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
-from cachetools import cached, TTLCache, Cache
 from collections import OrderedDict
 from functools import cache
 import typing
 import uuid
-import ipaddress
-import requests
-import json
 import math
 import time
+
+import orjson
 
 from starlette.background import BackgroundTask
 from fastapi.responses import ORJSONResponse
 from fastapi import Depends, Request, HTTPException
 from fastapi.security import APIKeyHeader
-from fastapi.exceptions import RequestValidationError
 import numpy as np
 import scipy.stats
 
@@ -148,16 +145,18 @@ def get_run_info(user, run_id):
     query = """
             SELECT
                 id, name, uri, branch, commit_hash,
-                (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(runs.categories) as elements
+                (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(runs.category_ids) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
-                filename, start_measurement, end_measurement,
-                measurement_config, machine_specs, machine_id, usage_scenario, usage_scenario_variables, usage_scenario_dependencies,
+                filename, relations, start_measurement, end_measurement,
+                measurement_config, machine_specs, machine_id, usage_scenario, usage_scenario_variables,
+                containers, container_dependencies, user_id,
+                (SELECT name FROM users WHERE runs.user_id = users.id) as user_name,
                 created_at,
                 (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = runs.id) as warnings,
-                phases, logs, failed, gmt_hash, runner_arguments
+                phases, logs, failed, gmt_hash, runner_arguments, archived, note, public
             FROM runs
             WHERE
-                (TRUE = %s OR user_id = ANY(%s::int[]))
+                (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
                 AND id = %s
         """
     params = (user.is_super_user(), user.visible_users(), run_id)
@@ -177,10 +176,7 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
     if branch is None or branch.strip() == '':
         branch = 'main'
 
-    if usage_scenario_variables is None or usage_scenario_variables.strip() == '':
-        usage_scenario_variables = '{}'
-
-    params = [user.is_super_user(), user.visible_users(), uri, branch, filename, usage_scenario_variables, f"%{phase}"]
+    params = [user.is_super_user(), user.visible_users(), uri, branch, filename, f"%{phase}"]
 
     metric_condition = ''
     if metric is None or metric.strip() == '' or metric.strip() == 'key':
@@ -210,6 +206,15 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
         machine_id_condition =  "AND r.machine_id = %s"
         params.append(machine_id)
 
+    usage_scenario_variables_condition = ''
+    if usage_scenario_variables is not None and usage_scenario_variables.strip() != '':
+        try:
+            orjson.loads(usage_scenario_variables) # pylint: disable=no-member
+        except orjson.JSONDecodeError as exc: # pylint: disable=no-member
+            raise HTTPException(status_code=422, detail=f"Usage Scenario Variables was not correctly JSON formatted: {exc}") from exc
+        usage_scenario_variables_condition = 'AND r.usage_scenario_variables::text = %s'
+        params.append(usage_scenario_variables)
+
     sorting_condition = 'r.commit_timestamp ASC, r.created_at ASC'
     if sorting is not None and sorting.strip() == 'run':
         sorting_condition = 'r.created_at ASC, r.commit_timestamp ASC'
@@ -223,11 +228,10 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
             LEFT JOIN phase_stats as p ON
                 r.id = p.run_id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND r.uri = %s
                 AND r.branch = %s
                 AND r.filename = %s
-                AND r.usage_scenario_variables::text = %s
                 AND r.end_measurement IS NOT NULL
                 AND r.failed != TRUE
                 AND p.phase LIKE %s
@@ -236,6 +240,8 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
                 {end_date_condition}
                 {detail_name_condition}
                 {machine_id_condition}
+                {usage_scenario_variables_condition}
+                AND r.archived = FALSE
                 AND r.commit_timestamp IS NOT NULL
                 AND r.failed IS FALSE
             ORDER BY
@@ -253,7 +259,7 @@ def get_comparison_details(user, ids, comparison_db_key):
             id, name, created_at, uri, commit_hash, commit_timestamp, gmt_hash, usage_scenario_variables, {}
         FROM runs
         WHERE
-            (TRUE = %s OR user_id = ANY(%s::int[]))
+            (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
             AND id = ANY(%s::uuid[])
         ORDER BY created_at ASC -- must be same order as get_phase_stats so that the order in the comparison bar charts aligns with the comparsion_details array
     ''').format(sql.Identifier(comparison_db_key))
@@ -295,7 +301,7 @@ def determine_comparison_case(user, ids, force_mode=None):
                 SELECT uri, filename, machine_id, commit_hash, branch, usage_scenario_variables
                 FROM runs
                 WHERE
-                    (TRUE = %s OR user_id = ANY(%s::int[]))
+                    (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
                     AND id = ANY(%s::uuid[])
                 GROUP BY uri, filename, usage_scenario_variables, machine_id, commit_hash, branch
             )
@@ -436,7 +442,7 @@ def check_run_failed(user, ids):
                COUNT(failed)
             FROM runs
             WHERE
-                (TRUE = %s OR user_id = ANY(%s::int[]))
+                (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
                 AND id = ANY(%s::uuid[])
                 AND failed IS TRUE
             """
@@ -455,7 +461,7 @@ def get_phase_stats(user, ids):
             LEFT JOIN machines as c on c.id = b.machine_id
 
             WHERE
-                (TRUE = %s OR b.user_id = ANY(%s::int[]))
+                (TRUE = %s OR b.user_id = ANY(%s::int[]) OR b.public = TRUE)
                 AND a.run_id = ANY(%s::uuid[])
             ORDER BY
                 b.created_at ASC, -- at least the first sorting key which determinse the order of run_ids must be same order as get_comparison_details so that the order in the comparison bar charts aligns with the comparsion_details array
@@ -829,168 +835,15 @@ def get_connecting_ip(request):
 
 def check_int_field_api(field, name, max_value):
     if not isinstance(field, int):
-        raise RequestValidationError(f'{name} must be integer')
+        raise HTTPException(status_code=422, detail=f'{name} must be integer')
 
     if field <= 0:
-        raise RequestValidationError(f'{name} must be > 0')
+        raise HTTPException(status_code=422, detail=f'{name} must be > 0')
 
     if field > max_value:
-        raise RequestValidationError(f'{name} must be <= {max_value}')
+        raise HTTPException(status_code=422, detail=f'{name} must be <= {max_value}')
 
     return True
-
-class NoNoneOrNegativeValuesCache(TTLCache):
-    def __setitem__(self, key, value, cache_setitem=Cache.__setitem__):
-        if value and value != -1 and value != (None, None):  # Only cache valid values
-            super().__setitem__(key, value, cache_setitem)
-
-# The decorator will not work between workers, but since uvicorn_worker.UvicornWorker is using asyncIO it has some functionality between requests
-@cached(cache=NoNoneOrNegativeValuesCache(maxsize=1024, ttl=86400)) # 24 hours
-def get_geo(ip):
-    ip_obj = ipaddress.ip_address(ip) # may raise a ValueError
-    if ip_obj.is_private:
-        error_helpers.log_error(f"Private IP was submitted to get_geo {ip}. This is normal in development, but should not happen in production.")
-        return('52.53721666833642', '13.424863870661927')
-
-    query = "SELECT ip_address, data FROM ip_data WHERE created_at > NOW() - INTERVAL '24 hours' AND ip_address=%s;"
-    db_data = DB().fetch_all(query, (ip,))
-
-    if db_data is not None and len(db_data) != 0:
-        return (db_data[0][1].get('latitude'), db_data[0][1].get('longitude'))
-
-    latitude, longitude = get_geo_ip_api_com(ip)
-
-    if not latitude:
-        latitude, longitude = get_geo_ipapi_co(ip)
-    if not latitude:
-        latitude, longitude = get_geo_ip_ipinfo(ip)
-    if not latitude:
-        error_helpers.log_error(f"Could not get Geo-IP for {ip} after 3 tries")
-
-    return (latitude, longitude)
-
-
-def get_geo_ipapi_co(ip):
-
-    print(f"Accessing https://ipapi.co/{ip}/json/")
-    try:
-        response = requests.get(f"https://ipapi.co/{ip}/json/", timeout=10)
-    except Exception as exc: #pylint: disable=broad-exception-caught
-        error_helpers.log_error('API request to ipapi.co failed ...', exception=exc)
-        return (None, None)
-
-    if response.status_code == 200:
-        resp_data = response.json()
-
-        if 'error' in resp_data or 'latitude' not in resp_data or 'longitude' not in resp_data:
-            return (None, None)
-
-        resp_data['source'] = 'ipapi.co'
-
-        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
-        DB().query(query=query, params=(ip, json.dumps(resp_data)))
-
-        return (resp_data.get('latitude'), resp_data.get('longitude'))
-
-    error_helpers.log_error(f"Could not get Geo-IP from ipapi.co for {ip}. Trying next ...", response=response)
-
-    return (None, None)
-
-def get_geo_ip_api_com(ip):
-
-    print(f"Accessing http://ip-api.com/json/{ip}")
-    try:
-        response = requests.get(f"http://ip-api.com/json/{ip}", timeout=10)
-    except Exception as exc: #pylint: disable=broad-exception-caught
-        error_helpers.log_error('API request to ip-api.com failed ...', exception=exc)
-        return (None, None)
-
-    if response.status_code == 200:
-        resp_data = response.json()
-
-        if ('status' in resp_data and resp_data.get('status') == 'fail') or 'lat' not in resp_data or 'lon' not in resp_data:
-            return (None, None)
-
-        resp_data['latitude'] = resp_data.get('lat')
-        resp_data['longitude'] = resp_data.get('lon')
-        resp_data['source'] = 'ip-api.com'
-
-        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
-        DB().query(query=query, params=(ip, json.dumps(resp_data)))
-
-        return (resp_data.get('latitude'), resp_data.get('longitude'))
-
-    error_helpers.log_error(f"Could not get Geo-IP from ip-api.com for {ip}. Trying next ...", response=response)
-
-    return (None, None)
-
-def get_geo_ip_ipinfo(ip):
-
-    print(f"Accessing https://ipinfo.io/{ip}/json")
-    try:
-        response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=10)
-    except Exception as exc: #pylint: disable=broad-exception-caught
-        error_helpers.log_error('API request to ipinfo.io failed ...', exception=exc)
-        return (None, None)
-
-    if response.status_code == 200:
-        resp_data = response.json()
-
-        if 'bogon' in resp_data or 'loc' not in resp_data:
-            return (None, None)
-
-        lat_lng = resp_data.get('loc').split(',')
-
-        resp_data['latitude'] = lat_lng[0]
-        resp_data['longitude'] = lat_lng[1]
-        resp_data['source'] = 'ipinfo.io'
-
-        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
-        DB().query(query=query, params=(ip, json.dumps(resp_data)))
-
-        return (resp_data.get('latitude'), resp_data.get('longitude'))
-
-    error_helpers.log_error(f"Could not get Geo-IP from ipinfo.io for {ip}. Trying next ...", response=response)
-
-    return (None, None)
-
-# The decorator will not work between workers, but since uvicorn_worker.UvicornWorker is using asyncIO it has some functionality between requests
-@cached(cache=NoNoneOrNegativeValuesCache(maxsize=1024, ttl=3600)) # 60 Minutes
-def get_carbon_intensity(latitude, longitude):
-
-    if latitude is None or longitude is None:
-        error_helpers.log_error('Calling get_carbon_intensity without lat/long')
-        return None
-
-    query = "SELECT latitude, longitude, data FROM carbon_intensity WHERE created_at > NOW() - INTERVAL '1 hours' AND latitude=%s AND longitude=%s;"
-    db_data = DB().fetch_all(query, (latitude, longitude))
-
-    if db_data is not None and len(db_data) != 0:
-        return db_data[0][2].get('carbonIntensity')
-
-    if not (electricitymaps_token := GlobalConfig().config.get('electricity_maps_token')):
-        raise ValueError('You need to specify an electricitymap token in the config!')
-
-    if electricitymaps_token == 'testing':
-        # If we are running tests we always return 1000
-        return 1000
-
-    headers = {'auth-token': electricitymaps_token }
-    params = {'lat': latitude, 'lon': longitude }
-
-    response = requests.get('https://api.electricitymap.org/v3/carbon-intensity/latest', params=params, headers=headers, timeout=10)
-    print(f"Accessing electricitymap with {latitude} {longitude}")
-    if response.status_code == 200:
-        resp_data = response.json()
-        query = "INSERT INTO carbon_intensity (latitude, longitude, data) VALUES (%s, %s, %s)"
-        DB().query(query=query, params=(latitude, longitude, json.dumps(resp_data)))
-
-        return resp_data.get('carbonIntensity')
-
-    error_helpers.log_error(f"Could not get carbon intensity from Electricitymaps.org for {params}", response=response)
-
-    return None
-
 
 def carbondb_add(connecting_ip, data, source, user_id):
 
@@ -1004,9 +857,9 @@ def carbondb_add(connecting_ip, data, source, user_id):
 
     query = '''
             INSERT INTO carbondb_data_raw
-                ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+                ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","ip_address","user_id","created_at")
             VALUES
-                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
     '''
 
     used_client_ip = data.get('ip', None) # An ip has been given with the data. We prioritize that
@@ -1014,13 +867,6 @@ def carbondb_add(connecting_ip, data, source, user_id):
         used_client_ip = connecting_ip
 
     carbon_intensity_g_per_kWh = data.get('carbon_intensity_g', None)
-
-    if carbon_intensity_g_per_kWh is not None: # we need this check explicitely as we want to allow 0 as possible value
-        latitude = None # no use to derive if we get supplied data. We rather indicate with NULL that user supplied
-        longitude = None # no use to derive if we get supplied data. We rather indicate with NULL that user supplied
-    else:
-        latitude, longitude = get_geo(used_client_ip) # cached
-        carbon_intensity_g_per_kWh = get_carbon_intensity(latitude, longitude) # cached
 
     energy_J = float(data['energy_uj']) / 1e6
     energy_kWh = energy_J / (3_600*1_000)
@@ -1033,7 +879,7 @@ def carbondb_add(connecting_ip, data, source, user_id):
         query=query,
         params=(
             data['type'],
-            data['project'], data['machine'], source, data['tags'], data['time'], energy_kWh, carbon_kg, carbon_intensity_g_per_kWh, latitude, longitude, used_client_ip, user_id))
+            data['project'], data['machine'], source, data['tags'], data['time'], energy_kWh, carbon_kg, carbon_intensity_g_per_kWh, used_client_ip, user_id))
 
 def replace_nan_with_zero(obj):
     if isinstance(obj, dict):

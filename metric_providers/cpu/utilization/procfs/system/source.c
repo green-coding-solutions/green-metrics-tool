@@ -87,19 +87,6 @@ static void output_stats() {
     printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (compute_time_reading*10000) / (compute_time_reading+non_compute_reading) ); // Deliberate integer conversion. Precision with 0.01% is good enough
 }
 
-static int check_system() {
-    const char check_path[] = "/proc/stat";
-
-    FILE* fd = fopen(check_path, "r");
-
-    if (fd == NULL) {
-        fprintf(stderr, "Couldn't open %s file\n", check_path);
-        exit(1);
-    }
-    fclose(fd);
-    return 0;
-}
-
 int main(int argc, char **argv) {
 
     int c;
@@ -138,7 +125,7 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system());
+        exit(check_path("/proc/stat"));
     }
 
     get_time_offset(&offset);

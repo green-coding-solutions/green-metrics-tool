@@ -39,8 +39,8 @@ cluster:
     jobs_processing: "random"
     shutdown_on_job_no: suspend
     # These two parameters have only effect in cluster mode. When using CLI they will be set via flags --docker-prune and --full-docker-prune only
-    docker_prune: True
-    full_docker_prune: False
+    docker_prune: False
+    full_docker_prune: True
     # define a workload to check cluster noise floor
     time_between_control_workload_validations: 21600
     send_control_workload_status_mail: False
@@ -81,6 +81,12 @@ machine:
   base_temperature_value: False
   base_temperature_chip: False
   base_temperature_feature: False
+
+  # Reservations guarantee that GMT always cpu time to execute metric providers and system does not OOM
+  # Not recommended to alter this in development, but when running on a cluster it should be set
+  # host_reserved_cpus must always be >= 1 or GMT will fail
+  host_reserved_cpus: 1
+  host_reserved_memory: 0
 
 measurement:
   full_docker_prune_whitelist:

@@ -153,12 +153,13 @@ def test_name_is_in_db():
 # --filename FILENAME
 #    An optional alternative filename if you do not want to use "usage_scenario.yml"
 #    Multiple filenames, wildcards and relative paths are supported
+#    File should contain resource limits, bc they are auto-filled otherwise
 
     # basic positive case
 def test_different_filename():
     run_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/basic_stress.yml', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+        ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/basic_stress_with_limits.yml', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
         '--skip-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
@@ -166,7 +167,7 @@ def test_different_filename():
         encoding='UTF-8'
     )
 
-    with open(f'{GMT_DIR}/tests/data/usage_scenarios/basic_stress.yml', 'r', encoding='utf-8') as f:
+    with open(f'{GMT_DIR}/tests/data/usage_scenarios/basic_stress_with_limits.yml', 'r', encoding='utf-8') as f:
         usage_scenario_contents = yaml.safe_load(f)
     usage_scenario_in_db = utils.get_run_data(run_name)['usage_scenario']
     assert usage_scenario_in_db == usage_scenario_contents, \
@@ -348,11 +349,8 @@ def test_check_system(skip_system_checks, config_file, expectation):
     GlobalConfig().override_config(config_location=config_file)
     runner = ScenarioRunner(uri="not_relevant", uri_type="folder", skip_system_checks=skip_system_checks)
 
-    try:
-        with expectation:
-            runner._check_system('start')
-    finally:
-        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # reset, just in case. although done by fixture
+    with expectation:
+        runner._check_system('start')
 
 ## Variables
 def test_check_broken_variable_format():
@@ -387,7 +385,7 @@ def test_usage_scenario_variable_replacement_done_correctly():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
 
-    assert runner._usage_scenario['flow'][0]['commands'][0]['command'] == 'stress-ng -c 1 -t 1 -q'
+    assert runner._usage_scenario_original['flow'][0]['commands'][0]['command'] == 'stress-ng -c 1 -t 1 -q'
 
 ## Check if metrics provider are already running
 def test_reporters_still_running():
@@ -487,7 +485,7 @@ def test_docker_pull_multiarch_image_succeeds():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
 
-    assert runner._usage_scenario['services']['test_service']['image'] == 'alpine:3.22.1'
+    assert runner._usage_scenario_original['services']['test_service']['image'] == 'alpine:3.22.1'
 
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
 def test_docker_pull_arm64_image_on_amd64_host_fails():
@@ -686,14 +684,14 @@ def test_container_running_verification_after_boot_phase():
                           filename='tests/data/usage_scenarios/basic_stress.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
 
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(MemoryError) as e:
         with Tests.RunUntilManager(runner) as context:
             for step in context.run_steps():
                 if step == 'setup_services':
                     # Simulate container failure by stopping it manually
                     subprocess.run(['docker', 'stop', 'test-container'], check=False)
 
-    assert "Container 'test-container' failed during boot phase (exit code: 137)" in str(e.value)
+    assert str(e.value).startswith("Container 'test-container' failed during [BOOT] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
 
 def test_container_running_verification_after_runtime_phase():
     """Test that container verification catches containers that exit during runtime phase"""
@@ -701,14 +699,14 @@ def test_container_running_verification_after_runtime_phase():
                           filename='tests/data/usage_scenarios/basic_stress.yml',
                           skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
 
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(MemoryError) as e:
         with Tests.RunUntilManager(runner) as context:
             for step in context.run_steps():
                 if step == 'runtime_complete':
                     # Simulate container failure by stopping it manually
                     subprocess.run(['docker', 'stop', 'test-container'], check=False)
 
-    assert "Container 'test-container' failed during runtime phase (exit code: 137)" in str(e.value)
+    assert str(e.value).startswith("Container 'test-container' failed during [RUNTIME] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
 
 
     ## rethink this one

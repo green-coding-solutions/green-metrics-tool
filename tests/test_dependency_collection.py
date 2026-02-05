@@ -115,7 +115,7 @@ class TestDependencyCollection:
                 }
             }
 
-            assert runner._ScenarioRunner__usage_scenario_dependencies == expected_dependencies
+            assert runner._ScenarioRunner__container_dependencies == expected_dependencies
             assert mock_exec.call_count == 2
 
     def test_collect_dependency_info_partial_failure(self):
@@ -171,7 +171,7 @@ class TestDependencyCollection:
         runner._collect_dependency_info()
 
         # Should remain None
-        assert runner._ScenarioRunner__usage_scenario_dependencies is None
+        assert runner._ScenarioRunner__container_dependencies is None
 
     def test_energy_dependency_inspector_integration_in_run_workflow(self):
         """Test that energy-dependency-inspector is called during the run workflow"""
@@ -219,7 +219,7 @@ class TestDependencyCollection:
 
         with patch.object(runner, '_collect_dependency_info') as mock_collect:
             def mock_successful_collection():
-                runner._ScenarioRunner__usage_scenario_dependencies = expected_dependencies
+                runner._ScenarioRunner__container_dependencies = expected_dependencies
             mock_collect.side_effect = mock_successful_collection
 
             run_id = runner.run()
@@ -228,7 +228,7 @@ class TestDependencyCollection:
             assert run_id is not None
 
             result = DB().fetch_one(
-                "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
+                "SELECT container_dependencies FROM runs WHERE id = %s",
                 (run_id,)
             )
 
@@ -274,7 +274,7 @@ class TestDependencyCollection:
         run_id = runner.run()
         assert run_id is not None
 
-        dependencies = runner._ScenarioRunner__usage_scenario_dependencies
+        dependencies = runner._ScenarioRunner__container_dependencies
         assert dependencies is not None
         assert isinstance(dependencies, dict)
 
@@ -328,7 +328,7 @@ class TestDependencyCollection:
 
         # Verify dependencies were stored in database
         result = DB().fetch_one(
-            "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
+            "SELECT container_dependencies FROM runs WHERE id = %s",
             (run_id,)
         )
         assert result is not None
@@ -355,7 +355,7 @@ class TestDependencyCollection:
         run_id = runner.run()
         assert run_id is not None
 
-        dependencies = runner._ScenarioRunner__usage_scenario_dependencies
+        dependencies = runner._ScenarioRunner__container_dependencies
         assert dependencies is not None
         assert isinstance(dependencies, dict)
 
@@ -417,7 +417,7 @@ class TestDependencyCollection:
 
         # Verify dependencies were stored in database
         result = DB().fetch_one(
-            "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
+            "SELECT container_dependencies FROM runs WHERE id = %s",
             (run_id,)
         )
         assert result is not None

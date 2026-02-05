@@ -3,6 +3,7 @@ import pytest
 import io
 from contextlib import redirect_stdout, redirect_stderr
 import subprocess
+from psycopg.errors import RaiseException as psycopg_RaiseException
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -43,8 +44,6 @@ def test_invalid_combination_measurement_flow_process_duration():
     assert str(err.value) == 'Cannot run flows due to configuration error. Measurement_total_duration must be >= measurement_flow_process_duration, otherwise the flow will run into a timeout in every case. Values are: measurement_flow_process_duration: 20 and measurement_total_duration: 10'
 
 def test_provider_disabling_not_active_by_default():
-
-
     out = io.StringIO()
     err = io.StringIO()
 
@@ -57,10 +56,10 @@ def test_provider_disabling_not_active_by_default():
     assert 'Not importing' not in out.getvalue()
 
 def test_provider_disabling_working():
-    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config-extra-network-and-duplicate-psu-providers.yml")
-
     out = io.StringIO()
     err = io.StringIO()
+
+    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config-extra-network-and-duplicate-psu-providers.yml")
 
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True, disabled_metric_providers=['NetworkConnectionsProxyContainerProvider'])
 
@@ -131,3 +130,12 @@ def test_phase_padding_active():
     assert notes[-7][0] - notes[-8][0] == runner._phase_padding_ms*FROM_MS_TO_US
 
     assert notes[-6][1] == 'Ending phase [RUNTIME] [UNPADDED]'
+
+
+def test_invalid_category():
+
+    with pytest.raises(psycopg_RaiseException) as err:
+        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', category_ids=[3000], skip_download_dependencies=True, skip_system_checks=True)
+        runner.run()
+
+    assert str(err.value) == 'At least one category ID supplied ({3000}) does not exist as category. Please check if category is a typo otherwise add category first\nCONTEXT:  PL/pgSQL function validate_category_ids() line 12 at RAISE'

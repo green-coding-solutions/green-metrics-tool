@@ -32,7 +32,7 @@ linux_info_list = [
     [rpwr, 'Environment Variables', 'printenv | sort', r'(?P<o>.*)', re.DOTALL],
     [rfwr, 'Kernel Boot Parameters', '/proc/cmdline', r'(?P<o>.*)'],
     [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
-    [cf, 'Free Memory', psutil.virtual_memory, [], 'available'],
+    [cf, 'Available Memory', psutil.virtual_memory, [], 'available'],
     [cf, 'Disk Usage', psutil.disk_usage, ['/'], 'used'],
     [cf, 'Disk Free', psutil.disk_usage, ['/'], 'free'],
     [rpwr, 'Uptime', '/usr/bin/uptime', r'(?P<o>.*)'],
@@ -67,7 +67,7 @@ linux_info_list = [
     [rfwr, 'Virtualization', '/proc/cpuinfo', r'(?P<o>hypervisor)'],
     [rpwrs, 'SGX', f"{os.path.join(CURRENT_PATH, '../tools/sgx_enable')} -s", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rfwr, 'IO Scheduling', '/sys/block/sda/queue/scheduler', r'(?P<o>.*)'],
-    [rpwr, 'Network Interfaces', 'ip addr | grep ether -B 1', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Network Interfaces', 'ip addr', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rfwr, 'Current Clocksource', '/sys/devices/system/clocksource/clocksource0/current_clocksource', r'(?P<o>.*)'],
 
 ]
@@ -85,7 +85,7 @@ mac_info_list = [
     [rpwr, 'Kernel Modules', 'kextstat', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Environment Variables', 'printenv | sort', r'(?P<o>.*)', re.DOTALL],
     [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
-    [cf, 'Free Memory', psutil.virtual_memory, [], 'available'],
+    [cf, 'Available Memory', psutil.virtual_memory, [], 'available'],
     [cf, 'Disk Usage', psutil.disk_usage, ['/'], 'used'],
     [cf, 'Disk Free', psutil.disk_usage, ['/'], 'free'],
     [rpwr, 'Uptime', '/usr/bin/uptime', r'(?P<o>.*)'],
@@ -95,7 +95,7 @@ mac_info_list = [
     [rpwr, 'Docker Volumes', "docker system df -v --format '{{json .}}' | jq -r '.Volumes[] | \"\\(.Name)\t\\(.Size)\"'", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],
     [rpwr, 'Processes', '/bin/ps -ax', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Network Interfaces', 'ifconfig | grep -E "flags|ether"', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Network Interfaces', 'ifconfig', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
 
 ]
 

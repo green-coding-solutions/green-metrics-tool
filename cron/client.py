@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import sys
 import faulthandler
@@ -23,7 +22,8 @@ from lib.configuration_check_error import ConfigurationCheckError, Status
 
 # We currently have this dynamically as it will probably change quite a bit
 STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_end', 'maintenance_start', 'maintenance_end', 'maintenance_error', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+GMT_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 def set_status(status_code, data=None, run_id=None):
     if not hasattr(set_status, "last_status"):
@@ -51,7 +51,7 @@ def set_status(status_code, data=None, run_id=None):
         WHERE id = %s
     """
 
-    gmt_hash, gmt_timestamp = get_repo_info(CURRENT_DIR)
+    gmt_hash, gmt_timestamp = get_repo_info(GMT_ROOT_DIR)
 
     params = (
         status_code,
@@ -123,10 +123,12 @@ def validate_temperature():
         print(f"Machine is too cool: {current_temperature}°. Warming up and retrying")
         set_status('warmup')
         validate_temperature.temperature_errors += 1
-        current_time = time.time()
-        while True: # spinlock
-            if time.time() > (current_time + 10):
-                break
+
+        # stress all cores with constant yes operation
+        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
+        time.sleep(300)
+        subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
+
         return False
 
     DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(validate_temperature.cooldown_time, config['machine']['id']))
@@ -151,7 +153,7 @@ def do_measurement_control():
         message = validate.validate_workload_stddev(stddev_data, cwl['metrics'])
         if config['cluster']['client']['send_control_workload_status_mail'] and config['admin']['notification_email']:
             Job.insert(
-                'email',
+                'email-simple',
                 user_id=0, # User 0 is the [GMT-SYSTEM] user
                 email=config['admin']['notification_email'],
                 name=f"{config['machine']['description']} is operating normally. All STDDEV fine.",
@@ -219,13 +221,39 @@ if __name__ == '__main__':
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
                     set_status('job_error', data=str(exc), run_id=job._run_id)
                     if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
-                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception_context=exc.__context__, last_exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config['machine']['description'], sleep_duration=600)
+                        sleep_duration=600 # seconds = 5 Min
+                        error_helpers.log_error('Job processing in cluster failed (client.py)',
+                            exception_context=exc.__context__,
+                            last_exception=exc,
+                            status=exc.status,
+                            run_id=job._run_id,
+                            name=job._name,
+                            url=job._url,
+                            filename=job._filename,
+                            branch=job._branch,
+                            machine=config['machine']['description'],
+                            user_id=job._user_id,
+                            sleep_duration=sleep_duration,
+                        )
                         if not args.testing:
-                            time.sleep(600)
+                            time.sleep(sleep_duration)
                     else: # Hard fails won't resolve on it's own. We sleep until next cluster validation
-                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception_context=exc.__context__, last_exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config['machine']['description'], sleep_duration=config['cluster']['client']['time_between_control_workload_validations'])
+                        sleep_duration=config['cluster']['client']['time_between_control_workload_validations']
+                        error_helpers.log_error('Job processing in cluster failed (client.py)',
+                            exception_context=exc.__context__,
+                            last_exception=exc,
+                            status=exc.status,
+                            run_id=job._run_id,
+                            name=job._name,
+                            url=job._url,
+                            filename=job._filename,
+                            branch=job._branch,
+                            machine=config['machine']['description'],
+                            user_id=job._user_id,
+                            sleep_duration=sleep_duration,
+                        )
                         if not args.testing:
-                            time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
+                            time.sleep(sleep_duration)
 
                 except Exception as exc: # pylint: disable=broad-except
                     set_status('job_error', data=str(exc), run_id=job._run_id)
@@ -235,15 +263,18 @@ if __name__ == '__main__':
                         stdout=(exc.stdout if hasattr(exc, 'stdout') else None),
                         stderr=(exc.stderr if hasattr(exc, 'stderr') else None),
                         run_id=job._run_id,
-                        machine=config['machine']['description'],
                         name=job._name,
-                        url=job._url
+                        url=job._url,
+                        filename=job._filename,
+                        branch=job._branch,
+                        machine=config['machine']['description'],
+                        user_id=job._user_id,
                     )
 
                     # reduced error message to client, but only if no ConfigurationCheckError
                     if job._email:
                         Job.insert(
-                            'email',
+                            'email-simple',
                             user_id=job._user_id,
                             email=job._email,
                             name='Measurement Job on Green Metrics Tool Cluster failed',
@@ -257,9 +288,9 @@ if __name__ == '__main__':
             else:
                 set_status('job_no')
                 if config['cluster']['client']['shutdown_on_job_no']:
-                    subprocess.check_output(['sync'])
+                    subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
                     time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
-                    subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']])
+                    subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
 
                 if not args.testing:
                     time.sleep(config['cluster']['client']['sleep_time_no_job'])

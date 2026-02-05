@@ -21,7 +21,7 @@ class TestYML(unittest.TestCase):
                                     {'image': 'alpine'}},
                     'flow': [{'name': 'Stress', 'container': 'test-container', 'commands': [{'type': 'console', 'command': 'echo 1'}]}]}
 
-        self.assertEqual(result_obj, runner._usage_scenario)
+        self.assertEqual(result_obj, runner._usage_scenario_original)
 
     def test_(self):
         test_root_file = 'tests/data/usage_scenarios/import_two_root.yml'
@@ -41,9 +41,9 @@ class TestYML(unittest.TestCase):
                                  }
                      }
 
-        print(f"actual: {runner._usage_scenario}")
+        print(f"actual: {runner._usage_scenario_original}")
         print(f"expect: {result_obj}")
-        self.assertEqual(result_obj, runner._usage_scenario)
+        self.assertEqual(result_obj, runner._usage_scenario_original)
 
 
     def test_invalid_path(self):

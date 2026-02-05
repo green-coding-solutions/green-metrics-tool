@@ -6,21 +6,15 @@ description: Testing SHM
 services:
   test-container:
     image: alpine
-    deploy:
-      resources:
-        limits:
-          cpus: "1.2"
-          memory: "10MB"
+    cpus: "1.2"
+    mem_limit: "10MB"
 
     shm_size: "30MB"
 
   test-container-2:
     image: alpine
-    deploy:
-      resources:
-        limits:
-          cpus: "1.2"
-          memory: "10MB"
+    cpus: "1.2"
+    mem_limit: "10MB"
 
     shm_size: 15728640
 

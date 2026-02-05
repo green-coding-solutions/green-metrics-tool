@@ -8,6 +8,7 @@ import re
 import subprocess
 import json
 import time
+import platform
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
@@ -40,6 +41,7 @@ def get_env_vars():
         encoding='UTF-8'
     )
     env_var_output = ps.stdout
+
     return env_var_output
 
 def test_env_variable_allowed_characters():
@@ -239,9 +241,9 @@ def test_include_overwrites_string_values():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
 
-    assert runner._usage_scenario['name'] == 'Name overwritten'
-    assert runner._usage_scenario['author'] == 'Author overwritten'
-    assert runner._usage_scenario['description'] == 'Description as is'
+    assert runner._usage_scenario_original['name'] == 'Name overwritten'
+    assert runner._usage_scenario_original['author'] == 'Author overwritten'
+    assert runner._usage_scenario_original['description'] == 'Description as is'
 
 def test_include_overwrites_string_values_even_if_top_include():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/overwrite_string_from_include_even_if_top.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
@@ -249,9 +251,9 @@ def test_include_overwrites_string_values_even_if_top_include():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
 
-    assert runner._usage_scenario['name'] == 'Name overwritten'
-    assert runner._usage_scenario['author'] == 'Author overwritten'
-    assert runner._usage_scenario['description'] == 'Description as is'
+    assert runner._usage_scenario_original['name'] == 'Name overwritten'
+    assert runner._usage_scenario_original['author'] == 'Author overwritten'
+    assert runner._usage_scenario_original['description'] == 'Description as is'
 
 
 def test_unsupported_compose():
@@ -627,7 +629,7 @@ def test_container_immediate_exit_with_error():
                     time.sleep(0.5)
 
     error_message = str(e.value)
-    assert "failed during boot phase" in error_message, \
+    assert "failed during [BOOT]" in error_message, \
         Tests.assertion_info("Expected immediate exit with error message", error_message)
     assert "exit code: 1" in error_message, \
         Tests.assertion_info("Expected non-zero exit code in error message", error_message)
@@ -970,3 +972,17 @@ def test_folder_destination_with_build():
 
     assert 'Repository mounted at custom path' in build_output, \
         Tests.assertion_info('Repository files should be accessible at folder-destination path during runtime', build_output)
+
+
+@pytest.mark.skipif(platform.system() == "Darwin", reason="Skipped on macOS")
+def test_provider_early_exit():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/container_early_exit.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(RuntimeError) as e:
+        runner.run()
+
+    assert 'Could not open path /sys/fs/cgroup' in str(e.value)
+    assert '(test-container-2) for reading' in str(e.value)

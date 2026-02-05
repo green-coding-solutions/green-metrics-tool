@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import sys
 import faulthandler
@@ -44,6 +43,7 @@ if __name__ == '__main__':
             check=True,
             capture_output=True,
             encoding='UTF-8',
+            errors='replace',
             cwd=args.folder
         )
         commit_timestamp = commit_timestamp.stdout.strip("\n")

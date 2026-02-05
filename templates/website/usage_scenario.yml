@@ -6,14 +6,43 @@ description: "Opens __GMT_VAR_PAGE__ uncached and waits for full load + 5 second
 sci:
   R_d: Website load
 
-compose-file: !include-gmt-helper gmt-playwright-v1.1.0.yml
+compose-file: !include-gmt-helper gmt-playwright.yml
 
 flow:
   - name: Visit page and idle for __GMT_VAR_SLEEP__ s
     container: gmt-playwright-nodejs
     commands:
       - type: playwright
-        command: await page.goto("__GMT_VAR_PAGE__");
+        command: page_result = await page.goto("__GMT_VAR_PAGE__");
       - type: console
         command: sleep '__GMT_VAR_SLEEP__'
 
+  - name: Check HTTP Status Code
+    container: gmt-playwright-nodejs
+    hidden: true
+    commands:
+      - type: playwright
+        command: if (!page_result.ok()) throw `Page was not accessible. HTTP Return code ${page_result.status()}`
+
+  - name: Scroll down and wait for __GMT_VAR_SLEEP__ s
+    container: gmt-playwright-nodejs
+    commands:
+      - type: playwright
+        command: |
+          let loop_ticks = 0;
+          const max_loop_ticks = 200;
+
+          while (loop_ticks < max_loop_ticks) {
+            const atBottom = await page.evaluate(() => {
+              const d = document.documentElement;
+              return d.scrollTop + window.innerHeight >= d.scrollHeight;
+            });
+            if (atBottom) break;
+
+            await page.mouse.wheel(0, 200);
+            await page.waitForTimeout(200);
+
+            loop_ticks++;
+          }
+      - type: console
+        command: sleep '__GMT_VAR_SLEEP__'

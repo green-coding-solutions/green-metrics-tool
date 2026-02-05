@@ -1,7 +1,15 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
 from typing import List, Optional, Dict, Literal, Union
 
-from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException
+
+### Run
+class RunChange(BaseModel):
+    archived: Optional[bool] = None
+    note: Optional[str] = None
+    public: Optional[bool] = None
+
+    model_config = ConfigDict(extra='forbid')
 
 ### Jobs
 
@@ -31,6 +39,7 @@ class Software(BaseModel):
     machine_id: int
     schedule_mode: str
     usage_scenario_variables: Optional[Dict[str, str]] = None
+    category_ids: Optional[List[int]] = None
 
     model_config = ConfigDict(extra='forbid')
 
@@ -61,9 +70,9 @@ class CI_MeasurementBase(BaseModel):
     filter_project: Optional[str] = 'CI/CD'
     filter_machine: Optional[str] = 'unknown'
     filter_tags: Optional[list] = Field(default_factory=list) # never do a reference object as default as it will be shared
-    lat: Optional[str] = ''
-    lon: Optional[str] = ''
-    city: Optional[str] = ''
+    lat: Optional[str] = None
+    lon: Optional[str] = None
+    city: Optional[str] = None
     carbon_intensity_g: Optional[int] = None
     carbon_ug: Optional[int] = None
     ip: Optional[str] = None
@@ -75,7 +84,7 @@ class CI_MeasurementBase(BaseModel):
     @classmethod
     def check_not_empty(cls, values, data):
         if not values or values == '':
-            raise RequestValidationError(f"{data.field_name} must be set and not empty")
+            raise HTTPException(status_code=422, detail=f"{data.field_name} must be set and not empty")
         return values
 
     @field_validator('filter_type', 'filter_project', 'filter_machine', 'ip')

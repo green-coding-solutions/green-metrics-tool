@@ -33,5 +33,8 @@ flow:
     commands:
       - type: console
         command: stress-ng --vm 0 --vm-bytes 60% --vm-keep --vm-method all -t 5 -q
-        note: Starting Download
-
+  - name: CPU Stress
+    container: stress-container
+    commands:
+      - type: console
+        command: stress-ng --cpu 0 -t 5 -q

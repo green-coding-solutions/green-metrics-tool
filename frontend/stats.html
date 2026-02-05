@@ -51,11 +51,13 @@
                         <a class="item" data-tab="three">Switches</a>
                         <a class="item" data-tab="four">Machine</a>
                         <a class="item" data-tab="five">Usage Scenario</a>
-                        <a class="item" data-tab="six">Logs</a>
-                        <a class="item" data-tab="seven">Network</a>
-                        <a class="item" data-tab="eight">Optimizations<div class="ui red label" id="optimization_count">0</div></a>
-                        <a class="item" data-tab="nine">Badges</a>
-                        <a class="item" data-tab="ten">AI</a>
+                        <a class="item" data-tab="six">Containers</a>
+                        <a class="item" data-tab="seven">Logs</a>
+                        <a class="item" data-tab="eight">Network</a>
+                        <a class="item" data-tab="nine">Optimizations<div class="ui red label" id="optimization_count">0</div></a>
+                        <a class="item" data-tab="ten">Badges</a>
+                        <a class="item" data-tab="eleven">AI</a>
+                        <a class="item" data-tab="twelve">Actions</a>
 
                     </div>
                     <div class="ui active tab segment" data-tab="one">
@@ -85,25 +87,26 @@
                         </div>
                         <h3>Usage Scenario File</h3>
                         <div id="usage-scenario"></div>
-                        <h3>Usage Scenario Dependencies</h3>
-                        <div id="usage-scenario-dependencies">
-                        </div>
                     </div>
                     <div class="ui tab segment" data-tab="six">
-                        <div id="logs"></div>
+                        <h3>Containers & Limits</h3>
+                        <div id="containers"></div>
                     </div>
                     <div class="ui tab segment" data-tab="seven">
+                        <div id="logs"></div>
+                    </div>
+                    <div class="ui tab segment" data-tab="eight">
                         <i class="info circle icon"></i>This is a list of all <b>external</b> network connections the system requested.
                         <div class="ui divider" id="network-divider"></div>
                         <table class="table-hover" id="network-intercepts"></table>
                     </div>
 
-                    <div class="ui tab segment" data-tab="eight">
+                    <div class="ui tab segment" data-tab="nine">
                         <p>This is a list of potential optimizations we have detected based off your run. We are constantly adding new features so please check our <a href="https://docs.green-coding.io/">documentation</a> for more details. If you think a warning does not apply to you, you can add an ignore into your <code>usage_scenario.yml</code> file or your GMT config.</p>
                         <p>&NonBreakingSpace;</p>
                         <div id="optimizationsContainer" class="ui container"></div>
                     </div>
-                    <div class="ui tab segment" data-tab="nine">
+                    <div class="ui tab segment" data-tab="ten">
                         <div id="run-badges">
                         </div>
                         <div class="ui icon message warning">
@@ -114,14 +117,42 @@
                                 </div>
                                 <ul>
                                     <li>Badges are for Runtime phase only by default. Append <b>&amp;phase=ENTER_PHASE_NAME</b> to img src show specific phase</li>
-                                    <li>Badges are only visible for the default user. If you are logged in with a different account badges cannot show. Please use a HTTP proxy like Cloudflare workers to tunnel the page if needed or enable user visibility.</li>
-
+                                    <li>Badges are only visible if the run is public since they are served as images. If badges do not show either make the run public or use a HTTP proxy like Cloudflare workers to tunnel the page if needed.</li>
                                 </ul>
                             </div>
                         </div>
                     </div>
-                    <div class="ui tab segment" data-tab="ten">
+                    <div class="ui tab segment" data-tab="eleven">
                         <div id="ai-container" class="ui container">As AI jobs are quite expensive this feature is only available in the enterprise version. You can see our pricing under <a href="https://www.green-coding.io/products/green-metrics-tool/">https://www.green-coding.io/products/green-metrics-tool/</a></div>
+                    </div>
+                    <div class="ui tab segment" data-tab="twelve">
+                        <div class="ui segment">
+                            <h4>Archive Run</h4>
+                            <p>If you archive a run it means that it will not show up in the Runs page overview by default. You can however alter the filter condition to include archived runs in the search.</p>
+                            <button id="archive-run" class="blue ui button">Archive Run</button>
+                            <button id="unarchive-run" class="orange ui button hidden">Un-Archive Run</button>
+                        </div>
+                        <div class="ui segment">
+                            <h4>Make Public</h4>
+                            <p>If you make a run public it can be seen by any user. Editing still is restricted to the original user.</p>
+                            <button id="make-run-public" class="blue ui button">Make Run Public</button>
+                            <button id="make-run-non-public" class="orange ui button hidden">Make Run Non-Public</button>
+                        </div>
+                        <div class="ui segment">
+                            <h4>Note</h4>
+                            <p>Add a note to this run.</p>
+                            <div class="ui form">
+                                <div class="field">
+                                    <textarea name="note" rows="3"></textarea>
+                                </div>
+                            </div>
+                            <button id="save-note" class="green ui button" style="margin-top: 10px;">Save Note</button>
+                        </div>
+                        <div class="ui segment">
+                            <h4>Re-Submit Run</h4>
+                            <p>Re-Submit a run to run it again on the cluster</p>
+                            <button class="blue ui button re-submit-run">Re-Submit Run</button>
+                        </div>
                     </div>
 
 
@@ -137,7 +168,19 @@
                 </div>
                 This run has failed. Please see logs for details
             </div>
+            <button class="ui tiny primary button re-submit-run" style="margin-left: 1em">Re-Submit Run</button>
         </div>
+
+        <div id="run-note" class="ui icon message info hidden">
+            <i class="exclamation circle icon"></i>
+            <div class="content">
+                <div class="header">
+                    Note
+                </div>
+                <p id="run-note-text"></p>
+            </div>
+        </div>
+
 
         <div id="run-warnings" class="ui icon message warning hidden">
             <i class="warning icon"></i>

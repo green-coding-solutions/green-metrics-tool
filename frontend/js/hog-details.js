@@ -27,10 +27,6 @@ function uJToKWh(uj) {
 const updateData = async () => {
     $('.carbondb-data').hide();
 
-    if ($.fn.DataTable.isDataTable('#process-table')) {
-        $('#process-table').DataTable().destroy();
-    }
-
     let data;
 
     try {
@@ -46,26 +42,35 @@ const updateData = async () => {
         return;
     }
 
-    $('#process-table').DataTable({
-        data: data.process_data,
-        autoWidth: false,
-        columns: [
-            { data: 0, title: 'Name'},
-            {
-                data: 1,
-                title: 'Energy Impact',
-                className: "dt-body-right",
-                render: function(el, type, row) {
-                    if (type === 'display' || type === 'filter') {
-                        return (el.toLocaleString())
+    const process_table = $('#process-table')
+    if ($.fn.DataTable.isDataTable(process_table)) { // just refill. A clean .destroy and .clear will break sorting sadly ...
+        const dt = process_table.DataTable();
+        dt.clear();
+        dt.rows.add(data.process_data); // array or Ajax-style data
+        dt.draw();
+    } else { // init
+        process_table.DataTable({
+            data: data.process_data,
+            autoWidth: false,
+            columns: [
+                { data: 0, title: 'Name'},
+                {
+                    data: 1,
+                    title: 'Energy Impact',
+                    className: "dt-body-right",
+                    render: function(el, type, row) {
+                        if (type === 'display' || type === 'filter') {
+                            return (el.toLocaleString())
+                        }
+                        return el;
                     }
-                    return el;
                 }
-            }
-        ],
-        deferRender: true,
-        order: [] // API determines order
-    });
+            ],
+            deferRender: true,
+            order: [] // API determines order
+        });
+    }
+
 
     const total_energy = uJToKWh(data.total_combined_energy_uj);
     const total_cpu_energy = uJToKWh(data.total_cpu_energy_uj);
@@ -82,7 +87,6 @@ const updateData = async () => {
     $('.carbondb-data').show();
 
 }
-
 
 $(document).ready(function () {
 

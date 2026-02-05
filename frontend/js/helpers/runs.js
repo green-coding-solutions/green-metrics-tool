@@ -10,11 +10,9 @@ const compareButton = () => {
     });
     link = link.substr(0,link.length-1);
 
-    if (localStorage.getItem('expert_compare_mode') === 'true'){
-        const value = document.querySelector('#compare-force-mode').value;
-        link = `${link}&force_mode=${value}`
-        localStorage.setItem('expert_compare_mode_last_value', value);
-    }
+    const value = document.querySelector('#compare-force-mode').value;
+    link = `${link}&force_mode=${value}`
+    localStorage.setItem('compare_mode_last_value', value);
 
     window.open(link, '_blank');
 }
@@ -30,17 +28,12 @@ const updateCompareCount = () => {
     const checkedCount = document.querySelectorAll('input[type=checkbox]:checked').length;
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
     if (checkedCount === 0) {
+        document.querySelector('.ui.accordion.compare-force-mode').style.display = 'none';
         document.querySelector('#unselect-button').style.display = 'none';
-        if (localStorage.getItem('expert_compare_mode') === 'true') {
-            document.querySelector('#compare-force-mode').style.display = 'none';
-        }
 
     } else {
         document.querySelector('#unselect-button').style.display = 'block';
-        if (localStorage.getItem('expert_compare_mode') === 'true') {
-            document.querySelector('#compare-force-mode').style.display = 'block';
-        }
-
+        document.querySelector('.ui.accordion.compare-force-mode').style.display = 'block';
     }
 }
 
@@ -83,45 +76,89 @@ const removeFilter = (paramName) => {
 }
 
 
-const getFilterQueryStringFromURI = () => {
+const getFilterQueryStringFromURI = (only_saved_filters=false) => {
     const url_params = getURLParams();
 
     let query_string = '';
-    if (url_params['uri'] != null && url_params['uri'].trim() != '') {
-        const uri = url_params['uri'].trim()
-        query_string += `&uri=${uri}`
-        document.querySelector('input[name=uri]').value = uri;
-        document.querySelector('#filters-active').classList.remove('hidden');
+    if (only_saved_filters === true) {
+        if (url_params['name'] != null && url_params['name'].trim() != '') {
+            const name = url_params['name'].trim()
+            query_string += `&name=${encodeURIComponent(name)}`
+            document.querySelector('input[name="name"]').value = name;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+        if (url_params['uri'] != null && url_params['uri'].trim() != '') {
+            const uri = url_params['uri'].trim()
+            query_string += `&uri=${encodeURIComponent(uri)}`
+            document.querySelector('input[name="uri"]').value = uri;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+        if (url_params['filename'] != null && url_params['filename'].trim() != '') {
+            const filename = url_params['filename'].trim()
+            query_string += `&filename=${encodeURIComponent(filename)}`
+            document.querySelector('input[name="filename"]').value = filename;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+        if (url_params['branch'] != null && url_params['branch'].trim() != '') {
+            const branch = url_params['branch'].trim()
+            query_string += `&branch=${encodeURIComponent(branch)}`
+            document.querySelector('input[name="branch"]').value = branch;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+        if (url_params['machine_id'] != null && url_params['machine_id'].trim() != '') {
+            const machine_id = url_params['machine_id'].trim()
+            query_string += `&machine_id=${encodeURIComponent(machine_id)}`
+            document.querySelector('input[name="machine_id"]').value = machine_id;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+        if (url_params['machine'] != null && url_params['machine'].trim() != '') {
+            const machine = url_params['machine'].trim()
+            query_string += `&machine=${encodeURIComponent(machine)}`
+            document.querySelector('input[name="machine"]').value = machine;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+        if (url_params['usage_scenario_variables'] != null && url_params['usage_scenario_variables'].trim() != '') {
+            const usage_scenario_variables = url_params['usage_scenario_variables'].trim()
+            query_string += `&usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}`
+            document.querySelector('input[name="usage_scenario_variables"]').value = usage_scenario_variables;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
     }
-    if (url_params['filename'] != null && url_params['filename'].trim() != '') {
-        const filename = url_params['filename'].trim()
-        query_string += `&filename=${filename}`
-        document.querySelector('input[name=filename]').value = filename;
+
+    let show_archived = null;
+    if (url_params['show_archived'] != null && url_params['show_archived'].trim() != '') {
+        show_archived = url_params['show_archived'].trim()
         document.querySelector('#filters-active').classList.remove('hidden');
+    } else if (localStorage.getItem('show_archived')) {
+        show_archived = localStorage.getItem('show_archived');
+        document.querySelector('#filters-active').classList.remove('hidden');
+    } else {
+        show_archived = 'false';
     }
-    if (url_params['branch'] != null && url_params['branch'].trim() != '') {
-        const branch = url_params['branch'].trim()
-        query_string += `&branch=${branch}`
-        document.querySelector('input[name=branch]').value = branch;
-        document.querySelector('#filters-active').classList.remove('hidden');
+
+    const archived_radio = document.querySelector(`input[name="show_archived"][value="${show_archived}"]`)
+    if (archived_radio != null) { // since user can submit bullshit we do not want to except on querySelector after accessing checkes
+        archived_radio.checked = true;
+        localStorage.setItem('show_archived', show_archived);
+        query_string += `&show_archived=${show_archived}`
     }
-    if (url_params['machine_id'] != null && url_params['machine_id'].trim() != '') {
-        const machine_id = url_params['machine_id'].trim()
-        query_string += `&machine_id=${machine_id}`
-        document.querySelector('input[name=machine_id]').value = machine_id;
+
+    let show_other_users = null;
+    if (url_params['show_other_users'] != null && url_params['show_other_users'].trim() != '') {
+        show_other_users = url_params['show_other_users'].trim()
         document.querySelector('#filters-active').classList.remove('hidden');
+    } else if (localStorage.getItem('show_other_users')) {
+        show_other_users = localStorage.getItem('show_other_users');
+        document.querySelector('#filters-active').classList.remove('hidden');
+    } else {
+        show_other_users = 'true';
     }
-    if (url_params['machine'] != null && url_params['machine'].trim() != '') {
-        const machine = url_params['machine'].trim()
-        query_string += `&machine=${machine}`
-        document.querySelector('input[name=machine]').value = machine;
-        document.querySelector('#filters-active').classList.remove('hidden');
-    }
-    if (url_params['usage_scenario_variables'] != null && url_params['usage_scenario_variables'].trim() != '') {
-        const usage_scenario_variables = url_params['usage_scenario_variables'].trim()
-        query_string += `&usage_scenario_variables=${usage_scenario_variables}`
-        document.querySelector('input[name=usage_scenario_variables]').value = usage_scenario_variables;
-        document.querySelector('#filters-active').classList.remove('hidden');
+
+    const other_users_radio = document.querySelector(`input[name="show_other_users"][value="${show_other_users}"]`)
+    if (other_users_radio != null) { // since user can submit bullshit we do not want to except on querySelector after accessing checkes
+        document.querySelector(`input[name="show_other_users"][value="${show_other_users}"]`).checked = true;
+        localStorage.setItem('show_other_users', show_other_users);
+        query_string += `&show_other_users=${show_other_users}`
     }
 
     return query_string
@@ -130,19 +167,27 @@ const getFilterQueryStringFromURI = () => {
 const getFilterQueryStringFromInputs = () => {
     let query_string = '';
 
-    const uri = document.querySelector('input[name=uri]').value.trim()
-    const filename = document.querySelector('input[name=filename]').value.trim()
-    const branch = document.querySelector('input[name=branch]').value.trim()
-    const machine = document.querySelector('input[name=machine]').value.trim()
-    const machine_id = document.querySelector('input[name=machine_id]').value.trim()
-    const usage_scenario_variables = document.querySelector('input[name=usage_scenario_variables]').value.trim()
+    const name = document.querySelector('input[name="name"]').value.trim()
+    const uri = document.querySelector('input[name="uri"]').value.trim()
+    const filename = document.querySelector('input[name="filename"]').value.trim()
+    const branch = document.querySelector('input[name="branch"]').value.trim()
+    const machine = document.querySelector('input[name="machine"]').value.trim()
+    const machine_id = document.querySelector('input[name="machine_id"]').value.trim()
+    const usage_scenario_variables = document.querySelector('input[name="usage_scenario_variables"]').value.trim()
+    const show_archived = document.querySelector('input[name="show_archived"]:checked')?.value?.trim()
+    localStorage.setItem('show_archived', show_archived);
+    const show_other_users = document.querySelector('input[name="show_other_users"]:checked')?.value?.trim()
+    localStorage.setItem('show_other_users', show_other_users);
 
-    if(uri != '') query_string += `&uri=${uri}`
-    if(filename != '')query_string += `&filename=${filename}`
-    if(branch != '')query_string += `&branch=${branch}`
-    if(machine != '')query_string += `&machine=${machine}`
-    if(machine_id != '')query_string += `&machine_id=${machine_id}`
-    if(usage_scenario_variables != '')query_string += `&usage_scenario_variables=${usage_scenario_variables}`
+    if(name != '') query_string += `&name=${encodeURIComponent(name)}`
+    if(uri != '') query_string += `&uri=${encodeURIComponent(uri)}`
+    if(filename != '') query_string += `&filename=${encodeURIComponent(filename)}`
+    if(branch != '') query_string += `&branch=${encodeURIComponent(branch)}`
+    if(machine != '') query_string += `&machine=${encodeURIComponent(machine)}`
+    if(machine_id != '') query_string += `&machine_id=${encodeURIComponent(machine_id)}`
+    if(usage_scenario_variables != '') query_string += `&usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}`
+    if(show_archived != null && show_archived != '') query_string += `&show_archived=${encodeURIComponent(show_archived)}`
+    if(show_other_users != null && show_other_users != '') query_string += `&show_other_users=${encodeURIComponent(show_other_users)}`
 
     document.querySelector('#filters-active').classList.remove('hidden');
 
@@ -188,7 +233,7 @@ async function getRepositories(sort_by = 'date') {
 
             if(!$.fn.DataTable.isDataTable(table)) {
                 const uri = this.getAttribute('data-uri');
-                getRunsTable($(table), `/v2/runs?uri=${uri}&uri_mode=exact&limit=0`, false, false, true)
+                getRunsTable($(table), `/v2/runs?uri=${uri}&uri_mode=exact&limit=0&${getFilterQueryStringFromURI(true)}`, false, false, true)
             }
     }});
     $('.ui.accordion.filter-dropdown').hide();
@@ -197,7 +242,6 @@ async function getRepositories(sort_by = 'date') {
 const getRunsTable = async (el, url, include_uri=true, include_button=true, searching=false) => {
 
     let runs = null;
-    el.DataTable().clear().destroy() // clear old
 
     try {
         runs = await makeAPICall(url)
@@ -280,32 +324,40 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         }
     });
 
-    el.DataTable({
-        // searchPanes: {
-        //     initCollapsed: true,
-        // },
-        searching: searching,
-        data: runs.data,
-        columns: columns,
-        deferRender: true,
-        layout: {
-    topStart: '',
-    topEnd: '',
-    bottomStart: 'pageLength',
-    bottomEnd: 'paging'
-},
-        drawCallback: function(settings) {
-            document.querySelectorAll('input[type="checkbox"]').forEach((e) =>{
-                e.removeEventListener('change', updateCompareCount);
-                e.addEventListener('change', updateCompareCount);
-            })
-            document.querySelector('#unselect-button').removeEventListener('click', unselectHandler);
-            document.querySelector('#unselect-button').addEventListener('click', unselectHandler)
-            allow_group_select_checkboxes();
-            updateCompareCount();
-        },
-        order: [[columns.length-2, 'desc']] // API also orders, but we need to indicate order for the user
-    });
+
+   if ($.fn.DataTable.isDataTable(el)) { // just refill. A clean .destroy and .clear will break sorting sadly ...
+        const dt = el.DataTable();
+        dt.clear();
+        dt.rows.add(runs.data); // array or Ajax-style data
+        dt.draw();
+    } else { // init
+        el.DataTable({
+            // searchPanes: {
+            //     initCollapsed: true,
+            // },
+            searching: searching,
+            data: runs.data,
+            columns: columns,
+            deferRender: true,
+            layout: {
+                topStart: '',
+                topEnd: '',
+                bottomStart: 'pageLength',
+                bottomEnd: 'paging'
+            },
+            drawCallback: function(settings) {
+                document.querySelectorAll('input[type="checkbox"]').forEach((e) =>{
+                    e.removeEventListener('change', updateCompareCount);
+                    e.addEventListener('change', updateCompareCount);
+                })
+                document.querySelector('#unselect-button').removeEventListener('click', unselectHandler);
+                document.querySelector('#unselect-button').addEventListener('click', unselectHandler)
+                allow_group_select_checkboxes();
+                updateCompareCount();
+            },
+            order: [[columns.length-2, 'desc']] // API also orders, but we need to indicate order for the user
+        });
+    }
 
 }
 
@@ -339,13 +391,15 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?${getFilterQueryStringFromURI()}&limit=50`)
     }
 
-    if (localStorage.getItem('expert_compare_mode') === 'true') {
-        const value = localStorage.getItem('expert_compare_mode_last_value');
-        if (value != null) {
-            const el = document.querySelector('#compare-force-mode');
-            el.value = value;
-        }
+    const value = localStorage.getItem('compare_mode_last_value');
+    if (value != null && value != '') {
+        document.querySelector('#compare-force-mode').value = value;
+        $('.ui.accordion.compare-force-mode').accordion('open', 0);
+    } else {
+        $('.ui.accordion.compare-force-mode').accordion('close', 0);
     }
+
+
 
     // filters
     $('.ui.accordion.filter-dropdown').accordion();
@@ -363,7 +417,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             el.value = '';
         })
         getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?limit=50`)
-        $('.ui.accordion').accordion('close', 0);
+        $('.ui.accordion').accordion('close', 0); // close all accordions
         document.querySelector('#filters-active').classList.add('hidden');
     });
 

@@ -2,6 +2,7 @@ name: Pull Request Tests
 run-name: PR check
 on:
   pull_request:
+    types: [opened, synchronize]
   workflow_dispatch:
     inputs:
       enable-ssh:
@@ -18,6 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       pull-requests: write
+      packages: write
     steps:
       - name: Eco CI Energy Estimation - Initialize
         uses: green-coding-solutions/eco-ci-energy-estimation@main

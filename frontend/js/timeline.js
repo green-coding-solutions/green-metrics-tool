@@ -196,7 +196,7 @@ const loadCharts = async () => {
                             <i class="question circle icon link"></i>
                         </i>
                     </div>
-                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams(false, null, null, true)}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(false,series[my_series].metric_name,series[my_series].detail_name, true)}&unit=joules"></a></span>
+                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams(false, null, null, true)}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(false,series[my_series].metric_name,series[my_series].detail_name, true)}&unit=joules" onerror="this.parentNode.parentNode.parentNode.remove(); console.log('Could not render ${series[my_series].metric_name} badge - Likely due to non public visibility of the run.')"></a></span>
                     <a class="copy-badge"><i class="copy icon"></i></a>
                 </div>
                 <p></p>`
@@ -229,19 +229,27 @@ const loadCharts = async () => {
             formatter: function (params, ticket, callback) {
                 if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
                 const repository_uri_encoded = repository_uri.split('/').map(encodeURIComponent).join('/');
-                return `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong><br>
+                const html_content = `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong><br>
                         run_id: <a href="/stats.html?id=${series[params.seriesName].notes[params.dataIndex].run_id}"  target="_blank">${series[params.seriesName].notes[params.dataIndex].run_id}</a><br>
                         date: ${series[params.seriesName].notes[params.dataIndex].created_at}<br>
                         metric_name: ${escapeString(params.seriesName)}<br>
                         phase: ${escapeString(series[params.seriesName].notes[params.dataIndex].phase)}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
                         commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
-                        commit_hash: <a href="${repository_uri_encoded}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
+                        commit_hash: <a class="commit-hash-link" href="" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
                         gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].gmt_hash)}</a><br>
 
                         <br>
                         👉 <a href="/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}" target="_blank">Diff with previous run</a>
                         `;
+                        const container = document.createElement('div');
+                        container.innerHTML = html_content;
+                        // adding as href will not trigger any XSS problems which might come from user input here
+                        container.querySelector('.commit-hash-link').href = `${repository_uri}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}`
+                        return container;
+
+
+
             }
         };
 

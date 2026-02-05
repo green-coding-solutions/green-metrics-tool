@@ -91,7 +91,15 @@ const updateRemoveButtonsVisibility = () => {
 
 (async () => {
 
-    await getClusterStatus();
+    getClusterStatus();
+
+    $('#add-variable').on('click', () => addVariableField());
+    addVariableField() // always add one empty row
+
+    $('#variables-container').on('click', '.remove-variable', function (e) {
+        $(this).closest('.variable-row').remove();
+        updateRemoveButtonsVisibility();
+    });
 
     try {
         var machines_json = await makeAPICall('/v1/machines');
@@ -102,21 +110,11 @@ const updateRemoveButtonsVisibility = () => {
                 const select = document.querySelector('select');
                 select.add(newOption,undefined);
             })
-
-        populateFieldsFromURL();
-
     } catch (err) {
         showNotification('Could not get machines data from API', err);
     }
 
-    $('#add-variable').on('click', () => addVariableField());
-    addVariableField() // always add one empty row
-
-    $('#variables-container').on('click', '.remove-variable', function (e) {
-        $(this).closest('.variable-row').remove();
-        updateRemoveButtonsVisibility();
-    });
-
+    populateFieldsFromURL(); // can run here as makeAPICall is anyway blocking and filling should take place even if API call fails
 
     document.forms[0].onsubmit = async (event) => {
         event.preventDefault();

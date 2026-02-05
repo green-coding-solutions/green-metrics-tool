@@ -41,7 +41,8 @@ def test_hogDB_add():
         data['gpu_energy_uj'] == hog_string['gpu_energy_mj'] * 1_000 and \
         data['ane_energy_uj'] == hog_string['ane_energy_mj'] * 1_000 and \
         data['energy_impact'] == hog_string['energy_impact'] and \
-        data['grid_intensity_cog'] == 100 and \
+        # not that in current transition to new v3 endpoint this field is named differently than in the JSON (grid_intensity_cog)
+        data['carbon_intensity_g'] == 100 and \
         data['embodied_carbon_ug'] == hog_string['embodied_carbon_g'] * 1_000_000 and \
         data['operational_carbon_ug'] == hog_string['operational_carbon_g'] * 1_000_000)
 

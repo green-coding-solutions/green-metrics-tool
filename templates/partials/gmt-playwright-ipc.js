@@ -1,6 +1,6 @@
-import { firefox, chromium } from "playwright";
-import fs from "fs";
-import { execSync } from "child_process";
+const { firefox, chromium } = require('playwright');
+const fs = require('fs');
+const { execSync } = require('child_process');
 
 // global variables, since we want to keep function signatures slim for exposed functions in usage_scenario.yml
 let browser = null;
@@ -69,15 +69,21 @@ async function run(browserName, headless, proxy) {
 
   execSync(`mkfifo /tmp/playwright-ipc-ready`); // signal that browser is launched
   execSync(`mkfifo /tmp/playwright-ipc-commands`); // create pipe to get commands
+  execSync(`touch /tmp/playwright-ipc-error`); // create empty file
 
-  await startFifoReader("/tmp/playwright-ipc-commands", async (data) => {
-      if (data == 'end') {
+  await startFifoReader("/tmp/playwright-ipc-commands", async (gmt_internal_data) => {
+      if (gmt_internal_data == 'end') {
           await browser.close()
           fs.writeFileSync("/tmp/playwright-ipc-ready", "ready", "utf-8");   // signal that browser is ready although
           process.exit(0)
       } else {
-          console.log('Evaluating', data);
-          await eval(`(async () => { ${data} })()`);
+          console.log('Evaluating', gmt_internal_data);
+          try {
+              await eval(`(async () => { ${gmt_internal_data} })()`);
+          } catch (err) {
+              fs.writeFileSync("/tmp/playwright-ipc-error", err.message || String(err), "utf-8");
+              throw err
+          }
           fs.writeFileSync("/tmp/playwright-ipc-ready", "ready", "utf-8");   // signal that browser is ready for next command
       }
   });
@@ -97,9 +103,12 @@ for (let i = 2; i < argv.length; i++) {
   }
 }
 
-await run(
+run(
   (args.browser || "chromium").toLowerCase(),
   args.headless !== undefined ? args.headless : true,
   args.proxy !== undefined ? args.proxy : null
-);
+).catch(err => {
+  console.error("run failed", err);
+});
+
 

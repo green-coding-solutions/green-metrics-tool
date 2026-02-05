@@ -7,66 +7,6 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
 
-# TODO: Currently this assumes all data is coming from Germany!
-# We need need a mean to discern where the connection from Power HOG was coming from.
-# Either we supply the power region, ip address or the coordinates
-
-# TODO 2: This is currently only for PowerHOG. Waiting till other services fail so we can test and add it there too ...
-def backfill_missing_carbon_intensity():
-    query = '''
-        UPDATE hog_simplified_measurements as hsm
-        SET grid_intensity_cog = (SELECT ci.data->>'carbonIntensity'
-            FROM carbon_intensity as ci
-            WHERE ci.data->>'zone' = 'DE'
-            ORDER BY ABS(EXTRACT(EPOCH FROM (hsm.created_at - ci.created_at::timestamp)))
-            LIMIT 1)::int
-        WHERE hsm.grid_intensity_cog IS NULL;
-    '''
-    DB().query(query)
-
-    query = '''
-        UPDATE hog_simplified_measurements
-        SET operational_carbon_ug = ((combined_energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*grid_intensity_cog
-        WHERE operational_carbon_ug IS NULL;
-    '''
-    DB().query(query)
-
-    query = '''
-        UPDATE ci_measurements as cim
-        SET carbon_intensity_g = (SELECT ci.data->>'carbonIntensity'
-            FROM carbon_intensity as ci
-            WHERE ci.data->>'zone' = 'DE'
-            ORDER BY ABS(EXTRACT(EPOCH FROM (cim.created_at - ci.created_at::timestamp)))
-            LIMIT 1)::int
-        WHERE cim.carbon_intensity_g IS NULL;
-    '''
-    DB().query(query)
-
-    query = '''
-        UPDATE ci_measurements
-        SET carbon_ug = ((energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*carbon_intensity_g
-        WHERE carbon_ug IS NULL;
-    '''
-    DB().query(query)
-
-    # we also need to update the carbondb_data_raw table as it gets direct inserts
-    query = '''
-        UPDATE carbondb_data_raw as cdb
-        SET carbon_intensity_g = (SELECT ci.data->>'carbonIntensity'
-            FROM carbon_intensity as ci
-            WHERE ci.data->>'zone' = 'DE'
-            ORDER BY ABS(EXTRACT(EPOCH FROM (cdb.created_at - ci.created_at::timestamp)))
-            LIMIT 1)::int
-        WHERE cdb.carbon_intensity_g IS NULL;
-    '''
-    DB().query(query)
-
-    query = '''
-        UPDATE carbondb_data_raw
-        SET carbon_kg = ((energy_kwh::DOUBLE PRECISION)*carbon_intensity_g)/1e3
-        WHERE carbon_kg IS NULL;
-    '''
-    DB().query(query)
 
 def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then we allow old data to arrive
     params = []
@@ -83,16 +23,16 @@ def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then 
                 EXTRACT(EPOCH FROM created_at) * 1e6,
                 (combined_energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
                 (operational_carbon_ug::DOUBLE PRECISION)/1e9 + (embodied_carbon_ug/1e9), -- to get to kg
-                grid_intensity_cog,  -- (carbon_intensity_g) there is no need for this column for further processing
-                NULL,  -- (latitude) there is no need for this column for further processing
-                NULL,  -- (longitude) there is no need for this column for further processing
-                NULL,
+                carbon_intensity_g,
+                latitude,
+                longitude,
+                ip_address,
                 user_id,
                 created_at
             FROM hog_simplified_measurements
     '''
     if interval:
-        query = f"{query} WHERE created_at >= CURRENT_DATE - make_interval(days => %s)"
+        query = f"{query} WHERE created_at > CURRENT_DATE - make_interval(days => %s)"
         params.append(interval)
 
     DB().query(query, params=params)
@@ -113,16 +53,16 @@ def copy_over_eco_ci(interval=30): # 30 days is the merge window. Until then we 
                 EXTRACT(EPOCH FROM created_at) * 1e6,
                 (energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
                 (carbon_ug::DOUBLE PRECISION)/1e9, -- to get to kg
-                -1,  -- (carbon_intensity_g) there is no need for this column for further processing
-                NULL,  -- (latitude) there is no need for this column for further processing
-                NULL,  -- (longitude) there is no need for this column for further processing
+                carbon_intensity_g,
+                latitude,
+                longitude,
                 ip_address,
                 user_id,
                 created_at
             FROM ci_measurements
     '''
     if interval:
-        query = f"{query} WHERE created_at >= CURRENT_DATE - make_interval(days => %s)"
+        query = f"{query} WHERE created_at > CURRENT_DATE - make_interval(days => %s)"
         params.append(interval)
 
     DB().query(query, params=params)
@@ -144,10 +84,10 @@ def copy_over_scenario_runner(interval=30): # 30 days is the merge window. Until
                 COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p WHERE p.run_id = r.id AND p.unit = 'uJ' AND p.phase != '004_[RUNTIME]' AND p.metric LIKE '%%_energy_%%_machine')/1e6/3600/1000, 0) as energy_kwh,
                 COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p2 WHERE p2.run_id = r.id AND p2.unit = 'ug' AND p2.phase != '004_[RUNTIME]' AND p2.metric LIKE '%%_carbon_%%_machine')/1e9, 0) as carbon_kg,
 
-                -1, -- there is no need for this column for further processing
-                NULL,  -- there is no need for this column for further processing
-                NULL,  -- there is no need for this column for further processing
-                NULL,
+                NULL, -- there simply is no carbon intensity atm
+                NULL, -- there simply is no latitude as no IP is present
+                NULL, -- there simply is no longitude as no IP is present
+                NULL, -- no connecting IP was used to transmit the data
                 r.user_id,
                 r.created_at
             FROM runs as r
@@ -155,7 +95,7 @@ def copy_over_scenario_runner(interval=30): # 30 days is the merge window. Until
             LEFT JOIN machines as m ON m.id = r.machine_id
     '''
     if interval:
-        query = f"{query} WHERE r.created_at >= CURRENT_DATE - make_interval(days => %s)"
+        query = f"{query} WHERE r.created_at > CURRENT_DATE - make_interval(days => %s)"
         params.append(interval)
 
     query = f"{query} GROUP BY r.id, m.description"
@@ -169,16 +109,18 @@ def validate_table_constraints():
         FROM
             carbondb_data_raw
         WHERE
-            user_id IS NULL
+            (user_id IS NULL
             OR time IS NULL
             OR energy_kwh IS NULL
             OR carbon_kg IS NULL
-            OR carbon_intensity_g IS NULL
             OR type IS NULL
             OR project IS NULL
             OR machine IS NULL
             OR source IS NULL
-            OR tags IS NULL ''')
+            OR tags IS NULL)
+            AND created_at > NOW() - INTERVAL '30 DAYS'
+            AND created_at < NOW() - INTERVAL '30 MINUTES'
+     ''')
 
     if data:
         raise RuntimeError(f"NULL values found `carbondb_data_raw` - {data}")
@@ -198,14 +140,15 @@ def remove_duplicates():
             AND a.tags = b.tags
             AND a.energy_kwh = b.energy_kwh
             AND a.carbon_kg = b.carbon_kg
-            AND a.user_id = b.user_id;
+            AND a.user_id = b.user_id
+            AND a.created_at > NOW() - INTERVAL '31 DAYS' -- interval + 1 day to avoid race condition
+            AND b.created_at > NOW() - INTERVAL '31 DAYS' -- interval + 1 day to avoid race condition
     ''')
 
 
 if __name__ == '__main__':
     try:
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
-        backfill_missing_carbon_intensity()
         copy_over_eco_ci()
         copy_over_scenario_runner()
         copy_over_power_hog()

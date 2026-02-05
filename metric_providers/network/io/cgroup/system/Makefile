@@ -1,7 +1,7 @@
-LIB_C = ../../../../../lib/c
-CFLAGS = -O3 -Wall -Werror -lc -I$(LIB_C)
+GMT_LIB_DIR = ../../../../../lib/c
+CFLAGS = -O3 -Wall -Werror -lcurl -lc -I$(GMT_LIB_DIR)
 
-metric-provider-binary: source.c $(LIB_C)/gmt-lib.o $(LIB_C)/gmt-lib.h $(LIB_C)/detect_cgroup_path.o $(LIB_C)/detect_cgroup_path.h
-	gcc $(LIB_C)/gmt-lib.o $(LIB_C)/detect_cgroup_path.o $< $(CFLAGS) -o $@
+metric-provider-binary: source.c $(GMT_LIB_DIR)/gmt-lib.o $(GMT_LIB_DIR)/gmt-lib.h $(GMT_LIB_DIR)/gmt-container-lib.o $(GMT_LIB_DIR)/gmt-container-lib.h
+	gcc $(GMT_LIB_DIR)/gmt-lib.o $(GMT_LIB_DIR)/gmt-container-lib.o $< $(CFLAGS) -o $@
 	sudo chown root $@
 	sudo chmod u+s $@

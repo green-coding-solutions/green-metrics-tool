@@ -81,20 +81,6 @@ static void output_network_procfs() {
     usleep(msleep_time*1000);
 }
 
-static int check_system() {
-    const char file_path_proc_net_dev[] = "/proc/net/dev";
-
-    FILE * fd = fopen(file_path_proc_net_dev, "r");
-    if (fd == NULL) {
-        fprintf(stderr, "Couldn't open /proc/net/dev file\n");
-        return 1;
-    }
-
-    fclose(fd);
-
-    return 0;
-}
-
 int main(int argc, char **argv) {
 
     int c;
@@ -132,7 +118,7 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system());
+        exit(check_path("/proc/net/dev"));
     }
 
     get_time_offset(&offset);

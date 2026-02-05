@@ -1,0 +1,20 @@
+---
+name: OOM On Launch
+author: Arne Tarara <arne@green-coding.io>
+description: Functional Test
+
+services:
+  test-container:
+    type: container
+    image: ubuntu
+    entrypoint: ["tail", "-f", "/dev/null"]
+    mem_limit: 10MB
+    setup-commands:
+      - command: dd if=/dev/zero of=/dev/shm/test100mb bs=1M count=100
+
+flow:
+  - name: Echo
+    container: test-container
+    commands:
+      - type: console
+        command: echo "I will never get here"

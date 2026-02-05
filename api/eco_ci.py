@@ -1,9 +1,8 @@
 from datetime import date
 
 from fastapi import APIRouter
-from fastapi import Request, Response, Depends
+from fastapi import Request, Response, Depends, HTTPException
 from fastapi.responses import ORJSONResponse
-from fastapi.exceptions import RequestValidationError
 
 from api.api_helpers import authenticate, get_connecting_ip, convert_value
 from api.object_specifications import CI_Measurement, CI_MeasurementV3
@@ -25,6 +24,16 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
     Works for both v2 (CI_Measurement) and v3 (CI_MeasurementV3),
     as they share the same DB-relevant fields.
     """
+
+    if measurement.lon is None or measurement.lon.strip() == '':
+        measurement.lon = None
+
+    if measurement.lat is None or measurement.lat.strip() == '':
+        measurement.lat = None
+
+    if measurement.city is None or measurement.city.strip() == '':
+        measurement.city = None
+
 
     params = [measurement.energy_uj, measurement.repo, measurement.branch,
               measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
@@ -65,8 +74,8 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
                              duration_us,
                              cpu_util_avg,
                              workflow_name,
-                             lat,
-                             lon,
+                             latitude,
+                             longitude,
                              city,
                              carbon_intensity_g,
                              carbon_ug,
@@ -146,7 +155,7 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
                 AND latest_workflow.workflow_id = ci_measurements.workflow_id
                 ORDER BY latest_workflow.created_at DESC
                 LIMIT 1) AS workflow_name,
-               lat, lon, city, carbon_intensity_g, carbon_ug, note
+               latitude, longitude, city, carbon_intensity_g, carbon_ug, note
         FROM ci_measurements
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))
@@ -299,13 +308,13 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         default_color = 'black'
     # Do not easily add values like cpu_util or carbon_intensity_g here. They need a weighted average in the SQL query later!
     else:
-        raise RequestValidationError('Unsupported metric requested')
+        raise HTTPException(status_code=422, detail='Unsupported metric requested')
 
     if unit not in ('watt-hours', 'joules'):
-        raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
+        raise HTTPException(status_code=422, detail='Requested unit is not in allow list: watt-hours, joules')
 
     if duration_days and (duration_days < 1 or duration_days > 365):
-        raise RequestValidationError('Duration days must be between 1 and 365 days')
+        raise HTTPException(status_code=422, detail='Duration days must be between 1 and 365 days')
 
     query = f"""
         SELECT SUM({metric})
@@ -318,7 +327,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
 
     if mode == 'avg':
         if not duration_days:
-            raise RequestValidationError('Duration days must be set for average')
+            raise HTTPException(status_code=422, detail='Duration days must be set for average')
         query = f"""
             WITH my_table as (
                 SELECT SUM({metric}) my_sum

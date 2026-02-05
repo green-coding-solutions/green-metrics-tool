@@ -94,6 +94,13 @@ class SchemaChecker():
                 dict,
                 And(str, Use(self.contains_no_invalid_chars))
             ),
+            Optional('relations'): {
+                And(str, Use(self.not_empty), Use(self.is_valid_string)): {
+                    'url': And(str, Use(self.not_empty)),
+                    Optional('branch'): And(str, Use(self.not_empty)),
+                    Optional('commit_hash'): And(str, Use(self.not_empty)),
+                }
+            },
             Optional('services'): {
                 Use(self.contains_no_invalid_chars): {
                     Optional('restart'): str, # is part of compose. we ignore it as GMT has own orchestration
