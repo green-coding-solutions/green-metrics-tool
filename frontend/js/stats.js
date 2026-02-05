@@ -635,11 +635,10 @@ const fetchAndFillPhaseStatsData = async (url_params) => {
         })
     );
 
-    document.querySelectorAll('#runtime-sub-phases .item').forEach(node => { node.addEventListener('click', event => {
+    document.querySelectorAll('.ui.steps.phases .step, #runtime-sub-phases .item').forEach(node => { node.addEventListener('click', event => {
         const activeTab = localStorage.getItem('activeMetricTab');
-
         const tabName = node.getAttribute('data-tab');
-        const segment = document.querySelector('.ui.bottom.attached.tab.segment[data-tab="' + tabName + '"]');
+        const segment = document.querySelector('.ui.attached.tab.segment[data-tab="' + tabName + '"]');
 
         if (!segment) return;
 
