@@ -18,8 +18,8 @@ class TestYML(unittest.TestCase):
         runner._load_yml_file()
         result_obj = {'name': 'Import Test',
                     'services': {'test-container':
-                                    {'type': 'container'}},
-                    'flow': [{'name': 'Stress', 'container': 'test-container'}]}
+                                    {'image': 'alpine'}},
+                    'flow': [{'name': 'Stress', 'container': 'test-container', 'commands': [{'type': 'console', 'command': 'echo 1'}]}]}
 
         self.assertEqual(result_obj, runner._usage_scenario)
 
