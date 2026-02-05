@@ -71,7 +71,7 @@ class ScenarioRunner:
         measurement_wait_time_dependencies=60, measurement_flow_process_duration=None, measurement_total_duration=None,
 
         dev_no_phase_stats=False, dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
-        dev_flow_timetravel=False, dev_no_optimizations=False,
+        dev_flow_timetravel=False, dev_no_optimizations=False, dev_stream_outputs=False,
 
         skip_volume_inspect=False, skip_download_dependencies=False,
         ):
@@ -112,6 +112,7 @@ class ScenarioRunner:
         self._dev_no_optimizations = dev_no_optimizations
         self._dev_no_phase_stats = dev_no_phase_stats
         self._dev_no_save = dev_no_save
+        self._dev_stream_outputs = dev_stream_outputs
         self._uri = uri
         self._uri_type = uri_type
         self._original_filename = filename
@@ -999,10 +1000,16 @@ class ScenarioRunner:
 
                 print(' '.join(docker_build_command))
 
-                if self._measurement_total_duration:
-                    ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', timeout=self._measurement_total_duration, check=False)
+                if self._dev_stream_outputs:
+                    output_behaviour = None
+                    print(TerminalColors.WARNING, arrows('Container Build output is streamed. Please note that this disallows capturing of errors and build outputs in logs and error messages.'), TerminalColors.ENDC)
                 else:
-                    ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
+                    output_behaviour = subprocess.PIPE
+
+                if self._measurement_total_duration:
+                    ps = subprocess.run(docker_build_command, stdout=output_behaviour, stderr=output_behaviour, encoding='UTF-8', errors='replace', timeout=self._measurement_total_duration, check=False)
+                else:
+                    ps = subprocess.run(docker_build_command, stdout=output_behaviour, stderr=output_behaviour, encoding='UTF-8', errors='replace', check=False)
 
                 if ps.returncode != 0:
                     raise subprocess.CalledProcessError(ps.returncode, 'Docker build failed', output=ps.stdout, stderr=ps.stderr)
@@ -1641,13 +1648,18 @@ class ScenarioRunner:
                     self.__ps_to_kill.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
 
                 else:
+                    output_behaviour = subprocess.PIPE
+                    if self._dev_stream_outputs: # overwrite all previous if set
+                        output_behaviour = None
+                        output_behaviour = None
+                        print(TerminalColors.WARNING, arrows('Process output is streamed. Please note that this disallows capturing of errors and build outputs in logs and error messages.'), TerminalColors.ENDC)
                     # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
                     # injection of unwawnted params
                     ps = subprocess.run(
                         d_command,
                         check=False,
-                        stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
+                        stderr=output_behaviour,
+                        stdout=output_behaviour,
                         encoding='UTF-8',
                         errors='replace',
                     )
@@ -1927,17 +1939,18 @@ class ScenarioRunner:
 
                     docker_exec_command = ['docker', 'exec']
                     docker_exec_command.append(flow['container'])
+
                     stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
-                    if cmd_obj.get('stream-stdout', False):
-                        stdout_behaviour = None
-                        self.__warnings.append('Stdout for a command was be streamed. This can create significant overhead and also means it cannot be captured to the logs. Only use this in local development')
-                    elif cmd_obj.get('log-stdout', True):
+
+                    if cmd_obj.get('log-stdout', True):
                         stdout_behaviour = subprocess.PIPE
-                    if cmd_obj.get('stream-stderr', False):
-                        stderr_behaviour = None
-                        self.__warnings.append('Stderr for a command was be streamed. This can create significant overhead and also means it cannot be captured to the logs. Only use this in local development')
                     if cmd_obj.get('log-stderr', True):
                         stderr_behaviour = subprocess.PIPE
+
+                    if self._dev_stream_outputs: # overwrite all previous if set
+                        stdout_behaviour = None
+                        stderr_behaviour = None
+                        print(TerminalColors.WARNING, arrows('Process output is streamed. Please note that this disallows capturing of errors and build outputs in logs and error messages.'), TerminalColors.ENDC)
 
                     if cmd_obj['type'] == 'playwright':
                         docker_exec_command.append(cmd_obj.get('shell', 'sh'))
