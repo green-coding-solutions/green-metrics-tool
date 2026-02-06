@@ -2269,6 +2269,8 @@ class ScenarioRunner:
     def _update_start_and_end_times(self):
         print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
 
+        self._last_measurement_duration = self.__end_measurement - self.__start_measurement # must happen still as we need _last_measurement_duration
+
         if not self._run_id or self._dev_no_save:
             print('Skipping update of start and end times due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
@@ -2278,7 +2280,6 @@ class ScenarioRunner:
             SET start_measurement=%s, end_measurement=%s
             WHERE id = %s
             """, params=(self.__start_measurement, self.__end_measurement, self._run_id))
-        self._last_measurement_duration = self.__end_measurement - self.__start_measurement
 
 
     def _set_run_failed(self):
