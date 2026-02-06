@@ -1944,7 +1944,8 @@ class ScenarioRunner:
                     if 'note' in cmd_obj:
                         self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=flow['container'], timestamp=int(time.time_ns() / 1_000))
 
-                    print(TerminalColors.HEADER, '\n', cmd_obj['type'], 'command:', cmd_obj['command'], 'on container', flow['container'], TerminalColors.ENDC)
+                    print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', flow['container'], TerminalColors.ENDC)
+                    print(cmd_obj['command'])
 
                     docker_exec_command = ['docker', 'exec']
                     docker_exec_command.append(flow['container'])
