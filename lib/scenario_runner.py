@@ -855,6 +855,8 @@ class ScenarioRunner:
 
         subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', errors='replace', check=True)
 
+        metrics_folder = Path(self._tmp_folder).joinpath('metrics')
+
         for metric_provider in metric_providers: # will iterate over keys
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
@@ -867,15 +869,14 @@ class ScenarioRunner:
             print(f"Importing {class_name} from {module_path}")
             module = importlib.import_module(module_path)
 
+            metrics_folder = Path(self._tmp_folder).joinpath('metrics')
+
             if self._skip_system_checks:
-                metric_provider_obj = getattr(module, class_name)(**conf, skip_check=True)
+                metric_provider_obj = getattr(module, class_name)(**conf, folder=metrics_folder, skip_check=True)
                 print(f"Configuration is {conf}; skip_check=true")
             else:
-                metric_provider_obj = getattr(module, class_name)(**conf)
+                metric_provider_obj = getattr(module, class_name)(**conf, folder=metrics_folder)
                 print(f"Configuration is {conf}")
-
-
-
 
             self.__metric_providers.append(metric_provider_obj)
 

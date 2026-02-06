@@ -111,7 +111,7 @@ def insert_run(phases, *, uri='test-uri', branch='test-branch', filename='test-f
 
 def import_cpu_utilization_container(run_id):
 
-    obj = CpuUtilizationCgroupContainerProvider(99, skip_check=True)
+    obj = CpuUtilizationCgroupContainerProvider(99, folder='/tmp/green-metrics-tool', skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_utilization_cgroup_container.log')
 
@@ -125,7 +125,7 @@ def import_cpu_utilization_container(run_id):
 
 def import_cpu_utilization_system(run_id):
 
-    obj = CpuUtilizationCgroupSystemProvider(99, skip_check=True)
+    obj = CpuUtilizationCgroupSystemProvider(99, folder='/tmp/green-metrics-tool', skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_utilization_cgroup_system.log')
     df = obj.read_metrics()
@@ -137,7 +137,7 @@ def import_cpu_utilization_system(run_id):
 
 def import_machine_energy(run_id):
 
-    obj = PsuEnergyAcMcpMachineProvider(99, skip_check=True)
+    obj = PsuEnergyAcMcpMachineProvider(99, folder='/tmp/green-metrics-tool', skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/psu_energy_ac_mcp_machine.log')
     df = obj.read_metrics()
@@ -148,7 +148,7 @@ def import_machine_energy(run_id):
 
 def import_network_io_procfs(run_id, filename='network_io_procfs_system.log'):
 
-    obj = NetworkIoProcfsSystemProvider(99, skip_check=True, remove_virtual_interfaces=False)
+    obj = NetworkIoProcfsSystemProvider(99, folder='/tmp/green-metrics-tool', skip_check=True, remove_virtual_interfaces=False)
 
     obj._filename = os.path.join(CURRENT_DIR, f'data/metrics/{filename}')
     df = obj.read_metrics()
@@ -159,7 +159,7 @@ def import_network_io_procfs(run_id, filename='network_io_procfs_system.log'):
 
 def import_network_io_cgroup_container(run_id):
 
-    obj = NetworkIoCgroupContainerProvider(99, skip_check=True)
+    obj = NetworkIoCgroupContainerProvider(99, folder='/tmp/green-metrics-tool', skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_cgroup_container.log')
     df = obj.read_metrics()
@@ -170,7 +170,7 @@ def import_network_io_cgroup_container(run_id):
 
 def import_cpu_energy(run_id, filename='cpu_energy_rapl_msr_component.log'):
 
-    obj = CpuEnergyRaplMsrComponentProvider(99, skip_check=True)
+    obj = CpuEnergyRaplMsrComponentProvider(99, folder='/tmp/green-metrics-tool', skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, f"data/metrics/{filename}")
     df = obj.read_metrics()
@@ -340,7 +340,6 @@ class RunUntilManager:
             self.__runner._start_measurement()
             self.__runner._clear_caches()
             self.__runner._check_system('start')
-            self.__runner._initialize_folder(self.__runner._tmp_folder)
             self.__runner._checkout_repository()
             self.__runner._load_yml_file()
             self.__runner._initial_parse()
