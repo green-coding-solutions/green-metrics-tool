@@ -21,4 +21,4 @@ if __name__ == '__main__':
 
     print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
 
-    optimization_providers.base.run_reporters(args.user_id, args.run_id, '/tmp/green-metrics-tool')
+    optimization_providers.base.run_reporters(args.user_id, args.run_id, '/tmp/green-metrics-tool') # noqa: S108

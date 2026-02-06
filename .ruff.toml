@@ -14,6 +14,10 @@ ignore = [
   "T201", # print found
   "Q001", # Single quote multiline found but double quotes preferred
   "SLF001", # Private member accessed
+  "PTH120", # os-path-dirname
+  "ANN", # type annotations
+  "ERA001", # Commented out code
+
 ]
 
 #[per-file-ignores]
