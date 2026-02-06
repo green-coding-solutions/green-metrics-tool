@@ -660,7 +660,7 @@ class ScenarioRunner:
                     raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
 
     def _store_active_containers(self):
-        containers = { ctr['name'] : {'id': cid, 'mem_limit': ctr['mem_limit'], 'cpus': ctr['cpus'], 'cpuset': ctr['cpuset'], 'memory_swap': ctr['memory_swap'], 'memory_swappiness': ctr['memory_swappiness'], 'oom_score_adj': ctr['oom_score_adj']} for cid, ctr in self.__containers.items()}
+        containers = { ctr['name'] : {'id': cid, 'mem_limit': ctr['mem_limit'], 'cpus': ctr['cpus'], 'cpuset': ctr['cpuset'], 'memory_swap': ctr['memory_swap'], 'oom_score_adj': ctr['oom_score_adj']} for cid, ctr in self.__containers.items()}
 
         DB().query("""
             UPDATE runs
@@ -956,12 +956,14 @@ class ScenarioRunner:
                 self._join_paths(context_path, dockerfile)
 
                 repo_mount_path = service.get('folder-destination', '/tmp/repo')
+                if ',' in repo_mount_path: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                    raise ValueError(f"Repo mount path may not contain commas (,) in the name: {repo_mount_path}")
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', '/workspace',
+                    '--mount', 'type=volume,dst=/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                    '-v', f"{self._repo_folder}:{repo_mount_path}:ro", # this is the folder where the usage_scenario is!
-                    '-v', f"{temp_dir}:/output",
+                    '--mount', f"type=bind,source={self._repo_folder},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
+                    '--mount', f"type=bind,source={temp_dir},target=/output",
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile={repo_mount_path}/{self.__working_folder_rel}/{context}/{dockerfile}",
                     '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel}/{context}',
@@ -1016,6 +1018,11 @@ class ScenarioRunner:
             else:
                 print(f"Pulling {service['image']}")
                 self.__notes_helper.add_note( note=f"Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
+
+                # We decided here against an implementation with subprocess.Popen and then iterative calling process.stdout.readline to stream the output
+                # bc the docker pull command does not stream the interactive progress bar. Only the lines when a layer finished with downloading
+                # Since this information does not provide info how long the image download still will take we opted for keeping this pull call less complex
+                # So you have to stare at the "Pulling XYZ" command until it is finished :)
                 ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
                 if ps_pull.returncode != 0:
@@ -1085,6 +1092,8 @@ class ScenarioRunner:
             self.__image_sizes[service['image']] = int(output.strip())
 
         # du -s -b does not work on macOS and also the docker image is in a VM and not accessible with du for us
+        # This call is guarded with --allow-unsafe bc volume information reveals host filesystem paths
+        # and potentially also volumes from other users can be probed through this
         if not self._skip_volume_inspect and self._allow_unsafe and platform.system() != 'Darwin':
             for volume in self.__usage_scenario.get('volumes', {}):
                 # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
@@ -1233,13 +1242,6 @@ class ScenarioRunner:
 
             if 'volumes' in service:
                 if self._allow_unsafe:
-                    # On old docker clients we experience some weird error, that we deem legacy
-                    # If a volume is supplied in the compose.yml file in this form: ./file.txt:/tmp/file.txt
-                    # and the file does NOT exist, then docker will create the folder in the current running dir
-                    # This is however not enabled anymore and hard to circumvent. We keep this as unfixed for now.
-                    if not isinstance(service['volumes'], list):
-                        raise RuntimeError(f"Service '{service_name}' volumes must be a list but is: {type(service['volumes'])}")
-
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
                         if volume.startswith('./'): # we have a bind-mount with relative path
@@ -1251,8 +1253,6 @@ class ScenarioRunner:
                         else:
                             docker_run_string.append(f"{volume}")
                 else: # safe volume bindings are active by default
-                    if not isinstance(service['volumes'], list):
-                        raise RuntimeError(f"Service '{service_name}' volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:
                         vol = volume.split(':')
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
@@ -1409,13 +1409,11 @@ class ScenarioRunner:
             container_data['cpuset'] = cpuset
             container_data['mem_limit'] = service['mem_limit']
             container_data['memory_swap'] = service['mem_limit']
-            container_data['memory_swappiness'] = 0
             container_data['oom_score_adj'] = 1000
 
             docker_run_string.append('--cpuset-cpus')
             docker_run_string.append(container_data['cpuset']) # range is already exclusive, so no need to subtract 1
             docker_run_string.append(f"--cpus={container_data['cpus']}")
-            docker_run_string.append(f"--memory-swappiness={container_data['memory_swappiness']}") # GMT should never swap as it gives hard to interpret / non-linear performance results
             docker_run_string.append(f"--oom-score-adj={container_data['oom_score_adj']}") # containers will be killed first so host does not OOM
             docker_run_string.append(f"--memory={container_data['mem_limit']}")
             docker_run_string.append(f"--env=GMT_CONTAINER_MEMORY_LIMIT={container_data['mem_limit']}")
@@ -1591,7 +1589,7 @@ class ScenarioRunner:
 
             ps = subprocess.run(
                 docker_run_string,
-                check=False,
+                check=False, # We want to throw custom error with stderr attached
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 encoding='UTF-8',
@@ -1609,6 +1607,12 @@ class ScenarioRunner:
             container_id = ps.stdout.strip()
             print('Stdout:', container_id)
             self.__containers[container_id] = container_data
+
+            print('Checking stderr ...')
+            docker_run_stderr = ps.stderr.strip()
+            if docker_run_stderr != '':
+                raise RuntimeError(f"Docker run command had non empty stderr: {docker_run_stderr}.\nCommand: {docker_run_string}")
+
 
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
@@ -1682,9 +1686,19 @@ class ScenarioRunner:
         }
 
         if stdout is not None:
-            log_entry['stdout'] = stdout.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+            if isinstance(stdout, str):
+                log_entry['stdout'] = stdout.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+            elif hasattr(stdout, 'decode') and callable(getattr(stdout, 'decode')): # can happen if a timeout error has occured and stdout was thus not converted yet
+                log_entry['stdout'] = stdout.decode('UTF-8', errors='replace').replace('\x00', '0x00')
+            else:
+                log_entry['stdout'] = str(stdout).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
         if stderr is not None:
-            log_entry['stderr'] = stderr.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+            if isinstance(stderr, str):
+                log_entry['stderr'] = stderr.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+            elif hasattr(stderr, 'decode') and callable(getattr(stderr, 'decode')): # can happen if a timeout error has occured and stderr was thus not converted yet
+                log_entry['stderr'] = stderr.decode('UTF-8', errors='replace').replace('\x00', '0x00')
+            else:
+                log_entry['stderr'] = str(stderr).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:

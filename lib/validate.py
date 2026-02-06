@@ -75,6 +75,8 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
 
 
 def run_workload(name, uri, filename, branch):
+    config = GlobalConfig().config
+
     runner = ScenarioRunner(
         name=name,
         uri=uri,
@@ -83,8 +85,8 @@ def run_workload(name, uri, filename, branch):
         branch=branch,
         skip_unsafe=True,
         skip_system_checks=False,
-        full_docker_prune=False,
-        docker_prune=True,
+        full_docker_prune=config['cluster']['client']['full_docker_prune'],
+        docker_prune=config['cluster']['client']['docker_prune'],
         job_id=None,
         user_id=0, # User id 0 is the [GMT-SYSTEM] user
         measurement_system_check_threshold=2, # will also fail on WARN

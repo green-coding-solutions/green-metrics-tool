@@ -28,6 +28,7 @@ def get_diffable_rows(user, uuids):
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))
             AND id = ANY(%s::uuid[])
+        ORDER BY created_at ASC -- this will ensure that we diff newer vs older. Since we only used keys from first object this means we check all keys
     """
 
     params = (user.is_super_user(), user.visible_users(), uuids)
@@ -51,9 +52,18 @@ def diff_rows(rows):
     row_b_machine_specs = row_b.pop('machine_specs')
     row_b.update({f"machine_specs.{k}": v for k, v in row_b_machine_specs.items()})
 
+    # fill missing keys both ways
+    for key in row_b.keys():
+        if key not in row_a:
+            row_a[key] = '[NOT PRESENT]'
+
+    for key in row_a.keys():
+        if key not in row_b:
+            row_b[key] = '[NOT PRESENT]'
+
     unified_diff = []
     for field in row_a:
-        field_a = json.dumps(row_a[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_a[field], (dict, list))  else str(row_a[field])
+        field_a = json.dumps(row_a[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_a[field], (dict, list)) else str(row_a[field])
         field_b = json.dumps(row_b[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_b[field], (dict, list)) else str(row_b[field])
 
         # although not strictly needed we use DeepDiff as this is WAY faster than difflib suprisingly
@@ -82,11 +92,21 @@ def diff_rows(rows):
             elif key == "iterable_item_removed":
                 unified_diff.append(f"diff --git a/{field} b/{field}\n---\n+++\n@@ -1 +1 @@")
                 for k, v in value.items():
-                    unified_diff.append(f"+ {k}: {v}")
+                    unified_diff.append(f"- {k}: {v}")
             elif key == "dictionary_item_removed":
                 unified_diff.append(f"diff --git a/{field} b/{field}\n---\n+++\n@@ -1 +1 @@")
                 for v in value:
                     unified_diff.append(f"- {key}: {v}")
+            elif key == "type_changes":
+                for k, v in value.items():
+
+                    if v.get('diff', False):
+                        unified_diff.append(f"diff --git a/{field} b/{field}")
+                        unified_diff.append(str(v['diff']))
+                    else:
+                        unified_diff.append(f"diff --git a/{field} b/{field}\n---\n+++\n@@ -1 +1 @@")
+                        unified_diff.append(f"- {v['old_value']} (Type: {v['old_type']})")
+                        unified_diff.append(f"+ {v['new_value']} (Type: {v['new_type']})")
             elif key == "values_changed":
                 for k, v in value.items():
 
@@ -105,5 +125,5 @@ def diff_rows(rows):
 
 if __name__ == '__main__':
     from lib.user import User
-    diffable_rows = get_diffable_rows(User(1), ['6f34b31e-f35c-4601-ae0d-6fd04a951aaf', '70ed5b3f-fa90-43fe-abcc-d4bf8048786a'])
+    diffable_rows = get_diffable_rows(User(1), ['14f95398-a62e-464b-8f25-b82645895cef', '382f61ae-c5fb-4c8f-b973-d2b1eede6bd4'])
     print(diff_rows(diffable_rows))

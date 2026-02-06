@@ -192,6 +192,11 @@ METRIC_MAPPINGS = {
         "source": "procfs",
         "explanation": "Disk bytes written for whole system via procfs"
     },
+    "disk_io_procfs_system": {
+        "clean_name": "Disk I/O (combined - Legacy)",
+        "source": "procfs",
+        "explanation": "Disk bytes read and written (legacy) for whole system via procfs"
+    },
     "disk_io_cgroup_container": {
         "clean_name": "Disk I/O",
         "source": "cgroup",
@@ -221,6 +226,11 @@ METRIC_MAPPINGS = {
         "clean_name": "Disk Data (Write)",
         "source": "procfs",
         "explanation": "Disk written bytes totals for whole system accumulated via procfs"
+    },
+    "disk_total_procfs_system": {
+        "clean_name": "Disk Data (combined - Legacy)",
+        "source": "procfs",
+        "explanation": "Disk bytes read and written totals (legacy) for whole system via procfs"
     },
     "psu_energy_cgroup_container": {
         "clean_name": "Container Energy",
