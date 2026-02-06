@@ -124,8 +124,9 @@ if [[ $activate_scenario_runner == true ]] ; then
                 sudo apt-get install -y freeipmi-tools ipmitool
             fi
             print_message "Adding IPMI to sudoers file"
-            check_file_permissions "/usr/sbin/ipmi-dcmi"
-            echo "${USER} ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+            ipmi_dcmi_path=$(readlink -f "/usr/sbin/ipmi-dcmi")
+            check_file_permissions $ipmi_dcmi_path
+            echo "${USER} ALL=(ALL) NOPASSWD:${ipmi_dcmi_path} --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
             sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
             # remove old file name
             sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
