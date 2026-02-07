@@ -119,6 +119,9 @@ if __name__ == '__main__':
             sys.exit(1)
         GlobalConfig(config_location=args.config_override)
 
+    if args.dev_cache_repos and args.file_cleanup:
+        raise ValueError('Cannot set both --dev-cache-repos and --file-cleanup as the latter will delete the cached file. Please choose one option.')
+
     # Use default filename if none provided
     filename_patterns = args.filename if args.filename else ['usage_scenario.yml']
     using_default_filename = not args.filename
