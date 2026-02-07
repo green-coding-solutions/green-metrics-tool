@@ -126,12 +126,6 @@ class ScenarioRunner:
         self._metrics_folder = self._tmp_folder.joinpath('metrics')
         self._build_dir = self._tmp_folder.joinpath('docker_images')
 
-        self._tmp_folder.mkdir(parents=False, exist_ok=True)
-        self._relations_folder.mkdir(parents=False, exist_ok=True)
-        self._repo_folder.mkdir(parents=False, exist_ok=True)
-        self._metrics_folder.mkdir(parents=False, exist_ok=True)
-        self._build_dir.mkdir(parents=False, exist_ok=True)
-
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
         self._category_ids = set(category_ids) if category_ids else None # deduplicate
@@ -501,7 +495,7 @@ class ScenarioRunner:
                 try:
                     usage_scenario_dir = usage_scenario_file.parent
                     filename = runner_join_paths(usage_scenario_dir, nodes[0], force_path_as_root=True)
-                except RuntimeError as exc:
+                except ValueError as exc:
                     raise ValueError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
                 return loader.process_include(filename, nodes)
@@ -2264,6 +2258,14 @@ class ScenarioRunner:
                     else:
                         raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}. Please also check the stdout in the logs and / or enable stdout logging to debug further.")
 
+    def _create_folders(self):
+        ''' Must be here and not in init, as it must be created for every iteration'''
+        self._tmp_folder.mkdir(parents=False, exist_ok=True)
+        self._relations_folder.mkdir(parents=False, exist_ok=True)
+        self._repo_folder.mkdir(parents=False, exist_ok=True)
+        self._metrics_folder.mkdir(parents=False, exist_ok=True)
+        self._build_dir.mkdir(parents=False, exist_ok=True)
+
     def _start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
         self.__start_measurement_seconds = time.time()
@@ -2544,6 +2546,7 @@ class ScenarioRunner:
         '''
         try:
             self._run_id = None  # Reset run ID for new run
+            self._create_folders()
             self._start_measurement() # we start as early as possible to include initialization overhead
             self._clear_caches()
             self._check_system('start')

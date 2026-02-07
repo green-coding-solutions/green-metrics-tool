@@ -20,7 +20,7 @@ from lib.system_checks import ConfigurationCheckError
 from lib import container_compatibility
 from tests import test_functions as Tests
 
-GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
+GMT_DIR = Path(__file__).parent.parent.as_posix()
 
 ### Tests for the runner options/flags
 
@@ -215,15 +215,9 @@ def test_different_filename_missing():
         runner.run()
 
     # we cannot use == here as file paths will differ throughout systems
-    expected_exception = "[Errno 2] No such file or directory"
-    assert expected_exception in str(e.value),\
-        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
+    expected_exception = f"I_do_not_exist.yml in {GMT_DIR} not found"
+    assert expected_exception == str(e.value)
 
-    expected_exception_2 = "I_do_not_exist.yml"
-    assert expected_exception_2 in str(e.value),\
-        Tests.assertion_info(f"Exception: {expected_exception_2}", str(e.value))
-
-    # Using * wildcard
 def test_runner_with_glob_pattern_filename():
     """Test that runner works with glob pattern filenames like folder/*.yml"""
     ps = subprocess.run(

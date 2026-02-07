@@ -337,6 +337,7 @@ class RunUntilManager:
             raise RuntimeError("run_steps must be used within the context")
 
         try:
+            self.__runner._create_folders()
             self.__runner._start_measurement()
             self.__runner._clear_caches()
             self.__runner._check_system('start')
