@@ -193,7 +193,7 @@ class ScenarioRunner:
         self.__join_default_network = False
         self.__docker_params = []
         self.__working_folder = self._repo_folder
-        self.__working_folder_rel = ''
+        self.__working_folder_rel = Path('')
         self.__image_sizes = {}
         self.__volume_sizes = {}
         self.__warnings = []
