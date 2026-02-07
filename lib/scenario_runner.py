@@ -26,7 +26,7 @@ import platform
 from concurrent.futures import ThreadPoolExecutor
 from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
-GMT_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
+GMT_ROOT_DIR = Path(__file__).resolve().parent.parent
 
 from lib import utils
 from lib import process_helpers
