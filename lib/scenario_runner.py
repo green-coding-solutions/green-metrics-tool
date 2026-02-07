@@ -961,7 +961,7 @@ class ScenarioRunner:
                 self.__notes_helper.add_note( note=f"Building {service['image']}", detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
-                context_path = self._join_paths(self.__working_folder, context)
+                context_path = self._join_paths(self.__working_folder, context) # context is currently where the filename is. but it can be moved to a lower level if it does not exit the repo dir
                 self._join_paths(context_path, dockerfile)
 
                 repo_mount_path = service.get('folder-destination', '/tmp/repo')
