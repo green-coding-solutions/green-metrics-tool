@@ -1,9 +1,10 @@
-import os
 import io
 import math
+import shutil
 from decimal import Decimal
+from pathlib import Path
 
-GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))+'/../../'
+GMT_ROOT_DIR = Path(__file__).parent.parent.parent
 
 import pytest
 from contextlib import redirect_stdout, redirect_stderr
@@ -14,6 +15,15 @@ from lib.phase_stats import build_and_store_phase_stats
 from lib.scenario_runner import ScenarioRunner
 
 MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
+
+GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
+
+## Create a tmp folder only for this run
+@pytest.fixture(autouse=True, scope='module')
+def setup_test_metrics_tmp_folder():
+    GMT_METRICS_DIR.mkdir(parents=True, exist_ok=True) # might be deleted depending on which tests run before
+    yield
+    shutil.rmtree(GMT_METRICS_DIR)
 
 def test_phase_stats_single_energy():
     run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
@@ -608,7 +618,7 @@ def test_sci_calculation():
     assert sci_entry['value'] < 1000000, "SCI should be reasonable (less than 1M ugCO2e per functional unit)"
 
 def test_sci_run():
-    runner = ScenarioRunner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_sci.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False)
+    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_sci.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -622,7 +632,7 @@ def test_sci_run():
     assert data[0]['unit'] == 'ugCO2e/Cool run'
 
 def test_sci_multi_steps_run():
-    runner = ScenarioRunner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_sci_multi.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False)
+    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_sci_multi.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False)
 
     out = io.StringIO()
     err = io.StringIO()
