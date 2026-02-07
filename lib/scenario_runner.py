@@ -71,7 +71,7 @@ class ScenarioRunner:
         measurement_wait_time_dependencies=60, measurement_flow_process_duration=None, measurement_total_duration=None,
 
         dev_no_phase_stats=False, dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
-        dev_flow_timetravel=False, dev_no_optimizations=False, dev_stream_outputs=False,
+        dev_flow_timetravel=False, dev_no_optimizations=False, dev_stream_outputs=False, dev_cache_repos=False,
 
         skip_volume_inspect=False, skip_download_dependencies=False,
         ):
@@ -113,13 +113,19 @@ class ScenarioRunner:
         self._dev_no_phase_stats = dev_no_phase_stats
         self._dev_no_save = dev_no_save
         self._dev_stream_outputs = dev_stream_outputs
+        self._dev_cache_repos = dev_cache_repos
         self._uri = uri
         self._uri_type = uri_type
-        self._original_filename = filename
+        self._original_filename = Path(filename)
         self._branch = branch
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
-        self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
-        self._relations_folder = os.path.realpath(os.path.join(self._tmp_folder, 'relations'))
+
+        self._tmp_folder = Path('/tmp/').resolve(strict=True).joinpath('green-metrics-tool') # since linux has /tmp and macos /private/tmp
+        self._relations_folder = self._tmp_folder.joinpath('relations')
+        self._repo_folder = self._tmp_folder.joinpath('repo') # default if not changed in checkout_repository
+        self._metrics_folder = self._tmp_folder.joinpath('metrics')
+        self._build_dir = self._tmp_folder.joinpath('docker_images')
+
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
         self._category_ids = set(category_ids) if category_ids else None # deduplicate
@@ -129,7 +135,6 @@ class ScenarioRunner:
         self._sci |= config.get('sci', None)  # merge in data from machine config like I, TE etc.
 
         self._job_id = job_id
-        self._repo_folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
@@ -188,7 +193,7 @@ class ScenarioRunner:
         self.__join_default_network = False
         self.__docker_params = []
         self.__working_folder = self._repo_folder
-        self.__working_folder_rel = ''
+        self.__working_folder_rel = Path('')
         self.__image_sizes = {}
         self.__volume_sizes = {}
         self.__warnings = []
@@ -199,7 +204,6 @@ class ScenarioRunner:
         self.__relations = {}
 
         self._check_all_durations()
-
 
     def _check_all_durations(self):
         if self._measurement_total_duration is None: # exit early if no max timeout specififed
@@ -225,6 +229,11 @@ class ScenarioRunner:
             print(TerminalColors.HEADER, '\nSleeping for : ', sleep_time, TerminalColors.ENDC)
             time.sleep(sleep_time)
 
+    def _initialize_folder(self, path: Path):
+        shutil.rmtree(path, ignore_errors=False)
+        path.mkdir(parents=False, exist_ok=False)
+
+
     def get_optimizations_ignore(self):
         return self.__usage_scenario.get('optimizations_ignore', [])
 
@@ -233,38 +242,33 @@ class ScenarioRunner:
     # We always return the same error message including the path and file parameter, never `filename` as
     # otherwise we might disclose if certain files exist or not.
     def _join_paths(self, path, path2, force_path_as_root=False, force_path_in_repo=True):
-        filename = os.path.realpath(os.path.join(path, path2))
+        child = Path(path, path2).resolve() # no strict as we do not want to print out path due to filesystem discovery attacks
 
         # If the original path is a symlink we need to resolve it.
-        path = os.path.realpath(path)
+        parent = Path(path).resolve(strict=True)
 
-        # This is a special case in which the file is '.'
-        if filename == path.rstrip('/'):
-            return filename
+        # This is a special case in which the file is '.' or empty
+        if parent == child:
+            return child
 
-        if force_path_in_repo and not filename.startswith(self._repo_folder):
-            raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder}")
+        if force_path_in_repo and not child.is_relative_to(self._repo_folder):
+            raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder.as_posix()}")
 
-        if force_path_as_root and not filename.startswith(path):
-            raise RuntimeError(f"{path2} must not be in folder above {path}")
-
-        # Another way to implement this. This is checking again but we want to be extra secure 👾
-        if force_path_in_repo and Path(self._repo_folder).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-            raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder}")
-
-        if force_path_as_root and Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
+        if force_path_as_root and not child.is_relative_to(parent):
             raise ValueError(f"{path2} must not be in folder above {path}")
 
+        if child.exists():
+            return child
 
-        if os.path.exists(filename):
-            return filename
+        raise FileNotFoundError(f"{path2} in {path} not found") # again no printing of child / parent only input variables
 
-        raise FileNotFoundError(f"{path2} in {path} not found")
-
-
-    def _initialize_folder(self, path):
-        shutil.rmtree(path, ignore_errors=True)
-        Path(path).mkdir(parents=True, exist_ok=True)
+    def _find_outside_symlinks(self, base_dir: Path):
+        real_base_dir = base_dir.resolve(strict=True)
+        for item in real_base_dir.rglob("*"):
+            if not item.resolve().is_relative_to(real_base_dir):
+                # again no resolve(strict=True) as we do not want to expose possible paths in our system
+                return f"{item}"
+        return None
 
     def _save_notes_runner(self):
         print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
@@ -298,38 +302,43 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nChecking out repository', TerminalColors.ENDC)
 
         if self._uri_type == 'URL':
-            # always remove the folder if URL provided, cause -v directory binding always creates it
-            # no check cause might fail when directory might be missing due to manual delete
-            command = ['git', 'clone', '--depth', '1']
+            if self._dev_cache_repos and self._repo_folder.exists() and self._repo_folder.is_dir() and any(self._repo_folder.iterdir()):
+                print('Skipping clone of ', self._uri, 'as it was already present on disk and --dev-cache-repos was set')
+            else:
+                self._initialize_folder(self._repo_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
 
-            if self._branch:
-                print(f"Branch specified: {self._branch}")
-                command.append('-b')
-                command.append(self._branch)
+                # always remove the folder if URL provided, cause -v directory binding always creates it
+                # no check cause might fail when directory might be missing due to manual delete
+                command = ['git', 'clone', '--depth', '1']
 
-            command.append('--single-branch')
-            command.append('--recurse-submodules')
-            command.append('--shallow-submodules')
-            command.append(self._uri)
-            command.append(self._repo_folder)
+                if self._branch:
+                    print(f"Branch specified: {self._branch}")
+                    command.append('-b')
+                    command.append(self._branch)
 
-            subprocess.run(
-                command,
-                check=True,
-                capture_output=True,
-                encoding='UTF-8',
-                errors='replace'
-            )
+                command.append('--single-branch')
+                command.append('--recurse-submodules')
+                command.append('--shallow-submodules')
+                command.append(self._uri)
+                command.append(self._repo_folder.as_posix())
 
-            if problematic_symlink := utils.find_outside_symlinks(self._repo_folder):
-                raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
+                print('Cloning ', self._uri)
+                subprocess.run(
+                    command,
+                    check=True,
+                    capture_output=True,
+                    encoding='UTF-8',
+                    errors='replace'
+                )
+
+                if problematic_symlink := self._find_outside_symlinks(self._repo_folder):
+                    raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
         else:
             if self._original_branch is not None:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
             # If the provided uri is a symlink we need to resolve it.
-            path = os.path.realpath(self._uri)
-            self.__working_folder = self._repo_folder = path
+            self.__working_folder = self._repo_folder = Path(self._uri).resolve(strict=True)
 
         if self._dev_no_save:
             return
@@ -337,7 +346,7 @@ class ScenarioRunner:
         self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8', errors='replace').strip()
 
         git_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self._repo_folder, encoding='UTF-8', errors='replace').strip()
-        if git_repo_root != self._repo_folder:
+        if Path(git_repo_root).resolve(strict=True) != self._repo_folder:
             raise RuntimeError(f"Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename. Real repo root is {git_repo_root}")
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
@@ -351,15 +360,15 @@ class ScenarioRunner:
             print(TerminalColors.HEADER, '\nNo relations found. Skipping ...', TerminalColors.ENDC)
             return
 
-
-        Path(self._relations_folder).mkdir(parents=False, exist_ok=False)
+        if not self._dev_cache_repos:
+            self._initialize_folder(self._relations_folder)
 
         for relation_key, relation in self.__usage_scenario['relations'].items():
-            relation_path = os.path.realpath(os.path.join(self._relations_folder, relation_key))
+            relation_path = self._relations_folder.joinpath(relation_key).resolve() # relation_key already checked in schema_checker
 
             self.__relations[relation_key] = {
                 'url': relation['url'],
-                'mount_path': relation_path,
+                'mount_path': relation_path.as_posix(),
             }
 
             command = ['git', 'clone', '--depth', '1']
@@ -373,15 +382,20 @@ class ScenarioRunner:
             command.append('--recurse-submodules')
             command.append('--shallow-submodules')
             command.append(relation['url'])
-            command.append(relation_path)
+            command.append(relation_path.as_posix())
 
-            subprocess.run(
-                command,
-                check=True,
-                capture_output=True,
-                encoding='UTF-8',
-                errors='replace'
-            )
+            # only skip checkout if switch active and files in dir present
+            if self._dev_cache_repos and relation_path.exists() and relation_path.is_dir() and any(relation_path.iterdir()):
+                print('Skipping clone of ', relation['url'], 'as it was already present on disk and --dev-cache-repos was set')
+            else:
+                print('Cloning ', relation['url'])
+                subprocess.run(
+                    command,
+                    check=True,
+                    capture_output=True,
+                    encoding='UTF-8',
+                    errors='replace'
+                )
 
             if 'commit_hash' in relation:
                 subprocess.run(
@@ -393,12 +407,11 @@ class ScenarioRunner:
                     cwd=relation_path,
                 )
 
-            if problematic_symlink := utils.find_outside_symlinks(relation_path):
+            if problematic_symlink := self._find_outside_symlinks(relation_path):
                 raise RuntimeError(f"Relation {relation_key} contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
 
 
             self.__relations[relation_key]['commit_hash'], self.__relations[relation_key]['commit_timestamp'] = get_repo_info(relation_path)
-
             self.__relations[relation_key]['commit_timestamp'] = str(self.__relations[relation_key]['commit_timestamp'])
 
 
@@ -480,9 +493,9 @@ class ScenarioRunner:
                 nodes = loader.get_constructed_nodes(node)
 
                 try:
-                    usage_scenario_dir = os.path.split(usage_scenario_file)[0]
+                    usage_scenario_dir = usage_scenario_file.parent
                     filename = runner_join_paths(usage_scenario_dir, nodes[0], force_path_as_root=True)
-                except RuntimeError as exc:
+                except ValueError as exc:
                     raise ValueError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
                 return loader.process_include(filename, nodes)
@@ -493,10 +506,10 @@ class ScenarioRunner:
 
 
         # We set the working folder now to the actual location of the usage_scenario
-        if '/' in self._original_filename:
-            self.__working_folder_rel = self._original_filename.rsplit('/', 1)[0]
-            self.__working_folder = usage_scenario_file.rsplit('/', 1)[0]
-            print("Working folder changed to ", self.__working_folder)
+        if '/' in self._original_filename.as_posix():
+            self.__working_folder_rel = self._original_filename.parent
+            self.__working_folder = usage_scenario_file.parent
+            print("Working folder changed to ", self.__working_folder.as_posix())
 
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as f:
@@ -828,7 +841,7 @@ class ScenarioRunner:
                 )
                 RETURNING id
                 """, params=(
-                    self._job_id, self._name, self._uri, self._branch, self._original_filename, json.dumps(self.__relations),
+                    self._job_id, self._name, self._uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
                     json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
@@ -855,6 +868,8 @@ class ScenarioRunner:
 
         subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', errors='replace', check=True)
 
+        self._initialize_folder(self._metrics_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
+
         for metric_provider in metric_providers: # will iterate over keys
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
@@ -868,14 +883,11 @@ class ScenarioRunner:
             module = importlib.import_module(module_path)
 
             if self._skip_system_checks:
-                metric_provider_obj = getattr(module, class_name)(**conf, skip_check=True)
+                metric_provider_obj = getattr(module, class_name)(**conf, folder=self._metrics_folder, skip_check=True)
                 print(f"Configuration is {conf}; skip_check=true")
             else:
-                metric_provider_obj = getattr(module, class_name)(**conf)
+                metric_provider_obj = getattr(module, class_name)(**conf, folder=self._metrics_folder)
                 print(f"Configuration is {conf}")
-
-
-
 
             self.__metric_providers.append(metric_provider_obj)
 
@@ -919,10 +931,6 @@ class ScenarioRunner:
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
-        # Create directory /tmp/green-metrics-tool/docker_images
-        temp_dir = f"{self._tmp_folder}/docker_images"
-        self._initialize_folder(temp_dir)
-
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
         for _, service in self.__usage_scenario.get('services', {}).items():
@@ -963,11 +971,11 @@ class ScenarioRunner:
                 docker_build_command = ['docker', 'run', '--rm',
                     '--mount', 'type=volume,dst=/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                    '--mount', f"type=bind,source={self._repo_folder},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
-                    '--mount', f"type=bind,source={temp_dir},target=/output",
+                    '--mount', f"type=bind,source={self._repo_folder.as_posix()},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
+                    '--mount', f"type=bind,source={self._build_dir.as_posix()},target=/output",
                     'gcr.io/kaniko-project/executor:latest',
-                    f"--dockerfile={repo_mount_path}/{self.__working_folder_rel}/{context}/{dockerfile}",
-                    '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel}/{context}',
+                    f"--dockerfile={repo_mount_path}/{self.__working_folder_rel.as_posix()}/{context}/{dockerfile}",
+                    '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel.as_posix()}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--cleanup=true',
@@ -1015,7 +1023,7 @@ class ScenarioRunner:
                     raise subprocess.CalledProcessError(ps.returncode, 'Docker build failed', output=ps.stdout, stderr=ps.stderr)
 
                 # import the docker image locally
-                image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{tmp_img_name}.tar"]
+                image_import_command = ['docker', 'load', '-q', '-i', self._build_dir.joinpath(f"{tmp_img_name}.tar").as_posix()]
                 print(' '.join(image_import_command))
                 ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
@@ -1079,8 +1087,9 @@ class ScenarioRunner:
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
 
 
-        # Delete the directory /tmp/gmt_docker_images
-        shutil.rmtree(temp_dir)
+        # Delete the directory /tmp/gmt_docker_images as we do not want to keep the tar and the loaded image
+        # maybe create a switch here later to keep this artifact if we have a use case ...
+        shutil.rmtree(self._build_dir)
 
     def _save_image_and_volume_sizes(self):
 
@@ -1231,7 +1240,7 @@ class ScenarioRunner:
 
             repo_mount_path = service.get('folder-destination', '/tmp/repo')
             # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-            docker_run_string.append(f"{self._repo_folder}:{repo_mount_path}:ro")
+            docker_run_string.append(f"{self._repo_folder.as_posix()}:{repo_mount_path}:ro")
 
             for relation_key, relation in self.__relations.items():
                 docker_run_string.append('-v')
@@ -1253,10 +1262,10 @@ class ScenarioRunner:
                         docker_run_string.append('-v')
                         if volume.startswith('./'): # we have a bind-mount with relative path
                             vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
-                            path = os.path.realpath(os.path.join(self.__working_folder, vol[0]))
-                            if not os.path.exists(path):
+                            path = Path(self.__working_folder, vol[0]).resolve()
+                            if not path.exists():
                                 raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
-                            docker_run_string.append(f"{path}:{vol[1]}")
+                            docker_run_string.append(f"{path.as_posix()}:{vol[1]}")
                         else:
                             docker_run_string.append(f"{volume}")
                 else: # safe volume bindings are active by default
@@ -2250,6 +2259,14 @@ class ScenarioRunner:
                     else:
                         raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}. Please also check the stdout in the logs and / or enable stdout logging to debug further.")
 
+    def _create_folders(self):
+        ''' Must be here and not in init, as it must be created for every iteration'''
+        self._tmp_folder.mkdir(parents=False, exist_ok=True)
+        self._relations_folder.mkdir(parents=False, exist_ok=True)
+        self._repo_folder.mkdir(parents=False, exist_ok=True)
+        self._metrics_folder.mkdir(parents=False, exist_ok=True)
+        self._build_dir.mkdir(parents=False, exist_ok=True)
+
     def _start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
         self.__start_measurement_seconds = time.time()
@@ -2422,12 +2439,12 @@ class ScenarioRunner:
         """
         iteration = 1
         for existing_run in self.__all_runs_logs:
-            if existing_run['filename'] == self._original_filename:
+            if existing_run['filename'] == self._original_filename.as_posix():
                 iteration = max(iteration, existing_run['iteration'] + 1)
 
         run_entry = {
             'iteration': iteration,
-            'filename': self._original_filename,
+            'filename': self._original_filename.as_posix(),
             'containers': {}
         }
 
@@ -2516,7 +2533,7 @@ class ScenarioRunner:
 
     def set_filename(self, filename):
         """Update filename for reusing ScenarioRunner with different files"""
-        self._original_filename = filename
+        self._original_filename = Path(filename)
 
     def run(self):
         '''
@@ -2531,10 +2548,10 @@ class ScenarioRunner:
         '''
         try:
             self._run_id = None  # Reset run ID for new run
+            self._create_folders()
             self._start_measurement() # we start as early as possible to include initialization overhead
             self._clear_caches()
             self._check_system('start')
-            self._initialize_folder(self._tmp_folder)
             self._checkout_repository()
             self._load_yml_file()
             self._initial_parse()

@@ -20,6 +20,7 @@ class BaseMetricProvider:
         sampling_rate,
         unit,
         current_dir,
+        folder,
         metric_provider_executable='metric-provider-binary',
         sudo=False,
         disable_buffer=True,
@@ -35,13 +36,10 @@ class BaseMetricProvider:
         self._has_started = False
         self._disable_buffer = disable_buffer
         self._skip_check = skip_check
-
-        self._tmp_folder = '/tmp/green-metrics-tool'
         self._ps = None
 
-        Path(self._tmp_folder).mkdir(exist_ok=True)
-
-        self._filename = f"{self._tmp_folder}/{self._metric_name}.log"
+        self._folder = Path(folder).resolve(strict=True)
+        self._filename = self._folder.joinpath(f"{self._metric_name}.log")
 
         if not self._skip_check:
             self.check_system()

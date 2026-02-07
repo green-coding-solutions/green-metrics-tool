@@ -2,7 +2,7 @@ import os
 from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
 
 class PsuEnergyAcPowerspy2MachineProvider(BaseMetricProvider):
-    def __init__(self, sampling_rate, skip_check=False):
+    def __init__(self, sampling_rate, folder, skip_check=False):
         super().__init__(
             metric_name="psu_energy_ac_powerspy2_machine",
             metrics={"time": int, "value": int},
@@ -11,6 +11,7 @@ class PsuEnergyAcPowerspy2MachineProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable="metric-provider.py",
             skip_check=skip_check,
+            folder=folder,
         )
 
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):

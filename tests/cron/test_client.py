@@ -1,5 +1,6 @@
 import os
 import subprocess
+from pathlib import Path
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -8,6 +9,10 @@ from lib.job.base import Job
 from tests import test_functions as Tests
 
 def test_simple_cluster_run():
+
+    tmp_folder = Path('/tmp/green-metrics-tool').resolve()
+    tmp_folder.mkdir(exist_ok=True)
+
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
@@ -33,3 +38,6 @@ def test_simple_cluster_run():
 
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
+
+    # also check that the tmp folder was deleted locally
+    assert not tmp_folder.exists(), '/tmp/green-metrics-tool was still present after cluster run. It should have been deleted though'

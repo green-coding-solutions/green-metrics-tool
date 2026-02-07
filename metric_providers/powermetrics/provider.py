@@ -10,7 +10,7 @@ import signal
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class PowermetricsProvider(BaseMetricProvider):
-    def __init__(self, sampling_rate, skip_check=False):
+    def __init__(self, sampling_rate, folder, skip_check=False):
         # We get this value on init as we want to have to for check_system to work in the normal case
         self._pm_process_count = self.powermetrics_total_count()
 
@@ -23,6 +23,7 @@ class PowermetricsProvider(BaseMetricProvider):
             metric_provider_executable='/usr/bin/powermetrics',
             sudo=True,
             skip_check=skip_check,
+            folder=folder,
         )
 
         self._skip_check =  skip_check

@@ -4,7 +4,7 @@ from metric_providers.base import BaseMetricProvider, MetricProviderConfiguratio
 from lib.global_config import GlobalConfig
 
 class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
-    def __init__(self, *, CPUChips, TDP, skip_check=False, filename=None):
+    def __init__(self, *, folder, CPUChips, TDP, skip_check=False, filename=None):
         super().__init__(
             metric_name='psu_energy_ac_sdia_machine',
             metrics={'time': int, 'value': int},
@@ -12,16 +12,20 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
             unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
         )
         self.cpu_chips = CPUChips
         self.tdp = TDP
-        self._filename = filename
 
         if not self.cpu_chips:
             raise MetricProviderConfigurationError(
                 'Please set the CPUChips config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
         if not self.tdp:
             raise MetricProviderConfigurationError('Please set the TDP config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
+
+         # we overwrite the parent class set default, bc this provider has not source file it writes on its own
+         # It must be either supplied in the constructor or will be set None for auto detect later
+        self._filename = filename
 
 
     # Since no process is ever started we just return None
@@ -55,14 +59,15 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
     def _read_metrics(self):
 
         if not self._filename:
-            if os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
-                self._filename = '/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'
-            elif os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_mach_system.log'):
-                self._filename = '/tmp/green-metrics-tool/cpu_utilization_mach_system.log'
+            if self._folder.joinpath('cpu_utilization_procfs_system.log').exists():
+                self._filename = self._folder.joinpath('cpu_utilization_procfs_system.log')
+            elif self._folder.joinpath('cpu_utilization_mach_system.log').exists():
+                self._filename = self._folder.joinpath('cpu_utilization_mach_system.log')
             else:
-                raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log or /tmp/green-metrics-tool/cpu_utilization_mach_system.log file. \
+                raise RuntimeError(f"could not find the cpu_utilization_procfs_system.log or cpu_utilization_mach_system.log file in {self._folder}. \
                     Did you activate the CpuUtilizationProcfsSystemProvider or CpuUtilizationMacSystemProvider in the config.yml too? \
-                    This is required to run PsuEnergyAcSdiaMachineProvider')
+                    This is required to run PsuEnergyAcSdiaMachineProvider")
+
 
         return super()._read_metrics()
 
