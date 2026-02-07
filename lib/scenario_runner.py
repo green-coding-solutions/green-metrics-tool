@@ -509,7 +509,7 @@ class ScenarioRunner:
         if '/' in self._original_filename.as_posix():
             self.__working_folder_rel = self._original_filename.parent
             self.__working_folder = usage_scenario_file.parent
-            print("Working folder changed to ", self.__working_folder)
+            print("Working folder changed to ", self.__working_folder.as_posix())
 
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as f:
@@ -974,8 +974,8 @@ class ScenarioRunner:
                     '--mount', f"type=bind,source={self._repo_folder.as_posix()},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
                     '--mount', f"type=bind,source={self._build_dir.as_posix()},target=/output",
                     'gcr.io/kaniko-project/executor:latest',
-                    f"--dockerfile={repo_mount_path}/{self.__working_folder_rel}/{context}/{dockerfile}",
-                    '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel}/{context}',
+                    f"--dockerfile={repo_mount_path}/{self.__working_folder_rel.as_posix()}/{context}/{dockerfile}",
+                    '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel.as_posix()}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--cleanup=true',
@@ -1262,10 +1262,10 @@ class ScenarioRunner:
                         docker_run_string.append('-v')
                         if volume.startswith('./'): # we have a bind-mount with relative path
                             vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
-                            path = os.path.realpath(os.path.join(self.__working_folder, vol[0]))
-                            if not os.path.exists(path):
+                            path = Path(self.__working_folder, vol[0]).resolve()
+                            if not path.exists():
                                 raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
-                            docker_run_string.append(f"{path}:{vol[1]}")
+                            docker_run_string.append(f"{path.as_posix()}:{vol[1]}")
                         else:
                             docker_run_string.append(f"{volume}")
                 else: # safe volume bindings are active by default
