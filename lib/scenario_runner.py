@@ -308,7 +308,7 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nChecking out repository', TerminalColors.ENDC)
 
         if self._uri_type == 'URL':
-            if self._dev_cache_repos:
+            if self._dev_cache_repos and self._repo_folder.exists() and self._repo_folder.is_dir() and any(self._repo_folder.iterdir()):
                 print('Skipping clone of ', self._repo_folder.as_posix(), 'as it was already present on disk and --dev-cache-repos was set')
             else:
                 self._initialize_folder(self._repo_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
