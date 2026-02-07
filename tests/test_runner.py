@@ -9,6 +9,7 @@ import subprocess
 import yaml
 
 from contextlib import redirect_stdout, redirect_stderr
+from pathlib import Path
 
 from lib.log_types import LogType
 from lib.scenario_runner import ScenarioRunner
@@ -27,6 +28,10 @@ GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__
 #   The URI to get the usage_scenario.yml from. Can be either a local directory starting with
 #     / or a remote git repository starting with http(s)://
 def test_uri_local_dir():
+
+    tmp_folder = Path('/tmp/green-metrics-tool').resolve()
+    tmp_folder.mkdir(exist_ok=True)
+
     run_name = 'test_' + utils.randomword(12)
     filename = 'tests/data/stress-application/usage_scenario.yml'
     ps = subprocess.run(
@@ -44,6 +49,9 @@ def test_uri_local_dir():
     uri_in_db = utils.get_run_data(run_name)['uri']
     assert uri_in_db == GMT_DIR, Tests.assertion_info(f"uri: {GMT_DIR}", uri_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+    # also check that the tmp folder was deleted locally
+    assert tmp_folder.exists(), '/tmp/green-metrics-tool was deleted after run, which should not happen without --file-cleanup set'
 
 def test_uri_local_dir_missing():
     runner = ScenarioRunner(uri='/tmp/missing', uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
@@ -68,12 +76,17 @@ def test_non_git_root_supplied():
     assert f"Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename. Real repo root is {GMT_DIR}" == str(e.value)
 
 def test_uri_github_repo_and_using_default_filename():
+
+    # we use this test also to test file cleanup ... not best practice, but it saves some test time
+    tmp_folder = Path('/tmp/green-metrics-tool').resolve()
+    tmp_folder.mkdir(exist_ok=True)
+
     uri = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     default_filename = 'usage_scenario.yml'
     run_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', uri ,'--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-        '--skip-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations'],
+        '--skip-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-optimizations', '--file-cleanup'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -86,6 +99,9 @@ def test_uri_github_repo_and_using_default_filename():
     uri_in_db = utils.get_run_data(run_name)['uri']
     assert uri_in_db == uri, Tests.assertion_info(f"uri: {uri}", uri_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+
+    # also check that the tmp folder was deleted locally
+    assert not tmp_folder.exists(), '/tmp/green-metrics-tool was not deleted after run although --file-cleanup was set'
 
 ## --branch BRANCH
 #    Optionally specify the git branch when targeting a git repository
