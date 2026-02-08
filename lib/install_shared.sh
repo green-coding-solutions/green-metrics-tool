@@ -7,6 +7,7 @@ NC='\033[0m' # No Color
 db_pw=''
 api_url=''
 metrics_url=''
+elephant_url=''
 tz=''
 ask_scenario_runner=true
 activate_scenario_runner=true
@@ -165,6 +166,7 @@ function prepare_config() {
     copy_backup frontend/js/helpers/config.js
     eval "${sed_command} -e \"s|__API_URL__|$api_url|\" frontend/js/helpers/config.js"
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" frontend/js/helpers/config.js"
+    eval "${sed_command} -e \"s|__ELEPHANT_URL__|$elephant_url|\" frontend/js/helpers/config.js"
 
     if [[ $activate_scenario_runner == true ]]; then
         eval "${sed_command} -e \"s|__ACTIVATE_SCENARIO_RUNNER__|true|\" frontend/js/helpers/config.js"
@@ -440,6 +442,11 @@ while [[ $# -gt 0 ]]; do
             ee_branch="$2"
             shift 2
             ;;
+        --elephant-url)
+            check_optarg 'elephant-url' "${2:-}"
+            elephant_url="$2"
+            shift 2
+            ;;
         -p)
             check_optarg 'p' "${2:-}"
             db_pw="$2"
@@ -649,6 +656,17 @@ if [[ -z $metrics_url ]] ; then
     echo "Please enter the desired metrics dashboard URL"
     read -p "Use port 9142 for local installs and no port for production to auto-use 80/443: (default: http://metrics.green-coding.internal:9142): " metrics_url
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
+fi
+
+if [[ -z $elephant_url ]] ; then
+    echo ""
+    read -p "Use the Elephant Carbon Service? (y/N) : " use_elephant_service
+    if [[  "$use_elephant_service" == "Y" || "$use_elephant_service" == "y" ]] ; then
+        read -p "Please enter the Elephant Carbon Service URL (default: http://elephant.green-coding.internal:8085): " elephant_url
+        elephant_url=${elephant_url:-"http://elephant.green-coding.internal:8085"}
+    else
+        elephant_url=''
+    fi
 fi
 
 # ---- Ask for timezone (default from system; fallback Europe/Berlin) ----
