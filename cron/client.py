@@ -68,7 +68,7 @@ def do_maintenance():
 
     set_status('maintenance_start')
 
-    maintenance_cmd = ['sudo', Path(__file__).resolve().parent.joinpath('../tools/cluster/maintenance.py').as_posix()]
+    maintenance_cmd = ['sudo', '/usr/bin/python3', Path(__file__).resolve().parent.joinpath('../tools/cluster/maintenance.py').as_posix()]
 
     # first we need to determine if an apt update is also necessary. We only want to update once a day
     now = time.time()
