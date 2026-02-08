@@ -68,20 +68,20 @@ def do_maintenance():
 
     set_status('maintenance_start')
 
+    maintenance_cmd = ['sudo', Path(__file__).resolve().parent.joinpath('../tools/cluster/maintenance.py').as_posix()]
+
     # first we need to determine if an apt update is also necessary. We only want to update once a day
     now = time.time()
-    update_os_packages = ''
-
-    if not config['cluster']['update_os_packages']:
+    if not config['cluster']['client']['update_os_packages']:
         print('Cluster OS Package updates are disabled. Skipping in maintenance ...')
     elif (not Path('/var/log/apt/history.log').exists()) or ((now - Path('/var/log/apt/history.log').stat().st_mtime) > 86400):
         print("history.log is older than 24 hours. Updating OS packages in maintenance")
-        update_os_packages = '--update-os-packages'
+        maintenance_cmd.append('--update-os-packages')
     else:
         print("history.log is still newer than 24 hours. Skipping OS updates in maintenance ...")
 
     ps = subprocess.run(
-        ['sudo', Path(__file__).resolve().parent.joinpath('../tools/cluster/maintenance.py'), update_os_packages],
+        maintenance_cmd,
         check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, # put both in one stream
