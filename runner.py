@@ -50,6 +50,7 @@ if __name__ == '__main__':
     parser.add_argument('--skip-download-dependencies', action='store_true', help='Skip downloading GMT dependencies like Kaniko etc. Useful to speed up runs if your dependencies are up to date')
     parser.add_argument('--skip-volume-inspect', action='store_true', help='Disable docker volume inspection. Can help if you encounter permission issues.')
     parser.add_argument('--skip-optimizations', action='store_true', help='Skip analysis after run to find possible optimizations.')
+    parser.add_argument('--skip-container-dependency-collection', action='store_true', help='Skip collection of container dependencies')
 
     # These switches may break or skew proper measurements if set
     parser.add_argument('--dev-no-system-checks', action='store_true', help='Do not check the system if the GMT can run properly')
@@ -177,6 +178,7 @@ if __name__ == '__main__':
                     # These switches do not alter proper measurements, but might result in data not being generated
                     skip_download_dependencies=args.skip_download_dependencies, skip_optimizations=args.skip_optimizations,
                     skip_unsafe=args.skip_unsafe, skip_volume_inspect=args.skip_volume_inspect,
+                    skip_container_dependency_collection=args.skip_container_dependency_collection,
 
                     # These switches may break or skew proper measurements if set
                     dev_no_sleeps=args.dev_no_sleeps, dev_stream_outputs=args.dev_stream_outputs, dev_cache_repos=args.dev_cache_repos,
