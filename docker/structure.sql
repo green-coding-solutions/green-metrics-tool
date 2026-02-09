@@ -42,7 +42,7 @@ VALUES (
             "is_super_user": true,
             "updateable_settings": [
                 "measurement.dev_no_sleeps",
-                "measurement.dev_no_optimizations",
+                "measurement.skip_optimizations",
                 "measurement.disabled_metric_providers",
                 "measurement.flow_process_duration",
                 "measurement.total_duration",
@@ -128,7 +128,7 @@ VALUES (
             "phase_padding": true,
             "quotas": {},
             "dev_no_sleeps": false,
-            "dev_no_optimizations": false,
+            "skip_optimizations": false,
             "allow_unsafe": false,
             "skip_unsafe": true,
             "skip_system_checks": false,

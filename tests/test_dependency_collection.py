@@ -207,7 +207,7 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_optimizations=True
         )
 
         # Mock successful dependency collection
@@ -245,7 +245,7 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_optimizations=True
         )
 
         # Mock failed dependency collection that raises exception
@@ -268,7 +268,7 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_optimizations=True
         )
 
         run_id = runner.run()
@@ -349,7 +349,7 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_optimizations=True
         )
 
         run_id = runner.run()
