@@ -6,34 +6,22 @@ import requests
 
 from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
 
-error_string = ""
 
 class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
-    def __init__(self, *, location, elephant, simulation_uuid=None, provider=None, skip_check=False):
+    def __init__(self, *, region, elephant, simulation_uuid=None, provider=None, skip_check=False):
 
-        self.location = location
+        self.region = region
         self.provider_filter = provider
         self.elephant = elephant or {}
         self.simulation_uuid = simulation_uuid
-        self._start_time = None
-        self._end_time = None
+        self.__start_time = None
+        self.__end_time = None
         self._elephant_base_url = None
+        self.error_string = ""
 
-        self._configure_elephant()
-
-        super().__init__(
-            metric_name='carbon_intensity_elephant_machine',
-            metrics={'time': int, 'value': int, 'provider': str},
-            sampling_rate=-1,
-            unit='gCO2e/kWh',
-            current_dir=os.path.dirname(os.path.abspath(__file__)),
-            skip_check=skip_check,
-        )
-
-    def _configure_elephant(self):
-        if not self.location:
+        if not self.region:
             raise MetricProviderConfigurationError(
-                'Please set the location config option for CarbonIntensityElephantMachineProvider in the config.yml')
+                'Please set the region config option for CarbonIntensityElephantMachineProvider in the config.yml')
 
         if not isinstance(self.elephant, dict):
             raise MetricProviderConfigurationError(
@@ -49,6 +37,15 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
 
         self._elephant_base_url = f"{protocol}://{host}:{port}"
 
+        super().__init__(
+            metric_name='carbon_intensity_elephant_machine',
+            metrics={'time': int, 'value': int, 'provider': str},
+            sampling_rate=-1,
+            unit='gCO2e/kWh',
+            current_dir=os.path.dirname(os.path.abspath(__file__)),
+            skip_check=skip_check,
+        )
+
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         super().check_system(check_command=None, check_parallel_provider=False)
         try:
@@ -59,14 +56,14 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
                 f"Elephant base URL {self._elephant_base_url} could not be reached: {exc}") from exc
 
     def get_stderr(self):
-        return error_string
+        return self.error_string
 
     def start_profiling(self, _=None):
-        self._start_time = datetime.now(timezone.utc)
+        self.__start_time = datetime.now(timezone.utc)
         self._has_started = True
 
     def stop_profiling(self):
-        self._end_time = datetime.now(timezone.utc)
+        self.__end_time = datetime.now(timezone.utc)
         self._has_started = False
 
     def _format_time(self, timestamp):
@@ -86,19 +83,19 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
         return int(parsed.timestamp() * 1_000_000)
 
     def _read_metrics(self):
-        global error_string #pylint: disable=global-statement
-        if self._start_time is None or self._end_time is None:
+        if self.__start_time is None or self.__end_time is None:
             raise RuntimeError(
                 f"{self._metric_name} provider did not record start/end times. Did start_profiling and stop_profiling run?")
 
         params = {
-            'region': self.location,
-            'startTime': self._format_time(self._start_time),
-            'endTime': self._format_time(self._end_time),
+            'region': self.region,
+            'startTime': self._format_time(self.__start_time),
+            'endTime': self._format_time(self.__end_time),
             'update': 'true',
         }
+
         if self.provider_filter:
-            params['provider'] = self.provider_filter
+            params['provider'] = f"{self.provider_filter.lower()}_{self.region.lower()}"
 
         if self.simulation_uuid:
             params['simulation_id'] = str(self.simulation_uuid)
@@ -107,11 +104,11 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
         try:
             response = requests.get(url, params=params, timeout=30)
         except requests.RequestException as exc:
-            error_string += f"Failed to query Elephant carbon intensity service: {exc}\n"
+            self.error_string += f"Failed to query Elephant carbon intensity service: {exc}\n"
             return None
 
         if response.status_code != 200:
-            error_string += f"Elephant carbon intensity request failed with status {response.status_code}: {response.text}\n"
+            self.error_string += f"Elephant carbon intensity request failed with status {response.status_code}: {response.text}\n"
             return None
 
         data = response.json()
@@ -128,19 +125,19 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
                 fallback_url = f"{self._elephant_base_url}/carbon-intensity/current/primary"
 
             try:
-                fallback_response = requests.get(fallback_url, params={'region': self.location}, timeout=30)
+                fallback_response = requests.get(fallback_url, params={'region': self.region}, timeout=30)
 
                 if fallback_response.status_code != 200:
-                    error_string += f"Elephant carbon intensity fallback request failed with status {fallback_response.status_code}: {fallback_response.text}\n"
+                    self.error_string += f"Elephant carbon intensity fallback request failed with status {fallback_response.status_code}: {fallback_response.text}\n"
                     return None
 
                 data = fallback_response.json()
 
                 if self.provider_filter:
-                    data = [d for d in data if d.get('provider') == self.provider_filter]
+                    data = [d for d in data if d.get('provider') == f"{self.provider_filter.lower()}_{self.region.lower()}"]
 
             except requests.RequestException as exc:
-                error_string += f"Failed to query Elephant carbon intensity service for fallback: {exc}\n"
+                self.error_string += f"Failed to query Elephant carbon intensity service for fallback: {exc}\n"
                 return None
 
         if not isinstance(data, list):

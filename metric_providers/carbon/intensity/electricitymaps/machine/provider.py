@@ -14,14 +14,20 @@ API_FUTURE_URL = "https://api.electricitymaps.com/v3/carbon-intensity/forecast"
 TEMPORAL_GRANULARITY = "5_minutes"
 
 class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
-    def __init__(self, location, token, provider=None, skip_check=False):
+    def __init__(self, region, token, skip_check=False):
 
-        self.location = location
+        self.region = region
         self.token = token
-        self.provider_filter = provider
-        self._start_time = None
-        self._end_time = None
+        self.__start_time = None
+        self.__end_time = None
 
+        if not self.region:
+            raise MetricProviderConfigurationError(
+                'Please set the region config option for CarbonIntensityElectricityMapsMachineProvider (electricity_maps) in the config.yml')
+
+        if not self.token:
+            raise MetricProviderConfigurationError(
+                'Please set the token config option for CarbonIntensityElectricityMapsMachineProvider (electricity_maps) in the config.yml')
 
         super().__init__(
             metric_name='carbon_intensity_electricity_maps_machine',
@@ -36,45 +42,32 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         super().check_system(check_command=None, check_parallel_provider=False)
 
-        if not self.location:
-            raise MetricProviderConfigurationError(
-                'Please set the location config option for CarbonIntensityElectricityMapsMachineProvider (electricity_maps) in the config.yml')
-
-        if not self.token:
-            raise MetricProviderConfigurationError(
-                'Please set the token config option for CarbonIntensityElectricityMapsMachineProvider (electricity_maps) in the config.yml')
-
         response = None
         try:
             params = {
-                'zone': self.location,
+                'zone': self.region,
                 'start': self._format_time(datetime.now(timezone.utc) - timedelta(hours=1)),
                 'end': self._format_time(datetime.now(timezone.utc)),
                 'temporalGranularity': TEMPORAL_GRANULARITY,
             }
-            response = requests.get(API_PAST_URL, params=params, headers={'auth-token': self.token}, timeout=10)
-
-            if response.status_code in (401, 403):
-                raise MetricProviderConfigurationError(
-                    'Electricity Maps token was rejected. Please verify electricity_maps_token in the config.yml')
+            with requests.get(API_PAST_URL, params=params, headers={'auth-token': self.token}, timeout=10) as response:
+                if response.status_code in (401, 403):
+                    raise MetricProviderConfigurationError(
+                        'Electricity Maps token was rejected. Please verify electricity_maps_token in the config.yml'
+                    )
 
         except requests.RequestException as exc:
-            raise MetricProviderConfigurationError(
-                f"Electricity Maps base URL {API_PAST_URL} could not be reached: {exc}") from exc
-
-        finally:
-            if response is not None:
-                response.close()
+            raise MetricProviderConfigurationError(f"Electricity Maps base URL {API_PAST_URL} could not be reached: {exc}") from exc
 
     def get_stderr(self):
         return error_string
 
     def start_profiling(self, _=None):
-        self._start_time = datetime.now(timezone.utc)
+        self.__start_time = datetime.now(timezone.utc)
         self._has_started = True
 
     def stop_profiling(self):
-        self._end_time = datetime.now(timezone.utc)
+        self.__end_time = datetime.now(timezone.utc)
         self._has_started = False
 
     def _format_time(self, timestamp):
@@ -98,14 +91,14 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
 
         headers = {'auth-token': self.token}
 
-        if self._start_time is None or self._end_time is None:
+        if self.__start_time is None or self.__end_time is None:
             raise RuntimeError(
                 f"{self._metric_name} provider did not record start/end times. Did start_profiling and stop_profiling run?")
 
         params = {
-                'zone': self.location,
-                'start': self._format_time(self._start_time),
-                'end': self._format_time(self._end_time),
+                'zone': self.region,
+                'start': self._format_time(self.__start_time),
+                'end': self._format_time(self.__end_time),
                 'temporalGranularity': TEMPORAL_GRANULARITY,
             }
 
@@ -129,7 +122,7 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
             # As the providers take quite some time to provide data it can happen that short running
             # jobs don't have any data. So we get predictions
             params = {
-                'zone': self.location,
+                'zone': self.region,
                 'temporalGranularity': TEMPORAL_GRANULARITY,
             }
             try:
@@ -158,8 +151,8 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
                 raise RuntimeError(f"Unexpected Electricity Maps response for carbon intensity: {data}")
 
         records = []
-        start_us = int(self._start_time.timestamp() * 1_000_000)
-        end_us = int(self._end_time.timestamp() * 1_000_000)
+        start_us = int(self.__start_time.timestamp() * 1_000_000)
+        end_us = int(self.__end_time.timestamp() * 1_000_000)
         closest_entry = None
         closest_distance = None
 

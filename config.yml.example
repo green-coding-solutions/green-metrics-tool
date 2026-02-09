@@ -223,15 +223,15 @@ measurement:
 #
 #--- Carbon intensity
 #      carbon.intensity.elephant.machine.provider.CarbonIntensityElephantMachineProvider:
-#        location: 'DE'
-#        provider: 'electricity_maps' # optional
+#        region: 'DE'
+#        provider: 'electricitymaps' # optional
 #        elephant:
 #          host: localhost
 #          port: 8085
 #          protocol: http
 #      carbon.intensity.electricitymaps.machine.provider.CarbonIntensityElectricityMapsMachineProvider:
-#        location: 'DE'
-#        token: 'XXXX' # optional
+#        region: 'DE'
+#        token: 'XXXX'
 ###### DEBUG
 #      network.connections.tcpdump.system.provider.NetworkConnectionsTcpdumpSystemProvider:
 #        split_ports: True

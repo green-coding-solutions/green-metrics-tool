@@ -164,7 +164,6 @@ def build_and_store_phase_stats(run_id, sci=None):
             ORDER BY metric ASC -- we need this ordering for later, when we read again
     """
     metrics = DB().fetch_all(query, (run_id, ))
-    print(metrics) # DEBUG
 
     if not metrics:
         error_helpers.log_error('Metrics was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
@@ -201,7 +200,7 @@ def build_and_store_phase_stats(run_id, sci=None):
         cpu_utilization_containers = {} # reset
         cpu_utilization_machine = None
         network_io_carbon_in_ug = None
-        carbon_intesity = None
+        carbon_intensity = None
 
         select_query = """
             WITH lag_table as (
@@ -289,7 +288,9 @@ def build_and_store_phase_stats(run_id, sci=None):
                 if metric in ('cpu_utilization_cgroup_container', 'cpu_utilization_cgroup_system', ):
                     cpu_utilization_containers[detail_name] = value_avg
                 if metric in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', ):
-                    carbon_intesity = value_avg
+                    if not carbon_intensity:
+                        phase_warnings.add(f"More than one carbon intensity provider is configured. Now using {metric}")
+                    carbon_intensity = value_avg
 
             elif metric in ['network_io_cgroup_system',
                             'network_io_cgroup_container',
@@ -326,7 +327,7 @@ def build_and_store_phase_stats(run_id, sci=None):
 
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg_mW, 'MEAN', power_max_mW, power_min_mW, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
 
-                if sci.get('I', None) is not None or carbon_intesity is not None:
+                if sci.get('I', None) is not None or carbon_intensity is not None:
                     value_carbon_ug = (value_sum / 3_600_000) * Decimal(sci['I'])
 
                     csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", value_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))

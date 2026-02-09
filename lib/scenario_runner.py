@@ -810,7 +810,7 @@ class ScenarioRunner:
                 timeout=30
             )
             response.raise_for_status()
-            self.__carbon_simulation_uuid = uuid.UUID(response.json().get('simulation_id'))
+            self.__carbon_simulation_uuid = uuid.UUID(response.json().get('simulationId'))
 
     def _initialize_run(self):
         print(TerminalColors.HEADER, '\nInitializing run', TerminalColors.ENDC)
@@ -879,16 +879,7 @@ class ScenarioRunner:
             print('Skipping import of metric providers due to --dev-no-save')
             return
 
-        config = json.loads(json.dumps(GlobalConfig().config))
-
-        if self.__carbon_simulation_uuid is not None:
-            # We need to pass in the uuid to the metric provier. The easiest way is to patch the config as we don't have a standard way to pass
-            # extra arguments to metric providers yet.
-            elephant_config = config.get('measurement', {}).get('metric_providers', {}).get('common', {}).get('carbon.intensity.elephant.machine.provider.CarbonIntensityElephantMachineProvider', {})
-            if elephant_config != {}:
-                config['measurement']['metric_providers']['common']['carbon.intensity.elephant.machine.provider.CarbonIntensityElephantMachineProvider']['simulation_uuid'] = str(self.__carbon_simulation_uuid)
-
-        metric_providers = utils.get_metric_providers(config)
+        metric_providers = utils.get_metric_providers(GlobalConfig().config)
 
         if not metric_providers:
             print(TerminalColors.WARNING, arrows('No metric providers were configured in config.yml. Was this intentional?'), TerminalColors.ENDC)
@@ -903,15 +894,21 @@ class ScenarioRunner:
                 print(TerminalColors.WARNING, arrows(f"Not importing {class_name} as disabled per user settings"), TerminalColors.ENDC)
                 continue
 
+            optinal_conf = {}
+
+            if self.__carbon_simulation_uuid is not None:
+                if metric_provider.split('.')[-1] == 'CarbonIntensityElephantMachineProvider':
+                    optinal_conf['simulation_uuid'] = str(self.__carbon_simulation_uuid)
+
+            if self._skip_system_checks:
+                optinal_conf['skip_check'] = True
+
             print(f"Importing {class_name} from {module_path}")
             module = importlib.import_module(module_path)
 
-            if self._skip_system_checks:
-                metric_provider_obj = getattr(module, class_name)(**conf, skip_check=True)
-                print(f"Configuration is {conf}; skip_check=true")
-            else:
-                metric_provider_obj = getattr(module, class_name)(**conf)
-                print(f"Configuration is {conf}")
+            merged_conf = {**conf, **optinal_conf}
+            metric_provider_obj = getattr(module, class_name)(**merged_conf)
+            print(f"Configuration is {merged_conf}")
 
             self.__metric_providers.append(metric_provider_obj)
 
