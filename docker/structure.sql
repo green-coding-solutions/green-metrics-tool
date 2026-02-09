@@ -43,6 +43,7 @@ VALUES (
             "updateable_settings": [
                 "measurement.dev_no_sleeps",
                 "measurement.skip_optimizations",
+                "measurement.dev_no_container_dependency_collection",
                 "measurement.disabled_metric_providers",
                 "measurement.flow_process_duration",
                 "measurement.total_duration",
@@ -129,6 +130,7 @@ VALUES (
             "quotas": {},
             "dev_no_sleeps": false,
             "skip_optimizations": false,
+            "dev_no_container_dependency_collection": false,
             "allow_unsafe": false,
             "skip_unsafe": true,
             "dev_no_system_checks": false,
