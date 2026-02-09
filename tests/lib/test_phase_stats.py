@@ -618,7 +618,7 @@ def test_sci_calculation():
     assert sci_entry['value'] < 1000000, "SCI should be reasonable (less than 1M ugCO2e per functional unit)"
 
 def test_sci_run():
-    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_sci.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False)
+    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_sci.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -632,7 +632,7 @@ def test_sci_run():
     assert data[0]['unit'] == 'ugCO2e/Cool run'
 
 def test_sci_multi_steps_run():
-    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_sci_multi.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False)
+    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_sci_multi.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False)
 
     out = io.StringIO()
     err = io.StringIO()

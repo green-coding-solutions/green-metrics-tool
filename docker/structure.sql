@@ -131,7 +131,7 @@ VALUES (
             "skip_optimizations": false,
             "allow_unsafe": false,
             "skip_unsafe": true,
-            "skip_system_checks": false,
+            "dev_no_system_checks": false,
             "skip_volume_inspect": false,
             "total_duration": 86400,
             "flow_process_duration": 86400,

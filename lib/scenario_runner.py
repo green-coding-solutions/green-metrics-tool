@@ -76,7 +76,7 @@ class ScenarioRunner:
 
         # These switches do not alter proper measurements, but might result in data not being generated
         skip_volume_inspect=False, skip_download_dependencies=False, skip_unsafe=False,
-        skip_optimizations=False, skip_system_checks=False,
+        skip_optimizations=False, dev_no_system_checks=False,
         ):
 
         self._arguments = locals() # safe the argument as first step before anything else to not expose local created variables
@@ -102,7 +102,7 @@ class ScenarioRunner:
         self._debugger = DebugHelper(debug_mode)
         self._allow_unsafe = allow_unsafe
         self._skip_unsafe = skip_unsafe
-        self._skip_system_checks = skip_system_checks
+        self._dev_no_system_checks = dev_no_system_checks
         self._skip_volume_inspect = skip_volume_inspect
         self._skip_download_dependencies = skip_download_dependencies
         self._verbose_provider_boot = verbose_provider_boot
@@ -292,8 +292,8 @@ class ScenarioRunner:
 
     def _check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
-        if self._skip_system_checks:
-            print('Skipping check system due to --skip-system-checks')
+        if self._dev_no_system_checks:
+            print('Skipping check system due to --dev-no-system-checks')
             return
 
         warnings = system_checks.system_check(mode, self._measurement_system_check_threshold, run_duration=self._last_measurement_duration)
@@ -885,7 +885,7 @@ class ScenarioRunner:
             print(f"Importing {class_name} from {module_path}")
             module = importlib.import_module(module_path)
 
-            if self._skip_system_checks:
+            if self._dev_no_system_checks:
                 metric_provider_obj = getattr(module, class_name)(**conf, folder=self._metrics_folder, skip_check=True)
                 print(f"Configuration is {conf}; skip_check=true")
             else:
@@ -2401,8 +2401,8 @@ class ScenarioRunner:
 
         for argument in self._arguments:
             # dev no optimizations does not make the run invalid ... all others do
-            if argument != 'skip_optimizations' and (argument.startswith('dev_') or argument == 'skip_system_checks')  and self._arguments[argument] not in (False, None):
-                invalid_message = 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
+            if argument != 'skip_optimizations' and (argument.startswith('dev_') or argument == 'dev_no_system_checks')  and self._arguments[argument] not in (False, None):
+                invalid_message = 'Development switches or dev_no_system_checks were active for this run. This will likely produce skewed measurement data.\n'
                 print(TerminalColors.WARNING, invalid_message, TerminalColors.ENDC)
 
                 if not self._run_id or self._dev_no_save:
