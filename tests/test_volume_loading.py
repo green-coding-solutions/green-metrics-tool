@@ -85,7 +85,7 @@ def test_symlinks_should_fail():
     assert str(e.value).startswith(expected_error), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
-def test_non_bind_mounts_should_fail():
+def test_non_existent_volume_should_fail():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_non_bind_mounts.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
 
     try:
@@ -95,9 +95,74 @@ def test_non_bind_mounts_should_fail():
     finally:
         container_running = Tests.check_if_container_running('test-container')
 
-    expected_error = 'The volume test-volume could not be loaded or found at the specified path.'
+    expected_error = 'The volume gmt-test-volume-delete-me could not be loaded or found at the specified path.'
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
+
+def test_non_permitted_volume_should_fail():
+
+    subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
+
+    try:
+        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_non_bind_mounts.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+
+        try:
+            with pytest.raises(RuntimeError) as e:
+                with Tests.RunUntilManager(runner) as context:
+                    context.run_until('setup_services')
+        finally:
+            container_running = Tests.check_if_container_running('test-container')
+
+        expected_error = 'The volume gmt-test-volume-delete-me could not be loaded or found at the specified path.'
+        assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
+        assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
+    finally:
+        subprocess.check_output(['docker', 'volume', 'rm', 'gmt-test-volume-delete-me'])
+
+def test_allowed_volume_should_work():
+
+    subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
+
+    try:
+        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_non_bind_mounts.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, allowed_volume_mounts=['gmt-test-volume-delete-me'])
+
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+    finally:
+        subprocess.check_output(['docker', 'volume', 'rm', 'gmt-test-volume-delete-me'])
+
+def test_allowed_volume_fails_bc_readonly():
+
+    subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
+
+    try:
+        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_non_bind_mounts_readonly.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+
+        try:
+            with pytest.raises(RuntimeError) as e:
+                with Tests.RunUntilManager(runner) as context:
+                    context.run_until('setup_services')
+        finally:
+            container_running = Tests.check_if_container_running('test-container')
+
+        expected_error = 'The volume gmt-test-volume-delete-me could not be loaded or found at the specified path.'
+        assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
+        assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
+    finally:
+        subprocess.check_output(['docker', 'volume', 'rm', 'gmt-test-volume-delete-me'])
+
+def test_allowed_volume_readonly_works():
+
+    subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
+
+    try:
+        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_non_bind_mounts_readonly.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, allowed_volume_mounts=['gmt-test-volume-delete-me,readonly'])
+
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+    finally:
+        subprocess.check_output(['docker', 'volume', 'rm', 'gmt-test-volume-delete-me'])
+
 
 def test_load_volume_references():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_references.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)

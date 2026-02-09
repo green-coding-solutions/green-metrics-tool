@@ -10,7 +10,7 @@ services:
     image: gcb_stress
     container_name: test-container
     volumes:
-      - gmt-test-volume-delete-me:/tmp/test-volume
+      - gmt-test-volume-delete-me:/tmp/test-volume:ro
 
 flow:
   - name: Stress

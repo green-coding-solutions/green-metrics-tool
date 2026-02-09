@@ -63,8 +63,8 @@ class ScenarioRunner:
         debug_mode=False, allow_unsafe=False,
         verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
         docker_prune=False, job_id=None, user_id=1,
-        disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None,
-        category_ids=None,
+        disabled_metric_providers=None, allowed_run_args=None, allowed_volume_mounts=None,
+        phase_padding=True, usage_scenario_variables=None, category_ids=None,
 
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
@@ -148,6 +148,7 @@ class ScenarioRunner:
         self._measurement_total_duration = measurement_total_duration
         self._disabled_metric_providers = [] if disabled_metric_providers is None else disabled_metric_providers
         self._allowed_run_args = [] if allowed_run_args is None else allowed_run_args # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
+        self._allowed_volume_mounts = [] if allowed_volume_mounts is None else allowed_volume_mounts
         self._measurement_system_check_threshold = measurement_system_check_threshold
         self._measurement_pre_test_sleep = measurement_pre_test_sleep
         self._measurement_idle_duration = measurement_idle_duration
@@ -1111,9 +1112,9 @@ class ScenarioRunner:
             self.__image_sizes[service['image']] = int(output.strip())
 
         # du -s -b does not work on macOS and also the docker image is in a VM and not accessible with du for us
-        # This call is guarded with --allow-unsafe bc volume information reveals host filesystem paths
-        # and potentially also volumes from other users can be probed through this
-        if not self._skip_volume_inspect and self._allow_unsafe and platform.system() != 'Darwin':
+        # This call was guarded with --allow-unsafe before but since it only shows volume sizes that
+        # the user could mount here is no risk here. The volume could anyway be inspected via du directly
+        if not self._skip_volume_inspect and platform.system() != 'Darwin':
             for volume in self.__usage_scenario.get('volumes', {}):
                 # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
                 try:
@@ -1239,21 +1240,29 @@ class ScenarioRunner:
             # injection of unwawnted params
             docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
 
-            docker_run_string.append('-v')
 
             repo_mount_path = service.get('folder-destination', '/tmp/repo')
+            if ',' in repo_mount_path: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                raise ValueError(f"Repo mount path may not contain commas (,) in the name: {repo_mount_path}")
+
             # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-            docker_run_string.append(f"{self._repo_folder.as_posix()}:{repo_mount_path}:ro")
+            docker_run_string.append('--mount')
+            docker_run_string.append(f"type=bind,source={self._repo_folder.as_posix()},target={repo_mount_path}")
 
             for relation_key, relation in self.__relations.items():
-                docker_run_string.append('-v')
-                docker_run_string.append(f"{relation['mount_path']}:/tmp/relations/{relation_key}:ro")
+                if ',' in relation['mount_path']: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                    raise ValueError(f"Relation mount path may not contain commas (,) in the name: {relation['mount_path']}")
+                if ',' in relation_key: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                    raise ValueError(f"Relation key may not contain commas (,) in the name: {relation_key}")
+
+                docker_run_string.append('--mount')
+                docker_run_string.append(f"type=bind,source={relation['mount_path']},target=/tmp/relations/{relation_key},readonly")
 
             # this is a special feature container with a reserved name.
             # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc == True
             if self.__include_playwright_ipc and container_name == 'gmt-playwright-nodejs':
-                docker_run_string.append('-v')
-                docker_run_string.append(f"{GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc.js:/tmp/gmt-utils/gmt-playwright-ipc.js:ro")
+                docker_run_string.append('--mount')
+                docker_run_string.append(f"type=bind,source={GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc.js,target=/tmp/gmt-utils/gmt-playwright-ipc.js,readonly")
 
             if self.__docker_params:
                 docker_run_string[2:2] = self.__docker_params
@@ -1262,7 +1271,7 @@ class ScenarioRunner:
             if 'volumes' in service:
                 if self._allow_unsafe:
                     for volume in service['volumes']:
-                        docker_run_string.append('-v')
+                        docker_run_string.append('-v') # since the volume can be bind or anonymous we use the more flexible -v syntax here
                         if volume.startswith('./'): # we have a bind-mount with relative path
                             vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
                             path = Path(self.__working_folder, vol[0]).resolve()
@@ -1274,18 +1283,61 @@ class ScenarioRunner:
                 else: # safe volume bindings are active by default
                     for volume in service['volumes']:
                         vol = volume.split(':')
-                        # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
+                        vol_len = len(vol)
+                        # We always assume the format to be ./dir:dir:[flag] as when we would
+                        # allow None bind mounts then people
                         # could create volumes that would linger on our system.
-                        try:
-                            path = self._join_paths(self.__working_folder, vol[0])
-                        except FileNotFoundError as exc:
-                            raise RuntimeError(f"The volume {vol[0]} could not be loaded or found at the specified path.") from exc
-                        if len(vol) == 3:
-                            if vol[2] != 'ro':
-                                raise RuntimeError(f"Service '{service_name}': We only allow ro as parameter in volume mounts in unsafe mode")
 
-                        docker_run_string.append('--mount')
-                        docker_run_string.append(f"type=bind,source={path},target={vol[1]},readonly")
+                        if vol_len < 2 or vol_len > 3:
+                            raise ValueError(f"Volume mount path '{volume}' is malformed should be source:target:MOUNT_OPTION")
+
+                        mount_src = vol[0]
+                        mount_target = vol[1]
+                        mount_option = '' # writeable mount by default. This is safe as it is either in allow list or only in safe paths
+                        if vol_len == 3:
+                            if vol[2] != 'ro' and vol[2] != 'readonly':
+                                raise ValueError(f"Service '{service_name}': We only allow readonly (ro) or no parameter (writeable) for volume mounts. Volume: {volume}")
+                            mount_option = ',readonly'
+
+                        mount_string = f"{mount_src}{mount_option}"
+                        if mount_string in self._allowed_volume_mounts:
+                            if '/' not in mount_src: # volume case. should exist
+                                ps = subprocess.run(
+                                    ["docker", "volume", "inspect", mount_src],
+                                    check=False,
+                                    stdout=subprocess.DEVNULL,
+                                    stderr=subprocess.PIPE,
+                                    encoding='UTF-8',
+                                    errors='replace'
+                                )
+                                if ps.returncode != 0:
+                                    raise RuntimeError(f"Could not find volume '{mount_src}' locally from service: {service_name}. The volume must be created manually before it can be loaded. GMT does not create named volumes. - Error from Docker: {ps.stderr}")
+                                # no comma validation needed as mount is already verified through allow-list
+                                docker_run_string.append('--mount')
+                                docker_run_string.append(f"type=volume,source={mount_src},target={mount_target}{mount_option}")
+
+                            else: # path case. Check path if on machine as -v will create folder otherwise
+                                mount_src_absolute = Path(mount_src).resolve(strict=True)
+                                # no comma validation needed as mount is already verified through allow-list
+                                docker_run_string.append('--mount')
+                                docker_run_string.append(f"type=bind,source={mount_src_absolute},target={mount_target}{mount_option}")
+
+
+                        else:
+                            try:
+                                mount_src_absolute = self._join_paths(self.__working_folder, vol[0])
+                            except FileNotFoundError as exc:
+                                raise RuntimeError(f"The volume {mount_src} could not be loaded or found at the specified path.") from exc
+
+                            if ',' in mount_src_absolute: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                                raise ValueError(f"Mount source path may not contain commas (,) in the name: {mount_src_absolute}")
+                            if ',' in mount_target: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                                raise ValueError(f"Mount target path may not contain commas (,) in the name: {mount_target}")
+                            docker_run_string.append('--mount')
+                            docker_run_string.append(f"type=bind,source={mount_src_absolute},target={mount_target}{mount_option}")
+
+
+
 
             if service.get('init', False):
                 docker_run_string.append('--init')
