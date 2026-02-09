@@ -70,9 +70,10 @@ class ScenarioRunner:
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
         measurement_wait_time_dependencies=60, measurement_flow_process_duration=None, measurement_total_duration=None,
 
-        # These switches may break or skew proper measurements if set
+        # These switches may break or skew proper measurements or make them uncomparable due to missing info
         dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False, dev_no_system_checks=False,
         dev_flow_timetravel=False, dev_stream_outputs=False, dev_cache_repos=False, dev_no_phase_stats=False,
+        dev_no_container_dependency_collection=False,
 
         # These switches do not alter proper measurements, but might result in data not being generated
         skip_volume_inspect=False, skip_download_dependencies=False, skip_unsafe=False,
@@ -101,22 +102,26 @@ class ScenarioRunner:
             self._name = f"Run {datetime.now()}"
         self._debugger = DebugHelper(debug_mode)
         self._allow_unsafe = allow_unsafe
-        self._skip_unsafe = skip_unsafe
-        self._dev_no_system_checks = dev_no_system_checks
-        self._skip_volume_inspect = skip_volume_inspect
-        self._skip_download_dependencies = skip_download_dependencies
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._docker_prune = docker_prune
+
+        self._skip_unsafe = skip_unsafe
+        self._skip_volume_inspect = skip_volume_inspect
+        self._skip_download_dependencies = skip_download_dependencies
+        self._skip_optimizations = skip_optimizations
+        self._dev_no_container_dependency_collection = dev_no_container_dependency_collection
+
         self._dev_no_sleeps = dev_no_sleeps
         self._dev_cache_build = dev_cache_build
         self._dev_no_metrics = dev_no_metrics
         self._dev_flow_timetravel = dev_flow_timetravel
-        self._skip_optimizations = skip_optimizations
         self._dev_no_phase_stats = dev_no_phase_stats
         self._dev_no_save = dev_no_save
         self._dev_stream_outputs = dev_stream_outputs
         self._dev_cache_repos = dev_cache_repos
+        self._dev_no_system_checks = dev_no_system_checks
+
         self._uri = uri
         self._uri_type = uri_type
         self._original_filename = Path(filename)
@@ -1792,6 +1797,12 @@ class ScenarioRunner:
 
     def _collect_container_dependencies(self):
         """Wrapper method to collect container dependencies."""
+        print(TerminalColors.HEADER, '\nCollecting dependency information', TerminalColors.ENDC)
+
+        if self._dev_no_container_dependency_collection:
+            print('Skipping container dependency collection due to --dev-no-container-dependency-collection')
+            return
+
         self._collect_dependency_info()
 
         if self._run_id:
@@ -1807,7 +1818,6 @@ class ScenarioRunner:
             print("No containers available for dependency resolution")
             return
 
-        print(TerminalColors.HEADER, '\nCollecting dependency information', TerminalColors.ENDC)
         container_names = [container_info['name'] for container_info in self.__containers.values()]
 
         # Execute energy-dependency-inspector for all containers in parallel using ThreadPoolExecutor

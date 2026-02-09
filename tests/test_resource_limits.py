@@ -50,7 +50,7 @@ def test_resource_limits_good():
     err = io.StringIO()
 
     run_name = 'test_' + utils.randomword(12)
-    runner = ScenarioRunner(name=run_name, uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_good.yml', skip_unsafe=False, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, skip_download_dependencies=True)
+    runner = ScenarioRunner(name=run_name, uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_good.yml', skip_unsafe=False, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
@@ -97,7 +97,7 @@ def test_resource_limits_good():
 
 
 def test_resource_limits_too_high():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_too_high.yml', skip_unsafe=False, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_too_high.yml', skip_unsafe=False, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
     with pytest.raises(ValueError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -107,7 +107,7 @@ def test_resource_limits_too_high():
 
 
 def test_resource_limits_memory_none():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_memory_none.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_memory_none.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     with pytest.raises(SchemaError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
@@ -115,7 +115,7 @@ def test_resource_limits_memory_none():
     assert "None should be instance of 'str'" in str(e.value)
 
 def test_resource_limits_cpu_none():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_cpu_none.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_cpu_none.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     with pytest.raises(SchemaError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
@@ -124,7 +124,7 @@ def test_resource_limits_cpu_none():
 
 
 def test_resource_limits_disalign_cpu():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_disalign_cpu.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_disalign_cpu.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     with pytest.raises(SchemaError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
@@ -132,7 +132,7 @@ def test_resource_limits_disalign_cpu():
     assert "cpus service top level key and deploy.resources.limits.cpus must be identical" in str(e.value)
 
 def test_resource_limits_disalign_memory():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_disalign_memory.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_disalign_memory.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     with pytest.raises(SchemaError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
@@ -143,7 +143,7 @@ def test_resource_limits_cpuset():
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
     with redirect_stdout(out), redirect_stderr(err), Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -163,7 +163,7 @@ def test_resource_limits_alternate_cpuset():
         resource_limits.get_assignable_memory.cache_clear()
         resource_limits.get_assignable_cpus.cache_clear()
 
-        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
         with redirect_stdout(out), redirect_stderr(err), Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
@@ -182,7 +182,7 @@ def test_resource_limits_shm_good():
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_shm_good.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_shm_good.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
@@ -192,7 +192,7 @@ def test_resource_limits_shm_good():
     assert "15.0M   0% /dev/shm" in out.getvalue()
 
 def test_resource_limits_oom_setup():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_setup.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_setup.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
     with pytest.raises(MemoryError) as e:
         runner.run()
@@ -201,7 +201,7 @@ def test_resource_limits_oom_setup():
 
 
 def test_resource_limits_oom_launch():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_launch.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_launch.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
     with pytest.raises(MemoryError) as e:
         runner.run()
@@ -209,7 +209,7 @@ def test_resource_limits_oom_launch():
     assert str(e.value) == "Container 'test-container' failed during [BOOT] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\nContainer logs:\n\n========== Stdout ==========\n\n\n========== Stderr ==========\n"
 
 def test_resource_limits_oom_exec():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_exec.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_exec.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
     with pytest.raises(MemoryError) as e:
         runner.run()
