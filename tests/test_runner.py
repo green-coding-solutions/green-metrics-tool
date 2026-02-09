@@ -163,7 +163,7 @@ def test_name_is_in_db():
         ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR,
         '--filename', 'tests/data/stress-application/usage_scenario.yml',
         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-        '--dev-no-system-checks', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-sleeps', '--dev-cache-build'
+        '--dev-no-system-checks', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-sleeps', '--dev-cache-build',
         '--skip-optimizations', '--skip-download-dependencies', '--dev-no-container-dependency-collection'],
         check=True,
         stderr=subprocess.PIPE,
@@ -955,7 +955,7 @@ def test_print_logs_integration():
          '--filename', 'tests/data/usage_scenarios/capture_logs.yml',
          '--iterations', '2', '--print-logs',
          '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-         '--dev-no-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save'
+         '--dev-no-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save',
          '--skip-optimizations', '--skip-download-dependencies', '--dev-no-container-dependency-collection'],
         check=True,
         stderr=subprocess.PIPE,
