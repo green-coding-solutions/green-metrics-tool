@@ -3,12 +3,13 @@ import os
 from metric_providers.base import BaseMetricProvider
 
 class CpuTimeProcfsSystemProvider(BaseMetricProvider):
-    def __init__(self, sampling_rate, skip_check=False):
+    def __init__(self, sampling_rate, folder, skip_check=False):
         super().__init__(
             metric_name='cpu_time_procfs_system',
             metrics={'time': int, 'value': int},
             sampling_rate=sampling_rate,
             unit='us',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
-            skip_check = skip_check
+            skip_check = skip_check,
+            folder=folder,
         )

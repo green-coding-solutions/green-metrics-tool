@@ -3,12 +3,12 @@ pandas==3.0.0
 psycopg[binary]==3.3.2
 psycopg_pool==3.3.0
 pyserial==3.5
-psutil==7.2.1
+psutil==7.2.2
 schema==0.7.8
 aiohttp==3.13.3
 energy-dependency-inspector==0.2.1
 
 # calibration script dep
-tqdm==4.67.1
+tqdm==4.67.3
 plotext==5.3.2
 docker==7.1.0

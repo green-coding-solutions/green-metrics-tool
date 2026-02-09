@@ -1,3 +1,6 @@
 flow:
   - name: Stress
     container: test-container
+    commands:
+      - type: console
+        command: echo 1

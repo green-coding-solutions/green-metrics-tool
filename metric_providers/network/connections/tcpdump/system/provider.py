@@ -8,7 +8,7 @@ from metric_providers.base import BaseMetricProvider
 from lib import error_helpers
 
 class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
-    def __init__(self, *_, split_ports=True, skip_check=False):
+    def __init__(self, *, folder, split_ports=True, skip_check=False):
         super().__init__(
             metric_name='network_connections_tcpdump_system',
             metrics={},
@@ -16,7 +16,8 @@ class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
             unit=None,
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='tcpdump.sh',
-            skip_check=skip_check
+            skip_check=skip_check,
+            folder=folder,
         )
         self.split_ports = split_ports
 
@@ -180,7 +181,7 @@ def parse_tcpdump(lines, split_ports=False):
                 continue
             elif not line.strip(): # ignore empty lines
                 continue
-            elif 'ARP, Ethernet' in line: # we ignore ARP for now
+            elif 'ARP, Ethernet' in line or 'ARP, Request who-has' in line: # we ignore ARP for now
                 continue
             elif line.startswith('    ') or line.startswith('\t'): # these are all detail infos for specific control packets. 4-6 indents indicate deep detail infos
                 continue

@@ -208,8 +208,7 @@ def test_compose_include_not_same_dir():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(ValueError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('import_metric_providers')
-    assert str(e.value).startswith('Included compose file "../compose.yml" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore') , \
-        Tests.assertion_info('Root directory escape', str(e.value))
+    assert str(e.value).startswith('Included compose file "../compose.yml" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore')
 
 def test_context_include():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/subdir_parent_context/subdir/usage_scenario_ok.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)

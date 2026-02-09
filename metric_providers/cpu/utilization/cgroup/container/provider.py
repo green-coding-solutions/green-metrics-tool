@@ -3,7 +3,7 @@ import os
 from metric_providers.container import ContainerMetricProvider
 
 class CpuUtilizationCgroupContainerProvider(ContainerMetricProvider):
-    def __init__(self, sampling_rate, skip_check=False, containers: dict = None):
+    def __init__(self, sampling_rate, folder, skip_check=False, containers: dict = None):
         super().__init__(
             metric_name='cpu_utilization_cgroup_container',
             metrics={'time': int, 'value': int, 'container_id': str},
@@ -11,5 +11,6 @@ class CpuUtilizationCgroupContainerProvider(ContainerMetricProvider):
             unit='Ratio',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
             containers=containers,
         )

@@ -5,11 +5,11 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import argparse
-from io import StringIO
 import importlib
 
 from lib.global_config import GlobalConfig
-from lib.db import DB
+from lib import metric_importer
+
 
 config = GlobalConfig().config
 
@@ -44,11 +44,14 @@ if __name__ == '__main__':
     metric_provider_obj._tmp_folder = '/non_existent_folder_which_should_never_be_accessed'
     metric_provider_obj._filename = args.filename
 
+    df = metric_provider_obj.read_metrics()
 
-    df = metric_provider_obj.read_metrics(run_id=args.run_id)
-
-    if df is None or df.shape[0] == 0:
-        print(f"No metrics were able to be imported from: {args.filename}")
-
-    f = StringIO(df.to_csv(index=False, header=False))
-    DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
+    if isinstance(df, list):
+        for i, dfi in enumerate(df):
+            if dfi is None or dfi.shape[0] == 0:
+                print(f"No metrics were able to be imported from: {args.filename}")
+            metric_importer.import_measurements(dfi, metric_provider_obj._sub_metrics_name[i], args.run_id)
+    else:
+        if df is None or df.shape[0] == 0:
+            print(f"No metrics were able to be imported from: {args.filename}")
+        metric_importer.import_measurements(df, metric_provider_obj._metric_name, args.run_id)

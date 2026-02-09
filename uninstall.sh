@@ -18,19 +18,25 @@ deactivate
 
 uninstall_python
 
-rm -fR .
+docker rm -f green-coding-gunicorn-container
+docker rm -f green-coding-nginx-container
+docker rm -f green-coding-postgres-container
+docker rm -f green-coding-redis-container
+docker rmi -f nginx
+docker rmi -f green-metrics-tool-test-test-green-coding-gunicorn
+docker rmi -f green-metrics-tool-green-coding-gunicorn
+docker rmi -f redis:alpine
+docker rmi -f gcr.io/kaniko-project/executor:latest
+docker rmi -f postgres:18
+docker volume rm green-metrics-tool_green-coding-redis-data
+docker volume rm green-metrics-tool_green-coding-shared-sockets
 
-docker rmi nginx
-docker rmi docker-test-green-coding-gunicorn
-docker rmi docker-green-coding-gunicorn
-
-read -p "Do you also want to remove the database and your data? (y/N) : " remove_db
+read -p "Do you also want to remove the database with your data? (y/N) : " remove_db
 if [[  "$remove_db" == "Y" || "$remove_db" == "y" ]] ; then
-    docker rmi postgres:15
-    docker volume rm docker_green-coding-postgres-data
+    docker volume rm green-metrics-tool_green-coding-postgres-data
 fi
 
-docker system prune
+docker system prune --volumes
 
 echo 'Removing sudoers.d entries'
 # autocomplete might not find files and thus throw an error. We want to capture that
@@ -70,3 +76,6 @@ if [[ $(uname) == "Linux" ]]; then
     fi
 fi
 
+current_dir=$(pwd)
+cd ..
+rm -fR $current_dir

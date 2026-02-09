@@ -5,7 +5,7 @@ from metric_providers.base import BaseMetricProvider
 
 
 class PsuEnergyAcGudeMachineProvider(BaseMetricProvider):
-    def __init__(self, sampling_rate, skip_check=False):
+    def __init__(self, sampling_rate, folder, skip_check=False):
         super().__init__(
             metric_name='psu_energy_ac_gude_machine',
             metrics={'time': int, 'value': int},
@@ -13,6 +13,7 @@ class PsuEnergyAcGudeMachineProvider(BaseMetricProvider):
             unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
         )
 
     def start_profiling(self, containers=None):

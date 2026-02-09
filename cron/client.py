@@ -4,12 +4,12 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
-import os
 import re
 import time
 import subprocess
 import json
 import argparse
+from pathlib import Path
 
 from lib.job.base import Job
 from lib.global_config import GlobalConfig
@@ -23,7 +23,7 @@ from lib.configuration_check_error import ConfigurationCheckError, Status
 # We currently have this dynamically as it will probably change quite a bit
 STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_end', 'maintenance_start', 'maintenance_end', 'maintenance_error', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
 
-GMT_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
+GMT_ROOT_DIR = Path(__file__).resolve().parent.parent
 
 def set_status(status_code, data=None, run_id=None):
     if not hasattr(set_status, "last_status"):
@@ -68,8 +68,20 @@ def do_maintenance():
 
     set_status('maintenance_start')
 
+    maintenance_cmd = ['sudo', '/usr/bin/python3', Path(__file__).parent.joinpath('../tools/cluster/maintenance.py').resolve().as_posix()]
+
+    # first we need to determine if an apt update is also necessary. We only want to update once a day
+    now = time.time()
+    if not config['cluster']['client']['update_os_packages']:
+        print('Cluster OS Package updates are disabled. Skipping in maintenance ...')
+    elif (not Path('/var/log/apt/history.log').exists()) or ((now - Path('/var/log/apt/history.log').stat().st_mtime) > 86400):
+        print("history.log is older than 24 hours. Updating OS packages in maintenance")
+        maintenance_cmd.append('--update-os-packages')
+    else:
+        print("history.log is still newer than 24 hours. Skipping OS updates in maintenance ...")
+
     ps = subprocess.run(
-        ['sudo', os.path.join(os.path.dirname(os.path.abspath(__file__)),'../tools/cluster/cleanup.py')],
+        maintenance_cmd,
         check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, # put both in one stream
@@ -78,7 +90,7 @@ def do_maintenance():
     )
     if ps.returncode != 0:
         set_status('maintenance_error')
-        error_helpers.log_error('Cluster cleanup failed', stdout=ps.stdout)
+        error_helpers.log_error('Cluster maintenance failed', stdout=ps.stdout)
         time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
 
     set_status('maintenance_end', data=ps.stdout)
@@ -190,7 +202,7 @@ if __name__ == '__main__':
 
         while True:
 
-            # run forced maintenance with cleanup every 24 hours
+            # run forced maintenance with maintenance every 24 hours
             if not args.testing and last_24h_maintenance < (time.time() - 43200): # every 12 hours
                 must_revalidate_bc_new_packages = do_maintenance()
                 last_24h_maintenance = time.time()
@@ -280,7 +292,7 @@ if __name__ == '__main__':
                             name='Measurement Job on Green Metrics Tool Cluster failed',
                             message=f"Run-ID: {job._run_id}\nName: {job._name}\nMachine: {job._machine_description}\n\nDetails can also be found in the log under: {config['cluster']['metrics_url']}/stats.html?id={job._run_id}\n\nError message: {exc.__context__}\n{exc}\n\nStdout:{exc.stdout if hasattr(exc, 'stdout') else None}\nStderr:{exc.stderr if hasattr(exc, 'stderr') else None}\n"
                         )
-                finally: # run periodic maintenance with cleanup in between every run
+                finally: # run periodic maintenance between every run
                     if not args.testing:
                         must_revalidate_bc_new_packages = do_maintenance() # when new packages are installed, we must revalidate
                         last_24h_maintenance = time.time()

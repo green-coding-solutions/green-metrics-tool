@@ -38,6 +38,8 @@ linux_info_list = [
     [rpwr, 'Uptime', '/usr/bin/uptime', r'(?P<o>.*)'],
     [rfwr, 'Hardware Vendor', '/sys/class/dmi/id/sys_vendor', r'(?P<o>.*)'],
     [rfwr, 'Hardware Model', '/sys/class/dmi/id/product_name', r'(?P<o>.*)'],
+    [rpwr, 'PCI Devices', 'lspci', r'(?P<o>.*)'], # partially duplicate to lshw, but gives more readable output
+    [rpwr, 'Block Devices', 'lsblk', r'(?P<o>.*)'], # partially duplicate to lshw but outputs major and minor number
     [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Images', 'docker images', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
@@ -67,7 +69,7 @@ linux_info_list = [
     [rfwr, 'Virtualization', '/proc/cpuinfo', r'(?P<o>hypervisor)'],
     [rpwrs, 'SGX', f"{os.path.join(CURRENT_PATH, '../tools/sgx_enable')} -s", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rfwr, 'IO Scheduling', '/sys/block/sda/queue/scheduler', r'(?P<o>.*)'],
-    [rpwr, 'Network Interfaces', 'ip addr | grep ether -B 1', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Network Interfaces', 'ip addr', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rfwr, 'Current Clocksource', '/sys/devices/system/clocksource/clocksource0/current_clocksource', r'(?P<o>.*)'],
 
 ]
@@ -95,7 +97,7 @@ mac_info_list = [
     [rpwr, 'Docker Volumes', "docker system df -v --format '{{json .}}' | jq -r '.Volumes[] | \"\\(.Name)\t\\(.Size)\"'", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],
     [rpwr, 'Processes', '/bin/ps -ax', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Network Interfaces', 'ifconfig | grep -E "flags|ether"', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Network Interfaces', 'ifconfig', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
 
 ]
 
