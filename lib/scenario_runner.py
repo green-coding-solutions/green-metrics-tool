@@ -357,7 +357,7 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nChecking out relations', TerminalColors.ENDC)
 
         if 'relations' not in self.__usage_scenario:
-            print(TerminalColors.HEADER, '\nNo relations found. Skipping ...', TerminalColors.ENDC)
+            print('No relations found. Skipping ...')
             return
 
         if not self._dev_cache_repos:
