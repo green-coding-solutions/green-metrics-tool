@@ -71,12 +71,12 @@ class ScenarioRunner:
         measurement_wait_time_dependencies=60, measurement_flow_process_duration=None, measurement_total_duration=None,
 
         # These switches may break or skew proper measurements if set
-        dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
+        dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False, dev_no_system_checks=False,
         dev_flow_timetravel=False, dev_stream_outputs=False, dev_cache_repos=False, dev_no_phase_stats=False,
 
         # These switches do not alter proper measurements, but might result in data not being generated
         skip_volume_inspect=False, skip_download_dependencies=False, skip_unsafe=False,
-        skip_optimizations=False, dev_no_system_checks=False,
+        skip_optimizations=False,
         ):
 
         self._arguments = locals() # safe the argument as first step before anything else to not expose local created variables
