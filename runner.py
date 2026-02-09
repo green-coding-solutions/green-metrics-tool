@@ -28,44 +28,43 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--name', type=str, help='A name which will be stored to the database to discern this run from others')
-
     parser.add_argument('--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory starting  with / or a remote git repository starting with http(s)://')
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
     parser.add_argument('--filename', type=str, action='append', help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported. Duplicate filenames are allowed and will be processed multiple times.')
-
     parser.add_argument('--variable', action='append', help='Variable that will be replaced into the usage_scenario.yml file. Use multiple times for multiple variables.')
     parser.add_argument('--category', action='append', type=int, help='Category to store for this run. Use multiple times for multiple categories.')
-
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
-
     parser.add_argument('--user-id', type=int, default=1, help='A user-ID the run shall be mapped to. Defaults to 1 (the default user)')
     parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
     parser.add_argument('--file-cleanup', action='store_true', help='Delete all temporary files that the runner produced')
     parser.add_argument('--debug', action='store_true', help='Activate steppable debug mode')
     parser.add_argument('--allow-unsafe', action='store_true', help='Activate unsafe volume bindings, ports and complex environment vars')
-    parser.add_argument('--skip-unsafe', action='store_true', help='Skip unsafe volume bindings, ports and complex environment vars')
-    parser.add_argument('--skip-download-dependencies', action='store_true', help='Skip downloading GMT dependencies like Kaniko etc. Useful to speed up runs if your dependencies are up to date')
-    parser.add_argument('--skip-system-checks', action='store_true', help='Skip checking the system if the GMT can run')
-    parser.add_argument('--skip-volume-inspect', action='store_true', help='Disable docker volume inspection. Can help if you encounter permission issues.')
-
     parser.add_argument('--verbose-provider-boot', action='store_true', help='Boot metric providers gradually')
     parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
     parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
     parser.add_argument('--no-phase-padding', action='store_true', help='Do not add paddings to phase end to capture incomplete last sampling interval.')
+    parser.add_argument('--iterations', type=int, default=1, help='Specify how many times each scenario should be run. Default is 1. With multiple files, all files are processed sequentially, then the entire sequence is repeated N times. Example: with files A.yml, B.yml and --iterations 2, the execution order is A, B, A, B.')
+
+    # These switches do not alter proper measurements, but might result in data not being generated
+    parser.add_argument('--skip-unsafe', action='store_true', help='Skip unsafe volume bindings, ports and complex environment vars')
+    parser.add_argument('--skip-download-dependencies', action='store_true', help='Skip downloading GMT dependencies like Kaniko etc. Useful to speed up runs if your dependencies are up to date')
+    parser.add_argument('--skip-volume-inspect', action='store_true', help='Disable docker volume inspection. Can help if you encounter permission issues.')
+    parser.add_argument('--skip-optimizations', action='store_true', help='Skip analysis after run to find possible optimizations.')
+
+    # These switches may break or skew proper measurements if set
+    parser.add_argument('--dev-no-system-checks', action='store_true', help='Do not check the system if the GMT can run properly')
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
     parser.add_argument('--dev-no-phase-stats', action='store_true', help='Do not calculate phase stats.')
     parser.add_argument('--dev-cache-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
-    parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
-    parser.add_argument('--dev-no-save', action='store_true', help='Will save no data to the DB. This implicitly activates --dev-no-phase-stats, --dev-no-metrics and --dev-no-optimizations')
+    parser.add_argument('--dev-no-save', action='store_true', help='Will save no data to the DB. This implicitly activates --dev-no-phase-stats, --dev-no-metrics and --skip-optimizations')
     parser.add_argument('--dev-stream-outputs', action='store_true', help='Stream the output of the container build and the called processes in flows and setup-commands to the terminal. Note that this disallows capturing of errors and build outputs in logs and error messages.')
     parser.add_argument('--dev-cache-repos', action='store_true', help='Do not clone repository and relations again but use the one already present on disk.')
 
+    # Output settings
     parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
-    parser.add_argument('--iterations', type=int, default=1, help='Specify how many times each scenario should be run. Default is 1. With multiple files, all files are processed sequentially, then the entire sequence is repeated N times. Example: with files A.yml, B.yml and --iterations 2, the execution order is A, B, A, B.')
-
 
     # Measurement settings
     parser.add_argument('--measurement-system-check-threshold', type=int, default=3, help='System check threshold when to issue warning and when to fail. When set on 3 runs will fail only on erros, when 2 then also on warnings and 1 also on pure info statements. Can be 1=INFO, 2=WARN or 3=ERROR')
@@ -159,16 +158,12 @@ if __name__ == '__main__':
     # Create ScenarioRunner once and reuse it for all files
     runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filenames[0],
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
-                    skip_system_checks=args.skip_system_checks, skip_download_dependencies=args.skip_download_dependencies,
-                    skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
-                    full_docker_prune=args.full_docker_prune,
-                    dev_no_sleeps=args.dev_no_sleeps, dev_stream_outputs=args.dev_stream_outputs, dev_cache_repos=args.dev_cache_repos,
-                    dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics, dev_no_save=args.dev_no_save,
-                    dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
-                    docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
-                    skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder,
+                    full_docker_prune=args.full_docker_prune, docker_prune=args.docker_prune,
+                    verbose_provider_boot=args.verbose_provider_boot,
+                    user_id=args.user_id, commit_hash_folder=args.commit_hash_folder,
                     usage_scenario_variables=variables_dict, category_ids=args.category,
                     phase_padding=not args.no_phase_padding,
+
                     measurement_system_check_threshold=args.measurement_system_check_threshold,
                     measurement_pre_test_sleep=args.measurement_pre_test_sleep,
                     measurement_idle_duration=args.measurement_idle_duration,
@@ -178,6 +173,17 @@ if __name__ == '__main__':
                     measurement_wait_time_dependencies=args.measurement_wait_time_dependencies,
                     measurement_flow_process_duration=args.measurement_flow_process_duration,
                     measurement_total_duration=args.measurement_total_duration,
+
+                    # These switches do not alter proper measurements, but might result in data not being generated
+                    skip_download_dependencies=args.skip_download_dependencies, skip_optimizations=args.skip_optimizations,
+                    skip_unsafe=args.skip_unsafe, skip_volume_inspect=args.skip_volume_inspect,
+
+                    # These switches may break or skew proper measurements if set
+                    dev_no_sleeps=args.dev_no_sleeps, dev_stream_outputs=args.dev_stream_outputs, dev_cache_repos=args.dev_cache_repos,
+                    dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics, dev_no_save=args.dev_no_save,
+                    dev_flow_timetravel=args.dev_flow_timetravel, dev_no_system_checks=args.dev_no_system_checks,
+                    dev_no_phase_stats=args.dev_no_phase_stats,
+
                     #disabled_metric_providers # this is intentionally not supported as the user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
                     #allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] # this is intentionally not supported as the user can just enter --allow-unsafe in CLI mode and using another args="+" for parsing CLI is flaky
                     )
@@ -197,7 +203,7 @@ if __name__ == '__main__':
             # From a user perspective it makes perfect sense to run both jobs directly after each other
             # In a cloud setup it however makes sense to free the measurement machine as soon as possible
             # So this code should be individually callable, separate from the runner
-            if not runner._dev_no_optimizations and not runner._dev_no_save:
+            if not runner._skip_optimizations and not runner._dev_no_save:
                 import optimization_providers.base  # We need to import this here as we need the correct config file
                 print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
                 optimization_providers.base.import_reporters()

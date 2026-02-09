@@ -17,7 +17,7 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_save=True
@@ -58,7 +58,7 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_save=True
@@ -79,7 +79,7 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_save=True
@@ -124,7 +124,7 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_save=True
@@ -159,7 +159,7 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_save=True
@@ -179,7 +179,7 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
@@ -202,12 +202,12 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_optimizations=True
         )
 
         # Mock successful dependency collection
@@ -240,12 +240,12 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_optimizations=True
         )
 
         # Mock failed dependency collection that raises exception
@@ -263,12 +263,12 @@ class TestDependencyCollection:
             uri_type='folder',
             filename='tests/data/usage_scenarios/dependency_collection.yml',
             skip_unsafe=True,
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_optimizations=True
         )
 
         run_id = runner.run()
@@ -344,12 +344,12 @@ class TestDependencyCollection:
             uri_type='folder',
             filename='tests/data/web-application/usage_scenario.yml',
             skip_unsafe=True,
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_optimizations=True
         )
 
         run_id = runner.run()
