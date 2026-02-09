@@ -45,7 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('--no-phase-padding', action='store_true', help='Do not add paddings to phase end to capture incomplete last sampling interval.')
     parser.add_argument('--iterations', type=int, default=1, help='Specify how many times each scenario should be run. Default is 1. With multiple files, all files are processed sequentially, then the entire sequence is repeated N times. Example: with files A.yml, B.yml and --iterations 2, the execution order is A, B, A, B.')
 
-    # These switches do not alter proper measurements, but might result in data not being generateda
+    # These switches do not alter proper measurements, but might result in data not being generated
     parser.add_argument('--skip-unsafe', action='store_true', help='Skip unsafe volume bindings, ports and complex environment vars')
     parser.add_argument('--skip-download-dependencies', action='store_true', help='Skip downloading GMT dependencies like Kaniko etc. Useful to speed up runs if your dependencies are up to date')
     parser.add_argument('--skip-volume-inspect', action='store_true', help='Disable docker volume inspection. Can help if you encounter permission issues.')
