@@ -37,7 +37,7 @@ def setup_module():
     global run_id #pylint: disable=global-statement
     GMT_METRICS_DIR.mkdir(parents=True, exist_ok=True) # might be deleted depending on which tests run before
 
-    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/metric_providers_data.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/metric_providers_data.yml', dev_no_system_checks=True, dev_no_metrics=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_sleeps=True, dev_cache_build=True)
 
     subprocess.run('sync', check=True) # we sync here so that we can later more granular check for written file size
 

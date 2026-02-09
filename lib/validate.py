@@ -84,7 +84,7 @@ def run_workload(name, uri, filename, branch):
         filename=filename,
         branch=branch,
         skip_unsafe=True,
-        skip_system_checks=False,
+        dev_no_system_checks=False,
         full_docker_prune=config['cluster']['client']['full_docker_prune'],
         docker_prune=config['cluster']['client']['docker_prune'],
         job_id=None,

@@ -33,7 +33,7 @@ class PowermetricsProvider(BaseMetricProvider):
         if self._pm_process_count > 0:
             raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\n'
                                                    'Please close it before running the Green Metrics Tool.\n'
-                                                   'You can also override this with --skip-system-checks\n')
+                                                   'You can also override this with --dev-no-system-checks\n')
 
     def powermetrics_total_count(self):
         cmd = ['pgrep', '-ix', 'powermetrics']

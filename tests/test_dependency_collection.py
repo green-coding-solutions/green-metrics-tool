@@ -17,10 +17,12 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock successful energy-dependency-inspector response
@@ -58,10 +60,12 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         with patch('lib.scenario_runner.resolve_docker_dependencies_as_dict') as mock_resolver:
@@ -79,10 +83,12 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock container data
@@ -124,10 +130,12 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock container data
@@ -159,10 +167,12 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # No containers
@@ -179,11 +189,13 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock the dependency collection method
@@ -202,12 +214,13 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock successful dependency collection
@@ -240,12 +253,13 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock failed dependency collection that raises exception
@@ -263,12 +277,13 @@ class TestDependencyCollection:
             uri_type='folder',
             filename='tests/data/usage_scenarios/dependency_collection.yml',
             skip_unsafe=True,
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         run_id = runner.run()
@@ -344,12 +359,13 @@ class TestDependencyCollection:
             uri_type='folder',
             filename='tests/data/web-application/usage_scenario.yml',
             skip_unsafe=True,
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         run_id = runner.run()
