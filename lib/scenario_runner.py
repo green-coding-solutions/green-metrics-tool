@@ -70,13 +70,14 @@ class ScenarioRunner:
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
         measurement_wait_time_dependencies=60, measurement_flow_process_duration=None, measurement_total_duration=None,
 
-        # These switches may break or skew proper measurements if set
+        # These switches may break or skew proper measurements or make them uncomparable due to missing info
         dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False, dev_no_system_checks=False,
         dev_flow_timetravel=False, dev_stream_outputs=False, dev_cache_repos=False, dev_no_phase_stats=False,
+        dev_no_container_dependency_collection=False,
 
         # These switches do not alter proper measurements, but might result in data not being generated
         skip_volume_inspect=False, skip_download_dependencies=False, skip_unsafe=False,
-        skip_optimizations=False, skip_container_dependency_collection=False,
+        skip_optimizations=False,
         ):
 
         self._arguments = locals() # safe the argument as first step before anything else to not expose local created variables
@@ -109,7 +110,7 @@ class ScenarioRunner:
         self._skip_volume_inspect = skip_volume_inspect
         self._skip_download_dependencies = skip_download_dependencies
         self._skip_optimizations = skip_optimizations
-        self._skip_container_dependency_collection = skip_container_dependency_collection
+        self._dev_no_container_dependency_collection = dev_no_container_dependency_collection
 
         self._dev_no_sleeps = dev_no_sleeps
         self._dev_cache_build = dev_cache_build
@@ -1798,8 +1799,8 @@ class ScenarioRunner:
         """Wrapper method to collect container dependencies."""
         print(TerminalColors.HEADER, '\nCollecting dependency information', TerminalColors.ENDC)
 
-        if self._skip_container_dependency_collection:
-            print('Skipping container dependency collection due to --skip-container-dependency-collection')
+        if self._dev_no_container_dependency_collection:
+            print('Skipping container dependency collection due to --dev-no-container-dependency-collection')
             return
 
         self._collect_dependency_info()

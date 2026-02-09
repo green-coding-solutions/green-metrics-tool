@@ -20,7 +20,9 @@ class TestDependencyCollection:
             dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock successful energy-dependency-inspector response
@@ -61,7 +63,9 @@ class TestDependencyCollection:
             dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         with patch('lib.scenario_runner.resolve_docker_dependencies_as_dict') as mock_resolver:
@@ -82,7 +86,9 @@ class TestDependencyCollection:
             dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock container data
@@ -127,7 +133,9 @@ class TestDependencyCollection:
             dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock container data
@@ -162,7 +170,9 @@ class TestDependencyCollection:
             dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # No containers
@@ -183,7 +193,9 @@ class TestDependencyCollection:
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock the dependency collection method
@@ -207,7 +219,8 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            skip_optimizations=True
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock successful dependency collection
@@ -245,7 +258,8 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            skip_optimizations=True
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock failed dependency collection that raises exception
@@ -268,7 +282,8 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            skip_optimizations=True
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         run_id = runner.run()
@@ -349,7 +364,8 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            skip_optimizations=True
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         run_id = runner.run()

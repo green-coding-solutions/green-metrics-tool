@@ -45,14 +45,13 @@ if __name__ == '__main__':
     parser.add_argument('--no-phase-padding', action='store_true', help='Do not add paddings to phase end to capture incomplete last sampling interval.')
     parser.add_argument('--iterations', type=int, default=1, help='Specify how many times each scenario should be run. Default is 1. With multiple files, all files are processed sequentially, then the entire sequence is repeated N times. Example: with files A.yml, B.yml and --iterations 2, the execution order is A, B, A, B.')
 
-    # These switches do not alter proper measurements, but might result in data not being generated
+    # These switches do not alter proper measurements, but might result in data not being generateda
     parser.add_argument('--skip-unsafe', action='store_true', help='Skip unsafe volume bindings, ports and complex environment vars')
     parser.add_argument('--skip-download-dependencies', action='store_true', help='Skip downloading GMT dependencies like Kaniko etc. Useful to speed up runs if your dependencies are up to date')
     parser.add_argument('--skip-volume-inspect', action='store_true', help='Disable docker volume inspection. Can help if you encounter permission issues.')
     parser.add_argument('--skip-optimizations', action='store_true', help='Skip analysis after run to find possible optimizations.')
-    parser.add_argument('--skip-container-dependency-collection', action='store_true', help='Skip collection of container dependencies')
 
-    # These switches may break or skew proper measurements if set
+    # These switches may break or skew proper measurements or make them uncomparable due to missing info
     parser.add_argument('--dev-no-system-checks', action='store_true', help='Do not check the system if the GMT can run properly')
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
@@ -62,6 +61,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-no-save', action='store_true', help='Will save no data to the DB. This implicitly activates --dev-no-phase-stats, --dev-no-metrics and --skip-optimizations')
     parser.add_argument('--dev-stream-outputs', action='store_true', help='Stream the output of the container build and the called processes in flows and setup-commands to the terminal. Note that this disallows capturing of errors and build outputs in logs and error messages.')
     parser.add_argument('--dev-cache-repos', action='store_true', help='Do not clone repository and relations again but use the one already present on disk.')
+    parser.add_argument('--dev-no-container-dependency-collection', action='store_true', help='Do not collect dependency information of started containers')
 
     # Output settings
     parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
@@ -178,13 +178,12 @@ if __name__ == '__main__':
                     # These switches do not alter proper measurements, but might result in data not being generated
                     skip_download_dependencies=args.skip_download_dependencies, skip_optimizations=args.skip_optimizations,
                     skip_unsafe=args.skip_unsafe, skip_volume_inspect=args.skip_volume_inspect,
-                    skip_container_dependency_collection=args.skip_container_dependency_collection,
 
                     # These switches may break or skew proper measurements if set
                     dev_no_sleeps=args.dev_no_sleeps, dev_stream_outputs=args.dev_stream_outputs, dev_cache_repos=args.dev_cache_repos,
                     dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics, dev_no_save=args.dev_no_save,
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_system_checks=args.dev_no_system_checks,
-                    dev_no_phase_stats=args.dev_no_phase_stats,
+                    dev_no_phase_stats=args.dev_no_phase_stats, dev_no_container_dependency_collection=args.dev_no_container_dependency_collection,
 
                     #disabled_metric_providers # this is intentionally not supported as the user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
                     #allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] # this is intentionally not supported as the user can just enter --allow-unsafe in CLI mode and using another args="+" for parsing CLI is flaky
