@@ -59,82 +59,62 @@ function check_python_version() {
 }
 
 function check_file_permissions() {
-    local file=$1
+    local path=$1
 
-    if [ ! -e "$file" ]; then
-        echo "File '$file' does not exist."
+    echo "Checking security of $path"
+
+    if [ ! -e "$path" ]; then
+        echo "Path '$path' does not exist."
         return 1
     fi
 
-    if [ -L "$file" ]; then
-        echo "File '$file' is a symbolic link. This is not allowed."
+    if [ -L "$path" ]; then
+        echo "Path '$path' is a symbolic link. This is not allowed."
         return 1
     fi
 
     # Determine stat commands based on OS
-    local owner file_mode dir_owner dir_mode
-    local dir=$(dirname "$file")
+    local path_owner path_mode
 
     if [[ $(uname) == "Darwin" ]]; then
-        if ls -lde "$file" | grep -q " 0:"; then
-            echo "File '$file' has an ACL. Unsafe!"
-            return 1
-        fi
-        if ls -lde "$dir" | grep -q " 0:"; then
-            echo "Directory '$dir' has an ACL. Unsafe!"
-            return 1
-        fi
-        # Numeric mode
-        owner=$(stat -f %Su "$file")
-        file_mode=$(stat -f %Lp "$file")   # outputs octal like 100400
-        dir_owner=$(stat -f %Su "$dir")
-        dir_mode=$(stat -f %Lp "$dir")     # outputs octal like 40755
-    else
-        owner=$(stat -c %U "$file")
-        file_mode=$(stat -c %a "$file")       # numeric mode, e.g., 400
-        dir_owner=$(stat -c %U "$dir")
-        dir_mode=$(stat -c %a "$dir")         # numeric mode, e.g., 755
-        # Check ACLs
-        if getfacl -c "$file" 2>/dev/null | awk '!/^#|^user::|^group::|^other::/' | grep -q; then
-            echo "File '$file' has an ACL. Unsafe!"
-            return 1
-        fi
-        if getfacl -c "$dir" 2>/dev/null | awk '!/^#|^user::|^group::|^other::/' | grep -q; then
-            echo "Directory '$dir' has an ACL. Unsafe!"
+        if ls -lde "$path" | grep -q '^.\{10\}\+ '; then
+            echo "Path '$path' has an ACL. Unsafe!"
             return 1
         fi
 
+        # Numeric mode
+        path_owner=$(stat -f %Su "$path")
+        path_mode=$(stat -f %Lp "$path")   # outputs octal like 100400
+    else
+        path_owner=$(stat -c %U "$path")
+        path_mode=$(stat -c %a "$path")       # numeric mode, e.g., 400
+        # Check ACLs
+        if getfacl -c "$path" 2>/dev/null | awk '!/^#|^user::|^group::|^other::/' | grep -q; then
+            echo "Path '$path' has an ACL. Unsafe!"
+            return 1
+        fi
     fi
 
     # Check ownership
-    if [[ "$owner" != "root" ]]; then
-        echo "File '$file' is not owned by root."
-        return 1
-    fi
-    if [[ "$dir_owner" != "root" ]]; then
-        echo "Parent directory '$dir' is not owned by root."
+    if [[ "$path_owner" != "root" ]]; then
+        echo "Path '$path' is not owned by root."
         return 1
     fi
 
-    local file_perm_numeric=$((10#${file_mode: -3}))  # last 3 digits
-    local file_group=$(( (file_perm_numeric / 10 % 10) ))
-    local file_other=$(( file_perm_numeric % 10 ))
+    local path_perm_numeric=$((10#${path_mode: -3}))  # last 3 digits
+    local path_group=$(( (path_perm_numeric / 10 % 10) ))
+    local path_other=$(( path_perm_numeric % 10 ))
 
-    if (( file_group & 2 )) || (( file_other & 2 )); then
-        echo "File '$file' is writable by group or others. Unsafe!"
-        return 1
-    fi
-    # Check directory permissions: group/others must NOT have write (0x2 in octal)
-    local dir_perm_numeric=$((10#${dir_mode: -3}))
-    local dir_group=$(( (dir_perm_numeric / 10 % 10) ))
-    local dir_other=$(( dir_perm_numeric % 10 ))
-
-    if (( dir_group & 2 )) || (( dir_other & 2 )); then
-        echo "Parent directory '$dir' is writable by group or others. Unsafe!"
+    if (( path_group & 2 )) || (( path_other & 2 )); then
+        echo "Path '$path' is writable by group or others. Unsafe!"
         return 1
     fi
 
-    echo "File '$file' and its parent directory are secure."
+    if [[ "$path" != "/" ]]; then
+        local path_parent="$(dirname "$path")" # we do not resolve as we want to check every step for a symlink
+        check_file_permissions "$path_parent" || return 1
+    fi
+
     return 0
 }
 
