@@ -40,6 +40,7 @@ ask_ping=true
 force_send_ping=false
 install_nvidia_toolkit_headers=false
 ee_branch=''
+ask_elephant=true
 
 function print_message {
     echo ""
@@ -447,6 +448,11 @@ while [[ $# -gt 0 ]]; do
             elephant_url="$2"
             shift 2
             ;;
+        --no-elephant)
+            ask_elephant=false
+            shift
+            ;;
+
         -p)
             check_optarg 'p' "${2:-}"
             db_pw="$2"
@@ -658,14 +664,16 @@ if [[ -z $metrics_url ]] ; then
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
 fi
 
-if [[ -z $elephant_url ]] ; then
-    echo ""
-    read -p "Use the Elephant Carbon Service? (y/N) : " use_elephant_service
-    if [[  "$use_elephant_service" == "Y" || "$use_elephant_service" == "y" ]] ; then
-        read -p "Please enter the Elephant Carbon Service URL (default: http://elephant.green-coding.internal:8085): " elephant_url
-        elephant_url=${elephant_url:-"http://elephant.green-coding.internal:8085"}
-    else
-        elephant_url=''
+if [[ $ask_elephant == true ]]; then
+    if [[ -z $elephant_url ]] ; then
+        echo ""
+        read -p "Use the Elephant Carbon Service? (y/N) : " use_elephant_service
+        if [[  "$use_elephant_service" == "Y" || "$use_elephant_service" == "y" ]] ; then
+            read -p "Please enter the Elephant Carbon Service URL (default: http://elephant.green-coding.internal:8085): " elephant_url
+            elephant_url=${elephant_url:-"http://elephant.green-coding.internal:8085"}
+        else
+            elephant_url=''
+        fi
     fi
 fi
 

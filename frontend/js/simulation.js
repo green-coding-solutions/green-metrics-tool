@@ -5,15 +5,17 @@ const MINI_CHART_COLORS = {
 };
 const PROVIDER_HISTORY_PAST_HOURS = 24;
 const PROVIDER_HISTORY_FUTURE_HOURS = 12;
-const METRIC_SHIFT_STEP_MS = 10 * 60 * 1000;
-const METRIC_SIMULATION_SHIFT_STEP_MS = 1 * 60 * 1000;
+const METRIC_SHIFT_STEP_MS = 10 * 60 * 1000; // 10 minutes
+const METRIC_SIMULATION_SHIFT_STEP_MS = 1 * 60 * 1000; // 1 minute
 
-const SIMULATION_DEBUG = true;
+const SIMULATION_DEBUG = false;
 const query = (selector) => document.querySelector(selector);
 const setTextContent = (selector, value) => {
     const element = query(selector);
     if (element) {
         element.textContent = value;
+    }else{
+        logSimulationDebug(`Element not found for selector: ${selector}`);
     }
 };
 
@@ -21,7 +23,10 @@ const bindClick = (selector, handler) => {
     const element = query(selector);
     if (element) {
         element.addEventListener('click', handler);
+    }else{
+        logSimulationDebug(`Element not found for selector: ${selector}`);
     }
+
 };
 
 const setButtonDisabledState = (button, disabled) => {
@@ -500,7 +505,7 @@ const buildEnergyMetricOptions = (measurements) => {
         return psuMetrics;
     }
 
-    return metrics.filter((metric) => metric.includes('energy'));
+    return metrics.filter((metric) => metric.includes('_energy_'));
 };
 
 const getDefaultMetric = (metrics) => {
@@ -518,7 +523,7 @@ const buildEnergyData = (measurements, metric) => {
 
     measurements.forEach((entry) => {
         if (entry?.[2] !== metric) return;
-        const detail = entry?.[0] || '[MACHINE]';
+        const detail = entry?.[0];
         const timeMs = entry[1] / 1000;
         let value = entry[3];
         let valueUnit = entry[4];

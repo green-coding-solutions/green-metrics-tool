@@ -73,10 +73,7 @@ class CO2Tangible extends HTMLElement {
 customElements.define('co2-tangible', CO2Tangible);
 
 const getElephantServiceUrl = () => {
-    if (typeof ELEPHANT_URL === 'string' && ELEPHANT_URL.trim() !== '') {
-        return ELEPHANT_URL.trim();
-    }
-    return '';
+    return typeof ELEPHANT_URL === 'string' ? ELEPHANT_URL.trim() : ''
 };
 
 const fetchAndFillRunData = async (url_params) => {
@@ -798,7 +795,7 @@ const fetchAndFillPhaseStatsData = async (url_params) => {
         }
       });
     });
-    
+
     renderCompareChartsForPhase(phase_stats.data, getAndShowPhase());
     displayTotalChart(...buildTotalChartData(phase_stats.data));
 
