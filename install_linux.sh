@@ -85,11 +85,12 @@ if [[ $activate_scenario_runner == true ]] ; then
     echo "${USER} ALL=(ALL) NOPASSWD:/usr/sbin/sysctl -w vm.drop_caches=3" | sudo tee /etc/sudoers.d/green-coding-drop-caches
     sudo chmod 500 /etc/sudoers.d/green-coding-drop-caches
 
-    print_message "Setting the cluster cleanup.sh file to be owned by root"
-    sudo cp -f $PWD/tools/cluster/cleanup_original.py $PWD/tools/cluster/cleanup.py
-    sudo chown root:root $PWD/tools/cluster/cleanup.py
-    sudo chmod 755 $PWD/tools/cluster/cleanup.py
-    sudo chmod +x $PWD/tools/cluster/cleanup.py
+    print_message "Setting the cluster maintenance.py file to be owned by root"
+    check_file_permissions "/usr/bin/python3" # since it will be called later with this interpreter, we need to check if that is ok
+    # we do not expose this sudoers entry here as it is only for cluster mode. Thus we want to reduce possible attack surface in case of bugs
+    sudo cp -f $PWD/tools/cluster/maintenance_original.py $PWD/tools/cluster/maintenance.py
+    sudo chown root:root $PWD/tools/cluster/maintenance.py
+    sudo chmod 755 $PWD/tools/cluster/maintenance.py
 
     if [[ $install_msr_tools == true ]] ; then
         print_message "Installing msr-tools"

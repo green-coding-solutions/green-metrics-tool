@@ -22,7 +22,7 @@ metric-provider-binary
 static-binary
 .pytest_cache
 /lib/hardware_info_root.py
-/tools/cluster/cleanup.py
+/tools/cluster/maintenance.py
 /node_modules/
 /lib/c/*.o
 /tools/backup

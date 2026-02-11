@@ -22,8 +22,8 @@ static struct timespec offset;
 static void output_get_disk_procfs() {
     unsigned long long int sectors_read = 0;
     unsigned long long int sectors_written = 0;
-    int minor_number;
-    int major_number;
+    unsigned int major_number;
+    unsigned int minor_number;
     char device_name[16];
     int match_result = 0;
     char buf[1024];
@@ -50,7 +50,7 @@ static void output_get_disk_procfs() {
         // 2    Floppy disk controller
         // 3    IDE hard disks (primary controller)
         // 7    Loopback devices (e.g., /dev/loop0)
-        // 8    SCSI disks (including SATA and NVMe drives)
+        // 8    SCSI disks (including SATA and network storage via ISCSI)
         // 9    Metadisk (RAID systems)
         // 11    SCSI CD-ROM (e.g., /dev/sr0)
         // 13    Input devices (e.g., /dev/input/event*)
@@ -58,11 +58,26 @@ static void output_get_disk_procfs() {
         // 22    ESDI hard disks
         // 29    Network block devices (e.g., /dev/nbd)
         // 36    Accelerated Graphics Port (AGP)
+        // 43    Network Block Device (also used in macOS Docker VM)
         // 89    iSCSI devices
         // 116    ALSA (Advanced Linux Sound Architecture)
         // 180    USB devices
         // 202    Xen virtual block devices
-        // 254    Device-mapper (e.g., LVM, cryptsetup)
+        // 251-254 Static Device-mapper (e.g., LVM, cryptsetup)
+        // 259 NVME
+        // 260–300 Dynamic block mappers (Zoned devices, NVME alternatives)
+
+        // => If this code runs into trouble in the future we might need to migrate to a better detection mechanism
+        // However lsblk -o NAME,MAJ:MIN,TYPE is not too helpful, as the type is not useful to use
+        // (resolves to sysfs virtual / physical classification)
+        // but especially the dynamic device block mapper might contain unknown disk we want to track or exclude
+        // we will touch this when errors are reported :)
+
+        ///////////////////// Guideline ///////////////////////////
+        // This code should only detect non-partitions and only the main disk, as this is where data is effectively stored
+        // This includes network storage as well (as in the end a physical disk is somewhere) - Thus the physical / virtual
+        // distinciton of the sysfs is not too helpful for us.
+        // Disk that reside in memory though should NOT be detected as this is already covered by the memory provider
 
         if (
             major_number == 1 || // 1    Memory devices (e.g., /dev/mem, /dev/null)
@@ -70,12 +85,16 @@ static void output_get_disk_procfs() {
             major_number == 7 || // 7    Loopback devices (e.g., /dev/loop0)
             major_number == 11 || // 11    SCSI CD-ROM (e.g., /dev/sr0)
             major_number == 116 || // 116    ALSA (Advanced Linux Sound Architecture)
-            major_number == 202 // 202    Xen virtual block devices
+            major_number == 202 || // 202    Xen virtual block devices
+            major_number == 251 || // Device Mapper
+            major_number == 252 || // Device Mapper
+            major_number == 253 || // Device Mapper
+            major_number == 254 // Device Mapper
         ) {
             continue;
         }
 
-        if (minor_number % 16 != 0) {
+        if (is_partition_sysfs(major_number, minor_number)) {
             continue; // we skip when we have found a non root level device (aka partition)
         }
 

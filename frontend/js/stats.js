@@ -170,26 +170,7 @@ const fetchAndFillRunData = async (url_params) => {
         } else if(item == 'failed' && run_data[item] == true) {
             const failedContainer = document.querySelector('#run-failed');
             failedContainer.classList.remove('hidden');
-            const rerunButton = document.createElement('button');
-            rerunButton.className = 'ui tiny primary button';
-            rerunButton.textContent = 'Re Submit';
-            rerunButton.style.marginLeft = '1em';
 
-            rerunButton.addEventListener('click', () => {
-                const params = new URLSearchParams();
-                if (run_data.name) params.set('name', run_data.name);
-                if (run_data.uri) params.set('repo_url', run_data.uri);
-                if (run_data.filename) params.set('filename', run_data.filename);
-                if (run_data.branch) params.set('branch', run_data.branch);
-                if (run_data.machine_id) params.set('machine_id', run_data.machine_id);
-                if (run_data.schedule_mode) params.set('schedule_mode', run_data.schedule_mode);
-                if (run_data.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
-                    params.set('usage_scenario_variables', JSON.stringify(run_data.usage_scenario_variables));
-                }
-                
-                window.open(`request.html?${params.toString()}`, '_blank');
-            });
-            failedContainer.appendChild(rerunButton);
         } else if(item == 'start_measurement' || item == 'end_measurement') {
             run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item] / 1e3)}</td></tr>`)
         } else if(item == 'created_at' ) {
@@ -298,6 +279,22 @@ const fetchAndFillRunData = async (url_params) => {
         }
         showNotification('Note saved!', '', 'success')
     });
+
+    document.querySelectorAll('.re-submit-run').forEach(el => {
+        el.addEventListener('click', () => {
+            const params = new URLSearchParams();
+            if (run_data.name) params.set('name', run_data.name);
+            if (run_data.uri) params.set('repo_url', run_data.uri);
+            if (run_data.filename) params.set('filename', run_data.filename);
+            if (run_data.branch) params.set('branch', run_data.branch);
+            if (run_data.machine_id) params.set('machine_id', run_data.machine_id);
+            if (run_data.schedule_mode) params.set('schedule_mode', run_data.schedule_mode);
+            if (run_data.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
+                params.set('usage_scenario_variables', JSON.stringify(run_data.usage_scenario_variables));
+            }
+            window.open(`request.html?${params.toString()}`, '_blank');
+        });
+    })
 
     // create new custom field
     // timestamp is in microseconds, therefore divide by 10**6
@@ -744,7 +741,7 @@ const renderBadges = async (url_params, phase_stats) => {
                 </a>
                 <a class="copy-badge"><i class="copy icon"></i></a>
                 <div class="ui left pointing blue basic label">
-                    ${escapeString(METRIC_MAPPINGS[metric_name]['explanation'])}
+                    ${escapeString(METRIC_MAPPINGS[metric_name]?.['explanation'])}
                 </div>
                 <hr class="ui divider"></hr>
             </div>`;
@@ -775,6 +772,21 @@ const fetchAndFillPhaseStatsData = async (url_params) => {
         })
     );
 
+    document.querySelectorAll('.ui.steps.phases .step, #runtime-sub-phases .item').forEach(node => { node.addEventListener('click', event => {
+        const activeTab = localStorage.getItem('activeMetricTab');
+        const tabName = node.getAttribute('data-tab');
+        const segment = document.querySelector('.ui.attached.tab.segment[data-tab="' + tabName + '"]');
+
+        if (!segment) return;
+
+        const tabs = $(segment).find('.ui.pointing.menu .item');
+
+        if (activeTab) {
+            tabs.tab('change tab', activeTab);
+        }
+      });
+    });
+    
     renderCompareChartsForPhase(phase_stats.data, getAndShowPhase());
     displayTotalChart(...buildTotalChartData(phase_stats.data));
 

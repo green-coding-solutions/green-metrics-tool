@@ -2,8 +2,10 @@ import os
 import tempfile
 import psutil
 import subprocess
+import shutil
+from pathlib import Path
 
-GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))+'/../../'
+GMT_ROOT_DIR = Path(__file__).parent.parent.parent
 
 import pytest
 from tests import test_functions as Tests
@@ -26,16 +28,22 @@ run_id = None
 MB = 1000*1000 # Note: GMT uses SI Units!
 MICROSECONDS = 1_000_000
 
+GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
+
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned
-def setup_module(module):
+@pytest.fixture(autouse=True, scope='module')
+def setup_module():
     global run_id #pylint: disable=global-statement
+    GMT_METRICS_DIR.mkdir(parents=True, exist_ok=True) # might be deleted depending on which tests run before
 
-    runner = ScenarioRunner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/metric_providers_data.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/metric_providers_data.yml', dev_no_system_checks=True, dev_no_metrics=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_sleeps=True, dev_cache_build=True)
 
     subprocess.run('sync', check=True) # we sync here so that we can later more granular check for written file size
 
     run_id = runner.run()
+    yield
+    shutil.rmtree(GMT_METRICS_DIR)
 
 # Is used when the file needs to be modified
 def mock_temporary_file(file_path, temp_file):
@@ -59,7 +67,7 @@ def mock_temporary_network_file(file_path, temp_file, actual_network_interface):
 
 @pytest.mark.skipif(utils.get_architecture() == 'macos', reason="macOS does not support networkIO capturing on adapter level atm")
 def test_splitting_by_group():
-    obj = NetworkIoProcfsSystemProvider(99, remove_virtual_interfaces=False)
+    obj = NetworkIoProcfsSystemProvider(99, folder=GMT_METRICS_DIR, remove_virtual_interfaces=False)
 
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
         mock_temporary_network_file('./data/metrics/network_io_procfs_system_two_measurements_at_phase_border_out.log', temp_file.name, 'MY_FAKE_INTERFACE')

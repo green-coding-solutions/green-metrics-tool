@@ -8,7 +8,8 @@ networks:
 
 services:
   test-container:
-    type: container
+    setup-commands:
+      - command: echo "OK"
 
 flow:
   - name: Stress

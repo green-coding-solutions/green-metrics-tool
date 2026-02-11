@@ -6,7 +6,6 @@ description: test
 services:
 
   test-container-memory-int:
-    type: container
     image: alpine
     deploy:
       resources:
