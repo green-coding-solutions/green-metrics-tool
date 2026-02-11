@@ -298,21 +298,22 @@ function setup_python() {
     print_message "Adding python3 hardware_info_root.py to sudoers file"
     local python_path=$(readlink -f "/usr/bin/python3")
     check_file_permissions $python_path
+
+    print_message "Making hardware_info_root.py to be owned by root"
+    local hardware_info_root_dir=$(readlink -f "${PWD}/lib")
+    sudo cp -f "${hardware_info_root_dir}/hardware_info_root_original.py" "${hardware_info_root_dir}/hardware_info_root.py"
+    sudo chown root:$(id -gn root) "${hardware_info_root_dir}/hardware_info_root_original.py"
+    sudo chmod 755 "${hardware_info_root_dir}/hardware_info_root_original.py"
+
     # Please note the -m as here we will later call python3 without venv.
     # It must only use python root installed packages and no venv packages
     # furthermore it may only use an absolute path
-    local hardware_info_root_path=$(readlink -f "${PWD}/lib/hardware_info_root.py")
-    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${hardware_info_root_path}" | sudo tee /etc/sudoers.d/green-coding-hardware-info
-    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${hardware_info_root_path} --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
+    print_message "Setting hardware_info_root.py sudoers entry"
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${hardware_info_root_dir}/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${hardware_info_root_dir}/hardware_info_root.py --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
     sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
     # remove old file name
     sudo rm -f /etc/sudoers.d/green_coding_hardware_info
-
-    print_message "Making hardware_info_root.py to be owned by root"
-    sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
-    sudo chown root:$(id -gn root) $PWD/lib/hardware_info_root.py
-    sudo chmod 755 $PWD/lib/hardware_info_root.py
-
 
     if [[ $install_python_packages == true ]] ; then
         print_message "Updating python requirements"
