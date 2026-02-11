@@ -276,21 +276,19 @@ function setup_python() {
     find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
     print_message "Adding python3 hardware_info_root.py to sudoers file"
-    local python_path=$(realpath "/usr/bin/python3")
+    local python_path="/usr/bin/python3"
     check_file_permissions "$python_path"
 
     print_message "Making hardware_info_root.py to be owned by root"
-    local hardware_info_root_dir=$(realpath "${PWD}/lib")
-    sudo cp -f "${hardware_info_root_dir}/hardware_info_root_original.py" "${hardware_info_root_dir}/hardware_info_root.py"
-    sudo chown root:$(id -gn root) "${hardware_info_root_dir}/hardware_info_root_original.py"
-    sudo chmod 755 "${hardware_info_root_dir}/hardware_info_root_original.py"
+    sudo cp -f "${PWD}/lib/hardware_info_root_original.py" "${gmt_root_bin_dir}/hardware_info_root.py"
+    sudo chown root:$(id -gn root) "${gmt_root_bin_dir}/hardware_info_root.py"
+    sudo chmod 755 "${gmt_root_bin_dir}/hardware_info_root.py"
 
-    # Please note the -m as here we will later call python3 without venv.
     # It must only use python root installed packages and no venv packages
     # furthermore it may only use an absolute path
     print_message "Setting hardware_info_root.py sudoers entry"
-    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${hardware_info_root_dir}/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
-    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${hardware_info_root_dir}/hardware_info_root.py --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${gmt_root_bin_dir}/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${gmt_root_bin_dir}/hardware_info_root.py --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
     sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
     # remove old file name
     sudo rm -f /etc/sudoers.d/green_coding_hardware_info
@@ -759,3 +757,10 @@ fi
 if [[ $force_send_ping == true || "$send_ping_input" == "Y" || "$send_ping_input" == "y" ]] ; then
     send_ping
 fi
+
+print_message 'Requesting sudo access to generate root only executable files'
+gmt_root_bin_dir='/usr/local/bin/green-metrics-tool'
+[ -d "$gmt_root_bin_dir" ] || sudo mkdir "$gmt_root_bin_dir"
+sudo chown root:$(id -gn root) "$gmt_root_bin_dir"
+# check as path can still contain symlinks
+check_file_permissions "$gmt_root_bin_dir"
