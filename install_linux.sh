@@ -88,7 +88,7 @@ if [[ $activate_scenario_runner == true ]] ; then
     print_message "Setting the cluster maintenance.py file to be owned by root"
     check_file_permissions "/usr/bin/python3" # since it will be called later with this interpreter, we need to check if that is ok
     # we do not expose this sudoers entry here as it is only for cluster mode. Thus we want to reduce possible attack surface in case of bugs
-    cluster_dir=$(readlink -f "${PWD}/tools/cluster/")
+    cluster_dir=$(realpath "${PWD}/tools/cluster/")
     sudo cp -f "${cluster_dir}/maintenance_original.py" "${cluster_dir}/maintenance.py"
     sudo chown root:root "${cluster_dir}/maintenance.py"
     sudo chmod 755 "${cluster_dir}/maintenance.py"
@@ -126,7 +126,7 @@ if [[ $activate_scenario_runner == true ]] ; then
                 sudo apt-get install -y freeipmi-tools ipmitool
             fi
             print_message "Adding IPMI to sudoers file"
-            ipmi_dcmi_path=$(readlink -f "/usr/sbin/ipmi-dcmi")
+            ipmi_dcmi_path=$(realpath "/usr/sbin/ipmi-dcmi")
             check_file_permissions $ipmi_dcmi_path
             echo "${USER} ALL=(ALL) NOPASSWD:${ipmi_dcmi_path} --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
             sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat

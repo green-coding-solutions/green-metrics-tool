@@ -296,11 +296,11 @@ function setup_python() {
     find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
     print_message "Adding python3 hardware_info_root.py to sudoers file"
-    local python_path=$(readlink -f "/usr/bin/python3")
+    local python_path=$(realpath "/usr/bin/python3")
     check_file_permissions $python_path
 
     print_message "Making hardware_info_root.py to be owned by root"
-    local hardware_info_root_dir=$(readlink -f "${PWD}/lib")
+    local hardware_info_root_dir=$(realpath "${PWD}/lib")
     sudo cp -f "${hardware_info_root_dir}/hardware_info_root_original.py" "${hardware_info_root_dir}/hardware_info_root.py"
     sudo chown root:$(id -gn root) "${hardware_info_root_dir}/hardware_info_root_original.py"
     sudo chmod 755 "${hardware_info_root_dir}/hardware_info_root_original.py"
@@ -696,7 +696,7 @@ if [[ -z $tz ]] ; then
     if [[ -f /etc/timezone ]]; then
         default_tz="$(cat /etc/timezone 2>/dev/null)"
     elif [[ -L /etc/localtime ]]; then
-        default_tz="$(readlink /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##')"
+        default_tz="$(realpath /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##')"
     fi
     default_tz="${default_tz:-Europe/Berlin}"
     echo ""
