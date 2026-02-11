@@ -6,7 +6,14 @@
 #include <unistd.h>
 #include <limits.h>
 #include <time.h>
+#include <stdbool.h>
 #include <sys/time.h>
+
+bool is_partition_sysfs(unsigned int major_number, unsigned int minor_number) {
+    char path[PATH_MAX];
+    snprintf(path, sizeof(path), "/sys/dev/block/%u:%u/partition", major_number, minor_number);
+    return access(path, F_OK) == 0;
+}
 
 int check_path(const char* path) {
     FILE* fd = fopen(path, "r");

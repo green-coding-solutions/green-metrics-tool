@@ -8,6 +8,7 @@ class CgroupMetricProvider(BaseMetricProvider):
             sampling_rate,
             unit,
             current_dir,
+            folder,
             skip_check,
             cgroups,
     ):
@@ -17,7 +18,8 @@ class CgroupMetricProvider(BaseMetricProvider):
             sampling_rate=sampling_rate,
             unit=unit,
             current_dir=current_dir,
-            skip_check=skip_check
+            folder=folder,
+            skip_check=skip_check,
         )
         self._cgroup_string_tokens = cgroups.copy() if cgroups else {} # because it can be a frozen dict, we need to copy
         self._cgroup_string_tokens[utils.find_own_cgroup_name()] = {'name': 'GMT Overhead'} # we also find the cgroup that the GMT process belongs to. It will be a user session

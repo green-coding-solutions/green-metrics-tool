@@ -8,7 +8,7 @@ from metric_providers.base import BaseMetricProvider
 from lib import error_helpers
 
 class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
-    def __init__(self, *_, split_ports=True, skip_check=False):
+    def __init__(self, *, folder, split_ports=True, skip_check=False):
         super().__init__(
             metric_name='network_connections_tcpdump_system',
             metrics={},
@@ -16,7 +16,8 @@ class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
             unit=None,
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='tcpdump.sh',
-            skip_check=skip_check
+            skip_check=skip_check,
+            folder=folder,
         )
         self.split_ports = split_ports
 

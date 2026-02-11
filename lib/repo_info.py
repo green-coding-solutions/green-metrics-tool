@@ -1,8 +1,9 @@
 from datetime import datetime
 import subprocess
+from pathlib import Path
 
 
-def get_repo_info(folder):
+def get_repo_info(folder: Path):
     output = subprocess.check_output(
         ['git', 'log', '-n', '1', '--pretty=format:%H %cd', '--date=iso', '--', folder],
         encoding='UTF-8',
@@ -25,6 +26,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()  # script will exit if arguments not present
 
-    a,b = get_repo_info(args.folder)
+    a,b = get_repo_info(Path(args.folder))
     print(a)
     print(b)

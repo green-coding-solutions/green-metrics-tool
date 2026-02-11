@@ -37,6 +37,7 @@ cluster:
   client:
     sleep_time_no_job: 300
     jobs_processing: "random"
+    update_os_packages: True
     shutdown_on_job_no: suspend
     # These two parameters have only effect in cluster mode. When using CLI they will be set via flags --docker-prune and --full-docker-prune only
     docker_prune: False

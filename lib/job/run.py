@@ -7,6 +7,7 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
+import shutil
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -41,10 +42,11 @@ class RunJob(Job):
             uri_type='URL',
             filename=self._filename,
             branch=self._branch,
-            skip_unsafe=user._capabilities['measurement']['skip_unsafe'],
             allow_unsafe=user._capabilities['measurement']['allow_unsafe'],
-            skip_system_checks=user._capabilities['measurement']['skip_system_checks'],
+            skip_unsafe=user._capabilities['measurement']['skip_unsafe'],
+            dev_no_system_checks=user._capabilities['measurement']['dev_no_system_checks'],
             skip_volume_inspect=user._capabilities['measurement']['skip_volume_inspect'],
+            skip_optimizations=user._capabilities['measurement']['skip_optimizations'],
             full_docker_prune=full_docker_prune, # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
             docker_prune=docker_prune, # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
             job_id=self._id,
@@ -61,7 +63,6 @@ class RunJob(Job):
             measurement_phase_transition_time=user._capabilities['measurement']['phase_transition_time'],
             measurement_wait_time_dependencies=user._capabilities['measurement']['wait_time_dependencies'],
             dev_no_sleeps=user._capabilities['measurement']['dev_no_sleeps'],
-            dev_no_optimizations=user._capabilities['measurement']['dev_no_optimizations'],
             disabled_metric_providers=user._capabilities['measurement']['disabled_metric_providers'],
             allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'], # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
 
@@ -77,6 +78,7 @@ class RunJob(Job):
             print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
             optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
+
             if self._email:
                 Job.insert(
                     'email-report',
@@ -87,5 +89,6 @@ class RunJob(Job):
                 )
 
         finally:
+            shutil.rmtree(runner._tmp_folder) # we see no sane reason for keeping tmp files on the cluster after a run
             self._run_id = runner._run_id # might not be set yet due to error
             user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds
