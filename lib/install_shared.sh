@@ -281,7 +281,8 @@ function setup_python() {
 
     print_message "Making hardware_info_root.py to be owned by root"
     sudo cp -f "${PWD}/lib/hardware_info_root_original.py" "${gmt_root_bin_dir}/hardware_info_root.py"
-    sudo chown root:$(id -gn root) "${gmt_root_bin_dir}/hardware_info_root.py"
+    # using chown with UID:GID as names could be remapped and 0 is safe and also cross-platform (wheel in macos)
+    sudo chown 0:0 "${gmt_root_bin_dir}/hardware_info_root.py"
     sudo chmod 755 "${gmt_root_bin_dir}/hardware_info_root.py"
     # delete old unsafe file from GMT v2.5
     sudo rm "${PWD}/lib/hardware_info_root.py"
@@ -763,6 +764,7 @@ fi
 print_message 'Requesting sudo access to generate root only executable files'
 gmt_root_bin_dir='/usr/local/bin/green-metrics-tool'
 [ -d "$gmt_root_bin_dir" ] || sudo mkdir "$gmt_root_bin_dir"
-sudo chown root:$(id -gn root) "$gmt_root_bin_dir"
+# using chown with UID:GID as names could be remapped and 0 is safe and also cross-platform (wheel in macos)
+sudo chown 0:0 "$gmt_root_bin_dir"
 # check as path can still contain symlinks
 check_file_permissions "$gmt_root_bin_dir"
