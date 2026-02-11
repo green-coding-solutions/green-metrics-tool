@@ -1320,7 +1320,7 @@ class ScenarioRunner:
                                 mount_src_absolute = Path(mount_src).resolve(strict=True)
                                 # no comma validation needed as mount is already verified through allow-list
                                 docker_run_string.append('--mount')
-                                docker_run_string.append(f"type=bind,source={mount_src_absolute},target={mount_target}{mount_option}")
+                                docker_run_string.append(f"type=bind,source={mount_src_absolute.as_posix()},target={mount_target}{mount_option}")
 
 
                         else:
@@ -1329,12 +1329,12 @@ class ScenarioRunner:
                             except FileNotFoundError as exc:
                                 raise RuntimeError(f"The volume {mount_src} could not be loaded or found at the specified path.") from exc
 
-                            if ',' in mount_src_absolute: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                            if ',' in mount_src_absolute.as_posix(): # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
                                 raise ValueError(f"Mount source path may not contain commas (,) in the name: {mount_src_absolute}")
                             if ',' in mount_target: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
                                 raise ValueError(f"Mount target path may not contain commas (,) in the name: {mount_target}")
                             docker_run_string.append('--mount')
-                            docker_run_string.append(f"type=bind,source={mount_src_absolute},target={mount_target}{mount_option}")
+                            docker_run_string.append(f"type=bind,source={mount_src_absolute.as_posix()},target={mount_target}{mount_option}")
 
 
 
