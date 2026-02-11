@@ -83,11 +83,13 @@ function check_file_permissions() {
         fi
 
         # Numeric mode
-        path_owner=$(stat -f %Su "$path")
-        path_mode=$(stat -f %Lp "$path")   # outputs octal like 100400
+        path_owner=$(stat -f %u "$path")
+        path_group=$(stat -f %g "$path")
+        path_mode=$(stat -f %Lp "$path")
     else
-        path_owner=$(stat -c %U "$path")
-        path_mode=$(stat -c %a "$path")       # numeric mode, e.g., 400
+        path_owner=$(stat -c %u "$path")
+        path_group=$(stat -c %g "$path")
+        path_mode=$(stat -c %a "$path")
         # Check ACLs
         if getfacl -c "$path" 2>/dev/null | awk '!/^#|^user::|^group::|^other::/' | grep -q .; then
             echo "Path '$path' has an ACL. Unsafe!"
@@ -96,17 +98,21 @@ function check_file_permissions() {
     fi
 
     # Check ownership
-    if [[ "$path_owner" != "root" ]]; then
-        echo "Path '$path' is not owned by root."
+    if [[ "$path_owner" != "0" ]]; then
+        echo "Path '$path' is not owned by UID 0."
+        return 1
+    fi
+
+    if [[ "$path_group" != "0" ]]; then
+        echo "Path '$path' group not GID 0"
         return 1
     fi
 
     local path_perm_numeric=$((10#${path_mode: -3}))  # last 3 digits
-    local path_group=$(( (path_perm_numeric / 10 % 10) ))
     local path_other=$(( path_perm_numeric % 10 ))
 
-    if (( path_group & 2 )) || (( path_other & 2 )); then
-        echo "Path '$path' is writable by group or others. Unsafe!"
+    if (( path_other & 2 )); then
+        echo "Path '$path' is writable by others. Unsafe!"
         return 1
     fi
 
