@@ -15,6 +15,6 @@ redis==7.1.1
 hiredis==3.3.0
 requests==2.32.5
 uvicorn-worker==0.4.0
-cachetools==7.0.0
+cachetools==7.0.1
 
 pytest==9.0.2 # needed because we need to exit in db.py if tests run with wrong config
