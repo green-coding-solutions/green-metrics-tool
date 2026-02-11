@@ -89,7 +89,7 @@ function check_file_permissions() {
         path_owner=$(stat -c %U "$path")
         path_mode=$(stat -c %a "$path")       # numeric mode, e.g., 400
         # Check ACLs
-        if getfacl -c "$path" 2>/dev/null | awk '!/^#|^user::|^group::|^other::/' | grep -q; then
+        if getfacl -c "$path" 2>/dev/null | awk '!/^#|^user::|^group::|^other::/' | grep -q .; then
             echo "Path '$path' has an ACL. Unsafe!"
             return 1
         fi
