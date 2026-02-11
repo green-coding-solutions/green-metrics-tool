@@ -283,6 +283,8 @@ function setup_python() {
     sudo cp -f "${PWD}/lib/hardware_info_root_original.py" "${gmt_root_bin_dir}/hardware_info_root.py"
     sudo chown root:$(id -gn root) "${gmt_root_bin_dir}/hardware_info_root.py"
     sudo chmod 755 "${gmt_root_bin_dir}/hardware_info_root.py"
+    # delete old unsafe file from GMT v2.5
+    sudo rm "${PWD}/lib/hardware_info_root.py"
 
     # It must only use python root installed packages and no venv packages
     # furthermore it may only use an absolute path

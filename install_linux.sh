@@ -93,6 +93,8 @@ if [[ $activate_scenario_runner == true ]] ; then
     sudo cp -f "${PWD}/tools/cluster/maintenance_original.py" "${gmt_root_bin_dir}/maintenance.py"
     sudo chown root:root "${gmt_root_bin_dir}/maintenance.py"
     sudo chmod 755 "${gmt_root_bin_dir}/maintenance.py"
+    # delete old unsafe file from GMT v2.5
+    sudo rm "${PWD}/tools/cluster/maintenance.py"
 
     if [[ $install_msr_tools == true ]] ; then
         print_message "Installing msr-tools"
