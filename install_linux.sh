@@ -90,7 +90,6 @@ if [[ $activate_scenario_runner == true ]] ; then
     print_message "Setting the cluster maintenance.py file to be owned by root"
     check_file_permissions $(realpath "/usr/bin/python3") # since it will be called later with this interpreter, we need to check if that is ok
     # we do not expose this sudoers entry here as it is only for cluster mode. Thus we want to reduce possible attack surface in case of bugs
-    cluster_dir=$(realpath "${PWD}/tools/cluster/")
     sudo cp -f "${PWD}/tools/cluster/maintenance_original.py" "${gmt_local_bin}/maintenance.py"
     sudo chown root:root "${gmt_local_bin}/maintenance.py"
     sudo chmod 755 "${gmt_local_bin}/maintenance.py"
