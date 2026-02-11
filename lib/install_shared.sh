@@ -38,6 +38,7 @@ enterprise=false
 ask_ping=true
 force_send_ping=false
 install_nvidia_toolkit_headers=false
+disable_path_security_checks=false
 ee_branch=''
 
 function print_message {
@@ -60,6 +61,11 @@ function check_python_version() {
 
 function check_file_permissions() {
     local path="$1"
+
+    if [[ $disable_path_security_checks == true ]]; then
+        echo "Skipping security check of path $path"
+        return 0
+    fi
 
     echo "Checking security of $path"
 
@@ -449,6 +455,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --nvidia-gpu)
             install_nvidia_toolkit_headers=true
+            shift
+            ;;
+        --disable-path-security)
+            disable_path_security_checks=true
             shift
             ;;
         --ai) # This is not documented in the help, as it is only for GCS internal use
