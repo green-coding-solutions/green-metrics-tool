@@ -170,6 +170,11 @@ a.project-item>i.icon {
     flex:1;
 }
 
+#menu.ui.inverted.menu .item.active,
+#menu.ui.inverted.menu .active.item {
+    background: rgb(40, 56, 70) !important;
+}
+
 /* Handle collapsing on click or on small window */
 a,
 #menu {
@@ -447,7 +452,7 @@ a {
 }
 
 .custom-mobile-divider {
-    display: none !important; 
+    display: none !important;
 }
 
 @media only screen and (max-width: 767px) {
