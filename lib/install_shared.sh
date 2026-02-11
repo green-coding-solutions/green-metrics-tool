@@ -59,7 +59,7 @@ function check_python_version() {
 }
 
 function check_file_permissions() {
-    local path=$1
+    local path="$1"
 
     echo "Checking security of $path"
 
@@ -277,7 +277,7 @@ function setup_python() {
 
     print_message "Adding python3 hardware_info_root.py to sudoers file"
     local python_path=$(realpath "/usr/bin/python3")
-    check_file_permissions $python_path
+    check_file_permissions "$python_path"
 
     print_message "Making hardware_info_root.py to be owned by root"
     local hardware_info_root_dir=$(realpath "${PWD}/lib")

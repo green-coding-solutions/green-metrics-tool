@@ -32,8 +32,8 @@ if [[ $activate_scenario_runner == true ]] ; then
     print_message "Adding powermetrics to sudoers file"
     powermetrics_path=$(realpath "/usr/bin/powermetrics")
     killall_path=$(realpath -f "/usr/bin/killall")
-    check_file_permissions $powermetrics_path
-    check_file_permissions $killall_path
+    check_file_permissions "$powermetrics_path"
+    check_file_permissions "$killall_path"
     echo "${USER} ALL=(ALL) NOPASSWD:${powermetrics_path}" | sudo tee /etc/sudoers.d/green_coding_powermetrics
     echo "${USER} ALL=(ALL) NOPASSWD:${killall_path} powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics
     echo "${USER} ALL=(ALL) NOPASSWD:${killall_path} -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill

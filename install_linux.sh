@@ -82,7 +82,9 @@ if [[ $activate_scenario_runner == true ]] ; then
     fi
 
     print_message "Enabling cache cleanup without sudo via sudoers entry"
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/sbin/sysctl -w vm.drop_caches=3" | sudo tee /etc/sudoers.d/green-coding-drop-caches
+    sysctl_path=$(realpath "/usr/sbin/sysctl")
+    check_file_permissions "$sysctl_path"
+    echo "${USER} ALL=(ALL) NOPASSWD:${sysctl_path} -w vm.drop_caches=3" | sudo tee /etc/sudoers.d/green-coding-drop-caches
     sudo chmod 500 /etc/sudoers.d/green-coding-drop-caches
 
     print_message "Setting the cluster maintenance.py file to be owned by root"
@@ -127,7 +129,7 @@ if [[ $activate_scenario_runner == true ]] ; then
             fi
             print_message "Adding IPMI to sudoers file"
             ipmi_dcmi_path=$(realpath "/usr/sbin/ipmi-dcmi")
-            check_file_permissions $ipmi_dcmi_path
+            check_file_permissions "$ipmi_dcmi_path"
             echo "${USER} ALL=(ALL) NOPASSWD:${ipmi_dcmi_path} --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
             sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
             # remove old file name
