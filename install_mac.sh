@@ -29,7 +29,7 @@ if [[ $activate_scenario_runner == true ]] ; then
 
     build_binaries
 
-    print_message "Adding powermetrics to sudoers file"
+    print_message "Adding powermetrics and killall with path-lock to sudoers file"
     powermetrics_path=$(realpath "/usr/bin/powermetrics")
     killall_path=$(realpath "/usr/bin/killall")
     check_file_permissions "$powermetrics_path"
