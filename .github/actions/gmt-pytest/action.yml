@@ -55,12 +55,12 @@ runs:
         if ${{inputs.ee}}; then
           if [[ "${{inputs.ee-branch}}" != '' ]]; then
             echo "Using ee-branch ${{inputs.ee-branch}}"
-            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --ee-branch ${{inputs.ee-branch}} --nvidia-gpu --ai --tz GMT --disable_path_security_checks
+            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --ee-branch ${{inputs.ee-branch}} --nvidia-gpu --ai --tz GMT --disable-path-security
           else
-            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --nvidia-gpu --ai --tz GMT --disable_path_security_checks
+            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --nvidia-gpu --ai --tz GMT --disable-path-security
           fi
         else
-          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g --nvidia-gpu --tz GMT --disable_path_security_checks
+          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g --nvidia-gpu --tz GMT --disable-path-security
         fi
         source venv/bin/activate
       env:
