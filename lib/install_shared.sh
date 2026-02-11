@@ -276,7 +276,7 @@ function setup_python() {
     find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
     print_message "Adding python3 hardware_info_root.py to sudoers file"
-    local python_path="/usr/bin/python3"
+    local python_path=$(realpath "/usr/bin/python3")
     check_file_permissions "$python_path"
 
     print_message "Making hardware_info_root.py to be owned by root"
