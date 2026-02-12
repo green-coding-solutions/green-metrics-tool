@@ -4,11 +4,15 @@ we have split out the values we can get without being root and then we call this
 sudo. This is why the output is json and not a nice representation as it needs to be machine readable.
 '''
 
+import sys
+import faulthandler
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
+
+import os
 import json
 import platform
 import re
 import subprocess
-import os
 
 # We can NEVER include non system packages here, as we rely on them all being writeable by root only.
 # This will only be true for non-venv pure system packages coming with the python distribution of the OS
@@ -82,7 +86,7 @@ def get_values(list_of_tasks):
 
 
 def read_rapl_energy_filtering():
-    return read_process_with_regex('rdmsr -d 0xbc', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL)
+    return read_process_with_regex('/usr/sbin/rdmsr -d 0xbc', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL)
 
 # Defining shortcuts to make the lines shorter
 rfwr = read_file_with_regex
@@ -93,9 +97,9 @@ cf = call_function
 root_info_list = [
     [rdr, 'Power Limits', '/sys/devices/virtual/powercap/intel-rapl'],
     [rdr, 'CPU Scheduling', '/sys/kernel/debug/sched'],
-    [rpwr, 'Hardware Details', 'lshw', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Hardware Details', '/usr/bin/lshw', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [cf, 'RAPL Energy Filtering', read_rapl_energy_filtering],
-    [rpwr, 'Systemd Services', 'sudo systemctl --all list-unit-files', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Systemd Services', '/usr/bin/sudo /usr/bin/systemctl --all list-unit-files', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
 ]
 
 def get_root_list():
@@ -106,15 +110,15 @@ def get_root_list():
 
 
 if __name__ == '__main__':
+    # must be here and not in header, as we include it also.
+    # This means that all imports at the top still can read os.environ ... but that should not be too risky
+    os.environ.clear() # we do not want any of these values to ever be accessed or influence our scripts
+
     if platform.system() == 'Darwin':
         print('{}')
     else:
-        import argparse
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--read-rapl-energy-filtering', action='store_true', help='Read RAPL energy filtering')
-        args = parser.parse_args()
-
-        if args.read_rapl_energy_filtering is True:
+        # not using argparse, which needs os.environ
+        if len(sys.argv) > 1 and sys.argv[1] == '--read-rapl-energy-filtering':
             print(read_rapl_energy_filtering(), end='')
         else:
             print(json.dumps(get_values(get_root_list())))

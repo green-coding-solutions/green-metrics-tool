@@ -70,7 +70,7 @@ def do_maintenance():
 
     python_realpath = Path('/usr/bin/python3').resolve(strict=True) # bc typically symlinked to python3.12 or similar
 
-    maintenance_cmd = ['sudo', python_realpath.as_posix(), Path('/usr/local/bin/green-metrics-tool/maintenance.py').resolve(strict=True).as_posix()]
+    maintenance_cmd = ['sudo', python_realpath.as_posix(), '-I', '-B', '-S', Path('/usr/local/bin/green-metrics-tool/maintenance.py').resolve(strict=True).as_posix()]
 
     # first we need to determine if an apt update is also necessary. We only want to update once a day
     now = time.time()
