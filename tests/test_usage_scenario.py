@@ -574,8 +574,8 @@ def test_network_alias_added():
             context.run_until('setup_services')
 
     assert 'Adding network alias test-alias for network gmt-test-network in service test-container' in out.getvalue()
-    docker_run_command = re.search(r"docker run with: (.*)", out.getvalue()).group(1)
-    assert '--network-alias test-alias' in docker_run_command
+    docker_run_command = re.search(r"Calling docker with these paramters: (.*)", out.getvalue()).group(1)
+    assert "'--network-alias', 'test-alias'" in docker_run_command
 
 def test_network_host_join_blocked():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_host_join.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
@@ -602,16 +602,16 @@ def test_cmd_entrypoint():
         runner.run()
 
     o = out.getvalue()
-    assert '--entrypoint /bin/sh alpine_gmt_run_tmp -c echo \'Hello from command\'' in o
-    assert '--entrypoint sleep alpine_gmt_run_tmp infinity' in o
-    assert '--entrypoint tail alpine_gmt_run_tmp -f /dev/null' in o
-    assert 'alpine_gmt_run_tmp /bin/sh -c' in o
-    assert 'alpine_gmt_run_tmp sleep infinity' in o
-    assert '--entrypoint sleep alpine_gmt_run_tmp infinity' in o
-    assert '--entrypoint cat alpine_gmt_run_tmp' in o
-    assert '--entrypoint /bin/sh alpine_gmt_run_tmp -c echo \'A $0\' && echo \'B $0\'' in o
-    assert 'alpine_gmt_run_tmp ash -c echo \'Using Alpine ash shell\'' in o
-    assert 'alpine_gmt_run_tmp /bin/sh -c echo \'Variable test: $$0\'' in o
+    assert re.search(r"--entrypoint.*/bin/sh.*alpine_gmt_run_tmp.*-c.*echo \'Hello from command\'", str(o))
+    assert re.search(r"--entrypoint.*sleep.*alpine_gmt_run_tmp.*infinity", str(o))
+    assert re.search(r"--entrypoint.*tail.*alpine_gmt_run_tmp.*-f.*/dev/null", str(o))
+    assert re.search(r"alpine_gmt_run_tmp.*/bin/sh.*-c", str(o))
+    assert re.search(r"alpine_gmt_run_tmp.*sleep.*infinity", str(o))
+    assert re.search(r"--entrypoint.*sleep.*alpine_gmt_run_tmp.*infinity", str(o))
+    assert re.search(r"--entrypoint.*cat.*alpine_gmt_run_tmp", str(o))
+    assert re.search(r"--entrypoint.*/bin/sh.*alpine_gmt_run_tmp.*-c.*echo \'A \$0\' && echo \'B \$0\'", str(o))
+    assert re.search(r"alpine_gmt_run_tmp.*ash.*-c.*echo.*\'Using Alpine ash shell\'", str(o))
+    assert re.search(r"alpine_gmt_run_tmp.*/bin/sh.*-c.*echo.*\'Variable test: \$\$0\'", str(o))
 
     assert err.getvalue() == '', Tests.assertion_info('stderr should be empty', err.getvalue())
 
@@ -703,10 +703,13 @@ def test_entrypoint_empty():
                 encoding='UTF-8'
         )
         docker_ps_out = ps.stdout
-    docker_run_command = re.search(r"docker run with: (.*)", str(out.getvalue())).group(1)
-    assert '--entrypoint= ' in docker_run_command, f"--entrypoint= not found in docker run command: {docker_run_command}"
+    docker_run_command = re.search(
+        r"Calling docker with these paramters: (.*)",
+        str(out.getvalue())
+    ).group(1)
+    assert '--entrypoint=' in docker_run_command, f"--entrypoint= not found in docker run command: {docker_run_command}"
     assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been ignored', docker_ps_out)
-    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('command `tail -f /dev/null` in ps output', docker_ps_out)
+    assert re.search(r"tail.*-f.*/dev/null", docker_ps_out)
 
 def test_read_detached_process_no_exit():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_no_exit.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
