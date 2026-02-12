@@ -115,12 +115,8 @@ if __name__ == '__main__':
     if platform.system() == 'Darwin':
         print('{}')
     else:
-        import argparse
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--read-rapl-energy-filtering', action='store_true', help='Read RAPL energy filtering')
-        args = parser.parse_args()
-
-        if args.read_rapl_energy_filtering is True:
+        # not using argparse, which needs os.environ
+        if sys.argv[1] == '--read-rapl-energy-filtering':
             print(read_rapl_energy_filtering(), end='')
         else:
             print(json.dumps(get_values(get_root_list())))

@@ -8,7 +8,6 @@ del os.environ # we do not want any of these values to ever be accessed or influ
 import re
 import time
 import subprocess
-import argparse
 
 def _parse_timers(data):
     if not re.search(r'^0 timers listed.$', data, re.MULTILINE):
@@ -135,13 +134,10 @@ def update_os_packages():
         print('<<<< NO PACKAGES UPDATED - NO NEED TO RUN VALIDATION WORKLOAD >>>>')
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--update-os-packages', action='store_true', help='Update OS Packages during maintenance job')
-    args = parser.parse_args()
-
     cleanup()
     sync_ntp()
     check_systemd_timers()
 
-    if args.update_os_packages:
+    # not using argparse, which needs os.environ
+    if sys.argv[1] == '--update-os-packages':
         update_os_packages()
