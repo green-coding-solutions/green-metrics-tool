@@ -4,11 +4,17 @@ we have split out the values we can get without being root and then we call this
 sudo. This is why the output is json and not a nice representation as it needs to be machine readable.
 '''
 
+import sys
+import faulthandler
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
+
+import os
+del os.environ # we do not want any of these values to ever be accessed or influence our scripts
+
 import json
 import platform
 import re
 import subprocess
-import os
 
 # We can NEVER include non system packages here, as we rely on them all being writeable by root only.
 # This will only be true for non-venv pure system packages coming with the python distribution of the OS

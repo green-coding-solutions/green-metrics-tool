@@ -3,6 +3,8 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
+del os.environ # we do not want any of these values to ever be accessed or influence our scripts
+
 import re
 import time
 import subprocess
@@ -63,6 +65,9 @@ def sync_ntp():
         raise RuntimeError('System clock synchronization could not be turned off', ntp_status)
 
 def check_systemd_timers():
+    # this value will be overwritten install_linux.sh
+    GMT_USER = '__GMT_USER__'
+
     # List all timers and services to validate we have nothing left
 
     result = subprocess.run(
@@ -73,10 +78,10 @@ def check_systemd_timers():
 
     _parse_timers(result.stdout)
 
-    print('Checking user timers for', os.environ['SUDO_USER'])
+    print('Checking user timers for', GMT_USER)
 
     result = subprocess.run(
-        ['sudo', 'systemctl', f"--machine={os.environ['SUDO_USER']}@", '--user', '--all', 'list-timers'],
+        ['sudo', 'systemctl', f"--machine={GMT_USER}@", '--user', '--all', 'list-timers'],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, # put both in one stream
         encoding='UTF-8', errors='replace', check=True)

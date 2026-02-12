@@ -91,6 +91,8 @@ if [[ $activate_scenario_runner == true ]] ; then
     check_file_permissions $(realpath "/usr/bin/python3") # since it will be called later with this interpreter, we need to check if that is ok
     # we do not expose this sudoers entry here as it is only for cluster mode. Thus we want to reduce possible attack surface in case of bugs
     sudo cp -f "${PWD}/tools/cluster/maintenance_original.py" "${gmt_root_bin_dir}/maintenance.py"
+    sed -i -e "s|__GMT_USER__|${USER}|g" "${gmt_root_bin_dir}/maintenance.py"
+
     # using chown with UID:GID as names could be remapped and 0 is safe and also cross-platform (wheel in macos)
     sudo chown 0:0 "${gmt_root_bin_dir}/maintenance.py"
     sudo chmod 755 "${gmt_root_bin_dir}/maintenance.py"
