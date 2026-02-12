@@ -326,7 +326,7 @@ def test_file_cleanup():
     subprocess.run(
         ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
          '--file-cleanup', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
-         '--dev-no-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-save', '--dev-no-container-dependency-collection'
+         '--dev-no-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-save', '--dev-no-container-dependency-collection',
          '--skip-optimizations', '--skip-download-dependencies'],
         check=True,
         stderr=subprocess.PIPE,
