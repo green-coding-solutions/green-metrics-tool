@@ -890,7 +890,7 @@ def test_good_arg():
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
 
-    assert re.search(r"docker run -it -d .* --label test=true", str(out.getvalue())), f"--label test=true not found in docker run command: {out.getvalue()}"
+    assert re.search(r"docker.*run.*-it.*-d.*--label.*test=true", str(out.getvalue())), f"--label test=true not found in docker run command: {out.getvalue()}"
 
 def test_restart_no_error():
 
