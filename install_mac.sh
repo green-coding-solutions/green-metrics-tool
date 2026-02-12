@@ -29,12 +29,14 @@ if [[ $activate_scenario_runner == true ]] ; then
 
     build_binaries
 
-    print_message "Adding powermetrics to sudoers file"
-    check_file_permissions "/usr/bin/powermetrics"
-    check_file_permissions "/usr/bin/killall"
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/powermetrics" | sudo tee /etc/sudoers.d/green_coding_powermetrics
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/killall -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill
+    print_message "Adding powermetrics and killall with path-lock to sudoers file"
+    powermetrics_path=$(realpath "/usr/bin/powermetrics")
+    killall_path=$(realpath "/usr/bin/killall")
+    check_file_permissions "$powermetrics_path"
+    check_file_permissions "$killall_path"
+    echo "${USER} ALL=(ALL) NOPASSWD:${powermetrics_path}" | sudo tee /etc/sudoers.d/green_coding_powermetrics
+    echo "${USER} ALL=(ALL) NOPASSWD:${killall_path} powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics
+    echo "${USER} ALL=(ALL) NOPASSWD:${killall_path} -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill
 
 fi
 

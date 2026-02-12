@@ -8,7 +8,7 @@ import platform
 import pprint
 import psutil
 import sys
-from lib.hardware_info_root import rdr, rpwr, rfwr, cf, get_values
+from lib.hardware_info_root_original import rdr, rpwr, rfwr, cf, get_values
 
 REGEX_PARAMS = re.MULTILINE | re.IGNORECASE
 

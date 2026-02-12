@@ -38,6 +38,7 @@ enterprise=false
 ask_ping=true
 force_send_ping=false
 install_nvidia_toolkit_headers=false
+disable_path_security_checks=false
 ee_branch=''
 
 function print_message {
@@ -59,50 +60,76 @@ function check_python_version() {
 }
 
 function check_file_permissions() {
-    local file=$1
+    local path="$1"
 
-    # Check if the file exists
-    if [ ! -e "$file" ]; then
-        echo "File '$file' does not exist."
+    if [[ $disable_path_security_checks == true ]]; then
+        echo "Skipping security check of path $path"
+        return 0
+    fi
+
+    echo "Checking security of $path"
+
+    if [ ! -e "$path" ]; then
+        echo "Path '$path' does not exist."
         return 1
     fi
 
-    # Check if the file is owned by root
-    if [[ $(uname) == "Darwin" ]]; then
-        if [ "$(stat -f %Su "$file")" != "root" ]; then
-            echo "File '$file' is not owned by root."
-            return 1
-        fi
-    else
-        if [ "$(stat -c %U "$file")" != "root" ]; then
-            echo "File '$file' is not owned by root."
-            return 1
-        fi
-    fi
-
-        # Check if the file is owned by root
-
-    # Check if the file permissions are read-only for group and others using regex
-
-    if [[ $(uname) == "Darwin" ]]; then
-        local permissions=$(stat -f %Sp "$file")
-    else
-        local permissions=$(stat -c %A "$file") # Linux
-    fi
-
-    if [ -L "$file" ]; then
-        echo "File '$file' is a symbolic link. Following ..."
-        check_file_permissions $(readlink -f $file)
-        return $?
-    elif [[ ! $permissions =~ ^-r..r-.r-.$ ]]; then
-        echo "File '$file' is not read-only for group and others or not a regular file"
+    if [ -L "$path" ]; then
+        echo "Path '$path' is a symbolic link. This is not allowed."
         return 1
     fi
 
-    echo "File $file is save to create sudoers entry for"
+    # Determine stat commands based on OS
+    local path_owner path_mode
+
+    if [[ $(uname) == "Darwin" ]]; then
+        if ls -lde "$path" | grep -q '^.\{10\}\+ '; then
+            echo "Path '$path' has an ACL. Unsafe!"
+            return 1
+        fi
+
+        # Numeric mode
+        path_owner=$(stat -f %u "$path")
+        path_group=$(stat -f %g "$path")
+        path_mode=$(stat -f %Lp "$path")
+    else
+        path_owner=$(stat -c %u "$path")
+        path_group=$(stat -c %g "$path")
+        path_mode=$(stat -c %a "$path")
+        # Check ACLs
+        if getfacl -c "$path" 2>/dev/null | awk '!/^#|^user::|^group::|^other::/' | grep -q .; then
+            echo "Path '$path' has an ACL. Unsafe!"
+            return 1
+        fi
+    fi
+
+    # Check ownership
+    if [[ "$path_owner" != "0" ]]; then
+        echo "Path '$path' is not owned by UID 0."
+        return 1
+    fi
+
+    if [[ "$path_group" != "0" ]]; then
+        echo "Path '$path' group not GID 0"
+        return 1
+    fi
+
+    local path_perm_numeric=$((10#${path_mode: -3}))  # last 3 digits
+    local path_other=$(( path_perm_numeric % 10 ))
+
+    if (( path_other & 2 )); then
+        echo "Path '$path' is writable by others. Unsafe!"
+        return 1
+    fi
+
+    if [[ "$path" != "/" ]]; then
+        local path_parent="$(dirname "$path")" # we do not resolve as we want to check every step for a symlink
+        check_file_permissions "$path_parent" || return 1
+    fi
 
     return 0
 }
+
 
 function copy_backup() {
     local file=$1
@@ -260,21 +287,26 @@ function setup_python() {
     print_message "Setting GMT in include path for python via .pth file"
     find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
-    print_message "Adding python3 lib.hardware_info_root to sudoers file"
-    check_file_permissions "/usr/bin/python3"
-    # Please note the -m as here we will later call python3 without venv. It must understand the .lib imports
-    # and not depend on venv installed packages
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root" | sudo tee /etc/sudoers.d/green-coding-hardware-info
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
+    print_message "Adding python3 hardware_info_root.py to sudoers file"
+    local python_path=$(realpath "/usr/bin/python3")
+    check_file_permissions "$python_path"
+
+    print_message "Making hardware_info_root.py to be owned by root"
+    sudo cp -f "${PWD}/lib/hardware_info_root_original.py" "${gmt_root_bin_dir}/hardware_info_root.py"
+    # using chown with UID:GID as names could be remapped and 0 is safe and also cross-platform (wheel in macos)
+    sudo chown 0:0 "${gmt_root_bin_dir}/hardware_info_root.py"
+    sudo chmod 755 "${gmt_root_bin_dir}/hardware_info_root.py"
+    # delete old unsafe file from GMT v2.5
+    sudo rm -f "${PWD}/lib/hardware_info_root.py"
+
+    # It must only use python root installed packages and no venv packages
+    # furthermore it may only use an absolute path
+    print_message "Setting hardware_info_root.py sudoers entry"
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${gmt_root_bin_dir}/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${gmt_root_bin_dir}/hardware_info_root.py --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
     sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
     # remove old file name
     sudo rm -f /etc/sudoers.d/green_coding_hardware_info
-
-    print_message "Setting the hardare hardware_info to be owned by root"
-    sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
-    sudo chown root:$(id -gn root) $PWD/lib/hardware_info_root.py
-    sudo chmod 755 $PWD/lib/hardware_info_root.py
-
 
     if [[ $install_python_packages == true ]] ; then
         print_message "Updating python requirements"
@@ -423,6 +455,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --nvidia-gpu)
             install_nvidia_toolkit_headers=true
+            shift
+            ;;
+        --disable-path-security)
+            disable_path_security_checks=true
             shift
             ;;
         --ai) # This is not documented in the help, as it is only for GCS internal use
@@ -657,7 +693,7 @@ if [[ -z $tz ]] ; then
     if [[ -f /etc/timezone ]]; then
         default_tz="$(cat /etc/timezone 2>/dev/null)"
     elif [[ -L /etc/localtime ]]; then
-        default_tz="$(readlink /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##')"
+        default_tz="$(realpath /etc/localtime 2>/dev/null | sed -E 's#.*/zoneinfo(\.default)?/##')"
     fi
     default_tz="${default_tz:-Europe/Berlin}"
     echo ""
@@ -740,3 +776,11 @@ fi
 if [[ $force_send_ping == true || "$send_ping_input" == "Y" || "$send_ping_input" == "y" ]] ; then
     send_ping
 fi
+
+print_message 'Requesting sudo access to generate root only executable files'
+gmt_root_bin_dir='/usr/local/bin/green-metrics-tool'
+[ -d "$gmt_root_bin_dir" ] || sudo mkdir "$gmt_root_bin_dir"
+# using chown with UID:GID as names could be remapped and 0 is safe and also cross-platform (wheel in macos)
+sudo chown 0:0 "$gmt_root_bin_dir"
+# check as path can still contain symlinks
+check_file_permissions "$gmt_root_bin_dir"
