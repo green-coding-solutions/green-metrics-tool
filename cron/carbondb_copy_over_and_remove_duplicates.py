@@ -20,7 +20,7 @@ def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then 
                 machine_uuid,
                 'Power HOG',
                 '{}',
-                EXTRACT(EPOCH FROM created_at) * 1e6,
+                "timestamp" * 1e3, -- timestamp is already milliseconds. thus only 1e3
                 (combined_energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
                 (operational_carbon_ug::DOUBLE PRECISION)/1e9 + (embodied_carbon_ug/1e9), -- to get to kg
                 carbon_intensity_g,
