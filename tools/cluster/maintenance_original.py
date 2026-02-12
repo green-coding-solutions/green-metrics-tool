@@ -27,9 +27,9 @@ def cleanup():
         ['/usr/libexec/dpkg/dpkg-db-backup'],
         ['/sbin/e2scrub_all'],
         ['/sbin/fstrim', '--listed-in', '/etc/fstab:/proc/self/mountinfo', '--verbose', '--quiet-unsupported'],
-        ['systemd-tmpfiles', '--clean'],
+        ['/usr/bin/systemd-tmpfiles', '--clean'],
         ['/usr/sbin/logrotate', '/etc/logrotate.conf'],
-        ['journalctl', '--flush']
+        ['/usr/bin/journalctl', '--flush']
     ]
     for command in commands:
         print('Running', command)
@@ -48,15 +48,15 @@ def sync_ntp():
     ## Update time
     # may throw exception, but we need to check if time sync calls work, as we do not know what the actual time is
     # Typically in cluster installations port 123 is blocked and a local time server is available. Thus the guard function here
-    subprocess.check_output(['sudo', 'timedatectl', 'set-ntp', 'true'], encoding='UTF-8', errors='replace') # this will trigger immediate update
+    subprocess.check_output(['sudo', '/usr/bin/timedatectl', 'set-ntp', 'true'], encoding='UTF-8', errors='replace') # this will trigger immediate update
     time.sleep(5)
-    ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8', errors='replace')
+    ntp_status = subprocess.check_output(['/usr/bin/timedatectl', '-a'], encoding='UTF-8', errors='replace')
     if 'System clock synchronized: yes' not in ntp_status or 'NTP service: active' not in ntp_status:
         raise RuntimeError('System clock could not be synchronized', ntp_status)
 
-    subprocess.check_output(['sudo', 'timedatectl', 'set-ntp', 'false'], encoding='UTF-8', errors='replace') # we want NTP always off in clusters
+    subprocess.check_output(['sudo', '/usr/bin/timedatectl', 'set-ntp', 'false'], encoding='UTF-8', errors='replace') # we want NTP always off in clusters
     time.sleep(2)
-    ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8', errors='replace')
+    ntp_status = subprocess.check_output(['/usr/bin/timedatectl', '-a'], encoding='UTF-8', errors='replace')
     if 'System clock synchronized: yes' not in ntp_status:
         raise RuntimeError('System clock synchronization could not be synchronized', ntp_status)
 
@@ -70,7 +70,7 @@ def check_systemd_timers():
     # List all timers and services to validate we have nothing left
 
     result = subprocess.run(
-        ['sudo', 'systemctl', '--all', 'list-timers'],
+        ['sudo', '/usr/bin/systemctl', '--all', 'list-timers'],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, # put both in one stream
         encoding='UTF-8', errors='replace', check=True)
@@ -80,7 +80,7 @@ def check_systemd_timers():
     print('Checking user timers for', GMT_USER)
 
     result = subprocess.run(
-        ['sudo', 'systemctl', f"--machine={GMT_USER}@", '--user', '--all', 'list-timers'],
+        ['sudo', '/usr/bin/systemctl', f"--machine={GMT_USER}@", '--user', '--all', 'list-timers'],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, # put both in one stream
         encoding='UTF-8', errors='replace', check=True)
@@ -91,7 +91,7 @@ def update_os_packages():
     ## Do APT last, as we want to insert the Changelog
     apt_packages_upgrade = None
     ps = subprocess.run(
-        ['sudo', 'apt', 'update'],
+        ['sudo', '/usr/bin/apt', 'update'],
         check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, # put both in one stream
@@ -102,14 +102,14 @@ def update_os_packages():
         raise RuntimeError(f"sudo apt update failed: {ps.stdout}")
 
 
-    apt_packages_upgrade = subprocess.check_output(['apt', 'list', '--upgradeable'], encoding='UTF-8', errors='replace', stderr=subprocess.DEVNULL).split('\n')[1:]
+    apt_packages_upgrade = subprocess.check_output(['/usr/bin/apt', 'list', '--upgradeable'], encoding='UTF-8', errors='replace', stderr=subprocess.DEVNULL).split('\n')[1:]
 
     if apt_packages_upgrade == ['']:
         apt_packages_upgrade = None
     else:
         ps = subprocess.run(
             [
-                'sudo', 'apt-get',
+                'sudo', '/usr/bin/apt',
                 '-o', 'APT::Get::Always-Include-Phased-Updates=true',
                 '-o', 'Dpkg::Options::=--force-confdef',
                 '-o', 'Dpkg::Options::=--force-confold',
@@ -124,7 +124,7 @@ def update_os_packages():
             errors='replace'
         )
         if ps.returncode != 0:
-            raise RuntimeError(f"sudo apt full-upgrade -y failed: {ps.stdout}")
+            raise RuntimeError(f"sudo /usr/bin/apt full-upgrade -y failed: {ps.stdout}")
 
     if apt_packages_upgrade:
         print('<<<< UPDATED APT PACKAGES >>>>')
