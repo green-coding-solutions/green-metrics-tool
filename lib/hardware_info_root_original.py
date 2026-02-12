@@ -86,7 +86,7 @@ def get_values(list_of_tasks):
 
 
 def read_rapl_energy_filtering():
-    return read_process_with_regex('rdmsr -d 0xbc', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL)
+    return read_process_with_regex('/usr/sbin/rdmsr -d 0xbc', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL)
 
 # Defining shortcuts to make the lines shorter
 rfwr = read_file_with_regex
@@ -97,9 +97,9 @@ cf = call_function
 root_info_list = [
     [rdr, 'Power Limits', '/sys/devices/virtual/powercap/intel-rapl'],
     [rdr, 'CPU Scheduling', '/sys/kernel/debug/sched'],
-    [rpwr, 'Hardware Details', 'lshw', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Hardware Details', '/usr/bin/lshw', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [cf, 'RAPL Energy Filtering', read_rapl_energy_filtering],
-    [rpwr, 'Systemd Services', 'sudo systemctl --all list-unit-files', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Systemd Services', '/usr/bin/sudo /usr/bin/systemctl --all list-unit-files', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
 ]
 
 def get_root_list():
