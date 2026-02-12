@@ -9,7 +9,7 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
-del os.environ # we do not want any of these values to ever be accessed or influence our scripts
+os.environ.clear() # we do not want any of these values to ever be accessed or influence our scripts
 
 import json
 import platform
