@@ -8,29 +8,17 @@ const PROVIDER_HISTORY_FUTURE_HOURS = 12;
 const METRIC_SHIFT_STEP_MS = 10 * 60 * 1000; // 10 minutes
 const METRIC_SIMULATION_SHIFT_STEP_MS = 1 * 60 * 1000; // 1 minute
 
-const SIMULATION_DEBUG = false;
 const query = (selector) => document.querySelector(selector);
+
 const setTextContent = (selector, value) => {
-    const element = query(selector);
-    if (element) {
-        element.textContent = value;
-    }else{
-        logSimulationDebug(`Element not found for selector: ${selector}`);
-    }
+    query(selector).textContent = value;
 };
 
 const bindClick = (selector, handler) => {
-    const element = query(selector);
-    if (element) {
-        element.addEventListener('click', handler);
-    }else{
-        logSimulationDebug(`Element not found for selector: ${selector}`);
-    }
-
+    query(selector).addEventListener('click', handler);
 };
 
 const setButtonDisabledState = (button, disabled) => {
-    if (!button) return;
     button.classList.toggle('disabled', disabled);
     if (disabled) {
         button.setAttribute('disabled', 'disabled');
@@ -40,7 +28,6 @@ const setButtonDisabledState = (button, disabled) => {
 };
 
 const setButtonLoadingState = (button, loading) => {
-    if (!button) return;
     button.classList.toggle('loading', loading);
 };
 
@@ -67,7 +54,6 @@ const simulationState = {
 
 const setDropdownLoading = (selector, loading) => {
     const dropdown = query(selector);
-    if (!dropdown) return;
     dropdown.classList.toggle('loading', loading);
 };
 
@@ -81,9 +67,7 @@ const setMetricDropdownLoading = (loading) => {
 
 const setMiniChartPlaceholder = (selector, message) => {
     const container = query(selector);
-    if (!container) return;
     container.innerHTML = '';
-    if (!message) return;
     const placeholder = document.createElement('div');
     placeholder.className = 'simulation-mini-chart-placeholder';
     placeholder.textContent = message;
@@ -107,7 +91,7 @@ const setShiftButtonsDisabled = (disabled) => {
 };
 
 const logSimulationDebug = (...args) => {
-    if (!SIMULATION_DEBUG) return;
+    if (!window.SIMULATION_DEBUG) return;
     console.log('[simulation]', ...args);
 };
 
@@ -130,7 +114,6 @@ const toLocalDatetimeInputValue = (timeMs) => {
 };
 
 const parseLocalDatetimeInputValue = (value) => {
-    if (!value) return null;
     const parsed = new Date(value);
     const timeMs = parsed.getTime();
     return Number.isNaN(timeMs) ? null : timeMs;
@@ -158,7 +141,6 @@ const ensureProviderHistoryRange = () => {
 };
 
 const openDatetimePicker = (input) => {
-    if (!input) return;
     if (typeof input.showPicker === 'function') {
         try {
             input.focus({ preventScroll: true });
@@ -235,8 +217,6 @@ const bindProviderRangeControls = () => {
         endInput
     } = getProviderRangeElements();
 
-    if (!startButton || !endButton || !startInput || !endInput) return;
-
     startButton.addEventListener('click', () => openDatetimePicker(startInput));
     endButton.addEventListener('click', () => openDatetimePicker(endInput));
 
@@ -291,7 +271,6 @@ const setCarbonSummary = (totalValue, statusMessage) => {
     const valueEl = query('#carbon-summary-value');
     const unitEl = query('#carbon-summary-unit');
     const statusEl = query('#carbon-summary-status');
-    if (!valueEl || !unitEl) return;
 
     if (statusEl) {
         statusEl.textContent = statusMessage || '';
@@ -323,7 +302,6 @@ const setBestRuntimeSummary = (totalValue, startMs, statusMessage) => {
     const unitEl = query('#best-runtime-unit');
     const timeEl = query('#best-runtime-time');
     const statusEl = query('#best-runtime-status');
-    if (!valueEl || !unitEl || !timeEl) return;
 
     if (statusEl) {
         statusEl.textContent = statusMessage || '';
@@ -442,7 +420,6 @@ const buildMiniLineOptions = (seriesData, unit, lineColor) => ({
 
 const renderMiniChart = (chartKey, selector, options) => {
     const container = query(selector);
-    if (!container) return;
     if (simulationState[chartKey]) {
         simulationState[chartKey].dispose();
         simulationState[chartKey] = null;
@@ -791,9 +768,8 @@ const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerL
     const title = 'Carbon intensity and estimated emissions';
     const element = createChartContainer('#chart-container', title);
     const card = element.closest('.statistics-chart-card');
-    if (card) {
-        card.classList.add('full-width');
-    }
+
+    card.classList.add('full-width');
 
     const options = {
         tooltip: {
@@ -889,7 +865,6 @@ const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerL
 
 const setChartLoadFailureVisible = (visible, headerText, detailText) => {
     const message = query('#message-chart-load-failure');
-    if (!message) return;
     if (headerText) {
         setTextContent('#message-chart-load-failure-header', headerText);
     }
@@ -901,7 +876,6 @@ const setChartLoadFailureVisible = (visible, headerText, detailText) => {
 
 const setAlignButtonVisible = (visible) => {
     const button = query('#align-metric');
-    if (!button) return;
     button.classList.toggle('hidden', !visible);
 };
 
@@ -1053,7 +1027,6 @@ const shiftMetricTime = (direction) => {
 
 const populateMetrics = (metrics) => {
     const menu = query('#metric-menu');
-    if (!menu) return;
     menu.innerHTML = '';
 
     metrics.forEach((metric) => {
@@ -1189,7 +1162,6 @@ const fetchProviderCarbonHistory = async (selection, startTime, endTime) => {
 
 const openBestProviderDialog = () => {
     const dialog = query('#best-provider-dialog');
-    if (!dialog) return;
     if (typeof dialog.showModal === 'function') {
         if (!dialog.open) {
             dialog.showModal();
@@ -1201,7 +1173,6 @@ const openBestProviderDialog = () => {
 
 const closeBestProviderDialog = () => {
     const dialog = query('#best-provider-dialog');
-    if (!dialog) return;
     if (typeof dialog.close === 'function') {
         if (dialog.open) {
             dialog.close();
