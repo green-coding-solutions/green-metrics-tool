@@ -49,7 +49,7 @@ class GMTMenu extends HTMLElement {
         const menuItemClass = (menuKey) => activeMenuKey === menuKey ? 'item active' : 'item';
 
         let html_content = `
-        <div id="menu" class="ui inverted pointing vertical menu">
+        <div id="menu" class="ui inverted secondary pointing vertical menu">
             <div class="item-container">
                 <a class="${menuItemClass('home')}" href="/index.html" aria-label="Home">
                     <b><i class="home icon"></i> Home</b>
