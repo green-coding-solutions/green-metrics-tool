@@ -59,6 +59,14 @@ function check_python_version() {
     fi
 }
 
+# This function:
+# - Checks wether a file is owned root:root (0:0)
+# - Wheter a file or any part of the path is a symlink
+# - Wether the file is public writeable
+# - If any ACLs are set which might change writeablity
+# This is done in order to make sure that the sudoers entry we create and the root executable files
+# are in safe locations that cannot be tempered with
+# Typically everything in /usr /bin /sbin etc. should be safe anyway, but we double check
 function check_file_permissions() {
     local path="$1"
 
@@ -114,7 +122,10 @@ function check_file_permissions() {
         return 1
     fi
 
-    local path_perm_numeric=$((10#${path_mode: -3}))  # last 3 digits
+     # first converts possible octal number to decimal, than takes last 3 digits in case number is longer
+     # apparently some older versions of macOs can return a path_mode that is longer
+     # But even on linux for instance /tmp will return 1777 .. so in any case we must only take the last 3
+    local path_perm_numeric=$((10#${path_mode: -3}))
     local path_other=$(( path_perm_numeric % 10 ))
 
     if (( path_other & 2 )); then
