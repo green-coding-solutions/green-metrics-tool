@@ -9,8 +9,6 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
-os.environ.clear() # we do not want any of these values to ever be accessed or influence our scripts
-
 import json
 import platform
 import re
@@ -112,6 +110,10 @@ def get_root_list():
 
 
 if __name__ == '__main__':
+    # must be here and not in header, as we include it also.
+    # This means that all imports at the top still can read os.environ ... but that should not be too risky
+    os.environ.clear() # we do not want any of these values to ever be accessed or influence our scripts
+
     if platform.system() == 'Darwin':
         print('{}')
     else:
