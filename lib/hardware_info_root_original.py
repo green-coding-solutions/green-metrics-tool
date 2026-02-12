@@ -116,7 +116,7 @@ if __name__ == '__main__':
         print('{}')
     else:
         # not using argparse, which needs os.environ
-        if sys.argv[1] == '--read-rapl-energy-filtering':
+        if len(sys.argv) > 1 and sys.argv[1] == '--read-rapl-energy-filtering':
             print(read_rapl_energy_filtering(), end='')
         else:
             print(json.dumps(get_values(get_root_list())))

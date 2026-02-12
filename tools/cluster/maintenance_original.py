@@ -139,5 +139,5 @@ if __name__ == '__main__':
     check_systemd_timers()
 
     # not using argparse, which needs os.environ
-    if sys.argv[1] == '--update-os-packages':
+    if len(sys.argv) > 1 and sys.argv[1] == '--update-os-packages':
         update_os_packages()
