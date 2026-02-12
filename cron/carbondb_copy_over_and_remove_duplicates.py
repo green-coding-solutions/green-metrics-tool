@@ -28,7 +28,7 @@ def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then 
                 longitude,
                 ip_address,
                 user_id,
-                created_at
+                NOW()
             FROM hog_simplified_measurements
     '''
     if interval:
@@ -58,7 +58,7 @@ def copy_over_eco_ci(interval=30): # 30 days is the merge window. Until then we 
                 longitude,
                 ip_address,
                 user_id,
-                created_at
+                NOW()
             FROM ci_measurements
     '''
     if interval:
@@ -89,7 +89,7 @@ def copy_over_scenario_runner(interval=30): # 30 days is the merge window. Until
                 NULL, -- there simply is no longitude as no IP is present
                 NULL, -- no connecting IP was used to transmit the data
                 r.user_id,
-                r.created_at
+                NOW()
             FROM runs as r
             -- we do LEFT JOIN as we do not want to silent skip data. If a column gets NULL it will fail
             LEFT JOIN machines as m ON m.id = r.machine_id
