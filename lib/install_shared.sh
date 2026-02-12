@@ -302,8 +302,8 @@ function setup_python() {
     # It must only use python root installed packages and no venv packages
     # furthermore it may only use an absolute path
     print_message "Setting hardware_info_root.py sudoers entry"
-    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${gmt_root_bin_dir}/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
-    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} ${gmt_root_bin_dir}/hardware_info_root.py --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} -I -B -S ${gmt_root_bin_dir}/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} -I -B -S ${gmt_root_bin_dir}/hardware_info_root.py --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
     sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
     # remove old file name
     sudo rm -f /etc/sudoers.d/green_coding_hardware_info

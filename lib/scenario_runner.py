@@ -818,7 +818,7 @@ class ScenarioRunner:
 
         if len(hardware_info_root.get_root_list()) > 0:
             python_realpath = Path('/usr/bin/python3').resolve(strict=True) # bc typically symlinked to python3.12 or similar
-            ps = subprocess.run(['sudo', python_realpath.as_posix(), Path('/usr/local/bin/green-metrics-tool/hardware_info_root.py').resolve(strict=True)], stdout=subprocess.PIPE, cwd=GMT_ROOT_DIR, check=True, encoding='UTF-8', errors='replace')
+            ps = subprocess.run(['sudo', python_realpath.as_posix(), '-I', '-B', '-S', Path('/usr/local/bin/green-metrics-tool/hardware_info_root.py').resolve(strict=True)], stdout=subprocess.PIPE, cwd=GMT_ROOT_DIR, check=True, encoding='UTF-8', errors='replace')
             machine_specs_root = json.loads(ps.stdout)
             machine_specs.update(machine_specs_root)
 
