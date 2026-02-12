@@ -21,8 +21,6 @@ metric-provider-binary
 .vscode
 static-binary
 .pytest_cache
-/lib/hardware_info_root.py
-/tools/cluster/maintenance.py
 /node_modules/
 /lib/c/*.o
 /tools/backup

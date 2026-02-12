@@ -5,6 +5,7 @@ import os
 import requests
 from urllib.parse import urlparse
 from functools import cache
+from pathlib import Path
 
 from lib import error_helpers
 from lib.db import DB
@@ -197,7 +198,8 @@ def get_architecture():
 
 
 def is_rapl_energy_filtering_deactivated():
-    result = subprocess.run(['sudo', 'python3', '-m', 'lib.hardware_info_root', '--read-rapl-energy-filtering'],
+    python_realpath = Path('/usr/bin/python3').resolve(strict=True) # bc typically symlinked to python3.12 or similar
+    result = subprocess.run(['sudo', python_realpath.as_posix(), '-I', '-B', '-S', Path('/usr/local/bin/green-metrics-tool/hardware_info_root.py').resolve(strict=True).as_posix(), '--read-rapl-energy-filtering'],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             cwd=os.path.abspath(os.path.join(CURRENT_DIR, '..')),
