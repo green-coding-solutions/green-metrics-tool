@@ -693,7 +693,7 @@ if [[ -z $tz ]] ; then
     if [[ -f /etc/timezone ]]; then
         default_tz="$(cat /etc/timezone 2>/dev/null)"
     elif [[ -L /etc/localtime ]]; then
-        default_tz="$(realpath /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##')"
+        default_tz="$(realpath /etc/localtime 2>/dev/null | sed -E 's#.*/zoneinfo(\.default)?/##')"
     fi
     default_tz="${default_tz:-Europe/Berlin}"
     echo ""
