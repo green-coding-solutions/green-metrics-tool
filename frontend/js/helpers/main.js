@@ -30,59 +30,77 @@ const date_options = {
 */
 class GMTMenu extends HTMLElement {
    connectedCallback() {
+        const validActiveMenuKeys = new Set([
+            'home',
+            'scenario-runner',
+            'runs-repos',
+            'watchlist',
+            'submit-software',
+            'cluster-status',
+            'eco-ci',
+            'power-hog',
+            'carbondb',
+            'data-analysis',
+            'authentication',
+            'settings',
+        ]);
+        const configuredActiveMenuKey = this.getAttribute('data-active-item');
+        const activeMenuKey = validActiveMenuKeys.has(configuredActiveMenuKey) ? configuredActiveMenuKey : 'home';
+        const menuItemClass = (menuKey) => activeMenuKey === menuKey ? 'item active' : 'item';
+
         let html_content = `
-        <div id="menu" class="ui inverted vertical menu">
+        <div id="menu" class="ui inverted secondary pointing vertical menu">
             <div class="item-container">
-                <a class="item" href="/index.html" aria-label="Home">
+                <a class="${menuItemClass('home')}" href="/index.html" aria-label="Home">
                     <b><i class="home icon"></i> Home</b>
                 </a>`
 
         if (ACTIVATE_SCENARIO_RUNNER == true) {
             html_content += `
-                <a class="item" href="/runs.html" aria-label="ScenarioRunner"><b><i class="tachometer alternate left icon"></i> ScenarioRunner</b></a>
-                <a class="item" href="/runs.html" aria-label="Runs / Repos">
+                <a class="${menuItemClass('scenario-runner')}" href="/runs.html" aria-label="ScenarioRunner"><b><i class="tachometer alternate left icon"></i> ScenarioRunner</b></a>
+                <a class="${menuItemClass('runs-repos')}" href="/runs.html" aria-label="Runs / Repos">
                     ⮑&nbsp;&nbsp;<b><i class="code branch icon"></i> Runs / Repos</b>
                 </a>
-                <a class="item" href="/watchlist.html" aria-label="Watchlist">
+                <a class="${menuItemClass('watchlist')}" href="/watchlist.html" aria-label="Watchlist">
                     ⮑&nbsp;&nbsp;<b><i class="list icon"></i> Watchlist</b>
                 </a>
-                <a class="item" href="/request.html" aria-label="Submit Software">
+                <a class="${menuItemClass('submit-software')}" href="/request.html" aria-label="Submit Software">
                     ⮑&nbsp;&nbsp;<b><i class="bullseye icon"></i> Submit Software</b>
                 </a>
-                <a class="item" href="/cluster-status.html" aria-label="Cluster Status">
+                <a class="${menuItemClass('cluster-status')}" href="/cluster-status.html" aria-label="Cluster Status">
                     ⮑&nbsp;&nbsp;<b><i class="database icon"></i> Cluster Status</b>
                 </a>`;
         };
 
         if (ACTIVATE_ECO_CI == true) {
             html_content += `
-                <a class="item" href="/ci-index.html" aria-label="Eco CI">
+                <a class="${menuItemClass('eco-ci')}" href="/ci-index.html" aria-label="Eco CI">
                     <b><i class="seedling icon"></i> Eco CI</b>
                 </a>`;
         };
 
         if (ACTIVATE_POWER_HOG == true) {
             html_content += `
-                <a class="item" href="/hog.html" aria-label="Power HOG">
+                <a class="${menuItemClass('power-hog')}" href="/hog.html" aria-label="Power HOG">
                     <b><i class="piggy bank icon"></i> Power HOG</b>
                 </a>`;
         };
 
         if (ACTIVATE_CARBON_DB == true) {
             html_content += `
-                <a class="item" href="/carbondb.html" aria-label="CarbonDB">
+                <a class="${menuItemClass('carbondb')}" href="/carbondb.html" aria-label="CarbonDB">
                     <b><i class="balance scale icon"></i> CarbonDB</b>
                 </a>`;
         };
 
         html_content += `
-                <a class="item" href="/data-analysis.html" aria-label="Data Analysis">
+                <a class="${menuItemClass('data-analysis')}" href="/data-analysis.html" aria-label="Data Analysis">
                     <b><i class="chartline icon"></i> Data Analysis</b>
                 </a>
-                <a class="item" href="/authentication.html" aria-label="Authentication">
+                <a class="${menuItemClass('authentication')}" href="/authentication.html" aria-label="Authentication">
                     <b><i class="users icon"></i>Authentication</b>
                 </a>
-                <a class="item" href="/settings.html" aria-label="Settings">
+                <a class="${menuItemClass('settings')}" href="/settings.html" aria-label="Settings">
                     <b><i class="cogs icon"></i> Settings</b>
                 </a>
             </div>`;
@@ -432,4 +450,3 @@ $(document).ready(() => {
     }
     resolveMachinesToGlobalVariable();
 });
-
