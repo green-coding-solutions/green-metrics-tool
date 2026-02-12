@@ -118,8 +118,8 @@ def validate_table_constraints():
             OR machine IS NULL
             OR source IS NULL
             OR tags IS NULL)
-            AND created_at > NOW() - INTERVAL '30 DAYS'
-            AND created_at < NOW() - INTERVAL '30 MINUTES'
+            AND created_at > NOW() - INTERVAL '31 DAYS' -- interval + 1 day to avoid race condition
+            AND created_at < NOW() - INTERVAL '30 MINUTES' -- data just arrived can be null, before it is backfilled
      ''')
 
     if data:
