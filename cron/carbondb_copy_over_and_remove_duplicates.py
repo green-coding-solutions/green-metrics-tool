@@ -149,9 +149,13 @@ def remove_duplicates():
 if __name__ == '__main__':
     try:
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
+        print('copy_over_eco_ci')
         copy_over_eco_ci()
+        print('copy_over_scenario_runner')
         copy_over_scenario_runner()
+        print('copy_over_power_hog')
         copy_over_power_hog()
+        print('remove_duplicates')
         remove_duplicates()
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])
