@@ -574,7 +574,7 @@ def test_network_alias_added():
             context.run_until('setup_services')
 
     assert 'Adding network alias test-alias for network gmt-test-network in service test-container' in out.getvalue()
-    docker_run_command = re.search(r"Calling docker with these paramters: (.*)", out.getvalue()).group(1)
+    docker_run_command = re.search(r"Calling docker with these paramters: ([^\r\n]+)", out.getvalue()).group(1)
     assert "'--network-alias', 'test-alias'" in docker_run_command
 
 def test_network_host_join_blocked():
@@ -602,16 +602,16 @@ def test_cmd_entrypoint():
         runner.run()
 
     o = out.getvalue()
-    assert re.search(r"--entrypoint.*/bin/sh.*alpine_gmt_run_tmp.*-c.*echo \'Hello from command\'", str(o))
-    assert re.search(r"--entrypoint.*sleep.*alpine_gmt_run_tmp.*infinity", str(o))
-    assert re.search(r"--entrypoint.*tail.*alpine_gmt_run_tmp.*-f.*/dev/null", str(o))
-    assert re.search(r"alpine_gmt_run_tmp.*/bin/sh.*-c", str(o))
-    assert re.search(r"alpine_gmt_run_tmp.*sleep.*infinity", str(o))
-    assert re.search(r"--entrypoint.*sleep.*alpine_gmt_run_tmp.*infinity", str(o))
-    assert re.search(r"--entrypoint.*cat.*alpine_gmt_run_tmp", str(o))
-    assert re.search(r"--entrypoint.*/bin/sh.*alpine_gmt_run_tmp.*-c.*echo \'A \$0\' && echo \'B \$0\'", str(o))
-    assert re.search(r"alpine_gmt_run_tmp.*ash.*-c.*echo.*\'Using Alpine ash shell\'", str(o))
-    assert re.search(r"alpine_gmt_run_tmp.*/bin/sh.*-c.*echo.*\'Variable test: \$\$0\'", str(o))
+    assert re.search(r"--entrypoint[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*alpine_gmt_run_tmp[\s,\[\]\"']*-c[\s,\[\]\"']*echo \'Hello from command\'", str(o))
+    assert re.search(r"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*alpine_gmt_run_tmp[\s,\[\]\"']*infinity", str(o))
+    assert re.search(r"--entrypoint[\s,\[\]\"']*tail[\s,\[\]\"']*alpine_gmt_run_tmp[\s,\[\]\"']*-f[\s,\[\]\"']*/dev/null", str(o))
+    assert re.search(r"alpine_gmt_run_tmp[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*-c", str(o))
+    assert re.search(r"alpine_gmt_run_tmp[\s,\[\]\"']*sleep[\s,\[\]\"']*infinity", str(o))
+    assert re.search(r"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*alpine_gmt_run_tmp[\s,\[\]\"']*infinity", str(o))
+    assert re.search(r"--entrypoint[\s,\[\]\"']*cat[\s,\[\]\"']*alpine_gmt_run_tmp", str(o))
+    assert re.search(r"--entrypoint[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*alpine_gmt_run_tmp[\s,\[\]\"']*-c[\s,\[\]\"']*echo \'A \$0\' && echo \'B \$0\'", str(o))
+    assert re.search(r"alpine_gmt_run_tmp[\s,\[\]\"']*ash[\s,\[\]\"']*-c[\s,\[\]\"']*echo[\s,\[\]\"']*\'Using Alpine ash shell\'", str(o))
+    assert re.search(r"alpine_gmt_run_tmp[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*-c[\s,\[\]\"']*echo[\s,\[\]\"']*\'Variable test: \$\$0\'", str(o))
 
     assert err.getvalue() == '', Tests.assertion_info('stderr should be empty', err.getvalue())
 
@@ -709,7 +709,7 @@ def test_entrypoint_empty():
     ).group(1)
     assert '--entrypoint=' in docker_run_command, f"--entrypoint= not found in docker run command: {docker_run_command}"
     assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been ignored', docker_ps_out)
-    assert re.search(r"tail.*-f.*/dev/null", docker_ps_out)
+    assert re.search(r"tail[\s,\[\]\"']*-f[\s,\[\]\"']*/dev/null", docker_ps_out)
 
 def test_read_detached_process_no_exit():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_no_exit.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
@@ -893,7 +893,10 @@ def test_good_arg():
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
 
-    assert re.search(r"docker.*run.*-it.*-d.*--label.*test=true", str(out.getvalue())), f"--label test=true not found in docker run command: {out.getvalue()}"
+    docker_run_command = re.search(r"Calling docker with these paramters: ([^\r\n]+)", str(out.getvalue()))
+    assert docker_run_command, f"Docker run command not found in output: {out.getvalue()}"
+    assert "'docker', 'run', '-it', '-d'" in docker_run_command.group(1), f"docker run prefix not found in docker run command: {docker_run_command.group(1)}"
+    assert "'--label', 'test=true'" in docker_run_command.group(1), f"--label test=true not found in docker run command: {docker_run_command.group(1)}"
 
 def test_restart_no_error():
 
