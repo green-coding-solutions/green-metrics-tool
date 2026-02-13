@@ -26,12 +26,13 @@ import platform
 from concurrent.futures import ThreadPoolExecutor
 from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
+CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 GMT_ROOT_DIR = Path(__file__).resolve().parent.parent
 
 from lib import utils
 from lib import process_helpers
 from lib import hardware_info
-from lib import hardware_info_root
+from lib import hardware_info_root_original as hardware_info_root
 from lib import error_helpers
 from lib.repo_info import get_repo_info
 from lib.debug_helper import DebugHelper
@@ -293,7 +294,7 @@ class ScenarioRunner:
         if platform.system() == 'Darwin':
             return
         # 3 instructs kernel to drops page caches AND inode caches
-        subprocess.check_output(['sudo', '/usr/sbin/sysctl', '-w', 'vm.drop_caches=3'], encoding='UTF-8', errors='replace')
+        subprocess.check_output(['sudo', Path('/usr/sbin/sysctl').resolve(strict=True).as_posix(), '-w', 'vm.drop_caches=3'], encoding='UTF-8', errors='replace')
 
     def _check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
@@ -816,7 +817,8 @@ class ScenarioRunner:
         machine_specs = hardware_info.get_default_values()
 
         if len(hardware_info_root.get_root_list()) > 0:
-            ps = subprocess.run(['sudo', '/usr/bin/python3', '-m', 'lib.hardware_info_root'], stdout=subprocess.PIPE, cwd=GMT_ROOT_DIR, check=True, encoding='UTF-8', errors='replace')
+            python_realpath = Path('/usr/bin/python3').resolve(strict=True) # bc typically symlinked to python3.12 or similar
+            ps = subprocess.run(['sudo', python_realpath.as_posix(), '-I', '-B', '-S', Path('/usr/local/bin/green-metrics-tool/hardware_info_root.py').resolve(strict=True)], stdout=subprocess.PIPE, cwd=GMT_ROOT_DIR, check=True, encoding='UTF-8', errors='replace')
             machine_specs_root = json.loads(ps.stdout)
             machine_specs.update(machine_specs_root)
 

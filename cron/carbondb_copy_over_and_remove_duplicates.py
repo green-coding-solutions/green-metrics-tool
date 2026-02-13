@@ -20,7 +20,7 @@ def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then 
                 machine_uuid,
                 'Power HOG',
                 '{}',
-                EXTRACT(EPOCH FROM created_at) * 1e6,
+                "timestamp" * 1e3, -- timestamp is already milliseconds. thus only 1e3
                 (combined_energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
                 (operational_carbon_ug::DOUBLE PRECISION)/1e9 + (embodied_carbon_ug/1e9), -- to get to kg
                 carbon_intensity_g,
@@ -28,7 +28,7 @@ def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then 
                 longitude,
                 ip_address,
                 user_id,
-                created_at
+                NOW()
             FROM hog_simplified_measurements
     '''
     if interval:
@@ -58,7 +58,7 @@ def copy_over_eco_ci(interval=30): # 30 days is the merge window. Until then we 
                 longitude,
                 ip_address,
                 user_id,
-                created_at
+                NOW()
             FROM ci_measurements
     '''
     if interval:
@@ -89,7 +89,7 @@ def copy_over_scenario_runner(interval=30): # 30 days is the merge window. Until
                 NULL, -- there simply is no longitude as no IP is present
                 NULL, -- no connecting IP was used to transmit the data
                 r.user_id,
-                r.created_at
+                NOW()
             FROM runs as r
             -- we do LEFT JOIN as we do not want to silent skip data. If a column gets NULL it will fail
             LEFT JOIN machines as m ON m.id = r.machine_id
@@ -118,8 +118,8 @@ def validate_table_constraints():
             OR machine IS NULL
             OR source IS NULL
             OR tags IS NULL)
-            AND created_at > NOW() - INTERVAL '30 DAYS'
-            AND created_at < NOW() - INTERVAL '30 MINUTES'
+            AND created_at > NOW() - INTERVAL '31 DAYS' -- interval + 1 day to avoid race condition
+            AND created_at < NOW() - INTERVAL '30 MINUTES' -- data just arrived can be null, before it is backfilled
      ''')
 
     if data:
@@ -149,9 +149,13 @@ def remove_duplicates():
 if __name__ == '__main__':
     try:
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
+        print('copy_over_eco_ci')
         copy_over_eco_ci()
+        print('copy_over_scenario_runner')
         copy_over_scenario_runner()
+        print('copy_over_power_hog')
         copy_over_power_hog()
+        print('remove_duplicates')
         remove_duplicates()
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])

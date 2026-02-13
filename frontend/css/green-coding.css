@@ -328,7 +328,7 @@ a.project-item>i.icon {
  #menu {
     display: flex;
     flex-direction: column;
-    width: 200px;
+    width: 205px;
     height: 100%;
     min-height: 100vh;
     position: fixed;
@@ -358,6 +358,11 @@ a.project-item>i.icon {
     flex:1;
 }
 
+#menu.ui.inverted.menu .item.active,
+#menu.ui.inverted.menu .active.item {
+    background: rgb(40, 56, 70) !important;
+}
+
 /* Handle collapsing on click or on small window */
 a,
 #menu {
@@ -372,7 +377,7 @@ a,
 
 
 #menu.closed {
-    left: -200px;
+    left: -205px;
  }
 #main.closed {
     margin-left: 40px;
@@ -388,7 +393,7 @@ a,
 
 @media only screen and (max-width: 960px) {
      #menu {
-        left: -200px;
+        left: -205px;
      }
      #main {
          margin-left: 20px;
