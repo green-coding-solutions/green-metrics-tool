@@ -31,12 +31,13 @@ import platform
 from concurrent.futures import ThreadPoolExecutor
 from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
-GMT_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
+CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
+GMT_ROOT_DIR = Path(__file__).resolve().parent.parent
 
 from lib import utils
 from lib import process_helpers
 from lib import hardware_info
-from lib import hardware_info_root
+from lib import hardware_info_root_original as hardware_info_root
 from lib import error_helpers
 from lib.repo_info import get_repo_info
 from lib.debug_helper import DebugHelper
@@ -65,8 +66,8 @@ def validate_usage_scenario_variables(usage_scenario_variables):
 class ScenarioRunner:
     def __init__(self,
         *, uri, uri_type, name=None, filename='usage_scenario.yml', branch=None,
-        debug_mode=False, allow_unsafe=False,  skip_system_checks=False,
-        skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
+        debug_mode=False, allow_unsafe=False,
+        verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
         docker_prune=False, job_id=None, user_id=1,
         disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None, carbon_simulation=None,
         category_ids=None,
@@ -74,10 +75,14 @@ class ScenarioRunner:
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
         measurement_wait_time_dependencies=60, measurement_flow_process_duration=None, measurement_total_duration=None,
 
-        dev_no_phase_stats=False, dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
-        dev_flow_timetravel=False, dev_no_optimizations=False,
+        # These switches may break or skew proper measurements or make them uncomparable due to missing info
+        dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False, dev_no_system_checks=False,
+        dev_flow_timetravel=False, dev_stream_outputs=False, dev_cache_repos=False, dev_no_phase_stats=False,
+        dev_no_container_dependency_collection=False,
 
-        skip_volume_inspect=False, skip_download_dependencies=False,
+        # These switches do not alter proper measurements, but might result in data not being generated
+        skip_volume_inspect=False, skip_download_dependencies=False, skip_unsafe=False,
+        skip_optimizations=False,
         ):
 
         self._arguments = locals() # safe the argument as first step before anything else to not expose local created variables
@@ -102,27 +107,38 @@ class ScenarioRunner:
             self._name = f"Run {datetime.now()}"
         self._debugger = DebugHelper(debug_mode)
         self._allow_unsafe = allow_unsafe
-        self._skip_unsafe = skip_unsafe
-        self._skip_system_checks = skip_system_checks
-        self._skip_volume_inspect = skip_volume_inspect
-        self._skip_download_dependencies = skip_download_dependencies
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._docker_prune = docker_prune
+
+        self._skip_unsafe = skip_unsafe
+        self._skip_volume_inspect = skip_volume_inspect
+        self._skip_download_dependencies = skip_download_dependencies
+        self._skip_optimizations = skip_optimizations
+        self._dev_no_container_dependency_collection = dev_no_container_dependency_collection
+
         self._dev_no_sleeps = dev_no_sleeps
         self._dev_cache_build = dev_cache_build
         self._dev_no_metrics = dev_no_metrics
         self._dev_flow_timetravel = dev_flow_timetravel
-        self._dev_no_optimizations = dev_no_optimizations
         self._dev_no_phase_stats = dev_no_phase_stats
         self._dev_no_save = dev_no_save
+        self._dev_stream_outputs = dev_stream_outputs
+        self._dev_cache_repos = dev_cache_repos
+        self._dev_no_system_checks = dev_no_system_checks
+
         self._uri = uri
         self._uri_type = uri_type
-        self._original_filename = filename
+        self._original_filename = Path(filename)
         self._branch = branch
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
-        self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
-        self._relations_folder = os.path.realpath(os.path.join(self._tmp_folder, 'relations'))
+
+        self._tmp_folder = Path('/tmp/').resolve(strict=True).joinpath('green-metrics-tool') # since linux has /tmp and macos /private/tmp
+        self._relations_folder = self._tmp_folder.joinpath('relations')
+        self._repo_folder = self._tmp_folder.joinpath('repo') # default if not changed in checkout_repository
+        self._metrics_folder = self._tmp_folder.joinpath('metrics')
+        self._build_dir = self._tmp_folder.joinpath('docker_images')
+
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
         self._carbon_simulation = carbon_simulation
@@ -133,7 +149,6 @@ class ScenarioRunner:
         self._sci |= config.get('sci', None)  # merge in data from machine config like I, TE etc.
 
         self._job_id = job_id
-        self._repo_folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
@@ -192,7 +207,7 @@ class ScenarioRunner:
         self.__join_default_network = False
         self.__docker_params = []
         self.__working_folder = self._repo_folder
-        self.__working_folder_rel = ''
+        self.__working_folder_rel = Path('')
         self.__image_sizes = {}
         self.__volume_sizes = {}
         self.__warnings = []
@@ -204,7 +219,6 @@ class ScenarioRunner:
         self.__carbon_simulation_uuid = None
 
         self._check_all_durations()
-
 
     def _check_all_durations(self):
         if self._measurement_total_duration is None: # exit early if no max timeout specififed
@@ -230,6 +244,11 @@ class ScenarioRunner:
             print(TerminalColors.HEADER, '\nSleeping for : ', sleep_time, TerminalColors.ENDC)
             time.sleep(sleep_time)
 
+    def _initialize_folder(self, path: Path):
+        shutil.rmtree(path, ignore_errors=False)
+        path.mkdir(parents=False, exist_ok=False)
+
+
     def get_optimizations_ignore(self):
         return self.__usage_scenario.get('optimizations_ignore', [])
 
@@ -238,38 +257,33 @@ class ScenarioRunner:
     # We always return the same error message including the path and file parameter, never `filename` as
     # otherwise we might disclose if certain files exist or not.
     def _join_paths(self, path, path2, force_path_as_root=False, force_path_in_repo=True):
-        filename = os.path.realpath(os.path.join(path, path2))
+        child = Path(path, path2).resolve() # no strict as we do not want to print out path due to filesystem discovery attacks
 
         # If the original path is a symlink we need to resolve it.
-        path = os.path.realpath(path)
+        parent = Path(path).resolve(strict=True)
 
-        # This is a special case in which the file is '.'
-        if filename == path.rstrip('/'):
-            return filename
+        # This is a special case in which the file is '.' or empty
+        if parent == child:
+            return child
 
-        if force_path_in_repo and not filename.startswith(self._repo_folder):
-            raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder}")
+        if force_path_in_repo and not child.is_relative_to(self._repo_folder):
+            raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder.as_posix()}")
 
-        if force_path_as_root and not filename.startswith(path):
-            raise RuntimeError(f"{path2} must not be in folder above {path}")
-
-        # Another way to implement this. This is checking again but we want to be extra secure 👾
-        if force_path_in_repo and Path(self._repo_folder).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-            raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder}")
-
-        if force_path_as_root and Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
+        if force_path_as_root and not child.is_relative_to(parent):
             raise ValueError(f"{path2} must not be in folder above {path}")
 
+        if child.exists():
+            return child
 
-        if os.path.exists(filename):
-            return filename
+        raise FileNotFoundError(f"{path2} in {path} not found") # again no printing of child / parent only input variables
 
-        raise FileNotFoundError(f"{path2} in {path} not found")
-
-
-    def _initialize_folder(self, path):
-        shutil.rmtree(path, ignore_errors=True)
-        Path(path).mkdir(parents=True, exist_ok=True)
+    def _find_outside_symlinks(self, base_dir: Path):
+        real_base_dir = base_dir.resolve(strict=True)
+        for item in real_base_dir.rglob("*"):
+            if not item.resolve().is_relative_to(real_base_dir):
+                # again no resolve(strict=True) as we do not want to expose possible paths in our system
+                return f"{item}"
+        return None
 
     def _save_notes_runner(self):
         print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
@@ -286,12 +300,12 @@ class ScenarioRunner:
         if platform.system() == 'Darwin':
             return
         # 3 instructs kernel to drops page caches AND inode caches
-        subprocess.check_output(['sudo', '/usr/sbin/sysctl', '-w', 'vm.drop_caches=3'], encoding='UTF-8', errors='replace')
+        subprocess.check_output(['sudo', Path('/usr/sbin/sysctl').resolve(strict=True).as_posix(), '-w', 'vm.drop_caches=3'], encoding='UTF-8', errors='replace')
 
     def _check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
-        if self._skip_system_checks:
-            print('Skipping check system due to --skip-system-checks')
+        if self._dev_no_system_checks:
+            print('Skipping check system due to --dev-no-system-checks')
             return
 
         warnings = system_checks.system_check(mode, self._measurement_system_check_threshold, run_duration=self._last_measurement_duration)
@@ -303,38 +317,43 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nChecking out repository', TerminalColors.ENDC)
 
         if self._uri_type == 'URL':
-            # always remove the folder if URL provided, cause -v directory binding always creates it
-            # no check cause might fail when directory might be missing due to manual delete
-            command = ['git', 'clone', '--depth', '1']
+            if self._dev_cache_repos and self._repo_folder.exists() and self._repo_folder.is_dir() and any(self._repo_folder.iterdir()):
+                print('Skipping clone of ', self._uri, 'as it was already present on disk and --dev-cache-repos was set')
+            else:
+                self._initialize_folder(self._repo_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
 
-            if self._branch:
-                print(f"Branch specified: {self._branch}")
-                command.append('-b')
-                command.append(self._branch)
+                # always remove the folder if URL provided, cause -v directory binding always creates it
+                # no check cause might fail when directory might be missing due to manual delete
+                command = ['git', 'clone', '--depth', '1']
 
-            command.append('--single-branch')
-            command.append('--recurse-submodules')
-            command.append('--shallow-submodules')
-            command.append(self._uri)
-            command.append(self._repo_folder)
+                if self._branch:
+                    print(f"Branch specified: {self._branch}")
+                    command.append('-b')
+                    command.append(self._branch)
 
-            subprocess.run(
-                command,
-                check=True,
-                capture_output=True,
-                encoding='UTF-8',
-                errors='replace'
-            )
+                command.append('--single-branch')
+                command.append('--recurse-submodules')
+                command.append('--shallow-submodules')
+                command.append(self._uri)
+                command.append(self._repo_folder.as_posix())
 
-            if problematic_symlink := utils.find_outside_symlinks(self._repo_folder):
-                raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
+                print('Cloning ', self._uri)
+                subprocess.run(
+                    command,
+                    check=True,
+                    capture_output=True,
+                    encoding='UTF-8',
+                    errors='replace'
+                )
+
+                if problematic_symlink := self._find_outside_symlinks(self._repo_folder):
+                    raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
         else:
             if self._original_branch is not None:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
             # If the provided uri is a symlink we need to resolve it.
-            path = os.path.realpath(self._uri)
-            self.__working_folder = self._repo_folder = path
+            self.__working_folder = self._repo_folder = Path(self._uri).resolve(strict=True)
 
         if self._dev_no_save:
             return
@@ -342,7 +361,7 @@ class ScenarioRunner:
         self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8', errors='replace').strip()
 
         git_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self._repo_folder, encoding='UTF-8', errors='replace').strip()
-        if git_repo_root != self._repo_folder:
+        if Path(git_repo_root).resolve(strict=True) != self._repo_folder:
             raise RuntimeError(f"Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename. Real repo root is {git_repo_root}")
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
@@ -353,18 +372,18 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nChecking out relations', TerminalColors.ENDC)
 
         if 'relations' not in self.__usage_scenario:
-            print(TerminalColors.HEADER, '\nNo relations found. Skipping ...', TerminalColors.ENDC)
+            print('No relations found. Skipping ...')
             return
 
-
-        Path(self._relations_folder).mkdir(parents=False, exist_ok=False)
+        if not self._dev_cache_repos:
+            self._initialize_folder(self._relations_folder)
 
         for relation_key, relation in self.__usage_scenario['relations'].items():
-            relation_path = os.path.realpath(os.path.join(self._relations_folder, relation_key))
+            relation_path = self._relations_folder.joinpath(relation_key).resolve() # relation_key already checked in schema_checker
 
             self.__relations[relation_key] = {
                 'url': relation['url'],
-                'mount_path': relation_path,
+                'mount_path': relation_path.as_posix(),
             }
 
             command = ['git', 'clone', '--depth', '1']
@@ -378,15 +397,20 @@ class ScenarioRunner:
             command.append('--recurse-submodules')
             command.append('--shallow-submodules')
             command.append(relation['url'])
-            command.append(relation_path)
+            command.append(relation_path.as_posix())
 
-            subprocess.run(
-                command,
-                check=True,
-                capture_output=True,
-                encoding='UTF-8',
-                errors='replace'
-            )
+            # only skip checkout if switch active and files in dir present
+            if self._dev_cache_repos and relation_path.exists() and relation_path.is_dir() and any(relation_path.iterdir()):
+                print('Skipping clone of ', relation['url'], 'as it was already present on disk and --dev-cache-repos was set')
+            else:
+                print('Cloning ', relation['url'])
+                subprocess.run(
+                    command,
+                    check=True,
+                    capture_output=True,
+                    encoding='UTF-8',
+                    errors='replace'
+                )
 
             if 'commit_hash' in relation:
                 subprocess.run(
@@ -398,12 +422,11 @@ class ScenarioRunner:
                     cwd=relation_path,
                 )
 
-            if problematic_symlink := utils.find_outside_symlinks(relation_path):
+            if problematic_symlink := self._find_outside_symlinks(relation_path):
                 raise RuntimeError(f"Relation {relation_key} contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
 
 
             self.__relations[relation_key]['commit_hash'], self.__relations[relation_key]['commit_timestamp'] = get_repo_info(relation_path)
-
             self.__relations[relation_key]['commit_timestamp'] = str(self.__relations[relation_key]['commit_timestamp'])
 
 
@@ -485,9 +508,9 @@ class ScenarioRunner:
                 nodes = loader.get_constructed_nodes(node)
 
                 try:
-                    usage_scenario_dir = os.path.split(usage_scenario_file)[0]
+                    usage_scenario_dir = usage_scenario_file.parent
                     filename = runner_join_paths(usage_scenario_dir, nodes[0], force_path_as_root=True)
-                except RuntimeError as exc:
+                except ValueError as exc:
                     raise ValueError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
                 return loader.process_include(filename, nodes)
@@ -498,10 +521,10 @@ class ScenarioRunner:
 
 
         # We set the working folder now to the actual location of the usage_scenario
-        if '/' in self._original_filename:
-            self.__working_folder_rel = self._original_filename.rsplit('/', 1)[0]
-            self.__working_folder = usage_scenario_file.rsplit('/', 1)[0]
-            print("Working folder changed to ", self.__working_folder)
+        if '/' in self._original_filename.as_posix():
+            self.__working_folder_rel = self._original_filename.parent
+            self.__working_folder = usage_scenario_file.parent
+            print("Working folder changed to ", self.__working_folder.as_posix())
 
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as f:
@@ -666,7 +689,7 @@ class ScenarioRunner:
                     raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
 
     def _store_active_containers(self):
-        containers = { ctr['name'] : {'id': cid, 'mem_limit': ctr['mem_limit'], 'cpus': ctr['cpus'], 'cpuset': ctr['cpuset'], 'memory_swap': ctr['memory_swap'], 'memory_swappiness': ctr['memory_swappiness'], 'oom_score_adj': ctr['oom_score_adj']} for cid, ctr in self.__containers.items()}
+        containers = { ctr['name'] : {'id': cid, 'mem_limit': ctr['mem_limit'], 'cpus': ctr['cpus'], 'cpuset': ctr['cpuset'], 'memory_swap': ctr['memory_swap'], 'oom_score_adj': ctr['oom_score_adj']} for cid, ctr in self.__containers.items()}
 
         DB().query("""
             UPDATE runs
@@ -830,7 +853,8 @@ class ScenarioRunner:
         machine_specs = hardware_info.get_default_values()
 
         if len(hardware_info_root.get_root_list()) > 0:
-            ps = subprocess.run(['sudo', '/usr/bin/python3', '-m', 'lib.hardware_info_root'], stdout=subprocess.PIPE, cwd=GMT_ROOT_DIR, check=True, encoding='UTF-8', errors='replace')
+            python_realpath = Path('/usr/bin/python3').resolve(strict=True) # bc typically symlinked to python3.12 or similar
+            ps = subprocess.run(['sudo', python_realpath.as_posix(), '-I', '-B', '-S', Path('/usr/local/bin/green-metrics-tool/hardware_info_root.py').resolve(strict=True)], stdout=subprocess.PIPE, cwd=GMT_ROOT_DIR, check=True, encoding='UTF-8', errors='replace')
             machine_specs_root = json.loads(ps.stdout)
             machine_specs.update(machine_specs_root)
 
@@ -863,7 +887,7 @@ class ScenarioRunner:
                 )
                 RETURNING id
                 """, params=(
-                    self._job_id, self._name, self._uri, self._branch, self._original_filename, json.dumps(self.__relations),
+                    self._job_id, self._name, self._uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                     json.dumps(machine_specs), json.dumps(measurement_config),
                     json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
@@ -885,6 +909,8 @@ class ScenarioRunner:
             print(TerminalColors.WARNING, arrows('No metric providers were configured in config.yml. Was this intentional?'), TerminalColors.ENDC)
             return
 
+        self._initialize_folder(self._metrics_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
+
         for metric_provider in metric_providers: # will iterate over keys
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
@@ -894,19 +920,20 @@ class ScenarioRunner:
                 print(TerminalColors.WARNING, arrows(f"Not importing {class_name} as disabled per user settings"), TerminalColors.ENDC)
                 continue
 
-            optinal_conf = {}
+            optional_conf = {}
 
             if self.__carbon_simulation_uuid is not None:
                 if metric_provider.split('.')[-1] == 'CarbonIntensityElephantMachineProvider':
-                    optinal_conf['simulation_uuid'] = str(self.__carbon_simulation_uuid)
+                    optional_conf['simulation_uuid'] = str(self.__carbon_simulation_uuid)
 
-            if self._skip_system_checks:
-                optinal_conf['skip_check'] = True
+            if self._dev_no_system_checks:
+                optional_conf['skip_check'] = True
 
             print(f"Importing {class_name} from {module_path}")
             module = importlib.import_module(module_path)
 
-            merged_conf = {**conf, **optinal_conf}
+            merged_conf = {**conf, **optional_conf, 'folder': self._metrics_folder}
+
             metric_provider_obj = getattr(module, class_name)(**merged_conf)
             print(f"Configuration is {merged_conf}")
 
@@ -952,10 +979,6 @@ class ScenarioRunner:
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
-        # Create directory /tmp/green-metrics-tool/docker_images
-        temp_dir = f"{self._tmp_folder}/docker_images"
-        self._initialize_folder(temp_dir)
-
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
         for _, service in self.__usage_scenario.get('services', {}).items():
@@ -986,19 +1009,21 @@ class ScenarioRunner:
                 self.__notes_helper.add_note( note=f"Building {service['image']}", detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
-                context_path = self._join_paths(self.__working_folder, context)
+                context_path = self._join_paths(self.__working_folder, context) # context is currently where the filename is. but it can be moved to a lower level if it does not exit the repo dir
                 self._join_paths(context_path, dockerfile)
 
                 repo_mount_path = service.get('folder-destination', '/tmp/repo')
+                if ',' in repo_mount_path: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                    raise ValueError(f"Repo mount path may not contain commas (,) in the name: {repo_mount_path}")
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', '/workspace',
+                    '--mount', 'type=volume,dst=/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                    '-v', f"{self._repo_folder}:{repo_mount_path}:ro", # this is the folder where the usage_scenario is!
-                    '-v', f"{temp_dir}:/output",
+                    '--mount', f"type=bind,source={self._repo_folder.as_posix()},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
+                    '--mount', f"type=bind,source={self._build_dir.as_posix()},target=/output",
                     'gcr.io/kaniko-project/executor:latest',
-                    f"--dockerfile={repo_mount_path}/{self.__working_folder_rel}/{context}/{dockerfile}",
-                    '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel}/{context}',
+                    f"--dockerfile={repo_mount_path}/{self.__working_folder_rel.as_posix()}/{context}/{dockerfile}",
+                    '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel.as_posix()}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--cleanup=true',
@@ -1031,16 +1056,22 @@ class ScenarioRunner:
 
                 print(' '.join(docker_build_command))
 
-                if self._measurement_total_duration:
-                    ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', timeout=self._measurement_total_duration, check=False)
+                if self._dev_stream_outputs:
+                    output_behaviour = None
+                    print(TerminalColors.WARNING, arrows('Container Build output is streamed. Please note that this disallows capturing of errors and build outputs in logs and error messages.'), TerminalColors.ENDC)
                 else:
-                    ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
+                    output_behaviour = subprocess.PIPE
+
+                if self._measurement_total_duration:
+                    ps = subprocess.run(docker_build_command, stdout=output_behaviour, stderr=output_behaviour, encoding='UTF-8', errors='replace', timeout=self._measurement_total_duration, check=False)
+                else:
+                    ps = subprocess.run(docker_build_command, stdout=output_behaviour, stderr=output_behaviour, encoding='UTF-8', errors='replace', check=False)
 
                 if ps.returncode != 0:
                     raise subprocess.CalledProcessError(ps.returncode, 'Docker build failed', output=ps.stdout, stderr=ps.stderr)
 
                 # import the docker image locally
-                image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{tmp_img_name}.tar"]
+                image_import_command = ['docker', 'load', '-q', '-i', self._build_dir.joinpath(f"{tmp_img_name}.tar").as_posix()]
                 print(' '.join(image_import_command))
                 ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
@@ -1050,6 +1081,11 @@ class ScenarioRunner:
             else:
                 print(f"Pulling {service['image']}")
                 self.__notes_helper.add_note( note=f"Pulling {service['image']}" , detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
+
+                # We decided here against an implementation with subprocess.Popen and then iterative calling process.stdout.readline to stream the output
+                # bc the docker pull command does not stream the interactive progress bar. Only the lines when a layer finished with downloading
+                # Since this information does not provide info how long the image download still will take we opted for keeping this pull call less complex
+                # So you have to stare at the "Pulling XYZ" command until it is finished :)
                 ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
                 if ps_pull.returncode != 0:
@@ -1099,8 +1135,9 @@ class ScenarioRunner:
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
 
 
-        # Delete the directory /tmp/gmt_docker_images
-        shutil.rmtree(temp_dir)
+        # Delete the directory /tmp/gmt_docker_images as we do not want to keep the tar and the loaded image
+        # maybe create a switch here later to keep this artifact if we have a use case ...
+        shutil.rmtree(self._build_dir)
 
     def _save_image_and_volume_sizes(self):
 
@@ -1119,6 +1156,8 @@ class ScenarioRunner:
             self.__image_sizes[service['image']] = int(output.strip())
 
         # du -s -b does not work on macOS and also the docker image is in a VM and not accessible with du for us
+        # This call is guarded with --allow-unsafe bc volume information reveals host filesystem paths
+        # and potentially also volumes from other users can be probed through this
         if not self._skip_volume_inspect and self._allow_unsafe and platform.system() != 'Darwin':
             for volume in self.__usage_scenario.get('volumes', {}):
                 # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
@@ -1249,7 +1288,7 @@ class ScenarioRunner:
 
             repo_mount_path = service.get('folder-destination', '/tmp/repo')
             # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-            docker_run_string.append(f"{self._repo_folder}:{repo_mount_path}:ro")
+            docker_run_string.append(f"{self._repo_folder.as_posix()}:{repo_mount_path}:ro")
 
             for relation_key, relation in self.__relations.items():
                 docker_run_string.append('-v')
@@ -1267,26 +1306,17 @@ class ScenarioRunner:
 
             if 'volumes' in service:
                 if self._allow_unsafe:
-                    # On old docker clients we experience some weird error, that we deem legacy
-                    # If a volume is supplied in the compose.yml file in this form: ./file.txt:/tmp/file.txt
-                    # and the file does NOT exist, then docker will create the folder in the current running dir
-                    # This is however not enabled anymore and hard to circumvent. We keep this as unfixed for now.
-                    if not isinstance(service['volumes'], list):
-                        raise RuntimeError(f"Service '{service_name}' volumes must be a list but is: {type(service['volumes'])}")
-
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
                         if volume.startswith('./'): # we have a bind-mount with relative path
                             vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
-                            path = os.path.realpath(os.path.join(self.__working_folder, vol[0]))
-                            if not os.path.exists(path):
+                            path = Path(self.__working_folder, vol[0]).resolve()
+                            if not path.exists():
                                 raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
-                            docker_run_string.append(f"{path}:{vol[1]}")
+                            docker_run_string.append(f"{path.as_posix()}:{vol[1]}")
                         else:
                             docker_run_string.append(f"{volume}")
                 else: # safe volume bindings are active by default
-                    if not isinstance(service['volumes'], list):
-                        raise RuntimeError(f"Service '{service_name}' volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:
                         vol = volume.split(':')
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
@@ -1443,13 +1473,11 @@ class ScenarioRunner:
             container_data['cpuset'] = cpuset
             container_data['mem_limit'] = service['mem_limit']
             container_data['memory_swap'] = service['mem_limit']
-            container_data['memory_swappiness'] = 0
             container_data['oom_score_adj'] = 1000
 
             docker_run_string.append('--cpuset-cpus')
             docker_run_string.append(container_data['cpuset']) # range is already exclusive, so no need to subtract 1
             docker_run_string.append(f"--cpus={container_data['cpus']}")
-            docker_run_string.append(f"--memory-swappiness={container_data['memory_swappiness']}") # GMT should never swap as it gives hard to interpret / non-linear performance results
             docker_run_string.append(f"--oom-score-adj={container_data['oom_score_adj']}") # containers will be killed first so host does not OOM
             docker_run_string.append(f"--memory={container_data['mem_limit']}")
             docker_run_string.append(f"--env=GMT_CONTAINER_MEMORY_LIMIT={container_data['mem_limit']}")
@@ -1625,7 +1653,7 @@ class ScenarioRunner:
 
             ps = subprocess.run(
                 docker_run_string,
-                check=False,
+                check=False, # We want to throw custom error with stderr attached
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 encoding='UTF-8',
@@ -1643,6 +1671,12 @@ class ScenarioRunner:
             container_id = ps.stdout.strip()
             print('Stdout:', container_id)
             self.__containers[container_id] = container_data
+
+            print('Checking stderr ...')
+            docker_run_stderr = ps.stderr.strip()
+            if docker_run_stderr != '':
+                raise RuntimeError(f"Docker run command had non empty stderr: {docker_run_stderr}.\nCommand: {docker_run_string}")
+
 
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
@@ -1671,13 +1705,17 @@ class ScenarioRunner:
                     self.__ps_to_kill.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
 
                 else:
+                    output_behaviour = subprocess.PIPE
+                    if self._dev_stream_outputs: # overwrite all previous if set
+                        output_behaviour = None
+                        print(TerminalColors.WARNING, arrows('Process output is streamed. Please note that this disallows capturing of errors and build outputs in logs and error messages.'), TerminalColors.ENDC)
                     # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
                     # injection of unwawnted params
                     ps = subprocess.run(
                         d_command,
                         check=False,
-                        stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
+                        stderr=output_behaviour,
+                        stdout=output_behaviour,
                         encoding='UTF-8',
                         errors='replace',
                     )
@@ -1716,9 +1754,19 @@ class ScenarioRunner:
         }
 
         if stdout is not None:
-            log_entry['stdout'] = stdout.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+            if isinstance(stdout, str):
+                log_entry['stdout'] = stdout.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+            elif hasattr(stdout, 'decode') and callable(getattr(stdout, 'decode')): # can happen if a timeout error has occured and stdout was thus not converted yet
+                log_entry['stdout'] = stdout.decode('UTF-8', errors='replace').replace('\x00', '0x00')
+            else:
+                log_entry['stdout'] = str(stdout).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
         if stderr is not None:
-            log_entry['stderr'] = stderr.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+            if isinstance(stderr, str):
+                log_entry['stderr'] = stderr.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+            elif hasattr(stderr, 'decode') and callable(getattr(stderr, 'decode')): # can happen if a timeout error has occured and stderr was thus not converted yet
+                log_entry['stderr'] = stderr.decode('UTF-8', errors='replace').replace('\x00', '0x00')
+            else:
+                log_entry['stderr'] = str(stderr).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:
@@ -1789,6 +1837,12 @@ class ScenarioRunner:
 
     def _collect_container_dependencies(self):
         """Wrapper method to collect container dependencies."""
+        print(TerminalColors.HEADER, '\nCollecting dependency information', TerminalColors.ENDC)
+
+        if self._dev_no_container_dependency_collection:
+            print('Skipping container dependency collection due to --dev-no-container-dependency-collection')
+            return
+
         self._collect_dependency_info()
 
         if self._run_id:
@@ -1804,7 +1858,6 @@ class ScenarioRunner:
             print("No containers available for dependency resolution")
             return
 
-        print(TerminalColors.HEADER, '\nCollecting dependency information', TerminalColors.ENDC)
         container_names = [container_info['name'] for container_info in self.__containers.values()]
 
         # Execute energy-dependency-inspector for all containers in parallel using ThreadPoolExecutor
@@ -1953,21 +2006,23 @@ class ScenarioRunner:
                     if 'note' in cmd_obj:
                         self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=flow['container'], timestamp=int(time.time_ns() / 1_000))
 
-                    print(TerminalColors.HEADER, '\n', cmd_obj['type'], 'command:', cmd_obj['command'], 'on container', flow['container'], TerminalColors.ENDC)
+                    print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', flow['container'], TerminalColors.ENDC)
+                    print(cmd_obj['command'])
 
                     docker_exec_command = ['docker', 'exec']
                     docker_exec_command.append(flow['container'])
+
                     stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
-                    if cmd_obj.get('stream-stdout', False):
-                        stdout_behaviour = None
-                        self.__warnings.append('Stdout for a command was be streamed. This can create significant overhead and also means it cannot be captured to the logs. Only use this in local development')
-                    elif cmd_obj.get('log-stdout', True):
+
+                    if cmd_obj.get('log-stdout', True):
                         stdout_behaviour = subprocess.PIPE
-                    if cmd_obj.get('stream-stderr', False):
-                        stderr_behaviour = None
-                        self.__warnings.append('Stderr for a command was be streamed. This can create significant overhead and also means it cannot be captured to the logs. Only use this in local development')
                     if cmd_obj.get('log-stderr', True):
                         stderr_behaviour = subprocess.PIPE
+
+                    if self._dev_stream_outputs: # overwrite all previous if set
+                        stdout_behaviour = None
+                        stderr_behaviour = None
+                        print(TerminalColors.WARNING, arrows('Process output is streamed. Please note that this disallows capturing of errors and build outputs in logs and error messages.'), TerminalColors.ENDC)
 
                     if cmd_obj['type'] == 'playwright':
                         docker_exec_command.append(cmd_obj.get('shell', 'sh'))
@@ -2257,6 +2312,14 @@ class ScenarioRunner:
                     else:
                         raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}. Please also check the stdout in the logs and / or enable stdout logging to debug further.")
 
+    def _create_folders(self):
+        ''' Must be here and not in init, as it must be created for every iteration'''
+        self._tmp_folder.mkdir(parents=False, exist_ok=True)
+        self._relations_folder.mkdir(parents=False, exist_ok=True)
+        self._repo_folder.mkdir(parents=False, exist_ok=True)
+        self._metrics_folder.mkdir(parents=False, exist_ok=True)
+        self._build_dir.mkdir(parents=False, exist_ok=True)
+
     def _start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
         self.__start_measurement_seconds = time.time()
@@ -2277,6 +2340,8 @@ class ScenarioRunner:
     def _update_start_and_end_times(self):
         print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
 
+        self._last_measurement_duration = self.__end_measurement - self.__start_measurement # must happen still as we need _last_measurement_duration
+
         if not self._run_id or self._dev_no_save:
             print('Skipping update of start and end times due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
@@ -2286,7 +2351,6 @@ class ScenarioRunner:
             SET start_measurement=%s, end_measurement=%s
             WHERE id = %s
             """, params=(self.__start_measurement, self.__end_measurement, self._run_id))
-        self._last_measurement_duration = self.__end_measurement - self.__start_measurement
 
 
     def _set_run_failed(self):
@@ -2387,8 +2451,8 @@ class ScenarioRunner:
 
         for argument in self._arguments:
             # dev no optimizations does not make the run invalid ... all others do
-            if argument != 'dev_no_optimizations' and (argument.startswith('dev_') or argument == 'skip_system_checks')  and self._arguments[argument] not in (False, None):
-                invalid_message = 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
+            if argument.startswith('dev_') and self._arguments[argument] not in (False, None):
+                invalid_message = 'Development switches (--dev-*) were active for this run. This will likely produce skewed measurement data and should only be used in local development.\n'
                 print(TerminalColors.WARNING, invalid_message, TerminalColors.ENDC)
 
                 if not self._run_id or self._dev_no_save:
@@ -2432,12 +2496,12 @@ class ScenarioRunner:
         """
         iteration = 1
         for existing_run in self.__all_runs_logs:
-            if existing_run['filename'] == self._original_filename:
+            if existing_run['filename'] == self._original_filename.as_posix():
                 iteration = max(iteration, existing_run['iteration'] + 1)
 
         run_entry = {
             'iteration': iteration,
-            'filename': self._original_filename,
+            'filename': self._original_filename.as_posix(),
             'containers': {}
         }
 
@@ -2526,7 +2590,7 @@ class ScenarioRunner:
 
     def set_filename(self, filename):
         """Update filename for reusing ScenarioRunner with different files"""
-        self._original_filename = filename
+        self._original_filename = Path(filename)
 
     def run(self):
         '''
@@ -2541,10 +2605,10 @@ class ScenarioRunner:
         '''
         try:
             self._run_id = None  # Reset run ID for new run
+            self._create_folders()
             self._start_measurement() # we start as early as possible to include initialization overhead
             self._clear_caches()
             self._check_system('start')
-            self._initialize_folder(self._tmp_folder)
             self._checkout_repository()
             self._load_yml_file()
             self._initial_parse()

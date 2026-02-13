@@ -7,6 +7,7 @@ class ContainerMetricProvider(BaseMetricProvider):
             sampling_rate,
             unit,
             current_dir,
+            folder,
             skip_check,
             containers,
     ):
@@ -16,6 +17,7 @@ class ContainerMetricProvider(BaseMetricProvider):
             sampling_rate=sampling_rate,
             unit=unit,
             current_dir=current_dir,
+            folder=folder,
             skip_check=skip_check
         )
         self._cgroup_string_tokens = containers if containers else {}

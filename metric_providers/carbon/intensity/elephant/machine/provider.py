@@ -8,7 +8,7 @@ from metric_providers.base import BaseMetricProvider, MetricProviderConfiguratio
 
 
 class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
-    def __init__(self, *, region, elephant, simulation_uuid=None, provider=None, skip_check=False):
+    def __init__(self, *, region, elephant, folder, simulation_uuid=None, provider=None, skip_check=False):
 
         self.region = region
         self.provider_filter = provider
@@ -18,6 +18,7 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
         self.__end_time = None
         self._elephant_base_url = None
         self.error_string = ""
+        self._folder = folder
 
         if not self.region:
             raise MetricProviderConfigurationError(
@@ -44,6 +45,7 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
             unit='gCO2e/kWh',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
         )
 
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):

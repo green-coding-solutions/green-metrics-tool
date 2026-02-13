@@ -1,13 +1,14 @@
 from metric_providers.lmsensors.abstract_provider import LmsensorsProvider
 
 class LmsensorsFanComponentProvider(LmsensorsProvider):
-    def __init__(self, sampling_rate, *, skip_check=False, **_):
+    def __init__(self, sampling_rate, folder, *, skip_check=False, **_):
         self._provider_config_path = 'lmsensors.fan.component.provider.LmsensorsFanComponentProvider'
         super().__init__(
             metric_name='lmsensors_fan_component',
             sampling_rate=sampling_rate,
             unit='RPM',
             skip_check=skip_check,
+            folder=folder,
         )
 
 # We don't have a main here as this is just used to set the metric_name so we can use it in the frontend. Please

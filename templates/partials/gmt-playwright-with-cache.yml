@@ -1,13 +1,13 @@
 services:
     gmt-playwright-nodejs:
-        image: mcr.microsoft.com/playwright:v1.57.0-noble
+        image: mcr.microsoft.com/playwright:v1.58.0-noble
 #        volumes:
 #            - /tmp/.X11-unix:/tmp/.X11-unix # for debugging in non-headless mode
 #        environment:
 #            DISPLAY: ":0" # for debugging in non-headless mode
         setup-commands:
             # install playwright libraries in writeable directory
-            - command: cd /tmp/gmt-utils && npm init -y && npm install playwright@1.57.0
+            - command: cd /tmp/gmt-utils && npm init -y && npm install playwright@1.58.0
               shell: bash
         # playwright-ipc.js will be mounted into container via lib/scenario_runner.py to not conflict with include directory restrictions
 
@@ -32,6 +32,6 @@ flow-prepend:
         note: Starting browser in background process with IPC
         detach: true
       - type: console
-        command: timeout 5 bash -c 'until [ -p "/tmp/playwright-ipc-ready" ]; do sleep 1; done && echo "Browser ready!"'
+        command: timeout 10 bash -c 'until [ -p "/tmp/playwright-ipc-ready" ]; do sleep 1; done && echo "Browser ready!"'
         shell: bash
         note: Waiting for website stepper loop to start by monitoring rendezvous file endpoint

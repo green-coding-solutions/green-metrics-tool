@@ -14,7 +14,7 @@ from metric_providers.base import MetricProviderConfigurationError, BaseMetricPr
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
-    def __init__(self, *, host_ip=None, skip_check=False):
+    def __init__(self, *, folder, host_ip=None, skip_check=False):
         tinyproxy_path = subprocess.getoutput('which tinyproxy')
 
         super().__init__(
@@ -24,6 +24,7 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
             unit=None,
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
             metric_provider_executable=f"{tinyproxy_path}",
         )
 

@@ -67,7 +67,20 @@ class PhaseMetrics extends HTMLElement {
             </div>
         `;
 
-        $(this).find('.menu .item').tab();
+        const $tabs = $(this).find('.menu .item');
+        
+        $tabs.tab({
+            context: $(this),
+            onVisible: (tab) => {
+                localStorage.setItem('activeMetricTab', tab);
+            }
+        });
+
+        const activeTab = localStorage.getItem('activeMetricTab');
+
+        if (activeTab) {
+            $tabs.tab('change tab', activeTab);
+        }
     }
 }
 

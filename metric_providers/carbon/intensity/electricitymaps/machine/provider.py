@@ -14,10 +14,11 @@ API_FUTURE_URL = "https://api.electricitymaps.com/v3/carbon-intensity/forecast"
 TEMPORAL_GRANULARITY = "5_minutes"
 
 class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
-    def __init__(self, region, token, skip_check=False):
+    def __init__(self, region, token, folder, skip_check=False):
 
         self.region = region
         self.token = token
+        self._folder = folder
         self.__start_time = None
         self.__end_time = None
 
@@ -36,6 +37,7 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
             unit='gCO2e/kWh',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
         )
 
 

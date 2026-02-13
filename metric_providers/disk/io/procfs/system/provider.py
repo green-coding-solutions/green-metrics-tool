@@ -5,7 +5,7 @@ from metric_providers.base import BaseMetricProvider
 from metric_providers.disk.io.disk_io_parse import DiskIoParseMixin
 
 class DiskIoProcfsSystemProvider(BaseMetricProvider, DiskIoParseMixin):
-    def __init__(self, sampling_rate, skip_check=False):
+    def __init__(self, sampling_rate, folder, skip_check=False):
         super().__init__(
             metric_name='disk_io_procfs_system',
             metrics={'time': int, 'read_sectors': int, 'written_sectors': int, 'device': str},
@@ -13,6 +13,7 @@ class DiskIoProcfsSystemProvider(BaseMetricProvider, DiskIoParseMixin):
             unit='Bytes',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
         )
 
         self._sub_metrics_name = ['disk_io_read_procfs_system', 'disk_io_write_procfs_system']

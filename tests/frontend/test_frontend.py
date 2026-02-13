@@ -727,7 +727,7 @@ class TestFrontendFunctionality:
         assert user._capabilities['measurement']['total_duration'] == 86400
         assert user._capabilities['measurement']['phase_padding'] is True
         assert user._capabilities['measurement']['dev_no_sleeps'] is False
-        assert user._capabilities['measurement']['dev_no_optimizations'] is False
+        assert user._capabilities['measurement']['skip_optimizations'] is False
         assert user._capabilities['measurement']['system_check_threshold'] == 3
         assert user._capabilities['measurement']['pre_test_sleep'] == 5
         assert user._capabilities['measurement']['idle_duration'] == 60
@@ -754,8 +754,8 @@ class TestFrontendFunctionality:
         value = page.locator('#measurement-dev-no-sleeps').is_checked()
         assert value is user._capabilities['measurement']['dev_no_sleeps']
 
-        value = page.locator('#measurement-dev-no-optimizations').is_checked()
-        assert value is user._capabilities['measurement']['dev_no_optimizations']
+        value = page.locator('#measurement-skip-optimizations').is_checked()
+        assert value is user._capabilities['measurement']['skip_optimizations']
 
         value = page.locator('#measurement-system-check-threshold').input_value()
         assert int(value.strip()) == user._capabilities['measurement']['system_check_threshold']
@@ -794,7 +794,7 @@ class TestFrontendFunctionality:
         page.locator('#measurement-phase-transition-time').fill('2')
         page.locator('#measurement-wait-time-dependencies').fill('120')
         page.locator('#measurement-dev-no-sleeps').click()
-        page.locator('#measurement-dev-no-optimizations').click()
+        page.locator('#measurement-skip-optimizations').click()
         page.locator('#measurement-skip-volume-inspect').click()
 
         page.locator('#save-measurement-system-check-threshold').click()
@@ -809,7 +809,7 @@ class TestFrontendFunctionality:
         page.locator('#save-measurement-phase-transition-time').click()
         page.locator('#save-measurement-wait-time-dependencies').click()
         page.locator('#save-measurement-dev-no-sleeps').click()
-        page.locator('#save-measurement-dev-no-optimizations').click()
+        page.locator('#save-measurement-skip-optimizations').click()
         page.locator('#save-measurement-skip-volume-inspect').click()
 
         #page.wait_for_load_state("networkidle") # Network Idle sadly not enough here. The DB seems to take 1-2 seconds
@@ -821,7 +821,7 @@ class TestFrontendFunctionality:
         assert user._capabilities['measurement']['total_duration'] == 123
         assert user._capabilities['measurement']['phase_padding'] is False
         assert user._capabilities['measurement']['dev_no_sleeps'] is True
-        assert user._capabilities['measurement']['dev_no_optimizations'] is True
+        assert user._capabilities['measurement']['skip_optimizations'] is True
         assert user._capabilities['measurement']['system_check_threshold'] == 2
         assert user._capabilities['measurement']['pre_test_sleep'] == 100
         assert user._capabilities['measurement']['idle_duration'] == 200

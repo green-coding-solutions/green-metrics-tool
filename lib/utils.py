@@ -5,27 +5,12 @@ import os
 import requests
 from urllib.parse import urlparse
 from functools import cache
+from pathlib import Path
 
 from lib import error_helpers
 from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-def is_outside_symlink(base_dir, symlink_path):
-    try:
-        abs_target = os.path.realpath(symlink_path)
-        return not abs_target.startswith(os.path.realpath(base_dir)), abs_target
-    except OSError:
-        return False, None  # Not a symlink
-
-def find_outside_symlinks(base_dir):
-    for root, dirs, files in os.walk(base_dir):
-        for name in dirs + files:
-            full_path = os.path.join(root, name)
-            is_outside, target = is_outside_symlink(base_dir, full_path)
-            if is_outside:
-                return f"{full_path} → {target}"
-    return None
 
 def remove_git_suffix(url):
     if url.endswith('.git'):
@@ -213,7 +198,8 @@ def get_architecture():
 
 
 def is_rapl_energy_filtering_deactivated():
-    result = subprocess.run(['sudo', 'python3', '-m', 'lib.hardware_info_root', '--read-rapl-energy-filtering'],
+    python_realpath = Path('/usr/bin/python3').resolve(strict=True) # bc typically symlinked to python3.12 or similar
+    result = subprocess.run(['sudo', python_realpath.as_posix(), '-I', '-B', '-S', Path('/usr/local/bin/green-metrics-tool/hardware_info_root.py').resolve(strict=True).as_posix(), '--read-rapl-energy-filtering'],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             cwd=os.path.abspath(os.path.join(CURRENT_DIR, '..')),

@@ -36,7 +36,7 @@
     </style>
 </head>
 <body class="preload">
-    <gmt-menu></gmt-menu>
+    <gmt-menu data-active-item="runs-repos"></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left"><a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon opened"></i></a> Detailed Metrics</h1>
         <div class="ui full-width-card card">
@@ -148,7 +148,13 @@
                             </div>
                             <button id="save-note" class="green ui button" style="margin-top: 10px;">Save Note</button>
                         </div>
+                        <div class="ui segment">
+                            <h4>Re-Submit Run</h4>
+                            <p>Re-Submit a run to run it again on the cluster</p>
+                            <button class="blue ui button re-submit-run">Re-Submit Run</button>
+                        </div>
                     </div>
+
 
                 </div>
             </div>
@@ -162,6 +168,7 @@
                 </div>
                 This run has failed. Please see logs for details
             </div>
+            <button class="ui tiny primary button re-submit-run" style="margin-left: 1em">Re-Submit Run</button>
         </div>
 
         <div id="run-note" class="ui icon message info hidden">
