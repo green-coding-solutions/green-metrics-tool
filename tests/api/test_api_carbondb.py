@@ -17,7 +17,7 @@ API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with 
 ENERGY_DATA = {
     'type': 'machine.ci',
     'energy_uj': 1,
-    'time': int(time.time() * 1e6)-1, # slightly in the past to avoid race conditions
+    'time': int(time.time_ns() / 1e3),
     'project': 'my-project',
     'machine': 'my-machine',
     'tags': ['mystery', 'cool']
@@ -52,7 +52,7 @@ def test_carbondb_add():
 def test_carbondb_add_outdated():
 
     energydata_modified = ENERGY_DATA.copy()
-    energydata_modified['time'] = int( (time.time() - 31*24*60*60) * 1e6)
+    energydata_modified['time'] = int( (time.time_ns()/1e3) - (31*24*60*60 * 1e6) )
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
     assert json.loads(response.text)['err'] == f"CarbonDB is configured to not accept values older than 30 days. Your timestamp was: {energydata_modified['time']}"
@@ -60,14 +60,14 @@ def test_carbondb_add_outdated():
 def test_carbondb_add_at_border():
 
     energydata_modified = ENERGY_DATA.copy()
-    energydata_modified['time'] = int( (time.time() - 30*24*60*60 + 1) * 1e6)
+    energydata_modified['time'] = int( (time.time_ns()/1e3) - ((30*24*60*60-5) * 1e6)) # ~ 5 seconds before cut-off depending on API request processing time
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
 def test_carbondb_add_future():
 
     energydata_modified = ENERGY_DATA.copy()
-    energydata_modified['time'] = int((time.time()  + 5) * 1e6)
+    energydata_modified['time'] = int( (time.time_ns()/1e3) + 5*1e6) # ~ 5 seconds in the future depending on API request processing time
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
 
