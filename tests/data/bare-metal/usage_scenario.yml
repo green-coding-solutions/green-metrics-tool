@@ -7,6 +7,15 @@ description: Run GMT Tests inside systemd and DinD compatible sysbox-runc contai
 services:
   ubuntu-systemd-docker:
     image: greencoding/ubuntu-systemd-docker
+    networks:
+      - bridge
+    volumes:
+      - gmt-tests-pip-cache:/root/.cache/pip/
+      - gmt-tests-apt-package-cache:/var/cache/apt/
+      - gmt-tests-apt-list-cache:/var/lib/apt/lists/
+      - gmt-tests-buildkit-cache:/root/.cache/buildkit-gmt/
+    setup-commands:
+      - command: rm /etc/apt/apt.conf.d/docker-clean # the image comes with a script that deletes all apt packages after install. we do not want that
 
 flow:
   - name: Pull GMT
@@ -19,7 +28,7 @@ flow:
     container: ubuntu-systemd-docker
     commands:
       - type: console
-        # we set here --nvidia-gpu altough the M4 machine does not have any. We want to test if the headers can be correctly downloaded
+        # we set here --nvidia-gpu although the M4 machine does not have any. We want to test if the headers can be correctly downloaded
         command: |
           cd ~/green-metrics-tool
           ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -T -L -z -f -j -d -g --nvidia-gpu --tz Europe/Berlin
@@ -42,8 +51,8 @@ flow:
     commands:
       - type: console
         command: |
-          source venv/bin/activate
           cd ~/green-metrics-tool/tests
+          source ../venv/bin/activate
           python3 setup-test-env.py
         shell: bash
 
@@ -64,7 +73,8 @@ flow:
       - type: console
         command: |
           cd ~/green-metrics-tool/tests
-          python3 -m pytest -vv -rA
+          source ../venv/bin/activate
+          python3 -m pytest --durations=0 -vv -rA
         shell: bash
 
   - name: Stop Test Containers
