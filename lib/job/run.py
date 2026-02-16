@@ -42,6 +42,7 @@ class RunJob(Job):
             uri_type='URL',
             filename=self._filename,
             branch=self._branch,
+            commit_hash=self._commit_hash,
             allow_unsafe=user._capabilities['measurement']['allow_unsafe'],
             skip_unsafe=user._capabilities['measurement']['skip_unsafe'],
             dev_no_system_checks=user._capabilities['measurement']['dev_no_system_checks'],

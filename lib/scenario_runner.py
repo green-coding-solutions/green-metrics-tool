@@ -63,6 +63,7 @@ class ScenarioRunner:
         *, uri, uri_type, name=None, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False,
         verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
+        commit_hash=None,
         docker_prune=False, job_id=None, user_id=1,
         disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None,
         category_ids=None,
@@ -128,6 +129,7 @@ class ScenarioRunner:
         self._original_filename = Path(filename)
         self._branch = branch
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
+        self._requested_commit_hash = commit_hash
 
         self._tmp_folder = Path('/tmp/').resolve(strict=True).joinpath('green-metrics-tool') # since linux has /tmp and macos /private/tmp
         self._relations_folder = self._tmp_folder.joinpath('relations')
@@ -342,17 +344,26 @@ class ScenarioRunner:
 
                 if problematic_symlink := self._find_outside_symlinks(self._repo_folder):
                     raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
+
+            if self._requested_commit_hash:
+                self._checkout_commit_hash(self._repo_folder, self._requested_commit_hash, context='repository')
         else:
             if self._original_branch is not None:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
+            if self._requested_commit_hash is not None:
+                raise RuntimeError('Specified --commit-hash but using local URI. Did you mean to specify a github url?')
             # If the provided uri is a symlink we need to resolve it.
             self.__working_folder = self._repo_folder = Path(self._uri).resolve(strict=True)
 
         if self._dev_no_save:
             return
 
-        self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8', errors='replace').strip()
+        checked_out_branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8', errors='replace').strip()
+        if checked_out_branch != '':
+            self._branch = checked_out_branch
+        else:
+            self._branch = 'detached'
 
         git_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self._repo_folder, encoding='UTF-8', errors='replace').strip()
         if Path(git_repo_root).resolve(strict=True) != self._repo_folder:
@@ -407,14 +418,7 @@ class ScenarioRunner:
                 )
 
             if 'commit_hash' in relation:
-                subprocess.run(
-                    ['git', 'checkout', relation['commit_hash']],
-                    check=True,
-                    capture_output=True,
-                    encoding='UTF-8',
-                    errors='replace',
-                    cwd=relation_path,
-                )
+                self._checkout_commit_hash(relation_path, relation['commit_hash'], context=f"relation '{relation_key}'")
 
             if problematic_symlink := self._find_outside_symlinks(relation_path):
                 raise RuntimeError(f"Relation {relation_key} contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
@@ -423,6 +427,25 @@ class ScenarioRunner:
             self.__relations[relation_key]['commit_hash'], self.__relations[relation_key]['commit_timestamp'] = get_repo_info(relation_path)
             self.__relations[relation_key]['commit_timestamp'] = str(self.__relations[relation_key]['commit_timestamp'])
 
+    def _checkout_commit_hash(self, repo_path: Path, commit_hash: str, *, context='repository'):
+        print(f"Checking out commit {commit_hash} for {context}")
+        command_opts = {
+            'check': True,
+            'capture_output': True,
+            'encoding': 'UTF-8',
+            'errors': 'replace',
+            'cwd': repo_path,
+        }
+
+        try:
+            subprocess.run(['git', 'checkout', commit_hash], **command_opts) # pylint: disable=subprocess-run-check
+
+            return
+        except subprocess.CalledProcessError:
+            print(f"Commit {commit_hash} not available in shallow history for {context}. Fetching commit ...")
+
+        subprocess.run(['git', 'fetch', '--depth', '1', 'origin', commit_hash], **command_opts) # pylint: disable=subprocess-run-check
+        subprocess.run(['git', 'checkout', 'FETCH_HEAD'], **command_opts) # pylint: disable=subprocess-run-check
 
     # This method loads the yml file and takes care that the includes work and are secure.
     # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation

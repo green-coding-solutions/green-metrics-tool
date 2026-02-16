@@ -19,6 +19,9 @@ const populateFieldsFromURL = () => {
     if (urlParams.has('branch')) {
         document.querySelector('input[name="branch"]').value = escapeString(urlParams.get('branch'));
     }
+    if (urlParams.has('commit_hash')) {
+        document.querySelector('input[name="commit_hash"]').value = escapeString(urlParams.get('commit_hash'));
+    }
     if (urlParams.has('machine_id')) {
         document.querySelector('select[name="machine_id"]').value = escapeString(urlParams.get('machine_id'));
     }
