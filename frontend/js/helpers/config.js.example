@@ -317,6 +317,11 @@ METRIC_MAPPINGS = {
         "source": "Formula (XGBoost)",
         "explanation": "Machine operational CO₂ calculated by formula via XGBoost estimation"
     },
+    "psu_carbon_elephant_machine": {
+        "clean_name": "Machine CO₂ (operational)",
+        "source": "formula",
+        "explanation": "Machine operational CO₂ calculated by grid intensity muliplied with machine energy consumption"
+    },
     "network_energy_formula_global": {
         "clean_name": "Network Transmission",
         "source": "Formula",
@@ -631,5 +636,16 @@ METRIC_MAPPINGS = {
         "clean_name": "Total System Disk Writes",
         "source": "cgroup",
         "explanation": "Total data written to disk for the system via cgroup"
-    }
+    },
+    "carbon_intensity_electricity_maps_machine": {
+        "clean_name": "Grid Intensity",
+        "source": "Electricity Maps",
+        "explanation": "Grid Intensity as reported by Electricity Maps"
+    },
+    "carbon_intensity_elephant_machine": {
+        "clean_name": "Grid Intensity",
+        "source": "Elephant",
+        "explanation": "The Grid intensity as reported by Elephant"
+    },
+
 } // PLEASE DO NOT REMOVE THIS COMMENT -- END METRIC_MAPPINGS

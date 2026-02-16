@@ -3,6 +3,11 @@
 import shlex
 import sys
 import faulthandler
+import uuid
+
+import requests
+
+from metric_providers.base import MetricProviderConfigurationError
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.venv_checker import check_venv
@@ -64,9 +69,8 @@ class ScenarioRunner:
         debug_mode=False, allow_unsafe=False,
         verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
         docker_prune=False, job_id=None, user_id=1,
-        disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None,
+        disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None, carbon_simulation=None,
         category_ids=None,
-
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
         measurement_wait_time_dependencies=60, measurement_flow_process_duration=None, measurement_total_duration=None,
@@ -137,6 +141,7 @@ class ScenarioRunner:
 
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
+        self._carbon_simulation = carbon_simulation
         self._category_ids = set(category_ids) if category_ids else None # deduplicate
         self._architecture = utils.get_architecture()
 
@@ -211,6 +216,7 @@ class ScenarioRunner:
         self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
         self.__include_playwright_ipc = False
         self.__relations = {}
+        self.__carbon_simulation_uuid = None
 
         self._check_all_durations()
 
@@ -799,6 +805,36 @@ class ScenarioRunner:
         machine = Machine(machine_id=config['machine'].get('id'), description=config['machine'].get('description'))
         machine.register()
 
+
+    def _setup_carbon_simulator(self):
+        print(TerminalColors.HEADER, '\nSetting up carbon simulator', TerminalColors.ENDC)
+
+        config = GlobalConfig().config.get('measurement', {}).get('metric_providers', {}).get('common', {}).get('carbon.intensity.elephant.machine.provider.CarbonIntensityElephantMachineProvider', {})
+        if config == {}:
+            print(TerminalColors.WARNING, arrows('No configuration found for carbon intensity elephant machine provider. Skipping setup of carbon simulator.'), TerminalColors.ENDC)
+            return
+
+        if not config['location'] or not isinstance(config['elephant'], dict):
+            raise MetricProviderConfigurationError('Please set the location config option for CarbonIntensityElephantMachineProvider in the config.yml')
+
+
+        host = config['elephant'].get('host', 'localhost')
+        port = config['elephant'].get('port', '8085')
+        protocol = config['elephant'].get('protocol', 'http')
+
+        base_url = f"{protocol}://{host}:{port}"
+
+        try:
+            self.__carbon_simulation_uuid = uuid.UUID(str(self._carbon_simulation), version=4)
+        except ValueError:
+            response = requests.post(
+                f"{base_url}/simulation",
+                json={'carbon_values': self._carbon_simulation,},
+                timeout=30
+            )
+            response.raise_for_status()
+            self.__carbon_simulation_uuid = uuid.UUID(response.json().get('simulationId'))
+
     def _initialize_run(self):
         print(TerminalColors.HEADER, '\nInitializing run', TerminalColors.ENDC)
 
@@ -867,16 +903,11 @@ class ScenarioRunner:
             print('Skipping import of metric providers due to --dev-no-save')
             return
 
-        config = GlobalConfig().config
-
-
-        metric_providers = utils.get_metric_providers(config)
+        metric_providers = utils.get_metric_providers(GlobalConfig().config)
 
         if not metric_providers:
             print(TerminalColors.WARNING, arrows('No metric providers were configured in config.yml. Was this intentional?'), TerminalColors.ENDC)
             return
-
-        subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', errors='replace', check=True)
 
         self._initialize_folder(self._metrics_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
 
@@ -889,15 +920,22 @@ class ScenarioRunner:
                 print(TerminalColors.WARNING, arrows(f"Not importing {class_name} as disabled per user settings"), TerminalColors.ENDC)
                 continue
 
+            optional_conf = {}
+
+            if self.__carbon_simulation_uuid is not None:
+                if metric_provider.split('.')[-1] == 'CarbonIntensityElephantMachineProvider':
+                    optional_conf['simulation_uuid'] = str(self.__carbon_simulation_uuid)
+
+            if self._dev_no_system_checks:
+                optional_conf['skip_check'] = True
+
             print(f"Importing {class_name} from {module_path}")
             module = importlib.import_module(module_path)
 
-            if self._dev_no_system_checks:
-                metric_provider_obj = getattr(module, class_name)(**conf, folder=self._metrics_folder, skip_check=True)
-                print(f"Configuration is {conf}; skip_check=true")
-            else:
-                metric_provider_obj = getattr(module, class_name)(**conf, folder=self._metrics_folder)
-                print(f"Configuration is {conf}")
+            merged_conf = {**conf, **optional_conf, 'folder': self._metrics_folder}
+
+            metric_provider_obj = getattr(module, class_name)(**merged_conf)
+            print(f"Configuration is {merged_conf}")
 
             self.__metric_providers.append(metric_provider_obj)
 
@@ -2463,9 +2501,13 @@ class ScenarioRunner:
         # much a failed run has accrued in total energy and carbon costs
         print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
 
+        # We need to calculate the CO2 intensity first as phase stats needs to calculate the averages etc ...
+        from lib.phase_stats import calculate_co2_intensity # pylint: disable=import-outside-toplevel
+        calculate_co2_intensity(self._run_id)
+
         # get all the metrics from the measurements table grouped by metric
         # loop over them issuing separate queries to the DB
-        from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
+        from lib.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
         build_and_store_phase_stats(self._run_id, self._sci)
 
     def _store_cumulative_run_logs(self):
@@ -2593,6 +2635,9 @@ class ScenarioRunner:
             self._initial_parse()
             self._checkout_relations()
             self._register_machine_id()
+            if self._carbon_simulation:
+                self._setup_carbon_simulator()
+
             self._import_metric_providers()
             self._populate_image_names()
             self._populate_cpu_and_memory_limits()
