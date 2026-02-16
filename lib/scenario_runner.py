@@ -2156,7 +2156,7 @@ class ScenarioRunner:
 
     # this method should never be called twice to avoid double logging of metrics
     def _stop_metric_providers(self):
-        print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
+        print(TerminalColors.HEADER, '\nStopping metric providers and parsing measurements', TerminalColors.ENDC)
 
         if self._dev_no_metrics:
             print('Skipping stop of metric providers due to --dev-no-metrics')
