@@ -978,18 +978,34 @@ class ScenarioRunner:
                 if ',' in repo_mount_path: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
                     raise ValueError(f"Repo mount path may not contain commas (,) in the name: {repo_mount_path}")
 
-                docker_build_command = ['docker', 'run', '--rm',
-                    '--mount', 'type=volume,dst=/workspace',
+                docker_build_command = ['docker', 'run', '--rm']
+
+                docker_build_command.extend(
+                    ['--mount', 'type=volume,dst=/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
                     '--mount', f"type=bind,source={self._repo_folder.as_posix()},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
-                    '--mount', f"type=bind,source={self._build_dir.as_posix()},target=/output",
-                    'gcr.io/kaniko-project/executor:latest',
-                    f"--dockerfile={repo_mount_path}/{self.__working_folder_rel.as_posix()}/{context}/{dockerfile}",
+                    '--mount', f"type=bind,source={self._build_dir.as_posix()},target=/output"]
+                )
+
+                for relation_key, relation in self.__relations.items():
+                    # still check for , although checked in schema checker to not de-sync when we ever allow commas
+                    if ',' in relation['mount_path']:
+                        raise ValueError(f"Relation mount path may not contain commas (,) in the name: {relation['mount_path']}")
+                    docker_build_command.append('--mount')
+                    docker_build_command.append(f"type=bind,source={relation['mount_path']},target=/tmp/relations/{relation_key},readonly")
+
+                docker_build_command.append('gcr.io/kaniko-project/executor:latest')
+
+                # from here args for kaniko directly
+                docker_build_command.extend(
+
+                    [f"--dockerfile={repo_mount_path}/{self.__working_folder_rel.as_posix()}/{context}/{dockerfile}",
                     '--context', f'dir://{repo_mount_path}/{self.__working_folder_rel.as_posix()}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--cleanup=true',
                     '--no-push']
+                )
 
                 for arg_dict in args:
                     for arg_key, arg_value in arg_dict.items():
@@ -1246,21 +1262,26 @@ class ScenarioRunner:
             # injection of unwawnted params
             docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
 
-            docker_run_string.append('-v')
 
             repo_mount_path = service.get('folder-destination', '/tmp/repo')
+            if ',' in repo_mount_path: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                raise ValueError(f"Repo mount path may not contain commas (,) in the name: {repo_mount_path}")
             # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-            docker_run_string.append(f"{self._repo_folder.as_posix()}:{repo_mount_path}:ro")
+            docker_run_string.append('--mount')
+            docker_run_string.append(f"type=bind,source={self._repo_folder.as_posix()},target={repo_mount_path},readonly")
 
             for relation_key, relation in self.__relations.items():
-                docker_run_string.append('-v')
-                docker_run_string.append(f"{relation['mount_path']}:/tmp/relations/{relation_key}:ro")
+                # still check for , although checked in schema checker to not de-sync when we ever allow commas
+                if ',' in relation['mount_path']:
+                    raise ValueError(f"Relation mount path may not contain commas (,) in the name: {relation['mount_path']}")
+                docker_run_string.append('--mount')
+                docker_run_string.append(f"type=bind,source={relation['mount_path']},target=/tmp/relations/{relation_key},readonly")
 
             # this is a special feature container with a reserved name.
             # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc == True
             if self.__include_playwright_ipc and container_name == 'gmt-playwright-nodejs':
-                docker_run_string.append('-v')
-                docker_run_string.append(f"{GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc.js:/tmp/gmt-utils/gmt-playwright-ipc.js:ro")
+                docker_run_string.append('--mount')
+                docker_run_string.append(f"type=bind,source={GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc.js,target=/tmp/gmt-utils/gmt-playwright-ipc.js,readonly")
 
             if self.__docker_params:
                 docker_run_string[2:2] = self.__docker_params
@@ -2135,7 +2156,7 @@ class ScenarioRunner:
 
     # this method should never be called twice to avoid double logging of metrics
     def _stop_metric_providers(self):
-        print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
+        print(TerminalColors.HEADER, '\nStopping metric providers and parsing measurements', TerminalColors.ENDC)
 
         if self._dev_no_metrics:
             print('Skipping stop of metric providers due to --dev-no-metrics')
