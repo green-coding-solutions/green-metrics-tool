@@ -47,7 +47,7 @@
                                     <div class="menu" id="provider-menu"></div>
                                 </div>
                                 <div class="simulation-mini-chart" id="provider-mini-chart"></div>
-                                <div class="ui segment">
+                                <div class="ui segment simulation-shift-controls">
                                     <button id="provider-range-start-button" class="ui tiny basic button" type="button">Start: -</button>
                                     <button id="provider-range-end-button" class="ui tiny basic button" type="button">End: -</button>
                                     <input id="provider-range-start-input" class="simulation-provider-range-input" type="datetime-local">
@@ -64,9 +64,16 @@
                                 </div>
                                 <div class="simulation-mini-chart" id="metric-mini-chart"></div>
                                 <div class="ui segment">
-
-                                    <button id="shift-left" class="ui tiny basic button disabled" disabled><i class="arrow left icon"></i> -5m</button>
-                                    <button id="shift-right" class="ui tiny basic button disabled" disabled>+5m <i class="arrow right icon"></i></button>
+                                    <i class="arrow left icon"></i>
+                                    <button id="shift-left-30d" class="ui tiny basic button disabled" disabled>-30d</button>
+                                    <button id="shift-left-day" class="ui tiny basic button disabled" disabled>-1d</button>
+                                    <button id="shift-left-hour" class="ui tiny basic button disabled" disabled>-1h</button>
+                                    <button id="shift-left" class="ui tiny basic button disabled" disabled>-5m</button>|
+                                    <button id="shift-right" class="ui tiny basic button disabled" disabled>+5m</button>
+                                    <button id="shift-right-hour" class="ui tiny basic button disabled" disabled>+1h</button>
+                                    <button id="shift-right-day" class="ui tiny basic button disabled" disabled>+1d</button>
+                                    <button id="shift-right-30d" class="ui tiny basic button disabled" disabled>+30d</button>
+                                    <i class="arrow right icon"></i>
                                 </div>
                             </div>
                             <div class="four wide field">
@@ -89,7 +96,7 @@
                 <div class="header" id="message-chart-load-failure-header">
                     Failed loading chart
                 </div>
-                <div class="content" id="message-chart-load-failure-text">Chart data could not be loaded.</div><button id="align-metric" class="ui tiny primary button hidden">Align</button>
+                <div class="content" id="message-chart-load-failure-text">Chart data could not be loaded.</div><button id="align-metric" class="ui tiny primary button hidden">Start Simulation</button>
             </div>
         </div>
         <div class="simulation-chart-row">

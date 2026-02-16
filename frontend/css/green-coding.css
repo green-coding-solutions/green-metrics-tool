@@ -109,6 +109,11 @@ a.project-item>i.icon {
     height: 1px;
 }
 
+.simulation-shift-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
 .article {
     background: #e9eaef;
 }
@@ -168,6 +173,13 @@ a.project-item>i.icon {
 .simulation-chart-row #chart-container {
     flex: 1 1 auto;
     min-width: 0;
+}
+
+.simulation-chart-row #chart-container .simulation-main-chart-card {
+    border: 1px solid #e3e3e3;
+    border-radius: 6px;
+    background: #fafafa;
+    box-shadow: none;
 }
 
 #carbon-summary-card {

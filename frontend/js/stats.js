@@ -76,6 +76,35 @@ const getElephantServiceUrl = () => {
     return typeof ELEPHANT_URL === 'string' ? ELEPHANT_URL.trim() : ''
 };
 
+const setAnalyticsLinks = (url_params, run_data) => {
+    const simulationLink = document.querySelector('#analytics-simulation-link');
+    if (simulationLink) {
+        simulationLink.href = `simulation.html?id=${encodeURIComponent(url_params['id'])}`;
+    }
+
+    const timelineLink = document.querySelector('#analytics-timeline-link');
+    if (!timelineLink) return;
+
+    const timelineParams = new URLSearchParams();
+    if (run_data?.uri) timelineParams.set('uri', run_data.uri);
+    if (run_data?.branch) timelineParams.set('branch', run_data.branch);
+    if (run_data?.filename) timelineParams.set('filename', run_data.filename);
+    if (run_data?.machine_id != null) timelineParams.set('machine_id', String(run_data.machine_id));
+    if (run_data?.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
+        timelineParams.set('usage_scenario_variables', JSON.stringify(run_data.usage_scenario_variables));
+    }
+    timelineParams.set('metrics', 'key');
+
+    if (timelineParams.get('uri')) {
+        timelineLink.href = `timeline.html?${timelineParams.toString()}`;
+        timelineLink.classList.remove('disabled');
+        return;
+    }
+
+    timelineLink.removeAttribute('href');
+    timelineLink.classList.add('disabled');
+};
+
 const fetchAndFillRunData = async (url_params) => {
 
     let run = null;
@@ -89,6 +118,7 @@ const fetchAndFillRunData = async (url_params) => {
 
     const run_data = run.data
     const run_data_accordion_node = document.querySelector('#run-data-accordion');
+    setAnalyticsLinks(url_params, run_data);
 
     if (getElephantServiceUrl() !== '') {
         document.querySelector('#simulate-run-link').href = `simulation.html?id=${encodeURIComponent(url_params['id'])}`;
@@ -1208,7 +1238,8 @@ function buildDependencyTableRows(packages) {
 $(document).ready( () => {
     (async () => {
 
-        $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
+        $('.run-data-tabs .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
+        $('.analytics-tabs .item').tab({childrenOnly: true, context: '.analytics-tab-container'}); // activate tabs for analytics
         $('.ui.accordion').accordion();
 
         let url_params = getURLParams();

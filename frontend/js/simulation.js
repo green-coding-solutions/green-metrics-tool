@@ -1,11 +1,19 @@
 
 const MINI_CHART_COLORS = {
-    provider: '#4a7a9c',
+    provider: '#6ea9c9',
     metric: '#5c9d6e'
 };
-const PROVIDER_HISTORY_PAST_HOURS = 24;
+const SIMULATION_CHART_COLORS = {
+    provider: '#6ea9c9',
+    emission: '#5c9d6e'
+};
+const DEFAULT_PROVIDER_HISTORY_FALLBACK_HALF_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
+const PROVIDER_HISTORY_PAST_HOURS = 12;
 const PROVIDER_HISTORY_FUTURE_HOURS = 12;
-const METRIC_SHIFT_STEP_MS = 10 * 60 * 1000; // 10 minutes
+const METRIC_SHIFT_STEP_MS = 5 * 60 * 1000; // 5 minutes
+const SHIFT_ONE_HOUR_MS = 60 * 60 * 1000;
+const SHIFT_ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const SHIFT_THIRTY_DAYS_MS = 30 * SHIFT_ONE_DAY_MS;
 const METRIC_SIMULATION_SHIFT_STEP_MS = 1 * 60 * 1000; // 1 minute
 
 const query = (selector) => document.querySelector(selector);
@@ -47,6 +55,9 @@ const simulationState = {
     providerRangeStartMs: null,
     providerRangeEndMs: null,
     metricTimeOffsetMs: 0,
+    shiftInProgress: false,
+    resizeHandlerBound: false,
+    providerAutoFallbackActive: false,
     bestRuntime: null,
     bestRuntimeSearching: false,
     bestProviderSearching: false
@@ -85,7 +96,13 @@ const resetMiniChart = (chartKey, selector, message) => {
 const setShiftButtonsDisabled = (disabled) => {
     const buttons = [
         query('#shift-left'),
-        query('#shift-right')
+        query('#shift-right'),
+        query('#shift-left-hour'),
+        query('#shift-right-hour'),
+        query('#shift-left-day'),
+        query('#shift-right-day'),
+        query('#shift-left-30d'),
+        query('#shift-right-30d')
     ];
     buttons.forEach((button) => setButtonDisabledState(button, disabled));
 };
@@ -96,7 +113,12 @@ const logSimulationDebug = (...args) => {
 };
 
 const updateShiftButtonsAvailability = () => {
-    const ready = Boolean(simulationState.selectedProvider && simulationState.selectedMetric && simulationState.providerHistory);
+    const ready = Boolean(
+        simulationState.selectedProvider
+        && simulationState.selectedMetric
+        && simulationState.providerHistory
+        && !simulationState.shiftInProgress
+    );
     setShiftButtonsDisabled(!ready);
     updateBestRuntimeAvailability();
 };
@@ -120,10 +142,20 @@ const parseLocalDatetimeInputValue = (value) => {
 };
 
 const getDefaultProviderHistoryRangeMs = () => {
-    const now = Date.now();
+    const anchorMs = simulationState.runTimes?.startMs ?? Date.now();
+    const halfWindowMs = DEFAULT_PROVIDER_HISTORY_FALLBACK_HALF_WINDOW_MS;
     return {
-        startMs: now - PROVIDER_HISTORY_PAST_HOURS * 60 * 60 * 1000,
-        endMs: now + PROVIDER_HISTORY_FUTURE_HOURS * 60 * 60 * 1000
+        startMs: anchorMs - halfWindowMs,
+        endMs: anchorMs + halfWindowMs
+    };
+};
+
+const getProviderHistoryRangeAroundTimeMs = (anchorMs) => {
+    const pastWindowMs = PROVIDER_HISTORY_PAST_HOURS * 60 * 60 * 1000;
+    const futureWindowMs = PROVIDER_HISTORY_FUTURE_HOURS * 60 * 60 * 1000;
+    return {
+        startMs: anchorMs - pastWindowMs,
+        endMs: anchorMs + futureWindowMs
     };
 };
 
@@ -195,7 +227,7 @@ const updateProviderRangeControls = () => {
     }
 };
 
-const setProviderHistoryRange = (startMs, endMs, refreshProvider = true) => {
+const setProviderHistoryRange = (startMs, endMs, refreshProvider = true, providerOptions = {}) => {
     let resolvedStart = startMs;
     let resolvedEnd = endMs;
     if (resolvedStart > resolvedEnd) {
@@ -205,8 +237,9 @@ const setProviderHistoryRange = (startMs, endMs, refreshProvider = true) => {
     simulationState.providerRangeEndMs = resolvedEnd;
     updateProviderRangeControls();
     if (refreshProvider && simulationState.selectedProvider) {
-        updateProviderMiniChart(simulationState.selectedProvider);
+        return updateProviderMiniChart(simulationState.selectedProvider, providerOptions);
     }
+    return Promise.resolve(true);
 };
 
 const bindProviderRangeControls = () => {
@@ -405,14 +438,19 @@ const buildMiniLineOptions = (seriesData, unit, lineColor) => ({
     },
     yAxis: {
         type: 'value',
-        show: false
+        show: false,
+        min: (value) => (value.min >= 0 ? 0 : value.min)
     },
     series: [{
         type: 'line',
         smooth: true,
         symbol: 'none',
         lineStyle: { color: lineColor, width: 2 },
-        areaStyle: { color: lineColor, opacity: 0.2 },
+        areaStyle: {
+            color: lineColor,
+            opacity: 0.3,
+            origin: 'start'
+        },
         data: seriesData
     }],
     animation: false
@@ -429,12 +467,34 @@ const renderMiniChart = (chartKey, selector, options) => {
     simulationState[chartKey].setOption(options);
 };
 
-const getRunTimes = (runData) => {
-    if (runData?.start_measurement == null || runData?.end_measurement == null) {
+const getRunTimes = (runData, measurements = []) => {
+    let startMs = null;
+    let endMs = null;
+
+    if (runData?.start_measurement != null) {
+        startMs = Math.round(runData.start_measurement / 1000);
+    }
+    if (runData?.end_measurement != null) {
+        endMs = Math.round(runData.end_measurement / 1000);
+    }
+
+    if ((startMs == null || endMs == null) && Array.isArray(measurements) && measurements.length > 0) {
+        const measurementTimes = measurements
+            .map((entry) => entry?.[1])
+            .filter((value) => Number.isFinite(value))
+            .map((value) => value / 1000);
+        if (measurementTimes.length > 0) {
+            const measuredStartMs = Math.min(...measurementTimes);
+            const measuredEndMs = Math.max(...measurementTimes);
+            if (startMs == null) startMs = Math.round(measuredStartMs);
+            if (endMs == null) endMs = Math.round(measuredEndMs);
+        }
+    }
+
+    if (startMs == null || endMs == null) {
         return null;
     }
-    const startMs = Math.round(runData.start_measurement / 1000);
-    const endMs = Math.round(runData.end_measurement / 1000);
+
     return {
         startMs,
         endMs,
@@ -445,8 +505,8 @@ const getRunTimes = (runData) => {
 
 const renderRunDetails = (runData, runTimes) => {
     setTextContent('#run-id', runData?.id ?? '-');
-    setTextContent('#run-start', runTimes ? new Date(runTimes.startMs).toLocaleString() : '-');
-    setTextContent('#run-end', runTimes ? new Date(runTimes.endMs).toLocaleString() : '-');
+    setTextContent('#run-start', runTimes?.startIso ?? '-');
+    setTextContent('#run-end', runTimes?.endIso ?? '-');
 };
 
 const fetchRunData = async (runId) => {
@@ -765,11 +825,17 @@ const findBestRuntime = async () => {
 };
 
 const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerLabel, emissionLabel) => {
-    const title = 'Carbon intensity and estimated emissions';
-    const element = createChartContainer('#chart-container', title);
-    const card = element.closest('.statistics-chart-card');
-
-    card.classList.add('full-width');
+    let chartInstance = simulationState.chart;
+    let element = chartInstance?.getDom?.() || null;
+    if (!element || !document.body.contains(element)) {
+        const title = 'Carbon intensity and estimated emissions';
+        element = createChartContainer('#chart-container', title);
+        const card = element.closest('.statistics-chart-card');
+        card.classList.add('full-width');
+        card.classList.add('simulation-main-chart-card');
+        chartInstance = echarts.init(element);
+        simulationState.chart = chartInstance;
+    }
 
     const options = {
         tooltip: {
@@ -786,9 +852,10 @@ const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerL
             }
         },
         grid: {
-            left: '0%',
-            right: 70,
-            bottom: 5,
+            left: 70,
+            right: 120,
+            top: 46,
+            bottom: 20,
             containLabel: true
         },
         xAxis: {
@@ -801,13 +868,15 @@ const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerL
                 type: 'value',
                 name: 'gCO2eq/kWh',
                 position: 'left',
-                splitLine: { show: true }
+                splitLine: { show: true },
+                min: (value) => (value.min >= 0 ? 0 : value.min)
             },
             {
                 type: 'value',
                 name: 'gCO2eq',
                 position: 'right',
-                splitLine: { show: false }
+                splitLine: { show: false },
+                min: (value) => (value.min >= 0 ? 0 : value.min)
             }
         ],
         series: [
@@ -816,6 +885,12 @@ const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerL
                 type: 'line',
                 smooth: true,
                 symbol: 'none',
+                lineStyle: { color: SIMULATION_CHART_COLORS.provider, width: 2 },
+                areaStyle: {
+                    color: SIMULATION_CHART_COLORS.provider,
+                    opacity: 0.22,
+                    origin: 'start'
+                },
                 data: providerSeriesData,
                 yAxisIndex: 0
             },
@@ -824,20 +899,32 @@ const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerL
                 type: 'line',
                 smooth: true,
                 symbol: 'none',
-                lineStyle: { type: 'dashed', width: 2 },
+                lineStyle: {
+                    color: SIMULATION_CHART_COLORS.emission,
+                    type: 'dashed',
+                    width: 2
+                },
+                areaStyle: {
+                    color: SIMULATION_CHART_COLORS.emission,
+                    opacity: 0.18,
+                    origin: 'start'
+                },
                 data: emissionSeriesData,
                 yAxisIndex: 1
             }
         ],
         legend: {
             data: [providerLabel, emissionLabel],
-            top: 0,
+            top: 4,
+            left: 0,
+            right: 190,
             type: 'scroll'
         },
         animation: false,
         toolbox: {
             itemSize: 25,
-            top: 15,
+            top: 52,
+            right: 12,
             feature: {
                 dataZoom: {
                     yAxisIndex: 'none'
@@ -847,20 +934,22 @@ const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerL
         }
     };
 
-    simulationState.chart = echarts.init(element);
-    simulationState.chart.setOption(options);
+    chartInstance.setOption(options, true);
 
-    window.addEventListener('resize', () => {
-        if (simulationState.chart) {
-            simulationState.chart.resize();
-        }
-        if (simulationState.providerMiniChart) {
-            simulationState.providerMiniChart.resize();
-        }
-        if (simulationState.metricMiniChart) {
-            simulationState.metricMiniChart.resize();
-        }
-    });
+    if (!simulationState.resizeHandlerBound) {
+        window.addEventListener('resize', () => {
+            if (simulationState.chart) {
+                simulationState.chart.resize();
+            }
+            if (simulationState.providerMiniChart) {
+                simulationState.providerMiniChart.resize();
+            }
+            if (simulationState.metricMiniChart) {
+                simulationState.metricMiniChart.resize();
+            }
+        });
+        simulationState.resizeHandlerBound = true;
+    }
 };
 
 const setChartLoadFailureVisible = (visible, headerText, detailText) => {
@@ -944,9 +1033,8 @@ const updateSimulationChart = () => {
 
     logSimulationDebug('updating simulation chart', { selection, metric, providerHistory });
 
-    resetSimulationChart();
-
     if (!selection) {
+        resetSimulationChart();
         logSimulationDebug('missing provider selection');
         setCarbonSummary(null, 'Select a provider to compute emissions.');
         setAlignButtonVisible(false);
@@ -954,13 +1042,15 @@ const updateSimulationChart = () => {
         return;
     }
     if (!providerHistory) {
+        resetSimulationChart();
         logSimulationDebug('provider history unavailable', { provider: selection });
         setCarbonSummary(null, 'Loading carbon intensity data.');
         setAlignButtonVisible(false);
-        setChartLoadFailureVisible(true, 'Loading carbon intensity', 'Carbon intensity data is not available yet.');
+        setChartLoadFailureVisible(true, 'Loading carbon intensity', 'Carbon intensity data is not available for the time of the run. Please select another provider or adjust the provider history time range.');
         return;
     }
     if (!metric) {
+        resetSimulationChart();
         logSimulationDebug('missing metric selection');
         setCarbonSummary(null, 'Select a metric to compute emissions.');
         setAlignButtonVisible(false);
@@ -970,6 +1060,7 @@ const updateSimulationChart = () => {
 
     const providerSeriesData = buildCarbonIntensitySeries(providerHistory);
     if (providerSeriesData.length === 0) {
+        resetSimulationChart();
         logSimulationDebug('provider series empty', { providerHistoryCount: providerHistory.length });
         setCarbonSummary(null, 'No carbon intensity data available.');
         setAlignButtonVisible(false);
@@ -980,6 +1071,7 @@ const updateSimulationChart = () => {
     const energySeriesRaw = buildEnergySeriesRaw(simulationState.measurements, metric);
     const energySeries = energySeriesRaw?.primarySeries;
     if (!energySeries || !Array.isArray(energySeries.data) || energySeries.data.length === 0) {
+        resetSimulationChart();
         logSimulationDebug('energy series empty', { metric });
         setCarbonSummary(null, 'No metric data available.');
         setAlignButtonVisible(false);
@@ -1007,7 +1099,7 @@ const updateSimulationChart = () => {
         renderSimulationChart(providerSeriesData, emissionSeriesData, providerLabel, emissionLabel);
         setCarbonSummary(null, 'Metric data could not be aligned.');
         setAlignButtonVisible(true);
-        setChartLoadFailureVisible(true, 'No emission data', 'Metric data could not be aligned with carbon intensity.');
+        setChartLoadFailureVisible(true, 'Missing Energy Metric', 'Can not align carbon data with energy metric.');
         return;
     }
 
@@ -1020,10 +1112,105 @@ const updateSimulationChart = () => {
     setChartLoadFailureVisible(false);
 };
 
-const shiftMetricTime = (direction) => {
-    simulationState.metricTimeOffsetMs += direction * METRIC_SHIFT_STEP_MS;
-    updateSimulationChart();
+const hasEmissionOverlapForCurrentSelection = () => {
+    const metric = simulationState.selectedMetric;
+    const providerHistory = simulationState.providerHistory;
+    if (!metric || !providerHistory) return false;
+
+    const energySeriesRaw = buildEnergySeriesRaw(simulationState.measurements, metric);
+    const energySeries = energySeriesRaw?.primarySeries;
+    if (!energySeries || !Array.isArray(energySeries.data) || energySeries.data.length === 0) {
+        return false;
+    }
+
+    const emissionResult = buildEmissionSeries(
+        energySeries,
+        providerHistory,
+        energySeriesRaw?.metric,
+        simulationState.metricTimeOffsetMs
+    );
+    return (emissionResult?.data || []).length > 0;
 };
+
+const hasFullCarbonCoverageForCurrentSelection = () => {
+    const metric = simulationState.selectedMetric;
+    const providerHistory = simulationState.providerHistory;
+    if (!metric || !providerHistory) return false;
+
+    const energySeriesRaw = buildEnergySeriesRaw(simulationState.measurements, metric);
+    const energySeries = energySeriesRaw?.primarySeries;
+    if (!energySeries || !Array.isArray(energySeries.data) || energySeries.data.length === 0) {
+        return false;
+    }
+
+    const carbonSeries = buildCarbonIntensitySeries(providerHistory);
+    if (carbonSeries.length === 0) return false;
+
+    const shiftedStartMs = energySeries.data[0].timeMs + simulationState.metricTimeOffsetMs;
+    const shiftedEndMs = energySeries.data[energySeries.data.length - 1].timeMs + simulationState.metricTimeOffsetMs;
+    const carbonStartMs = carbonSeries[0][0];
+    const carbonEndMs = carbonSeries[carbonSeries.length - 1][0];
+
+    return shiftedStartMs >= carbonStartMs && shiftedEndMs <= carbonEndMs;
+};
+
+const shiftMetricTimeByMs = async (deltaMs) => {
+    if (simulationState.shiftInProgress) return;
+
+    simulationState.shiftInProgress = true;
+    updateShiftButtonsAvailability();
+
+    const previousOffsetMs = simulationState.metricTimeOffsetMs;
+    const previousRangeStartMs = simulationState.providerRangeStartMs;
+    const previousRangeEndMs = simulationState.providerRangeEndMs;
+
+    try {
+        simulationState.metricTimeOffsetMs += deltaMs;
+        resetBestRuntimeSummary();
+
+        const shiftedRunStartMs = simulationState.runTimes?.startMs != null
+            ? simulationState.runTimes.startMs + simulationState.metricTimeOffsetMs
+            : null;
+        if (shiftedRunStartMs != null && simulationState.selectedProvider) {
+            const nextRange = getProviderHistoryRangeAroundTimeMs(shiftedRunStartMs);
+            const refreshed = await setProviderHistoryRange(
+                nextRange.startMs,
+                nextRange.endMs,
+                true,
+                { preserveCurrentView: true }
+            );
+
+            const hasValidCoverage = refreshed
+                && hasEmissionOverlapForCurrentSelection()
+                && hasFullCarbonCoverageForCurrentSelection();
+            if (!hasValidCoverage) {
+                simulationState.metricTimeOffsetMs = previousOffsetMs;
+                if (previousRangeStartMs != null && previousRangeEndMs != null) {
+                    await setProviderHistoryRange(
+                        previousRangeStartMs,
+                        previousRangeEndMs,
+                        true,
+                        { preserveCurrentView: true }
+                    );
+                } else {
+                    updateSimulationChart();
+                }
+                showNotification(
+                    'Reached carbon data boundary',
+                    'Cannot shift further because the metric would leave the available carbon data window.'
+                );
+            }
+            return;
+        }
+
+        updateSimulationChart();
+    } finally {
+        simulationState.shiftInProgress = false;
+        updateShiftButtonsAvailability();
+    }
+};
+
+const shiftMetricTime = async (direction) => shiftMetricTimeByMs(direction * METRIC_SHIFT_STEP_MS);
 
 const populateMetrics = (metrics) => {
     const menu = query('#metric-menu');
@@ -1102,12 +1289,13 @@ const populateProviders = (providers) => {
     $('#provider-dropdown')
         .dropdown({
             clearable: true,
-            onChange: (value, text, $selectedItem) => {
+            onChange: async (value, text, $selectedItem) => {
                 if (!$selectedItem || $selectedItem.length === 0) {
                     simulationState.selectedProvider = null;
                     simulationState.metricTimeOffsetMs = 0;
                     resetBestRuntimeSummary();
-                    updateProviderMiniChart(null);
+                    simulationState.providerAutoFallbackActive = false;
+                    await updateProviderMiniChart(null);
                     return;
                 }
                 simulationState.selectedProvider = {
@@ -1117,9 +1305,52 @@ const populateProviders = (providers) => {
                 };
                 simulationState.metricTimeOffsetMs = 0;
                 resetBestRuntimeSummary();
-                updateProviderMiniChart(simulationState.selectedProvider);
+                const hasData = await updateProviderMiniChart(simulationState.selectedProvider);
+
+                if (hasData || !simulationState.providerAutoFallbackActive) {
+                    simulationState.providerAutoFallbackActive = false;
+                    return;
+                }
+
+                const currentIndex = simulationState.providers.findIndex((providerItem) =>
+                    providerItem.provider === simulationState.selectedProvider.provider
+                    && providerItem.region === simulationState.selectedProvider.region
+                    && providerItem.value === simulationState.selectedProvider.value
+                );
+                const nextProvider = currentIndex >= 0 ? simulationState.providers[currentIndex + 1] : null;
+                if (nextProvider) {
+                    $('#provider-dropdown').dropdown('set selected', nextProvider.value);
+                    return;
+                }
+
+                simulationState.providerAutoFallbackActive = false;
             }
         });
+
+    if (simulationState.providers.length > 0) {
+        simulationState.providerAutoFallbackActive = true;
+        const firstProvider = simulationState.providers[0];
+        $('#provider-dropdown').dropdown('set selected', firstProvider.value);
+
+        // Fallback for dropdown implementations that do not fire onChange on programmatic selection.
+        if (!simulationState.selectedProvider) {
+            (async () => {
+                for (const providerItem of simulationState.providers) {
+                    simulationState.selectedProvider = providerItem;
+                    simulationState.metricTimeOffsetMs = 0;
+                    resetBestRuntimeSummary();
+                    const hasData = await updateProviderMiniChart(simulationState.selectedProvider);
+                    if (hasData) {
+                        simulationState.providerAutoFallbackActive = false;
+                        $('#provider-dropdown').dropdown('set selected', providerItem.value);
+                        return;
+                    }
+                }
+                simulationState.providerAutoFallbackActive = false;
+            })();
+        }
+    }
+
     updateBestProviderAvailability();
 };
 
@@ -1291,49 +1522,60 @@ const findBestProvider = async () => {
     updateBestProviderAvailability();
 };
 
-const updateProviderMiniChart = async (selection) => {
+const updateProviderMiniChart = async (selection, options = {}) => {
+    const preserveCurrentView = options?.preserveCurrentView === true;
+
     if (!selection) {
         simulationState.providerMiniRequestId += 1;
         simulationState.providerHistory = null;
         resetMiniChart('providerMiniChart', '#provider-mini-chart', 'Select a provider to preview.');
         updateSimulationChart();
         updateShiftButtonsAvailability();
-        return;
+        return false;
     }
 
-    simulationState.providerHistory = null;
     const requestId = simulationState.providerMiniRequestId + 1;
     simulationState.providerMiniRequestId = requestId;
-    setMiniChartPlaceholder('#provider-mini-chart', 'Loading carbon intensity...');
-    updateSimulationChart();
+    if (!preserveCurrentView) {
+        simulationState.providerHistory = null;
+        setMiniChartPlaceholder('#provider-mini-chart', 'Loading carbon intensity...');
+        updateSimulationChart();
+    }
     updateShiftButtonsAvailability();
 
     const { startTime, endTime } = getProviderHistoryRange();
 
     try {
         const data = await fetchProviderCarbonHistory(selection, startTime, endTime);
-        if (requestId !== simulationState.providerMiniRequestId) return;
+        if (requestId !== simulationState.providerMiniRequestId) return false;
 
-        simulationState.providerHistory = Array.isArray(data) ? data : null;
-        const seriesData = buildCarbonIntensitySeries(data);
+        const nextHistory = Array.isArray(data) ? data : null;
+        const seriesData = buildCarbonIntensitySeries(nextHistory);
         if (seriesData.length === 0) {
-            simulationState.providerHistory = null;
-            resetMiniChart('providerMiniChart', '#provider-mini-chart', 'No carbon data available.');
-            updateSimulationChart();
+            if (!preserveCurrentView) {
+                simulationState.providerHistory = null;
+                resetMiniChart('providerMiniChart', '#provider-mini-chart', 'No carbon data available.');
+                updateSimulationChart();
+            }
             updateShiftButtonsAvailability();
-            return;
+            return false;
         }
 
+        simulationState.providerHistory = nextHistory;
         const options = buildMiniLineOptions(seriesData, null, MINI_CHART_COLORS.provider);
         renderMiniChart('providerMiniChart', '#provider-mini-chart', options);
         updateSimulationChart();
         updateShiftButtonsAvailability();
+        return true;
     } catch (err) {
-        if (requestId !== simulationState.providerMiniRequestId) return;
-        simulationState.providerHistory = null;
-        resetMiniChart('providerMiniChart', '#provider-mini-chart', 'Could not load carbon data.');
-        updateSimulationChart();
+        if (requestId !== simulationState.providerMiniRequestId) return false;
+        if (!preserveCurrentView) {
+            simulationState.providerHistory = null;
+            resetMiniChart('providerMiniChart', '#provider-mini-chart', 'Could not load carbon data.');
+            updateSimulationChart();
+        }
         updateShiftButtonsAvailability();
+        return false;
     }
 };
 
@@ -1361,8 +1603,12 @@ $(document).ready(() => {
                 fetchMeasurements(runId)
             ]);
 
-            simulationState.runTimes = getRunTimes(runData);
+            simulationState.runTimes = getRunTimes(runData, measurements);
             renderRunDetails(runData, simulationState.runTimes);
+            if (simulationState.runTimes?.endMs != null) {
+                const defaultRange = getDefaultProviderHistoryRangeMs();
+                setProviderHistoryRange(defaultRange.startMs, defaultRange.endMs, false);
+            }
 
             simulationState.measurements = measurements;
             const metricOptions = buildEnergyMetricOptions(measurements);
@@ -1391,6 +1637,12 @@ $(document).ready(() => {
 
         bindClick('#shift-left', () => shiftMetricTime(-1));
         bindClick('#shift-right', () => shiftMetricTime(1));
+        bindClick('#shift-left-hour', () => shiftMetricTimeByMs(-SHIFT_ONE_HOUR_MS));
+        bindClick('#shift-right-hour', () => shiftMetricTimeByMs(SHIFT_ONE_HOUR_MS));
+        bindClick('#shift-left-day', () => shiftMetricTimeByMs(-SHIFT_ONE_DAY_MS));
+        bindClick('#shift-right-day', () => shiftMetricTimeByMs(SHIFT_ONE_DAY_MS));
+        bindClick('#shift-left-30d', () => shiftMetricTimeByMs(-SHIFT_THIRTY_DAYS_MS));
+        bindClick('#shift-right-30d', () => shiftMetricTimeByMs(SHIFT_THIRTY_DAYS_MS));
         bindClick('#align-metric', () => alignMetricToProviderMidpoint());
         bindClick('#find-best-runtime', () => findBestRuntime());
         bindClick('#find-best-provider', () => findBestProvider());
