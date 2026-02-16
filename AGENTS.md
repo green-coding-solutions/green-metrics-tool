@@ -149,6 +149,12 @@ Furthermore a lot of shared functionality is handled by the base class in `metri
 - All helper scripts lie in the `tools` folder. They are thought to be one-off and executed by a human user
 
 
+## Important Concepts
+
+The syntax of a usage_scenario is defined in `lib/schema_checker.py`
+
+Derive logic as how to add services, flows or relations there.
+
 ## Common Change Paths
 
 ### Add a New Request Field (API -> Job -> Runner)
