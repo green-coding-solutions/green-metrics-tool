@@ -321,8 +321,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             usage_scenario_variables = `{${usage_scenario_variables}}`
 
             return `
-                <a href="/timeline.html?uri=${encodeURIComponent(row[2])}&amp;branch=${encodeURIComponent(row[3])}&amp;machine_id=${row[12]}&amp;filename=${encodeURIComponent(row[6])}&amp;usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}&amp;metrics=key" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="ui icon clock"></i></a>
-                <a href="/simulation.html?id=${encodeURIComponent(row[0])}" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="chartline icon"></i></a>
+                <a title="Timeline Analysis" href="/timeline.html?uri=${encodeURIComponent(row[2])}&amp;branch=${encodeURIComponent(row[3])}&amp;machine_id=${row[12]}&amp;filename=${encodeURIComponent(row[6])}&amp;usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}&amp;metrics=key" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="ui icon clock"></i></a>
+                <a title="Carbon Simulation" href="/simulation.html?id=${encodeURIComponent(row[0])}" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="chartline icon"></i></a>
                 `
         },
         orderable: false,
