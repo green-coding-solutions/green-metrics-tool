@@ -324,7 +324,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 <a href="/timeline.html?uri=${encodeURIComponent(row[2])}&amp;branch=${encodeURIComponent(row[3])}&amp;machine_id=${row[12]}&amp;filename=${encodeURIComponent(row[6])}&amp;usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}&amp;metrics=key" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="ui icon clock"></i></a>
                 <a href="/simulation.html?id=${encodeURIComponent(row[0])}" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="chartline icon"></i></a>
                 `
-        }
+        },
+        orderable: false,
     });
 
     columns.push({
@@ -332,7 +333,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         render: function(el, type, row) {
             // Modify the content of the "Name" column here
             return `<input type="checkbox" value="${el}" name="chbx-proj"/>&nbsp;`
-        }
+        },
+        orderable: false,
     });
 
 
@@ -366,7 +368,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 allow_group_select_checkboxes();
                 updateCompareCount();
             },
-            order: [[columns.length-2, 'desc']] // API also orders, but we need to indicate order for the user
+            order: [[columns.length-3, 'desc']] // API also orders, but we need to indicate order for the user
         });
     }
 
