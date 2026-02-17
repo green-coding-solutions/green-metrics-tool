@@ -92,9 +92,43 @@ const fillInputsFromURL = (url_params) => {
         $('#machine').text($('select[name="machine_id"] :checked').text());
     }
     if(url_params['sorting'] != null) $(`#sorting-${url_params['sorting']}`).prop('checked', true);
-    if(url_params['phase'] != null) $(`#phase-${url_params['phase']}`).prop('checked', true);
     if(url_params['metrics'] != null) $(`#metrics-${url_params['metrics']}`).prop('checked', true);
 
+    if(url_params['phase'] != null && url_params['phase'] !== '') {
+        const matchingPhaseRadio = $(`input[name="phase"][value="${url_params['phase']}"]`);
+        if (matchingPhaseRadio.length > 0) {
+            matchingPhaseRadio.prop('checked', true);
+        } else {
+            $('input[name="phase"][value="custom"]').prop('checked', true);
+            $('input[name="phase_custom"]').val(url_params['phase']);
+        }
+    }
+
+    updateCustomPhaseInputVisibility();
+
+}
+
+const updateCustomPhaseInputVisibility = () => {
+    const isCustomSelected = $('input[name="phase"]:checked').val() === 'custom';
+    const customField = $('.phase-custom-field');
+    const customInput = $('input[name="phase_custom"]');
+
+    if (isCustomSelected) {
+        customField.show();
+        customInput.prop('disabled', false);
+    } else {
+        customField.hide();
+        customInput.prop('disabled', true);
+        customInput.val('');
+    }
+}
+
+const getSelectedPhase = () => {
+    const selectedPhase = $('input[name="phase"]:checked').val();
+    if (selectedPhase !== 'custom') return selectedPhase;
+
+    const customPhase = $('input[name="phase_custom"]').val().trim();
+    return customPhase;
 }
 
 const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null,html_replace=false) => {
@@ -105,7 +139,15 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     // however, the form takes precendence
     if($('input[name="branch"]').val() !== '') api_url += `${ampersand}branch=${encodeURIComponent($('input[name="branch"]').val())}`
     if($('input[name="sorting"]:checked').val() !== '') api_url += `${ampersand}sorting=${encodeURIComponent($('input[name="sorting"]:checked').val())}`
-    if($('input[name="phase"]:checked').val() !== '') api_url += `${ampersand}phase=${encodeURIComponent($('input[name="phase"]:checked').val())}`
+    if($('input[name="phase"]:checked').val() !== '') {
+        const selectedPhase = $('input[name="phase"]:checked').val();
+        const phaseValue = getSelectedPhase();
+        if (selectedPhase === 'custom') {
+            if (phaseValue !== '') api_url += `${ampersand}phase=${encodeURIComponent(phaseValue)}`
+        } else {
+            api_url += `${ampersand}phase=${encodeURIComponent(selectedPhase)}`
+        }
+    }
     if($('select[name="machine_id"]').val() !== '') api_url += `${ampersand}machine_id=${encodeURIComponent($('select[name="machine_id"]').val())}`
     if($('input[name="filename"]').val() !== '') api_url += `${ampersand}filename=${encodeURIComponent($('input[name="filename"]').val())}`
     if($('input[name="usage_scenario_variables"]').val() !== '') api_url += `${ampersand}usage_scenario_variables=${encodeURIComponent($('input[name="usage_scenario_variables"]').val())}`
@@ -131,6 +173,11 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
 
 
 const loadCharts = async () => {
+    if ($('input[name="phase"]:checked').val() === 'custom' && $('input[name="phase_custom"]').val().trim() === '') {
+        showNotification('Custom phase missing', 'Please provide a phase name for the custom phase filter.');
+        return;
+    }
+
     chart_instances = []; // reset
     document.querySelector("#chart-container").innerHTML = ''; // reset
     document.querySelector("#badge-container").innerHTML = ''; // reset
@@ -300,8 +347,8 @@ $(document).ready( (e) => {
         $('#submit').on('click', function() {
             loadCharts();
         });
+        $('input[name="phase"]').on('change', updateCustomPhaseInputVisibility);
         fillInputsFromURL(url_params);
         loadCharts();
     })();
 });
-
