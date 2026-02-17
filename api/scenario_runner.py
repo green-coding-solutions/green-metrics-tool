@@ -300,12 +300,12 @@ def old_v1_runs_endpoint():
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v2/runs')
-async def get_runs(name: str | None = None, uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, job_id: int | None = None, failed: bool | None = None, show_archived: bool | None = None, show_other_users: bool | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
+async def get_runs(name: str | None = None, uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, job_id: int | None = None, failed: bool | None = None, show_archived: bool | None = None, show_other_users: bool | None = None, limit: int | None = 50, uri_mode = 'none', start_date: date | None = None, end_date: date | None = None, user: User = Depends(authenticate)):
 
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at,
             (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = r.id) as warnings,
-            r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
+            r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id, r.relations
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
@@ -366,7 +366,13 @@ async def get_runs(name: str | None = None, uri: str | None = None, branch: str 
     if show_archived is not True:
         query = f"{query} AND r.archived = False \n"
 
+    if start_date is not None:
+        query = f"{query} AND DATE(r.created_at) >= %s"
+        params.append(start_date)
 
+    if end_date is not None:
+        query = f"{query} AND DATE(r.created_at) <= %s"
+        params.append(end_date)
 
     query = f"{query} ORDER BY r.created_at DESC"
 
@@ -780,6 +786,9 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if software.branch is None or software.branch.strip() == '':
         software.branch = 'main'
 
+    if software.commit_hash is not None and software.commit_hash.strip() == '':
+        software.commit_hash = None
+
     if software.filename is None or software.filename.strip() == '':
         software.filename = 'usage_scenario.yml'
 
@@ -840,7 +849,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         amount = 1
 
     for _ in range(0,amount):
-        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids))
+        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, commit_hash=software.commit_hash, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids))
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:

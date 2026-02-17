@@ -22,6 +22,12 @@ class SchemaChecker():
             raise SchemaError(f"{value} includes disallowed values: {bad_values}")
         return value
 
+    def is_valid_commit_hash(self, value):
+        pattern = r'^([a-zA-Z][a-zA-Z0-9_\-\./]*|[0-9a-f]{7,40})$'
+        if not bool(re.fullmatch(pattern, value)):
+            raise SchemaError(f"Commit Hash '{value}' may only be branch name, tag name or SHA-1 hash")
+        return value
+
     def not_empty(self, value):
         if value.strip() == '':
             raise SchemaError('Value cannot be empty')
@@ -98,7 +104,7 @@ class SchemaChecker():
                 And(str, Use(self.not_empty), Use(self.is_valid_string)): {
                     'url': And(str, Use(self.not_empty)),
                     Optional('branch'): And(str, Use(self.not_empty)),
-                    Optional('commit_hash'): And(str, Use(self.not_empty)),
+                    Optional('commit_hash'): And(str, Use(self.not_empty), Use(self.is_valid_commit_hash)),
                 }
             },
             Optional('services'): {
