@@ -30,6 +30,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', type=str, help='A name which will be stored to the database to discern this run from others')
     parser.add_argument('--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory starting  with / or a remote git repository starting with http(s)://')
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
+    parser.add_argument('--commit-hash', type=str, help='Optionally specify a git commit hash to check out when using a remote repository to clone from')
     parser.add_argument('--filename', type=str, action='append', help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported. Duplicate filenames are allowed and will be processed multiple times.')
     parser.add_argument('--variable', action='append', help='Variable that will be replaced into the usage_scenario.yml file. Use multiple times for multiple variables.')
     parser.add_argument('--category', action='append', type=int, help='Category to store for this run. Use multiple times for multiple categories.')
@@ -158,7 +159,7 @@ if __name__ == '__main__':
 
     # Create ScenarioRunner once and reuse it for all files
     runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filenames[0],
-                    branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
+                    branch=args.branch, commit_hash=args.commit_hash, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     full_docker_prune=args.full_docker_prune, docker_prune=args.docker_prune,
                     verbose_provider_boot=args.verbose_provider_boot,
                     user_id=args.user_id, commit_hash_folder=args.commit_hash_folder,

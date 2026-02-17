@@ -780,6 +780,9 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if software.branch is None or software.branch.strip() == '':
         software.branch = 'main'
 
+    if software.commit_hash is not None and software.commit_hash.strip() == '':
+        software.commit_hash = None
+
     if software.filename is None or software.filename.strip() == '':
         software.filename = 'usage_scenario.yml'
 
@@ -840,7 +843,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         amount = 1
 
     for _ in range(0,amount):
-        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids))
+        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, commit_hash=software.commit_hash, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids))
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:

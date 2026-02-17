@@ -240,6 +240,7 @@ CREATE TABLE jobs (
     email text,
     url text,
     branch text,
+    commit_hash text,
     filename text,
     usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
     category_ids int[],
@@ -742,4 +743,3 @@ FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
 CREATE TRIGGER trg_validate_category_ids
 BEFORE INSERT OR UPDATE ON watchlist
 FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
-
