@@ -175,7 +175,7 @@
                                 </div>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="phase-boot" type="radio" name="phase" value=[BOOT]>
+                                        <input id="phase-boot" type="radio" name="phase" value="[BOOT]">
                                         <label for="phase-boot">Boot</label>
                                     </div>
                                 </div>
@@ -196,6 +196,15 @@
                                         <input id="phase-remove" type="radio" name="phase" value="[REMOVE]">
                                         <label for="phase-remove">Remove</label>
                                     </div>
+                                </div>
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="phase-custom" type="radio" name="phase" value="custom">
+                                        <label for="phase-custom">Custom</label>
+                                    </div>
+                                </div>
+                                <div class="field phase-custom-field" style="display: none;">
+                                    <input id="phase-custom-input" type="text" name="phase_custom" placeholder="Phase name (e.g. Stress)" disabled>
                                 </div>
                                 <div class="field">
                                     <i class="info circle icon"></i> Will not affect badge
