@@ -42,6 +42,22 @@ def test_get_runs():
     assert response.status_code == 200
     assert res_json['data'][0][0] == str(pid)
 
+def test_get_runs_created_after_filter():
+    Tests.import_demo_data()
+
+    response_filtered = requests.get(f"{API_URL}/v2/runs?", timeout=15)
+    assert response_filtered.status_code == 200
+    assert len(response_filtered.json()['data']) == 6
+
+    response_unfiltered = requests.get(f"{API_URL}/v2/runs?start_date=2026-02-17", timeout=15)
+    assert response_unfiltered.status_code == 204
+
+
+    response_filtered = requests.get(f"{API_URL}/v2/runs?start_date=2025-09-01", timeout=15)
+    assert response_filtered.status_code == 200
+    assert len(response_filtered.json()['data']) == 1
+
+
 def test_compare_valid():
     Tests.import_demo_data()
 
