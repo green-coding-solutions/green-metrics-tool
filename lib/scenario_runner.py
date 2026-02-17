@@ -429,6 +429,14 @@ class ScenarioRunner:
 
     def _checkout_commit_hash(self, repo_path: Path, commit_hash: str, *, context='repository'):
         print(f"Checking out commit {commit_hash} for {context}")
+
+        # Branch, tag, or remote branch (e.g., main, feature/login, origin/main)
+        # or Commit hash (short or full)
+        pattern = r'^([a-zA-Z][a-zA-Z0-9_\-\./]*|[0-9a-f]{7,40})$'
+
+        if not bool(re.fullmatch(pattern, commit_hash)):
+            raise ValueError('Commit hash provided can only be branch, tag or SHA-1 Hash')
+
         command_opts = {
             'check': True,
             'capture_output': True,
