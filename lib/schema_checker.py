@@ -24,7 +24,9 @@ class SchemaChecker():
 
     def is_valid_commit_hash(self, value):
         pattern = r'^([a-zA-Z][a-zA-Z0-9_\-\./]*|[0-9a-f]{7,40})$'
-        return bool(re.fullmatch(pattern, value))
+        if not bool(re.fullmatch(pattern, value)):
+            raise SchemaError(f"Commit Hash '{value}' may only be branch name, tag name or SHA-1 hash")
+        return value
 
     def not_empty(self, value):
         if value.strip() == '':
