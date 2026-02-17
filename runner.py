@@ -204,7 +204,7 @@ if __name__ == '__main__':
             # From a user perspective it makes perfect sense to run both jobs directly after each other
             # In a cloud setup it however makes sense to free the measurement machine as soon as possible
             # So this code should be individually callable, separate from the runner
-            if not runner._skip_optimizations and not runner._dev_no_save:
+            if not runner._skip_optimizations and not runner._dev_no_save and not runner._dev_no_metrics:
                 import optimization_providers.base  # We need to import this here as we need the correct config file
                 print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
                 optimization_providers.base.import_reporters()

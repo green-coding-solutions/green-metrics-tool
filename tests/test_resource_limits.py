@@ -4,6 +4,7 @@
 
 import io
 import os
+import re
 import subprocess
 import math
 
@@ -150,7 +151,7 @@ def test_resource_limits_cpuset():
 
     docker_cpus = resource_limits.get_docker_available_cpus()
     exp_string = ','.join(map(str, range(1,docker_cpus)))
-    assert f"--cpuset-cpus {exp_string} --" in out.getvalue() # we extend the check to -- to make sure nothing after 1,2,XXX is cut off and thus match the start of the next element
+    assert re.search(rf"--cpuset-cpus[\s,\[\]\"']*{exp_string}[\s,\[\]\"']*--", str(out.getvalue()))  # we extend the check to -- to make sure nothing after 1,2,XXX is cut off and thus match the start of the next element
 
 @pytest.mark.skipif(resource_limits.get_docker_available_cpus() < 4, reason="Test requires 4 cores available to docker")
 def test_resource_limits_alternate_cpuset():
@@ -170,7 +171,9 @@ def test_resource_limits_alternate_cpuset():
 
         docker_cpus = resource_limits.get_docker_available_cpus()
         exp_string = ','.join(map(str, range(1,docker_cpus-2))) # we remove 1 CPU here as the file contains two more reserved CPUs
-        assert f"--cpuset-cpus {exp_string} --" in out.getvalue() # we extend the check to -- to make sure nothing after 1,2,XXX is cut off and thus match the start of the next element
+        # we extend the check to -- to make sure nothing after 1,2,XXX is cut off and thus match the start of the next element
+        assert re.search(rf"--cpuset-cpus[\s,\[\]\"']*{exp_string}[\s,\[\]\"']*--", str(out.getvalue()))
+
     finally:
         resource_limits.get_docker_available_cpus.cache_clear()
         resource_limits.get_docker_available_cpus.cache_clear()
