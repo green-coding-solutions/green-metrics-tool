@@ -14,7 +14,12 @@ const METRIC_SHIFT_STEP_MS = 5 * 60 * 1000; // 5 minutes
 const SHIFT_ONE_HOUR_MS = 60 * 60 * 1000;
 const SHIFT_ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const SHIFT_THIRTY_DAYS_MS = 30 * SHIFT_ONE_DAY_MS;
-const METRIC_SIMULATION_SHIFT_STEP_MS = 1 * 60 * 1000; // 1 minute
+const BEST_RUNTIME_STEP_RULES = [
+    { maxWindowMs: SHIFT_ONE_DAY_MS, stepMs: 1 * 60 * 1000 }, // <= 1 day
+    { maxWindowMs: 3 * SHIFT_ONE_DAY_MS, stepMs: 10 * 60 * 1000 }, // > 1 day to <= 3 days
+    { maxWindowMs: 5 * SHIFT_ONE_DAY_MS, stepMs: 30 * 60 * 1000 }, // > 3 days to <= 5 days
+    { maxWindowMs: Number.POSITIVE_INFINITY, stepMs: 2 * SHIFT_ONE_HOUR_MS } // > 5 days
+];
 
 const query = (selector) => document.querySelector(selector);
 
@@ -37,6 +42,13 @@ const setButtonDisabledState = (button, disabled) => {
 
 const setButtonLoadingState = (button, loading) => {
     button.classList.toggle('loading', loading);
+};
+
+const getBestRuntimeStepMs = (searchWindowMs) => {
+    const rule = BEST_RUNTIME_STEP_RULES.find((entry) => searchWindowMs <= entry.maxWindowMs);
+    return rule
+        ? rule.stepMs
+        : BEST_RUNTIME_STEP_RULES[1].stepMs; // Default to 10 minutes if no rule matches (should not happen)
 };
 
 const simulationState = {
@@ -400,15 +412,23 @@ const formatEmissionValue = (totalValue) => {
     return emissionDisplay ? emissionDisplay.text : '-';
 };
 
-const formatMiniChartTime = (value) => {
+const formatMiniChartTime = (value, showDate=false) => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '';
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
+    let dateString = ``;
+    if (showDate) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = String(date.getFullYear()).slice(-2);
+        dateString = `${day}-${month}-${year}\n`;
+    }
+    return `${dateString}${hours}:${minutes}`;
 };
 
-const buildMiniLineOptions = (seriesData, unit, lineColor) => ({
+const buildMiniLineOptions = (seriesData, unit, lineColor, showDate=false) => ({
+
     tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'line' },
@@ -433,7 +453,7 @@ const buildMiniLineOptions = (seriesData, unit, lineColor) => ({
         splitLine: { show: false },
         axisLabel: {
             show: true,
-            formatter: (value) => formatMiniChartTime(value)
+            formatter: (value) => formatMiniChartTime(value, showDate)
         }
     },
     yAxis: {
@@ -515,8 +535,15 @@ const fetchRunData = async (runId) => {
 };
 
 const fetchMeasurements = async (runId) => {
-    const measurements = await makeAPICall(`/v1/measurements/single/${runId}`);
-    return measurements?.data || [];
+    try {
+        const measurements = await makeAPICall(`/v1/measurements/single/${runId}`);
+        return measurements?.data || [];
+    } catch (err) {
+        if (err instanceof APIEmptyResponse204) {
+            return [];
+        }
+        throw err;
+    }
 };
 
 const getMeasurementMetrics = (measurements) => {
@@ -740,7 +767,8 @@ const findRuntimeExtremesForHistory = (energySeriesRaw, providerHistory) => {
 
     if (searchStart > searchEnd) return null;
 
-    const step = METRIC_SIMULATION_SHIFT_STEP_MS;
+    const searchWindowMs = searchEnd - searchStart;
+    const step = getBestRuntimeStepMs(searchWindowMs);
     const alignedStart = Math.ceil(searchStart / step) * step;
     const alignedEnd = Math.floor(searchEnd / step) * step;
 
@@ -846,7 +874,7 @@ const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerL
                 const rows = params.map((item) => {
                     const value = Array.isArray(item.value) ? item.value[1] : item.value;
                     const unit = item.seriesName === emissionLabel ? ' gCO2eq' : ' gCO2eq/kWh';
-                    return `${escapeString(item.seriesName)}: ${numberFormatter.format(value)}${unit}`;
+                    return `${escapeString(item.seriesName)}: ${numberFormatter.format(value)}${unit} (${new Date(item.value[0]).toLocaleString()})`;
                 });
                 return rows.join('<br>');
             }
@@ -855,12 +883,19 @@ const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerL
             left: 70,
             right: 120,
             top: 46,
-            bottom: 20,
+            bottom: 44,
             containLabel: true
         },
         xAxis: {
             type: 'time',
             name: 'Time',
+            nameLocation: 'middle',
+            nameGap: 30,
+            axisLabel: {
+                margin: 12,
+                hideOverlap: true,
+                formatter: '{dd}-{MM}-{yy}\n{HH}:{mm}'
+            },
             splitLine: { show: false }
         },
         yAxis: [
@@ -1022,7 +1057,7 @@ const updateMetricMiniChart = (metric, energyData) => {
         return;
     }
 
-    const options = buildMiniLineOptions(series, resolvedEnergyData.unit, MINI_CHART_COLORS.metric);
+    const options = buildMiniLineOptions(series, resolvedEnergyData.unit, MINI_CHART_COLORS.metric, false);
     renderMiniChart('metricMiniChart', '#metric-mini-chart', options);
 };
 
@@ -1562,7 +1597,7 @@ const updateProviderMiniChart = async (selection, options = {}) => {
         }
 
         simulationState.providerHistory = nextHistory;
-        const options = buildMiniLineOptions(seriesData, null, MINI_CHART_COLORS.provider);
+        const options = buildMiniLineOptions(seriesData, null, MINI_CHART_COLORS.provider, true);
         renderMiniChart('providerMiniChart', '#provider-mini-chart', options);
         updateSimulationChart();
         updateShiftButtonsAvailability();
@@ -1615,7 +1650,7 @@ $(document).ready(() => {
             simulationState.availableMetrics = metricOptions;
 
             if (metricOptions.length === 0) {
-                setChartLoadFailureVisible(true, 'No metric data', 'Energy data could not be loaded for this run.');
+                setChartLoadFailureVisible(true, 'No metric data', 'For free runs we delete the data after 30 days. Please consider upgrading to a paid plan.');
                 resetMiniChart('metricMiniChart', '#metric-mini-chart', 'No metric data available.');
             } else {
                 populateMetrics(metricOptions);

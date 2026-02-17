@@ -107,6 +107,7 @@ a.project-item>i.icon {
     opacity: 0;
     width: 1px;
     height: 1px;
+    z-index: -1;
 }
 
 .simulation-shift-controls {
@@ -586,6 +587,12 @@ a,
 
 .no-wrap {
     white-space: nowrap;
+}
+
+.run-actions {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
 }
 
 #scenario-runner-watchlist p {
