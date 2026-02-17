@@ -59,7 +59,7 @@ const populateMachines = async () => {
 
 const fillInputsFromURL = (url_params) => {
 
-    repository_uri = url_params['uri']; // Store the unescaped value globally for URL construction later
+    repository_uri = url_params['uri']; // Store the unescaped value globaly for URL construction later
     if(repository_uri == null
         || repository_uri == ''
         || repository_uri == 'null') {
