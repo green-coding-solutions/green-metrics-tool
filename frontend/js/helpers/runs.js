@@ -8,7 +8,7 @@ const compareButton = () => {
     checkedBoxes.forEach(checkbox => {
         link = `${link}${checkbox.value},`;
     });
-    link = link.substr(0,link.length-1);
+    link = link.slice(0,link.length-1);
 
     const value = document.querySelector('#compare-force-mode').value;
     link = `${link}&force_mode=${value}`
@@ -312,14 +312,14 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             const commitLabels = [];
 
             if (el != null && el !== '') {
-                commitLabels.push(`${escapeString(el.substr(0,3))}...${escapeString(el.substr(-3,3))}<br>`);
+                commitLabels.push(`${escapeString(el.slice(0,3))}...${escapeString(el.slice(-3))}<br>`);
             }
 
             const relations = parseRelations(row[13]);
             Object.entries(relations).forEach(([relationName, relationData]) => {
                 const relationHash = relationData?.commit_hash;
                 if (relationHash == null || relationHash === '') return;
-                commitLabels.push(`<span class="ui small label">${escapeString(relationName)}: ${escapeString(relationHash.substr(0,7))}</span>`);
+                commitLabels.push(`<span class="ui small label">${escapeString(relationName)}: ${escapeString(relationHash.slice(0,7))}</span>`);
             });
 
             if (commitLabels.length === 0) return null;
