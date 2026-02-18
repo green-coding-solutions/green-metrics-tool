@@ -409,11 +409,15 @@ const loadCharts = async () => {
             formatter: function (params, ticket, callback) {
                 if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
                 const repository_uri_encoded = repository_uri.split('/').map(encodeURIComponent).join('/');
+                const usageScenarioVariablesForPopup = document.querySelector('#usage-scenario-variables-none')?.checked === true
+                    ? 'No usage scenario variables'
+                    : stringifyUsageScenarioVariables(usageScenarioVariables);
                 const html_content = `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong><br>
                         run_id: <a href="/stats.html?id=${series[params.seriesName].notes[params.dataIndex].run_id}"  target="_blank">${series[params.seriesName].notes[params.dataIndex].run_id}</a><br>
                         date: ${series[params.seriesName].notes[params.dataIndex].created_at}<br>
                         metric_name: ${escapeString(params.seriesName)}<br>
                         phase: ${escapeString(series[params.seriesName].notes[params.dataIndex].phase)}<br>
+                        usage_scenario_variables: ${escapeString(usageScenarioVariablesForPopup)}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
                         commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
                         commit_hash: <a class="commit-hash-link" href="" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
