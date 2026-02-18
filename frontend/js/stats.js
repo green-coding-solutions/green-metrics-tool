@@ -290,12 +290,15 @@ const fetchAndFillRunData = async (url_params) => {
             if (run_data.machine_id) params.set('machine_id', run_data.machine_id);
             if (run_data.schedule_mode) params.set('schedule_mode', run_data.schedule_mode);
             if (run_data.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
-                params.set('usage_scenario_variables', JSON.stringify(run_data.usage_scenario_variables));
+                Object.entries(run_data.usage_scenario_variables).forEach(([key, value]) => {
+                    params.append(`usage_scenario_variables[${key}]`, String(value));
+                });
+            } else {
+                params.set('usage_scenario_variables', 'false');
             }
             window.open(`request.html?${params.toString()}`, '_blank');
         });
     })
-
     // create new custom field
     // timestamp is in microseconds, therefore divide by 10**6
     const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1e6

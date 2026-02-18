@@ -1,11 +1,12 @@
 import os
 import re
 import orjson
+from typing import Annotated
 from xml.sax.saxutils import escape as xml_escape
 from datetime import date, datetime, timedelta
 import pprint
 
-from fastapi import APIRouter, Response, Depends, HTTPException
+from fastapi import APIRouter, Response, Depends, HTTPException, Request
 from fastapi.responses import ORJSONResponse
 
 import anybadge
@@ -33,6 +34,27 @@ ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 router = APIRouter()
+
+def parse_usage_scenario_variables(request: Request, usage_scenario_variables: str | None = None) -> dict[str, str] | str | None:
+    usage_scenario_variables_pairs = {}
+
+    for key, value in request.query_params.multi_items():
+        if key.startswith('usage_scenario_variables[') and key.endswith(']'):
+            variable_key = key[25:-1]
+            if variable_key.strip() == '':
+                raise HTTPException(status_code=422, detail='Usage Scenario Variables key must not be empty')
+            usage_scenario_variables_pairs[variable_key] = value
+
+    if usage_scenario_variables_pairs:
+        return usage_scenario_variables_pairs
+
+    if usage_scenario_variables is None or usage_scenario_variables.strip() == '':
+        return None
+
+    if usage_scenario_variables.strip() == 'false':
+        return 'false'
+
+    raise HTTPException(status_code=422, detail='Usage Scenario Variables must be usage_scenario_variables[KEY]=VALUE pairs or the string false')
 
 
 # Return a list of all known machines in the cluster
@@ -547,7 +569,13 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 @router.get('/v1/timeline')
-async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, start_date: date | None = None, end_date: date | None = None, metric: str | None = None, phase: str | None = None, sorting: str | None = None, user: User = Depends(authenticate)):
+async def get_timeline_stats(
+    uri: str, machine_id: int, branch: str | None = None, filename: str | None = None,
+    metric: str | None = None, phase: str | None = None,
+    start_date: date | None = None, end_date: date | None = None,  sorting: str | None = None,
+    usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
+    user: User = Depends(authenticate)):
+
     if uri is None or uri.strip() == '':
         raise HTTPException(status_code=422, detail='URI is empty')
 
@@ -555,7 +583,6 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
         raise HTTPException(status_code=422, detail='Phase is empty')
 
     check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
-
     query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting)
 
     data = DB().fetch_all(query, params=params)
@@ -573,7 +600,13 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
 ## an unexpected result because they occur at same timepoints but the trend assumes them to be at sequential timepoints.
 ## You might get unexpected results, but generally it is desireable to have a regression of all CPU cores for instance forthe cpu energy reporter
 @router.get('/v1/badge/timeline')
-async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
+async def get_timeline_badge(
+        metric: str, uri: str,
+        unit: str = 'watt-hours',
+        detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None,
+        usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
+        user: User = Depends(authenticate)):
+
     if uri is None or uri.strip() == '':
         raise HTTPException(status_code=422, detail='URI is empty')
 

@@ -57,6 +57,101 @@ const populateMachines = async () => {
 
 }
 
+const normalizeVariableKeyPart = (key) => {
+    const match = key.match(/^__GMT_VAR_([\w]+)__$/);
+    if (match) return match[1];
+    return key;
+}
+
+const addVariableField = (keyPart = '', value = '') => {
+    const variablesContainer = document.getElementById('variables-container');
+    const newVariableRow = document.createElement('div');
+    newVariableRow.classList.add('variable-row', 'ui', 'grid', 'middle', 'aligned',  'stackable');
+
+    newVariableRow.innerHTML = `
+        <div class="seven wide column">
+            <div class="ui right labeled input fluid">
+                <div class="ui label">__GMT_VAR_</div>
+                <input type="text" placeholder="Key part" class="variable-key" pattern="[\\w]+" title="Only alphanumeric characters and underscores are allowed." value="${escapeString(keyPart)}">
+                <div class="ui label">__</div>
+            </div>
+        </div>
+        <div class="one wide column computer only tablet only" style="text-align: center; padding: 0;">
+            =
+        </div>
+        <div class="eight wide column">
+            <div class="ui action input fluid">
+                <input type="text" placeholder="Value" class="variable-value" value="${escapeString(value)}">
+                <button type="button" class="ui red mini icon button remove-variable">
+                    <i class="times icon"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    variablesContainer.appendChild(newVariableRow);
+}
+
+const parseUsageScenarioVariablesFromURL = () => {
+    const variables = {};
+    const urlSearchParams = new URLSearchParams(window.location.search);
+
+    for (const [key, value] of urlSearchParams.entries()) {
+        if (key.startsWith('usage_scenario_variables[') && key.endsWith(']')) {
+            const variableKey = key.slice(25, -1);
+            if (variableKey.trim() !== '') {
+                variables[variableKey] = value;
+            }
+        }
+    }
+
+    return variables;
+}
+
+const getUsageScenarioVariablesFromForm = () => {
+    const usageScenarioVariables = {};
+    let validationError = false;
+
+    document.querySelectorAll('#variables-container .variable-row').forEach(row => {
+        const keyPart = row.querySelector('.variable-key').value.trim();
+        const value = row.querySelector('.variable-value').value.trim();
+
+        if (keyPart === '') return;
+
+        if (!/^[\w]+$/.test(keyPart)) {
+            showNotification('Validation Error', `Variable part "${keyPart}" must only contain alphanumeric characters.`, 'error');
+            validationError = true;
+            return;
+        }
+
+        const key = `__GMT_VAR_${keyPart}__`;
+        usageScenarioVariables[key] = value;
+    });
+
+    if (validationError) return null;
+    return usageScenarioVariables;
+}
+
+const stringifyUsageScenarioVariables = (usageScenarioVariables) => {
+    const pairs = Object.entries(usageScenarioVariables).map(([key, value]) => `${key}=${value}`);
+    return pairs.length > 0 ? pairs.join(', ') : '-';
+}
+
+const updateUsageScenarioVariablesInputState = () => {
+    const noVariablesOnly = document.querySelector('#usage-scenario-variables-none')?.checked === true;
+    document.querySelectorAll('#variables-container .variable-key, #variables-container .variable-value, #variables-container .remove-variable').forEach((el) => {
+        el.disabled = noVariablesOnly;
+    });
+    const addButton = document.querySelector('#add-variable');
+    if (addButton) addButton.disabled = noVariablesOnly;
+
+    const variablesContainer = document.querySelector('#variables-container');
+    if (variablesContainer) {
+        if (noVariablesOnly) variablesContainer.classList.add('disabled');
+        else variablesContainer.classList.remove('disabled');
+    }
+}
+
 const fillInputsFromURL = (url_params) => {
 
     repository_uri = url_params['uri']; // Store the unescaped value globaly for URL construction later
@@ -83,10 +178,26 @@ const fillInputsFromURL = (url_params) => {
         $('input[name="filename"]').val(url_params['filename']);
         $('#filename').text(url_params['filename']);
     }
-    if(url_params['usage_scenario_variables'] != null) {
-        $('input[name="usage_scenario_variables"]').val((url_params['usage_scenario_variables']));
-        $('#usage-scenario-variables').text(url_params['usage_scenario_variables']);
+
+    const noUsageScenarioVariables = url_params['usage_scenario_variables'] === 'false';
+    const usageScenarioVariables = parseUsageScenarioVariablesFromURL();
+    const usageScenarioVariableEntries = Object.entries(usageScenarioVariables);
+    if (usageScenarioVariableEntries.length > 0) {
+        const variablesContainer = document.getElementById('variables-container');
+        variablesContainer.innerHTML = '';
+        usageScenarioVariableEntries.forEach(([key, value]) => {
+            addVariableField(normalizeVariableKeyPart(key), value);
+        });
     }
+
+    const noUsageScenarioVariablesCheckbox = document.querySelector('#usage-scenario-variables-none');
+    if (noUsageScenarioVariablesCheckbox) {
+        noUsageScenarioVariablesCheckbox.checked = noUsageScenarioVariables;
+    }
+    updateUsageScenarioVariablesInputState();
+
+    if (noUsageScenarioVariables) $('#usage-scenario-variables').text('No usage scenario variables');
+    else $('#usage-scenario-variables').text(stringifyUsageScenarioVariables(usageScenarioVariables));
     if(url_params['machine_id'] != null) {
         $('select[name="machine_id"]').val(url_params['machine_id']);
         $('#machine').text($('select[name="machine_id"] :checked').text());
@@ -132,6 +243,11 @@ const getSelectedPhase = () => {
 }
 
 const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null,html_replace=false) => {
+    const usageScenarioVariables = getUsageScenarioVariablesFromForm();
+    if (usageScenarioVariables === null) {
+        throw new Error('Invalid usage scenario variables');
+    }
+
     let api_url = `uri=${encodeURIComponent(repository_uri)}`;
 
     const ampersand = html_replace ? '&amp;' : '&';
@@ -150,7 +266,13 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     }
     if($('select[name="machine_id"]').val() !== '') api_url += `${ampersand}machine_id=${encodeURIComponent($('select[name="machine_id"]').val())}`
     if($('input[name="filename"]').val() !== '') api_url += `${ampersand}filename=${encodeURIComponent($('input[name="filename"]').val())}`
-    if($('input[name="usage_scenario_variables"]').val() !== '') api_url += `${ampersand}usage_scenario_variables=${encodeURIComponent($('input[name="usage_scenario_variables"]').val())}`
+    if (document.querySelector('#usage-scenario-variables-none')?.checked === true) {
+        api_url += `${ampersand}usage_scenario_variables=${encodeURIComponent('false')}`
+    } else {
+        Object.entries(usageScenarioVariables).forEach(([key, value]) => {
+            api_url += `${ampersand}usage_scenario_variables[${encodeURIComponent(key)}]=${encodeURIComponent(value)}`
+        });
+    }
 
     if(metric_override != null) api_url += `${ampersand}metric=${encodeURIComponent(metric_override)}`
     else if($('input[name="metrics"]:checked').val() !== '') api_url += `${ampersand}metric=${encodeURIComponent($('input[name="metrics"]:checked').val())}`
@@ -182,9 +304,20 @@ const loadCharts = async () => {
     document.querySelector("#chart-container").innerHTML = ''; // reset
     document.querySelector("#badge-container").innerHTML = ''; // reset
 
+    const usageScenarioVariables = getUsageScenarioVariablesFromForm();
+    if (usageScenarioVariables === null) {
+        return;
+    }
+    if (document.querySelector('#usage-scenario-variables-none')?.checked === true) {
+        $('#usage-scenario-variables').text('No usage scenario variables');
+    } else {
+        $('#usage-scenario-variables').text(stringifyUsageScenarioVariables(usageScenarioVariables));
+    }
+
     let phase_stats_data = null;
     try {
-        phase_stats_data = (await makeAPICall(`/v1/timeline?${buildQueryParams()}`)).data
+        const queryParams = buildQueryParams();
+        phase_stats_data = (await makeAPICall(`/v1/timeline?${queryParams}`)).data
         document.querySelectorAll('.container-no-data').forEach(el => el.style.display = '')
         document.querySelector('#message-no-data').style.display = 'none';
 
@@ -276,11 +409,15 @@ const loadCharts = async () => {
             formatter: function (params, ticket, callback) {
                 if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
                 const repository_uri_encoded = repository_uri.split('/').map(encodeURIComponent).join('/');
+                const usageScenarioVariablesForPopup = document.querySelector('#usage-scenario-variables-none')?.checked === true
+                    ? 'No usage scenario variables'
+                    : stringifyUsageScenarioVariables(usageScenarioVariables);
                 const html_content = `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong><br>
                         run_id: <a href="/stats.html?id=${series[params.seriesName].notes[params.dataIndex].run_id}"  target="_blank">${series[params.seriesName].notes[params.dataIndex].run_id}</a><br>
                         date: ${series[params.seriesName].notes[params.dataIndex].created_at}<br>
                         metric_name: ${escapeString(params.seriesName)}<br>
                         phase: ${escapeString(series[params.seriesName].notes[params.dataIndex].phase)}<br>
+                        usage_scenario_variables: ${escapeString(usageScenarioVariablesForPopup)}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
                         commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
                         commit_hash: <a class="commit-hash-link" href="" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
@@ -341,6 +478,18 @@ $(document).ready( (e) => {
 
         const url_params = getURLParams();
         dateTimePicker(30, url_params);
+
+        $('#add-variable').on('click', () => addVariableField());
+        $('#usage-scenario-variables-none').on('change', function() {
+            updateUsageScenarioVariablesInputState();
+        });
+        $('#variables-container').on('click', '.remove-variable', function () {
+            $(this).closest('.variable-row').remove();
+            if (document.querySelectorAll('#variables-container .variable-row').length === 0) {
+                addVariableField();
+            }
+        });
+        addVariableField();
 
         await populateMachines();
 

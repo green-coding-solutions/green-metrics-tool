@@ -341,10 +341,24 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         title: '<i class="icon calendar"></i>Last run</th>',
         render: function(el, type, row) {
             if (el == null) return '-';
-            let usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => typeof(v) == 'number' ? `"${k}": ${v}` : `"${k}": ${JSON.stringify(v)}`).join(', ')
-            usage_scenario_variables = `{${usage_scenario_variables}}`
+            const params = new URLSearchParams();
+            params.set('uri', row[2]);
+            params.set('branch', row[3] ?? '');
+            params.set('machine_id', row[12]);
+            params.set('filename', row[6] ?? '');
+            params.set('metrics', 'key');
 
-            return `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${encodeURIComponent(row[2])}&amp;branch=${encodeURIComponent(row[3])}&amp;machine_id=${row[12]}&amp;filename=${encodeURIComponent(row[6])}&amp;usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}&amp;metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>`;
+            const usageScenarioVariables = row[7] ?? {};
+            if (Object.keys(usageScenarioVariables).length > 0) {
+                Object.entries(usageScenarioVariables).forEach(([key, value]) => {
+                    params.append(`usage_scenario_variables[${key}]`, String(value));
+                });
+            } else {
+                params.set('usage_scenario_variables', 'false');
+            }
+
+            const href = `/timeline.html?${params.toString().replace(/&/g, '&amp;')}`;
+            return `${dateToYMD(new Date(el))}<br><a href="${href}" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>`;
 
         }
     });
