@@ -586,7 +586,6 @@ async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = No
 
     if unit not in ('watt-hours', 'joules'):
         raise HTTPException(status_code=422, detail='Requested unit is not in allow list: watt-hours, joules')
-
     # we believe that there is no injection possible to the artifact store and any string can be constructured here ...
     if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metric}_{detail_name}_{unit}"):
         return Response(content=str(artifact), media_type="image/svg+xml")
@@ -594,7 +593,6 @@ async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = No
     date_30_days_ago = datetime.now() - timedelta(days=30)
 
     query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now())
-
     # query already contains user access check. No need to have it in aggregate query too
     query = f"""
         WITH trend_data AS (
@@ -904,10 +902,11 @@ def update_run(
     if not columns:
         raise HTTPException(status_code=422, detail='No data submitted in PUT request to change run with. Please submit data.')
 
+    set_columns = ',\n'.join(columns)
     query = f"""
         UPDATE runs
         SET
-            {',\n'.join(columns)}
+            {set_columns}
         WHERE
             (TRUE = %s OR user_id = %s)
             AND id = %s
