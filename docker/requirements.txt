@@ -4,7 +4,7 @@ psycopg_pool==3.3.0
 fastapi[standard]==0.129.0
 starlette>=0.35
 uvicorn[standard]==0.41.0
-pandas==3.0.0
+pandas==3.0.1
 PyYAML==6.0.3
 anybadge==1.16.0
 orjson==3.11.7
