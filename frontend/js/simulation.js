@@ -14,11 +14,12 @@ const METRIC_SHIFT_STEP_MS = 5 * 60 * 1000; // 5 minutes
 const SHIFT_ONE_HOUR_MS = 60 * 60 * 1000;
 const SHIFT_ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const SHIFT_THIRTY_DAYS_MS = 30 * SHIFT_ONE_DAY_MS;
+const NO_METRIC_DATA_DETAIL = 'For free runs we delete the data after 30 days. Please consider upgrading to a paid plan.';
 const BEST_RUNTIME_STEP_RULES = [
-    { maxWindowMs: SHIFT_ONE_DAY_MS, stepMs: 1 * 60 * 1000 }, // <= 1 day
-    { maxWindowMs: 3 * SHIFT_ONE_DAY_MS, stepMs: 10 * 60 * 1000 }, // > 1 day to <= 3 days
-    { maxWindowMs: 5 * SHIFT_ONE_DAY_MS, stepMs: 30 * 60 * 1000 }, // > 3 days to <= 5 days
-    { maxWindowMs: Number.POSITIVE_INFINITY, stepMs: 2 * SHIFT_ONE_HOUR_MS } // > 5 days
+    { maxWindowMs: SHIFT_ONE_DAY_MS, stepMs:            5 * 60 * 1000 }, // <= 1 day
+    { maxWindowMs: 3 * SHIFT_ONE_DAY_MS, stepMs:        15 * 60 * 1000 }, // > 1 day to <= 3 days
+    { maxWindowMs: 5 * SHIFT_ONE_DAY_MS, stepMs:        30 * 60 * 1000 }, // > 3 days to <= 5 days
+    { maxWindowMs: Number.POSITIVE_INFINITY, stepMs:    60 * 60 * 1000  } // > 5 days
 ];
 
 const query = (selector) => document.querySelector(selector);
@@ -412,31 +413,31 @@ const formatEmissionValue = (totalValue) => {
     return emissionDisplay ? emissionDisplay.text : '-';
 };
 
-const formatMiniChartTime = (value, showDate=false) => {
+const formatMiniChartTime = (value) => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '';
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
-    let dateString = ``;
-    if (showDate) {
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = String(date.getFullYear()).slice(-2);
-        dateString = `${day}-${month}-${year}\n`;
-    }
-    return `${dateString}${hours}:${minutes}`;
+    return `${hours}:${minutes}`;
 };
 
-const buildMiniLineOptions = (seriesData, unit, lineColor, showDate=false) => ({
+
+const buildMiniLineOptions = (seriesData, unit, lineColor) => ({
 
     tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'line' },
         formatter: (params) => {
             if (!params || params.length === 0) return '';
-            const rawValue = Array.isArray(params[0].value) ? params[0].value[1] : params[0].value;
+            const point = params[0];
+            const rawValue = Array.isArray(point.value) ? point.value[1] : point.value;
+            const pointTime = Array.isArray(point.value) ? point.value[0] : point.axisValue;
             const labelUnit = unit ? ` ${unit}` : '';
-            return `${numberFormatter.format(rawValue)}${labelUnit}`;
+            const timestamp = new Date(pointTime);
+            const dateTimeLabel = Number.isNaN(timestamp.getTime()) ? '' : timestamp.toISOString();
+            return dateTimeLabel
+                ? `Value: ${numberFormatter.format(rawValue)}${labelUnit}<br>Time: ${dateTimeLabel}`
+                : `${numberFormatter.format(rawValue)}${labelUnit}`;
         }
     },
     grid: {
@@ -453,7 +454,7 @@ const buildMiniLineOptions = (seriesData, unit, lineColor, showDate=false) => ({
         splitLine: { show: false },
         axisLabel: {
             show: true,
-            formatter: (value) => formatMiniChartTime(value, showDate)
+            formatter: (value) => formatMiniChartTime(value)
         }
     },
     yAxis: {
@@ -852,7 +853,13 @@ const findBestRuntime = async () => {
     setBestRuntimeSummary(bestRuntime.total, bestRuntime.startMs, status);
 };
 
-const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerLabel, emissionLabel) => {
+const renderSimulationChart = (
+    providerSeriesData,
+    emissionSeriesData,
+    providerLabel,
+    emissionLabel,
+    providerName
+) => {
     let chartInstance = simulationState.chart;
     let element = chartInstance?.getDom?.() || null;
     if (!element || !document.body.contains(element)) {
@@ -871,12 +878,19 @@ const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerL
             axisPointer: { type: 'line' },
             formatter: (params) => {
                 if (!params || params.length === 0) return '';
-                const rows = params.map((item) => {
-                    const value = Array.isArray(item.value) ? item.value[1] : item.value;
-                    const unit = item.seriesName === emissionLabel ? ' gCO2eq' : ' gCO2eq/kWh';
-                    return `${escapeString(item.seriesName)}: ${numberFormatter.format(value)}${unit} (${new Date(item.value[0]).toLocaleString()})`;
-                });
-                return rows.join('<br>');
+                const providerPoint = params.find((item) => item.seriesName === providerLabel) || params[0];
+                const carbonValueRaw = Array.isArray(providerPoint.value)
+                    ? providerPoint.value[1]
+                    : providerPoint.value;
+                const carbonValue = Number.isFinite(carbonValueRaw)
+                    ? numberFormatter.format(carbonValueRaw)
+                    : '-';
+                const pointTime = Array.isArray(providerPoint.value)
+                    ? providerPoint.value[0]
+                    : providerPoint.axisValue;
+                const dateTime = new Date(pointTime).toISOString() || '-';
+                const provider = providerName || simulationState.selectedProvider?.provider || '-';
+                return `Carbon Intensity: ${carbonValue} gCO2<br>Provider: ${escapeString(provider)}<br>Date/Time: ${dateTime}`;
             }
         },
         grid: {
@@ -890,7 +904,7 @@ const renderSimulationChart = (providerSeriesData, emissionSeriesData, providerL
             type: 'time',
             name: 'Time',
             nameLocation: 'middle',
-            nameGap: 30,
+            nameGap: 40,
             axisLabel: {
                 margin: 12,
                 hideOverlap: true,
@@ -1057,7 +1071,7 @@ const updateMetricMiniChart = (metric, energyData) => {
         return;
     }
 
-    const options = buildMiniLineOptions(series, resolvedEnergyData.unit, MINI_CHART_COLORS.metric, false);
+    const options = buildMiniLineOptions(series, resolvedEnergyData.unit, MINI_CHART_COLORS.metric);
     renderMiniChart('metricMiniChart', '#metric-mini-chart', options);
 };
 
@@ -1067,6 +1081,14 @@ const updateSimulationChart = () => {
     const providerHistory = simulationState.providerHistory;
 
     logSimulationDebug('updating simulation chart', { selection, metric, providerHistory });
+
+    if (simulationState.availableMetrics.length === 0) {
+        resetSimulationChart();
+        setCarbonSummary(null, 'No metric data available.');
+        setAlignButtonVisible(false);
+        setChartLoadFailureVisible(true, 'No metric data', NO_METRIC_DATA_DETAIL);
+        return;
+    }
 
     if (!selection) {
         resetSimulationChart();
@@ -1131,7 +1153,13 @@ const updateSimulationChart = () => {
         const providerLabel = `Carbon intensity (${selection.provider} ${selection.region})`;
         const metricLabel = getPretty(metric, 'clean_name');
         const emissionLabel = `Estimated emissions (${metricLabel})`;
-        renderSimulationChart(providerSeriesData, emissionSeriesData, providerLabel, emissionLabel);
+        renderSimulationChart(
+            providerSeriesData,
+            emissionSeriesData,
+            providerLabel,
+            emissionLabel,
+            selection.provider
+        );
         setCarbonSummary(null, 'Metric data could not be aligned.');
         setAlignButtonVisible(true);
         setChartLoadFailureVisible(true, 'Missing Energy Metric', 'Can not align carbon data with energy metric.');
@@ -1141,7 +1169,13 @@ const updateSimulationChart = () => {
     const providerLabel = `Carbon intensity (${selection.provider} ${selection.region})`;
     const metricLabel = getPretty(metric, 'clean_name');
     const emissionLabel = `Estimated emissions (${metricLabel})`;
-    renderSimulationChart(providerSeriesData, emissionSeriesData, providerLabel, emissionLabel);
+    renderSimulationChart(
+        providerSeriesData,
+        emissionSeriesData,
+        providerLabel,
+        emissionLabel,
+        selection.provider
+    );
     setCarbonSummary(calculateEmissionTotal(emissionSeriesData), '');
     setAlignButtonVisible(false);
     setChartLoadFailureVisible(false);
@@ -1597,7 +1631,7 @@ const updateProviderMiniChart = async (selection, options = {}) => {
         }
 
         simulationState.providerHistory = nextHistory;
-        const options = buildMiniLineOptions(seriesData, null, MINI_CHART_COLORS.provider, true);
+        const options = buildMiniLineOptions(seriesData, null, MINI_CHART_COLORS.provider);
         renderMiniChart('providerMiniChart', '#provider-mini-chart', options);
         updateSimulationChart();
         updateShiftButtonsAvailability();
@@ -1650,7 +1684,7 @@ $(document).ready(() => {
             simulationState.availableMetrics = metricOptions;
 
             if (metricOptions.length === 0) {
-                setChartLoadFailureVisible(true, 'No metric data', 'For free runs we delete the data after 30 days. Please consider upgrading to a paid plan.');
+                setChartLoadFailureVisible(true, 'No metric data', NO_METRIC_DATA_DETAIL);
                 resetMiniChart('metricMiniChart', '#metric-mini-chart', 'No metric data available.');
             } else {
                 populateMetrics(metricOptions);

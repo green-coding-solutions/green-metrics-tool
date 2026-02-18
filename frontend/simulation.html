@@ -65,17 +65,19 @@
                                     <div class="menu" id="metric-menu"></div>
                                 </div>
                                 <div class="simulation-mini-chart" id="metric-mini-chart"></div>
-                                <div class="ui segment">
-                                    <i class="arrow left icon"></i>
-                                    <button id="shift-left-30d" class="ui tiny basic button disabled" disabled>-30d</button>
-                                    <button id="shift-left-day" class="ui tiny basic button disabled" disabled>-1d</button>
-                                    <button id="shift-left-hour" class="ui tiny basic button disabled" disabled>-1h</button>
-                                    <button id="shift-left" class="ui tiny basic button disabled" disabled>-5m</button>|
-                                    <button id="shift-right" class="ui tiny basic button disabled" disabled>+5m</button>
-                                    <button id="shift-right-hour" class="ui tiny basic button disabled" disabled>+1h</button>
-                                    <button id="shift-right-day" class="ui tiny basic button disabled" disabled>+1d</button>
-                                    <button id="shift-right-30d" class="ui tiny basic button disabled" disabled>+30d</button>
-                                    <i class="arrow right icon"></i>
+                                <div class="ui segment simulation-metric-shift-controls">
+                                    <span class="simulation-shift-group simulation-shift-group-negative">
+                                        <button id="shift-left-30d" class="ui tiny basic button disabled" disabled>-30d</button>
+                                        <button id="shift-left-day" class="ui tiny basic button disabled" disabled>-1d</button>
+                                        <button id="shift-left-hour" class="ui tiny basic button disabled" disabled>-1h</button>
+                                        <button id="shift-left" class="ui tiny basic button disabled" disabled>-5m</button>
+                                    </span>
+                                    <span class="simulation-shift-group simulation-shift-group-positive">
+                                        <button id="shift-right" class="ui tiny basic button disabled" disabled>+5m</button>
+                                        <button id="shift-right-hour" class="ui tiny basic button disabled" disabled>+1h</button>
+                                        <button id="shift-right-day" class="ui tiny basic button disabled" disabled>+1d</button>
+                                        <button id="shift-right-30d" class="ui tiny basic button disabled" disabled>+30d</button>
+                                    </span>
                                 </div>
                             </div>
                             <div class="four wide field">

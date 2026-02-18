@@ -115,6 +115,21 @@ a.project-item>i.icon {
     flex-wrap: wrap;
     gap: 6px;
 }
+
+.simulation-metric-shift-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.simulation-metric-shift-controls .simulation-shift-group {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    white-space: nowrap;
+}
+
 .article {
     background: #e9eaef;
 }
