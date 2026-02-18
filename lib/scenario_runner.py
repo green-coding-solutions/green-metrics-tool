@@ -359,12 +359,6 @@ class ScenarioRunner:
         if self._dev_no_save:
             return
 
-        checked_out_branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8', errors='replace').strip()
-        if checked_out_branch != '':
-            self._branch = checked_out_branch
-        else:
-            self._branch = 'detached'
-
         git_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self._repo_folder, encoding='UTF-8', errors='replace').strip()
         if Path(git_repo_root).resolve(strict=True) != self._repo_folder:
             raise RuntimeError(f"Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename. Real repo root is {git_repo_root}")
@@ -372,6 +366,12 @@ class ScenarioRunner:
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
         self._commit_hash, self._commit_timestamp = get_repo_info(self._join_paths(self._repo_folder, self._commit_hash_folder))
+
+        checked_out_branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8', errors='replace').strip()
+        if checked_out_branch != '':
+            self._branch = checked_out_branch
+        else:
+            self._branch = f"(HEAD detached at {self._commit_hash})"
 
     def _checkout_relations(self):
         print(TerminalColors.HEADER, '\nChecking out relations', TerminalColors.ENDC)
