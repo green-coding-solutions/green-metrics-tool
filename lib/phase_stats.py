@@ -138,7 +138,7 @@ def calculate_co2_intensity(run_id):
                 carbon_index = max(carbon_index, 0)
 
                 current_carbon_value = carbon_intensities[carbon_index]
-                carbon_ug = Decimal(energy_value) * Decimal(current_carbon_value) / Decimal(3_600_000) * 1_000_000 # We need to pad this as we only save integers in the DB
+                carbon_ug = Decimal(energy_value) * Decimal(current_carbon_value) / Decimal(3_600_000)
                 csv_buffer.write(f"{derived_metric_id},{int(carbon_ug)},{energy_time}\n")
 
             csv_buffer.seek(0)

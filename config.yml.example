@@ -225,7 +225,7 @@ measurement:
 #--- Carbon intensity
 #      carbon.intensity.elephant.machine.provider.CarbonIntensityElephantMachineProvider:
 #        region: 'DE'
-#        provider: 'electricitymaps' # optional
+#        provider: 'bundesnetzagentur' # optional
 #        elephant:
 #          host: localhost
 #          port: 8085
