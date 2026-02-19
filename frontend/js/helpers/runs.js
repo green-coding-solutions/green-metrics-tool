@@ -341,6 +341,14 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         title: '<i class="icon calendar"></i>Last run</th>',
         render: function(el, type, row) {
             if (el == null) return '-';
+            return `${dateToYMD(new Date(el))}`;
+
+        }
+    });
+    columns.push({
+        title: '<i class="cog icon"></i>Actions</th>',
+        className: 'dt-nowrap',
+        render: function(_, type, row) {
             const params = new URLSearchParams();
             params.set('uri', row[2]);
             params.set('branch', row[3] ?? '');
@@ -358,9 +366,14 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             }
 
             const href = `/timeline.html?${params.toString().replace(/&/g, '&amp;')}`;
-            return `${dateToYMD(new Date(el))}<br><a href="${href}" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>`;
 
-        }
+            return `
+                <div class="run-actions no-wrap">
+                    <a title="Timeline Analysis" href="${href}" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="ui icon clock"></i></a>
+                    <a title="Carbon Simulation" href="/simulation.html?id=${encodeURIComponent(row[0])}" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="chartline icon"></i></a>
+                </div>`
+        },
+        orderable: false,
     });
 
     columns.push({
@@ -368,7 +381,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         render: function(el, type, row) {
             // Modify the content of the "Name" column here
             return `<input type="checkbox" value="${el}" name="chbx-proj"/>&nbsp;`
-        }
+        },
+        orderable: false,
     });
 
 
@@ -402,7 +416,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 allow_group_select_checkboxes();
                 updateCompareCount();
             },
-            order: [[columns.length-2, 'desc']] // API also orders, but we need to indicate order for the user
+            order: [[columns.length-3, 'desc']] // API also orders, but we need to indicate order for the user
         });
     }
 

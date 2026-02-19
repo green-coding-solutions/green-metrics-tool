@@ -1,6 +1,7 @@
 // Please do not change these constants. They should set by the install script
 API_URL = "__API_URL__"
 METRICS_URL = "__METRICS_URL__"
+ELEPHANT_URL = "__ELEPHANT_URL__"
 
 ACTIVATE_SCENARIO_RUNNER = __ACTIVATE_SCENARIO_RUNNER__;
 ACTIVATE_ECO_CI = __ACTIVATE_ECO_CI__;
