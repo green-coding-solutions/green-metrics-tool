@@ -434,7 +434,7 @@ const buildMiniLineOptions = (seriesData, unit, lineColor) => ({
             const pointTime = Array.isArray(point.value) ? point.value[0] : point.axisValue;
             const labelUnit = unit ? ` ${unit}` : '';
             const timestamp = new Date(pointTime);
-            const dateTimeLabel = Number.isNaN(timestamp.getTime()) ? '' : timestamp.toISOString();
+            const dateTimeLabel = Number.isNaN(timestamp.getTime()) ? '' : dateToYMD(timestamp, false, true);
             return dateTimeLabel
                 ? `Value: ${numberFormatter.format(rawValue)}${labelUnit}<br>Time: ${dateTimeLabel}`
                 : `${numberFormatter.format(rawValue)}${labelUnit}`;
@@ -519,8 +519,8 @@ const getRunTimes = (runData, measurements = []) => {
     return {
         startMs,
         endMs,
-        startIso: new Date(startMs).toISOString(),
-        endIso: new Date(endMs).toISOString()
+        startIso: dateToYMD(new Date(startMs), false, true),
+        endIso: dateToYMD(new Date(endMs), false, true)
     };
 };
 
@@ -888,7 +888,7 @@ const renderSimulationChart = (
                 const pointTime = Array.isArray(providerPoint.value)
                     ? providerPoint.value[0]
                     : providerPoint.axisValue;
-                const dateTime = new Date(pointTime).toISOString() || '-';
+                const dateTime = dateToYMD(new Date(pointTime), false, true) || '-';
                 const provider = providerName || simulationState.selectedProvider?.provider || '-';
                 return `Carbon Intensity: ${carbonValue} gCO2<br>Provider: ${escapeString(provider)}<br>Date/Time: ${dateTime}`;
             }
