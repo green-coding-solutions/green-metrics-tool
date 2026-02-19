@@ -139,9 +139,20 @@
                             </div>
                             <div class="inline fields">
                                 <label style="min-width: 15em;">Usage Scenario Variables:<br>
-                                    <i class="info circle icon"></i> <small>Leave empty to include all</small>
+                                    <i class="info circle icon"></i> <small>Leave empty to include all.<br>Check box to force empty</small>
                                 </label>
-                                <input type="text" name="usage_scenario_variables" value="" placeholder='Type either only key, only value or as KV-Pairs with double quotes if string e.g. __GMT_VAR_NAME__="Cat"' class="ui input large">
+                                <div style="width: 100%;">
+                                    <div class="ui checkbox" style="padding: 0.5em 0 ;">
+                                        <input id="usage-scenario-variables-none" type="checkbox">
+                                        <label for="usage-scenario-variables-none">No usage scenario variables</label>
+                                    </div>
+                                    <div id="variables-container"></div>
+                                    <div style="text-align: right; margin-top: 0.5em;">
+                                        <button type="button" class="ui mini icon button" id="add-variable">
+                                            <i class="plus icon"></i> Add Variable
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="inline fields">
@@ -175,7 +186,7 @@
                                 </div>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="phase-boot" type="radio" name="phase" value=[BOOT]>
+                                        <input id="phase-boot" type="radio" name="phase" value="[BOOT]">
                                         <label for="phase-boot">Boot</label>
                                     </div>
                                 </div>
@@ -196,6 +207,15 @@
                                         <input id="phase-remove" type="radio" name="phase" value="[REMOVE]">
                                         <label for="phase-remove">Remove</label>
                                     </div>
+                                </div>
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="phase-custom" type="radio" name="phase" value="custom">
+                                        <label for="phase-custom">Custom</label>
+                                    </div>
+                                </div>
+                                <div class="field phase-custom-field" style="display: none;">
+                                    <input id="phase-custom-input" type="text" name="phase_custom" placeholder="Phase name (e.g. Stress)" disabled>
                                 </div>
                                 <div class="field">
                                     <i class="info circle icon"></i> Will not affect badge

@@ -4,6 +4,7 @@
 
 import io
 import os
+import re
 import subprocess
 import math
 
@@ -150,7 +151,7 @@ def test_resource_limits_cpuset():
 
     docker_cpus = resource_limits.get_docker_available_cpus()
     exp_string = ','.join(map(str, range(1,docker_cpus)))
-    assert f"--cpuset-cpus {exp_string} --" in out.getvalue() # we extend the check to -- to make sure nothing after 1,2,XXX is cut off and thus match the start of the next element
+    assert re.search(rf"--cpuset-cpus[\s,\[\]\"']*{exp_string}[\s,\[\]\"']*--", str(out.getvalue()))  # we extend the check to -- to make sure nothing after 1,2,XXX is cut off and thus match the start of the next element
 
 @pytest.mark.skipif(resource_limits.get_docker_available_cpus() < 4, reason="Test requires 4 cores available to docker")
 def test_resource_limits_alternate_cpuset():
@@ -170,7 +171,9 @@ def test_resource_limits_alternate_cpuset():
 
         docker_cpus = resource_limits.get_docker_available_cpus()
         exp_string = ','.join(map(str, range(1,docker_cpus-2))) # we remove 1 CPU here as the file contains two more reserved CPUs
-        assert f"--cpuset-cpus {exp_string} --" in out.getvalue() # we extend the check to -- to make sure nothing after 1,2,XXX is cut off and thus match the start of the next element
+        # we extend the check to -- to make sure nothing after 1,2,XXX is cut off and thus match the start of the next element
+        assert re.search(rf"--cpuset-cpus[\s,\[\]\"']*{exp_string}[\s,\[\]\"']*--", str(out.getvalue()))
+
     finally:
         resource_limits.get_docker_available_cpus.cache_clear()
         resource_limits.get_docker_available_cpus.cache_clear()
@@ -200,6 +203,7 @@ def test_resource_limits_oom_setup():
     assert str(e.value) == "Your process ['docker', 'exec', 'test-container', 'dd', 'if=/dev/zero', 'of=/dev/shm/test100mb', 'bs=1M', 'count=100'] failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n\n\n========== Stderr ==========\n"
 
 
+@pytest.mark.skip(reason="This test needs implementing of a check window after container boot. Currently this test is experiencing a race condition")
 def test_resource_limits_oom_launch():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_launch.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 

@@ -1,11 +1,12 @@
 import os
 import re
 import orjson
+from typing import Annotated
 from xml.sax.saxutils import escape as xml_escape
 from datetime import date, datetime, timedelta
 import pprint
 
-from fastapi import APIRouter, Response, Depends, HTTPException
+from fastapi import APIRouter, Response, Depends, HTTPException, Request
 from fastapi.responses import ORJSONResponse
 
 import anybadge
@@ -33,6 +34,27 @@ ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 router = APIRouter()
+
+def parse_usage_scenario_variables(request: Request, usage_scenario_variables: str | None = None) -> dict[str, str] | str | None:
+    usage_scenario_variables_pairs = {}
+
+    for key, value in request.query_params.multi_items():
+        if key.startswith('usage_scenario_variables[') and key.endswith(']'):
+            variable_key = key[25:-1]
+            if variable_key.strip() == '':
+                raise HTTPException(status_code=422, detail='Usage Scenario Variables key must not be empty')
+            usage_scenario_variables_pairs[variable_key] = value
+
+    if usage_scenario_variables_pairs:
+        return usage_scenario_variables_pairs
+
+    if usage_scenario_variables is None or usage_scenario_variables.strip() == '':
+        return None
+
+    if usage_scenario_variables.strip() == 'false':
+        return 'false'
+
+    raise HTTPException(status_code=422, detail='Usage Scenario Variables must be usage_scenario_variables[KEY]=VALUE pairs or the string false')
 
 
 # Return a list of all known machines in the cluster
@@ -300,12 +322,12 @@ def old_v1_runs_endpoint():
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v2/runs')
-async def get_runs(name: str | None = None, uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, job_id: int | None = None, failed: bool | None = None, show_archived: bool | None = None, show_other_users: bool | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
+async def get_runs(name: str | None = None, uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, job_id: int | None = None, failed: bool | None = None, show_archived: bool | None = None, show_other_users: bool | None = None, limit: int | None = 50, uri_mode = 'none', start_date: date | None = None, end_date: date | None = None, user: User = Depends(authenticate)):
 
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at,
             (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = r.id) as warnings,
-            r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
+            r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id, r.relations
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
@@ -366,7 +388,13 @@ async def get_runs(name: str | None = None, uri: str | None = None, branch: str 
     if show_archived is not True:
         query = f"{query} AND r.archived = False \n"
 
+    if start_date is not None:
+        query = f"{query} AND DATE(r.created_at) >= %s"
+        params.append(start_date)
 
+    if end_date is not None:
+        query = f"{query} AND DATE(r.created_at) <= %s"
+        params.append(end_date)
 
     query = f"{query} ORDER BY r.created_at DESC"
 
@@ -541,7 +569,13 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 @router.get('/v1/timeline')
-async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, start_date: date | None = None, end_date: date | None = None, metric: str | None = None, phase: str | None = None, sorting: str | None = None, user: User = Depends(authenticate)):
+async def get_timeline_stats(
+    uri: str, machine_id: int, branch: str | None = None, filename: str | None = None,
+    metric: str | None = None, phase: str | None = None,
+    start_date: date | None = None, end_date: date | None = None,  sorting: str | None = None,
+    usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
+    user: User = Depends(authenticate)):
+
     if uri is None or uri.strip() == '':
         raise HTTPException(status_code=422, detail='URI is empty')
 
@@ -549,7 +583,6 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
         raise HTTPException(status_code=422, detail='Phase is empty')
 
     check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
-
     query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting)
 
     data = DB().fetch_all(query, params=params)
@@ -567,7 +600,13 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
 ## an unexpected result because they occur at same timepoints but the trend assumes them to be at sequential timepoints.
 ## You might get unexpected results, but generally it is desireable to have a regression of all CPU cores for instance forthe cpu energy reporter
 @router.get('/v1/badge/timeline')
-async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
+async def get_timeline_badge(
+        metric: str, uri: str,
+        unit: str = 'watt-hours',
+        detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None,
+        usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
+        user: User = Depends(authenticate)):
+
     if uri is None or uri.strip() == '':
         raise HTTPException(status_code=422, detail='URI is empty')
 
@@ -580,7 +619,6 @@ async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = No
 
     if unit not in ('watt-hours', 'joules'):
         raise HTTPException(status_code=422, detail='Requested unit is not in allow list: watt-hours, joules')
-
     # we believe that there is no injection possible to the artifact store and any string can be constructured here ...
     if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metric}_{detail_name}_{unit}"):
         return Response(content=str(artifact), media_type="image/svg+xml")
@@ -588,7 +626,6 @@ async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = No
     date_30_days_ago = datetime.now() - timedelta(days=30)
 
     query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now())
-
     # query already contains user access check. No need to have it in aggregate query too
     query = f"""
         WITH trend_data AS (
@@ -780,6 +817,9 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if software.branch is None or software.branch.strip() == '':
         software.branch = 'main'
 
+    if software.commit_hash is not None and software.commit_hash.strip() == '':
+        software.commit_hash = None
+
     if software.filename is None or software.filename.strip() == '':
         software.filename = 'usage_scenario.yml'
 
@@ -840,7 +880,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         amount = 1
 
     for _ in range(0,amount):
-        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids))
+        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, commit_hash=software.commit_hash, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids))
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:
@@ -895,10 +935,11 @@ def update_run(
     if not columns:
         raise HTTPException(status_code=422, detail='No data submitted in PUT request to change run with. Please submit data.')
 
+    set_columns = ',\n'.join(columns)
     query = f"""
         UPDATE runs
         SET
-            {',\n'.join(columns)}
+            {set_columns}
         WHERE
             (TRUE = %s OR user_id = %s)
             AND id = %s

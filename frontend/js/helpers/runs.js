@@ -8,7 +8,7 @@ const compareButton = () => {
     checkedBoxes.forEach(checkbox => {
         link = `${link}${checkbox.value},`;
     });
-    link = link.substr(0,link.length-1);
+    link = link.slice(0,link.length-1);
 
     const value = document.querySelector('#compare-force-mode').value;
     link = `${link}&force_mode=${value}`
@@ -270,6 +270,19 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         },
     ]
 
+    const parseRelations = (relationsRaw) => {
+        if (relationsRaw == null) return {};
+        if (typeof(relationsRaw) === 'string') {
+            try {
+                return JSON.parse(relationsRaw);
+            } catch (_) {
+                return {};
+            }
+        }
+        if (typeof(relationsRaw) !== 'object') return {};
+        return relationsRaw;
+    }
+
     if(include_uri) {
         columns.push({
                 data: 2,
@@ -278,7 +291,14 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                     let uri_link = replaceRepoIcon(el);
 
                     uri_link = `${uri_link} ${createExternalIconLink(el)}`;
-                    return uri_link
+                    const relations = parseRelations(row[13]);
+                    const relationLinks = Object.values(relations)
+                        .map((relation) => relation?.url)
+                        .filter((relationUrl) => relationUrl != null && relationUrl !== '')
+                        .map((relationUrl) => `<span class="ui mini label">${replaceRepoIcon(relationUrl)} ${createExternalIconLink(relationUrl)}</span>`);
+
+                    if (relationLinks.length === 0) return uri_link;
+                    return `${uri_link}<br>${relationLinks.join(' ')}`
                 },
         })
     }
@@ -289,8 +309,21 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         data: 9,
         title: '<i class="icon history"></i>Commit</th>',
         render: function(el, type, row) {
-          // Modify the content of the "Name" column here
-          return el == null ? null : `${escapeString(el.substr(0,3))}...${escapeString(el.substr(-3,3))}`
+            const commitLabels = [];
+
+            if (el != null && el !== '') {
+                commitLabels.push(`${escapeString(el.slice(0,3))}...${escapeString(el.slice(-3))}<br>`);
+            }
+
+            const relations = parseRelations(row[13]);
+            Object.entries(relations).forEach(([relationName, relationData]) => {
+                const relationHash = relationData?.commit_hash;
+                if (relationHash == null || relationHash === '') return;
+                commitLabels.push(`<span class="ui small label">${escapeString(relationName)}: ${escapeString(relationHash.slice(0,7))}</span>`);
+            });
+
+            if (commitLabels.length === 0) return null;
+            return commitLabels.join(' ');
         },
     });
 
@@ -298,8 +331,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         data: 6,
         title: '<i class="icon file alternate"></i>Filename',
         render: function(el, type, row) {
-            const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui label">${escapeString(k)}=${escapeString(v)}</span>`);
-            return `${escapeString(el)} ${usage_scenario_variables.join(' ')}`
+            const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui small label">${escapeString(k)}=${escapeString(v)}</span>`);
+            return `${escapeString(el)} <br> ${usage_scenario_variables.join(' ')}`
         }
     });
     columns.push({ data: 8, title: '<i class="icon laptop code"></i>Machine</th>', render: (el, type, row) => escapeString(el) });
@@ -313,17 +346,30 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         }
     });
     columns.push({
-        data: null,
         title: '<i class="cog icon"></i>Actions</th>',
         className: 'dt-nowrap',
-        render: function(el, type, row) {
-            if (el == null) return '-';
-            let usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => typeof(v) == 'number' ? `"${k}": ${v}` : `"${k}": ${JSON.stringify(v)}`).join(', ')
-            usage_scenario_variables = `{${usage_scenario_variables}}`
+        render: function(_, type, row) {
+            const params = new URLSearchParams();
+            params.set('uri', row[2]);
+            params.set('branch', row[3] ?? '');
+            params.set('machine_id', row[12]);
+            params.set('filename', row[6] ?? '');
+            params.set('metrics', 'key');
+
+            const usageScenarioVariables = row[7] ?? {};
+            if (Object.keys(usageScenarioVariables).length > 0) {
+                Object.entries(usageScenarioVariables).forEach(([key, value]) => {
+                    params.append(`usage_scenario_variables[${key}]`, String(value));
+                });
+            } else {
+                params.set('usage_scenario_variables', 'false');
+            }
+
+            const href = `/timeline.html?${params.toString().replace(/&/g, '&amp;')}`;
 
             return `
                 <div class="run-actions no-wrap">
-                    <a title="Timeline Analysis" href="/timeline.html?uri=${encodeURIComponent(row[2])}&amp;branch=${encodeURIComponent(row[3])}&amp;machine_id=${row[12]}&amp;filename=${encodeURIComponent(row[6])}&amp;usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}&amp;metrics=key" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="ui icon clock"></i></a>
+                    <a title="Timeline Analysis" href="${href}" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="ui icon clock"></i></a>
                     <a title="Carbon Simulation" href="/simulation.html?id=${encodeURIComponent(row[0])}" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="chartline icon"></i></a>
                 </div>`
         },

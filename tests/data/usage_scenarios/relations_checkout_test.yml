@@ -1,0 +1,23 @@
+name: Relations Checkout Test
+author: Arne Tarara
+description: Relations Checkout Test
+
+services:
+  test-container:
+    image: gcb_stress
+    build:
+      context: ../stress-application
+
+relations:
+  helpers:
+    url: https://github.com/green-coding-solutions/gmt-helpers
+    commit_hash: b8c6c7575e493c9808ceeea2a5e7311c61b16419
+
+flow:
+  - name: I will not get here in this test
+    container: test-container
+    commands:
+        - type: console
+          command: echo 1
+
+

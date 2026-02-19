@@ -9,8 +9,6 @@ import uuid
 import math
 import time
 
-import orjson
-
 from starlette.background import BackgroundTask
 from fastapi.responses import ORJSONResponse
 from fastapi import Depends, Request, HTTPException
@@ -207,13 +205,17 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
         params.append(machine_id)
 
     usage_scenario_variables_condition = ''
-    if usage_scenario_variables is not None and usage_scenario_variables.strip() != '':
-        try:
-            orjson.loads(usage_scenario_variables) # pylint: disable=no-member
-        except orjson.JSONDecodeError as exc: # pylint: disable=no-member
-            raise HTTPException(status_code=422, detail=f"Usage Scenario Variables was not correctly JSON formatted: {exc}") from exc
-        usage_scenario_variables_condition = 'AND r.usage_scenario_variables::text = %s'
-        params.append(usage_scenario_variables)
+    if usage_scenario_variables is not None:
+        if isinstance(usage_scenario_variables, str) and usage_scenario_variables.strip() == 'false':
+            usage_scenario_variables_condition = "AND (r.usage_scenario_variables IS NULL OR r.usage_scenario_variables = '{}'::jsonb)"
+        elif isinstance(usage_scenario_variables, dict):
+            for key, value in usage_scenario_variables.items():
+                if key is None or str(key).strip() == '':
+                    raise HTTPException(status_code=422, detail='Usage Scenario Variables keys must not be empty')
+                usage_scenario_variables_condition += 'AND r.usage_scenario_variables ->> %s = %s\n'
+                params.extend([str(key), str(value)])
+        else:
+            raise HTTPException(status_code=422, detail='Usage Scenario Variables must be a JSON object or "false"')
 
     sorting_condition = 'r.commit_timestamp ASC, r.created_at ASC'
     if sorting is not None and sorting.strip() == 'run':
@@ -848,7 +850,7 @@ def check_int_field_api(field, name, max_value):
 def carbondb_add(connecting_ip, data, source, user_id):
 
     merge_window_max = 30 # merge window hardcoded for now. Might be a user setting later. This entails also that carbondb_copy_over_and_remove_duplicates.py makes queries PER USER
-    current_time_us = int(time.time()  * 1e6)
+    current_time_us = int(time.time_ns()  / 1e3)
     if data['time'] < current_time_us - merge_window_max * 24 * 60 * 60 * 1e6 : # microseconds
         raise ValueError(f"CarbonDB is configured to not accept values older than {merge_window_max} days. Your timestamp was: {data['time']}")
     if data['time'] > current_time_us:

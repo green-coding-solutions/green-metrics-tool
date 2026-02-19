@@ -154,6 +154,76 @@ def test_uri_github_repo_branch_missing():
     assert expected_exception == str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
+## --commit-hash COMMIT_HASH
+def test_uri_github_repo_commit_hash_checkout():
+    commit_hash = 'b60dd7b9c0d533d0c7fbb1afcfe9fccf13d457bf'
+    expected_message = "Remove legacy 'type' field from ubuntu-stress service"
+    runner = ScenarioRunner(
+        uri='https://github.com/green-coding-solutions/pytest-dummy-repo',
+        uri_type='URL',
+        branch='main',
+        commit_hash=commit_hash,
+        filename='usage_scenario.yml',
+        dev_no_save=True,
+        dev_no_container_dependency_collection=True,
+        skip_download_dependencies=True,
+        skip_optimizations=True,
+    )
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')
+
+        checked_out_commit_hash = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=runner._repo_folder,
+            encoding='UTF-8',
+            errors='replace',
+        ).strip()
+        commit_message = subprocess.check_output(
+            ['git', 'log', '-1', '--pretty=%s'],
+            cwd=runner._repo_folder,
+            encoding='UTF-8',
+            errors='replace',
+        ).strip()
+
+        assert checked_out_commit_hash == commit_hash, Tests.assertion_info(f"commit_hash: {commit_hash}", checked_out_commit_hash)
+        assert commit_message == expected_message, Tests.assertion_info(f"commit_message: {expected_message}", commit_message)
+
+def test_relations_checkout_specific_commit_hash():
+    relation_commit_hash = 'b8c6c7575e493c9808ceeea2a5e7311c61b16419'
+    expected_message = 'Added WOL script'
+    relation_key = 'helpers'
+    runner = ScenarioRunner(
+        uri=GMT_DIR,
+        uri_type='folder',
+        filename='tests/data/usage_scenarios/relations_checkout_test.yml',
+        dev_no_save=True,
+        dev_no_container_dependency_collection=True,
+        skip_download_dependencies=True,
+        skip_optimizations=True,
+    )
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')
+
+        relation_path = runner._relations_folder.joinpath(relation_key)
+
+        checked_out_commit_hash = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=relation_path,
+            encoding='UTF-8',
+            errors='replace',
+        ).strip()
+        commit_message = subprocess.check_output(
+            ['git', 'log', '-1', '--pretty=%s'],
+            cwd=relation_path,
+            encoding='UTF-8',
+            errors='replace',
+        ).strip()
+
+        assert checked_out_commit_hash == relation_commit_hash, Tests.assertion_info(f"commit_hash: {relation_commit_hash}", checked_out_commit_hash)
+        assert commit_message == expected_message, Tests.assertion_info(f"commit_message: {expected_message}", commit_message)
+
 # #   --name NAME
 # #    A name which will be stored to the database to discern this run from others
 def test_name_is_in_db():

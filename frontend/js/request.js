@@ -19,32 +19,37 @@ const populateFieldsFromURL = () => {
     if (urlParams.has('branch')) {
         document.querySelector('input[name="branch"]').value = escapeString(urlParams.get('branch'));
     }
+    if (urlParams.has('commit_hash')) {
+        document.querySelector('input[name="commit_hash"]').value = escapeString(urlParams.get('commit_hash'));
+    }
     if (urlParams.has('machine_id')) {
         document.querySelector('select[name="machine_id"]').value = escapeString(urlParams.get('machine_id'));
     }
     if (urlParams.has('schedule_mode')) {
         document.querySelector('select[name="schedule_mode"]').value = escapeString(urlParams.get('schedule_mode'));
     }
-    if (urlParams.has('usage_scenario_variables')) {
-        try {
-            const variables = JSON.parse(urlParams.get('usage_scenario_variables'));
-            const variablesContainer = document.getElementById('variables-container');
-            variablesContainer.innerHTML = '';
-
-            for (const key in variables) {
-                if (Object.hasOwnProperty.call(variables, key)) {
-                    const match = key.match(/^__GMT_VAR_([\w]+)__$/);
-                    if (match) {
-                        addVariableField(match[1], variables[key]);
-                    }
-                }
+    const usageScenarioVariables = {};
+    for (const [key, value] of urlParams.entries()) {
+        if (key.startsWith('usage_scenario_variables[') && key.endsWith(']')) {
+            const variableKey = key.slice(25, -1);
+            if (variableKey.trim() !== '') {
+                usageScenarioVariables[variableKey] = value;
             }
-        } catch (e) {
-            console.error('Failed to parse usage_scenario_variables from URL:', e);
+        }
+    }
+
+    if (Object.keys(usageScenarioVariables).length > 0) {
+        const variablesContainer = document.getElementById('variables-container');
+        variablesContainer.innerHTML = '';
+
+        for (const [key, value] of Object.entries(usageScenarioVariables)) {
+            const match = key.match(/^__GMT_VAR_([\w]+)__$/);
+            if (match) {
+                addVariableField(match[1], value);
+            }
         }
     }
 }
-
 const addVariableField = (keyPart = '', value = '') => {
     const variablesContainer = document.getElementById('variables-container');
     const newVariableRow = document.createElement('div');
