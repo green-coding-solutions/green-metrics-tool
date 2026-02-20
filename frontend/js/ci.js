@@ -174,6 +174,11 @@ const displayStatsTable = (stats) => {
         total_table.appendChild(label_stats_total_node);
 
     }) ;
+    $('#stats-container table').tablesort();
+    $('#stats-container table thead th[data-sort="numeric"]').data('sortBy', function(th, td, tablesort) {
+        return parseFloat(td.text());
+    });
+
 
 }
 
@@ -226,7 +231,11 @@ const displayRunDetailsTable = (measurements, repo) => {
                             `;
         document.querySelector("#ci-table").appendChild(li_node);
     });
-    $('table').tablesort();
+    $('#run-details-table table').tablesort();
+    $('#run-details-table table thead th[data-sort="numeric"]').data('sortBy', function(th, td, tablesort) {
+        return parseFloat(td.text());
+    });
+
 }
 
 const getBadges = async (repo, branch, workflow_id) => {
