@@ -83,7 +83,7 @@ const setAndShowAnalyticsLinks = (url_params, run_data) => {
         if (simulationLink) {
             simulationLink.href = `simulation.html?id=${encodeURIComponent(url_params['id'])}`;
         }
-    else {
+    } else {
         document.querySelector('a[data-tab="analytics-simulation"]').classList.add('hidden');
     }
 
