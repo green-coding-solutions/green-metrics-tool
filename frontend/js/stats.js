@@ -76,10 +76,15 @@ const getElephantServiceUrl = () => {
     return typeof ELEPHANT_URL === 'string' ? ELEPHANT_URL.trim() : ''
 };
 
-const setAnalyticsLinks = (url_params, run_data) => {
-    const simulationLink = document.querySelector('#analytics-simulation-link');
-    if (simulationLink) {
-        simulationLink.href = `simulation.html?id=${encodeURIComponent(url_params['id'])}`;
+const setAndShowAnalyticsLinks = (url_params, run_data) => {
+
+    if (getElephantServiceUrl() !== '') {
+        const simulationLink = document.querySelector('#analytics-simulation-link');
+        if (simulationLink) {
+            simulationLink.href = `simulation.html?id=${encodeURIComponent(url_params['id'])}`;
+        }
+    else {
+        document.querySelector('a[data-tab="analytics-simulation"]').classList.add('hidden');
     }
 
     const timelineLink = document.querySelector('#analytics-timeline-link');
@@ -118,12 +123,8 @@ const fetchAndFillRunData = async (url_params) => {
 
     const run_data = run.data
     const run_data_accordion_node = document.querySelector('#run-data-accordion');
-    setAnalyticsLinks(url_params, run_data);
 
-    if (getElephantServiceUrl() !== '') {
-        document.querySelector('#simulate-run-link').href = `simulation.html?id=${encodeURIComponent(url_params['id'])}`;
-        document.querySelector('#simulate-run-action').classList.remove('hidden');
-    }
+    setAndShowAnalyticsLinks(url_params, run_data);
 
     for (const item in run_data) {
         if (item == 'machine_id') {
