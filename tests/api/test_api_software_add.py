@@ -117,11 +117,11 @@ def test_post_run_add_gitlab_commit():
 
 def test_post_run_add_gitlab_tag_none_tag():
     run_name = 'test_' + utils.randomword(12)
-    run = Software(name=run_name, repo_url='https://gitlab.com/green-coding-solutions/ci-carbon-testing', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='tag')
+    run = Software(name=run_name, repo_url='https://gitlab.com/green-coding-solutions/system-info', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='tag')
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    watchlist_item = utils.get_watchlist_item('https://gitlab.com/green-coding-solutions/ci-carbon-testing')
+    watchlist_item = utils.get_watchlist_item('https://gitlab.com/green-coding-solutions/system-info')
     assert watchlist_item['last_marker'] is None
     assert watchlist_item['schedule_mode'] == 'tag'
 
