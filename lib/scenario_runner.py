@@ -1653,7 +1653,7 @@ class ScenarioRunner:
 
             if 'command' in service:  # must come last
                 if isinstance(service['command'], str):
-                    docker_run_string.extend(shlex.split(service['command']))
+                    docker_run_string.extend(shlex.split(service['command'], posix=False))
                 elif isinstance(service['command'], list):
                     docker_run_string.extend(service['command'])
                 else:
@@ -1697,7 +1697,7 @@ class ScenarioRunner:
                 if shell := cmd_obj.get('shell', False):
                     d_command = ['docker', 'exec', container_name, shell, '-c', cmd_obj['command']] # This must be a list!
                 else:
-                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'])] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'], posix=False)] # This must be a list!
 
                 print('Running command: ', ' '.join(d_command))
 
@@ -2051,7 +2051,7 @@ class ScenarioRunner:
                             docker_exec_command.append('-c')
                             docker_exec_command.append(cmd_obj['command'])
                         else:
-                            docker_exec_command.extend(shlex.split(cmd_obj['command']))
+                            docker_exec_command.extend(shlex.split(cmd_obj['command'], posix=False))
                     else:
                         raise RuntimeError('Unknown command type in flow: ', cmd_obj['type'])
 

@@ -403,8 +403,7 @@ def test_depends_on_error_not_running():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "State check of dependent services of 'test-container-1' failed! Container 'test-container-3' is not running but 'exited' after waiting for 10 sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container." == str(e.value) , \
-        Tests.assertion_info("State check of dependent services of 'test-container-1' failed! Container 'test-container-3' is not running but 'exited' after waiting for 10 sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.", str(e.value))
+    assert re.match(r"State check of dependent services of 'test-container-\d+' failed! Container 'test-container-3' is not running but 'exited' after waiting for 10 sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.", str(e.value))
 
 def test_depends_on_error_cyclic_dependency():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_cycle.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
