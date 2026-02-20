@@ -176,7 +176,7 @@ const displayStatsTable = (stats) => {
     }) ;
     $('#stats-container table').tablesort();
     $('#stats-container table thead th[data-sort="numeric"]').data('sortBy', function(th, td, tablesort) {
-        return parseFloat(td.text());
+        return parseFloat(td.text().replace(',', ''));
     });
 
 
@@ -233,7 +233,7 @@ const displayRunDetailsTable = (measurements, repo) => {
     });
     $('#run-details-table table').tablesort();
     $('#run-details-table table thead th[data-sort="numeric"]').data('sortBy', function(th, td, tablesort) {
-        return parseFloat(td.text());
+        return parseFloat(td.text().replace(',', ''));
     });
 
 }
