@@ -52,4 +52,4 @@ flow:
             loop_ticks++;
           }
       - type: console
-        command: sleep '__GMT_VAR_SLEEP__'
+        command: sleep __GMT_VAR_SLEEP__
