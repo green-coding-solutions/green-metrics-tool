@@ -132,6 +132,9 @@ $(document).ready( () => {
         } else if (phase_stats_data.comparison_case === 'Usage Scenario Variables') {
             const tableContent = createPythonDictTable(phase_stats_data.comparison_identifiers || comparison_identifiers.split(' vs. '), 'Scenario', 'Variable');
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${tableContent}</td></tr>`)
+        } else if (phase_stats_data.comparison_case === 'IDs') {
+            document.querySelector('#compare-mode-ids').classList.remove('hidden');
+
         } else {
             let comparison_identifiers = phase_stats_data.comparison_identifiers.map((el) => replaceRepoIcon(el)).join(' vs. ');
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${comparison_identifiers}</td></tr>`)

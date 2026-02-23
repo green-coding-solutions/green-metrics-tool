@@ -358,83 +358,95 @@ def determine_comparison_case(user, ids, force_mode=None):
 
     ### AUTO MODE ####
 
-    #pylint: disable=no-else-raise,no-else-return
-    if repos == 2:
-        if usage_scenarios > 2:
-            raise RuntimeError('Different repos & more than 2 usage scenarios not supported')
-        if machine_ids > 1:
-            raise RuntimeError('Different repos & machines not supported')
-        if branches > 2:
-            raise RuntimeError('Different repos & more than 2 branches not supported')
+    try:
+
+        #pylint: disable=no-else-raise,no-else-return
+        if repos == 2:
+            if usage_scenarios > 2:
+                raise RuntimeError('Different repos & more than 2 usage scenarios not supported')
+            if machine_ids > 1:
+                raise RuntimeError('Different repos & machines not supported')
+            if branches > 2:
+                raise RuntimeError('Different repos & more than 2 branches not supported')
+            if commit_hashes > 2:
+                raise RuntimeError('Different repos & more than 2 different commits not supported')
+            if usage_scenario_variables > 2:
+                raise RuntimeError('Different repos & more than 2 sets of usage scenario variables not supported')
+
+            return ('Repository', 'uri')  # Case D
+
+        if repos != 1:
+            raise RuntimeError('Less than 1 or more than 2 repos not supported.')
+
+        # repos == 1
+        if usage_scenarios == 2:
+            if machine_ids > 1:
+                raise RuntimeError('Different usage scenarios & machines not supported')
+            if branches > 1:
+                raise RuntimeError('Different usage scenarios & branches not supported')
+            if commit_hashes > 1:
+                raise RuntimeError('Different usage scenarios & commits not supported')
+            if usage_scenario_variables > 1:
+                raise RuntimeError('Different usage scenarios & usage scenario variables not supported')
+
+            return ('Usage Scenario', 'filename')  # Case C_2
+
+        if usage_scenarios != 1:
+            raise RuntimeError('Less than 1 or more than 2 usage scenarios per repo not supported.')
+
+        if machine_ids == 2:
+            if branches > 1:
+                raise RuntimeError('Different machines & branches not supported')
+            if commit_hashes > 1:
+                raise RuntimeError('Different machines & commits not supported')
+            if usage_scenario_variables > 1:
+                raise RuntimeError('Different machines & usage scenario variables not supported')
+
+            return ('Machine', 'machine_id')  # Case C_1
+
+        if machine_ids != 1:
+            raise RuntimeError('Less than 1 or more than 2 Machines per repo not supported.')
+
+        if branches == 2:
+            if commit_hashes > 2:
+                raise RuntimeError('Different branches and more than 2 commits not supported')
+            if usage_scenario_variables > 1:
+                raise RuntimeError('Different branches & usage scenario variables not supported')
+
+            return ('Branch', 'branch')  # Case C_3
+
+        if branches != 1:
+            raise RuntimeError('Less than 1 or more than 2 branches per repo not supported.')
+
+        if commit_hashes == 2:
+            if usage_scenario_variables > 1:
+                raise RuntimeError('Different commit hashes & usage scenario variables not supported')
+            return ('Commit', 'commit_hash')  # Case B
+
         if commit_hashes > 2:
-            raise RuntimeError('Different repos & more than 2 different commits not supported')
-        if usage_scenario_variables > 2:
-            raise RuntimeError('Different repos & more than 2 sets of usage scenario variables not supported')
+            raise RuntimeError('Multiple commits comparison not supported. Please switch to Timeline view')
 
-        return ('Repository', 'uri')  # Case D
+        if commit_hashes != 1:
+            raise RuntimeError('Less than 1 or more than 2 commit hashes per repo not supported.')
 
-    if repos != 1:
-        raise RuntimeError('Less than 1 or more than 2 repos not supported.')
+        if usage_scenario_variables == 2:
+            return ('Usage Scenario Variables', 'usage_scenario_variables')  # Case E
 
-    # repos == 1
-    if usage_scenarios == 2:
-        if machine_ids > 1:
-            raise RuntimeError('Different usage scenarios & machines not supported')
-        if branches > 1:
-            raise RuntimeError('Different usage scenarios & branches not supported')
-        if commit_hashes > 1:
-            raise RuntimeError('Different usage scenarios & commits not supported')
-        if usage_scenario_variables > 1:
-            raise RuntimeError('Different usage scenarios & usage scenario variables not supported')
+        if usage_scenario_variables > 3:
+            raise RuntimeError('Multiple usage scenario variables comparison not supported.')
 
-        return ('Usage Scenario', 'filename')  # Case C_2
+        if usage_scenario_variables == 1:
+            return ('Repeated Run', 'commit_hash')  # Case A - Everything is identical and just repeating runs
 
-    if usage_scenarios != 1:
-        raise RuntimeError('Less than 1 or more than 2 usage scenarios per repo not supported.')
-
-    if machine_ids == 2:
-        if branches > 1:
-            raise RuntimeError('Different machines & branches not supported')
-        if commit_hashes > 1:
-            raise RuntimeError('Different machines & commits not supported')
-        if usage_scenario_variables > 1:
-            raise RuntimeError('Different machines & usage scenario variables not supported')
-
-        return ('Machine', 'machine_id')  # Case C_1
-
-    if machine_ids != 1:
-        raise RuntimeError('Less than 1 or more than 2 Machines per repo not supported.')
-
-    if branches == 2:
-        if commit_hashes > 2:
-            raise RuntimeError('Different branches and more than 2 commits not supported')
-        if usage_scenario_variables > 1:
-            raise RuntimeError('Different branches & usage scenario variables not supported')
-
-        return ('Branch', 'branch')  # Case C_3
-
-    if branches != 1:
-        raise RuntimeError('Less than 1 or more than 2 branches per repo not supported.')
-
-    if commit_hashes == 2:
-        if usage_scenario_variables > 1:
-            raise RuntimeError('Different commit hashes & usage scenario variables not supported')
-        return ('Commit', 'commit_hash')  # Case B
-
-    if commit_hashes > 2:
-        raise RuntimeError('Multiple commits comparison not supported. Please switch to Timeline view')
-
-    if commit_hashes != 1:
-        raise RuntimeError('Less than 1 or more than 2 commit hashes per repo not supported.')
-
-    if usage_scenario_variables == 2:
-        return ('Usage Scenario Variables', 'usage_scenario_variables')  # Case E
-
-    if usage_scenario_variables > 3:
-        raise RuntimeError('Multiple usage scenario variables comparison not supported.')
-
-    if usage_scenario_variables == 1:
-        return ('Repeated Run', 'commit_hash')  # Case A - Everything is identical and just repeating runs
+    except RuntimeError as exc:
+        if len(ids) == 2:
+            ### DUO Case ####
+            # In case we only encounter two IDs we can try to short circuit.
+            # Before we would fail here. However for two scenarios we can ALWAYS
+            # show a comparison case as it is guaranteed that we will encounter only two different cases somewhere.
+            return ('IDs', 'id')
+        else:
+            raise exc
 
     raise RuntimeError('Could not determine comparison case after checking all conditions')
 
@@ -602,7 +614,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
         elif case == 'Usage Scenario Variables':
             key = str(usage_scenario_variables) # Case E: Quick Development Case
         else:
-            key = run_id # No comparison case - Single view
+            key = run_id # Single view (no comparison case) or DUO mode comparison (only ID)
 
         if phase not in phase_stats_object['data']:
             phase_stats_object['data'][phase] = OrderedDict({'hidden': hidden, 'data': {}})
