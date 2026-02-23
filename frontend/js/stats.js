@@ -162,6 +162,8 @@ const fetchAndFillRunData = async (url_params) => {
                         <p>OOM Score Adj.: ${escapeString(run_data[item][ctr_name].oom_score_adj)}</p>
                         <p>Image: ${escapeString(run_data?.container_dependencies?.[ctr_name]?.['source']?.['image'])}</p>
                         <p>Hash: ${escapeString(run_data?.container_dependencies?.[ctr_name]?.['source']?.['hash'])}</p>
+                        <p>OS: ${escapeString(run_data?.container_dependencies?.[ctr_name]?.['source']?.['os'])}</p>
+                        <p data-tooltip="Kernel Version will be same as host for Linux docker containers. On macOS it will be the kernel of the VM" data-position="top center">Kernel Version <i class="question circle icon"></i>: ${escapeString(run_data?.container_dependencies?.[ctr_name]?.['source']?.['kernel_version'])}</p>
                         <h4>Dependencies</h4>
                         ${renderUsageScenarioDependencies(ctr_name, run_data?.container_dependencies)}
                 </div>`);
