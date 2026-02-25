@@ -5,6 +5,7 @@ import pandas
 import requests
 
 from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
+from metric_providers.carbon.intensity.helpers import expand_to_sampling_rate
 
 error_string = ""
 
@@ -14,7 +15,7 @@ API_FUTURE_URL = "https://api.electricitymaps.com/v3/carbon-intensity/forecast"
 TEMPORAL_GRANULARITY = "5_minutes"
 
 class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
-    def __init__(self, region, token, folder, skip_check=False):
+    def __init__(self, region, token, folder, sampling_rate=-1, skip_check=False):
 
         self.region = region
         self.token = token
@@ -33,7 +34,7 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
         super().__init__(
             metric_name='carbon_intensity_electricity_maps_machine',
             metrics={'time': int, 'value': int, 'provider': str},
-            sampling_rate=-1,
+            sampling_rate=sampling_rate,
             unit='gCO2e/kWh',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
@@ -202,6 +203,7 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
 
         df = df.sort_values(by=['time'], ascending=True)
         df['value'] = df['value'].round().astype('int64') # We don't save floats in GMT
+        df = expand_to_sampling_rate(self, df)
 
         return df
 

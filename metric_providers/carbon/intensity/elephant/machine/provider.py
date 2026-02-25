@@ -5,10 +5,10 @@ import pandas
 import requests
 
 from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
-
+from metric_providers.carbon.intensity.helpers import expand_to_sampling_rate
 
 class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
-    def __init__(self, *, region, elephant, folder, simulation_uuid=None, provider=None, skip_check=False):
+    def __init__(self, *, region, elephant, folder, sampling_rate=-1, simulation_uuid=None, provider=None, skip_check=False):
 
         self.region = region
         self.provider_filter = provider
@@ -41,7 +41,7 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
         super().__init__(
             metric_name='carbon_intensity_elephant_machine',
             metrics={'time': int, 'value': int, 'provider': str},
-            sampling_rate=-1,
+            sampling_rate=sampling_rate,
             unit='gCO2e/kWh',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
@@ -165,6 +165,7 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
 
         df = df.sort_values(by=['time', 'provider'], ascending=True)
         df['value'] = df['value'].round().astype('int64') # We convert to int here. Could think about going to ugCO2e here.
+        df = self._expand_to_sampling_rate(df)
 
         return df
 
