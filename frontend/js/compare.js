@@ -130,6 +130,14 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
     const notes1 = await fetchTimelineNotes(run_ids[0])
     const notes2 = await fetchTimelineNotes(run_ids[1])
 
+    if (!notes1 || !notes2) {
+        document.querySelector('#loader-time-series-notes').classList.add('hidden');
+        document.querySelector('#time-series-notes-no-display').classList.remove('hidden');
+        document.querySelector('#time-series-notes-no-display .description').textContent = 'Could not fetch notes data for one or both runs.'
+        document.querySelector('#time-series-notes-chart').remove()
+        return
+    }
+
     const dataset1 = notes1.map((row) => { return {"value": row[4], "label": row[2]} })
     const dataset2 = notes2.map((row) => { return {"value": row[4], "label": row[2]} })
 
@@ -150,7 +158,7 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
       buildSeries(dataset1, dataset2, startIndex);
 
 
-    option = {
+    const option = {
       tooltip: { trigger: 'axis' },
       legend: {
         data: ['Run 1 (cum)', 'Run 2 (cum)', 'Step Delta']
