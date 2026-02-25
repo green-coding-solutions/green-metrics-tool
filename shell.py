@@ -90,7 +90,7 @@ def print_shell_phase_stats_table(run_id):
         params=(run_id, phase_name),
     )
 
-    print(TerminalColors.OKGREEN, f"\nPhase stats summary for phase: {phase_name}", TerminalColors.ENDC)
+    print(TerminalColors.OKGREEN, f"\nPhase stats summary:", TerminalColors.ENDC)
 
     _print_simple_table(
         ["metric", "detail", "type", "value", "unit", "max", "min"],
@@ -340,6 +340,11 @@ def main():
         if not args.config_override.endswith(".yml"):
             raise ValueError("Config override file must be a yml file")
         GlobalConfig(config_location=args.config_override)
+
+    print(TerminalColors.WARNING, "\n####################################################################################")
+    print(f"Please use the docker version for exact measurments on the cluser!")
+    print("####################################################################################\n", TerminalColors.ENDC)
+
 
     try:
         runner = ShellScenarioRunner(
