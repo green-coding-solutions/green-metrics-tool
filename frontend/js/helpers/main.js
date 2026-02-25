@@ -421,6 +421,16 @@ const showHiddenPhaseTab = (el) => {
     }
 }
 
+const fetchTimelineNotes = async (run_id) => {
+    let notes = null;
+    try {
+        notes = await makeAPICall('/v1/notes/' + run_id)
+    } catch (err) {
+        showNotification('Could not get notes data from API', err);
+    }
+    return notes?.data;
+}
+
 
 if (localStorage.getItem('closed_descriptions') == null) {
     localStorage.setItem('closed_descriptions', '');

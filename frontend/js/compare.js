@@ -36,13 +36,12 @@ function createPythonDictTable(dataArray, labelPrefix = 'Item', keyHeader = 'Key
     return tableContent;
 }
 
-async function fetchDiff() {
+async function fetchDiff(run_ids) {
     document.querySelector('#diff-question').remove();
-    document.querySelector('#loader-diff').style.display = '';
+    document.querySelector('#loader-diff').classList.remove('hidden');
     document.querySelector('#diff-container').insertAdjacentHTML('beforebegin', '<h2>Configuration and Settings diff</h2>')
     try {
-        const url_params = getURLParams();
-        const diffString = (await makeAPICall(`/v1/diff?ids=${url_params['ids']}`)).data
+        const diffString = (await makeAPICall(`/v1/diff?ids=${run_ids.join(',')}`)).data
         const targetElement = document.getElementById('diff-container');
         const configuration = { drawFileList: true, matching: 'lines', highlight: true };
 
@@ -56,11 +55,11 @@ async function fetchDiff() {
 
 }
 
-const fetchWarningsForRuns = async (ids) => {
+const fetchWarningsForRuns = async (run_ids) => {
     const warnings = [];
-    for (const id of ids) {
+    for (const run_id of run_ids) {
         try {
-            const data = await makeAPICall('/v1/warnings/' + id);
+            const data = await makeAPICall('/v1/warnings/' + run_id);
             if (data?.data) warnings.push(...data.data);
         } catch (err) {
             if (err instanceof APIEmptyResponse204) {
@@ -86,6 +85,149 @@ const fillWarnings = (warnings) => {
     container.classList.remove('hidden');
 };
 
+const buildSeries = (ds1, ds2, startIndex = 0) => {
+  const cumulative1 = [];
+  const cumulative2 = [];
+  const candles = [];
+  const labels = [];
+
+  let base1 = ds1[startIndex].value;
+  let base2 = ds2[startIndex].value;
+  let cum1 = 0;
+  let cum2 = 0;
+
+  for (let i = startIndex; i < ds1.length; i++) {
+    cum1 += ds1[i].value;
+    cum2 += ds2[i].value;
+
+    cumulative1.push(cum1 - base1);
+    cumulative2.push(cum2 - base2);
+
+    const delta = ds2[i].value - ds1[i].value;
+    candles.push([0, delta, Math.min(0, delta), Math.max(0, delta)]);
+
+    labels.push(ds1[i].label);
+  }
+
+  return { cumulative1, cumulative2, candles, labels };
+}
+
+const arraysEqual = (a, b) => {
+  if (a.length !== b.length) return false;
+  return a.every((val, index) => val === b[index]);
+}
+
+const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
+
+    if (run_ids.length != 2) {
+        document.querySelector('#loader-time-series-notes').classList.add('hidden');
+        document.querySelector('#time-series-notes-no-display').classList.remove('hidden');
+        document.querySelector('#time-series-notes-no-display .description').textContent = 'Time Series Notes History can only be displayed for exactly two runs. Please reduce comparison to two runs if you want to inspect this graph.'
+        document.querySelector('#time-series-notes-chart').remove()
+        return
+    }
+
+    const notes1 = await fetchTimelineNotes(run_ids[0])
+    const notes2 = await fetchTimelineNotes(run_ids[1])
+
+    if (!notes1 || !notes2) {
+        document.querySelector('#loader-time-series-notes').classList.add('hidden');
+        document.querySelector('#time-series-notes-no-display').classList.remove('hidden');
+        document.querySelector('#time-series-notes-no-display .description').textContent = 'Could not fetch notes data for one or both runs.'
+        document.querySelector('#time-series-notes-chart').remove()
+        return
+    }
+
+    const dataset1 = notes1.map((row) => { return {"value": row[4], "label": row[2]} })
+    const dataset2 = notes2.map((row) => { return {"value": row[4], "label": row[2]} })
+
+    const labels1 = dataset1.map((row) => { return row['label'] })
+    const labels2 = dataset2.map((row) => { return row['label'] })
+
+    if (!arraysEqual(labels1, labels2)) {
+        document.querySelector('#loader-time-series-notes').classList.add('hidden');
+        document.querySelector('#time-series-notes-no-display').classList.remove('hidden');
+        document.querySelector('#time-series-notes-no-display .description').textContent = 'Your two runs have different notes in the time series. This cannot be compared. Their notes must be exactly identical.'
+        document.querySelector('#time-series-notes-chart').remove()
+        return
+    }
+
+
+    let startIndex = 0;
+    let { cumulative1, cumulative2, candles, labels } =
+      buildSeries(dataset1, dataset2, startIndex);
+
+
+    const option = {
+      tooltip: { trigger: 'axis' },
+      legend: {
+        data: ['Run 1 (cum)', 'Run 2 (cum)', 'Step Delta']
+      },
+        dataZoom: [
+        {
+          type: 'slider',
+          xAxisIndex: 0,
+          startValue: 0
+        }
+      ],
+
+      xAxis: {
+        type: 'category',
+        data: labels,
+        axisLabel: { rotate: 45, fontSize: 10 }
+      },
+      yAxis: [
+        {
+          type: 'value',
+          name: 'Cumulative Time (s)',
+          position: 'left'
+        },
+        {
+          type: 'value',
+          name: 'Step Delta (s)',
+          position: 'right'
+        }
+      ],
+      series: [
+        {
+          name: 'Run 1 (cum)',
+          type: 'line',
+          data: cumulative1,
+          smooth: true
+        },
+        {
+          name: 'Run 2 (cum)',
+          type: 'line',
+          data: cumulative2,
+          smooth: true
+        },
+        {
+          name: 'Step Delta',
+          type: 'candlestick',
+          yAxisIndex: 1,
+          data: candles,
+          itemStyle: {
+            color: '#00c853',     // green (Run 2 faster)
+            color0: '#d50000',    // red (Run 2 slower)
+            borderColor: '#00c853',
+            borderColor0: '#d50000'
+          }
+        }
+      ]
+    };
+
+    const time_series_notes_history_chart = echarts.init(document.getElementById('time-series-notes-chart'));
+
+    time_series_notes_history_chart.setOption(option);
+
+    document.querySelector('#loader-time-series-notes').classList.add('hidden');
+
+    $(window).on('resize', () =>  {
+        time_series_notes_history_chart.resize();
+    });
+
+}
+
 $(document).ready( () => {
     (async () => {
         const url_params = getURLParams();
@@ -97,11 +239,12 @@ $(document).ready( () => {
             throw "Error";
         }
 
+        const run_ids = url_params['ids'].split(",");
+        const run_count = run_ids.length
 
-        const run_count = url_params['ids'].split(",").length
         let phase_stats_data = null
         try {
-            let url = `/v1/compare?ids=${url_params['ids']}`
+            let url = `/v1/compare?ids=${run_ids}`
             if (url_params['force_mode']?.length) {
                 url = `${url}&force_mode=${url_params['force_mode']}`
             }
@@ -111,7 +254,7 @@ $(document).ready( () => {
             return
         }
 
-        const warnings = await fetchWarningsForRuns(url_params['ids'].split(','));
+        const warnings = await fetchWarningsForRuns(run_ids);
         fillWarnings(warnings);
 
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${escapeString(phase_stats_data.comparison_case)}</td></tr>`)
@@ -145,14 +288,13 @@ $(document).ready( () => {
 
         document.querySelector('#loader-compare-meta').remove();
         document.querySelector('#loader-compare-run').remove();
-        document.querySelector('#diff-question').style.display = '';
-
-
-        document.querySelector('#fetch-diff').addEventListener('click', fetchDiff);
+        document.querySelector('#diff-question').classList.remove('hidden');
+        document.querySelector('#fetch-diff').addEventListener('click', (event) => { fetchDiff(run_ids) })
 
         buildPhaseTabs(phase_stats_data)
         renderCompareChartsForPhase(phase_stats_data, getAndShowPhase(), run_count);
         displayTotalChart(...buildTotalChartData(phase_stats_data));
+        fetchAndShowTimeSeriesNotesHistory(run_ids)
 
         document.querySelectorAll('.ui.steps.phases .step, .runtime-step').forEach(node => node.addEventListener('click', el => {
             const phase = el.currentTarget.getAttribute('data-tab');

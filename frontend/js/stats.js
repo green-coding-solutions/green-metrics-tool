@@ -76,12 +76,12 @@ const getElephantServiceUrl = () => {
     return typeof ELEPHANT_URL === 'string' ? ELEPHANT_URL.trim() : ''
 };
 
-const setAndShowAnalyticsLinks = (url_params, run_data) => {
+const setAndShowAnalyticsLinks = (run_id, run_data) => {
 
     if (getElephantServiceUrl() !== '') {
         const simulationLink = document.querySelector('#analytics-simulation-link');
         if (simulationLink) {
-            simulationLink.href = `simulation.html?id=${encodeURIComponent(url_params['id'])}`;
+            simulationLink.href = `simulation.html?id=${encodeURIComponent(run_id)}`;
         }
     } else {
         document.querySelector('a[data-tab="analytics-simulation"]').classList.add('hidden');
@@ -110,12 +110,12 @@ const setAndShowAnalyticsLinks = (url_params, run_data) => {
     timelineLink.classList.add('disabled');
 };
 
-const fetchAndFillRunData = async (url_params) => {
+const fetchAndFillRunData = async (run_id) => {
 
     let run = null;
 
     try {
-        run = await makeAPICall('/v2/run/' + url_params['id'])
+        run = await makeAPICall('/v2/run/' + run_id)
     } catch (err) {
         showNotification('Could not get run data from API', err);
         return
@@ -124,7 +124,7 @@ const fetchAndFillRunData = async (url_params) => {
     const run_data = run.data
     const run_data_accordion_node = document.querySelector('#run-data-accordion');
 
-    setAndShowAnalyticsLinks(url_params, run_data);
+    setAndShowAnalyticsLinks(run_id, run_data);
 
     for (const item in run_data) {
         if (item == 'machine_id') {
@@ -253,7 +253,7 @@ const fetchAndFillRunData = async (url_params) => {
 
             archive_run_button.addEventListener('click', async () => {
                 try {
-                    await makeAPICall(`/v1/run/${url_params['id']}`, {archived: true}, false, true);
+                    await makeAPICall(`/v1/run/${run_id}`, {archived: true}, false, true);
                 } catch (err) {
                     showNotification('Error while trying to archive run!', err);
                     return;
@@ -264,7 +264,7 @@ const fetchAndFillRunData = async (url_params) => {
             })
             unarchive_run_button.addEventListener('click', async () => {
                 try {
-                    await makeAPICall(`/v1/run/${url_params['id']}`, {archived: false}, false, true);
+                    await makeAPICall(`/v1/run/${run_id}`, {archived: false}, false, true);
                 } catch (err) {
                     showNotification('Error while trying to un-archive run!', err);
                     return;
@@ -285,7 +285,7 @@ const fetchAndFillRunData = async (url_params) => {
 
             public_button.addEventListener('click', async () => {
                 try {
-                    await makeAPICall(`/v1/run/${url_params['id']}`, {public: true}, false, true);
+                    await makeAPICall(`/v1/run/${run_id}`, {public: true}, false, true);
                 } catch (err) {
                     showNotification('Error while trying to make run public!', err);
                     return;
@@ -296,7 +296,7 @@ const fetchAndFillRunData = async (url_params) => {
             })
             non_public_button.addEventListener('click', async () => {
                 try {
-                    await makeAPICall(`/v1/run/${url_params['id']}`, {public: false}, false, true);
+                    await makeAPICall(`/v1/run/${run_id}`, {public: false}, false, true);
                 } catch (err) {
                     showNotification('Error while trying to make run non-public!', err);
                     return;
@@ -314,7 +314,7 @@ const fetchAndFillRunData = async (url_params) => {
     document.querySelector('#save-note').addEventListener('click', async () => {
         const note_text = document.querySelector('textarea[name=note]').value;
         try {
-            await makeAPICall(`/v1/run/${url_params['id']}`, {note: note_text}, false, true);
+            await makeAPICall(`/v1/run/${run_id}`, {note: note_text}, false, true);
         } catch (err) {
             showNotification('Error while trying to save note!', err);
             return;
@@ -768,7 +768,7 @@ const displayTimelineCharts = async (metrics, notes) => {
 
 }
 
-const renderBadges = async (url_params, phase_stats) => {
+const renderBadges = async (run_id, phase_stats) => {
     if (phase_stats == null) return;
 
     const phase_stats_keys = Object.keys(phase_stats);
@@ -781,8 +781,8 @@ const renderBadges = async (url_params, phase_stats) => {
 
         badge_container.innerHTML += `
             <div class="inline field">
-                <a href="${METRICS_URL}/stats.html?id=${url_params['id']}">
-                    <img src="${API_URL}/v1/badge/single/${url_params['id']}?metric=${encodeURIComponent(metric_name)}" loading="lazy" onerror="this.parentNode.parentNode.remove(); console.log('Could not render ${metric_name} badge - Likely due to non public visibility of the run.')">
+                <a href="${METRICS_URL}/stats.html?id=${run_id}">
+                    <img src="${API_URL}/v1/badge/single/${run_id}?metric=${encodeURIComponent(metric_name)}" loading="lazy" onerror="this.parentNode.parentNode.remove(); console.log('Could not render ${metric_name} badge - Likely due to non public visibility of the run.')">
                 </a>
                 <a class="copy-badge"><i class="copy icon"></i></a>
                 <div class="ui left pointing blue basic label">
@@ -798,11 +798,11 @@ const renderBadges = async (url_params, phase_stats) => {
     })
 }
 
-const fetchAndFillPhaseStatsData = async (url_params) => {
+const fetchAndFillPhaseStatsData = async (run_id) => {
 
     let phase_stats = null;
     try {
-        phase_stats = await makeAPICall('/v1/phase_stats/single/' + url_params['id'])
+        phase_stats = await makeAPICall('/v1/phase_stats/single/' + run_id)
     } catch (err) {
         showNotification('Could not get phase_stats data from API', err);
         return
@@ -838,10 +838,10 @@ const fetchAndFillPhaseStatsData = async (url_params) => {
     return phase_stats;
 }
 
-const fetchAndFillNetworkIntercepts = async (url_params) => {
+const fetchAndFillNetworkIntercepts = async (run_id) => {
     let network = null;
     try {
-        network = await makeAPICall('/v1/network/' + url_params['id'])
+        network = await makeAPICall('/v1/network/' + run_id)
     } catch (err) {
         if (err instanceof APIEmptyResponse204) {
             console.log('No network intercepts present in API response. Skipping error as this is allowed case.')
@@ -862,11 +862,11 @@ const fetchAndFillNetworkIntercepts = async (url_params) => {
     }
 }
 
-const fetchAndFillOptimizationsData = async (url_params) => {
+const fetchAndFillOptimizationsData = async (run_id) => {
 
     let optimizations = null;
     try {
-        optimizations = await makeAPICall('/v1/optimizations/' + url_params['id'])
+        optimizations = await makeAPICall('/v1/optimizations/' + run_id)
     } catch (err) {
         showNotification('Could not get optimizations data from API', err);
         return
@@ -920,13 +920,13 @@ const fetchAndFillOptimizationsData = async (url_params) => {
     $('#optimization_count').html(optimizations.data.length)
 }
 
-const fetchAndFillAIData = async (url_params) => {
+const fetchAndFillAIData = async (run_id) => {
 
     if (ACTIVATE_AI_OPTIMISATIONS !== true) return;
 
     let ai_data = null;
     try {
-        ai_data = await makeAPICall('/v1/ai/' + url_params['id'])
+        ai_data = await makeAPICall('/v1/ai/' + run_id)
     } catch (err) {
         // Do nothing as ai data will be empty most of the time
         return
@@ -1029,13 +1029,13 @@ function copyTextToClipboard(text) {
     }
 }
 
-const fetchTimelineData = async (url_params) => {
+const fetchTimelineData = async (run_id) => {
     document.querySelector('#api-loader').classList.remove('hidden');
     document.querySelector('#loader-question').remove();
 
     let measurements = null;
     try {
-        measurements = await makeAPICall('/v1/measurements/single/' + url_params['id'])
+        measurements = await makeAPICall('/v1/measurements/single/' + run_id)
     } catch (err) {
         showNotification('Could not get stats data from API', err);
     }
@@ -1043,20 +1043,10 @@ const fetchTimelineData = async (url_params) => {
 
 }
 
-const fetchTimelineNotes = async (url_params) => {
-    let notes = null;
-    try {
-        notes = await makeAPICall('/v1/notes/' + url_params['id'])
-    } catch (err) {
-        showNotification('Could not get notes data from API', err);
-    }
-    return notes?.data;
-}
-
-const fetchAndFillWarnings = async (url_params) => {
+const fetchAndFillWarnings = async (run_id) => {
     let warnings = null;
     try {
-        warnings = await makeAPICall('/v1/warnings/' + url_params['id'])
+        warnings = await makeAPICall('/v1/warnings/' + run_id)
     } catch (err) {
         if (err instanceof APIEmptyResponse204) {
             console.log('No warnings where present in API response. Skipping error as this is allowed case.')
@@ -1255,23 +1245,25 @@ $(document).ready( () => {
             return;
         }
 
+        const run_id = url_params['id'];
+
         // run all without await, as they have no blocking visuals or depended upon changes
-        fetchAndFillNetworkIntercepts(url_params);
-        fetchAndFillOptimizationsData(url_params);
-        fetchAndFillAIData(url_params);
-        fetchAndFillWarnings(url_params);
-        fetchAndFillRunData(url_params);
+        fetchAndFillNetworkIntercepts(run_id);
+        fetchAndFillOptimizationsData(run_id);
+        fetchAndFillAIData(run_id);
+        fetchAndFillWarnings(run_id);
+        fetchAndFillRunData(run_id);
 
         (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
-            const phase_stats = await fetchAndFillPhaseStatsData(url_params);
-            renderBadges(url_params, phase_stats?.data?.data?.['[RUNTIME]']?.data); // phase_stats can be empty when returned if run is broken or not done. thus the safe access
+            const phase_stats = await fetchAndFillPhaseStatsData(run_id);
+            renderBadges(run_id, phase_stats?.data?.data?.['[RUNTIME]']?.data); // phase_stats can be empty when returned if run is broken or not done. thus the safe access
         })();
 
 
         if (localStorage.getItem('fetch_time_series') === 'true') {
             const [timeline_data, timeline_notes] = await Promise.all([
-                fetchTimelineData(url_params),
-                fetchTimelineNotes(url_params)
+                fetchTimelineData(run_id),
+                fetchTimelineNotes(run_id)
             ]);
             if (timeline_data == null) {
                 document.querySelector('#api-loader').remove()
@@ -1283,8 +1275,8 @@ $(document).ready( () => {
         } else {
             document.querySelector('#fetch-time-series').addEventListener('click', async () => {
                 const [timeline_data, timeline_notes] = await Promise.all([
-                    fetchTimelineData(url_params),
-                    fetchTimelineNotes(url_params)
+                    fetchTimelineData(run_id),
+                    fetchTimelineNotes(run_id)
                 ]);
 
                 if (timeline_data == null) {
