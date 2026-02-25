@@ -36,13 +36,12 @@ function createPythonDictTable(dataArray, labelPrefix = 'Item', keyHeader = 'Key
     return tableContent;
 }
 
-async function fetchDiff() {
+async function fetchDiff(run_ids) {
     document.querySelector('#diff-question').remove();
-    document.querySelector('#loader-diff').style.display = '';
+    document.querySelector('#loader-diff').classList.remove('hidden');
     document.querySelector('#diff-container').insertAdjacentHTML('beforebegin', '<h2>Configuration and Settings diff</h2>')
     try {
-        const url_params = getURLParams();
-        const diffString = (await makeAPICall(`/v1/diff?ids=${url_params['ids']}`)).data
+        const diffString = (await makeAPICall(`/v1/diff?ids=${run_ids.join(',')}`)).data
         const targetElement = document.getElementById('diff-container');
         const configuration = { drawFileList: true, matching: 'lines', highlight: true };
 
@@ -56,11 +55,11 @@ async function fetchDiff() {
 
 }
 
-const fetchWarningsForRuns = async (ids) => {
+const fetchWarningsForRuns = async (run_ids) => {
     const warnings = [];
-    for (const id of ids) {
+    for (const run_id of run_ids) {
         try {
-            const data = await makeAPICall('/v1/warnings/' + id);
+            const data = await makeAPICall('/v1/warnings/' + run_id);
             if (data?.data) warnings.push(...data.data);
         } catch (err) {
             if (err instanceof APIEmptyResponse204) {
@@ -97,11 +96,12 @@ $(document).ready( () => {
             throw "Error";
         }
 
+        const run_ids = url_params['ids'].split(",");
+        const run_count = run_ids.length
 
-        const run_count = url_params['ids'].split(",").length
         let phase_stats_data = null
         try {
-            let url = `/v1/compare?ids=${url_params['ids']}`
+            let url = `/v1/compare?ids=${run_ids}`
             if (url_params['force_mode']?.length) {
                 url = `${url}&force_mode=${url_params['force_mode']}`
             }
@@ -111,7 +111,7 @@ $(document).ready( () => {
             return
         }
 
-        const warnings = await fetchWarningsForRuns(url_params['ids'].split(','));
+        const warnings = await fetchWarningsForRuns(run_ids);
         fillWarnings(warnings);
 
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${escapeString(phase_stats_data.comparison_case)}</td></tr>`)
@@ -145,10 +145,8 @@ $(document).ready( () => {
 
         document.querySelector('#loader-compare-meta').remove();
         document.querySelector('#loader-compare-run').remove();
-        document.querySelector('#diff-question').style.display = '';
-
-
-        document.querySelector('#fetch-diff').addEventListener('click', fetchDiff);
+        document.querySelector('#diff-question').classList.remove('hidden');
+        document.querySelector('#fetch-diff').addEventListener('click', (event) => { fetchDiff(run_ids) })
 
         buildPhaseTabs(phase_stats_data)
         renderCompareChartsForPhase(phase_stats_data, getAndShowPhase(), run_count);
