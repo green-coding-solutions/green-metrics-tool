@@ -198,13 +198,15 @@ async def get_notes(run_id, user: User = Depends(authenticate)):
         raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     query = '''
-            SELECT n.run_id, n.detail_name, n.note, n.time
+            SELECT
+                n.run_id, n.detail_name, n.note, n.time,
+                (-( n.time - LEAD(n.time) OVER (ORDER BY n.time)) / 1_000_000.0)::DOUBLE PRECISION AS duration
             FROM notes as n
             JOIN runs as r on n.run_id = r.id
             WHERE
                 (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND n.run_id = %s
-            ORDER BY n.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
+            ORDER BY n.time ASC;
             '''
 
     params = (user.is_super_user(), user.visible_users(), run_id)

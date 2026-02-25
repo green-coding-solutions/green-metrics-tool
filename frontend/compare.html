@@ -95,6 +95,35 @@
             </div>
         </div>
 
+        <div class="ui full-width-card card">
+            <div class="content">
+                <div class="header">
+                    <a class="ui red ribbon label">
+                        <h3>Time Series Notes History</h3>
+                    </a>
+                </div>
+                <div class="description">
+                    <div id="time-series-notes-chart" style="min-height: 600px;"></div>
+                    <div id="time-series-notes-no-display" class="ui icon message info hidden">
+                        <i class="info circle icon"></i>
+                        <div class="content">
+                            <div class="header">
+                                Cannot Display Time Series Notes
+                            </div>
+                            <p class="description"></p>
+                        </div>
+                    </div>
+                    <div class="ui segment inverted" id="loader-time-series-notes">
+                      <div class="ui active dimmer">
+                        <div class="ui text loader">Loading time series notes history</div>
+                      </div>
+                      <p><br><br><br></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
         <div class="ui steps attached phases">
             <a class="active step" data-tab="[BASELINE]">
                 <div class="content">
