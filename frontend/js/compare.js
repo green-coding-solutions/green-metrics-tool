@@ -153,7 +153,24 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
 
     let { cumulative1, cumulative2, candles, labels } = buildSeries(dataset1, dataset2);
     const option = {
-      tooltip: { trigger: 'axis' },
+      tooltip: {
+        trigger: 'axis',
+        formatter: function (params) {
+
+          const series1 = params[0];
+          const series2 = params[1];
+          const candlestick = params[2];          // candlestick series
+          const [open, close, low, high] = candlestick.data;
+          console.log(series1)
+          return `
+            ${series1.axisValue}<br/>
+            ${series1.marker} ${series1.seriesName}: ${numberFormatter.format(series1.value)}<br>
+            ${series2.marker} ${series2.seriesName}: ${numberFormatter.format(series2.value)}<br>
+            ${candlestick.marker} ${candlestick.seriesName}: ${numberFormatter.format(candlestick.value[2])}<br>
+
+          `;
+        }
+      },
       legend: {
         data: ['Run 1 (cum)', 'Run 2 (cum)', 'Step Delta']
       },
