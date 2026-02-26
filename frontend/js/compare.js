@@ -85,23 +85,21 @@ const fillWarnings = (warnings) => {
     container.classList.remove('hidden');
 };
 
-const buildSeries = (ds1, ds2, startIndex = 0) => {
+const buildSeries = (ds1, ds2) => {
   const cumulative1 = [];
   const cumulative2 = [];
   const candles = [];
   const labels = [];
 
-  let base1 = ds1[startIndex].value;
-  let base2 = ds2[startIndex].value;
   let cum1 = 0;
   let cum2 = 0;
 
-  for (let i = startIndex; i < ds1.length; i++) {
+  for (let i = 0; i < ds1.length; i++) {
     cum1 += ds1[i].value;
     cum2 += ds2[i].value;
 
-    cumulative1.push(cum1 - base1);
-    cumulative2.push(cum2 - base2);
+    cumulative1.push(cum1);
+    cumulative2.push(cum2);
 
     const delta = ds2[i].value - ds1[i].value;
     candles.push([0, delta, Math.min(0, delta), Math.max(0, delta)]);
@@ -153,11 +151,7 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
     }
 
 
-    let startIndex = 0;
-    let { cumulative1, cumulative2, candles, labels } =
-      buildSeries(dataset1, dataset2, startIndex);
-
-
+    let { cumulative1, cumulative2, candles, labels } = buildSeries(dataset1, dataset2);
     const option = {
       tooltip: { trigger: 'axis' },
       legend: {
