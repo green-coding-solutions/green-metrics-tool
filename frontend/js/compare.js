@@ -164,15 +164,15 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
           console.log(series1)
           return `
             ${series1.axisValue}<br/>
-            ${series1.marker} ${series1.seriesName}: ${numberFormatter.format(series1.value)}<br>
-            ${series2.marker} ${series2.seriesName}: ${numberFormatter.format(series2.value)}<br>
-            ${candlestick.marker} ${candlestick.seriesName}: ${numberFormatter.format(candlestick.value[2])}<br>
+            ${series1.marker} ${series1.seriesName}: ${numberFormatter.format(series1.value)} s<br>
+            ${series2.marker} ${series2.seriesName}: ${numberFormatter.format(series2.value)} s<br>
+            ${candlestick.marker} ${candlestick.seriesName}: ${numberFormatter.format(candlestick.value[2])} s<br>
 
           `;
         }
       },
       legend: {
-        data: ['Run 1 (cum)', 'Run 2 (cum)', 'Step Delta'],
+        data: ['Run 1', 'Run 2', 'Step Delta'],
         top: 0,
       },
       grid: {
@@ -213,13 +213,13 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
       ],
       series: [
         {
-          name: 'Run 1 (cum)',
+          name: 'Run 1',
           type: 'line',
           data: cumulative1,
           smooth: true
         },
         {
-          name: 'Run 2 (cum)',
+          name: 'Run 2',
           type: 'line',
           data: cumulative2,
           smooth: true
