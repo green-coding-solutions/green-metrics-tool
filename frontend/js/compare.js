@@ -153,7 +153,7 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
 
     let { cumulative1, cumulative2, candles, labels } = buildSeries(dataset1, dataset2);
     const option = {
-      tooltip: {
+    tooltip: {
         trigger: 'axis',
         formatter: function (params) {
 
@@ -172,20 +172,32 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
         }
       },
       legend: {
-        data: ['Run 1 (cum)', 'Run 2 (cum)', 'Step Delta']
+        data: ['Run 1 (cum)', 'Run 2 (cum)', 'Step Delta'],
+        top: 0,
       },
-        dataZoom: [
+      grid: {
+        top: 60,     // space for legend
+        bottom: 135   // space for zoom slider
+      },
+      dataZoom: [
         {
           type: 'slider',
           xAxisIndex: 0,
-          startValue: 0
+          startValue: 0,
+          height: 30,
+          bottom: 20
         }
       ],
-
       xAxis: {
         type: 'category',
         data: labels,
-        axisLabel: { rotate: 45, fontSize: 10 }
+        axisLabel: {
+            rotate: 45,
+            fontSize: 10,
+            overflow: 'truncate',
+            ellipsis: '…',  // optional, default is '...'
+            width: 100          // maximum width in pixels
+        }
       },
       yAxis: [
         {
