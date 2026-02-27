@@ -414,7 +414,7 @@ const loadCharts = async () => {
                     : stringifyUsageScenarioVariables(usageScenarioVariables);
                 const html_content = `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong><br>
                         run_id: <a href="/stats.html?id=${series[params.seriesName].notes[params.dataIndex].run_id}"  target="_blank">${series[params.seriesName].notes[params.dataIndex].run_id}</a><br>
-                        date: ${series[params.seriesName].notes[params.dataIndex].created_at}<br>
+                        date: ${dateToYMD(new Date(series[params.seriesName].notes[params.dataIndex].created_at), false, true)}<br>
                         metric_name: ${escapeString(params.seriesName)}<br>
                         phase: ${escapeString(series[params.seriesName].notes[params.dataIndex].phase)}<br>
                         usage_scenario_variables: ${escapeString(usageScenarioVariablesForPopup)}<br>
