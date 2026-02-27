@@ -76,11 +76,12 @@ const removeFilter = (paramName) => {
 }
 
 
-const getFilterQueryStringFromURI = (only_saved_filters=false) => {
+const getFilterQueryStringFromURI = (use_basic_filters=true) => {
     const url_params = getURLParams();
 
     let query_string = '';
-    if (only_saved_filters === true) {
+
+    if (use_basic_filters !== false) {
         if (url_params['name'] != null && url_params['name'].trim() != '') {
             const name = url_params['name'].trim()
             query_string += `&name=${encodeURIComponent(name)}`
@@ -233,7 +234,7 @@ async function getRepositories(sort_by = 'date') {
 
             if(!$.fn.DataTable.isDataTable(table)) {
                 const uri = this.getAttribute('data-uri');
-                getRunsTable($(table), `/v2/runs?uri=${uri}&uri_mode=exact&limit=0&${getFilterQueryStringFromURI(true)}`, false, false, true)
+                getRunsTable($(table), `/v2/runs?uri=${uri}&uri_mode=exact&limit=0&${getFilterQueryStringFromURI(false)}`, false, false, true)
             }
     }});
     $('.ui.accordion.filter-dropdown').hide();
