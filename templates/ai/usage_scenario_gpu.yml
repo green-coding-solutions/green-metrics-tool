@@ -16,6 +16,6 @@ flow:
     commands:
       - type: console
         command: |
-          ollama run '__GMT_VAR_MODEL__' '__GMT_VAR_PROMPT__'
+          ollama run __GMT_VAR_MODEL__ __GMT_VAR_PROMPT__
         read-notes-stdout: true
         log-stdout: true

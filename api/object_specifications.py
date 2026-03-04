@@ -36,6 +36,7 @@ class Software(BaseModel):
     email: Optional[str] = None
     filename: str
     branch: str
+    commit_hash: Optional[str] = None
     machine_id: int
     schedule_mode: str
     usage_scenario_variables: Optional[Dict[str, str]] = None

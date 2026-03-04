@@ -42,6 +42,22 @@ def test_get_runs():
     assert response.status_code == 200
     assert res_json['data'][0][0] == str(pid)
 
+def test_get_runs_created_after_filter():
+    Tests.import_demo_data()
+
+    response_filtered = requests.get(f"{API_URL}/v2/runs?", timeout=15)
+    assert response_filtered.status_code == 200
+    assert len(response_filtered.json()['data']) == 6
+
+    response_unfiltered = requests.get(f"{API_URL}/v2/runs?start_date=2026-02-17", timeout=15)
+    assert response_unfiltered.status_code == 204
+
+
+    response_filtered = requests.get(f"{API_URL}/v2/runs?start_date=2025-09-01", timeout=15)
+    assert response_filtered.status_code == 200
+    assert len(response_filtered.json()['data']) == 1
+
+
 def test_compare_valid():
     Tests.import_demo_data()
 
@@ -59,7 +75,7 @@ def test_compare_fails():
 
     DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
 
-    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}", timeout=15)
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1},{RUN_2}", timeout=15)
     res_json = response.json()
     assert response.status_code == 422
     assert res_json['err'] == 'Different usage scenarios & commits not supported'
@@ -102,10 +118,19 @@ def test_compare_force_mode_different_style():
     assert data['comparison_case'] == 'Machine'
     assert res_json['data'] == data
 
-    # test if original call still fails, although result could have been cached in Redis
+
+def test_compare_ids_mode():
+    # Although no proper mode can be found for these two comparisons the mode will be set to IDs
+    Tests.import_demo_data()
+
+    DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
+
     response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}", timeout=15)
     res_json = response.json()
-    assert response.status_code == 422
+    assert response.status_code == 200
+
+    assert res_json['data']['comparison_case'] == 'IDs'
+    assert res_json['data']['comparison_identifiers'] == [RUN_1, RUN_3]
 
 def test_compare_mode_usage_scenario_variables():
     Tests.import_demo_data()

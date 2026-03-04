@@ -147,12 +147,12 @@
                     <thead>
                         <tr>
                             <th>Label</th>
-                            <th>Energy Avg. (± StdDev.)</th>
-                            <th>Time Avg. (± StdDev.)</th>
+                            <th data-sort="numeric">Energy Avg. (± StdDev.)</th>
+                            <th data-sort="numeric">Time Avg. (± StdDev.)</th>
                             <th> <div data-tooltip="Only accurate for runs after Aug 15, 2023. If '--%', you likely have no runs after that date.">CPU Util. Avg. (± StdDev.)<i class="question circle icon "></i> </div></th>
-                            <th>Grid Intensity Avg. (± StdDev.)</th>
-                            <th>Carbon Avg. (± StdDev.)</th>
-                            <th>Count</th>
+                            <th data-sort="numeric">Grid Intensity Avg. (± StdDev.)</th>
+                            <th data-sort="numeric">Carbon Avg. (± StdDev.)</th>
+                            <th data-sort="numeric">Count</th>
                         </tr>
                     </thead>
                     <tbody id="label-stats-table-avg"></tbody>
@@ -163,10 +163,10 @@
                     <thead>
                         <tr>
                             <th>Label</th>
-                            <th>Energy Total</th>
-                            <th>Time Total</th>
-                            <th>Carbon Total</th>
-                            <th>Count</th>
+                            <th data-sort="numeric">Energy Total</th>
+                            <th data-sort="numeric">Time Total</th>
+                            <th data-sort="numeric">Carbon Total</th>
+                            <th data-sort="numeric">Count</th>
                         </tr>
                     </thead>
                     <tbody id="label-stats-table-total"></tbody>
@@ -204,17 +204,17 @@
             <table class="ui sortable celled striped table">
             <thead>
                 <tr>
-                    <th>Run ID</th>
+                    <th data-sort="numeric">Run ID</th>
                     <th>Label</th>
                     <th>Ran At</th>
-                    <th>Energy Value</th>
+                    <th data-sort="numeric">Energy Value</th>
                     <th>CPU</th>
                     <th> <div class="wrap" data-tooltip="Only accurate for runs after Aug 15, 2023. If '--%', you likely have no runs after that date.">Avg. CPU Util. <i class="question circle icon "></i> </div></th>
-                    <th>Duration</th>
+                    <th data-sort="numeric">Duration</th>
                     <th>Commit Hash</th>
                     <th>Location</th>
-                    <th>Grid Intensity</th>
-                    <th>gCO2eq of run</th>
+                    <th data-sort="numeric">Grid Intensity</th>
+                    <th data-sort="numeric">gCO2eq of run</th>
                     <th>Note</th>
                 </tr>
             </thead>

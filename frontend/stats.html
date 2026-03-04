@@ -45,7 +45,7 @@
                     <h3>Run Data</h3>
                 </a></div>
                 <div class="description run-data-container">
-                    <div class="ui secondary menu">
+                    <div class="ui secondary menu run-data-tabs">
                         <a class="item active" data-tab="one">General</a>
                         <a class="item" data-tab="two">Measurement</a>
                         <a class="item" data-tab="three">Switches</a>
@@ -54,11 +54,9 @@
                         <a class="item" data-tab="six">Containers</a>
                         <a class="item" data-tab="seven">Logs</a>
                         <a class="item" data-tab="eight">Network</a>
-                        <a class="item" data-tab="nine">Optimizations<div class="ui red label" id="optimization_count">0</div></a>
                         <a class="item" data-tab="ten">Badges</a>
-                        <a class="item" data-tab="eleven">AI</a>
+                        <a class="item" data-tab="nine">Analytics</a>
                         <a class="item" data-tab="twelve">Actions</a>
-
                     </div>
                     <div class="ui active tab segment" data-tab="one">
                         <table class="table-hover" id="run-data-top"></table>
@@ -102,9 +100,34 @@
                     </div>
 
                     <div class="ui tab segment" data-tab="nine">
-                        <p>This is a list of potential optimizations we have detected based off your run. We are constantly adding new features so please check our <a href="https://docs.green-coding.io/">documentation</a> for more details. If you think a warning does not apply to you, you can add an ignore into your <code>usage_scenario.yml</code> file or your GMT config.</p>
-                        <p>&NonBreakingSpace;</p>
-                        <div id="optimizationsContainer" class="ui container"></div>
+                        <div class="analytics-tab-container">
+                            <div class="ui top secondary pointing menu analytics-tabs">
+                                <a class="active item" data-tab="analytics-optimizations">Optimizations<div class="ui red label" id="optimization_count">0</div></a>
+                                <a class="item" data-tab="analytics-ai">AI</a>
+                                <a class="item" data-tab="analytics-timeline">Timeline</a>
+                                <a class="item" data-tab="analytics-simulation">Carbon Simulation</a>
+                            </div>
+                            <div class="ui active tab segment" data-tab="analytics-optimizations">
+                                <p>This is a list of potential optimizations we have detected based off your run. We are constantly adding new features so please check our <a href="https://docs.green-coding.io/">documentation</a> for more details. If you think a warning does not apply to you, you can add an ignore into your <code>usage_scenario.yml</code> file or your GMT config.</p>
+                                <p>&NonBreakingSpace;</p>
+                                <div id="optimizationsContainer" class="ui container"></div>
+                            </div>
+                            <div class="ui tab segment" data-tab="analytics-ai">
+                                <div id="ai-container" class="ui container">As AI jobs are quite expensive this feature is only available in the enterprise version. You can see our pricing under <a href="https://www.green-coding.io/products/green-metrics-tool/">https://www.green-coding.io/products/green-metrics-tool/</a></div>
+                            </div>
+                            <div class="ui tab segment" data-tab="analytics-timeline">
+                                <p>Open the timeline analysis in a new window.</p>
+                                <a id="analytics-timeline-link" class="ui blue icon button" target="_blank" rel="noopener noreferrer">
+                                    <i class="ui icon clock"></i> Open Timeline
+                                </a>
+                            </div>
+                            <div class="ui tab segment" data-tab="analytics-simulation">
+                                <p>Open carbon simulation in a new window.</p>
+                                <a id="analytics-simulation-link" class="ui blue icon button" target="_blank" rel="noopener noreferrer">
+                                    <i class="chartline icon"></i> Open Carbon Simulation
+                                </a>
+                            </div>
+                        </div>
                     </div>
                     <div class="ui tab segment" data-tab="ten">
                         <div id="run-badges">
@@ -121,9 +144,6 @@
                                 </ul>
                             </div>
                         </div>
-                    </div>
-                    <div class="ui tab segment" data-tab="eleven">
-                        <div id="ai-container" class="ui container">As AI jobs are quite expensive this feature is only available in the enterprise version. You can see our pricing under <a href="https://www.green-coding.io/products/green-metrics-tool/">https://www.green-coding.io/products/green-metrics-tool/</a></div>
                     </div>
                     <div class="ui tab segment" data-tab="twelve">
                         <div class="ui segment">
@@ -154,8 +174,6 @@
                             <button class="blue ui button re-submit-run">Re-Submit Run</button>
                         </div>
                     </div>
-
-
                 </div>
             </div>
         </div><!-- end ui full-width-card card -->

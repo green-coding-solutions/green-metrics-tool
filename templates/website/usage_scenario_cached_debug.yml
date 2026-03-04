@@ -34,7 +34,7 @@ flow:
       - type: playwright
         command: page_result = await page.goto("__GMT_VAR_PAGE__");
       - type: console
-        command: sleep '__GMT_VAR_SLEEP__'
+        command: sleep __GMT_VAR_SLEEP__
 
   - name: Check HTTP Status Code
     container: gmt-playwright-nodejs
@@ -64,7 +64,7 @@ flow:
             loop_ticks++;
           }
       - type: console
-        command: sleep '__GMT_VAR_SLEEP__'
+        command: sleep __GMT_VAR_SLEEP__
 
 
   - name: Dump Log (Load and idle)

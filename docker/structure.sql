@@ -240,6 +240,7 @@ CREATE TABLE jobs (
     email text,
     url text,
     branch text,
+    commit_hash text,
     filename text,
     usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
     carbon_simulation jsonb NOT NULL DEFAULT '{}',
@@ -429,7 +430,7 @@ CREATE TABLE ci_measurements (
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
     city text,
-    carbon_intensity_g int,
+    carbon_intensity_g int CHECK (carbon_intensity_g > 0),
     carbon_ug bigint,
     ip_address INET NOT NULL,
     note text CHECK (length(note) <= 1024),
@@ -624,7 +625,7 @@ CREATE TABLE carbondb_data_raw (
     time BIGINT NOT NULL,
     energy_kwh DOUBLE PRECISION NOT NULL,
     carbon_kg DOUBLE PRECISION,
-    carbon_intensity_g int, -- we need this column not null as it might contain errors which we need to backfill
+    carbon_intensity_g int CHECK (carbon_intensity_g > 0), -- we need this column nullable as we want to backfill missing data
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
     ip_address INET,
@@ -674,7 +675,7 @@ CREATE TABLE hog_simplified_measurements (
     machine_uuid UUID NOT NULL,
     timestamp BIGINT NOT NULL,
     timezone TEXT CHECK (char_length(timezone) <= 50),
-    carbon_intensity_g DOUBLE PRECISION,
+    carbon_intensity_g DOUBLE PRECISION CHECK (carbon_intensity_g > 0),
     combined_energy_uj BIGINT,
     cpu_energy_uj BIGINT,
     gpu_energy_uj BIGINT,
@@ -743,4 +744,3 @@ FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
 CREATE TRIGGER trg_validate_category_ids
 BEFORE INSERT OR UPDATE ON watchlist
 FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
-

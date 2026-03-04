@@ -95,8 +95,17 @@
                         <div class="ui fluid icon input">
                             <input type="text" placeholder="Filename (optional - default: usage_scenario.yml)" name="filename">
                         </div>
-                        <div class="ui fluid icon input">
-                            <input type="text" placeholder="Branch (optional - default: main)" name="branch">
+                        <div class="two fields">
+                            <div class="field">
+                                <div class="ui fluid icon input">
+                                    <input type="text" placeholder="Branch (optional - default: main)" name="branch">
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui fluid icon input">
+                                    <input type="text" placeholder="Commit hash (optional - checkout specific revision)" name="commit_hash">
+                                </div>
+                            </div>
                         </div>
                         <div class="ui fluid icon input">
                             <select name="machine_id" class="ui fluid dropdown" required>

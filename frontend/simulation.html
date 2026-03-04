@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Standard Meta -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <link rel="shortcut icon" href="/images/favicon.ico">
+    <link rel="icon" href="/images/favicon.ico">
+    <link rel="icon" href="/images/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" href="/images/favicon-32x32.png" sizes="32x32">
+    <!-- Site Properties -->
+    <title>Green Metrics Tool - Simulation</title>
+    <meta name="referrer" content="no-referrer-when-downgrade" />
+    <meta name="description" content="Simulate carbon impact for a run" />
+    <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/dist/js/toast.min.js" defer></script>
+    <script src="/dist/js/transition.min.js" defer></script>
+    <script src="/dist/js/dropdown.min.js" defer></script>
+    <script src="/dist/js/echarts.min.js" defer></script>
+    <script src="/js/helpers/config.js" defer></script>
+    <script src="/js/helpers/main.js" defer></script>
+    <script src="/js/helpers/converters.js" defer></script>
+    <script src="/js/helpers/charts.js" defer></script>
+    <script src="/js/simulation.js" defer></script>
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
+</head>
+<body class="preload">
+    <gmt-menu></gmt-menu>
+    <div class="main ui container" id="main">
+        <h1 class="ui header float left"><a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon opened"></i></a> Run Simulation</h1>
+        <div class="ui full-width-card card">
+            <div class="content">
+                <div class="header"><a class="ui red ribbon label">
+                    <h3>Carbon Simulation</h3>
+                </a></div>
+                <div class="description">
+                    <div class="ui form">
+                        <div class="fields">
+                            <div class="six wide field">
+                                <label>Provider</label>
+                                <div id="provider-dropdown" class="ui fluid search icon selection dropdown loading">
+                                    <input type="hidden" name="provider">
+                                    <i class="dropdown icon"></i>
+                                    <div class="default text">Select a provider</div>
+                                    <div class="menu" id="provider-menu"></div>
+                                </div>
+                                <div class="simulation-mini-chart" id="provider-mini-chart"></div>
+                                <div class="ui segment simulation-shift-controls">
+
+                                    <button id="provider-range-start-button" class="ui tiny basic button" type="button">Start: -</button>
+                                    <input id="provider-range-start-input" class="simulation-provider-range-input" type="datetime-local">
+                                    <button id="provider-range-end-button" class="ui tiny basic button" type="button">End: -</button>
+                                    <input id="provider-range-end-input" class="simulation-provider-range-input" type="datetime-local">
+                                </div>
+                            </div>
+
+                            <div class="six wide field">
+                                <label>Metric</label>
+                                <div id="metric-dropdown" class="ui fluid search icon selection dropdown loading">
+                                    <input type="hidden" name="metric">
+                                    <i class="dropdown icon"></i>
+                                    <div class="default text">Select a metric</div>
+                                    <div class="menu" id="metric-menu"></div>
+                                </div>
+                                <div class="simulation-mini-chart" id="metric-mini-chart"></div>
+                                <div class="ui segment simulation-metric-shift-controls">
+                                    <span class="simulation-shift-group simulation-shift-group-negative">
+                                        <button id="shift-left-30d" class="ui tiny basic button disabled" disabled>-30d</button>
+                                        <button id="shift-left-day" class="ui tiny basic button disabled" disabled>-1d</button>
+                                        <button id="shift-left-hour" class="ui tiny basic button disabled" disabled>-1h</button>
+                                        <button id="shift-left" class="ui tiny basic button disabled" disabled>-5m</button>
+                                    </span>
+                                    <span class="simulation-shift-group simulation-shift-group-positive">
+                                        <button id="shift-right" class="ui tiny basic button disabled" disabled>+5m</button>
+                                        <button id="shift-right-hour" class="ui tiny basic button disabled" disabled>+1h</button>
+                                        <button id="shift-right-day" class="ui tiny basic button disabled" disabled>+1d</button>
+                                        <button id="shift-right-30d" class="ui tiny basic button disabled" disabled>+30d</button>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="four wide field">
+                                <label>Run Details</label>
+
+                                <div class="ui small labels" id="run-details">
+                                    <div class="ui label"><i class="hashtag icon"></i> Run <span id="run-id">-</span></div>
+                                    <div class="ui label"><i class="clock icon"></i> Start <span id="run-start">-</span></div>
+                                    <div class="ui label"><i class="clock outline icon"></i> End <span id="run-end">-</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="message-chart-load-failure" class="ui icon message red hidden">
+            <i class="info circle icon"></i>
+            <div class="content">
+                <div class="header" id="message-chart-load-failure-header">
+                    Failed loading chart
+                </div>
+                <div class="content" id="message-chart-load-failure-text">Chart data could not be loaded.</div><button id="align-metric" class="ui tiny primary button hidden">Start Simulation</button>
+            </div>
+        </div>
+        <div class="simulation-chart-row">
+            <div id="chart-container"></div>
+            <div class="ui card" id="carbon-summary-card">
+                <div class="content">
+                    <button id="find-best-provider" class="ui small button disabled" disabled>Find best Provider</button>
+                </div>
+                <div class="content">
+                    <div class="header">Total carbon emitted</div>
+                    <div class="description">
+                        <div id="carbon-summary-value" class="simulation-carbon-value">-</div>
+                        <div id="carbon-summary-unit" class="simulation-carbon-unit">gCO2eq</div>
+                        <div id="carbon-summary-status" class="simulation-carbon-status">Select a provider and metric.</div>
+                    </div>
+                    <div class="ui divider"></div>
+                    <div class="header">Best runtime</div>
+                    <div class="description">
+                        <div class="simulation-runtime-body">
+                            <div id="best-runtime-value" class="simulation-runtime-value">-</div>
+                            <div id="best-runtime-unit" class="simulation-runtime-unit">gCO2eq</div>
+                            <div id="best-runtime-time" class="simulation-runtime-time">Start time: -</div>
+                            <div id="best-runtime-status" class="simulation-runtime-status">Select a provider and metric.</div>
+                            <div class="simulation-runtime-actions">
+                                <button id="find-best-runtime" class="ui small button disabled" disabled>Find best runtime</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <dialog id="best-provider-dialog" class="simulation-provider-dialog">
+        <div class="simulation-provider-dialog-header">
+            <h4 class="ui header">Provider Runtime Comparison</h4>
+            <button id="best-provider-dialog-close" class="ui tiny button" type="button">Close</button>
+        </div>
+        <div class="simulation-provider-dialog-body">
+            <table class="ui celled compact very small table">
+                <thead>
+                    <tr>
+                        <th>Provider</th>
+                        <th>Best start time</th>
+                        <th>Best gCO2eq</th>
+                        <th>Worst gCO2eq</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="best-provider-results"></tbody>
+            </table>
+        </div>
+    </dialog>
+</body>
+</html>
