@@ -419,7 +419,7 @@ const loadCharts = async () => {
                         phase: ${escapeString(series[params.seriesName].notes[params.dataIndex].phase)}<br>
                         usage_scenario_variables: ${escapeString(usageScenarioVariablesForPopup)}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
-                        commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
+                        commit_timestamp: ${dateToYMD(new Date(series[params.seriesName].notes[params.dataIndex].commit_timestamp), false, true)} <br>
                         commit_hash: <a class="commit-hash-link" href="" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
                         gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].gmt_hash)}</a><br>
 
