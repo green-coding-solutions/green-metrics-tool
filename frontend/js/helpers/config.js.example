@@ -319,12 +319,12 @@ METRIC_MAPPINGS = {
         "explanation": "Machine operational CO₂ calculated by formula via XGBoost estimation"
     },
     "network_energy_formula_global": {
-        "clean_name": "Network Transmission",
+        "clean_name": "Network Transmission Energy",
         "source": "Formula",
         "explanation": "Estimated external energy cost for network infrastructure."
     },
     "network_power_formula_global": {
-        "clean_name": "Network Transmission",
+        "clean_name": "Network Transmission Power",
         "source": "Formula",
         "explanation": "Estimated external energy cost for network infrastructure."
     },

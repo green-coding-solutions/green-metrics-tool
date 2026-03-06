@@ -669,7 +669,7 @@ class TestFrontendFunctionality:
         assert chart_label.strip() == 'CPU Package Power via RAPL - Package_0'
 
         chart_label = new_page.locator('#chart-container > div:nth-child(3) > div > div.ui.left.floated.chart-title').text_content()
-        assert chart_label.strip() == 'Network Transmission via Formula - [FORMULA]'
+        assert chart_label.strip() == 'Network Transmission Energy via Formula - [FORMULA]'
 
 
         assert 0 == new_page.locator('.ui.active.dimmer').count() # must be removed now
