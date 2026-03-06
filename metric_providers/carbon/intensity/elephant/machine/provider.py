@@ -165,7 +165,7 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
 
         df = df.sort_values(by=['time', 'provider'], ascending=True)
         df['value'] = df['value'].round().astype('int64') # We convert to int here. Could think about going to ugCO2e here.
-        df = self._expand_to_sampling_rate(df)
+        df = expand_to_sampling_rate(df)
 
         return df
 
