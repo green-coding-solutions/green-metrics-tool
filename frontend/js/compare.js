@@ -89,7 +89,8 @@ const buildSeries = (ds1, ds2) => {
   const cumulative1 = [];
   const cumulative2 = [];
   const candles = [];
-  const labels = [];
+  const labels1 = [];
+  const labels2 = [];
 
   let cum1 = 0;
   let cum2 = 0;
@@ -104,15 +105,23 @@ const buildSeries = (ds1, ds2) => {
     const delta = ds2[i].value - ds1[i].value;
     candles.push([0, delta, Math.min(0, delta), Math.max(0, delta)]);
 
-    labels.push(ds1[i].label);
+    labels1.push(ds1[i].label);
+    labels2.push(ds2[i].label);
+
   }
 
-  return { cumulative1, cumulative2, candles, labels };
+  return { cumulative1, cumulative2, candles, labels1, labels2 };
 }
 
-const arraysEqual = (a, b) => {
-  if (a.length !== b.length) return false;
-  return a.every((val, index) => val === b[index]);
+const arraysCompare = (a, b) => {
+  if (a.length !== b.length) return { equal: false, differences: 'Lengths differ' };
+
+  const differences = [];
+  a.forEach((val, index) => {
+    if (val !== b[index]) differences.push({ index, a: val, b: b[index] });
+  });
+
+  return { equal: differences.length === 0, differences };
 }
 
 const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
@@ -125,10 +134,10 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
         return
     }
 
-    const notes1 = await fetchTimelineNotes(run_ids[0])
-    const notes2 = await fetchTimelineNotes(run_ids[1])
+    let notes_data1 = await fetchTimelineNotes(run_ids[0])
+    let notes_data2 = await fetchTimelineNotes(run_ids[1])
 
-    if (!notes1 || !notes2) {
+    if (!notes_data1 || !notes_data2) {
         document.querySelector('#loader-time-series-notes').classList.add('hidden');
         document.querySelector('#time-series-notes-no-display').classList.remove('hidden');
         document.querySelector('#time-series-notes-no-display .description').textContent = 'Could not fetch notes data for one or both runs.'
@@ -136,34 +145,40 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
         return
     }
 
-    const dataset1 = notes1.map((row) => { return {"value": row[4], "label": row[2]} })
-    const dataset2 = notes2.map((row) => { return {"value": row[4], "label": row[2]} })
+    const dataset1 = notes_data1.map((row) => { return {"value": row[4], "label": row[2]} })
+    const dataset2 = notes_data2.map((row) => { return {"value": row[4], "label": row[2]} })
 
-    const labels1 = dataset1.map((row) => { return row['label'] })
-    const labels2 = dataset2.map((row) => { return row['label'] })
+    const notes1 = dataset1.map((row) => { return row['label'] })
+    const notes2 = dataset2.map((row) => { return row['label'] })
 
-    if (!arraysEqual(labels1, labels2)) {
+    if (notes1.length !=  notes2.length) {
         document.querySelector('#loader-time-series-notes').classList.add('hidden');
         document.querySelector('#time-series-notes-no-display').classList.remove('hidden');
-        document.querySelector('#time-series-notes-no-display .description').textContent = 'Your two runs have different notes in the time series. This cannot be compared. Their notes must be exactly identical.'
+        document.querySelector('#time-series-notes-no-display .description').textContent = 'Your two runs have different amount of notes in the time series. This cannot be compared.'
         document.querySelector('#time-series-notes-chart').remove()
         return
     }
 
+    const comparison = arraysCompare(notes1, notes2)
+    if (!comparison.equal) {
+        document.querySelector('#loader-time-series-notes').classList.add('hidden');
+        document.querySelector('#time-series-notes-no-display').classList.remove('hidden');
+        document.querySelector('#time-series-notes-no-display .description').textContent = 'Runs have same amount of notes, but at least one note differed in text. This might only be a small textual change or can be totally different steps. Please check chart for different labels in steps.'
+    }
 
-    let { cumulative1, cumulative2, candles, labels } = buildSeries(dataset1, dataset2);
+    let { cumulative1, cumulative2, candles, labels1, labels2 } = buildSeries(dataset1, dataset2);
     const option = {
     tooltip: {
         trigger: 'axis',
         formatter: function (params) {
 
           const series1 = params[0];
-          const series2 = params[1];
-          const candlestick = params[2];          // candlestick series
+          const series2 = params[2];
+          const label = (series1.axisValue == series2.axisValue) ? series1.axisValue : `⚠️ ${series1.axisValue} / ${series2.axisValue}`
+          const candlestick = params[1];          // candlestick series
           const [open, close, low, high] = candlestick.data;
-          console.log(series1)
           return `
-            ${series1.axisValue}<br/>
+            ${label}<br/>
             ${series1.marker} ${series1.seriesName}: ${numberFormatter.format(series1.value)} s<br>
             ${series2.marker} ${series2.seriesName}: ${numberFormatter.format(series2.value)} s<br>
             ${candlestick.marker} ${candlestick.seriesName}: ${numberFormatter.format(candlestick.value[2])} s<br>
@@ -188,17 +203,25 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
           bottom: 20
         }
       ],
-      xAxis: {
-        type: 'category',
-        data: labels,
-        axisLabel: {
-            rotate: 45,
-            fontSize: 10,
-            overflow: 'truncate',
-            ellipsis: '…',  // optional, default is '...'
-            width: 100          // maximum width in pixels
-        }
-      },
+      xAxis: [
+          {
+            type: 'category',
+            data: labels1,
+            axisTick: { alignWithLabel: true },
+            axisLabel: {
+                rotate: 45,
+                fontSize: 10,
+                overflow: 'truncate',
+                ellipsis: '…',  // optional, default is '...'
+                width: 100          // maximum width in pixels
+            }
+          },
+          {
+            type: 'category',
+            data: labels2,
+            show: false
+          }
+      ],
       yAxis: [
         {
           type: 'value',
@@ -216,13 +239,16 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
           name: 'Run 1',
           type: 'line',
           data: cumulative1,
-          smooth: true
+          smooth: true,
+          xAxisIndex: 0,
+          markLine: { data: []} // will be filled later
         },
         {
           name: 'Run 2',
           type: 'line',
           data: cumulative2,
-          smooth: true
+          smooth: true,
+          xAxisIndex: 1,
         },
         {
           name: 'Step Delta',
@@ -238,6 +264,25 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
         }
       ]
     };
+
+    comparison.differences.forEach(el =>  {
+        option.series[0].markLine.data.push(
+        {
+            xAxis: el.a,
+            label: {
+                show: true,
+                formatter: '⚠',
+                color: 'orange',
+                fontSize: 16,
+                position: 'middle',
+              },
+              lineStyle: {
+                color: 'orange',
+                type: 'dashed'
+              }
+        })
+    })
+
 
     const time_series_notes_history_chart = echarts.init(document.getElementById('time-series-notes-chart'));
 
