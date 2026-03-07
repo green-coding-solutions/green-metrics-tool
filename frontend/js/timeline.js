@@ -203,7 +203,7 @@ const fillInputsFromURL = (url_params) => {
         $('#machine').text($('select[name="machine_id"] :checked').text());
     }
     if(url_params['sorting'] != null) $(`#sorting-${url_params['sorting']}`).prop('checked', true);
-    if(url_params['metrics'] != null) $(`#metrics-${url_params['metrics']}`).prop('checked', true);
+    if(url_params['metric'] != null) $(`#metric-${url_params['metric']}`).prop('checked', true);
 
     if(url_params['phase'] != null && url_params['phase'] !== '') {
         const matchingPhaseRadio = $(`input[name="phase"][value="${url_params['phase']}"]`);
@@ -275,7 +275,7 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     }
 
     if(metric_override != null) api_url += `${ampersand}metric=${encodeURIComponent(metric_override)}`
-    else if($('input[name="metrics"]:checked').val() !== '') api_url += `${ampersand}metric=${encodeURIComponent($('input[name="metrics"]:checked').val())}`
+    else if($('input[name="metric"]:checked').val() !== '') api_url += `${ampersand}metric=${encodeURIComponent($('input[name="metric"]:checked').val())}`
 
     if(detail_name != null) api_url += `${ampersand}detail_name=${encodeURIComponent(detail_name)}`
 
