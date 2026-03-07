@@ -160,8 +160,7 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
     }
 
     const comparison = arraysCompare(notes1, notes2)
-    if (comparison.equal) {
-        showNotification('Notes differed', 'Runs have same amount of notes, but at least one note differed in text. This might only be a small textual change or can be totally different steps. Please check chart for steps with a ⚠️ in label above.');
+    if (!comparison.equal) {
         document.querySelector('#loader-time-series-notes').classList.add('hidden');
         document.querySelector('#time-series-notes-no-display').classList.remove('hidden');
         document.querySelector('#time-series-notes-no-display .description').textContent = 'Runs have same amount of notes, but at least one note differed in text. This might only be a small textual change or can be totally different steps. Please check chart for different labels in steps.'
