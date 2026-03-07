@@ -317,7 +317,7 @@ const loadCharts = async () => {
     let phase_stats_data = null;
     try {
         const queryParams = buildQueryParams();
-        phase_stats_data = (await makeAPICall(`/v1/timeline?${queryParams}`)).data
+        phase_stats_data = (await makeAPICall(`/v2/timeline?${queryParams}`)).data
         document.querySelectorAll('.container-no-data').forEach(el => el.style.display = '')
         document.querySelector('#message-no-data').style.display = 'none';
 
@@ -341,7 +341,8 @@ const loadCharts = async () => {
     let prun_id = null
 
     phase_stats_data.forEach( (data) => {
-        let [run_id, run_name, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash] = data
+        console.log(data);
+        let [run_id, run_name, usage_scenario_variables, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash] = data
 
         const [transformed_value, transformed_unit] = convertValue(value, unit)
 
@@ -353,6 +354,7 @@ const loadCharts = async () => {
         series[`${metric_name} - ${detail_name}`].values.push({value: transformed_value, commit_hash: commit_hash, gmt_hash: gmt_hash})
         series[`${metric_name} - ${detail_name}`].notes.push({
             run_name: run_name,
+            usage_scenario_variables: usage_scenario_variables,
             created_at: created_at,
             commit_timestamp: commit_timestamp,
             commit_hash: commit_hash,
@@ -409,15 +411,12 @@ const loadCharts = async () => {
             formatter: function (params, ticket, callback) {
                 if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
                 const repository_uri_encoded = repository_uri.split('/').map(encodeURIComponent).join('/');
-                const usageScenarioVariablesForPopup = document.querySelector('#usage-scenario-variables-none')?.checked === true
-                    ? 'No usage scenario variables'
-                    : stringifyUsageScenarioVariables(usageScenarioVariables);
                 const html_content = `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong><br>
                         run_id: <a href="/stats.html?id=${series[params.seriesName].notes[params.dataIndex].run_id}"  target="_blank">${series[params.seriesName].notes[params.dataIndex].run_id}</a><br>
                         date: ${dateToYMD(new Date(series[params.seriesName].notes[params.dataIndex].created_at), false, true)}<br>
                         metric_name: ${escapeString(params.seriesName)}<br>
                         phase: ${escapeString(series[params.seriesName].notes[params.dataIndex].phase)}<br>
-                        usage_scenario_variables: ${escapeString(usageScenarioVariablesForPopup)}<br>
+                        usage_scenario_variables: ${stringifyUsageScenarioVariables(series[params.seriesName].notes[params.dataIndex].usage_scenario_variables)}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
                         commit_timestamp: ${dateToYMD(new Date(series[params.seriesName].notes[params.dataIndex].commit_timestamp), false, true)} <br>
                         commit_hash: <a class="commit-hash-link" href="" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>

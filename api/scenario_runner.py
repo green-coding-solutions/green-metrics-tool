@@ -570,7 +570,7 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
 
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
-@router.get('/v1/timeline')
+@router.get('/v1/timeline', deprecated=True)
 async def get_timeline_stats(
     uri: str, machine_id: int, branch: str | None = None, filename: str | None = None,
     metric: str | None = None, phase: str | None = None,
@@ -586,6 +586,30 @@ async def get_timeline_stats(
 
     check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
     query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting)
+
+    data = DB().fetch_all(query, params=params)
+
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    return ORJSONResponse({'success': True, 'data': data})
+
+@router.get('/v2/timeline')
+async def get_timeline_stats_v2(
+    uri: str, machine_id: int, branch: str | None = None, filename: str | None = None,
+    metric: str | None = None, phase: str | None = None,
+    start_date: date | None = None, end_date: date | None = None,  sorting: str | None = None,
+    usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
+    user: User = Depends(authenticate)):
+
+    if uri is None or uri.strip() == '':
+        raise HTTPException(status_code=422, detail='URI is empty')
+
+    if phase is None or phase.strip() == '':
+        raise HTTPException(status_code=422, detail='Phase is empty')
+
+    check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
+    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting, v2=True)
 
     data = DB().fetch_all(query, params=params)
 

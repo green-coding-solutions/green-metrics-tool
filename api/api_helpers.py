@@ -166,7 +166,7 @@ def get_run_info(user, run_id):
     return run
 
 
-def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=None, end_date=None, detail_name=None, sorting='run'):
+def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=None, end_date=None, detail_name=None, sorting='run', v2=False):
 
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
@@ -221,9 +221,16 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
     if sorting is not None and sorting.strip() == 'run':
         sorting_condition = 'r.created_at ASC, r.commit_timestamp ASC'
 
+    if v2:
+        include_usage_scenario_variables = 'r.usage_scenario_variables, '
+    else:
+        include_usage_scenario_variables = ''
+
     query = f"""
             SELECT
-                r.id, r.name, r.created_at, p.metric, p.detail_name, p.phase,
+                r.id, r.name,
+                {include_usage_scenario_variables}
+                r.created_at, p.metric, p.detail_name, p.phase,
                 p.value, p.unit, r.commit_hash, r.commit_timestamp, r.gmt_hash,
                 row_number() OVER () AS row_num
             FROM runs as r
