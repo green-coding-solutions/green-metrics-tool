@@ -11,7 +11,7 @@ from contextlib import redirect_stdout, redirect_stderr
 
 from tests import test_functions as Tests
 from lib.db import DB
-from lib.phase_stats import build_and_store_phase_stats
+from lib.phase_stats import build_and_store_phase_stats, calculate_co2_intensity
 from lib.scenario_runner import ScenarioRunner
 
 MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
@@ -644,3 +644,59 @@ def test_sci_multi_steps_run():
     assert len(data) == 1
     assert 8 < data[0]['value'] < 20
     assert data[0]['unit'] == 'ugCO2e/Cool run'
+
+
+def test_calculate_co2_intensity_uses_microgram_scale():
+    run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
+
+    carbon_metric_id = DB().fetch_one(
+        '''
+        INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id
+        ''',
+        params=(run_id, 'carbon_intensity_elephant_machine', 'provider_1', 'gCO2e/kWh')
+    )[0]
+
+    energy_metric_id = DB().fetch_one(
+        '''
+        INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id
+        ''',
+        params=(run_id, 'psu_energy_ac_mcp_machine', '[MACHINE]', 'uJ')
+    )[0]
+
+    DB().query(
+        '''
+        INSERT INTO measurement_values (measurement_metric_id, time, value)
+        VALUES
+            (%s, %s, %s),
+            (%s, %s, %s)
+        ''',
+        params=(carbon_metric_id, 500_000, 100, carbon_metric_id, 1_500_000, 200)
+    )
+
+    DB().query(
+        '''
+        INSERT INTO measurement_values (measurement_metric_id, time, value)
+        VALUES
+            (%s, %s, %s),
+            (%s, %s, %s)
+        ''',
+        params=(energy_metric_id, 1_000_000, 3_600_000, energy_metric_id, 2_000_000, 7_200_000)
+    )
+
+    calculate_co2_intensity(run_id)
+
+    derived_metric_id = DB().fetch_one(
+        "SELECT id FROM measurement_metrics WHERE run_id = %s AND metric = %s AND unit = %s",
+        params=(run_id, 'psu_carbon_elephant_machine', 'ugCO2e')
+    )[0]
+
+    derived_values = DB().fetch_all(
+        "SELECT value FROM measurement_values WHERE measurement_metric_id = %s ORDER BY time ASC",
+        params=(derived_metric_id,)
+    )
+
+    assert derived_values == [(100,), (400,)]
