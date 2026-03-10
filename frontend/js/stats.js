@@ -98,7 +98,6 @@ const setAndShowAnalyticsLinks = (run_id, run_data) => {
     if (run_data?.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
         timelineParams.set('usage_scenario_variables', JSON.stringify(run_data.usage_scenario_variables));
     }
-    timelineParams.set('metrics', 'key');
 
     if (timelineParams.get('uri')) {
         timelineLink.href = `timeline.html?${timelineParams.toString()}`;

@@ -81,6 +81,7 @@ VALUES (
                 "/v1/badge/single/{run_id}",
                 "/v1/badge/timeline",
                 "/v1/timeline",
+                "/v2/timeline",
                 "/v1/ci/measurement/add",
                 "/v1/ci/measurements",
                 "/v1/ci/badge/get",

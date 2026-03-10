@@ -355,7 +355,6 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             params.set('branch', row[3] ?? '');
             params.set('machine_id', row[12]);
             params.set('filename', row[6] ?? '');
-            params.set('metrics', 'key');
 
             const usageScenarioVariables = row[7] ?? {};
             if (Object.keys(usageScenarioVariables).length > 0) {

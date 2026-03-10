@@ -324,19 +324,19 @@ METRIC_MAPPINGS = {
         "explanation": "Machine operational CO₂ calculated by grid intensity muliplied with machine energy consumption"
     },
     "network_energy_formula_global": {
-        "clean_name": "Network Transmission",
+        "clean_name": "Network Transmission Energy",
         "source": "Formula",
-        "explanation": "Estimated external energy cost for network infrastructure."
+        "explanation": "Estimated external energy usage for network infrastructure."
     },
     "network_power_formula_global": {
-        "clean_name": "Network Transmission",
+        "clean_name": "Network Transmission Power",
         "source": "Formula",
-        "explanation": "Estimated external energy cost for network infrastructure."
+        "explanation": "Estimated external power draw for network infrastructure."
     },
     "network_carbon_formula_global": {
         "clean_name": "Network Transmission CO₂",
         "source": "Formula",
-        "explanation": "Estimated external CO₂ cost for network infrastructure."
+        "explanation": "Estimated external CO₂ emissions for network infrastructure."
     },
      "lmsensors_temperature_component": {
         "clean_name": "CPU Temperature",
