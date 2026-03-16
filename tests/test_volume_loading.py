@@ -185,10 +185,31 @@ def test_volume_loading_subdirectories_subdir2():
     assert expect_copied_testfile_4 in run_stdout, Tests.assertion_info(expect_copied_testfile_4, f"expected output not in {run_stdout}")
 
 
-def test_volume_dot_path_safe():
-    mounted_file = 'volume_load_dot_path.yml'
-    created_file = os.path.join(GMT_DIR, 'tests/data/usage_scenarios/volume_dot_path_safe_should_not_exist')
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_dot_path.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+def _volume_dot_path_runner(filename, allow_unsafe=False):
+    return ScenarioRunner(
+        uri=GMT_DIR,
+        uri_type='folder',
+        filename=filename,
+        dev_no_system_checks=True,
+        dev_no_metrics=True,
+        dev_no_phase_stats=True,
+        dev_no_sleeps=True,
+        dev_cache_build=False,
+        allow_unsafe=allow_unsafe,
+        dev_no_container_dependency_collection=True,
+        skip_download_dependencies=True,
+        skip_optimizations=True,
+    )
+
+
+@pytest.mark.parametrize('scenario_filename', [
+    'tests/data/usage_scenarios/volume_load_dot_path.yml',
+    'tests/data/usage_scenarios/volume_load_dot_slash_path.yml',
+])
+def test_volume_dot_path_safe(scenario_filename):
+    mounted_file = os.path.basename(scenario_filename)
+    created_file = os.path.join(GMT_DIR, f'tests/data/usage_scenarios/{mounted_file}.safe-write-check')
+    runner = _volume_dot_path_runner(scenario_filename)
 
     if os.path.exists(created_file):
         os.remove(created_file)
@@ -220,10 +241,15 @@ def test_volume_dot_path_safe():
     assert returncode != 0, Tests.assertion_info('readonly mount rejects writes', f"returncode: {returncode} | err: {write_err}")
     assert os.path.exists(created_file) is False, Tests.assertion_info('host file absent', f"{created_file} should not have been created")
 
-def test_volume_dot_path_unsafe():
-    mounted_file = 'volume_load_dot_path.yml'
-    created_file = os.path.join(GMT_DIR, 'tests/data/usage_scenarios/volume_dot_path_unsafe_created')
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_dot_path.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, allow_unsafe=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+@pytest.mark.parametrize('scenario_filename', [
+    'tests/data/usage_scenarios/volume_load_dot_path.yml',
+    'tests/data/usage_scenarios/volume_load_dot_slash_path.yml',
+])
+def test_volume_dot_path_unsafe(scenario_filename):
+    mounted_file = os.path.basename(scenario_filename)
+    created_file = os.path.join(GMT_DIR, f'tests/data/usage_scenarios/{mounted_file}.unsafe-write-check')
+    runner = _volume_dot_path_runner(scenario_filename, allow_unsafe=True)
 
     try:
         if os.path.exists(created_file):
