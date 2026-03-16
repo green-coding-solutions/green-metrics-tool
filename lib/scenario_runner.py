@@ -1322,8 +1322,8 @@ class ScenarioRunner:
                 if self._allow_unsafe:
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
-                        if volume.startswith('./'): # we have a bind-mount with relative path
-                            vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
+                        vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
+                        if not Path(vol[0]).is_absolute(): # we have a bind-mount with relative path
                             path = Path(self.__working_folder, vol[0]).resolve()
                             if not path.exists():
                                 raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
