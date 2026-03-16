@@ -185,6 +185,69 @@ def test_volume_loading_subdirectories_subdir2():
     assert expect_copied_testfile_4 in run_stdout, Tests.assertion_info(expect_copied_testfile_4, f"expected output not in {run_stdout}")
 
 
+def test_volume_dot_path_safe():
+    mounted_file = 'volume_load_dot_path.yml'
+    created_file = os.path.join(GMT_DIR, 'tests/data/usage_scenarios/volume_dot_path_safe_should_not_exist')
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_dot_path.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    if os.path.exists(created_file):
+        os.remove(created_file)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        ps_read = subprocess.run(
+            ['docker', 'exec', 'test-container', '/bin/sh',
+            '-c', f'test -f /tmp/repo_dir/{mounted_file} && echo "Scenario dir mounted"'],
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8',
+            check=False,
+        )
+        out = ps_read.stdout
+        err = ps_read.stderr
+        ps_write = subprocess.run(
+            ['docker', 'exec', 'test-container', '/bin/sh',
+            '-c', f'touch /tmp/repo_dir/{os.path.basename(created_file)}'],
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8',
+            check=False,
+        )
+        returncode = ps_write.returncode
+        write_err = ps_write.stderr
+
+    assert "Scenario dir mounted" in out, Tests.assertion_info('Scenario dir mounted', f"out: {out} | err: {err}")
+    assert returncode != 0, Tests.assertion_info('readonly mount rejects writes', f"returncode: {returncode} | err: {write_err}")
+    assert os.path.exists(created_file) is False, Tests.assertion_info('host file absent', f"{created_file} should not have been created")
+
+def test_volume_dot_path_unsafe():
+    mounted_file = 'volume_load_dot_path.yml'
+    created_file = os.path.join(GMT_DIR, 'tests/data/usage_scenarios/volume_dot_path_unsafe_created')
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_dot_path.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, allow_unsafe=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    try:
+        if os.path.exists(created_file):
+            os.remove(created_file)
+
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+            ps = subprocess.run(
+                ['docker', 'exec', 'test-container', '/bin/sh',
+                '-c', f'test -f /tmp/repo_dir/{mounted_file} && touch /tmp/repo_dir/{os.path.basename(created_file)} && echo "Repo mounted rw"'],
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                encoding='UTF-8',
+                check=False,
+            )
+            out = ps.stdout
+            err = ps.stderr
+
+        assert "Repo mounted rw" in out, Tests.assertion_info('Repo mounted rw', f"out: {out} | err: {err}")
+        assert os.path.exists(created_file), Tests.assertion_info('host file created', f"{created_file} was not created")
+    finally:
+        if os.path.exists(created_file):
+            os.remove(created_file)
+
 def test_volume_inspect():
 
     if platform.system() == 'Darwin':
