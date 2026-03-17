@@ -1,8 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
 from typing import List, Optional, Dict, Literal, Union
 
-from fastapi import HTTPException
-
 ### Run
 class RunChange(BaseModel):
     archived: Optional[bool] = None
@@ -79,30 +77,20 @@ class CI_MeasurementBase(BaseModel):
     ip: Optional[str] = None
     note: Optional[constr(max_length=1024)] = None
 
-
     # Empty string will not trigger error on their own
-    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
+    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label', 'filter_type', 'filter_project', 'filter_machine', 'ip')
     @classmethod
     def check_not_empty(cls, values, data):
         if not values or values == '':
-            raise HTTPException(status_code=422, detail=f"{data.field_name} must be set and not empty")
-        return values
-
-    @field_validator('filter_type', 'filter_project', 'filter_machine', 'ip')
-    @classmethod
-    def empty_str_to_none(cls, values, _):
-        if not values or values.strip() == '':
-            return None
+            raise ValueError(f"{data.field_name} must be set an non-empty")
         return values
 
     @field_validator('filter_tags')
     @classmethod
-    def check_empty_elements(cls, value):
+    def check_empty_elements(cls, value, data):
         if any(not item or item.strip() == '' for item in value):
-            raise ValueError("The list contains empty elements.")
+            raise ValueError(f"{data.field_name} contains empty elements")
         return value
-
-
 
 class CI_Measurement(CI_MeasurementBase):
     """
