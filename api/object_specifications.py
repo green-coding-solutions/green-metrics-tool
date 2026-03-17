@@ -78,12 +78,19 @@ class CI_MeasurementBase(BaseModel):
     note: Optional[constr(max_length=1024)] = None
 
     # Empty string will not trigger error on their own
-    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label', 'filter_type', 'filter_project', 'filter_machine', 'ip')
+    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label', 'filter_type', 'filter_project', 'filter_machine')
     @classmethod
-    def check_not_empty(cls, values, data):
-        if not values or values == '':
+    def check_not_empty(cls, value, data):
+        if not value or value == '':
             raise ValueError(f"{data.field_name} must be set an non-empty")
-        return values
+        return value
+
+    @field_validator('filter_type', 'filter_project', 'filter_machine', 'ip')
+    @classmethod
+    def empty_str_to_none(cls, value, _):
+        if not value or value.strip() == '':
+            return None
+        return value
 
     @field_validator('filter_tags')
     @classmethod
