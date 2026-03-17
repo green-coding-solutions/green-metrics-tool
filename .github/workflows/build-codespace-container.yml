@@ -45,7 +45,7 @@ jobs:
       #     tags: ghcr.io/green-coding-berlin/green-coding-gunicorn-container:latest
 
       - name: Build and push Docker container
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./.devcontainer/containerized/Dockerfile
