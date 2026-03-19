@@ -647,6 +647,5 @@ METRIC_MAPPINGS = {
         "clean_name": "Grid Intensity",
         "source": "Elephant",
         "explanation": "The Grid intensity as reported by Elephant"
-    },
-
+    }
 } // PLEASE DO NOT REMOVE THIS COMMENT -- END METRIC_MAPPINGS
