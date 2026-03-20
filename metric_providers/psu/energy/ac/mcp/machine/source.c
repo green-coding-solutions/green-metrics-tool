@@ -218,19 +218,21 @@ int main(int argc, char **argv) {
 
     int c;
     bool check_system_flag = false;
+    bool oneshot = false;
     struct timeval now;
     int fd;
     int result;
     int data[2]; // The MCP has two outlets where you can measure.
 
 
-    while ((c = getopt (argc, argv, "hi:dc")) != -1) {
+    while ((c = getopt (argc, argv, "hi:dco")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-h] [-m]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
             printf("\t-c      : check system and exit\n");
+            printf("\t-o      : Output only current power and exit (One-Shot)\n");
             printf("\n");
             exit(0);
         case 'i':
@@ -238,6 +240,9 @@ int main(int argc, char **argv) {
             break;
         case 'c':
             check_system_flag = true;
+            break;
+        case 'o':
+            oneshot = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -259,18 +264,24 @@ int main(int argc, char **argv) {
 
     get_time_offset(&offset);
 
-    while (1) {
+    if (oneshot) {
         result = f511_get_power(&data[0], &data[1], fd);
-        if(result != 0) {
-            fprintf(stderr, "Error. Result was not 0 but %d\n", result);
-            break;
-        }
-        // The MCP returns the current power consumption in 10mW steps.
-        get_adjusted_time(&now, &offset);
+        printf("%d\n", data[0]);
+    } else {
+        while (1) {
+            result = f511_get_power(&data[0], &data[1], fd);
+            if(result != 0) {
+                fprintf(stderr, "Error. Result was not 0 but %d\n", result);
+                break;
+            }
+            // The MCP returns the current power consumption in 10mW steps.
+            get_adjusted_time(&now, &offset);
 
-        printf("%ld%06ld %d\n", now.tv_sec, now.tv_usec, data[0]);
-        usleep(msleep_time*1000);
+            printf("%ld%06ld %d\n", now.tv_sec, now.tv_usec, data[0]);
+            usleep(msleep_time*1000);
+        }
     }
+
     close(fd);
 
     return 0;
