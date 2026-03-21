@@ -29,6 +29,9 @@ const unsigned char f511_read_active_power[] = { 0x41, 0x0, 0x16, 0x4E, 8 };
 const unsigned char f511_read_import_active_energy[] = { 0x41, 0x00, 0x2E, 0x4E, 16 };
 // read system configuration register
 const unsigned char f511_read_system_configuration[] = { 0x41, 0x00, 0xA0, 0x4E, 4 };
+// read Range1 (0x00AE) and Range2 (0x00BE) in separate frames
+const unsigned char f511_read_range1[] = { 0x41, 0x00, 0xAE, 0x4E, 4 };
+const unsigned char f511_read_range2[] = { 0x41, 0x00, 0xBE, 0x4E, 4 };
 
 // least significant bit first. So 0x01 0x00 will set to 0x0001
 // the accumulation interval is 2^N*(1/f). f is typically 50 Hz. So N=1 would equal to 40ms max resolution
@@ -222,6 +225,7 @@ int f511_get_power(int *ch1, int *ch2, int fd)
     }
 }
 
+
 int f511_get_energy(uint64_t *ch1, uint64_t *ch2, int fd)
 {
     int res;
@@ -230,13 +234,25 @@ int f511_get_energy(uint64_t *ch1, uint64_t *ch2, int fd)
     res = mcp_cmd((unsigned char *)&f511_read_import_active_energy,
             sizeof(f511_read_import_active_energy), (unsigned char *)&reply, fd);
     if (res > 0) {
-        *ch1 = parse_le64(reply);
-        *ch2 = parse_le64(reply + 8);
+        // debug
+        //for (size_t i = 0; i < 16; i++) {
+        //    printf("%02x ", (unsigned char)reply[i]);
+        //}
+        // printf("\n");
+
+        // Important
+        // The reason WHY we need to divide by 2 here is unknown.
+        // When using the Windows tool to check the register the value on our test system is shown at 18-19 for one second interval
+        // However without the divison on our Linux systems we see outputs 36-38 which is pretty much exact twice the power
+        // As said, unknown why that is, but we assume the Windows testing tool from Microchip to be the gold standard.
+        *ch1 = parse_le64(reply) / 2;
+        *ch2 = parse_le64(reply + 8) / 2;
         return 0;
     } else {
         return -1;
     }
 }
+
 
 int f511_set_energy_counting(int fd, bool enable_energy)
 {
@@ -269,6 +285,87 @@ int f511_set_energy_counting(int fd, bool enable_energy)
     }
 
     return 0;
+}
+
+int f511_get_range_registers(uint32_t *range1, uint32_t *range2, int fd)
+{
+    int res;
+    unsigned char reply[8];
+
+    res = mcp_cmd((unsigned char *)&f511_read_range1,
+            sizeof(f511_read_range1), (unsigned char *)&reply, fd);
+    if (res != 4) {
+        return -1;
+    }
+    *range1 = parse_le32(reply);
+
+    res = mcp_cmd((unsigned char *)&f511_read_range2,
+            sizeof(f511_read_range2), (unsigned char *)&reply, fd);
+    if (res != 4) {
+        return -1;
+    }
+    *range2 = parse_le32(reply);
+
+    return 0;
+}
+
+void f511_dump_range_registers(int fd)
+{
+    uint32_t range1;
+    uint32_t range2;
+    int res;
+
+    res = f511_get_range_registers(&range1, &range2, fd);
+    if (res != 0) {
+        fprintf(stderr, "Error. Could not read Range registers\n");
+        exit(-1);
+    }
+
+    printf("Range1 (0x00AE): 0x%08" PRIX32 "\n", range1);
+    printf("  Voltage: %" PRIu32 "\n", range1 & 0xFFu);
+    printf("  Current1: %" PRIu32 "\n", (range1 >> 8) & 0xFFu);
+    printf("  Power1: %" PRIu32 "\n", (range1 >> 16) & 0xFFu);
+
+    printf("Range2 (0x00BE): 0x%08" PRIX32 "\n", range2);
+    printf("  Current2: %" PRIu32 "\n", (range1 >> 8) & 0xFFu);
+    printf("  Power2: %" PRIu32 "\n", (range2 >> 16) & 0xFFu);
+
+}
+
+void f511_check_range_registers(int fd)
+{
+    uint32_t range1;
+    uint32_t range2;
+    int res;
+
+    res = f511_get_range_registers(&range1, &range2, fd);
+    if (res != 0) {
+        fprintf(stderr, "Error. Could not read Range registers\n");
+        exit(-1);
+    }
+
+    if ( (range1 & 0xFFu) != 18) {
+        fprintf(stderr, "Voltage range register was not expected 18 but %d\n", range1 & 0xFFu);
+        exit(-1);
+    }
+    if ( ((range1 >> 8) & 0xFFu) != 12) {
+        fprintf(stderr, "Current1 range register was not expected 12 but %d\n", (range1 >> 8) & 0xFFu);
+        exit(-1);
+    }
+    if ( ((range1 >> 16) & 0xFFu) != 19) {
+        fprintf(stderr, "Power1 range register was not expected 19 but %d\n", (range1 >> 16) & 0xFFu);
+        exit(-1);
+    }
+
+    if ( ((range2 >> 8) & 0xFFu) != 12) {
+        fprintf(stderr, "Current2 range register was not expected 12 but %d\n", (range2 >> 8) & 0xFFu);
+        exit(-1);
+    }
+
+    if ( ((range2 >> 16) & 0xFFu) != 19) {
+        fprintf(stderr, "Power2 range register was not expected 19 but %d\n", (range2 >> 16) & 0xFFu);
+        exit(-1);
+    }
 }
 
 int f511_init(const char *port, bool enable_energy)
@@ -304,6 +401,7 @@ int main(int argc, char **argv) {
 
     int c;
     bool check_system_flag = false;
+    bool dump_range_registers = false;
     bool oneshot = false;
     bool energy_mode = false;
     struct timeval now;
@@ -313,7 +411,7 @@ int main(int argc, char **argv) {
     uint64_t energy_data[2];
 
 
-    while ((c = getopt (argc, argv, "hi:dceo")) != -1) {
+    while ((c = getopt (argc, argv, "hi:dceox")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-h] [-m]\n\n",argv[0]);
@@ -322,6 +420,7 @@ int main(int argc, char **argv) {
             printf("\t-c      : check system and exit\n");
             printf("\t-e      : enable energy counting and read the import-active energy counter\n");
             printf("\t-o      : Output only current value and exit (One-Shot)\n");
+            printf("\t-x      : dump Range1 (0x00AE) and Range2 (0x00BE) register contents and exit\n");
             printf("\n");
             exit(0);
         case 'i':
@@ -335,6 +434,9 @@ int main(int argc, char **argv) {
             break;
         case 'o':
             oneshot = true;
+            break;
+        case 'x':
+            dump_range_registers = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -353,6 +455,14 @@ int main(int argc, char **argv) {
     else if(check_system_flag) {
         exit(0);
     }
+
+    if (dump_range_registers) {
+        f511_dump_range_registers(fd);
+        close(fd);
+        return 0;
+    }
+
+    f511_check_range_registers(fd);
 
     get_time_offset(&offset);
 
