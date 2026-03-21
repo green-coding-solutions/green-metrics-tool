@@ -153,7 +153,6 @@ int mcp_cmd(unsigned char *cmd, unsigned int cmd_length, unsigned char *reply, i
     expected_len = 0;
     if ((command_packet[5] == 0x44)
         || (command_packet[5] == 0x52)
-        || (command_packet[5] == 0x4e)
         || (command_packet[5] == 0x4E)) {
         expected_len = command_packet[6] + 3;
     }
