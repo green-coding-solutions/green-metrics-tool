@@ -326,7 +326,7 @@ void f511_dump_range_registers(int fd)
     printf("  Power1: %" PRIu32 "\n", (range1 >> 16) & 0xFFu);
 
     printf("Range2 (0x00BE): 0x%08" PRIX32 "\n", range2);
-    printf("  Current2: %" PRIu32 "\n", (range1 >> 8) & 0xFFu);
+    printf("  Current2: %" PRIu32 "\n", (range2 >> 8) & 0xFFu);
     printf("  Power2: %" PRIu32 "\n", (range2 >> 16) & 0xFFu);
 
 }
