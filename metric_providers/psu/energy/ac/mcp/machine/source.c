@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
@@ -24,6 +25,13 @@
 
 // we read both channels in one frame here, so 8 byte
 const unsigned char f511_read_active_power[] = { 0x41, 0x0, 0x16, 0x4E, 8 };
+// read both import-active energy counters in one frame here, so 16 byte
+const unsigned char f511_read_import_active_energy[] = { 0x41, 0x00, 0x2E, 0x4E, 16 };
+// read system configuration register
+const unsigned char f511_read_system_configuration[] = { 0x41, 0x00, 0xA0, 0x4E, 4 };
+// read Range1 (0x00AE) and Range2 (0x00BE) in separate frames
+const unsigned char f511_read_range1[] = { 0x41, 0x00, 0xAE, 0x4E, 4 };
+const unsigned char f511_read_range2[] = { 0x41, 0x00, 0xBE, 0x4E, 4 };
 
 // least significant bit first. So 0x01 0x00 will set to 0x0001
 // the accumulation interval is 2^N*(1/f). f is typically 50 Hz. So N=1 would equal to 40ms max resolution
@@ -45,6 +53,26 @@ static struct timespec offset;
 enum mcp_states { init, wait_ack, get_len, get_data, validate_checksum };
 
 enum mcp_states mcp_state = wait_ack;
+
+static uint32_t parse_le32(const unsigned char *buf)
+{
+    return ((uint32_t)buf[3] << 24)
+        | ((uint32_t)buf[2] << 16)
+        | ((uint32_t)buf[1] << 8)
+        | (uint32_t)buf[0];
+}
+
+static uint64_t parse_le64(const unsigned char *buf)
+{
+    return ((uint64_t)buf[7] << 56)
+        | ((uint64_t)buf[6] << 48)
+        | ((uint64_t)buf[5] << 40)
+        | ((uint64_t)buf[4] << 32)
+        | ((uint64_t)buf[3] << 24)
+        | ((uint64_t)buf[2] << 16)
+        | ((uint64_t)buf[1] << 8)
+        | (uint64_t)buf[0];
+}
 
 int init_serial(const char *port, int baud)
 {
@@ -96,6 +124,7 @@ int mcp_cmd(unsigned char *cmd, unsigned int cmd_length, unsigned char *reply, i
     uint8_t i;
     uint8_t checksum = 0;
     uint8_t datap = 0;
+    uint8_t expected_len = 0;
 
     // the cmd has a length. Now we create a command_packet with an initializer (0xa5 + length + cmd + checksum), which
     // makes it in the end cmd_length + 3
@@ -121,6 +150,12 @@ int mcp_cmd(unsigned char *cmd, unsigned int cmd_length, unsigned char *reply, i
         return -1;
     }
     tcdrain(fd);
+    expected_len = 0;
+    if ((command_packet[5] == 0x44)
+        || (command_packet[5] == 0x52)
+        || (command_packet[5] == 0x4E)) {
+        expected_len = command_packet[6] + 3;
+    }
     while (1) {
         rdlen = read(fd, buf, 1);
         if (rdlen == 0) {
@@ -141,8 +176,7 @@ int mcp_cmd(unsigned char *cmd, unsigned int cmd_length, unsigned char *reply, i
             break;
         case get_len:
             len = buf[0];
-            /* Workaround for sporadically broken packets, fix me! */
-            if(len != 11){
+            if ((expected_len != 0) && (len != expected_len)) {
                 mcp_state = wait_ack;
                 return -1;
             }
@@ -182,17 +216,158 @@ int f511_get_power(int *ch1, int *ch2, int fd)
     res = mcp_cmd((unsigned char *)&f511_read_active_power,
             sizeof(f511_read_active_power), (unsigned char *)&reply, fd);
     if (res > 0) {
-        *ch1 = (reply[3] << 24) + (reply[2] << 16)
-            + (reply[1] << 8) + reply[0]; // change from LSB to MSB
-        *ch2 = (reply[7] << 24) + (reply[6] << 16)
-            + (reply[5] << 8) + reply[4];  // change from LSB to MSB
+        *ch1 = parse_le32(reply);
+        *ch2 = parse_le32(reply + 4);
         return 0;
     } else {
         return -1;
     }
 }
 
-int f511_init(const char *port)
+
+int f511_get_energy(uint64_t *ch1, uint64_t *ch2, int fd)
+{
+    int res;
+    unsigned char reply[40];
+
+    res = mcp_cmd((unsigned char *)&f511_read_import_active_energy,
+            sizeof(f511_read_import_active_energy), (unsigned char *)&reply, fd);
+    if (res > 0) {
+        // debug
+        //for (size_t i = 0; i < 16; i++) {
+        //    printf("%02x ", (unsigned char)reply[i]);
+        //}
+        // printf("\n");
+
+        // Important
+        // The reason WHY we need to divide by 2 here is unknown.
+        // When using the Windows tool to check the register the value on our test system is shown at 18-19 for one second interval
+        // However without the divison on our Linux systems we see outputs 36-38 which is pretty much exact twice the power
+        // As said, unknown why that is, but we assume the Windows testing tool from Microchip to be the gold standard.
+        *ch1 = parse_le64(reply) / 2;
+        *ch2 = parse_le64(reply + 8) / 2;
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
+
+int f511_set_energy_counting(int fd, bool enable_energy)
+{
+    unsigned char reply[8];
+    unsigned char write_cmd[] = { 0x41, 0x00, 0xA0, 0x4D, 4, 0x00, 0x00, 0x00, 0x00 };
+    uint32_t system_configuration;
+    int res;
+
+    res = mcp_cmd((unsigned char *)&f511_read_system_configuration,
+            sizeof(f511_read_system_configuration), (unsigned char *)&reply, fd);
+    if (res != 4) {
+        return -1;
+    }
+
+    system_configuration = parse_le32(reply);
+    if (enable_energy) {
+        system_configuration |= (1u << 8) | (1u << 9);
+    } else {
+        system_configuration &= ~((1u << 8) | (1u << 9));
+    }
+
+    write_cmd[5] = system_configuration & 0xFF;
+    write_cmd[6] = (system_configuration >> 8) & 0xFF;
+    write_cmd[7] = (system_configuration >> 16) & 0xFF;
+    write_cmd[8] = (system_configuration >> 24) & 0xFF;
+
+    res = mcp_cmd(write_cmd, sizeof(write_cmd), (unsigned char *)&reply, fd);
+    if (res < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int f511_get_range_registers(uint32_t *range1, uint32_t *range2, int fd)
+{
+    int res;
+    unsigned char reply[8];
+
+    res = mcp_cmd((unsigned char *)&f511_read_range1,
+            sizeof(f511_read_range1), (unsigned char *)&reply, fd);
+    if (res != 4) {
+        return -1;
+    }
+    *range1 = parse_le32(reply);
+
+    res = mcp_cmd((unsigned char *)&f511_read_range2,
+            sizeof(f511_read_range2), (unsigned char *)&reply, fd);
+    if (res != 4) {
+        return -1;
+    }
+    *range2 = parse_le32(reply);
+
+    return 0;
+}
+
+void f511_dump_range_registers(int fd)
+{
+    uint32_t range1;
+    uint32_t range2;
+    int res;
+
+    res = f511_get_range_registers(&range1, &range2, fd);
+    if (res != 0) {
+        fprintf(stderr, "Error. Could not read Range registers\n");
+        exit(-1);
+    }
+
+    printf("Range1 (0x00AE): 0x%08" PRIX32 "\n", range1);
+    printf("  Voltage: %" PRIu32 "\n", range1 & 0xFFu);
+    printf("  Current1: %" PRIu32 "\n", (range1 >> 8) & 0xFFu);
+    printf("  Power1: %" PRIu32 "\n", (range1 >> 16) & 0xFFu);
+
+    printf("Range2 (0x00BE): 0x%08" PRIX32 "\n", range2);
+    printf("  Current2: %" PRIu32 "\n", (range2 >> 8) & 0xFFu);
+    printf("  Power2: %" PRIu32 "\n", (range2 >> 16) & 0xFFu);
+
+}
+
+void f511_check_range_registers(int fd)
+{
+    uint32_t range1;
+    uint32_t range2;
+    int res;
+
+    res = f511_get_range_registers(&range1, &range2, fd);
+    if (res != 0) {
+        fprintf(stderr, "Error. Could not read Range registers\n");
+        exit(-1);
+    }
+
+    if ( (range1 & 0xFFu) != 18) {
+        fprintf(stderr, "Voltage range register was not expected 18 but %d\n", range1 & 0xFFu);
+        exit(-1);
+    }
+    if ( ((range1 >> 8) & 0xFFu) != 12) {
+        fprintf(stderr, "Current1 range register was not expected 12 but %d\n", (range1 >> 8) & 0xFFu);
+        exit(-1);
+    }
+    if ( ((range1 >> 16) & 0xFFu) != 19) {
+        fprintf(stderr, "Power1 range register was not expected 19 but %d\n", (range1 >> 16) & 0xFFu);
+        exit(-1);
+    }
+
+    if ( ((range2 >> 8) & 0xFFu) != 12) {
+        fprintf(stderr, "Current2 range register was not expected 12 but %d\n", (range2 >> 8) & 0xFFu);
+        exit(-1);
+    }
+
+    if ( ((range2 >> 16) & 0xFFu) != 19) {
+        fprintf(stderr, "Power2 range register was not expected 19 but %d\n", (range2 >> 16) & 0xFFu);
+        exit(-1);
+    }
+}
+
+int f511_init(const char *port, bool enable_energy)
 {
     unsigned char reply[80];
     int res;
@@ -211,6 +386,13 @@ int f511_init(const char *port)
         fprintf(stderr, "Error. res was not 0 but %d\n", res);
         return -1;
     }
+
+    res = f511_set_energy_counting(fd, enable_energy);
+    if (res < 0) {
+        fprintf(stderr, "Error. Could not %s MCP energy counting\n", enable_energy ? "enable" : "disable");
+        return -1;
+    }
+
     return fd;
 }
 
@@ -218,19 +400,26 @@ int main(int argc, char **argv) {
 
     int c;
     bool check_system_flag = false;
+    bool dump_range_registers = false;
+    bool oneshot = false;
+    bool energy_mode = false;
     struct timeval now;
     int fd;
     int result;
-    int data[2]; // The MCP has two outlets where you can measure.
+    int power_data[2]; // The MCP has two outlets where you can measure.
+    uint64_t energy_data[2];
 
 
-    while ((c = getopt (argc, argv, "hi:dc")) != -1) {
+    while ((c = getopt (argc, argv, "hi:dceox")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-h] [-m]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
             printf("\t-c      : check system and exit\n");
+            printf("\t-e      : enable energy counting and read the import-active energy counter\n");
+            printf("\t-o      : Output only current value and exit (One-Shot)\n");
+            printf("\t-x      : dump Range1 (0x00AE) and Range2 (0x00BE) register contents and exit\n");
             printf("\n");
             exit(0);
         case 'i':
@@ -238,6 +427,15 @@ int main(int argc, char **argv) {
             break;
         case 'c':
             check_system_flag = true;
+            break;
+        case 'e':
+            energy_mode = true;
+            break;
+        case 'o':
+            oneshot = true;
+            break;
+        case 'x':
+            dump_range_registers = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -247,7 +445,7 @@ int main(int argc, char **argv) {
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    fd = f511_init("/dev/ttyACM0");
+    fd = f511_init("/dev/ttyACM0", energy_mode);
 
     if(fd < 0) {
         fprintf(stderr, "Error. Connection could not be opened\n");
@@ -257,20 +455,47 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
+    if (dump_range_registers) {
+        f511_dump_range_registers(fd);
+        close(fd);
+        return 0;
+    }
+
+    f511_check_range_registers(fd);
+
     get_time_offset(&offset);
 
-    while (1) {
-        result = f511_get_power(&data[0], &data[1], fd);
-        if(result != 0) {
-            fprintf(stderr, "Error. Result was not 0 but %d\n", result);
-            break;
+    if (oneshot) {
+        if (energy_mode) {
+            result = f511_get_energy(&energy_data[0], &energy_data[1], fd);
+            printf("%" PRIu64 "\n", energy_data[0]);
+        } else {
+            result = f511_get_power(&power_data[0], &power_data[1], fd);
+            printf("%d\n", power_data[0]);
         }
-        // The MCP returns the current power consumption in 10mW steps.
-        get_adjusted_time(&now, &offset);
+    } else {
+        while (1) {
+            if (energy_mode) {
+                result = f511_get_energy(&energy_data[0], &energy_data[1], fd);
+            } else {
+                result = f511_get_power(&power_data[0], &power_data[1], fd);
+            }
+            if(result != 0) {
+                fprintf(stderr, "Error. Result was not 0 but %d\n", result);
+                break;
+            }
+            get_adjusted_time(&now, &offset);
 
-        printf("%ld%06ld %d\n", now.tv_sec, now.tv_usec, data[0]);
-        usleep(msleep_time*1000);
+            if (energy_mode) {
+                printf("%ld%06ld %" PRIu64 "\n", now.tv_sec, now.tv_usec, energy_data[0]);
+            } else {
+                // The MCP returns the current power consumption in 10mW steps.
+                printf("%ld%06ld %d\n", now.tv_sec, now.tv_usec, power_data[0]);
+            }
+            usleep(msleep_time*1000);
+        }
     }
+
     close(fd);
 
     return 0;
