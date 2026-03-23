@@ -468,7 +468,8 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
         filename = run_info['filename']
 
         match case:
-            case 'Repeated Run':
+
+            case 'Repeated Run on same Commit Hash' | 'Repeated Run (Two only) on same Commit Hash':
                 # same repo, same usage scenarios, same machines, same branches, same commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
                 phase_stats_object['common_info']['Filename'] = filename

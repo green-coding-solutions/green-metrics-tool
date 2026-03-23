@@ -337,7 +337,7 @@ def determine_comparison_case(user, ids, force_mode=None):
     # case = 'Usage Scenario' # Case C_2 : SoftwareDeveloper Case
     # case = 'Machine' # Case C_1 : DataCenter Case
     # case = 'Commit' # Case B: DevOps Case
-    # case = 'Repeated Run' # Case A: Blue Angel
+    # case = 'Repeated Run on same Commit Hash' # Case A: Blue Angel
     # case = 'Usage Scenario Variables' # Case E - Quick Development Case
 
     if force_mode:
@@ -442,8 +442,15 @@ def determine_comparison_case(user, ids, force_mode=None):
         if usage_scenario_variables > 3:
             raise RuntimeError('Multiple usage scenario variables comparison not supported.')
 
+        # important to check this case before checking repeated runs
+        # reason being is that two runs will shown with rel stddev of the population
+        # which is not what we want.
+        # we want actual difference in A vs. B
+        if len(ids) == 2:
+            return ('Repeated Run (Two only) on same Commit Hash', 'id')
+
         if usage_scenario_variables == 1:
-            return ('Repeated Run', 'commit_hash')  # Case A - Everything is identical and just repeating runs
+            return ('Repeated Run on same Commit Hash', 'commit_hash')  # Case A - Everything is identical and just repeating runs
 
     except RuntimeError as exc:
         if len(ids) == 2:
@@ -616,7 +623,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
             key = filename # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
             key = str(machine_id) # Case C_1 : DataCenter Case
-        elif case in ('Commit', 'Repeated Run'):
+        elif case in ('Commit', 'Repeated Run on same Commit Hash'):
             key = commit_hash # Repeated Run
         elif case == 'Usage Scenario Variables':
             key = str(usage_scenario_variables) # Case E: Quick Development Case

@@ -506,7 +506,7 @@ class TestFrontendFunctionality:
         new_page.set_default_timeout(3_000)
 
         comparison_type = new_page.locator('#run-data-top > tbody:nth-child(1) > tr > td:nth-child(2)').text_content()
-        assert comparison_type == 'Repeated Run'
+        assert comparison_type == 'Repeated Run on same Commit Hash'
 
         runs_compared = new_page.locator('#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)').text_content()
         assert runs_compared == '3'
