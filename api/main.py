@@ -102,6 +102,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
+    #allow_origins=["*"],  # nur für Test
 )
 
 def obfuscate_authentication_token(headers: StarletteHeaders):

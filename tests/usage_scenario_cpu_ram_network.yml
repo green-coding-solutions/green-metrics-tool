@@ -1,0 +1,16 @@
+author: "Max"
+description: "Messung von CPU, RAM und Netzwerk auf Host"
+
+services:
+  host-machine:
+    image: host
+    setup-commands: []
+
+flow:
+  - name: Baseline
+    container: host-machine
+    commands:
+      - type: console
+        command: sleep 5
+        note: "Minimaler Lauf zum Sammeln der Metriken CPU, RAM und Netzwerk"
+ignore-unsupported-compose: true

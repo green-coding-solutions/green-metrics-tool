@@ -1,0 +1,18 @@
+name: Memory_Stress_Only
+author: max <dein@email.de>
+description: RAM stress scenario with metrics only
+
+services:
+  host:
+    image: gmt-test-image
+    init: true
+
+flow:
+  - name: RAM Stress
+    container: host
+    commands:
+      - type: console
+        command: "stress-ng -m 2 --vm-bytes __GMT_VAR_RAM_MB__M -t __GMT_VAR_RAM_DURATION__ -q"
+        log-stdout: true
+        log-stderr: true
+        read-notes-stdout: true

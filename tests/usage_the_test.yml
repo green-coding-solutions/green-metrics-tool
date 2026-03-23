@@ -1,0 +1,29 @@
+name: CPU_RAM_Stress
+author: max <dein@email.de>
+description: CPU & RAM stress scenario with metrics and variable durations
+
+services:
+    host:
+        image: gmt-test-image
+        init: true
+
+flow:
+  - name: CPU Stress
+    container: host
+    commands:
+      - type: console
+        command: "stress-ng -c 4 -t __GMT_VAR_CPU_DURATION__ -q"
+        note: CPU stress test
+        log-stdout: true
+        log-stderr: true
+        read-notes-stdout: true
+
+  - name: RAM Stress
+    container: host
+    commands:
+      - type: console
+        command: "stress-ng -m 1 --vm-bytes __GMT_VAR_RAM_MB__M -t __GMT_VAR_RAM_DURATION__ -q"
+        note: RAM stress test
+        log-stdout: true
+        log-stderr: true
+        read-notes-stdout: true
