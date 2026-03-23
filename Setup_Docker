@@ -1,0 +1,58 @@
+# Docker  – Green Metrics Tool
+
+This guide documents steps required to successfully run the Green Metrics Tool using Docker.
+
+Several configuration files and volume mappings are currently required that are not covered in the default installation flow.
+
+---
+
+## Requirements
+
+- Docker
+- Docker Compose (v2 see https://docs.green-coding.io/docs/installation/installation-windows/ )
+- Git
+
+---
+
+## Clone repository
+
+```bash
+git clone https://github.com/green-coding-solutions/green-metrics-tool.git
+cd green-metrics-tool
+cp config.yml.example config.yml
+cp docker/compose.yml.example docker/docker-compose.yml 
+edit .yml:
+        - (change password line 13 green-metrics-tool/
+	- changetimezone bsp. UTC 
+	- change the path of volumes to ../:/var/www/green-metrics-tool:ro 
+	(../ )to set to partent folder  (2 x)
+
+create files from already existing example files: 
+	cp docker/nginx/api.conf.example docker/nginx/api.conf
+	cp docker/nginx/block-and-redirect.conf.example docker/nginx/block-and-redirect.conf
+	cp docker/nginx/frontend.conf.example docker/nginx/frontend.conf
+
+
+
+folderstructur: 
+green-metrics-tool/
+│
+├─ new  config.yml                     # Your new configuration file (example / base)
+├─ .gitignore                     # Updated (.gitignore now includes config.yml)
+├─ INSTALL_DOCKER.md              # New documentation for Docker setup
+│
+├─ docker/
+│   ├─ new  docker-compose.yml         # Your completed Docker Compose file
+│   └─ nginx/
+│       ├─ new api.conf               # Copied from api.conf.example
+│       ├─ new block-and-redirect.conf# Copied from block-and-redirect.conf.example
+│       ├─ new frontend.conf          # Copied from frontend.conf.example
+│       ├─ api.conf.example       # Original example file
+│       ├─ block-and-redirect.conf.example
+│       └─ frontend.conf.example
+│
+├─ Dockerfile-gunicorn            # Dockerfile for Gunicorn
+└─ ... other project files ...
+
+	
+start with first measurements https://docs.green-coding.io/docs/measuring/measuring-locally/
