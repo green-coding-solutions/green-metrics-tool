@@ -3,6 +3,7 @@
 import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
+from datetime import date
 
 from fastapi import FastAPI, Request, Response, Depends, HTTPException
 from fastapi.responses import ORJSONResponse
@@ -210,15 +211,28 @@ async def get_cluster_status_history(
 @app.get('/v1/cluster/changelog')
 async def get_cluster_changelog(
     machine_id: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
 
     params = []
     machine_id_condition = ''
+    start_date_condition = ''
+    end_date_condition = ''
 
+    # if no machine is listed in the entry it means it is valid for ALL machines. Thus we include NULL
     if machine_id is not None:
-        machine_id_condition = 'AND machine_id = %s'
+        machine_id_condition = 'AND (machine_id = %s OR machine_id IS NULL)'
         params.append(machine_id)
+
+    if start_date is not None:
+        start_date_condition = 'AND created_at >= %s'
+        params.append(start_date)
+
+    if end_date is not None:
+        end_date_condition = 'AND created_at <= %s'
+        params.append(end_date)
 
     query = f"""
         SELECT id, message, machine_id, created_at
@@ -226,6 +240,8 @@ async def get_cluster_changelog(
         WHERE
             1=1
             {machine_id_condition}
+            {start_date_condition}
+            {end_date_condition}
         ORDER BY created_at DESC
     """
 
