@@ -341,7 +341,6 @@ const loadCharts = async () => {
     let prun_id = null
 
     phase_stats_data.forEach( (data) => {
-        console.log(data);
         let [run_id, run_name, usage_scenario_variables, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash] = data
 
         const [transformed_value, transformed_unit] = convertValue(value, unit)
