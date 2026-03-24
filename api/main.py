@@ -213,6 +213,7 @@ async def get_cluster_changelog(
     machine_id: int | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
+    show_package_updates: bool | None = None,
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
 
@@ -220,6 +221,7 @@ async def get_cluster_changelog(
     machine_id_condition = ''
     start_date_condition = ''
     end_date_condition = ''
+    package_updates_condition = ''
 
     # if no machine is listed in the entry it means it is valid for ALL machines. Thus we include NULL
     if machine_id is not None:
@@ -231,8 +233,11 @@ async def get_cluster_changelog(
         params.append(start_date)
 
     if end_date is not None:
-        end_date_condition = 'AND created_at <= %s'
+        end_date_condition = 'AND DATE(created_at) <= %s'
         params.append(end_date)
+
+    if show_package_updates is False:
+        package_updates_condition = " AND message NOT LIKE '{\"[%%' "
 
     query = f"""
         SELECT id, message, machine_id, created_at
@@ -242,6 +247,7 @@ async def get_cluster_changelog(
             {machine_id_condition}
             {start_date_condition}
             {end_date_condition}
+            {package_updates_condition}
         ORDER BY created_at DESC
     """
 

@@ -427,6 +427,7 @@ const loadCharts = async () => {
         if (isMeasurementSorting && machineId !== '') {
             const changelogParams = new URLSearchParams();
             changelogParams.set('machine_id', machineId);
+            changelogParams.set('show_package_updates', false);
             if ($('input[name="start_date"]').val() !== '') {
                 changelogParams.set('start_date', dateToYMD(new Date($('input[name="start_date"]').val()), true));
             }
