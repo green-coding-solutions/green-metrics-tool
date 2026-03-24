@@ -177,7 +177,7 @@ const getLineBarChartOptions = (legend, labels, series, x_axis_name=null, y_axis
    }
 
    if(stddev) {
-       const [ mean, stddev ] = calculateStatistics(series[0].data, true);
+       const [ mean, stddev ] = calculateStatistics(series[0].data);
 
        legend.push('Stddev')
        series.push({

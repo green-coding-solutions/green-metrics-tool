@@ -293,6 +293,57 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     return api_url;
 }
 
+const buildClusterChangelogMarkLines = (clusterChangelog, timestamps) => {
+    if (clusterChangelog == null || clusterChangelog.length === 0 || timestamps.length === 0) return [];
+
+    const labelTimestamps = timestamps.map((timestamp, index) => ({
+        index: index,
+        timestamp: new Date(timestamp).getTime(),
+    })).filter((entry) => !Number.isNaN(entry.timestamp));
+
+    if (labelTimestamps.length === 0) return [];
+
+    const firstTimestamp = labelTimestamps[0].timestamp;
+    const lastTimestamp = labelTimestamps[labelTimestamps.length - 1].timestamp;
+
+    let aggregatedEntries = {};
+
+    clusterChangelog.forEach((entry) => {
+        const changelogCreatedAt = new Date(entry[3]).getTime();
+        if (Number.isNaN(changelogCreatedAt)) return;
+        if (changelogCreatedAt < firstTimestamp || changelogCreatedAt > lastTimestamp) return;
+
+        let nearestLabel = labelTimestamps[labelTimestamps.length - 1];
+        labelTimestamps.some((label, index) => {
+            if (changelogCreatedAt < label.timestamp) {
+                nearestLabel = label;
+                return true;
+            }
+            return false;
+        });
+
+        if (aggregatedEntries[nearestLabel.index] == undefined) {
+            aggregatedEntries[nearestLabel.index] = {
+                xAxis: nearestLabel.index,
+                messages: [],
+                lineStyle: {
+                    color: '#d17a22',
+                    type: 'dashed',
+                    width: 2
+                },
+                label: {
+                    show: false
+                }
+            };
+        }
+
+        aggregatedEntries[nearestLabel.index].messages.push(`${entry[1]} (${dateToYMD(new Date(entry[3]), false, true)})`);
+
+    });
+
+    return Object.values(aggregatedEntries);
+}
+
 
 const loadCharts = async () => {
     if ($('input[name="phase"]:checked').val() === 'custom' && $('input[name="phase_custom"]').val().trim() === '') {
@@ -315,6 +366,7 @@ const loadCharts = async () => {
     }
 
     let phase_stats_data = null;
+    let cluster_changelog_data = [];
     try {
         const queryParams = buildQueryParams();
         phase_stats_data = (await makeAPICall(`/v2/timeline?${queryParams}`)).data
@@ -335,6 +387,7 @@ const loadCharts = async () => {
 
     history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${buildQueryParams()}`); // replace URL to bookmark!
 
+    const isMeasurementSorting = $('input[name="sorting"]:checked').val() === 'run';
     let legends = {};
     let series = {};
 
@@ -346,10 +399,12 @@ const loadCharts = async () => {
         const [transformed_value, transformed_unit] = convertValue(value, unit)
 
         if (series[`${metric_name} - ${detail_name}`] == undefined) {
-            series[`${metric_name} - ${detail_name}`] = {labels: [], values: [], notes: [], unit: transformed_unit, metric_name: metric_name, detail_name: detail_name}
+            series[`${metric_name} - ${detail_name}`] = {labels: [], timestamps: [], values: [], notes: [], unit: transformed_unit, metric_name: metric_name, detail_name: detail_name}
         }
 
-        series[`${metric_name} - ${detail_name}`].labels.push(commit_timestamp)
+        const timelineTimestamp = isMeasurementSorting ? created_at : commit_timestamp;
+        series[`${metric_name} - ${detail_name}`].labels.push(timelineTimestamp)
+        series[`${metric_name} - ${detail_name}`].timestamps.push(created_at)
         series[`${metric_name} - ${detail_name}`].values.push({value: transformed_value, commit_hash: commit_hash, gmt_hash: gmt_hash})
         series[`${metric_name} - ${detail_name}`].notes.push({
             run_name: run_name,
@@ -365,6 +420,27 @@ const loadCharts = async () => {
 
         prun_id = run_id
     })
+
+    try {
+        const machineId = $('select[name="machine_id"]').val();
+
+        if (isMeasurementSorting && machineId !== '') {
+            const changelogParams = new URLSearchParams();
+            changelogParams.set('machine_id', machineId);
+            changelogParams.set('show_package_updates', false);
+            if ($('input[name="start_date"]').val() !== '') {
+                changelogParams.set('start_date', dateToYMD(new Date($('input[name="start_date"]').val()), true));
+            }
+            if ($('input[name="end_date"]').val() !== '') {
+                changelogParams.set('end_date', dateToYMD(new Date($('input[name="end_date"]').val()), true));
+            }
+            cluster_changelog_data = (await makeAPICall(`/v1/cluster/changelog?${changelogParams.toString()}`)).data ?? [];
+        }
+    } catch (err) {
+        if (!(err instanceof APIEmptyResponse204)) {
+            showNotification('Could not get cluster changelog data from API', err);
+        }
+    }
 
     for(const my_series in series) {
         let badge = `
@@ -399,15 +475,38 @@ const loadCharts = async () => {
             data: my_values,
             markLine: {
                 precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
-                data: [ {type: "average",label: {formatter: "AVG:\n{c}"}}] 
+                data: [ {type: "average",label: {formatter: "AVG:\n{c}"}}]
             }
-        }]
+        }];
+
+        const clusterChangelogMarkLines = isMeasurementSorting ? buildClusterChangelogMarkLines(cluster_changelog_data, series[my_series].timestamps) : [];
+        if (clusterChangelogMarkLines.length > 0) {
+            data_series.push({
+                name: 'Cluster Changelog',
+                type: 'line',
+                smooth: false,
+                symbol: 'none',
+                data: [],
+                markLine: {
+                    symbol: ['none', 'none'],
+                    data: clusterChangelogMarkLines
+                }
+            });
+        }
 
         let options = getLineBarChartOptions([], series[my_series].labels, data_series, 'Time', series[my_series].unit,  'category', null, false, null, true, false, true);
 
         options.tooltip = {
             triggerOn: 'click',
             formatter: function (params, ticket, callback) {
+                if (params.componentType === 'markLine' && params.seriesName === 'Cluster Changelog') {
+                    const mergedMessages = params.data.messages.map((message) => escapeString(message)).join('</li><li>');
+                    return `<strong>Cluster Change</strong><br>
+                        <ul  style="margin-left: -20px">
+                        <li>${mergedMessages}</li>
+                        </ul>
+                    `;
+                }
                 if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
                 const repository_uri_encoded = repository_uri.split('/').map(encodeURIComponent).join('/');
                 const html_content = `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong><br>
@@ -452,12 +551,15 @@ const loadCharts = async () => {
             const totalDataPoints = data.length;
             const startIndex = Math.floor(startPercent / 100 * totalDataPoints);
             const endIndex = Math.ceil(endPercent / 100 * totalDataPoints) - 1;
-            const [ mean, stddev ] = calculateStatistics(data.slice(startIndex, endIndex+1), true);
+            const [ mean, stddev ] = calculateStatistics(data.slice(startIndex, endIndex+1));
 
             let options = chart_instance.getOption()
-            options.series[2].markArea.data[0][0].name = `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `(${(stddev/mean * 100).toFixed(2)} %)` : 'N/A'}} %)`
-            options.series[2].markArea.data[0][0].yAxis = mean + stddev
-            options.series[2].markArea.data[0][1].yAxis = mean - stddev;
+            const stddevSeries = options.series.find((entry) => entry.name === 'Stddev');
+            if (stddevSeries?.markArea?.data?.[0] != null) {
+                stddevSeries.markArea.data[0][0].name = `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `(${(stddev/mean * 100).toFixed(2)} %)` : 'N/A'}} %)`
+                stddevSeries.markArea.data[0][0].yAxis = mean + stddev
+                stddevSeries.markArea.data[0][1].yAxis = mean - stddev;
+            }
             chart_instance.setOption(options)
         });
 
