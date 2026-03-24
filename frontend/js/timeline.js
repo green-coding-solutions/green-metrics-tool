@@ -344,6 +344,24 @@ const buildClusterChangelogMarkLines = (clusterChangelog, timestamps) => {
     return Object.values(aggregatedEntries);
 }
 
+const wrapTooltipText = (text, maxLength = 40) => {
+    if (text.length <= maxLength) return text;
+
+    const lines = [];
+    let currentLine = '';
+
+    for (const char of text) {
+        currentLine += char;
+        if (currentLine.length >= maxLength) {
+            lines.push(currentLine.substring(0, maxLength));
+            currentLine = currentLine.substring(maxLength);
+        }
+    }
+
+    if (currentLine.length > 0) lines.push(currentLine);
+    return lines.join('<br>');
+}
+
 
 const loadCharts = async () => {
     if ($('input[name="phase"]:checked').val() === 'custom' && $('input[name="phase_custom"]').val().trim() === '') {
@@ -500,7 +518,7 @@ const loadCharts = async () => {
             triggerOn: 'click',
             formatter: function (params, ticket, callback) {
                 if (params.componentType === 'markLine' && params.seriesName === 'Cluster Changelog') {
-                    const mergedMessages = params.data.messages.map((message) => escapeString(message)).join('</li><li>');
+                    const mergedMessages = params.data.messages.map((message) => wrapTooltipText(escapeString(message))).join('</li><li>');
                     return `<strong>Cluster Change</strong><br>
                         <ul  style="margin-left: -20px">
                         <li>${mergedMessages}</li>
