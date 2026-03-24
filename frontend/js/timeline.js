@@ -452,7 +452,7 @@ const loadCharts = async () => {
             const totalDataPoints = data.length;
             const startIndex = Math.floor(startPercent / 100 * totalDataPoints);
             const endIndex = Math.ceil(endPercent / 100 * totalDataPoints) - 1;
-            const [ mean, stddev ] = calculateStatistics(data.slice(startIndex, endIndex+1), true);
+            const [ mean, stddev ] = calculateStatistics(data.slice(startIndex, endIndex+1));
 
             let options = chart_instance.getOption()
             options.series[2].markArea.data[0][0].name = `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `(${(stddev/mean * 100).toFixed(2)} %)` : 'N/A'}} %)`
