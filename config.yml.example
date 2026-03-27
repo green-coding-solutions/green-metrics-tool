@@ -202,7 +202,13 @@ measurement:
         sampling_rate: 99
     #--- Architecture - Common
     common:
-#      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
+#--- Windows RAPL - Only enable on Windows machines with WSL2
+#      cpu.energy.rapl.scaphandre.component.provider.CpuEnergyRaplScaphandreComponentProvider:
+#        sampling_rate: 100
+#        rapl_reader_exe: 'C:\rapl\rapl_reader.exe'
+#---
+
+#---      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
 ##        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
     #--- Model based - These providers estimate rather than measure. Helpful where measuring is not possible, like in VMs
 #      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
