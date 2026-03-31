@@ -5,6 +5,7 @@ import pytest
 import re
 import os
 import platform
+import stat
 import subprocess
 import yaml
 
@@ -65,6 +66,29 @@ def test_uri_local_dir_missing():
 
     assert expected_exception == str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
+
+def test_git_environment_without_ssh_private_key():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner._create_folders()
+
+    env = runner._get_git_environment()
+
+    assert env['GIT_TERMINAL_PROMPT'] == '0'
+    assert 'GIT_SSH_COMMAND' not in env
+
+def test_git_environment_with_ssh_private_key():
+    key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=key, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner._create_folders()
+
+    env = runner._get_git_environment()
+
+    assert env['GIT_TERMINAL_PROMPT'] == '0'
+    assert 'GIT_SSH_COMMAND' in env
+    assert 'IdentitiesOnly=yes' in env['GIT_SSH_COMMAND']
+    assert 'StrictHostKeyChecking=accept-new' in env['GIT_SSH_COMMAND']
+    assert runner._ssh_private_key_file.read_text(encoding='utf-8') == key
+    assert stat.S_IMODE(runner._ssh_private_key_file.stat().st_mode) == 0o600
 
 def test_non_git_root_supplied():
     runner = ScenarioRunner(uri=f"{GMT_DIR}/tests/data/usage_scenarios/", uri_type='folder', filename='invalid_image.yml', dev_no_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)

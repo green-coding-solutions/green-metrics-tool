@@ -24,3 +24,27 @@ def test_even_if_token_set_for_user_zero_authenticate_still_fails():
     with pytest.raises(UserAuthenticationError) as e:
         User.authenticate(SecureVariable('asd'))
     assert str(e.value) == 'User 0 is system user and cannot log in'
+
+def test_user_to_dict_does_not_expose_ssh_private_key():
+    user = User(1)
+    try:
+        user.update_ssh_private_key('-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----')
+
+        user_dict = user.to_dict()
+
+        assert user_dict['_has_ssh_private_key'] is True
+        assert '_ssh_private_key' not in user_dict
+    finally:
+        user.update_ssh_private_key('')
+
+def test_user_can_clear_ssh_private_key():
+    user = User(1)
+    try:
+        user.update_ssh_private_key('-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----')
+
+        user.update_ssh_private_key('')
+
+        assert user.has_ssh_private_key() is False
+        assert user.get_ssh_private_key() is None
+    finally:
+        user.update_ssh_private_key('')

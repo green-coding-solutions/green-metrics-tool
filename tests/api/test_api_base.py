@@ -34,6 +34,8 @@ def test_no_user_query_string_override():
 
 
 def test_can_read_authentication_data():
+    User(1).update_ssh_private_key('')
+
     response = requests.get(f"{API_URL}/v1/user/settings", timeout=15)
     assert response.status_code == 200
     json_data = json.loads(response.text)
@@ -41,6 +43,24 @@ def test_can_read_authentication_data():
     assert json_data['success'] is True
     assert json_data['data'].get('_id', None) is None # must be deleted in response
     assert json_data['data']['_name'] == 'DEFAULT'
+    assert json_data['data']['_has_ssh_private_key'] is False
+    assert json_data['data'].get('_ssh_private_key', None) is None
+
+def test_can_update_ssh_private_key_setting():
+    payload = {
+        'name': 'ssh_private_key',
+        'value': '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----',
+    }
+
+    try:
+        response = requests.put(f"{API_URL}/v1/user/setting", json=payload, timeout=15)
+        assert response.status_code == 202
+
+        user = User(1)
+        assert user.has_ssh_private_key() is True
+        assert user.get_ssh_private_key() == '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
+    finally:
+        User(1).update_ssh_private_key('')
 
 def test_api_quota_exhausted():
     user = User(1)

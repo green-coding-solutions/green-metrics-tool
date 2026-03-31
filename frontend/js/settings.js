@@ -1,5 +1,5 @@
 const updateSetting = async (el) => {
-    const left_el = el.parentElement.previousElementSibling.querySelector('input, select');
+    const left_el = el.parentElement.previousElementSibling.querySelector('input, select, textarea');
     const name = left_el.getAttribute('data-setting');
     try {
         if (left_el.type == 'select-multiple') {
@@ -11,11 +11,46 @@ const updateSetting = async (el) => {
             showNotification('Save success!', `${name} = ${left_el.checked}`, 'success')
         } else {
             await makeAPICall('/v1/user/setting', {name: name, value: left_el.value}, null, true)
-            showNotification('Save success!', `${name} = ${left_el.value}`, 'success')
+            if (name === 'ssh_private_key') {
+                showNotification('Save success!', 'ssh_private_key updated', 'success')
+                renderSshPrivateKeyState(true);
+                left_el.value = '';
+            } else {
+                showNotification('Save success!', `${name} = ${left_el.value}`, 'success')
+            }
         }
     } catch (err) {
         showNotification('Could not save setting', err);
         return
+    }
+}
+
+const renderSshPrivateKeyState = (hasSshPrivateKey) => {
+    const textarea = document.querySelector('#ssh-private-key');
+    const status = document.querySelector('#ssh-private-key-status');
+    const clearButton = document.querySelector('#clear-ssh-private-key');
+
+    if (!textarea || !status || !clearButton) {
+        return;
+    }
+
+    textarea.value = '';
+    textarea.placeholder = hasSshPrivateKey
+        ? 'Paste a new private key here to replace the stored key.'
+        : 'Paste an OpenSSH private key here to enable private repository clones.';
+    status.textContent = hasSshPrivateKey
+        ? 'A private key is stored for this user.'
+        : 'No private key stored for this user.';
+    clearButton.style.display = hasSshPrivateKey ? 'inline-block' : 'none';
+}
+
+const clearSshPrivateKey = async () => {
+    try {
+        await makeAPICall('/v1/user/setting', {name: 'ssh_private_key', value: ''}, null, true)
+        renderSshPrivateKeyState(false);
+        showNotification('Save success!', 'ssh_private_key cleared', 'success')
+    } catch (err) {
+        showNotification('Could not save setting', err);
     }
 }
 
@@ -40,6 +75,7 @@ const getSettings = async () => {
         document.querySelector('#measurement-post-test-sleep').value = data?.data?._capabilities?.measurement?.post_test_sleep;
         document.querySelector('#measurement-phase-transition-time').value = data?.data?._capabilities?.measurement?.phase_transition_time;
         document.querySelector('#measurement-wait-time-dependencies').value = data?.data?._capabilities?.measurement?.wait_time_dependencies;
+        renderSshPrivateKeyState(data?.data?._has_ssh_private_key === true);
     } catch (err) {
         showNotification('Could not load settings', err);
     }

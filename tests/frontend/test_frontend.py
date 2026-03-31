@@ -715,6 +715,7 @@ class TestFrontendFunctionality:
         assert time_series_avg_display.strip() == 'Currently not showing AVG in time series'
 
     def test_settings_measurement(self):
+        User(1).update_ssh_private_key('')
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
@@ -785,6 +786,9 @@ class TestFrontendFunctionality:
         value = page.locator('#measurement-skip-volume-inspect').is_checked()
         assert value is user._capabilities['measurement']['skip_volume_inspect']
 
+        value = page.locator('#ssh-private-key-status').text_content()
+        assert value.strip() == 'No private key stored for this user.'
+
 
         page.locator('#measurement-system-check-threshold').fill('2')
         page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "NetworkConnectionsProxyContainerProvider");')
@@ -815,6 +819,8 @@ class TestFrontendFunctionality:
         page.locator('#save-measurement-dev-no-sleeps').click()
         page.locator('#save-measurement-skip-optimizations').click()
         page.locator('#save-measurement-skip-volume-inspect').click()
+        page.locator('#ssh-private-key').fill('-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----')
+        page.locator('#save-ssh-private-key').click()
 
         #page.wait_for_load_state("networkidle") # Network Idle sadly not enough here. The DB seems to take 1-2 seconds
         time.sleep(1)
@@ -834,6 +840,11 @@ class TestFrontendFunctionality:
         assert user._capabilities['measurement']['phase_transition_time'] == 2
         assert user._capabilities['measurement']['wait_time_dependencies'] == 120
         assert user._capabilities['measurement']['skip_volume_inspect'] is True
+        assert user.has_ssh_private_key() is True
+
+        page.locator('#clear-ssh-private-key').click()
+        time.sleep(1)
+        assert User(1).has_ssh_private_key() is False
 
 
 class TestXssSecurity:

@@ -19,7 +19,7 @@ class User():
             raise UserAuthenticationError('User 0 is system user and cannot log in')
 
         user = DB().fetch_one("""
-                SELECT id, name, capabilities
+                SELECT id, name, capabilities, ssh_private_key
                 FROM users
                 WHERE id = %s
                 """, params=(user_id, ))
@@ -29,10 +29,13 @@ class User():
         self._id = user[0]
         self._name = user[1]
         self._capabilities = user[2]
+        self._ssh_private_key = SecureVariable(user[3]) if user[3] else None
+        self._has_ssh_private_key = self._ssh_private_key is not None
 
     def to_dict(self):
         values = self.__dict__.copy()
         del values['_id']
+        values.pop('_ssh_private_key', None)
         return values
 
     def __repr__(self):
@@ -61,6 +64,10 @@ class User():
         return schedule_mode in self._capabilities['jobs']['schedule_modes']
 
     def change_setting(self, name, value):
+        if name == 'ssh_private_key':
+            self.update_ssh_private_key(value)
+            return
+
         if not self.can_change_setting(name):
             raise ValueError(f"You cannot change this setting: {name}")
 
@@ -92,6 +99,38 @@ class User():
         (element, last_key, _) = get_nested_value(self._capabilities, name)
         element[last_key] = value
         self.update()
+
+    def has_ssh_private_key(self):
+        return self._has_ssh_private_key
+
+    def get_ssh_private_key(self):
+        if self._ssh_private_key is None:
+            return None
+        return self._ssh_private_key.get_value()
+
+    def update_ssh_private_key(self, value):
+        if value is None:
+            normalized_value = None
+        elif not isinstance(value, str):
+            raise ValueError('The setting ssh_private_key must be a string')
+        else:
+            normalized_value = value.strip()
+
+            if normalized_value == '':
+                normalized_value = None
+            elif not all(marker in normalized_value for marker in ('-----BEGIN', 'PRIVATE KEY-----', '-----END')):
+                raise ValueError('The setting ssh_private_key must contain a valid private key block')
+            else:
+                normalized_value = f"{normalized_value}\n"
+
+        DB().query("""
+            UPDATE users
+            SET ssh_private_key = %s
+            WHERE id = %s
+            """, params=(normalized_value, self._id, ))
+
+        self._ssh_private_key = SecureVariable(normalized_value) if normalized_value else None
+        self._has_ssh_private_key = self._ssh_private_key is not None
 
     def can_change_setting(self, name):
         return name in self._capabilities['user']['updateable_settings']

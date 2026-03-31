@@ -64,6 +64,7 @@ class ScenarioRunner:
         debug_mode=False, allow_unsafe=False,
         verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
         commit_hash=None,
+        ssh_private_key=None,
         docker_prune=False, job_id=None, user_id=1,
         disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None,
         category_ids=None,
@@ -130,12 +131,14 @@ class ScenarioRunner:
         self._branch = branch
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._requested_commit_hash = commit_hash
+        self._ssh_private_key = ssh_private_key
 
         self._tmp_folder = Path('/tmp/').resolve(strict=True).joinpath('green-metrics-tool') # since linux has /tmp and macos /private/tmp
         self._relations_folder = self._tmp_folder.joinpath('relations')
         self._repo_folder = self._tmp_folder.joinpath('repo') # default if not changed in checkout_repository
         self._metrics_folder = self._tmp_folder.joinpath('metrics')
         self._build_dir = self._tmp_folder.joinpath('docker_images')
+        self._ssh_private_key_file = self._tmp_folder.joinpath('user_ssh_key')
 
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
@@ -244,6 +247,36 @@ class ScenarioRunner:
         shutil.rmtree(path, ignore_errors=False)
         path.mkdir(parents=False, exist_ok=False)
 
+    def _ensure_ssh_private_key_file(self):
+        if not self._ssh_private_key:
+            return None
+
+        self._ssh_private_key_file.write_text(self._ssh_private_key, encoding='utf-8')
+        os.chmod(self._ssh_private_key_file, 0o600)
+        return self._ssh_private_key_file
+
+    def _get_git_environment(self):
+        env = os.environ.copy()
+        env['GIT_TERMINAL_PROMPT'] = '0'
+
+        ssh_private_key_file = self._ensure_ssh_private_key_file()
+        if ssh_private_key_file is None:
+            return env
+
+        ssh_command = [
+            'ssh',
+            '-F',
+            os.devnull,
+            '-i',
+            ssh_private_key_file.as_posix(),
+            '-o',
+            'IdentitiesOnly=yes',
+            '-o',
+            'StrictHostKeyChecking=accept-new',
+        ]
+        env['GIT_SSH_COMMAND'] = shlex.join(ssh_command)
+        return env
+
 
     def get_optimizations_ignore(self):
         return self.__usage_scenario.get('optimizations_ignore', [])
@@ -339,7 +372,8 @@ class ScenarioRunner:
                     check=True,
                     capture_output=True,
                     encoding='UTF-8',
-                    errors='replace'
+                    errors='replace',
+                    env=self._get_git_environment(),
                 )
 
             if self._requested_commit_hash:
@@ -414,7 +448,8 @@ class ScenarioRunner:
                     check=True,
                     capture_output=True,
                     encoding='UTF-8',
-                    errors='replace'
+                    errors='replace',
+                    env=self._get_git_environment(),
                 )
 
             if 'commit_hash' in relation:
@@ -443,6 +478,7 @@ class ScenarioRunner:
             'encoding': 'UTF-8',
             'errors': 'replace',
             'cwd': repo_path,
+            'env': self._get_git_environment(),
         }
 
         try:

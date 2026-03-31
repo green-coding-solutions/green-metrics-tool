@@ -43,6 +43,7 @@ class RunJob(Job):
             filename=self._filename,
             branch=self._branch,
             commit_hash=self._commit_hash,
+            ssh_private_key=user.get_ssh_private_key(),
             allow_unsafe=user._capabilities['measurement']['allow_unsafe'],
             skip_unsafe=user._capabilities['measurement']['skip_unsafe'],
             dev_no_system_checks=user._capabilities['measurement']['dev_no_system_checks'],
