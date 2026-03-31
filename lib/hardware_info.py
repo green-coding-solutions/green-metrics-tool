@@ -19,7 +19,7 @@ CURRENT_PATH = os.path.dirname(__file__)
 # this can also be used to remove a \n at the end of single line
 rpwrs = lambda *x: ''.join(set(rpwr(*x).split('\n')))
 
-def get_display_resoutions():
+def get_display_resolutions():
 
     x11_dir = "/tmp/.X11-unix/"
     output = []
@@ -88,7 +88,7 @@ linux_info_list = [
     [rfwr, 'IO Scheduling', '/sys/block/sda/queue/scheduler', r'(?P<o>.*)'],
     [rpwr, 'Network Interfaces', 'ip addr', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rfwr, 'Current Clocksource', '/sys/devices/system/clocksource/clocksource0/current_clocksource', r'(?P<o>.*)'],
-    [cf, 'Display Resolutions', get_display_resoutions()],
+    [cf, 'Display Resolutions', get_display_resolutions],
 ]
 
 # This is a very slimmed down version in comparison to the linux list. This is because we will not be using this
