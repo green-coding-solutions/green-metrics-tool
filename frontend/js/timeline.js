@@ -267,7 +267,7 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     }
     if($('select[name="machine_id"]').val() !== '') api_url += `${ampersand}machine_id=${encodeURIComponent($('select[name="machine_id"]').val())}`
     if($('input[name="filename"]').val() !== '') api_url += `${ampersand}filename=${encodeURIComponent($('input[name="filename"]').val())}`
-    if($('input[name="show_archived"]:checked').val() !== '') api_url += `${ampersand}show_archived=${encodeURIComponent($('input[name="show_archived"]:checked').val())}`
+    if($('input[name="show_archived"]:checked').val() === 'true') api_url += `${ampersand}show_archived=true`
     if (document.querySelector('#usage-scenario-variables-none')?.checked === true) {
         api_url += `${ampersand}usage_scenario_variables=${encodeURIComponent('false')}`
     } else {
