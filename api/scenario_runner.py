@@ -575,6 +575,7 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
 async def get_timeline_stats(
     uri: str, machine_id: int, branch: str | None = None, filename: str | None = None,
     metric: str | None = None, phase: str | None = None,
+    show_archived: bool | None = None,
     start_date: date | None = None, end_date: date | None = None,  sorting: str | None = None,
     usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
     user: User = Depends(authenticate)):
@@ -586,7 +587,7 @@ async def get_timeline_stats(
         raise HTTPException(status_code=422, detail='Phase is empty')
 
     check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
-    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting)
+    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting, show_archived=show_archived)
 
     data = DB().fetch_all(query, params=params)
 
@@ -599,6 +600,7 @@ async def get_timeline_stats(
 async def get_timeline_stats_v2(
     uri: str, machine_id: int, branch: str | None = None, filename: str | None = None,
     metric: str | None = None, phase: str | None = None,
+    show_archived: bool | None = None,
     start_date: date | None = None, end_date: date | None = None,  sorting: str | None = None,
     usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
     user: User = Depends(authenticate)):
@@ -610,7 +612,7 @@ async def get_timeline_stats_v2(
         raise HTTPException(status_code=422, detail='Phase is empty')
 
     check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
-    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting, v2=True)
+    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting, show_archived=show_archived, include_usage_scenario_variables=True)
 
     data = DB().fetch_all(query, params=params)
 
@@ -631,6 +633,7 @@ async def get_timeline_badge(
         metric: str, uri: str,
         unit: str = 'watt-hours',
         detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None,
+        show_archived: bool | None = None,
         usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
         user: User = Depends(authenticate)):
 
@@ -652,7 +655,7 @@ async def get_timeline_badge(
 
     date_30_days_ago = datetime.now() - timedelta(days=30)
 
-    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now())
+    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now(), show_archived=show_archived)
     # query already contains user access check. No need to have it in aggregate query too
     query = f"""
         WITH trend_data AS (

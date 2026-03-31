@@ -204,6 +204,7 @@ const fillInputsFromURL = (url_params) => {
     }
     if(url_params['sorting'] != null) $(`#sorting-${url_params['sorting']}`).prop('checked', true);
     if(url_params['metric'] != null) $(`#metric-${url_params['metric']}`).prop('checked', true);
+    if(url_params['show_archived'] != null) $(`input[name="show_archived"][value="${url_params['show_archived']}"]`).prop('checked', true);
 
     if(url_params['phase'] != null && url_params['phase'] !== '') {
         const matchingPhaseRadio = $(`input[name="phase"][value="${url_params['phase']}"]`);
@@ -266,6 +267,7 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     }
     if($('select[name="machine_id"]').val() !== '') api_url += `${ampersand}machine_id=${encodeURIComponent($('select[name="machine_id"]').val())}`
     if($('input[name="filename"]').val() !== '') api_url += `${ampersand}filename=${encodeURIComponent($('input[name="filename"]').val())}`
+    if($('input[name="show_archived"]:checked').val() === 'true') api_url += `${ampersand}show_archived=true`
     if (document.querySelector('#usage-scenario-variables-none')?.checked === true) {
         api_url += `${ampersand}usage_scenario_variables=${encodeURIComponent('false')}`
     } else {
@@ -412,7 +414,7 @@ const loadCharts = async () => {
     let prun_id = null
 
     phase_stats_data.forEach( (data) => {
-        let [run_id, run_name, usage_scenario_variables, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash] = data
+        let [run_id, run_name, usage_scenario_variables, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash, archived] = data
 
         const [transformed_value, transformed_unit] = convertValue(value, unit)
 
@@ -433,6 +435,7 @@ const loadCharts = async () => {
             phase: phase,
             run_id: run_id,
             prun_id: prun_id,
+            archived: archived,
             gmt_hash: gmt_hash,
         })
 
@@ -527,7 +530,7 @@ const loadCharts = async () => {
                 }
                 if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
                 const repository_uri_encoded = repository_uri.split('/').map(encodeURIComponent).join('/');
-                const html_content = `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong><br>
+                const html_content = `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong> ${series[params.seriesName].notes[params.dataIndex].archived ? '<span class="ui orange label">Archived</span>' : ''}<br>
                         run_id: <a href="/stats.html?id=${series[params.seriesName].notes[params.dataIndex].run_id}"  target="_blank">${series[params.seriesName].notes[params.dataIndex].run_id}</a><br>
                         date: ${dateToYMD(new Date(series[params.seriesName].notes[params.dataIndex].created_at), false, true)}<br>
                         metric_name: ${escapeString(params.seriesName)}<br>
