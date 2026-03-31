@@ -107,24 +107,22 @@ app.add_middleware(
 
 def obfuscate_authentication_token(headers: StarletteHeaders):
     headers_mut = headers.mutablecopy()
-    if 'X-Authentication' in headers_mut:
+    if 'x-authentication' in headers_mut:
         try:
-            authentication_token = headers_mut['X-Authentication']
+            authentication_token = headers_mut['x-authentication']
             if not authentication_token or authentication_token.strip() == '': # Note that if no token is supplied this will authenticate as the DEFAULT user, which in FOSS systems has full capabilities
                 authentication_token = 'DEFAULT'
 
             user = User.authenticate(SecureVariable(authentication_token))
-            headers_mut['X-Authentication'] = f"****TOKEN REMOVED FOR USER {user._name} ({user._id})****"
+            headers_mut['x-authentication'] = f"****TOKEN REMOVED FOR USER {user._name} ({user._id})****"
         except Exception as exc: # pylint: disable=broad-exception-caught
             error_helpers.log_error(
                 'Could not resolve user name for authentication token',
                 headers=headers,
-                token=headers['X-Authentication'],
+                token=headers['x-authentication'],
                 exception=exc,
                 previous_exception=exc.__context__
             )
-
-            headers_mut['X-Authentication'] = '****TOKEN REMOVED FOR USER __UNKNOWN__ ****'
 
     return headers_mut
 
