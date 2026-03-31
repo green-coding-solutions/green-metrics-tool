@@ -855,7 +855,7 @@ const fetchAndFillNetworkIntercepts = async (run_id) => {
     } else {
         const node = document.querySelector("#network-intercepts");
         for (const item of network.data) {
-            const date = (new Date(Number(item[2]))).toLocaleString();
+            const date = dateToYMD(new Date(Number(item[2])), false, true);
             node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(date)}</strong></td><td>${escapeString(item[3])}</td><td>${escapeString(item[4])}</td></tr>`)
         }
     }
