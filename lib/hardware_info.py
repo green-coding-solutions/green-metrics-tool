@@ -24,6 +24,9 @@ def get_display_resolutions():
     x11_dir = "/tmp/.X11-unix/"
     output = []
 
+    if not os.path.isdir(x11_dir):
+        return 'No Display'
+
     sockets = [f for f in os.listdir(x11_dir) if f.startswith("X")]
     sockets.sort()
 
