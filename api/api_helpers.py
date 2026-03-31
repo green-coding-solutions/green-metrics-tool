@@ -8,10 +8,10 @@ import typing
 import uuid
 import math
 import time
+import orjson
 
 from starlette.background import BackgroundTask
-from fastapi.responses import ORJSONResponse
-from fastapi import Depends, Request, HTTPException
+from fastapi import Depends, Request, HTTPException, Response
 from fastapi.security import APIKeyHeader
 import numpy as np
 import scipy.stats
@@ -815,9 +815,18 @@ def get_t_stat(length):
     t_crit = np.abs(scipy.stats.t.ppf((.05)/2,dof)) # for two sided!
     return t_crit/np.sqrt(length)
 
+# since FastAPI deprecates the normal JSONResponse we need to create a custom class to mitigate the deprecation error
+# We do not want to move to pydantic as this cannot natively serialize datetime from the DB.
+# We would then have to call jsonable_encoder everytime ... this solution here seems cleaner and likely faster
+class CustomORJSONResponse(Response):
+    media_type = "application/json"
+
+    def render(self, content) -> bytes:
+        return orjson.dumps(content) # pylint: disable=no-member
+
 # As the ORJSONResponse renders the object on init we need to keep the original around as otherwise we need to reparse
 # it when we use these functions in our code. The header is a copy from starlette/responses.py JSONResponse
-class ORJSONResponseObjKeep(ORJSONResponse):
+class ORJSONResponseObjKeep(CustomORJSONResponse):
     def __init__(
         self,
         content: typing.Any,
