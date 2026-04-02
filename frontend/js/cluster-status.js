@@ -94,7 +94,7 @@ $(document).ready(function () {
                         $('#machine-configuration').modal('show');
                     })
             },
-            order: [] // empty means enforce no ordering. Use API ordering
+            order: [[2, 'asc']], // API also orders, but we need to indicate order for the user
         });
 
         $('#jobs-table').DataTable({
