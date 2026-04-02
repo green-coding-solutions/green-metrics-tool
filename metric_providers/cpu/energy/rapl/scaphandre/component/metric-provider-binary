@@ -1,0 +1,34 @@
+#!/bin/bash
+# metric-provider-binary
+#
+# GMT Metric Provider Binary for Windows RAPL measurements.
+# Called by GMT's BaseMetricProvider.start_profiling() as:
+#   stdbuf -o0 taskset -c 0 ./metric-provider-binary -i <sampling_rate> > logfile
+#
+# Requires:
+#   - ScaphandreDrv kernel driver installed and running on Windows
+#   - rapl_reader.exe compiled and path set in GMT config.yml
+SAMPLING_RATE=100
+EXE_PATH=""
+CHECK_MODE=0
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -i) SAMPLING_RATE="$2"; shift 2 ;;
+        -e) EXE_PATH="$2";      shift 2 ;;
+        -c) CHECK_MODE=1;       shift ;;
+        *)  shift ;;
+    esac
+done
+
+if [ -z "$EXE_PATH" ]; then
+    echo "Error: No exe path provided." >&2
+    exit 1
+fi
+
+if [ "$CHECK_MODE" -eq 1 ]; then
+    cmd.exe /c "$EXE_PATH -c" 2>/dev/null
+    exit $?
+fi
+
+cmd.exe /c "$EXE_PATH -i $SAMPLING_RATE" 2>/dev/null
