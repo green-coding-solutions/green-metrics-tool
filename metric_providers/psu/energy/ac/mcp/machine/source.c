@@ -35,7 +35,7 @@ const unsigned char f511_read_range2[] = { 0x41, 0x00, 0xBE, 0x4E, 4 };
 
 #define MCP_EXPECTED_VOLTAGE_RANGE 18u
 #define MCP_EXPECTED_CURRENT_RANGE 12u
-#define MCP_DEFAULT_POWER_RANGE 16u
+#define MCP_DEFAULT_POWER_RANGE 6u
 
 // least significant bit first. So 0x01 0x00 will set to 0x0001
 // the accumulation interval is 2^N*(1/f). f is typically 50 Hz. So N=1 would equal to 40ms max resolution
@@ -57,6 +57,8 @@ static struct timespec offset;
 enum mcp_states { init, wait_ack, get_len, get_data, validate_checksum };
 
 enum mcp_states mcp_state = wait_ack;
+
+#define MCP_POWER_RANGE_SHIFT (19u - MCP_DEFAULT_POWER_RANGE)
 
 static uint32_t parse_le32(const unsigned char *buf)
 {
@@ -213,7 +215,7 @@ int mcp_cmd(unsigned char *cmd, unsigned int cmd_length, unsigned char *reply, i
 
 
 
-int f511_get_power(int *ch1, int *ch2, int fd)
+int f511_get_power(uint32_t *ch1, uint32_t *ch2, int fd)
 {
     int res;
     unsigned char reply[40];
@@ -355,7 +357,6 @@ int f511_set_power_range_registers(uint8_t power_range, int fd)
 
     range1 = (range1 & ~(0xFFu << 16)) | ((uint32_t)power_range << 16);
     range2 = (range2 & ~(0xFFu << 16)) | ((uint32_t)power_range << 16);
-
     return f511_set_range_registers(range1, range2, fd);
 }
 
@@ -463,7 +464,7 @@ int main(int argc, char **argv) {
     struct timeval now;
     int fd;
     int result;
-    int power_data[2]; // The MCP has two outlets where you can measure.
+    uint32_t power_data[2]; // The MCP has two outlets where you can measure.
     uint64_t energy_data[2];
 
 
@@ -525,10 +526,10 @@ int main(int argc, char **argv) {
     if (oneshot) {
         if (energy_mode) {
             result = f511_get_energy(&energy_data[0], &energy_data[1], fd);
-            printf("%" PRIu64 "\n", energy_data[0]);
+            printf("%" PRIu64 "\n", (uint64_t)(((__uint128_t)energy_data[0] * 1000000u + ((__uint128_t)1 << (MCP_POWER_RANGE_SHIFT - 1))) >> MCP_POWER_RANGE_SHIFT));
         } else {
             result = f511_get_power(&power_data[0], &power_data[1], fd);
-            printf("%d\n", power_data[0]);
+            printf("%" PRIu64 "\n", (uint64_t)(((uint64_t)power_data[0] * 10000u + (1ull << (MCP_POWER_RANGE_SHIFT - 1))) >> MCP_POWER_RANGE_SHIFT));
         }
     } else {
         while (1) {
@@ -544,12 +545,9 @@ int main(int argc, char **argv) {
             get_adjusted_time(&now, &offset);
 
             if (energy_mode) {
-                printf("%ld%06ld %" PRIu64 "\n", now.tv_sec, now.tv_usec, energy_data[0]);
+                printf("%ld%06ld %" PRIu64 "\n", now.tv_sec, now.tv_usec, (uint64_t)(((__uint128_t)energy_data[0] * 1000000u + ((__uint128_t)1 << (MCP_POWER_RANGE_SHIFT - 1))) >> MCP_POWER_RANGE_SHIFT));
             } else {
-                // Range1/2 power bytes are set to 16, which is 8x finer than the
-                // previous range 19 setting. The MCP now reports power in 1.25 mW
-                // steps instead of 10 mW steps.
-                printf("%ld%06ld %d\n", now.tv_sec, now.tv_usec, power_data[0]);
+                printf("%ld%06ld %" PRIu64 "\n", now.tv_sec, now.tv_usec, (uint64_t)(((uint64_t)power_data[0] * 10000u + (1ull << (MCP_POWER_RANGE_SHIFT - 1))) >> MCP_POWER_RANGE_SHIFT));
             }
             usleep(msleep_time*1000);
         }
