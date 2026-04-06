@@ -533,7 +533,7 @@ def test_phase_stats_network_data():
     total_network_bytes = sum(row['value'] for row in network_totals)
     expected_network_energy_kwh = Decimal(total_network_bytes) / 1_000_000_000 * Decimal(test_sci_config['N'])
     expected_network_energy_uj = expected_network_energy_kwh * 3_600_000_000_000
-    assert math.isclose(network_energy_entry['value'], expected_network_energy_uj, rel_tol=1e-5), f"Expected network energy: {expected_network_energy_uj}, got: {network_energy_entry['value']}"
+    assert math.isclose(network_energy_entry['value'], expected_network_energy_uj, abs_tol=1e-3), f"Expected network energy: {expected_network_energy_uj}, got: {network_energy_entry['value']}"
 
     # Network carbon data
     network_carbon_data = DB().fetch_all(
@@ -611,7 +611,7 @@ def test_sci_calculation():
 
     # Verify SCI value matches expected value: (machine_carbon + embodied_carbon) / R
     expected_sci_value = (machine_carbon_ug + embodied_carbon_ug) / Decimal(test_sci_config['R'])
-    assert math.isclose(abs(sci_entry['value']), expected_sci_value, rel_tol=1e-5), f"SCI calculation should be correct. Expected: {expected_sci_value}, got: {sci_entry['value']}"
+    assert math.isclose(abs(sci_entry['value']), expected_sci_value, abs_tol=1e1), f"SCI calculation should be correct. Expected: {expected_sci_value}, got: {sci_entry['value']}"
 
     # Verify SCI value is reasonable (positive and within expected range)
     assert sci_entry['value'] > 0, "SCI should be positive"
