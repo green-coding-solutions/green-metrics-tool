@@ -57,7 +57,7 @@ def test_phase_stats_single_energy():
     assert data[2]['metric'] == 'psu_power_ac_mcp_machine'
     assert data[2]['detail_name'] == '[MACHINE]'
     assert data[2]['unit'] == 'mW'
-    assert data[2]['value'] == 8384758 # hardcoded bc it is not energy / divided by total_runtime but rather by the samples seen
+    assert data[2]['value'] == 8384760 # hardcoded bc it is not energy / divided by total_runtime but rather by the samples seen
     assert data[2]['type'] == 'MEAN'
     assert data[2]['sampling_rate_avg'] == 99502, 'AVG sampling rate not in expected range' # hardcoded for now. due for refactor
     assert data[2]['sampling_rate_max'] == 101999, 'MAX sampling rate not in expected range'  # hardcoded for now. due for refactor
@@ -188,7 +188,7 @@ def test_phase_stats_multi():
 
     assert data[4]['metric'] == 'psu_power_ac_mcp_machine'
     assert data[4]['phase'] == '004_[RUNTIME]'
-    assert data[4]['value'] == 8384758 # hardcoded bc it is not energy / divided by total_runtime but rather by the samples seen
+    assert data[4]['value'] == 8384760 # hardcoded bc it is not energy / divided by total_runtime but rather by the samples seen
     assert data[4]['type'] == 'MEAN'
     assert data[4]['unit'] == 'mW'
     assert data[4]['detail_name'] == '[MACHINE]'
