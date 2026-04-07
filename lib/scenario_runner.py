@@ -1354,7 +1354,7 @@ class ScenarioRunner:
                             else:
                                 raise ValueError(f"Service '{service_name}': We only allow readonly (ro) or no parameter (writeable) for volume mounts. Volume: {volume}")
 
-                        mount_string = f"{mount_src}:{mount_option}"
+                        mount_string = f"{mount_src}{mount_option}"
                         if mount_string in self._allowed_volume_mounts:
                             if '/' not in mount_src: # volume case. should exist
                                 ps = subprocess.run(
@@ -1379,7 +1379,7 @@ class ScenarioRunner:
 
                         else:
                             if mount_option != ',readonly':
-                                raise RuntimeError(f"Service '{service_name}': We only allow ro as parameter in volume mounts in unsafe mode. Volume: {volume}")
+                                raise RuntimeError(f"Service '{service_name}': We only allow readonly (ro) as parameter in volume mounts in unsafe mode. Volume: {volume}")
 
                             try:
                                 mount_src_absolute = self._join_paths(self.__working_folder, vol[0])
