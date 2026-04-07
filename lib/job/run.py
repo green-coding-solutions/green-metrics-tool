@@ -43,7 +43,7 @@ class RunJob(Job):
             filename=self._filename,
             branch=self._branch,
             commit_hash=self._commit_hash,
-            allow_unsafe=user._capabilities['measurement']['allow_unsafe'],
+            allow_unsafe=False, # cluster runs should never allow this. All should go through individual user permissions,
             skip_unsafe=user._capabilities['measurement']['skip_unsafe'],
             dev_no_system_checks=user._capabilities['measurement']['dev_no_system_checks'],
             skip_volume_inspect=user._capabilities['measurement']['skip_volume_inspect'],
