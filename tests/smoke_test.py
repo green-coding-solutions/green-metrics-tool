@@ -77,13 +77,13 @@ def test_db_rows_are_written_and_presented():
     assert(data is not None and data != [])
 
     config = GlobalConfig().config # will be pre-loaded with test-config.yml due to conftest.py
-    metric_providers = utils.get_metric_providers_names(config)
+    metric_providers = list(utils.get_metric_providers(config).keys())
 
     # The network connection proxy provider writes to a different table so we need to remove it here
-    if 'NetworkConnectionsProxyContainerProvider' in metric_providers:
-        metric_providers.remove('NetworkConnectionsProxyContainerProvider')
+    if 'network_connections_proxy_container' in metric_providers:
+        metric_providers.remove('network_connections_proxy_container')
 
-    if 'PowermetricsProvider' in metric_providers:
+    if 'powermetrics' in metric_providers:
         # The problem here is that the powermetrics provider splits up the output of powermetrics and acts like
         # there are loads of providers. This makes a lot easier in showing and processing the data but is
         # not std behavior. That is also why we need to patch the imported check down below.
@@ -98,12 +98,13 @@ def test_db_rows_are_written_and_presented():
             'ane_energy_powermetrics_component',
         ]
 
-        metric_providers.extend([utils.get_pascal_case(i) + 'Provider' for i in pm_additional_list])
+        metric_providers.extend(pm_additional_list)
 
     do_check = True
 
     for d in data:
-        d_provider = utils.get_pascal_case(d[0]) + 'Provider'
+        d_class_name = utils.get_pascal_case(d[0]) + 'Provider'
+        d_provider = d[0]
         d_count = d[1]
         ## Assert the provider in DB matches one of the metric providers in config
         assert d_provider in metric_providers
@@ -112,21 +113,21 @@ def test_db_rows_are_written_and_presented():
         assert d_count > 0
 
         if do_check:
-            if 'PowermetricsProvider' in metric_providers:
+            if 'powermetrics' in metric_providers:
                 ## Assert the information printed to std.out matches what's in the db
                 match = re.search(r"Imported \S* (\d+) \S* metrics from  PowermetricsProvider", run_stdout, re.MULTILINE)
                 assert match is not None
                 do_check = False
             else:
                 ## Assert the information printed to std.out matches what's in the db
-                match = re.search(rf"Imported \S* (\d+) \S* metrics from\s*{d_provider}", run_stdout)
+                match = re.search(rf"Imported \S* (\d+) \S* metrics from\s*{d_class_name}", run_stdout)
                 assert match is not None
                 assert int(match.group(1)) == d_count
 
             ## Assert that all the providers in the config are represented
             metric_providers.remove(d_provider)
 
-    if not 'PowermetricsProvider' in metric_providers:
+    if 'powermetrics' not in metric_providers:
         assert len(metric_providers) == 0
 
 def test_run_contains_warnings():

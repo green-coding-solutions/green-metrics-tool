@@ -16,6 +16,9 @@ machine:
   base_temperature_value: 10
   base_temperature_chip: "asd"
   base_temperature_feature: "asd"
+  host_reserved_cpus: 1
+  host_reserved_memory: 0
+
 
 measurement:
   metric_providers:

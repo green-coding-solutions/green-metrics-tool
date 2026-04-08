@@ -822,12 +822,12 @@ def wip_test_verbose_provider_boot():
     # there is a note added when it starts "Booting {metric_provider}"
     # can check for this note in the DB and the notes are about 2s apart
     notes = DB().fetch_all(query, (run_id,'Booting%',))
-    metric_providers = utils.get_metric_providers_names(GlobalConfig().config)
+    metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
 
     #for each metric provider, assert there is an an entry in notes
-    for provider in metric_providers:
-        assert any(provider in note for _, note in notes), \
-            Tests.assertion_info(f"note: 'Booting {provider}'", f"notes: {notes}")
+    for metric_provider in metric_providers:
+        assert any(metric_provider in note for _, note in notes), \
+            Tests.assertion_info(f"note: 'Booting {metric_provider}'", f"notes: {notes}")
 
     #check that each timestamp in notes roughly 10 seconds apart
     for i in range(len(notes)-1):

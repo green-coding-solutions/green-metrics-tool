@@ -918,8 +918,8 @@ class ScenarioRunner:
             class_name = "".join([token.capitalize() for token in metric_provider.split('_')]) + "Provider"
             conf = metric_providers[metric_provider] or {}
 
-            if class_name in self._disabled_metric_providers:
-                print(TerminalColors.WARNING, arrows(f"Not importing {class_name} as disabled per user settings"), TerminalColors.ENDC)
+            if metric_provider in self._disabled_metric_providers:
+                print(TerminalColors.WARNING, arrows(f"Not importing {metric_provider} as disabled per user settings"), TerminalColors.ENDC)
                 continue
 
             print(f"Importing {class_name} from {module_path}")

@@ -787,7 +787,7 @@ class TestFrontendFunctionality:
 
 
         page.locator('#measurement-system-check-threshold').fill('2')
-        page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "NetworkConnectionsProxyContainerProvider");')
+        page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "network_connections_proxy_container");')
         page.locator('#measurement-flow-process-duration').fill('456')
         page.locator('#measurement-total-duration').fill('123')
         page.locator('#measurement-phase-padding').click()
@@ -820,7 +820,7 @@ class TestFrontendFunctionality:
         time.sleep(1)
 
         user = User(1)
-        assert user._capabilities['measurement']['disabled_metric_providers'] == ['NetworkConnectionsProxyContainerProvider']
+        assert user._capabilities['measurement']['disabled_metric_providers'] == ['network_connections_proxy_container']
         assert user._capabilities['measurement']['flow_process_duration'] == 456
         assert user._capabilities['measurement']['total_duration'] == 123
         assert user._capabilities['measurement']['phase_padding'] is False

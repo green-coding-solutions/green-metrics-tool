@@ -74,7 +74,7 @@ class User():
                 value = int(value)
             case 'measurement.disabled_metric_providers':
                 value = set(value)
-                allowed_values = {'NetworkConnectionsTcpdumpSystemProvider', 'NetworkConnectionsProxyContainerProvider'} # set
+                allowed_values = {'network_connections_tcpdump_system', 'network_connections_proxy_container'} # set
                 if not value.issubset(allowed_values):
                     raise ValueError(f'The setting {name} must be in {allowed_values} but is {value}')
                 value = list(value) # transform back, as it is not json serializable. But we need the unique transform of set beforehand
