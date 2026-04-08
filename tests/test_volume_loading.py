@@ -14,7 +14,7 @@ from lib.scenario_runner import ScenarioRunner
 from lib.db import DB
 
 def test_volume_load_no_escape():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_etc_hosts.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_etc_hosts.yml')
 
     try:
         with pytest.raises(ValueError) as e:
@@ -28,7 +28,7 @@ def test_volume_load_no_escape():
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
 def test_volume_load_escape_ok_with_allow_unsafe():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_etc_hosts.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, allow_unsafe=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_etc_hosts.yml', allow_unsafe=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -47,7 +47,7 @@ def test_volume_load_escape_ok_with_allow_unsafe():
     assert "File mounted" in out, Tests.assertion_info('File mounted', f"out: {out} | err: {err}")
 
 def test_load_files_from_within_gmt():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_within_proj.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_within_proj.yml')
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -71,7 +71,7 @@ def test_symlinks_should_fail():
 
     os.symlink('/etc/hosts', symlink_file)
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_symlinks_negative.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_symlinks_negative.yml')
 
     try:
         with pytest.raises(ValueError) as e:
@@ -85,8 +85,8 @@ def test_symlinks_should_fail():
     assert str(e.value).startswith(expected_error), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
-def test_non_bind_mounts_should_fail():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_non_bind_mounts.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+def test_volume_not_set_as_read_only_should_fail():
+    runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_non_bind_mounts.yml')
 
     try:
         with pytest.raises(RuntimeError) as e:
@@ -95,12 +95,126 @@ def test_non_bind_mounts_should_fail():
     finally:
         container_running = Tests.check_if_container_running('test-container')
 
-    expected_error = 'The volume test-volume could not be loaded or found at the specified path.'
+    expected_error = 'We only allow readonly (ro) as parameter in volume mounts in safe mode. Volume: gmt-test-volume-delete-me:/tmp/test-volume - Try --allow-unsafe if you are running locally'
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
+
+def test_volume_without_allowed_mount_interpreted_as_missing_path():
+    runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_non_bind_mounts_readonly.yml')
+
+    try:
+        with pytest.raises(RuntimeError) as e:
+            with Tests.RunUntilManager(runner) as context:
+                context.run_until('setup_services')
+    finally:
+        container_running = Tests.check_if_container_running('test-container')
+
+    expected_error = 'The mount path gmt-test-volume-delete-me could not be loaded or found at the specified path.'
+    assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
+    assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
+
+def test_non_existent_but_allowed_volume_should_fail():
+    # we do NOT create the volume here beforehand as we want the test to fail
+
+    runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_non_bind_mounts.yml', allowed_volume_mounts=['gmt-test-volume-delete-me'])
+
+    try:
+        with pytest.raises(RuntimeError) as e:
+            with Tests.RunUntilManager(runner) as context:
+                context.run_until('setup_services')
+    finally:
+        container_running = Tests.check_if_container_running('test-container')
+
+    expected_error = "Could not find volume 'gmt-test-volume-delete-me' locally from service: test-container. The volume must be created manually before it can be loaded. GMT does not create named volumes."
+    assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
+    assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
+
+def test_non_existent_but_allowed_volume_should_fail_readonly():
+    # we do NOT create the volume here beforehand as we want the test to fail
+
+    runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_non_bind_mounts_readonly.yml', allowed_volume_mounts=['gmt-test-volume-delete-me,readonly'])
+
+    try:
+        with pytest.raises(RuntimeError) as e:
+            with Tests.RunUntilManager(runner) as context:
+                context.run_until('setup_services')
+    finally:
+        container_running = Tests.check_if_container_running('test-container')
+
+    expected_error = "Could not find volume 'gmt-test-volume-delete-me' locally from service: test-container. The volume must be created manually before it can be loaded. GMT does not create named volumes."
+    assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
+    assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
+
+
+def test_non_permitted_volume_should_fail():
+
+    subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
+
+    try:
+        runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_non_bind_mounts_readonly.yml')
+
+        try:
+            with pytest.raises(RuntimeError) as e:
+                with Tests.RunUntilManager(runner) as context:
+                    context.run_until('setup_services')
+        finally:
+            container_running = Tests.check_if_container_running('test-container')
+
+        expected_error = 'The mount path gmt-test-volume-delete-me could not be loaded or found at the specified path.'
+        assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
+        assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
+    finally:
+        subprocess.check_output(['docker', 'volume', 'rm', 'gmt-test-volume-delete-me'])
+
+def test_allowed_volume_rw_should_work():
+
+    subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
+
+    try:
+        runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_non_bind_mounts.yml', allowed_volume_mounts=['gmt-test-volume-delete-me'])
+
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+    finally:
+        subprocess.check_output(['docker', 'volume', 'rm', 'gmt-test-volume-delete-me'])
+
+def test_allowed_volume_fails_bc_readonly():
+
+    subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
+
+    try:
+        runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_non_bind_mounts_readonly.yml', allowed_volume_mounts=['gmt-test-volume-delete-me'])
+
+        try:
+            with pytest.raises(RuntimeError) as e:
+                with Tests.RunUntilManager(runner) as context:
+                    context.run_until('setup_services')
+        finally:
+            container_running = Tests.check_if_container_running('test-container')
+
+        expected_error = 'The mount path gmt-test-volume-delete-me could not be loaded or found at the specified path.'
+        assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
+        assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
+    finally:
+        subprocess.check_output(['docker', 'volume', 'rm', 'gmt-test-volume-delete-me'])
+
+def test_allowed_volume_readonly_works():
+
+    subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
+
+    try:
+        runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_non_bind_mounts_readonly.yml', allowed_volume_mounts=['gmt-test-volume-delete-me,readonly'])
+
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+    finally:
+        subprocess.check_output(['docker', 'volume', 'rm', 'gmt-test-volume-delete-me'])
+
+
+
 def test_load_volume_references():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_references.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_references.yml')
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -145,7 +259,7 @@ def test_volume_loading_subdirectories_root():
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename="tests/data/usage_scenarios/subdir_volume_loading/subdir/usage_scenario_subdir.yml", dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = _volume_dot_path_runner("tests/data/usage_scenarios/subdir_volume_loading/subdir/usage_scenario_subdir.yml")
 
     out = io.StringIO()
     err = io.StringIO()
@@ -162,7 +276,7 @@ def test_volume_loading_subdirectories_subdir():
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir2():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename="tests/data/usage_scenarios/subdir_volume_loading/subdir/subdir2/usage_scenario_subdir2.yml", dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = _volume_dot_path_runner("tests/data/usage_scenarios/subdir_volume_loading/subdir/subdir2/usage_scenario_subdir2.yml")
 
     out = io.StringIO()
     err = io.StringIO()
@@ -185,7 +299,7 @@ def test_volume_loading_subdirectories_subdir2():
     assert expect_copied_testfile_4 in run_stdout, Tests.assertion_info(expect_copied_testfile_4, f"expected output not in {run_stdout}")
 
 
-def _volume_dot_path_runner(filename, allow_unsafe=False):
+def _volume_dot_path_runner(filename, allowed_volume_mounts=None, allow_unsafe=False):
     return ScenarioRunner(
         uri=GMT_DIR,
         uri_type='folder',
@@ -194,17 +308,19 @@ def _volume_dot_path_runner(filename, allow_unsafe=False):
         dev_no_metrics=True,
         dev_no_phase_stats=True,
         dev_no_sleeps=True,
-        dev_cache_build=False,
+        dev_no_save=True,
+        dev_cache_build=True,
         allow_unsafe=allow_unsafe,
         dev_no_container_dependency_collection=True,
         skip_download_dependencies=True,
         skip_optimizations=True,
+        allowed_volume_mounts=allowed_volume_mounts,
     )
 
 
 @pytest.mark.parametrize('scenario_filename', [
-    'tests/data/usage_scenarios/volume_load_dot_path.yml',
-    'tests/data/usage_scenarios/volume_load_dot_slash_path.yml',
+    'tests/data/usage_scenarios/volume_load_dot_path_ro.yml',
+    'tests/data/usage_scenarios/volume_load_dot_slash_path_ro.yml',
 ])
 def test_volume_dot_path_safe(scenario_filename):
     mounted_file = os.path.basename(scenario_filename)
@@ -295,7 +411,7 @@ def test_volume_inspect():
     )
     assert ps.returncode == 1, 'docker volume of 2g89huiwecjuShjg_Sdnufewiuasd seems to be present on file system. Cannot execute test safely'
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_with_named_volume.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, allow_unsafe=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = _volume_dot_path_runner('tests/data/usage_scenarios/stress_with_named_volume.yml')
 
 
     try:

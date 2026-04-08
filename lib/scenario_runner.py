@@ -65,7 +65,8 @@ class ScenarioRunner:
         verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
         commit_hash=None,
         docker_prune=False, job_id=None, user_id=1,
-        disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None,
+        disabled_metric_providers=None, allowed_run_args=None, allowed_volume_mounts=None,
+        phase_padding=True, usage_scenario_variables=None,
         category_ids=None,
 
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
@@ -156,6 +157,7 @@ class ScenarioRunner:
         self._measurement_total_duration = measurement_total_duration
         self._disabled_metric_providers = [] if disabled_metric_providers is None else disabled_metric_providers
         self._allowed_run_args = [] if allowed_run_args is None else allowed_run_args # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
+        self._allowed_volume_mounts = [] if allowed_volume_mounts is None else allowed_volume_mounts
         self._measurement_system_check_threshold = measurement_system_check_threshold
         self._measurement_pre_test_sleep = measurement_pre_test_sleep
         self._measurement_idle_duration = measurement_idle_duration
@@ -1023,7 +1025,7 @@ class ScenarioRunner:
                     if ',' in relation['mount_path']:
                         raise ValueError(f"Relation mount path may not contain commas (,) in the name: {relation['mount_path']}")
                     docker_build_command.append('--mount')
-                    docker_build_command.append(f"type=bind,source={relation['mount_path']},target=/tmp/relations/{relation_key},readonly")
+                    docker_build_command.append(f"type=bind,source={relation['mount_path']},target=/tmp/relations/{relation_key},readonly") # relation_key already checked in schema_checker
 
                 docker_build_command.append('gcr.io/kaniko-project/executor:latest')
 
@@ -1321,7 +1323,7 @@ class ScenarioRunner:
             if 'volumes' in service:
                 if self._allow_unsafe:
                     for volume in service['volumes']:
-                        docker_run_string.append('-v')
+                        docker_run_string.append('-v') # since the volume can be bind or anonymous we use the more flexible -v syntax here
                         vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
                         if not Path(vol[0]).is_absolute(): # we have a bind-mount with relative path
                             path = Path(self.__working_folder, vol[0]).resolve()
@@ -1330,21 +1332,67 @@ class ScenarioRunner:
                             docker_run_string.append(f"{path.as_posix()}:{vol[1]}")
                         else:
                             docker_run_string.append(f"{volume}")
-                else: # safe volume bindings are active by default
+                else:
                     for volume in service['volumes']:
                         vol = volume.split(':')
-                        # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
+
+                        vol_len = len(vol)
+                        # We always assume the format to be ./dir:dir:[flag] as when we would
+                        # allow None bind mounts then people
                         # could create volumes that would linger on our system.
-                        try:
-                            path = self._join_paths(self.__working_folder, vol[0])
+
+                        if vol_len < 2 or vol_len > 3:
+                            raise ValueError(f"Volume mount path '{volume}' is malformed should be source:target:MOUNT_OPTION")
+
+                        mount_src = vol[0]
+                        mount_target = vol[1]
+                        mount_option = '' # read-write by default. But will work only with allow list
+
+                        if vol_len == 3:
+                            if vol[2] == 'ro' or vol[2] == 'readonly':
+                                mount_option = ',readonly'
+                            else:
+                                raise ValueError(f"Service '{service_name}': We only allow readonly (ro) or no parameter (writeable) for volume mounts. Volume: {volume}")
+
+                        try: # Path.resolve and _join_paths can error
+
+                            mount_string = f"{mount_src}{mount_option}"
+                            if mount_string in self._allowed_volume_mounts:
+                                if not Path(mount_src).is_absolute() and not mount_src.startswith(('.', '..')): # volume case. should exist
+                                    mount_type = 'volume'
+                                    ps = subprocess.run(
+                                        ["docker", "volume", "inspect", mount_src],
+                                        check=False,
+                                        stdout=subprocess.DEVNULL,
+                                        stderr=subprocess.PIPE,
+                                        encoding='UTF-8',
+                                        errors='replace'
+                                    )
+                                    if ps.returncode != 0:
+                                        raise RuntimeError(f"Could not find volume '{mount_src}' locally from service: {service_name}. The volume must be created manually before it can be loaded. GMT does not create named volumes. - Error from Docker: {ps.stderr}")
+
+                                else: # path case. Check path if on machine as -v will create folder otherwise
+                                    mount_type = 'bind'
+                                    if not Path(mount_src).is_absolute():
+                                        raise ValueError(f"Mount path in allow listed volume mounts must be absolute. Value was: {mount_src}")
+                                    mount_src = Path(mount_src).resolve(strict=True).as_posix()
+
+                            else:
+                                mount_type = 'bind'
+                                if mount_option != ',readonly':
+                                    raise RuntimeError(f"Service '{service_name}': We only allow readonly (ro) as parameter in volume mounts in safe mode. Volume: {volume} - Try --allow-unsafe if you are running locally")
+                                mount_src = self._join_paths(self.__working_folder, mount_src).as_posix()
                         except FileNotFoundError as exc:
-                            raise RuntimeError(f"The volume {vol[0]} could not be loaded or found at the specified path.") from exc
-                        if len(vol) == 3:
-                            if vol[2] != 'ro':
-                                raise RuntimeError(f"Service '{service_name}': We only allow ro as parameter in volume mounts in unsafe mode")
+                            raise RuntimeError(f"The mount path {mount_src} could not be loaded or found at the specified path.") from exc
+
+
+                        if ',' in mount_src: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                            raise ValueError(f"Mount source path may not contain commas (,) in the name: {mount_src}")
+                        if ',' in mount_target: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                            raise ValueError(f"Mount target path may not contain commas (,) in the name: {mount_target}")
 
                         docker_run_string.append('--mount')
-                        docker_run_string.append(f"type=bind,source={path},target={vol[1]},readonly")
+                        docker_run_string.append(f"type={mount_type},source={mount_src},target={mount_target}{mount_option}")
 
             if service.get('init', False):
                 docker_run_string.append('--init')
