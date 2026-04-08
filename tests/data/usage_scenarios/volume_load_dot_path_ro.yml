@@ -10,7 +10,7 @@ services:
       context: ../stress-application
     container_name: test-container
     volumes:
-      - .:/tmp/repo_dir
+      - .:/tmp/repo_dir:ro
 
 flow:
   - name: Test
