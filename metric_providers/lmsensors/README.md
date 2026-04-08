@@ -39,7 +39,7 @@ Your config could be:
 
 ```
 lmsensors_temperature_component:
-    resolution: 99
+    sampling_rate: 99
     chips: ['coretemp-isa-0000']
     features: ['Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
 ```
