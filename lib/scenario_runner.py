@@ -1378,7 +1378,7 @@ class ScenarioRunner:
                             else:
                                 mount_type = 'bind'
                                 if mount_option != ',readonly':
-                                    raise RuntimeError(f"Service '{service_name}': We only allow readonly (ro) as parameter in volume mounts in unsafe mode. Volume: {volume}")
+                                    raise RuntimeError(f"Service '{service_name}': We only allow readonly (ro) as parameter in volume mounts in safe mode. Volume: {volume} - Try --allow-unsafe if you are running locally")
                                 mount_src = self._join_paths(self.__working_folder, mount_src).as_posix()
                         except FileNotFoundError as exc:
                             raise RuntimeError(f"The mount path {mount_src} could not be loaded or found at the specified path.") from exc

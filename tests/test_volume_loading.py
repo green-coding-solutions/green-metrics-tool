@@ -95,7 +95,7 @@ def test_volume_not_set_as_read_only_should_fail():
     finally:
         container_running = Tests.check_if_container_running('test-container')
 
-    expected_error = 'We only allow readonly (ro) as parameter in volume mounts in unsafe mode. Volume: gmt-test-volume-delete-me:/tmp/test-volume'
+    expected_error = 'We only allow readonly (ro) as parameter in volume mounts in safe mode. Volume: gmt-test-volume-delete-me:/tmp/test-volume - Try --allow-unsafe if you are running locally'
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
