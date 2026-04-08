@@ -184,7 +184,7 @@ def test_allowed_volume_fails_bc_readonly():
     subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
 
     try:
-        runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_non_bind_mounts_readonly.yml')
+        runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_non_bind_mounts_readonly.yml', allowed_volume_mounts=['gmt-test-volume-delete-me'])
 
         try:
             with pytest.raises(RuntimeError) as e:
