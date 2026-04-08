@@ -61,14 +61,17 @@ def test_provider_disabling_working():
 
     GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config-extra-network-and-duplicate-psu-providers.yml")
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True, disabled_metric_providers=['NetworkConnectionsProxyContainerProvider'], dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True, disabled_metric_providers=['network_connections_proxy_container'], dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
-            context.run_until('import_metric_providers')
+            context.run_until('initialize_run')
 
-    assert 'Not importing NetworkConnectionsProxyContainerProvider as disabled per user settings' in out.getvalue()
+    assert 'Not importing network_connections_proxy_container as disabled per user settings' in out.getvalue()
 
+    run_data = DB().fetch_one('SELECT measurement_config FROM runs WHERE id = %s', (runner._run_id,))[0]
+
+    assert list(run_data['configured_metric_providers'].keys()) == ['psu_energy_ac_sdia_machine', 'cpu_utilization_mach_system', 'psu_energy_ac_xgboost_machine'], 'Network Connections provider still in configured_metric_providers'
 
 def test_phase_padding_inactive():
     out = io.StringIO()

@@ -27,7 +27,7 @@ class LmsensorsProvider(BaseMetricProvider):
         if __name__ == '__main__':
             # If you run this on the command line you will need to set this in the config
             # This is separate so it is always clear what config is used.
-            self._provider_config_path = 'lmsensors.abstract_provider.LmsensorsProvider'
+            self._provider_config_path = None
 
 
         super().__init__(

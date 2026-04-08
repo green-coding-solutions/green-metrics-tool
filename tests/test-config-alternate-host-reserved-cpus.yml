@@ -25,7 +25,7 @@ machine:
 measurement:
   metric_providers:
     common:
-      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
+      psu_energy_ac_xgboost_machine:
         CPUChips: 1
         HW_CPUFreq: 3200
         CPUCores: 4
