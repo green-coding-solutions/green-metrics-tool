@@ -38,8 +38,8 @@ Core 3:        +29.0°C  (high = +100.0°C, crit = +100.0°C)
 Your config could be:
 
 ```
-lmsensors.temperature.provider.LmSenorsTempProvider:
-    resolution: 100
+lmsensors_temperature_component:
+    resolution: 99
     chips: ['coretemp-isa-0000']
     features: ['Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
 ```

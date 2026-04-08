@@ -20,27 +20,27 @@ machine:
 measurement:
   metric_providers:
     linux:
-      cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
+      cpu_utilization_procfs_system:
         sampling_rate: 99
-#      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
+#      disk_io_procfs_system:
 #        sampling_rate: 99
-      network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
+      network_io_procfs_system:
         sampling_rate: 99
         remove_virtual_interfaces: True
-      disk.used.statvfs.system.provider.DiskUsedStatvfsSystemProvider:
+      disk_used_statvfs_system:
         sampling_rate: 99
-      memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
+      memory_used_procfs_system:
         sampling_rate: 99
     macos:
-      cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
+      cpu_utilization_mach_system:
         sampling_rate: 99
     common:
-      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
+      network_connections_proxy_container:
 
-      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
+      psu_energy_ac_sdia_machine:
         CPUChips: 1
         TDP: 60
-      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
+      psu_energy_ac_xgboost_machine:
         CPUChips: 1
         HW_CPUFreq: 3200
         CPUCores: 4

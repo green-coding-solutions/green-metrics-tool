@@ -914,8 +914,8 @@ class ScenarioRunner:
         self._initialize_folder(self._metrics_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
 
         for metric_provider in metric_providers: # will iterate over keys
-            module_path, class_name = metric_provider.rsplit('.', 1)
-            module_path = f"metric_providers.{module_path}"
+            module_path = f"metric_providers.{metric_provider.replace('_', '.')}.provider"
+            class_name = "".join([token.capitalize() for token in metric_provider.split('_')]) + "Provider"
             conf = metric_providers[metric_provider] or {}
 
             if class_name in self._disabled_metric_providers:
