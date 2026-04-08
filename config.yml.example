@@ -204,61 +204,86 @@ measurement:
     common:
 #      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
 ##        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
-    #--- Model based - These providers estimate rather than measure. Helpful where measuring is not possible, like in VMs
-#      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
-      #-- This is a default configuration. Please change this to your system!
-#        CPUChips: 1
-#        TDP: 65
-#      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
-      #-- This is a default configuration. Please change this to your system!
-#        CPUChips: 1
-#        HW_CPUFreq: 3200
-#        CPUCores: 4
-#        CPUThreads: 4
-#        TDP: 65
-######### The value for memory must be in GB not in GiB
-#        HW_MemAmountGB: 16
-#        Hardware_Availability_Year: 2011
-######### vhost_ratio is the virtualization degree of the machine. For Bare Metal this is 1. For 1 out of 4 VMs this would be 0.25 etc.
-#        VHost_Ratio: 1
-#
-###### DEBUG
-#      network.connections.tcpdump.system.provider.NetworkConnectionsTcpdumpSystemProvider:
+##      network.connections.tcpdump.system.provider.NetworkConnectionsTcpdumpSystemProvider:
 #        split_ports: True
 #--- END
 
+# Processors
+  # These processors run after the metric_providers stage
+  # Typical uses cases are converting raw metric provider data into another, synthetic raw metric provider. For instance
+  # taking a psu_energy_* provider and a grid_intensity_* provider and chaining it into a psu_carbon_* metric
+  # Another alternative is to take a cpu_utilization_* value and converting into a psu_energy_* value like Cloud Energy
+  post_metric_provider_processors:
+    SDIAPostMetricProviderProcessor:
+      # Processor outputs psu_energy_ac_xgboost_machine
+      #-- This is a default configuration. Please change this to your system!
+         # input can also be cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider on Linux systems
+         input:
+           - cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider
+#        CPUChips: 1
+#        TDP: 65
+#    XGBoostPostMetricProviderProcessor:
+      # Processor outputs psu_energy_ac_xgboost_machine value
+      #-- This is a default configuration. Please change this to your system!
+         # input can also be cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider on Linux systems
+       input:
+         - cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider
+#      CPUChips: 1
+#      HW_CPUFreq: 3200
+#      CPUCores: 4
+#      CPUThreads: 4
+#      TDP: 65
+######### The value for memory must be in GB not in GiB
+#      HW_MemAmountGB: 16
+#      Hardware_Availability_Year: 2011
+######### vhost_ratio is the virtualization degree of the machine. For Bare Metal this is 1. For 1 out of 4 VMs this would be 0.25 etc.
+#      VHost_Ratio: 1
+    Energy2CarbonPostMetricProviderProcessor:
+      # Processor outputs for instance cpu.energy.rapl.msr.component.provider -> cpu.carbon.rapl.msr.component.provider
+      # effectively translating an energy value to a carbon value
+      input:
+        - cpu.energy.rapl.msr.component.provider.CpuEnergyRaplMsrComponentProvider:
+        - psu.energy.ac.mcp.machine.provider.PsuEnergyAcMcpMachineProvider
+        # - ...
+      carbon_input: grid.intensity.elephant.api.global.GridIntensityElephantApiGlobalProvider
 
-sci:
+
+
+  post_phase_stats_processors:
     # https://github.com/Green-Software-Foundation/sci/blob/main/Software_Carbon_Intensity/Software_Carbon_Intensity_Specification.md
+    SCI:
+      # The values specific to the machine will be set here. The values that are specific to the
+      # software, like R (functional unit), will be set in the usage_scenario.yml
 
-    # The values specific to the machine will be set here. The values that are specific to the
-    # software, like R (functional unit), will be set in the usage_scenario.yml
+      # EL Expected Lifespan; the anticipated time that the equipment will be installed. Value is in years
+      # The number 3.5 comes from a typical developer machine (Pro Laptop - https://dataviz.boavizta.org/terminalimpact)
+      EL: 4
+      # RS Resource-share; the share of the total available resources of the hardware reserved for use by the software.
+      # This ratio is typically 1 with the Green Metrics Tool unless you use a custom distributed orchestrator
+      RS: 1
 
-    # EL Expected Lifespan; the anticipated time that the equipment will be installed. Value is in years
-    # The number 3.5 comes from a typical developer machine (Pro Laptop - https://dataviz.boavizta.org/terminalimpact)
-    EL: 4
-    # RS Resource-share; the share of the total available resources of the hardware reserved for use by the software.
-    # This ratio is typically 1 with the Green Metrics Tool unless you use a custom distributed orchestrator
-    RS: 1
-    # TE Total Embodied Emissions; the sum of Life Cycle Assessment (LCA) emissions for all hardware components.
-    # Value is in gCO2eq
-    # The value has to be identified from vendor datasheets. Here are some example sources:
-    # https://dataviz.boavizta.org/manufacturerdata
-    # https://tco.exploresurface.com/sustainability/calculator
-    # https://www.delltechnologies.com/asset/en-us/products/servers/technical-support/Full_LCA_Dell_R740.pdf
-    # The default is the value for a developer machine (Pro Laptop - https://dataviz.boavizta.org/terminalimpact)
-    TE: 181000
-    # I is the Carbon Intensity at the location of this machine
-    # The value can either be a number in gCO2e/kWh or a carbon intensity provider that fetches this number dynamically
-    # https://docs.green-coding.io/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/ (TODO)
-    # For fixed world-wide values get the number from https://ember-climate.org/insights/research/global-electricity-review-2025/
-    # The number worldwide for 2024 is 473
-    # The number 334 that comes as default is for Germany from 2024 and comes from https://app.electricitymaps.com/zone/DE/all/yearly
-    I: 334
-    # N is not technically part of the SCI, but we keep the value here for better clustering.
-    # N is the network energy intensity per transferred data. It transforms values like GB to kWh
-    # See https://www.green-coding.io/co2-formulas/ for details
-    N: 0.04106063
+      # I is the Carbon Intensity at the location of this machine
+      # The value can either be a number in gCO2e/kWh or a carbon intensity provider that fetches this number dynamically
+      # https://docs.green-coding.io/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/ (TODO)
+      # For fixed world-wide values get the number from https://ember-climate.org/insights/research/global-electricity-review-2025/
+      # The number worldwide for 2024 is 473
+      # The number 334 that comes as default is for Germany from 2024 and comes from https://app.electricitymaps.com/zone/DE/all/yearly
+      I: 334
+      # Alternatively to a number also a phase stats can be provided
+      # I: grid.intensity.elephant.api.global
+
+      # TE Total Embodied Emissions; the sum of Life Cycle Assessment (LCA) emissions for all hardware components.
+      # Value is in gCO2eq
+      # The value has to be identified from vendor datasheets. Here are some example sources:
+      # https://dataviz.boavizta.org/manufacturerdata
+      # https://tco.exploresurface.com/sustainability/calculator
+      # https://www.delltechnologies.com/asset/en-us/products/servers/technical-support/Full_LCA_Dell_R740.pdf
+      # The default is the value for a developer machine (Pro Laptop - https://dataviz.boavizta.org/terminalimpact)
+      TE: 181000
+      # N is not technically part of the SCI, but we keep the value here for better clustering.
+      # N is the network energy intensity per transferred data. It transforms values like GB to kWh
+      # See https://www.green-coding.io/co2-formulas/ for details
+      N: 0.04106063
 
 #optimization:
 #  ignore:
