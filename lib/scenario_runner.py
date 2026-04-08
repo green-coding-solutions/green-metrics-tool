@@ -1358,7 +1358,7 @@ class ScenarioRunner:
 
                             mount_string = f"{mount_src}{mount_option}"
                             if mount_string in self._allowed_volume_mounts:
-                                if '/' not in mount_src: # volume case. should exist
+                                if not Path(mount_src).is_absolute() and not mount_src.startswith(('.', '..')): # volume case. should exist
                                     mount_type = 'volume'
                                     ps = subprocess.run(
                                         ["docker", "volume", "inspect", mount_src],
@@ -1373,6 +1373,8 @@ class ScenarioRunner:
 
                                 else: # path case. Check path if on machine as -v will create folder otherwise
                                     mount_type = 'bind'
+                                    if not Path(mount_src).is_absolute():
+                                        raise ValueError(f"Mount path in allow listed volume mounts must be absolute. Value was: {mount_src}")
                                     mount_src = Path(mount_src).resolve(strict=True).as_posix()
 
                             else:
