@@ -188,7 +188,7 @@ class SchemaChecker():
                     Optional('log-stdout'): bool,
                     Optional('log-stderr'): bool,
                     Optional('read-notes-stdout'): bool,
-                    Optional('read-sci-stdout'): bool,
+                    Optional('read-sci-stdout'): bool, # not supported anymore and now always on. kept for backwards compatibility
                     Optional('docker-run-args'): [And(str, Use(self.not_empty))],
 
                 }

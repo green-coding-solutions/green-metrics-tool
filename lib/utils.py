@@ -206,6 +206,15 @@ def is_rapl_energy_filtering_deactivated():
                             check=True, encoding='UTF-8', errors='replace')
     return '1' != result.stdout.strip()
 
+def normalize_timestamp(time_str):
+    # we use microsecond timestamps internally
+    # some outputs give us second, millisecond or nanosecond ... so we normalize those
+    length = len(time_str)
+    if length < 10 or length > 19:
+        raise ValueError(f"Invalid time string length: {length}. Must be between 10 and 19 characters.")
+
+    return time_str.ljust(16,'0')[:16] # Pad with spaces on the right and Truncate to 16 characters. no ifs and counting ... just do.
+
 @cache
 def find_own_cgroup_name():
     current_pid = os.getpid()

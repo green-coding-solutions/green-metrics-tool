@@ -16,6 +16,7 @@ import importlib
 import re
 from pathlib import Path
 import random
+import pandas
 import shutil
 import math
 import yaml
@@ -143,8 +144,7 @@ class ScenarioRunner:
         self._category_ids = set(category_ids) if category_ids else None # deduplicate
         self._architecture = utils.get_architecture()
 
-        self._sci = {'R_d': None, 'R': 0}
-        self._sci |= config.get('sci', None)  # merge in data from machine config like I, TE etc.
+        self._sci = config.get('sci', {})
 
         self._job_id = job_id
         self._run_id = None
@@ -179,6 +179,7 @@ class ScenarioRunner:
                 ('_read_container_logs', {}),
                 ('_stop_metric_providers', {}),
                 ('_read_and_cleanup_processes', {}),
+                ('_store_custom_metrics', {}),
                 ('_store_phases', {}),
                 ('_save_notes_runner', {}),
                 ('_save_run_logs', {}),
@@ -215,6 +216,11 @@ class ScenarioRunner:
         self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
         self.__include_playwright_ipc = False
         self.__relations = {}
+        self.__custom_metrics = {'software_carbon_intensity_global': {
+            'regex': r'^(\d{10,19}) GMT_SCI_R=(\d+)$'
+        }}
+
+
 
         self._check_all_durations()
 
@@ -644,7 +650,7 @@ class ScenarioRunner:
         if self.__usage_scenario.get('architecture') is not None and self._architecture != self.__usage_scenario['architecture'].lower():
             raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self.__usage_scenario.get('architecture')})")
 
-        self._sci['R_d'] = self.__usage_scenario.get('sci', {}).get('R_d', None)
+        self.__custom_metrics['software_carbon_intensity_global']['unit'] = self.__usage_scenario.get('sci', {}).get('R_d', None)
 
     def _prepare_docker(self):
         # Disable Docker CLI hints (e.g. "What's Next? ...")
@@ -863,7 +869,7 @@ class ScenarioRunner:
         measurement_config['machine_settings'] = config['machine']
         measurement_config['allowed_run_args'] = self._allowed_run_args
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
-        measurement_config['sci'] = self._sci
+        measurement_config['custom_metrics'] = self.__custom_metrics
         measurement_config['phase_padding'] = self._phase_padding_ms
 
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
@@ -1272,8 +1278,7 @@ class ScenarioRunner:
                 'name': container_name,
                 'log-stdout': service.get('log-stdout', True),
                 'log-stderr': service.get('log-stderr', True),
-                'read-notes-stdout': service.get('read-notes-stdout', False),
-                'read-sci-stdout': service.get('read-sci-stdout', False),
+                'read-notes-stdout': service.get('read-notes-stdout', False)
             }
 
             print(TerminalColors.HEADER, '\nSetting up container for service:', service_name, TerminalColors.ENDC)
@@ -1793,7 +1798,6 @@ class ScenarioRunner:
                     'container_name': container_name,
                     'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
                     'ignore-errors': cmd_obj.get('ignore-errors', False),
-                    'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
                     'detail_name': container_name,
                     'detach': cmd_obj.get('detach', False),
                 })
@@ -2148,7 +2152,6 @@ class ScenarioRunner:
                         'container_name': flow['container'],
                         'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
                         'ignore-errors': cmd_obj.get('ignore-errors', False),
-                        'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
                         'detail_name': flow['container'],
                         'detach': cmd_obj.get('detach', False),
                         'flow_name': flow['name'],
@@ -2281,8 +2284,7 @@ class ScenarioRunner:
 
     def _handle_process_output(self, stdout, stderr, container_name, log_type,
                               log_id, cmd, phase, flow=None,
-                              read_notes_stdout=False, read_sci_stdout=False,
-                              detail_name=None):
+                              read_notes_stdout=False, detail_name=None):
         # Only create log entries if there's actual content
         has_stdout = stdout is not None and stdout.strip()
         has_stderr = stderr is not None and stderr.strip()
@@ -2307,9 +2309,20 @@ class ScenarioRunner:
             if has_stdout and read_notes_stdout:
                 self.__notes_helper.parse_and_add_notes(detail_name or container_name, stdout)
 
-            if has_stdout and read_sci_stdout:
-                for match in re.findall(r'^GMT_SCI_R=(\d+)$', stdout, re.MULTILINE):
-                    self._sci['R'] += int(match)
+            if has_stdout:
+                for key, custom_metric in self.__custom_metrics.items():
+                    matches = re.findall(custom_metric['regex'], stdout, re.MULTILINE)
+                    if matches:
+                        df = pandas.DataFrame(matches, columns=['time', 'value'])
+                        df['time'] = df['time'].apply(utils.normalize_timestamp).astype('int64')
+                        df['value'] = df['value'].astype('int64')
+                        df['metric'] = key
+                        df['detail_name'] = container_name
+                        df['unit'] = self.__custom_metrics.get('unit', 'Unknown')
+                        if self.__custom_metrics[key].get('data', pandas.DataFrame()).empty:
+                            self.__custom_metrics[key]['data'] = df
+                        else:
+                            self.__custom_metrics[key]['data'] = pandas.concat([self.__custom_metrics[key]['data'], df], ignore_index=True)
 
     def _read_and_cleanup_processes(self):
         print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
@@ -2349,7 +2362,6 @@ class ScenarioRunner:
                 phase=phase,
                 flow=ps.get('flow_name'),
                 read_notes_stdout=ps['read-notes-stdout'],
-                read_sci_stdout=ps['read-sci-stdout'],
                 detail_name=ps['detail_name']
             )
 
@@ -2373,6 +2385,18 @@ class ScenarioRunner:
                         raise MemoryError(f"Your process {ps['cmd']} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\nDetached process: {ps['detach']}\n\n========== Stderr ==========\n{stderr}")
                     else:
                         raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}. Please also check the stdout in the logs and / or enable stdout logging to debug further.")
+
+    def _store_custom_metrics(self):
+        print(TerminalColors.HEADER, '\nImporting custom metrics', TerminalColors.ENDC)
+
+        if not self._run_id or self._dev_no_save:
+            print('Skipping import of custom metrics due to missing run id or --dev-no-save')
+            return
+
+        for metric_name, custom_metric in self.__custom_metrics.items():
+            metric_importer.import_measurements(custom_metric['data'], metric_name, self._run_id)
+            print('Imported', TerminalColors.HEADER, len(custom_metric['data']), TerminalColors.ENDC, f"metrics from {metric_name}")
+
 
     def _create_folders(self):
         ''' Must be here and not in init, as it must be created for every iteration'''
@@ -2473,8 +2497,7 @@ class ScenarioRunner:
                 log_id=id(log),
                 cmd=container_info['docker_run_cmd'],
                 phase='[MULTIPLE]', # the container logs were collected usually over multiple phases: [BOOT], [IDLE], [RUNTIME]
-                read_notes_stdout=container_info['read-notes-stdout'],
-                read_sci_stdout=container_info['read-sci-stdout']
+                read_notes_stdout=container_info['read-notes-stdout']
             )
 
     def _save_run_logs(self):
@@ -2642,6 +2665,10 @@ class ScenarioRunner:
         self.__usage_scenario_variables_used_buffer.clear()
         self.__include_playwright_ipc = False
         self.__relations.clear()
+        self.__custom_metrics = {'software_carbon_intensity_global': {
+            'regex': r'^(\d{10,19}) GMT_SCI_R=(\d+)$'
+        }}
+
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
