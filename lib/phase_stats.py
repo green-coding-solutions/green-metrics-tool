@@ -74,11 +74,11 @@ def generate_csv_line(hidden, run_id, metric, detail_name, phase_name, value, va
     # else '' resolves to NULL
     return f"{hidden},{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{round(sampling_rate_avg) if sampling_rate_avg is not None else ''},{round(sampling_rate_max) if sampling_rate_max is not None else ''},{round(sampling_rate_95p) if sampling_rate_95p is not None else ''},{unit},NOW()\n"
 
-def build_and_store_phase_stats(run_id, sci=None):
+def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
     if not sci:
         sci = {}
-
-    software_carbon_intensity_global = {}
+    if not sci_metrics:
+        sci_metrics = []
 
     query = """
             SELECT id, metric, unit, detail_name
@@ -123,6 +123,8 @@ def build_and_store_phase_stats(run_id, sci=None):
         cpu_utilization_containers = {} # reset
         cpu_utilization_machine = None
         network_io_carbon_in_ug = None
+        sci_phase_data = {} # reset
+        sci_phase_data_custom = {} # reset
 
         select_query = """
             WITH lag_table as (
@@ -235,6 +237,9 @@ def build_and_store_phase_stats(run_id, sci=None):
                 if metric == 'network_io_cgroup_container': # save to calculate CO2 later. We do this only for the cgroups. Not for the system to not double count
                     network_bytes_total.append(value_sum)
 
+            elif metric in ('cpu_time_powermetrics_vm', ):
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+
             elif "_energy_" in metric and unit == 'uJ':
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
@@ -251,7 +256,7 @@ def build_and_store_phase_stats(run_id, sci=None):
 
                     # TODO: Refactor how this is calculated. Very flaky as it needs to respect phase['hidden'] # pylint: disable=fixme
                     if '[' not in phase['name'] and metric.endswith('_machine') and not phase['hidden']: # only for runtime sub phases to not double count ... needs refactor ... see comment at beginning of file
-                        software_carbon_intensity_global['machine_carbon_ug'] = software_carbon_intensity_global.get('machine_carbon_ug', 0) + value_carbon_ug
+                        sci_phase_data['machine_carbon_ug'] = sci_phase_data.get('machine_carbon_ug', 0) + value_carbon_ug
 
 
                 if metric.endswith('_machine'):
@@ -262,9 +267,13 @@ def build_and_store_phase_stats(run_id, sci=None):
                         machine_power_current_phase = power_avg_mW
 
             else: # Default
-                if metric not in ('cpu_time_powermetrics_vm', ):
+                if metric.startswith('custom_'):
+                    sci_phase_data_custom[metric] = {'detail_name': detail_name, 'value': value_sum, 'unit': unit}
+                else:
                     error_helpers.log_error('Unmapped phase_stat found, using default', metric=metric, detail_name=detail_name, run_id=run_id)
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+
+
 
 
         for phase_warning in phase_warnings:
@@ -297,7 +306,7 @@ def build_and_store_phase_stats(run_id, sci=None):
             embodied_carbon_share_g = (duration_in_years / Decimal(sci['EL']) ) * Decimal(sci['TE']) * Decimal(sci['RS'])
             embodied_carbon_share_ug = Decimal(embodied_carbon_share_g * 1_000_000)
             if '[' not in phase['name'] and not phase['hidden'] : # only for runtime sub phases
-                software_carbon_intensity_global['embodied_carbon_share_ug'] = software_carbon_intensity_global.get('embodied_carbon_share_ug', 0) + embodied_carbon_share_ug
+                sci_phase_data['embodied_carbon_share_ug'] = sci_phase_data.get('embodied_carbon_share_ug', 0) + embodied_carbon_share_ug
             csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, None, None, None, 'ug'))
 
 
@@ -318,14 +327,14 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'uJ'))
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'mW'))
 
-    # TODO: refactor to be a metric provider. Than it can also be per phase # pylint: disable=fixme
-    if software_carbon_intensity_global.get('machine_carbon_ug', None) is not None \
-        and software_carbon_intensity_global.get('embodied_carbon_share_ug', None) is not None \
-        and sci.get('R', 0) != 0 \
-        and sci.get('R_d', None) is not None:
+        if sci_metrics and sci_phase_data_custom \
+            and sci_phase_data.get('machine_carbon_ug', None) is not None \
+            and sci_phase_data.get('embodied_carbon_share_ug', None) is not None:
 
-        csv_buffer.write(generate_csv_line(False, run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{runtime_phase_idx:03}_[RUNTIME]", (software_carbon_intensity_global['machine_carbon_ug'] + software_carbon_intensity_global['embodied_carbon_share_ug']) / Decimal(sci['R']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci['R_d']}"))
-    # TODO End # pylint: disable=fixme
+            for sci_metric in sci_metrics:
+                if sci_phase_data_custom.get(sci_metric):
+                    csv_buffer.write(generate_csv_line(False, run_id, f"{sci_metric}_sci_global", sci_phase_data_custom[sci_metric]['detail_name'], f"{idx:03}_{phase['name']}", (sci_phase_data['machine_carbon_ug'] + sci_phase_data['embodied_carbon_share_ug']) / Decimal(sci_phase_data_custom[sci_metric]['value']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci_phase_data_custom[sci_metric]['unit']}"))
+
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
     DB().copy_from(
