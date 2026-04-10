@@ -331,7 +331,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
             for sci_metric in sci_metrics:
                 if sci_phase_data_custom.get(sci_metric):
-                    csv_buffer.write(generate_csv_line(False, run_id, f"{sci_metric}_sci_global", sci_phase_data_custom[sci_metric]['detail_name'], f"{idx:03}_{phase['name']}", (sci_phase_data['machine_carbon_ug'] + sci_phase_data['embodied_carbon_share_ug']) / Decimal(sci_phase_data_custom[sci_metric]['value']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci_phase_data_custom[sci_metric]['unit']}"))
+                    csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{sci_metric}_sci_global", sci_phase_data_custom[sci_metric]['detail_name'], f"{idx:03}_{phase['name']}", (sci_phase_data['machine_carbon_ug'] + sci_phase_data['embodied_carbon_share_ug']) / Decimal(sci_phase_data_custom[sci_metric]['value']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci_phase_data_custom[sci_metric]['unit']}"))
 
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
