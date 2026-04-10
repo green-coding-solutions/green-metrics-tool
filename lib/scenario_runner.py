@@ -2324,7 +2324,7 @@ class ScenarioRunner:
                         df['value'] = df['value'].astype('int64')
                         df['metric'] = key
                         df['detail_name'] = container_name
-                        df['unit'] = self.__custom_metrics.get('unit', 'Unknown')
+                        df['unit'] = self.__custom_metrics[key].get('unit', 'Unknown')
                         if self.__custom_metrics[key].get('data', pandas.DataFrame()).empty:
                             self.__custom_metrics[key]['data'] = df
                         else:
