@@ -94,23 +94,23 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
     let max_value = '-'
     if (detail_data.max != null) {
         const [max,max_unit] = convertValue(detail_data.max, metric_data.unit);
-        max_value = `${max?.toFixed(2)} ${max_unit}`;
+        max_value = max?.toFixed(2);
     }
     let min_value = '-'
     if (detail_data.min != null) {
         const [min,min_unit] = convertValue(detail_data.min, metric_data.unit);
-        min_value = `${min?.toFixed(2)} ${min_unit}`;
+        min_value = min?.toFixed(2);
     }
 
     let max_mean_value = '-'
     if (detail_data.max_mean != null) {
         const [max_mean,max_unit] = convertValue(detail_data.max_mean, metric_data.unit);
-        max_mean_value = `${max_mean?.toFixed(2)} ${max_unit}`;
+        max_mean_value = max_mean?.toFixed(2);
     }
     let min_mean_value = '-'
     if (detail_data.min_mean != null) {
         const [min_mean,min_unit] = convertValue(detail_data.min_mean, metric_data.unit);
-        min_mean_value = `${min_mean?.toFixed(2)} ${min_unit}`;
+        min_mean_value = min_mean?.toFixed(2);
     }
 
 
@@ -274,8 +274,6 @@ const updateKeyMetric = (
 ) => {
 
     let selector = null;
-
-
 
     if (phase_time_metric_condition(metric_name)) {
         selector = '.runtime';
