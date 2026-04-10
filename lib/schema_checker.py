@@ -88,13 +88,11 @@ class SchemaChecker():
             Optional('ignore-unsupported-compose'): bool,
             Optional('version'): Or(str, int, float, datetime), # is part of compose. we ignore it as it is non functionaly anyway
             Optional('architecture'): And(str, Use(self.not_empty)),
-            Optional('sci'): {
-                'R_d': And(str, Use(self.not_empty)),
-            },
             Optional('custom_metrics'): {
                 And(str, Use(self.not_empty), Use(self.is_valid_string)): {
                     'unit': And(str, Use(self.not_empty)),
                     Optional('regex'): And(str, Use(self.not_empty)),
+                    Optional('sci'): bool,
                 },
             },
 

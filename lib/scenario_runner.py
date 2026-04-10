@@ -216,9 +216,8 @@ class ScenarioRunner:
         self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
         self.__include_playwright_ipc = False
         self.__relations = {}
-        self.__custom_metrics = {'software_carbon_intensity_global': {
-            'regex': r'^(\d{10,19}) GMT_SCI_R=(\d+)$'
-        }}
+        self.__custom_metrics = {}
+        self.__sci_metrics = []
 
 
 
@@ -650,15 +649,14 @@ class ScenarioRunner:
         if self.__usage_scenario.get('architecture') is not None and self._architecture != self.__usage_scenario['architecture'].lower():
             raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self.__usage_scenario.get('architecture')})")
 
-        self.__custom_metrics['software_carbon_intensity_global']['unit'] = self.__usage_scenario.get('sci', {}).get('R_d', None)
-
         for key, custom_metric in self.__usage_scenario.get('custom_metrics', {}).items():
             if not key.startswith('custom_'):
                 raise ValueError(f"Custom metric must start with 'custom_'. Found: {key}")
             if custom_metric.get('regex', '').strip() == '':
-                custom_metric['regex'] = rf"^(\d{10,19}) {key}=(\d+)$"
+                custom_metric['regex'] = rf"^(\d{10,19}) {key}=(\d+)$" # default fallback regex
             self.__custom_metrics[key] = custom_metric
-
+            if custom_metric.get('sci', False):
+                self.__sci_metrics.append(key)
 
     def _prepare_docker(self):
         # Disable Docker CLI hints (e.g. "What's Next? ...")
@@ -2576,7 +2574,7 @@ class ScenarioRunner:
         # get all the metrics from the measurements table grouped by metric
         # loop over them issuing separate queries to the DB
         from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-        build_and_store_phase_stats(self._run_id, self._sci)
+        build_and_store_phase_stats(self._run_id, self._sci, self.__sci_metrics.copy())
 
     def _store_cumulative_run_logs(self):
         """
@@ -2673,9 +2671,8 @@ class ScenarioRunner:
         self.__usage_scenario_variables_used_buffer.clear()
         self.__include_playwright_ipc = False
         self.__relations.clear()
-        self.__custom_metrics = {'software_carbon_intensity_global': {
-            'regex': r'^(\d{10,19}) GMT_SCI_R=(\d+)$'
-        }}
+        self.__custom_metrics.clear()
+        self.__sci_metrics.clear()
 
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
