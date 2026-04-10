@@ -91,6 +91,12 @@ class SchemaChecker():
             Optional('sci'): {
                 'R_d': And(str, Use(self.not_empty)),
             },
+            Optional('custom_metrics'): {
+                And(str, Use(self.not_empty), Use(self.is_valid_string)): {
+                    'unit': And(str, Use(self.not_empty)),
+                    Optional('regex'): And(str, Use(self.not_empty)),
+                },
+            },
 
             Optional('networks'): Or(
                 dict,

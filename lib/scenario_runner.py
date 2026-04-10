@@ -652,6 +652,14 @@ class ScenarioRunner:
 
         self.__custom_metrics['software_carbon_intensity_global']['unit'] = self.__usage_scenario.get('sci', {}).get('R_d', None)
 
+        for key, custom_metric in self.__usage_scenario.get('custom_metrics', {}).items():
+            if not key.startswith('custom_'):
+                raise ValueError(f"Custom metric must start with 'custom_'. Found: {key}")
+            if custom_metric.get('regex', '').strip() == '':
+                custom_metric['regex'] = rf"^(\d{10,19}) {key}=(\d+)$"
+            self.__custom_metrics[key] = custom_metric
+
+
     def _prepare_docker(self):
         # Disable Docker CLI hints (e.g. "What's Next? ...")
         os.environ['DOCKER_CLI_HINTS'] = 'false'
