@@ -254,8 +254,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
                     csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", value_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
 
-                    # TODO: Refactor how this is calculated. Very flaky as it needs to respect phase['hidden'] # pylint: disable=fixme
-                    if '[' not in phase['name'] and metric.endswith('_machine') and not phase['hidden']: # only for runtime sub phases to not double count ... needs refactor ... see comment at beginning of file
+                    if metric.endswith('_machine') :
                         sci_phase_data['machine_carbon_ug'] = sci_phase_data.get('machine_carbon_ug', 0) + value_carbon_ug
 
 
@@ -305,8 +304,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             duration_in_years = duration_in_s / (60 * 60 * 24 * 365)
             embodied_carbon_share_g = (duration_in_years / Decimal(sci['EL']) ) * Decimal(sci['TE']) * Decimal(sci['RS'])
             embodied_carbon_share_ug = Decimal(embodied_carbon_share_g * 1_000_000)
-            if '[' not in phase['name'] and not phase['hidden'] : # only for runtime sub phases
-                sci_phase_data['embodied_carbon_share_ug'] = sci_phase_data.get('embodied_carbon_share_ug', 0) + embodied_carbon_share_ug
+            sci_phase_data['embodied_carbon_share_ug'] = sci_phase_data.get('embodied_carbon_share_ug', 0) + embodied_carbon_share_ug
             csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, None, None, None, 'ug'))
 
 
