@@ -107,9 +107,6 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
     csv_buffer = StringIO()
 
     machine_power_baseline = None
-    machine_power_current_phase = None
-    machine_energy_current_phase = None
-
     runtime_phase_idx = None
 
     for idx, phase in enumerate(phases[0]):
@@ -117,14 +114,16 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             runtime_phase_idx = idx
             continue
 
+        # reset all phase specific values
         phase_warnings = set()
-        network_bytes_total = [] # reset; # we use array here and sum later, because checking for 0 alone not enough
-
-        cpu_utilization_containers = {} # reset
+        network_bytes_total = [] # we use array here and sum later, because checking for 0 alone not enough
+        cpu_utilization_containers = {}
         cpu_utilization_machine = None
         network_io_carbon_in_ug = None
-        sci_phase_data = {} # reset
-        sci_phase_data_custom = {} # reset
+        sci_phase_data = {}
+        sci_phase_data_custom = {}
+        machine_power_current_phase = None
+        machine_energy_current_phase = None
 
         select_query = """
             WITH lag_table as (
