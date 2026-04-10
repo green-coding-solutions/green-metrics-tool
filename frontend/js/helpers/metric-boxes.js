@@ -1,27 +1,26 @@
+const createCard = ({ key, name, icon, variable }, suffix = '', colour) => {
+    const cardClass = variable ? `${key}-${suffix}` : key;
+    const colourClass = variable ? colour : 'teal';
+    return `
+        <div class="ui ${colourClass} card ${cardClass}">
+            <div class="content">
+                <i class="${icon} icon"></i><span class="metric-name">${name}</span>
+                <div class="right floated meta source"></div>
+
+            </div>
+            <div class="extra content">
+                <div class="description">
+                    <span class="value bold">N/A</span> <span class="si-unit"></span>
+                    <div class="right floated meta help" data-tooltip="No data available" data-position="bottom right" data-inverted>
+                        <span class="metric-type"></span><i class="question circle outline icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+};
+
 class PhaseMetrics extends HTMLElement {
    connectedCallback() {
-
-        const createCard = ({ key, name, icon, variable }, suffix = '', colour) => {
-            const cardClass = variable ? `${key}-${suffix}` : key;
-            const colourClass = variable ? colour : 'teal';
-            return `
-                <div class="ui ${colourClass} card ${cardClass}">
-                    <div class="content">
-                        <i class="${icon} icon"></i><span class="metric-name">${name}</span>
-                        <div class="right floated meta source"></div>
-
-                    </div>
-                    <div class="extra content">
-                        <div class="description">
-                            <span class="value bold">N/A</span> <span class="si-unit"></span>
-                            <div class="right floated meta help" data-tooltip="No data available" data-position="bottom right" data-inverted>
-                                <span class="metric-type"></span><i class="question circle outline icon"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-        };
-
         const buildTab = (tab, active = false, colour='teal') => `
             <div class="ui tab ${active ? 'active' : ''}" data-tab="${tab}">
                 <div class="ui five cards stackable">
@@ -31,7 +30,8 @@ class PhaseMetrics extends HTMLElement {
                 <div class="ui five cards stackable">
                     ${EXTRACARDS.map(card => createCard(card, tab, colour)).join('')}
                 </div>
-
+                <div class="ui five cards stackable custom-metrics">
+                </div>
             </div>`;
 
 
@@ -85,7 +85,6 @@ class PhaseMetrics extends HTMLElement {
 }
 
 customElements.define('phase-metrics', PhaseMetrics);
-
 
 /*
     TODO: Include one sided T-test?
@@ -321,8 +320,18 @@ const updateKeyMetric = (
         selector = '.dram-energy';
     } else if (dram_power_metric_condition(metric_name)) {
         selector = '.dram-power';
-    } else if (sci_metric_condition(metric_name)) {
-        selector = '.sci';
+    } else if (metric_name.startsWith('custom_')) {
+        selector = `.custom-metric-${metric_name}`;
+        let node = document.querySelector(`div.tab[data-tab='${phase}'] .custom-metrics`);
+        let icon = 'robot';
+        let colour = 'grey';
+        let name = metric_name.replace(/_sci_global$/, '').split('_').map(e => e.charAt(0).toUpperCase() + e.slice(1)).join(' ')
+        if (metric_name.endsWith('_sci_global')) {
+            icon = 'leaf';
+            colour = 'green';
+            name += ' (SCI)';
+        }
+        node.insertAdjacentHTML('beforeend', createCard({ key: selector.slice(1), name: name, icon: icon, variable:false }, 'power', colour));
     } else {
         return // no selector found, which means this is no currently configured key metric
     }
