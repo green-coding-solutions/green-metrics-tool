@@ -651,7 +651,7 @@ class ScenarioRunner:
 
         for key, custom_metric in self.__usage_scenario.get('custom_metrics', {}).items():
             if custom_metric.get('regex', '').strip() == '':
-                custom_metric['regex'] = rf"^(\d{10,19}) {key}=(\d+)$" # default fallback regex
+                custom_metric['regex'] = rf"^(\d{{10,19}}) {key}=(\d+)$" # default fallback regex
             self.__custom_metrics[f"custom_{key}"] = custom_metric
             if custom_metric.get('sci', False):
                 self.__sci_metrics.append(key)
