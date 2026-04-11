@@ -650,11 +650,9 @@ class ScenarioRunner:
             raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self.__usage_scenario.get('architecture')})")
 
         for key, custom_metric in self.__usage_scenario.get('custom_metrics', {}).items():
-            if not key.startswith('custom_'):
-                raise ValueError(f"Custom metric must start with 'custom_'. Found: {key}")
             if custom_metric.get('regex', '').strip() == '':
                 custom_metric['regex'] = rf"^(\d{10,19}) {key}=(\d+)$" # default fallback regex
-            self.__custom_metrics[key] = custom_metric
+            self.__custom_metrics[f"custom_{key}"] = custom_metric
             if custom_metric.get('sci', False):
                 self.__sci_metrics.append(key)
 
