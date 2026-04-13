@@ -325,7 +325,7 @@ const updateKeyMetric = (
         let node = document.querySelector(`div.tab[data-tab='${phase}'] .custom-metrics`);
         let icon = 'robot';
         let colour = 'grey';
-        let name = metric_name.replace(/_sci_global$/, '').split('_').map(e => e.charAt(0).toUpperCase() + e.slice(1)).join(' ')
+        let name = metric_name.replace(/^custom_/, '').replace(/_sci_global$/, '').split('_').map(e => e.charAt(0).toUpperCase() + e.slice(1)).join(' ')
         if (metric_name.endsWith('_sci_global')) {
             icon = 'leaf';
             colour = 'green';

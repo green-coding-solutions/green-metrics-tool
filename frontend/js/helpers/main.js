@@ -186,7 +186,7 @@ const getURLParams = () => {
 const getPretty = (metric_name, key)  => {
     if(metric_name.startsWith('custom_')) {
         if (key == 'source') return 'User supplied';
-        if (key == 'clean_name') return metric_name.split('_').map(e => e.charAt(0).toUpperCase() + e.slice(1)).join(' ');
+        if (key == 'clean_name') return metric_name.replace(/^custom_/, '').split('_').map(e => e.charAt(0).toUpperCase() + e.slice(1)).join(' ');
         if (key == 'explanation') return metric_name.endsWith('sci_global') ? 'SCI (Software Carbon Intensity) derived from user supplied custom metric' : 'User supplied custom metric';
     } else if (METRIC_MAPPINGS[metric_name] == null || METRIC_MAPPINGS[metric_name][key] == null) {
         console.log(metric_name, ' is undefined in METRIC_MAPPINGS or has no key');
