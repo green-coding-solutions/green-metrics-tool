@@ -1,4 +1,4 @@
-const createCard = ({ key, name, icon, variable }, suffix = '', colour) => {
+const createCard = ({ key, name, icon, variable, detail_name }, suffix, colour) => {
     const cardClass = variable ? `${key}-${suffix}` : key;
     const colourClass = variable ? colour : 'teal';
     return `
@@ -26,29 +26,31 @@ class PhaseMetrics extends HTMLElement {
                 <div class="ui five cards stackable">
                     ${HARDWARECARDS.map(card => createCard(card, tab, colour)).join('')}
                 </div>
-                <h4 class="ui horizontal left aligned divider header">Impact</h4>
-                <div class="ui five cards stackable">
-                    ${EXTRACARDS.map(card => createCard(card, tab, colour)).join('')}
-                </div>
-                <div class="ui five cards stackable custom-metrics">
-                </div>
             </div>`;
 
 
         this.innerHTML = `
-            <div class="ui segments">
-                <div class="ui segment">
-                    <div class="ui pointing menu">
-                        <a class="active item" data-tab="power">Power</a>
-                        <a class="item" data-tab="energy">Energy</a>
-                        <a class="item" data-tab="co2">CO<sub>2</sub></a>
-                    </div>
-                    <h4 class="ui horizontal left aligned divider header">Hardware</h4>
-                    ${buildTab('power', true, 'orange')}
-                    ${buildTab('energy', false, 'blue')}
-                    ${buildTab('co2', false, 'black')}
+            <div class="ui segment">
+                <h4 class="ui horizontal left aligned divider header">Hardware</h4>
+                <div class="ui pointing menu">
+                    <a class="active item" data-tab="power">Power</a>
+                    <a class="item" data-tab="energy">Energy</a>
+                    <a class="item" data-tab="co2">CO<sub>2</sub></a>
+                </div>
+                ${buildTab('power', true, 'orange')}
+                ${buildTab('energy', false, 'blue')}
+                ${buildTab('co2', false, 'black')}
+            </div>
+
+            <div class="ui segment">
+                <h4 class="ui horizontal left aligned divider header">Impact</h4>
+                <div class="ui five cards stackable">
+                    ${EXTRACARDS.map(card => createCard(card, '', 'teal')).join('')}
+                </div>
+                <div class="ui five cards stackable custom-metrics">
                 </div>
             </div>
+
             <br>
             <div class="ui accordion">
                <div class="title ui header">
@@ -322,7 +324,7 @@ const updateKeyMetric = (
         selector = '.dram-power';
     } else if (metric_name.startsWith('custom_')) {
         selector = `.custom-metric-${metric_name}`;
-        let node = document.querySelector(`div.tab[data-tab='${phase}'] .custom-metrics`);
+        const node = document.querySelector(`div.tab[data-tab='${phase}'] .custom-metrics`);
         let icon = 'robot';
         let colour = 'grey';
         let name = metric_name.replace(/^custom_/, '').replace(/_sci_global$/, '').split('_').map(e => e.charAt(0).toUpperCase() + e.slice(1)).join(' ')
@@ -331,7 +333,7 @@ const updateKeyMetric = (
             colour = 'green';
             name += ' (SCI)';
         }
-        node.insertAdjacentHTML('beforeend', createCard({ key: selector.slice(1), name: name, icon: icon, variable:false }, 'power', colour));
+        node.insertAdjacentHTML('beforeend', createCard({ key: selector.slice(1), name: name, icon: icon, variable:false, detail_name: detail_name }, '', colour));
     } else {
         return // no selector found, which means this is no currently configured key metric
     }
