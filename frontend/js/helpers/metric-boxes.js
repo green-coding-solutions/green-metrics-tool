@@ -1,54 +1,55 @@
+const createCard = ({ key, name, icon, variable, detail_name }, suffix, colour) => {
+    const cardClass = variable ? `${key}-${suffix}` : key;
+    return `
+        <div class="ui ${colour} card ${cardClass}">
+            <div class="content">
+                <i class="${icon} icon"></i><span class="metric-name">${name}</span>
+                <div class="right floated meta source"></div>
+
+            </div>
+            <div class="extra content">
+                <div class="description">
+                    <span class="value bold">N/A</span> <span class="si-unit"></span>
+                    <div class="right floated meta help" data-tooltip="No data available" data-position="bottom right" data-inverted>
+                        <span class="metric-type"></span><i class="question circle outline icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+};
+
 class PhaseMetrics extends HTMLElement {
    connectedCallback() {
-
-        const createCard = ({ key, name, icon, variable }, suffix = '', colour) => {
-            const cardClass = variable ? `${key}-${suffix}` : key;
-            const colourClass = variable ? colour : 'teal';
-            return `
-                <div class="ui ${colourClass} card ${cardClass}">
-                    <div class="content">
-                        <i class="${icon} icon"></i><span class="metric-name">${name}</span>
-                        <div class="right floated meta source"></div>
-
-                    </div>
-                    <div class="extra content">
-                        <div class="description">
-                            <span class="value bold">N/A</span> <span class="si-unit"></span>
-                            <div class="right floated meta help" data-tooltip="No data available" data-position="bottom right" data-inverted>
-                                <span class="metric-type"></span><i class="question circle outline icon"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-        };
-
         const buildTab = (tab, active = false, colour='teal') => `
             <div class="ui tab ${active ? 'active' : ''}" data-tab="${tab}">
                 <div class="ui five cards stackable">
                     ${HARDWARECARDS.map(card => createCard(card, tab, colour)).join('')}
                 </div>
-                <h4 class="ui horizontal left aligned divider header">Impact</h4>
-                <div class="ui five cards stackable">
-                    ${EXTRACARDS.map(card => createCard(card, tab, colour)).join('')}
-                </div>
-
             </div>`;
 
 
         this.innerHTML = `
-            <div class="ui segments">
-                <div class="ui segment">
-                    <div class="ui pointing menu">
-                        <a class="active item" data-tab="power">Power</a>
-                        <a class="item" data-tab="energy">Energy</a>
-                        <a class="item" data-tab="co2">CO<sub>2</sub></a>
-                    </div>
-                    <h4 class="ui horizontal left aligned divider header">Hardware</h4>
-                    ${buildTab('power', true, 'orange')}
-                    ${buildTab('energy', false, 'blue')}
-                    ${buildTab('co2', false, 'black')}
+            <div class="ui segment">
+                <h4 class="ui horizontal left aligned divider header">Hardware</h4>
+                <div class="ui pointing menu">
+                    <a class="active item" data-tab="power">Power</a>
+                    <a class="item" data-tab="energy">Energy</a>
+                    <a class="item" data-tab="co2">CO<sub>2</sub></a>
+                </div>
+                ${buildTab('power', true, 'orange')}
+                ${buildTab('energy', false, 'blue')}
+                ${buildTab('co2', false, 'black')}
+            </div>
+
+            <div class="ui segment">
+                <h4 class="ui horizontal left aligned divider header">Impact</h4>
+                <div class="ui five cards stackable">
+                    ${EXTRACARDS.map(card => createCard(card, '', 'teal')).join('')}
+                </div>
+                <div class="ui five cards stackable custom-metrics">
                 </div>
             </div>
+
             <br>
             <div class="ui accordion">
                <div class="title ui header">
@@ -85,7 +86,6 @@ class PhaseMetrics extends HTMLElement {
 }
 
 customElements.define('phase-metrics', PhaseMetrics);
-
 
 /*
     TODO: Include one sided T-test?
@@ -135,7 +135,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td>${scope}</td>
             <td>${detail_name}</td>
             <td>${metric_data.type}</td>
-            <td><span title="${detail_data.mean}">${transformed_value?.toFixed(2)}</span> ${ transformed_value?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data.mean} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
+            <td><span title="${detail_data.mean} ${metric_data.unit}">${transformed_value?.toFixed(2)}</span> ${ transformed_value?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data.mean} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
             <td>${transformed_unit}</td>
             <td>${std_dev_text_table}</td>
             <td>${max_value}</td>
@@ -155,7 +155,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td>${scope}</td>
             <td>${detail_name}</td>
             <td>${metric_data.type}</td>
-            <td><span title="${detail_data.mean}">${transformed_value?.toFixed(2)}</span> ${ transformed_value?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data.mean} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
+            <td><span title="${detail_data.mean} ${metric_data.unit}">${transformed_value?.toFixed(2)}</span> ${ transformed_value?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data.mean} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
             <td>${transformed_unit}</td>
             <td>${max_value}</td>
             <td>${min_value}</td>
@@ -217,8 +217,8 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
         <td>${scope}</td>
         <td>${detail_name}</td>
         <td>${metric_data.type}</td>
-        <td><span title="${detail_data_array[0]}">${transformed_value_1?.toFixed(2)}</span> ${ transformed_value_1?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[0]} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
-        <td><span title="${detail_data_array[1]}">${transformed_value_2?.toFixed(2)}</span> ${ transformed_value_2?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[1]} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
+        <td><span title="${detail_data_array[0]} ${metric_data.unit}">${transformed_value_1?.toFixed(2)}</span> ${ transformed_value_1?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[0]} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
+        <td><span title="${detail_data_array[1]} ${metric_data.unit}">${transformed_value_2?.toFixed(2)}</span> ${ transformed_value_2?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[1]} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
         <td>${transformed_unit}</td>
         <td class="${icon_color}">${relative_difference}</td>
         <td>${extra_label}</td>`;
@@ -319,8 +319,16 @@ const updateKeyMetric = (
         selector = '.dram-energy';
     } else if (dram_power_metric_condition(metric_name)) {
         selector = '.dram-power';
-    } else if (sci_metric_condition(metric_name)) {
-        selector = '.sci';
+    } else if (metric_name.startsWith('custom_')) {
+        selector = `.custom-metric-${metric_name}`;
+        const node = document.querySelector(`div.tab[data-tab='${phase}'] .custom-metrics`);
+        let icon = 'robot';
+        let colour = 'grey';
+        if (metric_name.endsWith('_sci_global')) {
+            icon = 'leaf';
+            colour = 'green';
+        }
+        node.insertAdjacentHTML('beforeend', createCard({ key: selector.slice(1), name: null, icon: icon, variable:false, detail_name: detail_name }, '', colour));
     } else {
         return // no selector found, which means this is no currently configured key metric
     }
