@@ -1,8 +1,7 @@
 const createCard = ({ key, name, icon, variable, detail_name }, suffix, colour) => {
     const cardClass = variable ? `${key}-${suffix}` : key;
-    const colourClass = variable ? colour : 'teal';
     return `
-        <div class="ui ${colourClass} card ${cardClass}">
+        <div class="ui ${colour} card ${cardClass}">
             <div class="content">
                 <i class="${icon} icon"></i><span class="metric-name">${name}</span>
                 <div class="right floated meta source"></div>
@@ -327,13 +326,11 @@ const updateKeyMetric = (
         const node = document.querySelector(`div.tab[data-tab='${phase}'] .custom-metrics`);
         let icon = 'robot';
         let colour = 'grey';
-        let name = metric_name.replace(/^custom_/, '').replace(/_sci_global$/, '').split('_').map(e => e.charAt(0).toUpperCase() + e.slice(1)).join(' ')
         if (metric_name.endsWith('_sci_global')) {
             icon = 'leaf';
             colour = 'green';
-            name += ' (SCI)';
         }
-        node.insertAdjacentHTML('beforeend', createCard({ key: selector.slice(1), name: name, icon: icon, variable:false, detail_name: detail_name }, '', colour));
+        node.insertAdjacentHTML('beforeend', createCard({ key: selector.slice(1), name: null, icon: icon, variable:false, detail_name: detail_name }, '', colour));
     } else {
         return // no selector found, which means this is no currently configured key metric
     }
