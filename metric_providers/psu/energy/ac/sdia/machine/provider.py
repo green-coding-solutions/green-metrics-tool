@@ -94,7 +94,4 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
 
         df.value = df.value.astype('int64')
 
-        if df.empty:
-            raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
-
         return df
