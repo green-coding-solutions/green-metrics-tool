@@ -6,22 +6,23 @@
  *
  * Output format (GMT standard):
  *   timestamp_microseconds value detail_name
- *   1774007770584099 3614000000 cpu_package
+ *   1774007770584099 3614000 cpu_package
  *
- * Unit: uJ (micro-Joules) to avoid GMT resolution underflow
- * (GMT raises error if value <= 1 for mJ/uJ units)
+ * Unit: uJ (micro-Joules), consistent with CpuEnergyRaplMsrComponentProvider.
  *
  * Timing: QueryPerformanceCounter (monotonic, ~100ns resolution)
  * + wall-clock offset at startup. Immune to DST and leap seconds.
  * Mirrors GMT's gmt-lib.c get_time_offset() / get_adjusted_time().
+ * Each domain gets its own timestamp via now_us() to ensure unique
+ * timestamps without artificial offsets.
  *
  * Usage:
  *   rapl_reader.exe -i <interval_ms>        (default: 99ms)
  *   rapl_reader.exe -i 99 -d cpu_package    (single domain)
  *   rapl_reader.exe -c                      (check mode)
  *
- * Available domains: cpu_package, cpu_cores, cpu_gpu, dram
- * Default: all supported domains (DRAM auto-detected at startup)
+ * Available domains: cpu_package, cpu_cores, cpu_gpu, dram, psys
+ * Default: all supported domains (auto-detected at startup)
  *
  * Build (x64 Native Tools Command Prompt for VS 2022):
  *   cl rapl_reader_cli.c /Fe:rapl_reader.exe /O2 /W3
@@ -35,30 +36,26 @@
 #include <errno.h>
 #include <limits.h>
 
-/* ── Device path ─────────────────────────────────────────── */
 #define DEVICE_PATH "\\\\.\\ScaphandreDriver"
-
-/* ── IOCTL code ───────────────────────────────────────────── */
 #define IOCTL_READ_MSR CTL_CODE(FILE_DEVICE_UNKNOWN, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
-/* ── MSR Register addresses ───────────────────────────────── */
 #define MSR_RAPL_POWER_UNIT        0x00000606
 #define MSR_PKG_ENERGY_STATUS      0x00000611
 #define MSR_DRAM_ENERGY_STATUS     0x00000619
 #define MSR_PP0_ENERGY_STATUS      0x00000639
 #define MSR_PP1_ENERGY_STATUS      0x00000641
+#define MSR_PLATFORM_ENERGY_STATUS 0x0000064d
 #define MSR_AMD_RAPL_POWER_UNIT    0xc0010299
 #define MSR_AMD_PKG_ENERGY_STATUS  0xc001029b
 #define MSR_AMD_CORE_ENERGY_STATUS 0xc001029a
 
-/* ── Domain flags ─────────────────────────────────────────── */
 #define DOMAIN_PKG   (1 << 0)
 #define DOMAIN_CORES (1 << 1)
 #define DOMAIN_GPU   (1 << 2)
 #define DOMAIN_DRAM  (1 << 3)
-#define DOMAIN_ALL   (DOMAIN_PKG | DOMAIN_CORES | DOMAIN_GPU | DOMAIN_DRAM)
+#define DOMAIN_PSYS  (1 << 4)
+#define DOMAIN_ALL   (DOMAIN_PKG | DOMAIN_CORES | DOMAIN_GPU | DOMAIN_DRAM | DOMAIN_PSYS)
 
-/* ── Structs ──────────────────────────────────────────────── */
 #pragma pack(push, 1)
 typedef struct { uint32_t msrRegister; uint32_t cpuIndex; } msr_request_t;
 #pragma pack(pop)
@@ -68,21 +65,16 @@ typedef struct {
     double dram_energy_j;
     double pp0_energy_j;
     double pp1_energy_j;
+    double psys_energy_j;
     int    valid;
 } rapl_sample_t;
 
-/* ── Monotonic clock state ────────────────────────────────── */
 typedef struct {
     LARGE_INTEGER qpc_start;
     uint64_t      wall_start_us;
     double        qpc_freq_us;
 } clock_state_t;
 
-/* ── parse_int() ──────────────────────────────────────────── */
-/*
- * Mirrors GMT's gmt-lib.c parse_int() - robust integer parsing
- * using strtoul instead of atoi to handle edge cases correctly.
- */
 static unsigned int parse_int(char *argument)
 {
     unsigned long number = 0;
@@ -90,22 +82,16 @@ static unsigned int parse_int(char *argument)
     errno = 0;
     number = strtoul(argument, &endptr, 10);
     if (errno == ERANGE && (number == ULONG_MAX || number == 0)) {
-        fprintf(stderr, "Error: Could not parse -i argument - Number out of range\n");
-        exit(1);
+        fprintf(stderr, "Error: Could not parse -i argument - Number out of range\n"); exit(1);
     } else if (errno != 0 && number == 0) {
-        fprintf(stderr, "Error: Could not parse -i argument - Invalid number\n");
-        exit(1);
+        fprintf(stderr, "Error: Could not parse -i argument - Invalid number\n"); exit(1);
     } else if (endptr == argument) {
-        fprintf(stderr, "Error: Could not parse -i argument - No digits were found\n");
-        exit(1);
+        fprintf(stderr, "Error: Could not parse -i argument - No digits were found\n"); exit(1);
     } else if (*endptr != '\0') {
-        fprintf(stderr, "Error: Could not parse -i argument - Invalid characters after number\n");
-        exit(1);
+        fprintf(stderr, "Error: Could not parse -i argument - Invalid characters after number\n"); exit(1);
     }
     return (unsigned int)number;
 }
-
-/* ── Clock helpers ────────────────────────────────────────── */
 
 static uint64_t get_wall_time_us(void)
 {
@@ -115,10 +101,6 @@ static uint64_t get_wall_time_us(void)
     return (t - 116444736000000000ULL) / 10;
 }
 
-/*
- * clock_init() - mirrors GMT's get_time_offset()
- * Records wall-clock and QPC at startup to anchor monotonic clock.
- */
 static clock_state_t clock_init(void)
 {
     clock_state_t cs;
@@ -130,21 +112,13 @@ static clock_state_t clock_init(void)
     return cs;
 }
 
-/*
- * now_us() - mirrors GMT's get_adjusted_time()
- * Returns Unix epoch microseconds using monotonic QPC + startup offset.
- * Immune to DST changes and leap seconds.
- */
 static uint64_t now_us(const clock_state_t *cs)
 {
     LARGE_INTEGER qpc_now;
     QueryPerformanceCounter(&qpc_now);
-    double elapsed_us = (double)(qpc_now.QuadPart - cs->qpc_start.QuadPart)
-                        / cs->qpc_freq_us;
+    double elapsed_us = (double)(qpc_now.QuadPart - cs->qpc_start.QuadPart) / cs->qpc_freq_us;
     return cs->wall_start_us + (uint64_t)elapsed_us;
 }
-
-/* ── Driver helpers ───────────────────────────────────────── */
 
 static HANDLE open_driver(void)
 {
@@ -156,18 +130,11 @@ static int read_msr(HANDLE hDev, uint32_t reg, uint32_t cpu, uint64_t *out)
 {
     msr_request_t req = { reg, cpu };
     DWORD bytes = 0;
-    BOOL ok = DeviceIoControl(hDev, IOCTL_READ_MSR,
-                               &req, sizeof(req),
-                               out,  sizeof(*out),
-                               &bytes, NULL);
+    BOOL ok = DeviceIoControl(hDev, IOCTL_READ_MSR, &req, sizeof(req),
+                               out, sizeof(*out), &bytes, NULL);
     return (ok && bytes >= sizeof(uint64_t)) ? 0 : -1;
 }
 
-/* ── Read energy unit ONCE at startup ─────────────────────── */
-/*
- * The power unit register does not change during operation.
- * Read once at startup to reduce per-sample IOCTL overhead.
- */
 static double read_energy_unit(HANDLE hDev, uint32_t cpu)
 {
     uint64_t raw = 0;
@@ -177,12 +144,11 @@ static double read_energy_unit(HANDLE hDev, uint32_t cpu)
     return 1.0 / (double)(1ULL << ((raw >> 8) & 0x1F));
 }
 
-/* ── DRAM domain auto-detection ───────────────────────────── */
 /*
- * Check at startup whether DRAM energy reporting is supported.
- * Takes two readings 100ms apart - if the counter never changes,
- * DRAM is not supported on this CPU and will be excluded.
- * This avoids GMT's resolution underflow error (value <= 1).
+ * is_domain_active() - auto-detect if a RAPL domain is active.
+ * Takes N samples at interval_ms apart. Returns 0 if ALL samples
+ * are <= 1 uJ (domain inactive), 1 otherwise.
+ * Runs within GMT's 2-second startup delay.
  */
 static int is_domain_active(HANDLE hDev, uint32_t cpu,
                              uint32_t msr_reg, double energy_unit,
@@ -191,32 +157,19 @@ static int is_domain_active(HANDLE hDev, uint32_t cpu,
     uint64_t prev = 0, curr = 0;
     int zero_count = 0;
 
-    if (read_msr(hDev, msr_reg, cpu, &prev) != 0)
-        return 0; /* MSR not accessible */
+    if (read_msr(hDev, msr_reg, cpu, &prev) != 0) return 0;
 
     for (int i = 0; i < samples; i++) {
         Sleep(interval_ms);
-
-        if (read_msr(hDev, msr_reg, cpu, &curr) != 0)
-            return 0;
-
-        double delta = ((double)(curr & 0xFFFFFFFF) - (double)(prev & 0xFFFFFFFF))
-                       * energy_unit;
-
-        /* Handle wrap-around */
+        if (read_msr(hDev, msr_reg, cpu, &curr) != 0) return 0;
+        double delta = ((double)(curr & 0xFFFFFFFF) - (double)(prev & 0xFFFFFFFF)) * energy_unit;
         if (delta < 0) delta += (double)(1ULL << 32) * energy_unit;
-
-        long long uj = (long long)(delta * 1000000.0);
-        if (uj <= 1) zero_count++;
-
+        if ((long long)(delta * 1000000.0) <= 1) zero_count++;
         prev = curr;
     }
-
-    /* Domain inactive if ALL samples were <= 1 uJ */
     return (zero_count < samples) ? 1 : 0;
 }
 
-/* ── Read energy sample ───────────────────────────────────── */
 static rapl_sample_t read_rapl(HANDLE hDev, uint32_t cpu,
                                 double energy_unit, int domains)
 {
@@ -226,30 +179,23 @@ static rapl_sample_t read_rapl(HANDLE hDev, uint32_t cpu,
     if (domains & DOMAIN_PKG)
         if (read_msr(hDev, MSR_PKG_ENERGY_STATUS, cpu, &raw) == 0)
             s.pkg_energy_j = (raw & 0xFFFFFFFF) * energy_unit;
-
     if (domains & DOMAIN_DRAM)
         if (read_msr(hDev, MSR_DRAM_ENERGY_STATUS, cpu, &raw) == 0)
             s.dram_energy_j = (raw & 0xFFFFFFFF) * energy_unit;
-
     if (domains & DOMAIN_CORES)
         if (read_msr(hDev, MSR_PP0_ENERGY_STATUS, cpu, &raw) == 0)
             s.pp0_energy_j = (raw & 0xFFFFFFFF) * energy_unit;
-
     if (domains & DOMAIN_GPU)
         if (read_msr(hDev, MSR_PP1_ENERGY_STATUS, cpu, &raw) == 0)
             s.pp1_energy_j = (raw & 0xFFFFFFFF) * energy_unit;
+    if (domains & DOMAIN_PSYS)
+        if (read_msr(hDev, MSR_PLATFORM_ENERGY_STATUS, cpu, &raw) == 0)
+            s.psys_energy_j = (raw & 0xFFFFFFFF) * energy_unit;
 
     s.valid = 1;
     return s;
 }
 
-/* ── Delta with 32-bit wrap-around correction ─────────────── */
-/*
- * Returns delta in micro-Joules (uJ).
- * Only negative values (overflow edge cases) are skipped,
- * matching GMT's native RAPL provider (source.c line 478:
- * if energy_output >= 0).
- */
 static long long delta_uj(double curr, double prev, double eu)
 {
     double d = curr - prev;
@@ -257,32 +203,42 @@ static long long delta_uj(double curr, double prev, double eu)
     return (long long)(d * 1000000.0);
 }
 
-/* ── Parse domain string ──────────────────────────────────── */
 static int parse_domain(const char *d)
 {
     if (!strcmp(d, "cpu_package")) return DOMAIN_PKG;
     if (!strcmp(d, "cpu_cores"))   return DOMAIN_CORES;
     if (!strcmp(d, "cpu_gpu"))     return DOMAIN_GPU;
     if (!strcmp(d, "dram"))        return DOMAIN_DRAM;
-    fprintf(stderr, "Error: Unknown domain '%s'. "
-            "Valid: cpu_package, cpu_cores, cpu_gpu, dram\n", d);
+    if (!strcmp(d, "psys"))        return DOMAIN_PSYS;
+    fprintf(stderr, "Error: Unknown domain '%s'. Valid: cpu_package, cpu_cores, cpu_gpu, dram, psys\n", d);
     exit(1);
 }
-
-/* ── Main ─────────────────────────────────────────────────── */
 int main(int argc, char *argv[])
 {
     unsigned int interval_ms = 99;
-    int check_mode   = 0;
-    int domains      = DOMAIN_ALL;
-    int user_domains = 0; /* 1 if user explicitly set domains via -d */
+    int check_mode        = 0;
+    int domains           = DOMAIN_ALL;
+    int user_domains      = 0; /* 1 if -d was used (single domain mode) */
+    int excluded_domains  = 0; /* domains explicitly disabled via -x */
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-i") && i + 1 < argc)
             interval_ms = parse_int(argv[++i]);
         else if (!strcmp(argv[i], "-d") && i + 1 < argc) {
+            /* Set a single domain explicitly - skips auto-detection */
             domains      = parse_domain(argv[++i]);
             user_domains = 1;
+        }
+        else if (!strcmp(argv[i], "-x") && i + 1 < argc) {
+            /* Comma-separated list of domains to disable e.g. -x cpu_gpu,dram */
+            char buf[256];
+            strncpy(buf, argv[++i], sizeof(buf) - 1);
+            buf[sizeof(buf) - 1] = '\0';
+            char *token = strtok(buf, ",");
+            while (token) {
+                excluded_domains |= parse_domain(token);
+                token = strtok(NULL, ",");
+            }
         }
         else if (!strcmp(argv[i], "-c"))
             check_mode = 1;
@@ -294,14 +250,12 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Check mode: verify driver is accessible */
     if (check_mode) {
         double eu = read_energy_unit(hDev, 0);
         CloseHandle(hDev);
         return (eu > 0) ? 0 : 1;
     }
 
-    /* Read energy unit ONCE at startup (does not change) */
     double energy_unit = read_energy_unit(hDev, 0);
     if (energy_unit <= 0) {
         fprintf(stderr, "Cannot read RAPL power unit MSR.\n");
@@ -309,64 +263,79 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /*
-     * Auto-detect supported domains (only if user did not explicitly
-     * specify domains via -d flag).
-     * DRAM is not supported on all CPUs - check before starting
-     * to avoid GMT resolution underflow errors (value = 0).
-     */
-if (!user_domains) {
-    if (!is_domain_active(hDev, 0, MSR_DRAM_ENERGY_STATUS, energy_unit, 5, 100)) {
-        domains &= ~DOMAIN_DRAM;
-        fprintf(stderr, "Info: DRAM domain not supported on this CPU, disabling.\n");
-    }
-    if (!is_domain_active(hDev, 0, MSR_PP1_ENERGY_STATUS, energy_unit, 5, 100)) {
-        domains &= ~DOMAIN_GPU;
-        fprintf(stderr, "Info: GPU domain not supported on this CPU, disabling.\n");
-    }
-}
-    /* Disable stdout buffering so GMT reads data immediately */
-    setvbuf(stdout, NULL, _IONBF, 0);
+    /* Apply explicit exclusions BEFORE auto-detection so excluded
+     * domains are never checked and never measured */
+    domains &= ~excluded_domains;
 
-    /* Initialize monotonic clock (mirrors GMT's get_time_offset) */
+    setvbuf(stdout, NULL, _IONBF, 0);
     clock_state_t cs = clock_init();
+
+    /*
+     * Auto-detect active domains at startup (5 samples x 100ms each).
+     * Only runs for domains that are still active after -x exclusions.
+     * Skipped entirely if user set a single domain via -d.
+     * Runs within GMT's 2-second startup delay.
+     */
+    if (!user_domains) {
+        if ((domains & DOMAIN_DRAM) &&
+            !is_domain_active(hDev, 0, MSR_DRAM_ENERGY_STATUS, energy_unit, 5, 100)) {
+            domains &= ~DOMAIN_DRAM;
+            fprintf(stderr, "Info: DRAM domain not supported on this CPU, disabling.\n");
+        }
+        if ((domains & DOMAIN_GPU) &&
+            !is_domain_active(hDev, 0, MSR_PP1_ENERGY_STATUS, energy_unit, 5, 100)) {
+            domains &= ~DOMAIN_GPU;
+            fprintf(stderr, "Info: GPU domain not supported on this CPU, disabling.\n");
+        }
+        if ((domains & DOMAIN_PSYS) &&
+            !is_domain_active(hDev, 0, MSR_PLATFORM_ENERGY_STATUS, energy_unit, 5, 100)) {
+            domains &= ~DOMAIN_PSYS;
+            fprintf(stderr, "Info: PSYS domain not supported on this CPU, disabling.\n");
+        }
+    }
 
     rapl_sample_t prev = {0};
     int first = 1;
 
     while (1) {
         rapl_sample_t curr = read_rapl(hDev, 0, energy_unit, domains);
-        uint64_t ts = now_us(&cs);
 
         if (curr.valid && !first) {
             long long pkg_uj  = delta_uj(curr.pkg_energy_j,  prev.pkg_energy_j,  energy_unit);
             long long pp0_uj  = delta_uj(curr.pp0_energy_j,  prev.pp0_energy_j,  energy_unit);
             long long pp1_uj  = delta_uj(curr.pp1_energy_j,  prev.pp1_energy_j,  energy_unit);
             long long dram_uj = delta_uj(curr.dram_energy_j, prev.dram_energy_j, energy_unit);
+            long long psys_uj = delta_uj(curr.psys_energy_j, prev.psys_energy_j, energy_unit);
 
             /*
-             * Only skip negative values (overflow edge cases).
-             * Matches GMT's native RAPL provider behavior.
-             * Use +1us timestamp offsets per domain so GMT can
-             * calculate per-domain sampling rates correctly.
+             * Each domain calls now_us() individually so timestamps are
+             * naturally unique (QPC ~100ns resolution) without artificial offsets.
+             *
+             * Only negative values are skipped (overflow edge cases),
+             * matching GMT's native RAPL provider (source.c line 478).
+             *
+             * GPU uses a minimum fallback of 2 uJ when value is 0 to prevent
+             * GMT resolution underflow while keeping the time series gap-free.
+             * See PR discussion for cleaner alternatives.
              */
             if ((domains & DOMAIN_PKG)   && pkg_uj  >= 0)
-                printf("%llu %lld cpu_package\n", (unsigned long long)ts,     pkg_uj);
+                printf("%llu %lld cpu_package\n", (unsigned long long)now_us(&cs), pkg_uj);
             if ((domains & DOMAIN_CORES) && pp0_uj  >= 0)
-                printf("%llu %lld cpu_cores\n",   (unsigned long long)ts + 1, pp0_uj);
-            // * it is given a vailue for 0 of 2uk, otherwise he have to chnage the provider logik.    
-            if (domains & DOMAIN_GPU)
-                printf("%llu %lld cpu_gpu\n", (unsigned long long)ts + 2, pp1_uj > 1 ? pp1_uj : 2);
+                printf("%llu %lld cpu_cores\n",   (unsigned long long)now_us(&cs), pp0_uj);
+            if  (domains & DOMAIN_GPU)
+                printf("%llu %lld cpu_gpu\n",     (unsigned long long)now_us(&cs), pp1_uj > 1 ? pp1_uj : 2);
             if ((domains & DOMAIN_DRAM)  && dram_uj >= 0)
-                printf("%llu %lld dram\n",        (unsigned long long)ts + 3, dram_uj);
+                printf("%llu %lld dram\n",        (unsigned long long)now_us(&cs), dram_uj);
+            if ((domains & DOMAIN_PSYS)  && psys_uj >= 0)
+                printf("%llu %lld psys\n",        (unsigned long long)now_us(&cs), psys_uj);
         }
 
         if (curr.valid) { prev = curr; first = 0; }
 
-        /* Fixed sleep matching GMT's provider pattern */
         Sleep(interval_ms);
     }
 
     CloseHandle(hDev);
     return 0;
 }
+
