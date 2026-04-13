@@ -186,7 +186,6 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             min_value = Decimal(min_value)
             value_count = Decimal(value_count)
 
-
             if metric in (
                 'lmsensors_temperature_component',
                 'lmsensors_fan_component',
@@ -266,16 +265,12 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
             else: # Default
                 if metric.startswith('custom_'):
-                    sci_phase_data_custom[metric] = {'detail_name': detail_name, 'value': value_sum, 'unit': unit}
+                    sci_phase_data_custom.setdefault(metric, {})[detail_name] = {'value': value_sum, 'unit': unit}
                 else:
                     error_helpers.log_error('Unmapped phase_stat found, using default', metric=metric, detail_name=detail_name, run_id=run_id)
+
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
-
-
-
-        for phase_warning in phase_warnings:
-            DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (run_id, phase_warning))
 
         # after going through detail metrics, create cumulated ones
         if network_bytes_total:
@@ -330,7 +325,15 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
             for sci_metric in sci_metrics:
                 if sci_phase_data_custom.get(sci_metric):
-                    csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{sci_metric}_sci_global", sci_phase_data_custom[sci_metric]['detail_name'], f"{idx:03}_{phase['name']}", (sci_phase_data['machine_carbon_ug'] + sci_phase_data['embodied_carbon_share_ug']) / Decimal(sci_phase_data_custom[sci_metric]['value']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci_phase_data_custom[sci_metric]['unit']}"))
+                    for detail_name, metric_data in sci_phase_data_custom[sci_metric].items():
+                        if metric_data['value']:
+                            csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{sci_metric}_sci_global", detail_name, f"{idx:03}_{phase['name']}", (sci_phase_data['machine_carbon_ug'] + sci_phase_data['embodied_carbon_share_ug']) / Decimal(metric_data['value']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{metric_data['unit']}"))
+                        else:
+                            phase_warnings.add(f"Custom metric '{sci_metric} [{detail_name}]'  had a total value of 0 and thus SCI could not be calculated (Division by zero error)")
+
+
+        for phase_warning in phase_warnings:
+            DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (run_id, phase_warning))
 
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning

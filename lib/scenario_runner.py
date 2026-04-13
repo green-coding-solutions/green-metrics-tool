@@ -650,11 +650,15 @@ class ScenarioRunner:
             raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self.__usage_scenario.get('architecture')})")
 
         for key, custom_metric in self.__usage_scenario.get('custom_metrics', {}).items():
+            safe_key = f"custom_{key}"
             if custom_metric.get('regex', '').strip() == '':
-                custom_metric['regex'] = rf"^(\d{{10,19}}) {key}=(\d+)$" # default fallback regex
-            self.__custom_metrics[f"custom_{key}"] = custom_metric
+                # Important: Before we had here a 10,19 timestamp and where upgrading it from second to
+                # microsecond precision. This lead to errors in correct phase attribution by ghosting into previous phases
+                # Timing must be at least microsecond precision
+                custom_metric['regex'] = rf"^(\d{{16,19}}) {key}=(\d+)$" # default fallback regex
+            self.__custom_metrics[safe_key] = custom_metric
             if custom_metric.get('sci', False):
-                self.__sci_metrics.append(key)
+                self.__sci_metrics.append(safe_key)
 
     def _prepare_docker(self):
         # Disable Docker CLI hints (e.g. "What's Next? ...")
@@ -2310,23 +2314,32 @@ class ScenarioRunner:
                 flow=flow
             )
 
+            if not has_stdout:
+                return
+
             if has_stdout and read_notes_stdout:
                 self.__notes_helper.parse_and_add_notes(detail_name or container_name, stdout)
 
-            if has_stdout:
-                for key, custom_metric in self.__custom_metrics.items():
-                    matches = re.findall(custom_metric['regex'], stdout, re.MULTILINE)
-                    if matches:
-                        df = pandas.DataFrame(matches, columns=['time', 'value'])
-                        df['time'] = df['time'].apply(utils.normalize_timestamp).astype('int64')
-                        df['value'] = df['value'].astype('int64')
-                        df['metric'] = key
-                        df['detail_name'] = container_name
-                        df['unit'] = self.__custom_metrics[key].get('unit', 'Unknown')
-                        if self.__custom_metrics[key].get('data', pandas.DataFrame()).empty:
-                            self.__custom_metrics[key]['data'] = df
-                        else:
-                            self.__custom_metrics[key]['data'] = pandas.concat([self.__custom_metrics[key]['data'], df], ignore_index=True)
+            for key, custom_metric in self.__custom_metrics.items():
+                matches = re.findall(custom_metric['regex'], stdout, re.MULTILINE)
+                if not matches:
+                    continue
+                if not isinstance(matches[0], tuple) or len(matches[0]) != 2:
+                    raise RuntimeError(f"Capturing regex for custom metric {key} did not result in two capture groups. Must be a timestamp and value pair. Resulting capture groups are: {matches}. Regex was: {custom_metric['regex']}")
+
+                df = pandas.DataFrame(matches, columns=['time', 'value'])
+                try:
+                    df['time'] = df['time'].apply(utils.normalize_timestamp).astype('int64')
+                except ValueError as exc:
+                    raise ValueError(f"Parsing time string for custom metric from stdout failed: {exc}") from exc
+                df['value'] = df['value'].astype('int64')
+                df['metric'] = key
+                df['detail_name'] = container_name
+                df['unit'] = self.__custom_metrics[key].get('unit', 'Unknown')
+                if self.__custom_metrics[key].get('data', pandas.DataFrame()).empty:
+                    self.__custom_metrics[key]['data'] = df
+                else:
+                    self.__custom_metrics[key]['data'] = pandas.concat([self.__custom_metrics[key]['data'], df], ignore_index=True)
 
     def _read_and_cleanup_processes(self):
         print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
