@@ -2413,7 +2413,7 @@ class ScenarioRunner:
         for metric_name, custom_metric in self.__custom_metrics.items():
             if custom_metric.get('data', pandas.DataFrame()).empty:
                 metric_original_name = metric_name[7:]
-                print(TerminalColors.WARNING, f"Custom metric '{metric_original_name}' yielded no results to import", TerminalColors.ENDC)
+                print(TerminalColors.WARNING, f"Custom metric '{metric_original_name}' yielded no results to import. Please check your regex and / or check if you turned of log_stdout in the usage_scenario.yml", TerminalColors.ENDC)
                 continue
 
             metric_importer.import_measurements(custom_metric['data'], metric_name, self._run_id)
