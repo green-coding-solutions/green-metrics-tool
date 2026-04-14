@@ -204,7 +204,7 @@ measurement:
     common:
 #--- Windows RAPL - Only enable on Windows machines with WSL2
 #      cpu.energy.rapl.scaphandre.component.provider.CpuEnergyRaplScaphandreComponentProvider:
-#        sampling_rate: 100
+#        sampling_rate: 99
 #        rapl_reader_exe: 'C:\rapl\rapl_reader.exe'
 #---
 

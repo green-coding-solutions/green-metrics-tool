@@ -59,9 +59,15 @@ class CpuEnergyRaplScaphandreComponentProvider(BaseMetricProvider):
         self._rapl_reader_exe = rapl_reader_exe
 
         # Build list of disabled domains from config
+        allowed_domains = {"cpu_package", "cpu_cores", "cpu_gpu", "dram", "psys"}
         self._disabled_domains = []
         if domains:
             for domain, enabled in domains.items():
+                if domain not in allowed_domains:
+                    raise MetricProviderConfigurationError(
+                        f"Unknown RAPL domain '{domain}'. "
+                        f"Valid domains: {', '.join(sorted(allowed_domains))}"
+                    )
                 if not enabled:
                     self._disabled_domains.append(domain)
 
@@ -97,10 +103,7 @@ class CpuEnergyRaplScaphandreComponentProvider(BaseMetricProvider):
         return True
 
     def start_profiling(self):
-        """
-        Override base start_profiling() to call cmd.exe directly from WSL2.
-        Eliminates the need for a separate bash wrapper script.
-        """
+        
         # Build Windows command
         win_cmd = f'{self._rapl_reader_exe} -i {self._sampling_rate}'
         if self._disabled_domains:
@@ -130,6 +133,6 @@ class CpuEnergyRaplScaphandreComponentProvider(BaseMetricProvider):
     def _parse_metrics(self, df):
         """
         detail_name is always set by rapl_reader.exe stdout output
-        (cpu_package, cpu_cores, cpu_gpu, dram, psys) - no transformation needed.
+        (cpu_package, cpu_cores, cpu_gpu, dram, psys) 
         """
         return df
