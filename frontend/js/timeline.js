@@ -132,9 +132,9 @@ const getUsageScenarioVariablesFromForm = () => {
     return usageScenarioVariables;
 }
 
-const stringifyUsageScenarioVariables = (usageScenarioVariables) => {
+const stringifyUsageScenarioVariables = (usageScenarioVariables, joiner=', ') => {
     const pairs = Object.entries(usageScenarioVariables).map(([key, value]) => `${key}=${value}`);
-    return pairs.length > 0 ? pairs.join(', ') : '-';
+    return pairs.length > 0 ? pairs.join(joiner) : '-';
 }
 
 const updateUsageScenarioVariablesInputState = () => {
@@ -535,7 +535,7 @@ const loadCharts = async () => {
                         date: ${dateToYMD(new Date(series[params.seriesName].notes[params.dataIndex].created_at), false, true)}<br>
                         metric_name: ${escapeString(params.seriesName)}<br>
                         phase: ${escapeString(series[params.seriesName].notes[params.dataIndex].phase)}<br>
-                        usage_scenario_variables: ${escapeString(stringifyUsageScenarioVariables(series[params.seriesName].notes[params.dataIndex].usage_scenario_variables))}<br>
+                        usage_scenario_variables: ${escapeString(stringifyUsageScenarioVariables(series[params.seriesName].notes[params.dataIndex].usage_scenario_variables, '<br>&nbsp;&nbsp;-'))}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
                         commit_timestamp: ${dateToYMD(new Date(series[params.seriesName].notes[params.dataIndex].commit_timestamp), false, true)} <br>
                         commit_hash: <a class="commit-hash-link" href="" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
