@@ -22,6 +22,15 @@ class SchemaChecker():
             raise SchemaError(f"{value} does not use valid characters! (a-zA-Z0-9_-) and space")
         return value
 
+    def regex_has_two_groups(self, value):
+        try:
+            regex = re.compile(value)
+        except re.error as exc:
+            raise SchemaError(f"Regex {value} for custom metric did not compile: {exc} ") from exc
+        if regex.groups != 2:
+            raise SchemaError(f"Regex {value} did not have two capture groups that capture TIMESTAMP_IN_MICRO_OR_NANOSECONDS and NUMERIC_VALUE")
+        return value
+
 
     def contains_no_invalid_chars(self, value):
         bad_values = re.findall(r'(\.\.|\$|\'|"|`|!)', value)
@@ -98,7 +107,7 @@ class SchemaChecker():
             Optional('custom_metrics'): {
                 And(str, Use(self.not_empty), Use(self.is_valid_string)): {
                     'unit': And(str, Use(self.not_empty), Use(self.is_valid_string_with_spaces)),
-                    Optional('regex'): And(str, Use(self.not_empty)),
+                    Optional('regex'): And(str, Use(self.not_empty), Use(self.regex_has_two_groups)),
                     Optional('sci'): bool,
                 },
             },
