@@ -1,24 +1,39 @@
 import os
+import platform
 import subprocess
 from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
+
 
 class CpuEnergyRaplScaphandreComponentProvider(BaseMetricProvider):
     """
     GMT Metric Provider for Windows RAPL energy measurements.
+
     Communicates with the ScaphandreDrv kernel driver on Windows via
     a compiled C binary (rapl_reader.exe) that reads MSR registers
     directly using IOCTL.
-    The metric-provider-binary is a Bash wrapper script that calls
-    rapl_reader.exe via cmd.exe, bridging WSL2 (where GMT runs) and
-    Windows (where the kernel driver lives).
+
+    Overrides start_profiling() to call cmd.exe directly from WSL2,
+    eliminating the need for a separate bash wrapper script.
+
     Data flow:
         GMT runner.py
-          -> metric-provider-binary (Bash, WSL2)
+          -> provider.py start_profiling()
             -> cmd.exe /c rapl_reader.exe -i <rate> [-x <disabled_domains>]
               -> ScaphandreDrv kernel driver (IOCTL)
                 -> MSR registers (CPU hardware)
           -> stdout redirected to GMT log file
           -> parsed and stored in PostgreSQL
+
+    config.yml example:
+      cpu.energy.rapl.scaphandre.component.provider.CpuEnergyRaplScaphandreComponentProvider:
+        sampling_rate: 99
+        rapl_reader_exe: 'C:\\rapl\\rapl_reader.exe'
+        domains:
+          cpu_package: true
+          cpu_cores: true
+          cpu_gpu: false
+          dram: false
+          psys: true
     """
 
     def __init__(self, sampling_rate, folder, skip_check=False,
@@ -62,11 +77,14 @@ class CpuEnergyRaplScaphandreComponentProvider(BaseMetricProvider):
 
     def check_system(self, check_command=None, check_error_message=None,
                      check_parallel_provider=False):
-        binary = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              'metric-provider-binary')
-        check_command = [binary, '-c', '-e', self._rapl_reader_exe]
-        ps = subprocess.run(check_command, capture_output=True,
-                            encoding='UTF-8', errors='replace', check=False)
+        """
+        Verifies that rapl_reader.exe can access the ScaphandreDrv kernel driver.
+        Calls rapl_reader.exe -c directly via cmd.exe from WSL2.
+        """
+        ps = subprocess.run(
+            ['cmd.exe', '/c', f'{self._rapl_reader_exe} -c'],
+            capture_output=True, encoding='UTF-8', errors='replace', check=False
+        )
         if ps.returncode != 0:
             raise MetricProviderConfigurationError(
                 f"CpuEnergyRaplScaphandreComponentProvider could not be started.\n"
@@ -78,12 +96,40 @@ class CpuEnergyRaplScaphandreComponentProvider(BaseMetricProvider):
             )
         return True
 
-    def _add_extra_switches(self, call_string):
-        """Pass exe path and optionally disabled domains to the Bash wrapper."""
-        call_string = f"{call_string} -e \"{self._rapl_reader_exe}\""
+    def start_profiling(self):
+        """
+        Override base start_profiling() to call cmd.exe directly from WSL2.
+        Eliminates the need for a separate bash wrapper script.
+        """
+        # Build Windows command
+        win_cmd = f'{self._rapl_reader_exe} -i {self._sampling_rate}'
         if self._disabled_domains:
-            call_string += f" -x {','.join(self._disabled_domains)}"
-        return call_string
+            win_cmd += f' -x {",".join(self._disabled_domains)}'
+
+        # Bridge WSL2 -> Windows via cmd.exe
+        call_string = f'cmd.exe /c "{win_cmd}" 2>/dev/null'
+        call_string += f' > {self._filename}'
+
+        if platform.system() == 'Linux':
+            call_string = f'taskset -c 0 {call_string}'
+        if self._disable_buffer:
+            call_string = f'stdbuf -o0 {call_string}'
+
+        print(call_string)
+
+        #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
+        self._ps = subprocess.Popen(
+            [call_string],
+            shell=True,
+            preexec_fn=os.setsid,
+            stderr=subprocess.PIPE,
+        )
+        os.set_blocking(self._ps.stderr.fileno(), False)
+        self._has_started = True
 
     def _parse_metrics(self, df):
+        """
+        detail_name is always set by rapl_reader.exe stdout output
+        (cpu_package, cpu_cores, cpu_gpu, dram, psys) - no transformation needed.
+        """
         return df
