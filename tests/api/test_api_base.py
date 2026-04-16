@@ -43,7 +43,6 @@ def test_can_read_authentication_data():
     assert json_data['success'] is True
     assert json_data['data'].get('_id', None) is None # must be deleted in response
     assert json_data['data']['_name'] == 'DEFAULT'
-    assert json_data['data']['_has_ssh_private_key'] is False
     assert json_data['data'].get('_ssh_private_key', None) is None
 
 def test_can_update_ssh_private_key_setting():

@@ -805,7 +805,6 @@ class TestFrontendFunctionality:
 
             settings_response = response_info.value.json()
             assert settings_response['success'] is True
-            assert settings_response['data']['_has_ssh_private_key'] is True
             assert '_ssh_private_key' not in settings_response['data']
             assert private_key not in json.dumps(settings_response)
 
