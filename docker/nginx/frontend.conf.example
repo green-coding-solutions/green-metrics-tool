@@ -30,7 +30,7 @@ server {
 
     location ~* \.(png|jpg|jpeg|gif|ico|svg|webp)$ {
         root   /var/www/green-metrics-tool/frontend;
-        add_header Cache-Control "public, max-age=604800 must-revalidate" always;
+        add_header Cache-Control "public, max-age=604800, must-revalidate" always;
         expires 7d;
     }
 
