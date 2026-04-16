@@ -5,6 +5,8 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.user import User, UserAuthenticationError
 from lib.secure_variable import SecureVariable
+from lib.db import DB
+from lib.encryption import ENCRYPTED_VALUE_PREFIX, decrypt_data, encrypt_data
 from tests import test_functions as Tests
 
 
@@ -48,3 +50,42 @@ def test_user_can_clear_ssh_private_key():
         assert user.get_ssh_private_key() is None
     finally:
         user.update_ssh_private_key('')
+
+def test_encrypt_and_decrypt_data():
+    data = 'secret value'
+
+    encrypted_data = encrypt_data(data)
+
+    assert encrypted_data.startswith(ENCRYPTED_VALUE_PREFIX)
+    assert encrypted_data != data
+    assert decrypt_data(encrypted_data) == data
+
+def test_user_stores_ssh_private_key_encrypted():
+    user = User(1)
+    private_key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----'
+
+    try:
+        user.update_ssh_private_key(private_key)
+
+        raw_value = DB().fetch_one('SELECT ssh_private_key FROM users WHERE id = %s', params=(1,))[0]
+
+        assert raw_value.startswith(ENCRYPTED_VALUE_PREFIX)
+        assert private_key not in raw_value
+        assert User(1).get_ssh_private_key() == f'{private_key}\n'
+    finally:
+        User(1).update_ssh_private_key('')
+
+def test_existing_plaintext_ssh_private_key_still_loads_and_gets_reencrypted():
+    plaintext_value = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
+    try:
+        DB().query('UPDATE users SET ssh_private_key = %s WHERE id = %s', params=(plaintext_value, 1))
+
+        user = User(1)
+        raw_value = DB().fetch_one('SELECT ssh_private_key FROM users WHERE id = %s', params=(1,))[0]
+
+        assert user.has_ssh_private_key() is True
+        assert user.get_ssh_private_key() == plaintext_value
+        assert raw_value.startswith(ENCRYPTED_VALUE_PREFIX)
+        assert plaintext_value not in raw_value
+    finally:
+        User(1).update_ssh_private_key('')

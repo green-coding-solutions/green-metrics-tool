@@ -793,6 +793,31 @@ class TestFrontendFunctionality:
         time_series_avg_display = page.locator('#time-series-avg-display').text_content()
         assert time_series_avg_display.strip() == 'Currently not showing AVG in time series'
 
+    def test_settings_does_not_expose_ssh_private_key(self):
+        private_key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----'
+
+        try:
+            User(1).update_ssh_private_key(private_key)
+
+            page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+            with page.expect_response(lambda response: '/v1/user/settings' in response.url and response.status == 200) as response_info:
+                page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
+
+            settings_response = response_info.value.json()
+            assert settings_response['success'] is True
+            assert settings_response['data']['_has_ssh_private_key'] is True
+            assert '_ssh_private_key' not in settings_response['data']
+            assert private_key not in json.dumps(settings_response)
+
+            page.wait_for_load_state("load") # ALL JS should be done
+            page.locator("a#settings-tab-measurement").click()
+
+            value = page.locator('#ssh-private-key-status').text_content()
+            assert value.strip() == 'A private key is stored for this user.'
+            assert page.locator('#ssh-private-key').input_value() == ''
+        finally:
+            User(1).update_ssh_private_key('')
+
     def test_settings_measurement(self):
         User(1).update_ssh_private_key('')
 

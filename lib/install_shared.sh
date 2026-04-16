@@ -179,8 +179,17 @@ function prepare_config() {
     eval "${sed_command} -e \"s|__TZ__|$tz|g\" docker/compose.yml"
 
     print_message "Updating config.yml with new password ..."
+    local encryption_key=""
+    if [[ -f config.yml ]]; then
+        encryption_key=$(awk '/security:/ {flag=1; next} flag && /encryption_key:/ {print $2; exit}' config.yml | tr -d '"'\''')
+    fi
+    if [[ -z "$encryption_key" || "$encryption_key" == "PLEASE_CHANGE_THIS_ENCRYPTION_KEY" ]]; then
+        encryption_key=$(generate_random_password 64)
+    fi
+
     copy_backup config.yml
     eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS|$db_pw|\" config.yml"
+    eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS_ENCRYPTION_KEY|$encryption_key|\" config.yml"
 
     print_message "Updating project with provided URLs ..."
 

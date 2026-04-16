@@ -258,8 +258,10 @@ class ScenarioRunner:
         if not self._ssh_private_key:
             return None
 
-        self._ssh_private_key_file.write_text(self._ssh_private_key, encoding='utf-8')
+        self._ssh_private_key_file.write_text('', encoding='utf-8')
         os.chmod(self._ssh_private_key_file, 0o600)
+        self._ssh_private_key_file.write_text(self._ssh_private_key, encoding='utf-8')
+
         return self._ssh_private_key_file
 
     def _get_git_environment(self):
@@ -424,6 +426,8 @@ class ScenarioRunner:
         if not self._dev_cache_repos:
             self._initialize_folder(self._relations_folder)
 
+        git_env_vars = self._get_git_environment()
+
         for relation_key, relation in self.__usage_scenario['relations'].items():
             relation_path = self._relations_folder.joinpath(relation_key).resolve() # relation_key already checked in schema_checker
 
@@ -456,7 +460,7 @@ class ScenarioRunner:
                     capture_output=True,
                     encoding='UTF-8',
                     errors='replace',
-                    env=self._get_git_environment(),
+                    env=git_env_vars,
                 )
 
             if 'commit_hash' in relation:

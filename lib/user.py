@@ -4,6 +4,7 @@ import uuid
 
 from lib.secure_variable import SecureVariable
 from lib.db import DB
+from lib.encryption import decrypt_data, encrypt_data
 
 def get_nested_value(dictionary, path):
     keys = path.split('.', 1)
@@ -29,8 +30,9 @@ class User():
         self._id = user[0]
         self._name = user[1]
         self._capabilities = user[2]
-        self._ssh_private_key = SecureVariable(user[3]) if user[3] else None
-        self._has_ssh_private_key = self._ssh_private_key is not None
+
+        decrypted_ssh_private_key = decrypt_data(user[3]) if user[3] else None
+        self._ssh_private_key = SecureVariable(decrypted_ssh_private_key) if decrypted_ssh_private_key else None
 
     def to_dict(self):
         values = self.__dict__.copy()
@@ -101,7 +103,7 @@ class User():
         self.update()
 
     def has_ssh_private_key(self):
-        return self._has_ssh_private_key
+        return self._ssh_private_key is not None
 
     def get_ssh_private_key(self):
         if self._ssh_private_key is None:
@@ -123,14 +125,15 @@ class User():
             else:
                 normalized_value = f"{normalized_value}\n"
 
+        encrypted_value = encrypt_data(normalized_value) if normalized_value else None
+
         DB().query("""
             UPDATE users
             SET ssh_private_key = %s
             WHERE id = %s
-            """, params=(normalized_value, self._id, ))
+            """, params=(encrypted_value, self._id, ))
 
         self._ssh_private_key = SecureVariable(normalized_value) if normalized_value else None
-        self._has_ssh_private_key = self._ssh_private_key is not None
 
     def can_change_setting(self, name):
         return name in self._capabilities['user']['updateable_settings']

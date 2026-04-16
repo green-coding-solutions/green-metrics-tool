@@ -10,6 +10,11 @@ redis:
   host: green-coding-redis-container
   port: 6379
 
+security:
+  # Used to encrypt secrets before storing them in the database. Keep this stable;
+  # changing it makes previously encrypted DB values unreadable.
+  encryption_key: PLEASE_CHANGE_THIS_ENCRYPTION_KEY
+
 smtp:
   server: SMTP_SERVER
   sender: SMTP_SENDER
