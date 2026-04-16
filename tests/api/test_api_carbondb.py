@@ -211,6 +211,6 @@ def assert_expected_data(exp_data, data):
         if key == 'ip':
             key = 'ip_address'
         if isinstance(exp_data[key], float):
-            assert math.isclose(exp_data[key], data[key], rel_tol=1e-3) , f"{key}: {exp_data[key]} not close to {data[key]} - Raw: {data}"
+            assert math.isclose(exp_data[key], data[key], abs_tol=1e-3) , f"{key}: {exp_data[key]} not close to {data[key]} - Raw: {data}"
         else:
             assert exp_data[key] == data[key], f"{key}: {exp_data[key]} != {data[key]} - Raw: {data}"

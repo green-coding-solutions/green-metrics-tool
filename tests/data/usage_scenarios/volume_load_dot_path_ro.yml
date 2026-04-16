@@ -1,19 +1,19 @@
 ---
-name: Test Stress
-author: Dan Mateas
+name: Test dot volume path
+author: Test
 description: test
 
 services:
   test-container:
+    image: gcb_stress
     build:
       context: ../stress-application
-    image: gcb_stress
     container_name: test-container
     volumes:
-      - ../tmp/symlink:/tmp/hosts:ro
+      - .:/tmp/repo_dir:ro
 
 flow:
-  - name: Stress
+  - name: Test
     container: test-container
     commands:
       - type: console

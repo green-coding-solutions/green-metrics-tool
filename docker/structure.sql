@@ -135,7 +135,7 @@ VALUES (
             "dev_no_sleeps": false,
             "skip_optimizations": false,
             "dev_no_container_dependency_collection": false,
-            "allow_unsafe": false,
+            "allowed_volume_mounts": [],
             "skip_unsafe": true,
             "dev_no_system_checks": false,
             "skip_volume_inspect": false,

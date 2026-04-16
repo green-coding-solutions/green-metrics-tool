@@ -44,7 +44,7 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
 
         config = GlobalConfig().config
         file_path = os.path.dirname(os.path.abspath(__file__))
-        provider_name = file_path[file_path.find("metric_providers") + len("metric_providers") + 1:].replace("/", ".") + ".provider." + self.__class__.__name__
+        provider_name = file_path[file_path.find("metric_providers") + len("metric_providers") + 1:].replace("/", "_")
         provider_config = config['measurement']['metric_providers']['common'][provider_name]
 
         if not provider_config['CPUChips']:
@@ -93,8 +93,5 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
         df.dropna(inplace=True)
 
         df.value = df.value.astype('int64')
-
-        if df.empty:
-            raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
 
         return df

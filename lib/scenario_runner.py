@@ -16,6 +16,7 @@ import importlib
 import re
 from pathlib import Path
 import random
+import pandas
 import shutil
 import math
 import yaml
@@ -66,7 +67,8 @@ class ScenarioRunner:
         commit_hash=None,
         ssh_private_key=None,
         docker_prune=False, job_id=None, user_id=1,
-        disabled_metric_providers=None, allowed_run_args=None, phase_padding=True, usage_scenario_variables=None,
+        disabled_metric_providers=None, allowed_run_args=None, allowed_volume_mounts=None,
+        phase_padding=True, usage_scenario_variables=None,
         category_ids=None,
 
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
@@ -145,8 +147,7 @@ class ScenarioRunner:
         self._category_ids = set(category_ids) if category_ids else None # deduplicate
         self._architecture = utils.get_architecture()
 
-        self._sci = {'R_d': None, 'R': 0}
-        self._sci |= config.get('sci', None)  # merge in data from machine config like I, TE etc.
+        self._sci = config.get('sci', {})
 
         self._job_id = job_id
         self._run_id = None
@@ -159,6 +160,7 @@ class ScenarioRunner:
         self._measurement_total_duration = measurement_total_duration
         self._disabled_metric_providers = [] if disabled_metric_providers is None else disabled_metric_providers
         self._allowed_run_args = [] if allowed_run_args is None else allowed_run_args # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
+        self._allowed_volume_mounts = [] if allowed_volume_mounts is None else allowed_volume_mounts
         self._measurement_system_check_threshold = measurement_system_check_threshold
         self._measurement_pre_test_sleep = measurement_pre_test_sleep
         self._measurement_idle_duration = measurement_idle_duration
@@ -180,6 +182,7 @@ class ScenarioRunner:
                 ('_read_container_logs', {}),
                 ('_stop_metric_providers', {}),
                 ('_read_and_cleanup_processes', {}),
+                ('_store_custom_metrics', {}),
                 ('_store_phases', {}),
                 ('_save_notes_runner', {}),
                 ('_save_run_logs', {}),
@@ -216,6 +219,10 @@ class ScenarioRunner:
         self.__usage_scenario_variables_used_buffer = set(self._usage_scenario_variables.keys())
         self.__include_playwright_ipc = False
         self.__relations = {}
+        self.__custom_metrics = {}
+        self.__sci_metrics = []
+
+
 
         self._check_all_durations()
 
@@ -678,7 +685,16 @@ class ScenarioRunner:
         if self.__usage_scenario.get('architecture') is not None and self._architecture != self.__usage_scenario['architecture'].lower():
             raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self.__usage_scenario.get('architecture')})")
 
-        self._sci['R_d'] = self.__usage_scenario.get('sci', {}).get('R_d', None)
+        for key, custom_metric in self.__usage_scenario.get('custom_metrics', {}).items():
+            safe_key = f"custom_{key}"
+            if custom_metric.get('regex', '').strip() == '':
+                # Important: Before we had here a 10,19 timestamp and where upgrading it from second to
+                # microsecond precision. This lead to errors in correct phase attribution by ghosting into previous phases
+                # Timing must be at least microsecond precision
+                custom_metric['regex'] = rf"^(\d{{16,19}}) {key}=(\d+)$" # default fallback regex
+            self.__custom_metrics[safe_key] = custom_metric
+            if custom_metric.get('sci', False):
+                self.__sci_metrics.append(safe_key)
 
     def _prepare_docker(self):
         # Disable Docker CLI hints (e.g. "What's Next? ...")
@@ -897,7 +913,7 @@ class ScenarioRunner:
         measurement_config['machine_settings'] = config['machine']
         measurement_config['allowed_run_args'] = self._allowed_run_args
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
-        measurement_config['sci'] = self._sci
+        measurement_config['custom_metrics'] = self.__custom_metrics
         measurement_config['phase_padding'] = self._phase_padding_ms
 
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
@@ -948,12 +964,12 @@ class ScenarioRunner:
         self._initialize_folder(self._metrics_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
 
         for metric_provider in metric_providers: # will iterate over keys
-            module_path, class_name = metric_provider.rsplit('.', 1)
-            module_path = f"metric_providers.{module_path}"
+            module_path = f"metric_providers.{metric_provider.replace('_', '.')}.provider"
+            class_name = "".join([token.capitalize() for token in metric_provider.split('_')]) + "Provider"
             conf = metric_providers[metric_provider] or {}
 
-            if class_name in self._disabled_metric_providers:
-                print(TerminalColors.WARNING, arrows(f"Not importing {class_name} as disabled per user settings"), TerminalColors.ENDC)
+            if metric_provider in self._disabled_metric_providers:
+                print(TerminalColors.WARNING, arrows(f"Not importing {metric_provider} as disabled per user settings"), TerminalColors.ENDC)
                 continue
 
             print(f"Importing {class_name} from {module_path}")
@@ -1059,7 +1075,7 @@ class ScenarioRunner:
                     if ',' in relation['mount_path']:
                         raise ValueError(f"Relation mount path may not contain commas (,) in the name: {relation['mount_path']}")
                     docker_build_command.append('--mount')
-                    docker_build_command.append(f"type=bind,source={relation['mount_path']},target=/tmp/relations/{relation_key},readonly")
+                    docker_build_command.append(f"type=bind,source={relation['mount_path']},target=/tmp/relations/{relation_key},readonly") # relation_key already checked in schema_checker
 
                 docker_build_command.append('gcr.io/kaniko-project/executor:latest')
 
@@ -1306,8 +1322,7 @@ class ScenarioRunner:
                 'name': container_name,
                 'log-stdout': service.get('log-stdout', True),
                 'log-stderr': service.get('log-stderr', True),
-                'read-notes-stdout': service.get('read-notes-stdout', False),
-                'read-sci-stdout': service.get('read-sci-stdout', False),
+                'read-notes-stdout': service.get('read-notes-stdout', False)
             }
 
             print(TerminalColors.HEADER, '\nSetting up container for service:', service_name, TerminalColors.ENDC)
@@ -1357,7 +1372,7 @@ class ScenarioRunner:
             if 'volumes' in service:
                 if self._allow_unsafe:
                     for volume in service['volumes']:
-                        docker_run_string.append('-v')
+                        docker_run_string.append('-v') # since the volume can be bind or anonymous we use the more flexible -v syntax here
                         vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
                         if not Path(vol[0]).is_absolute(): # we have a bind-mount with relative path
                             path = Path(self.__working_folder, vol[0]).resolve()
@@ -1366,21 +1381,67 @@ class ScenarioRunner:
                             docker_run_string.append(f"{path.as_posix()}:{vol[1]}")
                         else:
                             docker_run_string.append(f"{volume}")
-                else: # safe volume bindings are active by default
+                else:
                     for volume in service['volumes']:
                         vol = volume.split(':')
-                        # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
+
+                        vol_len = len(vol)
+                        # We always assume the format to be ./dir:dir:[flag] as when we would
+                        # allow None bind mounts then people
                         # could create volumes that would linger on our system.
-                        try:
-                            path = self._join_paths(self.__working_folder, vol[0])
+
+                        if vol_len < 2 or vol_len > 3:
+                            raise ValueError(f"Volume mount path '{volume}' is malformed should be source:target:MOUNT_OPTION")
+
+                        mount_src = vol[0]
+                        mount_target = vol[1]
+                        mount_option = '' # read-write by default. But will work only with allow list
+
+                        if vol_len == 3:
+                            if vol[2] == 'ro' or vol[2] == 'readonly':
+                                mount_option = ',readonly'
+                            else:
+                                raise ValueError(f"Service '{service_name}': We only allow readonly (ro) or no parameter (writeable) for volume mounts. Volume: {volume}")
+
+                        try: # Path.resolve and _join_paths can error
+
+                            mount_string = f"{mount_src}{mount_option}"
+                            if mount_string in self._allowed_volume_mounts:
+                                if not Path(mount_src).is_absolute() and not mount_src.startswith(('.', '..')): # volume case. should exist
+                                    mount_type = 'volume'
+                                    ps = subprocess.run(
+                                        ["docker", "volume", "inspect", mount_src],
+                                        check=False,
+                                        stdout=subprocess.DEVNULL,
+                                        stderr=subprocess.PIPE,
+                                        encoding='UTF-8',
+                                        errors='replace'
+                                    )
+                                    if ps.returncode != 0:
+                                        raise RuntimeError(f"Could not find volume '{mount_src}' locally from service: {service_name}. The volume must be created manually before it can be loaded. GMT does not create named volumes. - Error from Docker: {ps.stderr}")
+
+                                else: # path case. Check path if on machine as -v will create folder otherwise
+                                    mount_type = 'bind'
+                                    if not Path(mount_src).is_absolute():
+                                        raise ValueError(f"Mount path in allow listed volume mounts must be absolute. Value was: {mount_src}")
+                                    mount_src = Path(mount_src).resolve(strict=True).as_posix()
+
+                            else:
+                                mount_type = 'bind'
+                                if mount_option != ',readonly':
+                                    raise RuntimeError(f"Service '{service_name}': We only allow readonly (ro) as parameter in volume mounts in safe mode. Volume: {volume} - Try --allow-unsafe if you are running locally")
+                                mount_src = self._join_paths(self.__working_folder, mount_src).as_posix()
                         except FileNotFoundError as exc:
-                            raise RuntimeError(f"The volume {vol[0]} could not be loaded or found at the specified path.") from exc
-                        if len(vol) == 3:
-                            if vol[2] != 'ro':
-                                raise RuntimeError(f"Service '{service_name}': We only allow ro as parameter in volume mounts in unsafe mode")
+                            raise RuntimeError(f"The mount path {mount_src} could not be loaded or found at the specified path.") from exc
+
+
+                        if ',' in mount_src: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                            raise ValueError(f"Mount source path may not contain commas (,) in the name: {mount_src}")
+                        if ',' in mount_target: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
+                            raise ValueError(f"Mount target path may not contain commas (,) in the name: {mount_target}")
 
                         docker_run_string.append('--mount')
-                        docker_run_string.append(f"type=bind,source={path},target={vol[1]},readonly")
+                        docker_run_string.append(f"type={mount_type},source={mount_src},target={mount_target}{mount_option}")
 
             if service.get('init', False):
                 docker_run_string.append('--init')
@@ -1781,7 +1842,6 @@ class ScenarioRunner:
                     'container_name': container_name,
                     'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
                     'ignore-errors': cmd_obj.get('ignore-errors', False),
-                    'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
                     'detail_name': container_name,
                     'detach': cmd_obj.get('detach', False),
                 })
@@ -2136,7 +2196,6 @@ class ScenarioRunner:
                         'container_name': flow['container'],
                         'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
                         'ignore-errors': cmd_obj.get('ignore-errors', False),
-                        'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
                         'detail_name': flow['container'],
                         'detach': cmd_obj.get('detach', False),
                         'flow_name': flow['name'],
@@ -2269,8 +2328,7 @@ class ScenarioRunner:
 
     def _handle_process_output(self, stdout, stderr, container_name, log_type,
                               log_id, cmd, phase, flow=None,
-                              read_notes_stdout=False, read_sci_stdout=False,
-                              detail_name=None):
+                              read_notes_stdout=False, detail_name=None):
         # Only create log entries if there's actual content
         has_stdout = stdout is not None and stdout.strip()
         has_stderr = stderr is not None and stderr.strip()
@@ -2292,12 +2350,32 @@ class ScenarioRunner:
                 flow=flow
             )
 
+            if not has_stdout:
+                return
+
             if has_stdout and read_notes_stdout:
                 self.__notes_helper.parse_and_add_notes(detail_name or container_name, stdout)
 
-            if has_stdout and read_sci_stdout:
-                for match in re.findall(r'^GMT_SCI_R=(\d+)$', stdout, re.MULTILINE):
-                    self._sci['R'] += int(match)
+            for key, custom_metric in self.__custom_metrics.items():
+                matches = re.findall(custom_metric['regex'], stdout, re.MULTILINE)
+                if not matches:
+                    continue
+                if not isinstance(matches[0], tuple) or len(matches[0]) != 2:
+                    raise RuntimeError(f"Capturing regex for custom metric {key} did not result in two capture groups. Must be a timestamp and value pair. Resulting capture groups are: {matches}. Regex was: {custom_metric['regex']}")
+
+                df = pandas.DataFrame(matches, columns=['time', 'value'])
+                try:
+                    df['time'] = df['time'].apply(utils.normalize_timestamp).astype('int64')
+                except ValueError as exc:
+                    raise ValueError(f"Parsing time string for custom metric from stdout failed: {exc}") from exc
+                df['value'] = df['value'].astype('int64')
+                df['metric'] = key
+                df['detail_name'] = container_name
+                df['unit'] = self.__custom_metrics[key].get('unit', 'Unknown')
+                if self.__custom_metrics[key].get('data', pandas.DataFrame()).empty:
+                    self.__custom_metrics[key]['data'] = df
+                else:
+                    self.__custom_metrics[key]['data'] = pandas.concat([self.__custom_metrics[key]['data'], df], ignore_index=True)
 
     def _read_and_cleanup_processes(self):
         print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
@@ -2337,7 +2415,6 @@ class ScenarioRunner:
                 phase=phase,
                 flow=ps.get('flow_name'),
                 read_notes_stdout=ps['read-notes-stdout'],
-                read_sci_stdout=ps['read-sci-stdout'],
                 detail_name=ps['detail_name']
             )
 
@@ -2361,6 +2438,23 @@ class ScenarioRunner:
                         raise MemoryError(f"Your process {ps['cmd']} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\nDetached process: {ps['detach']}\n\n========== Stderr ==========\n{stderr}")
                     else:
                         raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}. Please also check the stdout in the logs and / or enable stdout logging to debug further.")
+
+    def _store_custom_metrics(self):
+        print(TerminalColors.HEADER, '\nImporting custom metrics', TerminalColors.ENDC)
+
+        if not self._run_id or self._dev_no_save:
+            print('Skipping import of custom metrics due to missing run id or --dev-no-save')
+            return
+
+        for metric_name, custom_metric in self.__custom_metrics.items():
+            if custom_metric.get('data', pandas.DataFrame()).empty:
+                metric_original_name = metric_name[7:]
+                print(TerminalColors.WARNING, f"Custom metric '{metric_original_name}' yielded no results to import. Please check your regex and / or check if you turned of log_stdout in the usage_scenario.yml", TerminalColors.ENDC)
+                continue
+
+            metric_importer.import_measurements(custom_metric['data'], metric_name, self._run_id)
+            print('Imported', TerminalColors.HEADER, len(custom_metric['data']), TerminalColors.ENDC, f"metrics from {metric_name}")
+
 
     def _create_folders(self):
         ''' Must be here and not in init, as it must be created for every iteration'''
@@ -2461,8 +2555,7 @@ class ScenarioRunner:
                 log_id=id(log),
                 cmd=container_info['docker_run_cmd'],
                 phase='[MULTIPLE]', # the container logs were collected usually over multiple phases: [BOOT], [IDLE], [RUNTIME]
-                read_notes_stdout=container_info['read-notes-stdout'],
-                read_sci_stdout=container_info['read-sci-stdout']
+                read_notes_stdout=container_info['read-notes-stdout']
             )
 
     def _save_run_logs(self):
@@ -2533,7 +2626,7 @@ class ScenarioRunner:
         # get all the metrics from the measurements table grouped by metric
         # loop over them issuing separate queries to the DB
         from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-        build_and_store_phase_stats(self._run_id, self._sci)
+        build_and_store_phase_stats(self._run_id, self._sci, self.__sci_metrics.copy())
 
     def _store_cumulative_run_logs(self):
         """
@@ -2630,6 +2723,9 @@ class ScenarioRunner:
         self.__usage_scenario_variables_used_buffer.clear()
         self.__include_playwright_ipc = False
         self.__relations.clear()
+        self.__custom_metrics.clear()
+        self.__sci_metrics.clear()
+
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 

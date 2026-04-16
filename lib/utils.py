@@ -206,6 +206,19 @@ def is_rapl_energy_filtering_deactivated():
                             check=True, encoding='UTF-8', errors='replace')
     return '1' != result.stdout.strip()
 
+def normalize_timestamp(time_str):
+    # we use microsecond timestamps internally
+    # some outputs give us second, millisecond or nanosecond ... so we normalize those
+    length = len(time_str)
+
+    # Important: Before we had here a 10,19 timestamp and where upgrading it from second to
+    # microsecond precision. This lead to errors in correct phase attribution by ghosting into previous phases
+    # Timing must be at least microsecond precision
+    if length < 16 or length > 19:
+        raise ValueError(f"Invalid time string length: {length} for time string: {time_str}. Must be between 16 and 19 characters.")
+
+    return time_str.ljust(16,'0')[:16] # Pad with spaces on the right and Truncate to 16 characters. no ifs and counting ... just do.
+
 @cache
 def find_own_cgroup_name():
     current_pid = os.getpid()

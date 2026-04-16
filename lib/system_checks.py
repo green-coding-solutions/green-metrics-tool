@@ -47,7 +47,7 @@ def check_docker_host_env(*_, **__):
 
 def check_one_energy_and_scope_machine_provider(*_, **__):
     metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
-    energy_machine_providers = [provider for provider in metric_providers if ".energy" in provider and ".machine" in provider]
+    energy_machine_providers = [provider for provider in metric_providers if "_energy_" in provider and "_machine" in provider]
     return len(energy_machine_providers) <= 1
 
 def check_tmpfs_mount(*_, **__):

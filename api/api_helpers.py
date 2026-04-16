@@ -8,10 +8,10 @@ import typing
 import uuid
 import math
 import time
+import orjson
 
 from starlette.background import BackgroundTask
-from fastapi.responses import ORJSONResponse
-from fastapi import Depends, Request, HTTPException
+from fastapi import Depends, Request, HTTPException, Response
 from fastapi.security import APIKeyHeader
 import numpy as np
 import scipy.stats
@@ -166,7 +166,7 @@ def get_run_info(user, run_id):
     return run
 
 
-def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=None, end_date=None, detail_name=None, sorting='run', v2=False):
+def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=None, end_date=None, detail_name=None, sorting='run', show_archived=None, include_usage_scenario_variables=False):
 
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
@@ -221,17 +221,21 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
     if sorting is not None and sorting.strip() == 'run':
         sorting_condition = 'r.created_at ASC, r.commit_timestamp ASC'
 
-    if v2:
-        include_usage_scenario_variables = 'r.usage_scenario_variables, '
+    archived_condition = ''
+    if show_archived is not True:
+        archived_condition = 'AND r.archived = FALSE'
+
+    if include_usage_scenario_variables:
+        usage_scenario_variables_selector = 'r.usage_scenario_variables, '
     else:
-        include_usage_scenario_variables = ''
+        usage_scenario_variables_selector = ''
 
     query = f"""
             SELECT
                 r.id, r.name,
-                {include_usage_scenario_variables}
+                {usage_scenario_variables_selector}
                 r.created_at, p.metric, p.detail_name, p.phase,
-                p.value, p.unit, r.commit_hash, r.commit_timestamp, r.gmt_hash,
+                p.value, p.unit, r.commit_hash, r.commit_timestamp, r.gmt_hash, r.archived,
                 row_number() OVER () AS row_num
             FROM runs as r
             LEFT JOIN phase_stats as p ON
@@ -250,7 +254,7 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
                 {detail_name_condition}
                 {machine_id_condition}
                 {usage_scenario_variables_condition}
-                AND r.archived = FALSE
+                {archived_condition}
                 AND r.commit_timestamp IS NOT NULL
                 AND r.failed IS FALSE
             ORDER BY
@@ -811,9 +815,18 @@ def get_t_stat(length):
     t_crit = np.abs(scipy.stats.t.ppf((.05)/2,dof)) # for two sided!
     return t_crit/np.sqrt(length)
 
+# since FastAPI deprecates the normal JSONResponse we need to create a custom class to mitigate the deprecation error
+# We do not want to move to pydantic as this cannot natively serialize datetime from the DB.
+# We would then have to call jsonable_encoder everytime ... this solution here seems cleaner and likely faster
+class CustomORJSONResponse(Response):
+    media_type = "application/json"
+
+    def render(self, content) -> bytes:
+        return orjson.dumps(content) # pylint: disable=no-member
+
 # As the ORJSONResponse renders the object on init we need to keep the original around as otherwise we need to reparse
 # it when we use these functions in our code. The header is a copy from starlette/responses.py JSONResponse
-class ORJSONResponseObjKeep(ORJSONResponse):
+class ORJSONResponseObjKeep(CustomORJSONResponse):
     def __init__(
         self,
         content: typing.Any,

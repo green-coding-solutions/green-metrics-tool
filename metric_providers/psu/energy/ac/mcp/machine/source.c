@@ -33,6 +33,10 @@ const unsigned char f511_read_system_configuration[] = { 0x41, 0x00, 0xA0, 0x4E,
 const unsigned char f511_read_range1[] = { 0x41, 0x00, 0xAE, 0x4E, 4 };
 const unsigned char f511_read_range2[] = { 0x41, 0x00, 0xBE, 0x4E, 4 };
 
+#define MCP_EXPECTED_VOLTAGE_RANGE 18u
+#define MCP_EXPECTED_CURRENT_RANGE 12u
+#define MCP_DEFAULT_POWER_RANGE 6u
+
 // least significant bit first. So 0x01 0x00 will set to 0x0001
 // the accumulation interval is 2^N*(1/f). f is typically 50 Hz. So N=1 would equal to 40ms max resolution
 // although 2^0 can be technically set we see that the powerfactor then gets calculated wrongly and
@@ -53,6 +57,8 @@ static struct timespec offset;
 enum mcp_states { init, wait_ack, get_len, get_data, validate_checksum };
 
 enum mcp_states mcp_state = wait_ack;
+
+#define MCP_POWER_RANGE_SHIFT (19u - MCP_DEFAULT_POWER_RANGE)
 
 static uint32_t parse_le32(const unsigned char *buf)
 {
@@ -209,7 +215,7 @@ int mcp_cmd(unsigned char *cmd, unsigned int cmd_length, unsigned char *reply, i
 
 
 
-int f511_get_power(int *ch1, int *ch2, int fd)
+int f511_get_power(uint32_t *ch1, uint32_t *ch2, int fd)
 {
     int res;
     unsigned char reply[40];
@@ -308,6 +314,52 @@ int f511_get_range_registers(uint32_t *range1, uint32_t *range2, int fd)
     return 0;
 }
 
+int f511_set_range_registers(uint32_t range1, uint32_t range2, int fd)
+{
+    unsigned char reply[8];
+    unsigned char write_range1[] = { 0x41, 0x00, 0xAE, 0x4D, 4, 0x00, 0x00, 0x00, 0x00 };
+    unsigned char write_range2[] = { 0x41, 0x00, 0xBE, 0x4D, 4, 0x00, 0x00, 0x00, 0x00 };
+    int res;
+
+    write_range1[5] = range1 & 0xFFu;
+    write_range1[6] = (range1 >> 8) & 0xFFu;
+    write_range1[7] = (range1 >> 16) & 0xFFu;
+    write_range1[8] = (range1 >> 24) & 0xFFu;
+
+    write_range2[5] = range2 & 0xFFu;
+    write_range2[6] = (range2 >> 8) & 0xFFu;
+    write_range2[7] = (range2 >> 16) & 0xFFu;
+    write_range2[8] = (range2 >> 24) & 0xFFu;
+
+    res = mcp_cmd(write_range1, sizeof(write_range1), (unsigned char *)&reply, fd);
+    if (res < 0) {
+        return -1;
+    }
+
+    res = mcp_cmd(write_range2, sizeof(write_range2), (unsigned char *)&reply, fd);
+    if (res < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int f511_set_power_range_registers(uint8_t power_range, int fd)
+{
+    uint32_t range1;
+    uint32_t range2;
+    int res;
+
+    res = f511_get_range_registers(&range1, &range2, fd);
+    if (res != 0) {
+        return -1;
+    }
+
+    range1 = (range1 & ~(0xFFu << 16)) | ((uint32_t)power_range << 16);
+    range2 = (range2 & ~(0xFFu << 16)) | ((uint32_t)power_range << 16);
+    return f511_set_range_registers(range1, range2, fd);
+}
+
 void f511_dump_range_registers(int fd)
 {
     uint32_t range1;
@@ -343,26 +395,26 @@ void f511_check_range_registers(int fd)
         exit(-1);
     }
 
-    if ( (range1 & 0xFFu) != 18) {
-        fprintf(stderr, "Voltage range register was not expected 18 but %d\n", range1 & 0xFFu);
+    if ( (range1 & 0xFFu) != MCP_EXPECTED_VOLTAGE_RANGE) {
+        fprintf(stderr, "Voltage range register was not expected %u but %d\n", MCP_EXPECTED_VOLTAGE_RANGE, range1 & 0xFFu);
         exit(-1);
     }
-    if ( ((range1 >> 8) & 0xFFu) != 12) {
-        fprintf(stderr, "Current1 range register was not expected 12 but %d\n", (range1 >> 8) & 0xFFu);
+    if ( ((range1 >> 8) & 0xFFu) != MCP_EXPECTED_CURRENT_RANGE) {
+        fprintf(stderr, "Current1 range register was not expected %u but %d\n", MCP_EXPECTED_CURRENT_RANGE, (range1 >> 8) & 0xFFu);
         exit(-1);
     }
-    if ( ((range1 >> 16) & 0xFFu) != 19) {
-        fprintf(stderr, "Power1 range register was not expected 19 but %d\n", (range1 >> 16) & 0xFFu);
-        exit(-1);
-    }
-
-    if ( ((range2 >> 8) & 0xFFu) != 12) {
-        fprintf(stderr, "Current2 range register was not expected 12 but %d\n", (range2 >> 8) & 0xFFu);
+    if ( ((range1 >> 16) & 0xFFu) != MCP_DEFAULT_POWER_RANGE) {
+        fprintf(stderr, "Power1 range register was not expected %u but %d\n", MCP_DEFAULT_POWER_RANGE, (range1 >> 16) & 0xFFu);
         exit(-1);
     }
 
-    if ( ((range2 >> 16) & 0xFFu) != 19) {
-        fprintf(stderr, "Power2 range register was not expected 19 but %d\n", (range2 >> 16) & 0xFFu);
+    if ( ((range2 >> 8) & 0xFFu) != MCP_EXPECTED_CURRENT_RANGE) {
+        fprintf(stderr, "Current2 range register was not expected %u but %d\n", MCP_EXPECTED_CURRENT_RANGE, (range2 >> 8) & 0xFFu);
+        exit(-1);
+    }
+
+    if ( ((range2 >> 16) & 0xFFu) != MCP_DEFAULT_POWER_RANGE) {
+        fprintf(stderr, "Power2 range register was not expected %u but %d\n", MCP_DEFAULT_POWER_RANGE, (range2 >> 16) & 0xFFu);
         exit(-1);
     }
 }
@@ -387,6 +439,12 @@ int f511_init(const char *port, bool enable_energy)
         return -1;
     }
 
+    res = f511_set_power_range_registers(MCP_DEFAULT_POWER_RANGE, fd);
+    if (res < 0) {
+        fprintf(stderr, "Error. Could not set MCP power range registers\n");
+        return -1;
+    }
+
     res = f511_set_energy_counting(fd, enable_energy);
     if (res < 0) {
         fprintf(stderr, "Error. Could not %s MCP energy counting\n", enable_energy ? "enable" : "disable");
@@ -406,7 +464,7 @@ int main(int argc, char **argv) {
     struct timeval now;
     int fd;
     int result;
-    int power_data[2]; // The MCP has two outlets where you can measure.
+    uint32_t power_data[2]; // The MCP has two outlets where you can measure.
     uint64_t energy_data[2];
 
 
@@ -468,10 +526,10 @@ int main(int argc, char **argv) {
     if (oneshot) {
         if (energy_mode) {
             result = f511_get_energy(&energy_data[0], &energy_data[1], fd);
-            printf("%" PRIu64 "\n", energy_data[0]);
+            printf("%" PRIu64 "\n", (uint64_t)(((__uint128_t)energy_data[0] * 1000000u + ((__uint128_t)1 << (MCP_POWER_RANGE_SHIFT - 1))) >> MCP_POWER_RANGE_SHIFT));
         } else {
             result = f511_get_power(&power_data[0], &power_data[1], fd);
-            printf("%d\n", power_data[0]);
+            printf("%" PRIu64 "\n", (uint64_t)(((uint64_t)power_data[0] * 10000u + (1ull << (MCP_POWER_RANGE_SHIFT - 1))) >> MCP_POWER_RANGE_SHIFT));
         }
     } else {
         while (1) {
@@ -487,10 +545,9 @@ int main(int argc, char **argv) {
             get_adjusted_time(&now, &offset);
 
             if (energy_mode) {
-                printf("%ld%06ld %" PRIu64 "\n", now.tv_sec, now.tv_usec, energy_data[0]);
+                printf("%ld%06ld %" PRIu64 "\n", now.tv_sec, now.tv_usec, (uint64_t)(((__uint128_t)energy_data[0] * 1000000u + ((__uint128_t)1 << (MCP_POWER_RANGE_SHIFT - 1))) >> MCP_POWER_RANGE_SHIFT));
             } else {
-                // The MCP returns the current power consumption in 10mW steps.
-                printf("%ld%06ld %d\n", now.tv_sec, now.tv_usec, power_data[0]);
+                printf("%ld%06ld %" PRIu64 "\n", now.tv_sec, now.tv_usec, (uint64_t)(((uint64_t)power_data[0] * 10000u + (1ull << (MCP_POWER_RANGE_SHIFT - 1))) >> MCP_POWER_RANGE_SHIFT));
             }
             usleep(msleep_time*1000);
         }
