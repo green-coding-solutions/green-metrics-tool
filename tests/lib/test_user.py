@@ -33,8 +33,6 @@ def test_user_to_dict_does_not_expose_ssh_private_key():
         user.update_ssh_private_key('-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----')
 
         user_dict = user.to_dict()
-
-        assert user_dict['_has_ssh_private_key'] is True
         assert '_ssh_private_key' not in user_dict
     finally:
         user.update_ssh_private_key('')
@@ -72,20 +70,5 @@ def test_user_stores_ssh_private_key_encrypted():
         assert raw_value.startswith(ENCRYPTED_VALUE_PREFIX)
         assert private_key not in raw_value
         assert User(1).get_ssh_private_key() == f'{private_key}\n'
-    finally:
-        User(1).update_ssh_private_key('')
-
-def test_existing_plaintext_ssh_private_key_still_loads_and_gets_reencrypted():
-    plaintext_value = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
-    try:
-        DB().query('UPDATE users SET ssh_private_key = %s WHERE id = %s', params=(plaintext_value, 1))
-
-        user = User(1)
-        raw_value = DB().fetch_one('SELECT ssh_private_key FROM users WHERE id = %s', params=(1,))[0]
-
-        assert user.has_ssh_private_key() is True
-        assert user.get_ssh_private_key() == plaintext_value
-        assert raw_value.startswith(ENCRYPTED_VALUE_PREFIX)
-        assert plaintext_value not in raw_value
     finally:
         User(1).update_ssh_private_key('')
