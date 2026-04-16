@@ -6,13 +6,32 @@ server {
 #__SSL__    listen [::]:443 ssl;
 #__SSL__    listen 443 ssl;
 #__SSL__    ssl_certificate /etc/ssl/production.crt;
-#__SSL__    ssl_certificate_key /etc/ssl/production.key;
+    #__SSL__    ssl_certificate_key /etc/ssl/production.key;
 
     server_name __METRICS_URL__;
+
+    etag on;
 
     location / {
         root   /var/www/green-metrics-tool/frontend;
         index  index.html index.htm;
+        try_files $uri $uri/ =404;
+    }
+
+    location ~* \.html$ {
+        root   /var/www/green-metrics-tool/frontend;
+        add_header Cache-Control "public, max-age=0, must-revalidate" always;
+    }
+
+    location ~* \.(css|js)$ {
+        root   /var/www/green-metrics-tool/frontend;
+        add_header Cache-Control "public, max-age=0, must-revalidate" always;
+    }
+
+    location ~* \.(png|jpg|jpeg|gif|ico|svg|webp)$ {
+        root   /var/www/green-metrics-tool/frontend;
+        add_header Cache-Control "public, max-age=604800 must-revalidate" always;
+        expires 7d;
     }
 
     #error_page  404              /404.html;
