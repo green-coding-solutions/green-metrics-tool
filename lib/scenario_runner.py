@@ -876,6 +876,7 @@ class ScenarioRunner:
         measurement_config['cluster_settings'] = config.get('cluster', {}) # untypical that it is empty, but it does not necessarily need to exist
         measurement_config['machine_settings'] = config['machine']
         measurement_config['allowed_run_args'] = self._allowed_run_args
+        measurement_config['sci'] = self._sci
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['custom_metrics'] = self.__custom_metrics
         measurement_config['phase_padding'] = self._phase_padding_ms
