@@ -2,6 +2,7 @@ import os
 
 from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
 from lib.global_config import GlobalConfig
+from lib.utils import get_metric_providers
 
 class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
     def __init__(self, *, folder, CPUChips, TDP, skip_check=False, filename=None):
@@ -42,18 +43,15 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
         # as there is no metric_provider_executable to check
         super().check_system(check_command=None, check_parallel_provider=False)
 
-        config = GlobalConfig().config
-        file_path = os.path.dirname(os.path.abspath(__file__))
-        provider_name = file_path[file_path.find("metric_providers") + len("metric_providers") + 1:].replace("/", "_")
-        provider_config = config['measurement']['metric_providers']['common'][provider_name]
+        configured_providers = get_metric_providers(GlobalConfig().config)
 
-        if not provider_config['CPUChips']:
+        if not configured_providers['psu_energy_ac_sdia_machine']['CPUChips']:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease set the CPUChips config option for PsuEnergyAcSdiaMachineProvider in the config.yml")
-        if not provider_config['TDP']:
+        if not configured_providers['psu_energy_ac_sdia_machine']['TDP']:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease set the TDP config option for PsuEnergyAcSdiaMachineProvider in the config.yml")
 
-        if 'cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider' not in config['measurement']['metric_providers']['linux']:
-            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate the CpuUtilizationProcfsSystemProvider in the config.yml\n \
+        if 'cpu_utilization_mach_system' not in configured_providers and 'cpu_utilization_procfs_system' not in configured_providers:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate a CPU Utilization provider (cpu_utilization_mach_system / cpu_utilization_procfs_system) in the config.yml\n \
                 This is required to run PsuEnergyAcSdiaMachineProvider")
 
     def _read_metrics(self):
@@ -65,7 +63,7 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
                 self._filename = self._folder.joinpath('cpu_utilization_mach_system.log')
             else:
                 raise RuntimeError(f"could not find the cpu_utilization_procfs_system.log or cpu_utilization_mach_system.log file in {self._folder}. \
-                    Did you activate the CpuUtilizationProcfsSystemProvider or CpuUtilizationMacSystemProvider in the config.yml too? \
+                    Did you activate the cpu_utilization_mach_system or cpu_utilization_procfs_system in the config.yml too? \
                     This is required to run PsuEnergyAcSdiaMachineProvider")
 
 
