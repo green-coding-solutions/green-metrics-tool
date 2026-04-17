@@ -96,7 +96,7 @@ machine:
 
 measurement:
   full_docker_prune_whitelist:
-    - gcr.io/kaniko-project/executor
+    - martizih/kaniko:slim
   metric_providers:
   # Please select the needed providers according to the working ones on your system
   # More info https://docs.green-coding.io/docs/measuring/metric-providers

@@ -86,7 +86,7 @@ def test_simple_run_job_no_quota():
             encoding='UTF-8'
         )
 
-    assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
+    assert ps.stderr == '', Tests.assertion_info('No Error', f"STDOUT:\n{ps.stdout}\nSTDERR:\n{ps.stderr}")
     assert 'Successfully processed jobs queue item.' in ps.stdout,\
         Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
@@ -115,7 +115,7 @@ def test_simple_run_job_quota_gets_deducted():
             encoding='UTF-8'
         )
 
-    assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
+    assert ps.stderr == '', Tests.assertion_info('No Error', f"STDOUT:\n{ps.stdout}\nSTDERR:\n{ps.stderr}")
     assert 'Successfully processed jobs queue item.' in ps.stdout,\
         Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
@@ -142,7 +142,7 @@ def test_simple_run_job_with_variables():
             encoding='UTF-8'
         )
 
-    assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
+    assert ps.stderr == '', Tests.assertion_info('No Error', f"STDOUT:\n{ps.stdout}\nSTDERR:\n{ps.stderr}")
     assert 'Successfully processed jobs queue item.' in ps.stdout,\
         Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
@@ -241,7 +241,7 @@ def todo_test_simple_email_job():
                 encoding='UTF-8'
             )
         #send_email.assert_called_with(email, pid)
-    assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
+    assert ps.stderr == '', Tests.assertion_info('No Error', f"STDOUT:\n{ps.stdout}\nSTDERR:\n{ps.stderr}")
     job_success_message = 'Successfully processed jobs queue item.'
     assert job_success_message in ps.stdout,\
-       Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
+       Tests.assertion_info('Successfully processed jobs queue item.', f"STDOUT:\n{ps.stdout}\nSTDERR:\n{ps.stderr}")
