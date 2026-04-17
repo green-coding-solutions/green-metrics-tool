@@ -3,8 +3,8 @@ server {
 #__DEFAULT__    listen [::]:9142;
 #__DEFAULT__    listen 9142;
 
-#__SSL__    listen [::]:443 ssl;
-#__SSL__    listen 443 ssl;
+#__SSL__    listen [::]:443 ssl http2;
+#__SSL__    listen 443 ssl http2;
 #__SSL__    ssl_certificate /etc/ssl/production.crt;
 #__SSL__    ssl_certificate_key /etc/ssl/production.key;
 

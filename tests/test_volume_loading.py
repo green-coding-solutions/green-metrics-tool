@@ -233,7 +233,7 @@ def test_load_volume_references():
     assert "File mounted" in out, Tests.assertion_info('File mounted', f"out: {out} | err: {err}")
 
 def test_volume_loading_subdirectories_root():
-    runner = ScenarioRunner(uri=GMT_DIR, filename='tests/data/usage_scenarios/subdir_volume_loading/usage_scenario.yml', uri_type='folder', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = _volume_dot_path_runner('tests/data/usage_scenarios/subdir_volume_loading/usage_scenario.yml', dev_cache_build=False)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -276,7 +276,7 @@ def test_volume_loading_subdirectories_subdir():
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir2():
-    runner = _volume_dot_path_runner("tests/data/usage_scenarios/subdir_volume_loading/subdir/subdir2/usage_scenario_subdir2.yml")
+    runner = _volume_dot_path_runner("tests/data/usage_scenarios/subdir_volume_loading/subdir/subdir2/usage_scenario_subdir2.yml", dev_cache_build=False)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -299,7 +299,7 @@ def test_volume_loading_subdirectories_subdir2():
     assert expect_copied_testfile_4 in run_stdout, Tests.assertion_info(expect_copied_testfile_4, f"expected output not in {run_stdout}")
 
 
-def _volume_dot_path_runner(filename, allowed_volume_mounts=None, allow_unsafe=False):
+def _volume_dot_path_runner(filename, *_, dev_cache_build=True, allowed_volume_mounts=None, allow_unsafe=False):
     return ScenarioRunner(
         uri=GMT_DIR,
         uri_type='folder',
@@ -309,7 +309,7 @@ def _volume_dot_path_runner(filename, allowed_volume_mounts=None, allow_unsafe=F
         dev_no_phase_stats=True,
         dev_no_sleeps=True,
         dev_no_save=True,
-        dev_cache_build=True,
+        dev_cache_build=dev_cache_build,
         allow_unsafe=allow_unsafe,
         dev_no_container_dependency_collection=True,
         skip_download_dependencies=True,
