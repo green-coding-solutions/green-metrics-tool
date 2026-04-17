@@ -143,9 +143,35 @@ function check_file_permissions() {
     return 0
 }
 
+function rotate_backup() {
+    local file="$1"
+    local max_backups=10
+
+    print_message "Rotating backups for ${file}"
+
+    # Delete oldest
+    if [ -f "${file}.backup.${max_backups}" ]; then
+        echo "Removing file that exceeds max_backup of ${max_backups} ..."
+        rm -f "${file}.backup.${max_backups}"
+    fi
+
+    # Shift existing backups (9 -> 10, 8 -> 9, ..., 1 -> 2)
+    for ((i=max_backups-1; i>=1; i--)); do
+        if [ -f "${file}.backup.${i}" ]; then
+            mv "${file}.backup.${i}" "${file}.backup.$((i+1))"
+        fi
+    done
+
+    # Move current backup (if exists) to .1
+    if [ -f "${file}.backup" ]; then
+        mv "${file}.backup" "${file}.backup.1"
+    fi
+}
+
 
 function copy_backup() {
-    local file=$1
+    local file="$1"
+    rotate_backup "$file"
     local example_file="${file}.example"
 
     if [[ ! -f "$example_file" ]]; then
