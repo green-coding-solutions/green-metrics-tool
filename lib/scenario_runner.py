@@ -49,6 +49,7 @@ from lib import container_compatibility
 from lib.container_compatibility import CompatibilityStatus
 from lib.log_types import LogType
 from lib import resource_limits
+from lib.docker_client import DockerClient, docker_duration_to_ns, docker_exception_to_called_process_error
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -218,6 +219,7 @@ class ScenarioRunner:
         self.__relations = {}
         self.__custom_metrics = {}
         self.__sci_metrics = []
+        self.__docker = DockerClient()
 
 
 
@@ -665,69 +667,45 @@ class ScenarioRunner:
         os.environ['DOCKER_CLI_HINTS'] = 'false'
 
     def _check_running_containers_before_start(self):
-        result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                check=True, encoding='UTF-8', errors='replace')
-        for line in result.stdout.splitlines():
-            for running_container in line.split(','): # if docker container has multiple tags, they will be split by comma, so we only want to
-                for service_name in self.__usage_scenario.get('services', {}):
-                    if 'container_name' in self.__usage_scenario['services'][service_name]:
-                        container_name = self.__usage_scenario['services'][service_name]['container_name']
-                    else:
-                        container_name = service_name
+        running_containers = self.__docker.list_running_container_names()
+        for running_container in running_containers:
+            for service_name in self.__usage_scenario.get('services', {}):
+                if 'container_name' in self.__usage_scenario['services'][service_name]:
+                    container_name = self.__usage_scenario['services'][service_name]['container_name']
+                else:
+                    container_name = service_name
 
-                    if running_container == container_name:
-                        raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
+                if running_container == container_name:
+                    raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
 
     def _check_container_is_running(self, container_name: str, step_description: str, image_name: str | None = None):
-        check_ps = subprocess.run(['docker', 'ps', '-q', '-f', f'name={container_name}'],
-                                  stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE,
-                                  check=False, encoding='UTF-8', errors='replace')
-        if not check_ps.stdout.strip():
+        if not self.__docker.is_container_running(container_name):
             # Container not running - this is an error condition that requires raising an exception
-            logs_ps = subprocess.run(
-                ['docker', 'logs', container_name],
-                check=False,
-                capture_output=True,
-                encoding='UTF-8',
-                errors='replace',
-            )
-            inspect_ps = subprocess.run(
-                ['docker', 'inspect', '--format={{.State.ExitCode}}', container_name],
-                check=False,
-                capture_output=True,
-                encoding='UTF-8',
-                errors='replace',
-            )
-            exit_code = inspect_ps.stdout.strip() if inspect_ps.returncode == 0 else "unknown"
+            stdout, stderr = self.__docker.container_logs(container_name)
+            exit_code = self.__docker.container_exit_code(container_name)
+            exit_code = str(exit_code) if exit_code is not None else "unknown"
 
             if exit_code == "0":  # string check cause we get exit code from Docker API
                 # Container exited with a successful exit code
-                raise RuntimeError(f"Container '{container_name}' exited during {step_description} (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
+                raise RuntimeError(f"Container '{container_name}' exited during {step_description} (exit code: {exit_code}). This indicates the container completed execution immediately (e.g., hello-world commands) or has configuration issues (invalid entrypoint, missing command).\nContainer logs:\n\n========== Stdout ==========\n{stdout}\n\n========== Stderr ==========\n{stderr}")
             elif exit_code == "137": # string check cause we get exit code from Docker API
-                raise MemoryError(f"Container '{container_name}' failed during {step_description} with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
+                raise MemoryError(f"Container '{container_name}' failed during {step_description} with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\nContainer logs:\n\n========== Stdout ==========\n{stdout}\n\n========== Stderr ==========\n{stderr}")
             else:
                 # Container failed with non-zero or unknown exit code
                 if not image_name:
-                    image_ps = subprocess.run(
-                        ['docker', 'inspect', '--format={{.Config.Image}}', container_name],
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False
-                        )
-                    if image_ps.returncode != 0:
-                        raise RuntimeError(f"Container '{container_name}' failed during {step_description} but could not retrieve image information for architecture compatibility check. Docker inspect error: {image_ps.stderr.strip()}")
-                    image_name = image_ps.stdout.strip()
+                    image_name = self.__docker.container_image_name(container_name)
+                    if not image_name:
+                        raise RuntimeError(f"Container '{container_name}' failed during {step_description} but could not retrieve image information for architecture compatibility check.")
 
                 compatibility_info = container_compatibility.check_image_architecture_compatibility(image_name)
                 compatibility_status = compatibility_info['status']
 
                 if compatibility_status == CompatibilityStatus.INCOMPATIBLE:
-                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}' and emulation is not available.\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} due to architecture incompatibility (exit code: {exit_code}). Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}' and emulation is not available.\nContainer logs:\n\n========== Stdout ==========\n{stdout}\n\n========== Stderr ==========\n{stderr}")
                 elif compatibility_status == CompatibilityStatus.EMULATED:
-                    raise RuntimeError(f"Container '{container_name}' failed during {step_description}, possibly due to emulation issues (exit code: {exit_code}). Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}'. Container was running via emulation.\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description}, possibly due to emulation issues (exit code: {exit_code}). Image architecture is '{compatibility_info['image_arch']}' but host architecture is '{compatibility_info['host_arch']}'. Container was running via emulation.\nContainer logs:\n\n========== Stdout ==========\n{stdout}\n\n========== Stderr ==========\n{stderr}")
                 else:
-                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n\n========== Stdout ==========\n{logs_ps.stdout}\n\n========== Stderr ==========\n{logs_ps.stderr}")
+                    raise RuntimeError(f"Container '{container_name}' failed during {step_description} (exit code: {exit_code}). This indicates startup issues such as missing dependencies, invalid entrypoints, or configuration problems.\nContainer logs:\n\n========== Stdout ==========\n{stdout}\n\n========== Stderr ==========\n{stderr}")
 
     def _store_active_containers(self):
         containers = { ctr['name'] : {'id': cid, 'mem_limit': ctr['mem_limit'], 'cpus': ctr['cpus'], 'cpuset': ctr['cpuset'], 'memory_swap': ctr['memory_swap'], 'oom_score_adj': ctr['oom_score_adj']} for cid, ctr in self.__containers.items()}
@@ -801,28 +779,16 @@ class ScenarioRunner:
             print('Skipping removing of all temporary GMT images skipped due to --dev-cache-build')
             return
 
-        subprocess.run(
-            'docker images --format "{{.Repository}}:{{.Tag}}" | grep "gmt_run_tmp" | xargs docker rmi -f',
-            shell=True,
-            stderr=subprocess.DEVNULL, # to suppress showing of stderr
-            check=False,
-        )
+        self.__docker.remove_temporary_gmt_images()
 
         if self._full_docker_prune:
             print(TerminalColors.HEADER, '\nStopping and removing all containers, build caches, volumes and images on the system', TerminalColors.ENDC)
-            subprocess.run('docker ps -aq | xargs docker stop', shell=True, check=False)
-
-            docker_prune_images_cmd = 'docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}"'
-            for whitelisted_image in config['measurement']['full_docker_prune_whitelist']:
-                docker_prune_images_cmd += f" | grep -v {shlex.quote(whitelisted_image)}"
-            docker_prune_images_cmd += " | awk '{print $2}'"
-            docker_prune_images_cmd += " | xargs docker rmi -f"
-            subprocess.run(docker_prune_images_cmd, shell=True, check=False)
-
-            subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
+            self.__docker.stop_all_containers()
+            self.__docker.remove_non_whitelisted_images(config['measurement']['full_docker_prune_whitelist'])
+            self.__docker.system_prune(volumes=True)
         elif self._docker_prune:
             print(TerminalColors.HEADER, '\nRemoving all unassociated build caches, networks volumes and stopped containers on the system', TerminalColors.ENDC)
-            subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
+            self.__docker.system_prune(volumes=True)
         else:
             print(TerminalColors.WARNING, arrows('Warning: GMT is not instructed to prune docker images and build caches. \nWe recommend to set --docker-prune to remove build caches and anonymous volumes, because otherwise your disk will get full very quickly. If you want to measure also network I/O delay for pulling images and have a dedicated measurement machine please set --full-docker-prune'), TerminalColors.ENDC)
 
@@ -923,7 +889,7 @@ class ScenarioRunner:
             print(TerminalColors.WARNING, arrows('No metric providers were configured in config.yml. Was this intentional?'), TerminalColors.ENDC)
             return
 
-        subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', errors='replace', check=True)
+        self.__docker.ping()
 
         self._initialize_folder(self._metrics_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
 
@@ -962,7 +928,7 @@ class ScenarioRunner:
             print('Skipping downloading dependencies due to --skip-download-dependencies')
             return
 
-        subprocess.run(['docker', 'pull', 'martizih/kaniko:slim'], check=True)
+        self.__docker.pull_image('martizih/kaniko:slim')
 
     def _get_build_info(self, service):
         if isinstance(service['build'], str):
@@ -992,25 +958,17 @@ class ScenarioRunner:
         # This use case is when you have running containers on your host and want to benchmark some code running in them
         for _, service in self.__usage_scenario.get('services', {}).items():
             # minimal protection from possible shell escapes.
-            # since we use subprocess without shell we should be safe though
+            # The Docker SDK path does not invoke a shell, but invalid image names should still fail early.
             if re.findall(r'(\.\.|\$|\'|"|`|!)', service['image']):
                 raise ValueError(f"In scenario file the builds contains an invalid image name: {service['image']}")
 
             tmp_img_name = self._clean_image_name(service['image'])
 
             # If we are in developer repeat runs check if the docker image has already been built
-            try:
-                subprocess.run(['docker', 'inspect', '--type=image', tmp_img_name],
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE,
-                                         encoding='UTF-8',
-                                         errors='replace',
-                                         check=True)
+            if self.__docker.image_exists(tmp_img_name):
                 # The image exists so exit and don't build
                 print(f"Image {service['image']} exists in build cache. Skipping build ...")
                 continue
-            except subprocess.CalledProcessError:
-                pass
 
             if 'build' in service:
                 context, dockerfile, args = self._get_build_info(service)
@@ -1061,8 +1019,7 @@ class ScenarioRunner:
                 # docker agent might be configured to pull from a different, maybe even insecure registry
                 # We want to mirror that behaviour in GMT as we see it used in specially configured environments
                 # where custom docker registries are used
-                docker_info = subprocess.check_output(['docker', 'info', '--format', '{{ json .RegistryConfig.Mirrors }}'], encoding='UTF-8', errors='replace')
-                if docker_info and (mirrors := json.loads(docker_info)):
+                if mirrors := self.__docker.registry_mirrors():
                     for mirror in mirrors:
                         if 'http://' in mirror:
                             mirror = mirror[7:]
@@ -1082,15 +1039,25 @@ class ScenarioRunner:
                 print(' '.join(docker_build_command))
 
                 if self._dev_stream_outputs:
-                    output_behaviour = None
                     print(TerminalColors.WARNING, arrows('Container Build output is streamed. Please note that this disallows capturing of errors and build outputs in logs and error messages.'), TerminalColors.ENDC)
-                else:
-                    output_behaviour = subprocess.PIPE
 
-                if self._measurement_total_duration:
-                    ps = subprocess.run(docker_build_command, stdout=output_behaviour, stderr=output_behaviour, encoding='UTF-8', errors='replace', timeout=self._measurement_total_duration, check=False)
-                else:
-                    ps = subprocess.run(docker_build_command, stdout=output_behaviour, stderr=output_behaviour, encoding='UTF-8', errors='replace', check=False)
+                try:
+                    build_config = self._parse_docker_run_command(docker_build_command)
+                    ps = self.__docker.run_container_and_wait(
+                        image=build_config['image'],
+                        command=build_config['command'],
+                        mounts=build_config['mounts'],
+                        volumes=build_config['volumes'],
+                        environment=build_config['environment'],
+                        timeout=self._measurement_total_duration,
+                        stream_output=self._dev_stream_outputs,
+                        host_options=build_config['host_options'],
+                        display_cmd=docker_build_command,
+                    )
+                except subprocess.TimeoutExpired:
+                    raise
+                except Exception as exc:
+                    raise docker_exception_to_called_process_error(exc, docker_build_command) from exc
 
                 if ps.returncode != 0:
                     raise subprocess.CalledProcessError(ps.returncode, 'Docker build failed', output=ps.stdout, stderr=ps.stderr)
@@ -1098,10 +1065,10 @@ class ScenarioRunner:
                 # import the docker image locally
                 image_import_command = ['docker', 'load', '-q', '-i', self._build_dir.joinpath(f"{tmp_img_name}.tar").as_posix()]
                 print(' '.join(image_import_command))
-                ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
-
-                if ps.returncode != 0 or ps.stderr != "":
-                    raise subprocess.CalledProcessError(ps.returncode, 'Docker image import failed', output=ps.stdout, stderr=ps.stderr)
+                try:
+                    self.__docker.load_image(self._build_dir.joinpath(f"{tmp_img_name}.tar"))
+                except Exception as exc:
+                    raise subprocess.CalledProcessError(1, 'Docker image import failed', output='', stderr=self.__docker.docker_exception_message(exc)) from exc
 
             else:
                 print(f"Pulling {service['image']}")
@@ -1111,13 +1078,14 @@ class ScenarioRunner:
                 # bc the docker pull command does not stream the interactive progress bar. Only the lines when a layer finished with downloading
                 # Since this information does not provide info how long the image download still will take we opted for keeping this pull call less complex
                 # So you have to stare at the "Pulling XYZ" command until it is finished :)
-                ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
-
-                if ps_pull.returncode != 0:
-                    print(f"Error: {ps_pull.stderr} \n {ps_pull.stdout}")
+                try:
+                    self.__docker.pull_image(service['image'])
+                except Exception as pull_exc:
+                    pull_stderr = self.__docker.docker_exception_message(pull_exc)
+                    print(f"Error: {pull_stderr}")
 
                     # Check if it's an architecture mismatch error
-                    stderr_lower = ps_pull.stderr.lower()
+                    stderr_lower = pull_stderr.lower()
                     if "no matching manifest" in stderr_lower:
                         # This is definitely an architecture mismatch - create appropriate error
                         host_arch = container_compatibility.get_native_architecture()
@@ -1126,38 +1094,31 @@ class ScenarioRunner:
                     # Handle other Docker pull failures
                     if not sys.stdin.isatty():
                         raise subprocess.CalledProcessError(
-                            ps_pull.returncode,
+                            1,
                             f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}",
-                            output=ps_pull.stdout,
-                            stderr=ps_pull.stderr
+                            output='',
+                            stderr=pull_stderr
                         )
                     print(TerminalColors.OKCYAN, '\nThe docker image could not be pulled. Since you are working locally we can try looking in your local images. Do you want that? (y/N).', TerminalColors.ENDC)
                     if sys.stdin.readline().strip().lower() != 'y':
                         raise subprocess.CalledProcessError(
-                            ps_pull.returncode,
+                            1,
                             f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}",
-                            output=ps_pull.stdout,
-                            stderr=ps_pull.stderr
+                            output='',
+                            stderr=pull_stderr
                         )
-                    ps_inpsect = subprocess.run(['docker', 'inspect', '--type=image', service['image']],
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE,
-                         encoding='UTF-8',
-                         errors='replace',
-                         check=False)
-
-                    if ps_inpsect.returncode != 0:
+                    if not self.__docker.image_exists(service['image']):
                         raise subprocess.CalledProcessError(
-                            ps_pull.returncode, # still using original ps
+                            1, # still using original ps
                             f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}",
-                            output=ps_pull.stdout,  # still using original ps
-                            stderr=ps_pull.stderr) # still using original ps
+                            output='',  # still using original ps
+                            stderr=pull_stderr) # still using original ps
 
                     print('Docker image found locally. Tagging now for use in cached runs ...')
 
 
                 # tagging must be done in pull and local case, so we can get the correct container later
-                subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
+                self.__docker.tag_image(service['image'], tmp_img_name)
 
 
         # Delete the directory /tmp/gmt_docker_images as we do not want to keep the tar and the loaded image
@@ -1172,13 +1133,7 @@ class ScenarioRunner:
             tmp_img_name = self._clean_image_name(service['image'])
 
             # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
-            output = subprocess.check_output(
-                f"docker image inspect {tmp_img_name} " + '--format={{.Size}}',
-                shell=True,
-                encoding='UTF-8',
-                errors='replace',
-            )
-            self.__image_sizes[service['image']] = int(output.strip())
+            self.__image_sizes[service['image']] = self.__docker.image_size(tmp_img_name)
 
         # du -s -b does not work on macOS and also the docker image is in a VM and not accessible with du for us
         # This call is guarded with --allow-unsafe bc volume information reveals host filesystem paths
@@ -1187,12 +1142,9 @@ class ScenarioRunner:
             for volume in self.__usage_scenario.get('volumes', {}):
                 # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
                 try:
+                    mountpoint = self.__docker.volume_mountpoint(volume)
                     output = subprocess.check_output(
-                        ['docker', 'volume', 'inspect', volume, '--format={{.Mountpoint}}'],
-                        encoding='UTF-8', errors='replace'
-                    )
-                    output = subprocess.check_output(
-                        ['du', '-s', '-b', output.strip()],
+                        ['du', '-s', '-b', mountpoint],
                         encoding='UTF-8', errors='replace'
                     )
 
@@ -1221,12 +1173,12 @@ class ScenarioRunner:
                     raise ValueError('Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined.')
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
-                subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
+                self.__docker.remove_network(network)
 
                 if self.__usage_scenario['networks'][network] and self.__usage_scenario['networks'][network].get('internal', False):
-                    subprocess.check_output(['docker', 'network', 'create', '--internal', network], encoding='UTF-8', errors='replace')
+                    self.__docker.create_network(network, internal=True)
                 else:
-                    subprocess.check_output(['docker', 'network', 'create', network], encoding='UTF-8', errors='replace')
+                    self.__docker.create_network(network)
 
                 self.__networks.append(network)
         else:
@@ -1234,8 +1186,8 @@ class ScenarioRunner:
             network = f"GMT_default_tmp_network_{random.randint(500000,10000000)}"
             print('Creating network: ', network)
             # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
-            subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
-            subprocess.run(['docker', 'network', 'create', network], check=True)
+            self.__docker.remove_network(network)
+            self.__docker.create_network(network)
             self.__networks.append(network)
             self.__join_default_network = True
 
@@ -1265,6 +1217,162 @@ class ScenarioRunner:
             order_service_names(service_name)
         print("Startup order: ", names_ordered)
         return OrderedDict((key, services[key]) for key in names_ordered)
+
+    def _merge_port_binding(self, ports, container_port, host_binding):
+        current = ports.get(container_port)
+        if current is None and container_port in ports:
+            ports[container_port] = [host_binding]
+        elif current is None:
+            ports[container_port] = host_binding
+        elif isinstance(current, list):
+            current.append(host_binding)
+        else:
+            ports[container_port] = [current, host_binding]
+
+    def _parse_port_binding(self, value):
+        value = str(value)
+        proto = 'tcp'
+        if '/' in value:
+            value, proto = value.rsplit('/', 1)
+
+        parts = value.split(':')
+        if len(parts) == 1:
+            return f"{parts[0]}/{proto}", None
+        if len(parts) == 2:
+            return f"{parts[1]}/{proto}", int(parts[0])
+        if len(parts) == 3:
+            return f"{parts[2]}/{proto}", (parts[0], int(parts[1]))
+        raise ValueError(f"Port mapping has unsupported format: {value}")
+
+    def _parse_docker_run_command(self, docker_run_string):
+        mounts = []
+        volumes = []
+        environment = []
+        labels = {}
+        ports = {}
+        networks = []
+        network_aliases = {}
+        healthcheck = {}
+        host_options = {}
+        entrypoint = None
+        name = None
+        image = None
+        command = []
+
+        i = 2 # skip "docker run"
+        while i < len(docker_run_string):
+            arg = docker_run_string[i]
+
+            if arg in ('-i', '-t', '-it', '-d', '--rm'):
+                i += 1
+            elif arg == '--name':
+                name = docker_run_string[i + 1]
+                i += 2
+            elif arg == '--mount':
+                mounts.append(self.__docker.mount_from_cli(docker_run_string[i + 1]))
+                i += 2
+            elif arg == '-v':
+                volumes.append(docker_run_string[i + 1])
+                i += 2
+            elif arg in ('-e', '--env'):
+                environment.append(docker_run_string[i + 1])
+                i += 2
+            elif arg.startswith('--env='):
+                environment.append(arg.split('=', 1)[1])
+                i += 1
+            elif arg in ('-l', '--label'):
+                key, value = docker_run_string[i + 1].split('=', 1)
+                labels[key] = value
+                i += 2
+            elif arg.startswith('--label='):
+                key, value = arg.split('=', 1)[1].split('=', 1)
+                labels[key] = value
+                i += 1
+            elif arg == '--init':
+                host_options['init'] = True
+                i += 1
+            elif arg == '--shm-size':
+                host_options['shm_size'] = docker_run_string[i + 1]
+                i += 2
+            elif arg in ('-p', '--publish'):
+                container_port, host_binding = self._parse_port_binding(docker_run_string[i + 1])
+                self._merge_port_binding(ports, container_port, host_binding)
+                i += 2
+            elif arg == '--net':
+                networks.append(docker_run_string[i + 1])
+                i += 2
+            elif arg == '--network-alias':
+                if not networks:
+                    raise ValueError('--network-alias must follow --net in Docker run arguments')
+                network_aliases.setdefault(networks[-1], []).append(docker_run_string[i + 1])
+                i += 2
+            elif arg == '--cpuset-cpus':
+                host_options['cpuset_cpus'] = docker_run_string[i + 1]
+                i += 2
+            elif arg.startswith('--cpus='):
+                host_options['nano_cpus'] = int(float(arg.split('=', 1)[1]) * 1_000_000_000)
+                i += 1
+            elif arg.startswith('--oom-score-adj='):
+                host_options['oom_score_adj'] = int(arg.split('=', 1)[1])
+                i += 1
+            elif arg.startswith('--memory='):
+                host_options['mem_limit'] = arg.split('=', 1)[1]
+                i += 1
+            elif arg.startswith('--memory-swap='):
+                host_options['memswap_limit'] = arg.split('=', 1)[1]
+                i += 1
+            elif arg == '--no-healthcheck':
+                healthcheck['test'] = ['NONE']
+                i += 1
+            elif arg == '--health-cmd':
+                healthcheck['test'] = docker_run_string[i + 1]
+                i += 2
+            elif arg == '--health-interval':
+                healthcheck['interval'] = docker_duration_to_ns(docker_run_string[i + 1])
+                i += 2
+            elif arg == '--health-timeout':
+                healthcheck['timeout'] = docker_duration_to_ns(docker_run_string[i + 1])
+                i += 2
+            elif arg == '--health-retries':
+                healthcheck['retries'] = int(docker_run_string[i + 1])
+                i += 2
+            elif arg == '--health-start-period':
+                healthcheck['start_period'] = docker_duration_to_ns(docker_run_string[i + 1])
+                i += 2
+            elif arg == '--health-start-interval':
+                healthcheck['start_interval'] = docker_duration_to_ns(docker_run_string[i + 1])
+                i += 2
+            elif arg == '--entrypoint':
+                entrypoint = docker_run_string[i + 1]
+                i += 2
+            elif arg.startswith('--entrypoint='):
+                entrypoint = arg.split('=', 1)[1]
+                i += 1
+            elif arg.startswith('-'):
+                raise ValueError(f"Unsupported Docker run argument for Docker SDK execution: {arg}")
+            else:
+                image = arg
+                command = docker_run_string[i + 1:]
+                break
+
+        if image is None:
+            raise ValueError(f"Docker run command does not include an image: {docker_run_string}")
+
+        return {
+            'image': image,
+            'command': command,
+            'name': name,
+            'mounts': mounts,
+            'volumes': volumes,
+            'environment': environment,
+            'labels': labels,
+            'ports': ports,
+            'networks': networks,
+            'network_aliases': network_aliases,
+            'entrypoint': entrypoint,
+            'healthcheck': healthcheck,
+            'host_options': host_options,
+        }
 
     def _setup_services(self):
         print(TerminalColors.HEADER, '\nSetting up services', TerminalColors.ENDC)
@@ -1296,7 +1404,7 @@ class ScenarioRunner:
             # By using the -f we return with 0 if no container is found
             # we always reset container without checking if something is running, as we expect that a user understands
             # this mechanic when using docker based tools. A container with the same name may not run twice
-            subprocess.run(['docker', 'rm', '-f', container_name], stderr=subprocess.DEVNULL, check=True)
+            self.__docker.remove_container_force(container_name)
 
             print('Creating container')
             # We are attaching the -it option here to keep STDIN open and a terminal attached.
@@ -1373,16 +1481,8 @@ class ScenarioRunner:
                             if mount_string in self._allowed_volume_mounts:
                                 if not Path(mount_src).is_absolute() and not mount_src.startswith(('.', '..')): # volume case. should exist
                                     mount_type = 'volume'
-                                    ps = subprocess.run(
-                                        ["docker", "volume", "inspect", mount_src],
-                                        check=False,
-                                        stdout=subprocess.DEVNULL,
-                                        stderr=subprocess.PIPE,
-                                        encoding='UTF-8',
-                                        errors='replace'
-                                    )
-                                    if ps.returncode != 0:
-                                        raise RuntimeError(f"Could not find volume '{mount_src}' locally from service: {service_name}. The volume must be created manually before it can be loaded. GMT does not create named volumes. - Error from Docker: {ps.stderr}")
+                                    if not self.__docker.volume_exists(mount_src):
+                                        raise RuntimeError(f"Could not find volume '{mount_src}' locally from service: {service_name}. The volume must be created manually before it can be loaded. GMT does not create named volumes.")
 
                                 else: # path case. Check path if on machine as -v will create folder otherwise
                                     mount_type = 'bind'
@@ -1662,13 +1762,8 @@ class ScenarioRunner:
                     health = 'healthy' # default because some containers have no health
                     max_waiting_time = self._measurement_wait_time_dependencies
                     while time_waited < max_waiting_time:
-                        status_output = subprocess.check_output(
-                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
-                            stderr=subprocess.STDOUT,
-                            encoding='UTF-8',
-                            errors='replace'
-                        )
-                        state = status_output.strip()
+                        container_state = self.__docker.container_state(dependent_container_name)
+                        state = container_state.get('Status', '')
                         if time_waited == 0 or state != "running":
                             print(f"Container state of dependent service '{dependent_service}': {state}")
 
@@ -1677,21 +1772,14 @@ class ScenarioRunner:
 
                             condition = service['depends_on'][dependent_service]['condition']
                             if condition == 'service_healthy':
-                                ps = subprocess.run(
-                                    ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", dependent_container_name],
-                                    check=False,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT, # put both in one stream
-                                    encoding='UTF-8',
-                                    errors='replace'
-                                )
-                                health = ps.stdout.strip()
+                                health_state = container_state.get('Health')
+                                health = health_state.get('Status', '<nil>') if health_state else '<nil>'
                                 print(f"Container health of dependent service '{dependent_service}': {health}")
 
-                                if ps.returncode != 0 or health == '<nil>':
+                                if health == '<nil>':
                                     raise RuntimeError(f"Health check for service '{dependent_service}' was requested by '{service_name}', but service has no healthcheck implemented! (Output was: {health})")
                                 if health == 'unhealthy':
-                                    healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8', errors='replace')
+                                    healthcheck_errors = json.dumps(health_state)
                                     raise RuntimeError(f'Health check of container "{dependent_container_name}" failed terminally with status "unhealthy" after {time_waited}s. Health check errors: {healthcheck_errors}')
                             elif condition == 'service_started':
                                 pass
@@ -1707,7 +1795,7 @@ class ScenarioRunner:
                     if state != 'running':
                         raise RuntimeError(f"State check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not running but '{state}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
                     if health != 'healthy':
-                        healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8', errors='replace')
+                        healthcheck_errors = json.dumps(self.__docker.container_state(dependent_container_name).get('Health'))
                         raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec!\nHealth check errors: {healthcheck_errors}")
 
 
@@ -1726,31 +1814,14 @@ class ScenarioRunner:
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
             # injection of unwanted params
 
-            ps = subprocess.run(
-                docker_run_string,
-                check=False, # We want to throw custom error with stderr attached
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                encoding='UTF-8',
-                errors='replace'
-            )
+            try:
+                run_config = self._parse_docker_run_command(docker_run_string)
+                container_id = self.__docker.run_container_detached(**run_config)
+            except Exception as exc:
+                raise docker_exception_to_called_process_error(exc, docker_run_string) from exc
 
-            if ps.returncode != 0:
-                raise subprocess.CalledProcessError(
-                            ps.returncode,
-                            docker_run_string,
-                            output=ps.stdout,
-                            stderr=ps.stderr
-                        )
-
-            container_id = ps.stdout.strip()
             print('Stdout:', container_id)
             self.__containers[container_id] = container_data
-
-            print('Checking stderr ...')
-            docker_run_stderr = ps.stderr.strip()
-            if docker_run_stderr != '':
-                raise RuntimeError(f"Docker run command had non empty stderr: {docker_run_stderr}.\nCommand: {docker_run_string}")
 
 
             print('Running commands')
@@ -2049,7 +2120,7 @@ class ScenarioRunner:
                 print(info_text)
                 self.__notes_helper.add_note( note= info_text, detail_name='[NOTES]', timestamp=phase_time)
 
-                subprocess.run(['docker', 'pause', container_to_pause], check=True, stdout=subprocess.DEVNULL)
+                self.__docker.pause_container(container_to_pause)
 
         self.__phases[phase]['end'] = phase_time
 
@@ -2427,6 +2498,13 @@ class ScenarioRunner:
         self._repo_folder.mkdir(parents=False, exist_ok=True)
         self._metrics_folder.mkdir(parents=False, exist_ok=True)
         self._build_dir.mkdir(parents=False, exist_ok=True)
+        # Docker Desktop on macOS refuses to bind-mount an empty directory; a placeholder prevents that
+        self._build_dir.joinpath('.keep').touch()
+        self._repo_folder.joinpath('.keep').touch()
+        self._tmp_folder.joinpath('.keep').touch()
+        self._relations_folder.joinpath('.keep').touch()
+        self._metrics_folder.joinpath('.keep').touch()
+
 
     def _start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
@@ -2502,21 +2580,18 @@ class ScenarioRunner:
             if container_info['log-stderr'] is True:
                 stderr_behaviour = subprocess.PIPE
 
-            log = subprocess.run(
-                ['docker', 'logs', container_id],
-                check=True,
-                encoding='UTF-8',
-                errors='replace',
-                stdout=stdout_behaviour,
-                stderr=stderr_behaviour,
+            stdout, stderr = self.__docker.container_logs(
+                container_id,
+                stdout=stdout_behaviour == subprocess.PIPE,
+                stderr=stderr_behaviour == subprocess.PIPE,
             )
 
             self._handle_process_output(
-                stdout=log.stdout,
-                stderr=log.stderr,
+                stdout=stdout,
+                stderr=stderr,
                 container_name=container_info['name'],
                 log_type=LogType.CONTAINER_EXECUTION,
-                log_id=id(log),
+                log_id=id(container_id),
                 cmd=container_info['docker_run_cmd'],
                 phase='[MULTIPLE]', # the container logs were collected usually over multiple phases: [BOOT], [IDLE], [RUNTIME]
                 read_notes_stdout=container_info['read-notes-stdout']
@@ -2647,13 +2722,13 @@ class ScenarioRunner:
 
         print('Stopping containers')
         for container_id in self.__containers:
-            subprocess.run(['docker', 'rm', '-f', container_id], check=True, stderr=subprocess.DEVNULL)
+            self.__docker.remove_container_force(container_id)
         self.__containers.clear()
 
         print('Removing network')
         for network_name in self.__networks:
             # no check=True, as the network might already be gone. We do not want to fail here
-            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
+            self.__docker.remove_network(network_name)
         self.__networks.clear()
 
         self._remove_docker_images()
