@@ -24,6 +24,11 @@
  * Available domains: cpu_package, cpu_cores, cpu_gpu, dram, psys
  * Default: all supported domains (auto-detected at startup)
  *
+ * Exit codes:
+ *   0 = clean exit (check mode success)
+ *   1 = startup error (driver not found, bad args)
+ *   2 = runtime error (driver disappeared during measurement)
+ *
  * Build (x64 Native Tools Command Prompt for VS 2022):
  *   cl rapl_reader_cli.c /Fe:rapl_reader.exe /O2 /W3
  */
@@ -56,6 +61,15 @@
 #define DOMAIN_PSYS  (1 << 4)
 #define DOMAIN_ALL   (DOMAIN_PKG | DOMAIN_CORES | DOMAIN_GPU | DOMAIN_DRAM | DOMAIN_PSYS)
 
+/*
+ * MAX_CONSECUTIVE_ERRORS: how many failed read_msr() calls in a row
+ * before we treat the driver as gone and exit with code 2.
+ * At 99ms interval: 5 errors = ~500ms grace period before giving up.
+ * This lets GMT detect the process died and report it, rather than
+ * silently getting no data for the rest of the test.
+ */
+#define MAX_CONSECUTIVE_ERRORS 5
+
 #pragma pack(push, 1)
 typedef struct { uint32_t msrRegister; uint32_t cpuIndex; } msr_request_t;
 #pragma pack(pop)
@@ -66,7 +80,8 @@ typedef struct {
     double pp0_energy_j;
     double pp1_energy_j;
     double psys_energy_j;
-    int    valid;
+    int    valid;      /* 0 if ANY domain read failed (driver error) */
+    int    ioctl_err;  /* 1 if the failure was an IOCTL error specifically */
 } rapl_sample_t;
 
 typedef struct {
@@ -170,15 +185,30 @@ static int is_domain_active(HANDLE hDev, uint32_t cpu,
     return (zero_count < samples) ? 1 : 0;
 }
 
+/*
+ * read_rapl() - read all enabled RAPL domains.
+ *
+ * Returns a sample with valid=1 on success.
+ * Returns valid=0, ioctl_err=1 if the PKG domain read fails –
+ * PKG is always enabled and is the canary for driver health.
+ * Other domain failures are non-fatal (domain stays at 0).
+ */
 static rapl_sample_t read_rapl(HANDLE hDev, uint32_t cpu,
                                 double energy_unit, int domains)
 {
     rapl_sample_t s = {0};
     uint64_t raw = 0;
 
-    if (domains & DOMAIN_PKG)
-        if (read_msr(hDev, MSR_PKG_ENERGY_STATUS, cpu, &raw) == 0)
-            s.pkg_energy_j = (raw & 0xFFFFFFFF) * energy_unit;
+    /* PKG is our canary: if this fails the driver is gone */
+    if (domains & DOMAIN_PKG) {
+        if (read_msr(hDev, MSR_PKG_ENERGY_STATUS, cpu, &raw) != 0) {
+            s.valid     = 0;
+            s.ioctl_err = 1;
+            return s;
+        }
+        s.pkg_energy_j = (raw & 0xFFFFFFFF) * energy_unit;
+    }
+
     if (domains & DOMAIN_DRAM)
         if (read_msr(hDev, MSR_DRAM_ENERGY_STATUS, cpu, &raw) == 0)
             s.dram_energy_j = (raw & 0xFFFFFFFF) * energy_unit;
@@ -213,13 +243,14 @@ static int parse_domain(const char *d)
     fprintf(stderr, "Error: Unknown domain '%s'. Valid: cpu_package, cpu_cores, cpu_gpu, dram, psys\n", d);
     exit(1);
 }
+
 int main(int argc, char *argv[])
 {
-    unsigned int interval_ms = 99;
-    int check_mode        = 0;
-    int domains           = DOMAIN_ALL;
-    int user_domains      = 0; /* 1 if -d was used (single domain mode) */
-    int excluded_domains  = 0; /* domains explicitly disabled via -x */
+    unsigned int interval_ms  = 99;
+    int check_mode            = 0;
+    int domains               = DOMAIN_ALL;
+    int user_domains          = 0; /* 1 if -d was used (single domain mode) */
+    int excluded_domains      = 0; /* domains explicitly disabled via -x */
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-i") && i + 1 < argc)
@@ -267,6 +298,17 @@ int main(int argc, char *argv[])
      * domains are never checked and never measured */
     domains &= ~excluded_domains;
 
+    /*
+     * PKG domain is our IOCTL canary in read_rapl().
+     * If the user excluded PKG explicitly with -x, we need a fallback
+     * canary or we can't detect driver loss. In that edge case we keep
+     * PKG active internally (read only, not printed).
+     * Flag this so the output section knows not to print PKG.
+     */
+    int pkg_excluded = (excluded_domains & DOMAIN_PKG) ? 1 : 0;
+    if (pkg_excluded)
+        domains |= DOMAIN_PKG; /* re-add as silent canary */
+
     setvbuf(stdout, NULL, _IONBF, 0);
     clock_state_t cs = clock_init();
 
@@ -294,11 +336,42 @@ int main(int argc, char *argv[])
         }
     }
 
-    rapl_sample_t prev = {0};
-    int first = 1;
+    rapl_sample_t prev     = {0};
+    int first              = 1;
+    int consecutive_errors = 0;  /* counts back-to-back IOCTL failures */
 
     while (1) {
         rapl_sample_t curr = read_rapl(hDev, 0, energy_unit, domains);
+
+        if (!curr.valid && curr.ioctl_err) {
+            /*
+             * Driver read failed. Count consecutive errors.
+             * A single transient failure (e.g. brief driver hiccup) is
+             * tolerated. After MAX_CONSECUTIVE_ERRORS we give up cleanly
+             * so GMT can detect the process is gone and log the gap.
+             */
+            consecutive_errors++;
+            fprintf(stderr,
+                "Warning: IOCTL read failed (error %lu), attempt %d/%d\n",
+                GetLastError(), consecutive_errors, MAX_CONSECUTIVE_ERRORS);
+
+            if (consecutive_errors >= MAX_CONSECUTIVE_ERRORS) {
+                fprintf(stderr,
+                    "Fatal: ScaphandreDrv driver lost after %d consecutive "
+                    "failures. Is the driver still running?\n"
+                    "  Check: sc.exe query ScaphandreDrv\n"
+                    "  Start: sc.exe start ScaphandreDrv\n",
+                    MAX_CONSECUTIVE_ERRORS);
+                CloseHandle(hDev);
+                return 2;  /* exit code 2 = runtime driver loss */
+            }
+
+            Sleep(interval_ms);
+            continue;
+        }
+
+        /* Successful read: reset error counter */
+        consecutive_errors = 0;
 
         if (curr.valid && !first) {
             long long pkg_uj  = delta_uj(curr.pkg_energy_j,  prev.pkg_energy_j,  energy_unit);
@@ -317,8 +390,11 @@ int main(int argc, char *argv[])
              * GPU uses a minimum fallback of 2 uJ when value is 0 to prevent
              * GMT resolution underflow while keeping the time series gap-free.
              * See PR discussion for cleaner alternatives.
+             *
+             * PKG is skipped from output if the user excluded it via -x
+             * (it still runs internally as the IOCTL canary).
              */
-            if ((domains & DOMAIN_PKG)   && pkg_uj  >= 0)
+            if ((domains & DOMAIN_PKG)   && !pkg_excluded && pkg_uj  >= 0)
                 printf("%llu %lld cpu_package\n", (unsigned long long)now_us(&cs), pkg_uj);
             if ((domains & DOMAIN_CORES) && pp0_uj  >= 0)
                 printf("%llu %lld cpu_cores\n",   (unsigned long long)now_us(&cs), pp0_uj);
@@ -338,4 +414,3 @@ int main(int argc, char *argv[])
     CloseHandle(hDev);
     return 0;
 }
-
