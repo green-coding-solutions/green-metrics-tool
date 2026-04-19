@@ -1,0 +1,247 @@
+# =============================================================================
+# config.example.windows
+#
+# GMT Konfiguration optimiert für Windows + WSL2 mit RAPL Energiemessung.
+# Gespiegelt von config.yml + Windows-spezifische Anpassungen.
+# Generiert von setup_windows_rapl.sh am 2026-04-14 18:27:31
+#
+# Quell-Config: /home/jahns/gmt-fresh/config.yml
+# CPU:          11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz
+# Vendor:       GenuineIntel
+# System:       WSL2
+#
+# Verwendung:
+#   cp config.yml config.yml.backup
+#   cp config.example.windows config.yml
+# =============================================================================
+
+postgresql:
+  host: green-coding-postgres-container
+  #host: 127.0.0.1
+  user: postgres
+  dbname: green-coding
+  password: test1234
+  port: 9573
+  retry_timeout: 300
+
+redis:
+  host: green-coding-redis-container
+  port: 6379
+
+smtp:
+  server: SMTP_SERVER
+  sender: SMTP_SENDER
+  port: SMTP_PORT
+  password: SMTP_AUTH_PW
+  user: SMTP_AUTH_USER
+
+admin:
+  notification_email: False
+  error_file: False
+  error_email: False
+  email_bcc: False
+
+cluster:
+  api_url: http://api.green-coding.internal:9142
+  metrics_url: http://metrics.green-coding.internal:9142
+  cors_allowed_origins:
+      - http://api.green-coding.internal:9142
+      - http://metrics.green-coding.internal:9142
+      - http://localhost:9142
+  client:
+    sleep_time_no_job: 300
+    jobs_processing: "random"
+    update_os_packages: True
+    shutdown_on_job_no: suspend
+    docker_prune: False
+    full_docker_prune: True
+    time_between_control_workload_validations: 21600
+    send_control_workload_status_mail: False
+    control_workload:
+      name: "Measurement control Workload"
+      uri: "https://github.com/green-coding-solutions/measurement-control-workload"
+      filename: "usage_scenario.yml"
+      branch: "event-bound"
+      comparison_window: 5
+      phase: "004_[RUNTIME]"
+      metrics:
+        psu_energy_ac_mcp_machine:
+          threshold: 0.01
+          type: stddev_rel
+        psu_power_ac_mcp_machine:
+          threshold: 0.01
+          type: stddev_rel
+        cpu_power_rapl_msr_component:
+          threshold: 0.01
+          type: stddev_rel
+        cpu_energy_rapl_msr_component:
+          threshold: 0.01
+          type: stddev_rel
+        psu_carbon_ac_mcp_machine:
+          threshold: 0.01
+          type: stddev_rel
+        network_total_cgroup_container:
+          threshold: 10000
+          type: stddev
+        phase_time_syscall_system:
+          threshold: 0.01
+          type: stddev_rel
+
+machine:
+  id: 1
+  description: "Development machine for testing (Windows WSL2)"
+  base_temperature_value: False
+  base_temperature_chip: False
+  base_temperature_feature: False
+  host_reserved_cpus: 1
+  host_reserved_memory: 0
+
+measurement:
+  full_docker_prune_whitelist:
+    - gcr.io/kaniko-project/executor
+  metric_providers:
+
+    #--- Architecture - Linux Only
+    linux:
+    #--- Systemauslastung – läuft auch in WSL2
+      cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
+        sampling_rate: 99
+
+    #--- CGroupV2 – läuft in WSL2 wenn cgroup v2 aktiv
+    #   Prüfen: cat /proc/filesystems | grep cgroup2
+      cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
+        sampling_rate: 99
+      memory.used.cgroup.container.provider.MemoryUsedCgroupContainerProvider:
+        sampling_rate: 99
+      network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
+        sampling_rate: 99
+      disk.io.cgroup.container.provider.DiskIoCgroupContainerProvider:
+        sampling_rate: 99
+
+    #--- Linux RAPL – NUR für native Linux VM, NICHT für WSL2!
+    #   Für WSL2 → Windows RAPL Provider weiter unten unter common: verwenden
+#      cpu.energy.rapl.msr.component.provider.CpuEnergyRaplMsrComponentProvider:
+#        sampling_rate: 99
+#      memory.energy.rapl.msr.component.provider.MemoryEnergyRaplMsrComponentProvider:
+#        sampling_rate: 99
+
+    #--- Machine Energy – Spezielle Hardware / Lab-Equipment nötig
+#      psu.energy.ac.gude.machine.provider.PsuEnergyAcGudeMachineProvider:
+#        sampling_rate: 99
+#      psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
+#        sampling_rate: 250
+#      psu.energy.ac.mcp.machine.provider.PsuEnergyAcMcpMachineProvider:
+#        sampling_rate: 99
+#      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
+#        sampling_rate: 99
+#      psu.energy.dc.rapl.msr.machine.provider.PsuEnergyDcRaplMsrMachineProvider:
+#        sampling_rate: 99
+
+    #--- GPU – Nur wenn NVIDIA GPU mit Power Measurement vorhanden
+#      gpu.energy.nvidia.nvml.component.provider.GpuEnergyNvidiaNvmlComponentProvider:
+#        sampling_rate: 99
+
+    #--- Sensoren – lm-sensors nötig: sudo apt install lm-sensors && sensors-detect
+#      lmsensors.temperature.component.provider.LmsensorsTemperatureComponentProvider:
+#        sampling_rate: 99
+#        chips: ['coretemp-isa-0000']
+#        features: ['Package id 0', 'Core 0', 'Core 1']
+#      lmsensors.fan.component.provider.LmsensorsFanComponentProvider:
+#        sampling_rate: 99
+#        chips: ['thinkpad-isa-0000']
+#        features: ['fan1', 'fan2']
+
+    #--- Debug – nur für Fehlersuche
+#      cpu.throttling.msr.component.provider.CpuThrottlingMsrComponentProvider:
+#        sampling_rate: 99
+#      cpu.frequency.sysfs.core.provider.CpuFrequencySysfsCoreProvider:
+#        sampling_rate: 99
+#      cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
+#        sampling_rate: 99
+#      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
+#        sampling_rate: 99
+#      network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
+#        sampling_rate: 99
+#        remove_virtual_interfaces: True
+#      memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
+#        sampling_rate: 99
+
+    #--- Architecture - MacOS
+    macos:
+#      powermetrics.provider.PowermetricsProvider:
+#        sampling_rate: 499
+#      cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
+#        sampling_rate: 99
+
+    #--- Architecture - Common
+    common:
+      # -----------------------------------------------------------------------
+      # Windows RAPL Provider (WSL2 → ScaphandreDrv → rapl_reader.exe)
+      #
+      # Voraussetzungen (einmalig auf Windows, als Admin):
+      #   1. Testmodus + Neustart:
+      #        bcdedit -set TESTSIGNING ON
+      #        bcdedit -set nointegritychecks on
+      #   2. Treiber installieren + starten:
+      #        DriverLoader.exe install
+      #        sc.exe start ScaphandreDrv
+      #   3. rapl_reader.exe kompilieren (VS 2022 x64 Native Tools Prompt):
+      #        build_and_deploy.bat
+      #   4. Umgebungsvariable (setup_windows_rapl.sh erledigt das automatisch):
+      #        [System.Environment]::SetEnvironmentVariable(
+      #            'RAPL_READER_EXE', 'C:\rapl\rapl_reader.exe', 'Machine')
+      #        danach: wsl --shutdown
+      #
+      # CPU erkannt:     11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz
+      # Domains erkannt: 2026-04-14 18:27:31
+      # -----------------------------------------------------------------------
+      cpu.energy.rapl.scaphandre.component.provider.CpuEnergyRaplScaphandreComponentProvider:
+        sampling_rate: 99
+        # Pfad wird automatisch aus Windows-Umgebungsvariable RAPL_READER_EXE gelesen.
+        # Nur manuell eintragen falls die Env-Var nicht gesetzt werden kann:
+        # rapl_reader_exe: 'C:\\rapl\\rapl_reader.exe'
+        domains:
+          cpu_package: true    # Gesamtverbrauch CPU-Package
+          cpu_cores:   true  # Rechenkerne (PP0)
+          cpu_gpu:     true    # Integrierte GPU (PP1) – Beta
+          dram:        false   # Arbeitsspeicher – nur wenn CPU unterstützt
+          psys:        true   # Platform Energy – Skylake (6. Gen)+
+
+#      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
+##        host_ip: 192.168.1.2
+
+    #--- Modellbasierte Provider – schätzen statt messen
+#      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
+#        CPUChips: 1
+#        TDP: 65
+#      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
+#        CPUChips: 1
+#        HW_CPUFreq: 3200
+#        CPUCores: 4
+#        CPUThreads: 4
+#        TDP: 65
+#        HW_MemAmountGB: 16
+#        Hardware_Availability_Year: 2011
+#        VHost_Ratio: 1
+
+sci:
+  EL: 4
+  RS: 1
+  # TE: Embodied Emissions in gCO2eq
+  # Wert für Entwickler-Laptop: https://dataviz.boavizta.org/terminalimpact
+  TE: 181000
+  # I: Carbon Intensity am Standort in gCO2e/kWh
+  # Deutschland 2024: 334  https://app.electricitymaps.com/zone/DE/all/yearly
+  # Weltweit 2024:    473  https://ember-climate.org
+  I: 334
+  N: 0.04106063
+
+#electricity_maps_token: '123'
+
+activate_scenario_runner: True
+activate_eco_ci: True
+activate_power_hog: True
+activate_carbon_db: True
+activate_ai: False
+
+ee_token: False

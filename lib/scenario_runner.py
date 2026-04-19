@@ -2052,6 +2052,26 @@ class ScenarioRunner:
                             docker_exec_command.append(cmd_obj['command'])
                         else:
                             docker_exec_command.extend(shlex.split(cmd_obj['command'], posix=False))
+                    elif cmd_obj['type'] == 'windows':
+                        import os as _os
+                        bat_path_wsl = '/mnt/c/Users/jahns/gmt_windows_cmd.bat'
+                        bat_path_win = 'C:\\Users\\jahns\\gmt_windows_cmd.bat'
+                        with open(bat_path_wsl, 'w') as _f:
+                            _f.write('@echo off\n')
+                            _f.write(cmd_obj['command'] + '\n')
+                        _result = subprocess.run(
+                            ['cmd.exe', '/c', bat_path_win],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            encoding='cp1252',
+                            errors='replace',
+                            timeout=cmd_obj.get('timeout', 3600),
+                        )
+                        print(_result.stdout or '', flush=True)
+                        _os.remove(bat_path_wsl)
+                        if _result.returncode != 0:
+                            raise RuntimeError(f"windows command failed (exit {_result.returncode}): {cmd_obj['command']}")
+                        continue
                     else:
                         raise RuntimeError('Unknown command type in flow: ', cmd_obj['type'])
 

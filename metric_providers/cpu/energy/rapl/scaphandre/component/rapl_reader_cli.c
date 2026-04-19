@@ -16,6 +16,12 @@
  * Each domain gets its own timestamp via now_us() to ensure unique
  * timestamps without artificial offsets.
  *
+ * Sleep precision: timeBeginPeriod(1) sets the Windows timer resolution
+ * to 1ms so Sleep(99) actually sleeps ~99ms instead of the default
+ * ~15.6ms-granularity that causes intervals of 112ms, 128ms, 165ms etc.
+ * The main loop uses deadline-based sleeping (sleep the *remaining* time
+ * until the next tick) so measurement overhead does not accumulate.
+ *
  * Usage:
  *   rapl_reader.exe -i <interval_ms>        (default: 99ms)
  *   rapl_reader.exe -i 99 -d cpu_package    (single domain)
@@ -30,10 +36,13 @@
  *   2 = runtime error (driver disappeared during measurement)
  *
  * Build (x64 Native Tools Command Prompt for VS 2022):
- *   cl rapl_reader_cli.c /Fe:rapl_reader.exe /O2 /W3
+ *   cl rapl_reader_cli.c /Fe:rapl_reader.exe /O2 /W3 /link winmm.lib
+ *
+ * Note: winmm.lib is required for timeBeginPeriod / timeEndPeriod.
  */
 
 #include <windows.h>
+#include <timeapi.h>   /* timeBeginPeriod / timeEndPeriod */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -135,6 +144,17 @@ static uint64_t now_us(const clock_state_t *cs)
     return cs->wall_start_us + (uint64_t)elapsed_us;
 }
 
+/*
+ * now_qpc() - return raw QPC ticks for deadline arithmetic.
+ * Used internally for sleep scheduling; not converted to wall time.
+ */
+static LONGLONG now_qpc(void)
+{
+    LARGE_INTEGER qpc;
+    QueryPerformanceCounter(&qpc);
+    return qpc.QuadPart;
+}
+
 static HANDLE open_driver(void)
 {
     return CreateFileA(DEVICE_PATH, GENERIC_READ | GENERIC_WRITE, 0, NULL,
@@ -189,7 +209,7 @@ static int is_domain_active(HANDLE hDev, uint32_t cpu,
  * read_rapl() - read all enabled RAPL domains.
  *
  * Returns a sample with valid=1 on success.
- * Returns valid=0, ioctl_err=1 if the PKG domain read fails –
+ * Returns valid=0, ioctl_err=1 if the PKG domain read fails -
  * PKG is always enabled and is the canary for driver health.
  * Other domain failures are non-fatal (domain stays at 0).
  */
@@ -313,34 +333,82 @@ int main(int argc, char *argv[])
     clock_state_t cs = clock_init();
 
     /*
-     * Auto-detect active domains at startup (5 samples x 100ms each).
-     * Only runs for domains that are still active after -x exclusions.
+     * Auto-detect active domains at startup (1 sample x 100ms each).
+     * Reduced from 5 to 1 sample to minimise startup latency:
+     * 5x100ms = 500ms caused timing outliers at the start of the
+     * measurement series that pushed GMT's 95p sampling-rate check
+     * above the +-20% tolerance window.
+     * 1x100ms = 100ms is sufficient to detect inactive domains
+     * (an inactive domain reads 0 uJ delta consistently).
      * Skipped entirely if user set a single domain via -d.
-     * Runs within GMT's 2-second startup delay.
      */
     if (!user_domains) {
         if ((domains & DOMAIN_DRAM) &&
-            !is_domain_active(hDev, 0, MSR_DRAM_ENERGY_STATUS, energy_unit, 5, 100)) {
+            !is_domain_active(hDev, 0, MSR_DRAM_ENERGY_STATUS, energy_unit, 1, 100)) {
             domains &= ~DOMAIN_DRAM;
             fprintf(stderr, "Info: DRAM domain not supported on this CPU, disabling.\n");
         }
         if ((domains & DOMAIN_GPU) &&
-            !is_domain_active(hDev, 0, MSR_PP1_ENERGY_STATUS, energy_unit, 5, 100)) {
+            !is_domain_active(hDev, 0, MSR_PP1_ENERGY_STATUS, energy_unit, 1, 100)) {
             domains &= ~DOMAIN_GPU;
             fprintf(stderr, "Info: GPU domain not supported on this CPU, disabling.\n");
         }
         if ((domains & DOMAIN_PSYS) &&
-            !is_domain_active(hDev, 0, MSR_PLATFORM_ENERGY_STATUS, energy_unit, 5, 100)) {
+            !is_domain_active(hDev, 0, MSR_PLATFORM_ENERGY_STATUS, energy_unit, 1, 100)) {
             domains &= ~DOMAIN_PSYS;
             fprintf(stderr, "Info: PSYS domain not supported on this CPU, disabling.\n");
         }
     }
 
+    /*
+     * Set Windows timer resolution to 1ms.
+     *
+     * By default Windows uses a 15.6ms timer interrupt interval.
+     * Sleep(99) with the default resolution rounds up to the next
+     * interrupt boundary: the actual sleep is 104ms, 112ms, or even
+     * 160ms depending on system load - far outside GMT's +-20% check.
+     *
+     * timeBeginPeriod(1) requests 1ms resolution from the multimedia
+     * timer subsystem. This is widely used (browsers, audio apps, games)
+     * and has negligible power impact on modern CPUs with C-state aware
+     * timer coalescing. timeEndPeriod(1) restores the default on exit.
+     */
+    timeBeginPeriod(1);
+
     rapl_sample_t prev     = {0};
     int first              = 1;
     int consecutive_errors = 0;  /* counts back-to-back IOCTL failures */
 
+    /*
+     * Deadline-based main loop.
+     *
+     * Instead of sleeping a fixed interval_ms AFTER each measurement
+     * (which causes drift because measurement time adds up), we record
+     * the QPC tick at the START of each iteration and sleep only the
+     * remaining time until the next deadline.
+     *
+     * Example with interval_ms=99 and 2ms measurement overhead:
+     *
+     *   Before fix:  measure(2ms) + Sleep(99ms) = 101ms per round
+     *                => GMT sees 101ms intervals, fails +-20% check
+     *
+     *   After fix:   deadline = now + 99ms
+     *                measure(2ms)
+     *                sleep(99ms - 2ms) = sleep(97ms)
+     *                => GMT sees 99ms intervals, passes check
+     *
+     * If a measurement takes longer than interval_ms (e.g. driver slow),
+     * the sleep is skipped entirely (sleep_ms=0) and we catch up on the
+     * next round rather than falling further behind.
+     */
+    LARGE_INTEGER qpc_freq;
+    QueryPerformanceFrequency(&qpc_freq);
+    double qpc_ticks_per_ms = (double)qpc_freq.QuadPart / 1000.0;
+
     while (1) {
+        /* Record deadline at the START of this iteration */
+        LONGLONG deadline = now_qpc() + (LONGLONG)(interval_ms * qpc_ticks_per_ms);
+
         rapl_sample_t curr = read_rapl(hDev, 0, energy_unit, domains);
 
         if (!curr.valid && curr.ioctl_err) {
@@ -362,11 +430,17 @@ int main(int argc, char *argv[])
                     "  Check: sc.exe query ScaphandreDrv\n"
                     "  Start: sc.exe start ScaphandreDrv\n",
                     MAX_CONSECUTIVE_ERRORS);
+                timeEndPeriod(1);
                 CloseHandle(hDev);
                 return 2;  /* exit code 2 = runtime driver loss */
             }
 
-            Sleep(interval_ms);
+            /* Sleep remaining time even on error to keep cadence */
+            LONGLONG remaining_ticks = deadline - now_qpc();
+            if (remaining_ticks > 0) {
+                DWORD sleep_ms = (DWORD)(remaining_ticks / qpc_ticks_per_ms);
+                if (sleep_ms > 0) Sleep(sleep_ms);
+            }
             continue;
         }
 
@@ -408,9 +482,18 @@ int main(int argc, char *argv[])
 
         if (curr.valid) { prev = curr; first = 0; }
 
-        Sleep(interval_ms);
+        /*
+         * Sleep only the remaining time until the deadline.
+         * If measurement took longer than interval_ms, skip sleep entirely.
+         */
+        LONGLONG remaining_ticks = deadline - now_qpc();
+        if (remaining_ticks > 0) {
+            DWORD sleep_ms = (DWORD)(remaining_ticks / qpc_ticks_per_ms);
+            if (sleep_ms > 0) Sleep(sleep_ms);
+        }
     }
 
+    timeEndPeriod(1);
     CloseHandle(hDev);
     return 0;
 }

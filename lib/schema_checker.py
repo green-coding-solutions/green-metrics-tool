@@ -199,7 +199,7 @@ class SchemaChecker():
                 'container': And(str, Use(self.not_empty), Use(self.contains_no_invalid_chars)),
                 Optional('hidden'): bool,
                 'commands': [{
-                    'type': Or('console', 'playwright'),
+                    'type': Or('console', 'playwright', 'windows'),
                     'command': And(str, Use(self.not_empty)),
                     Optional('detach'): bool,
                     Optional('note'): And(str, Use(self.not_empty)),
