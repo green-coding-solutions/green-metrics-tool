@@ -200,6 +200,10 @@ measurement:
         sampling_rate: 499 # If you set this value too low powermetrics will not be able to accommodate the timing. We recommend no lower than 199 ms
       cpu_utilization_mach_system:
         sampling_rate: 99
+    #--- Architecture - Windows
+    #--- Windows: Python runs natively, Docker Desktop runs Linux containers.
+    #--- Add Windows-native metric providers here once available.
+    windows:
     #--- Architecture - Common
     common:
 #      network_connections_proxy_container:

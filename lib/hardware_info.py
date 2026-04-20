@@ -121,7 +121,31 @@ mac_info_list = [
 
 ]
 
+windows_info_list = [
+    [platform.system, 'Platform'],
+    [platform.version, 'Windows Version'],
+    [platform.node, 'Hostname'],
+    [platform.machine, 'Architecture'],
+    [platform.processor, 'Cpu Info'],
+    [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
+    [cf, 'Memory Total', psutil.virtual_memory, [], 'total'],
+    [cf, 'Available Memory', psutil.virtual_memory, [], 'available'],
+    [cf, 'Disk Usage', psutil.disk_usage, [os.path.abspath(os.sep)], 'used'],
+    [cf, 'Disk Free', psutil.disk_usage, [os.path.abspath(os.sep)], 'free'],
+    [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Docker Images', 'docker images', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Docker Volumes', 'docker system df -v', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],
+    [rpwr, 'Installed Python Packages', f"{sys.executable} -m pip freeze", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Processes', 'tasklist', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Network Interfaces', 'ipconfig /all', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+]
+
 def get_list():
+    if platform.system() == 'Windows':
+        return windows_info_list
+
     if platform.system() == 'Darwin':
         return mac_info_list
 

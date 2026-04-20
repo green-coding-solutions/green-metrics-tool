@@ -28,7 +28,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--name', type=str, help='A name which will be stored to the database to discern this run from others')
-    parser.add_argument('--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory starting  with / or a remote git repository starting with http(s)://')
+    parser.add_argument('--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory or a remote git repository starting with http(s)://')
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
     parser.add_argument('--commit-hash', type=str, help='Optionally specify a git commit hash to check out when using a remote repository to clone from')
     parser.add_argument('--filename', type=str, action='append', help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported. Duplicate filenames are allowed and will be processed multiple times.')
@@ -93,16 +93,12 @@ if __name__ == '__main__':
     if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':
         print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', args.uri, TerminalColors.ENDC)
         run_type = 'URL'
-    elif args.uri[0:1] == '/':
+    elif Path(args.uri).is_dir():
         print(TerminalColors.OKBLUE, '\nDetected supplied folder: ', args.uri, TerminalColors.ENDC)
         run_type = 'folder'
-        if not Path(args.uri).is_dir():
-            parser.print_help()
-            error_helpers.log_error('Could not find folder on local system. Please double check: ', uri=args.uri)
-            sys.exit(1)
     else:
         parser.print_help()
-        error_helpers.log_error('Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ', uri=args.uri)
+        error_helpers.log_error('Could not detect correct URI. Please use a local folder path or URL http(s):// : ', uri=args.uri)
         sys.exit(1)
 
     variables_dict = {}
