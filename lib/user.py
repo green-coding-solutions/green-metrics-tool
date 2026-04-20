@@ -66,7 +66,6 @@ class User():
         return schedule_mode in self._capabilities['jobs']['schedule_modes']
 
     def change_setting(self, name, value):
-
         if not self.can_change_setting(name):
             raise ValueError(f"You cannot change this setting: {name}")
 

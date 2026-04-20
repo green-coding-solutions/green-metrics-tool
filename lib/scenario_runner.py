@@ -1076,8 +1076,8 @@ class ScenarioRunner:
                 docker_build_command.extend(
                     ['--mount', 'type=volume,dst=/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                    '--mount', f"type=bind,source={self._repo_folder},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
-                    '--mount', f"type=bind,source={self._build_dir},target=/output"]
+                    '--mount', f"type=bind,source={self._repo_folder.as_posix()},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
+                    '--mount', f"type=bind,source={self._build_dir.as_posix()},target=/output"]
                 )
 
                 for relation_key, relation in self.__relations.items():
@@ -1139,8 +1139,6 @@ class ScenarioRunner:
                     ps = subprocess.run(docker_build_command, stdout=output_behaviour, stderr=output_behaviour, encoding='UTF-8', errors='replace', check=False)
 
                 if ps.returncode != 0:
-                    print("Error")
-                    print(docker_build_command)
                     raise subprocess.CalledProcessError(ps.returncode, 'Docker build failed', output=ps.stdout, stderr=ps.stderr)
 
                 # import the docker image locally
@@ -1362,7 +1360,7 @@ class ScenarioRunner:
                 raise ValueError(f"Repo mount path may not contain commas (,) in the name: {repo_mount_path}")
             # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
             docker_run_string.append('--mount')
-            docker_run_string.append(f"type=bind,source={self._repo_folder},target={repo_mount_path},readonly")
+            docker_run_string.append(f"type=bind,source={self._repo_folder.as_posix()},target={repo_mount_path},readonly")
 
             for relation_key, relation in self.__relations.items():
                 # still check for , although checked in schema checker to not de-sync when we ever allow commas
@@ -1436,12 +1434,13 @@ class ScenarioRunner:
                                     mount_type = 'bind'
                                     if not Path(mount_src).is_absolute():
                                         raise ValueError(f"Mount path in allow listed volume mounts must be absolute. Value was: {mount_src}")
+                                    mount_src = Path(mount_src).resolve(strict=True).as_posix()
 
                             else:
                                 mount_type = 'bind'
                                 if mount_option != ',readonly':
                                     raise RuntimeError(f"Service '{service_name}': We only allow readonly (ro) as parameter in volume mounts in safe mode. Volume: {volume} - Try --allow-unsafe if you are running locally")
-                                mount_src = self._join_paths(self.__working_folder, mount_src)
+                                mount_src = self._join_paths(self.__working_folder, mount_src).as_posix()
                         except FileNotFoundError as exc:
                             raise RuntimeError(f"The mount path {mount_src} could not be loaded or found at the specified path.") from exc
 
