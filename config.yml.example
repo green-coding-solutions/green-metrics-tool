@@ -12,8 +12,10 @@ redis:
 
 security:
   # Used to encrypt secrets before storing them in the database. Keep this stable;
-  # changing it makes previously encrypted DB values unreadable.
-  encryption_key: PLEASE_CHANGE_THIS_ENCRYPTION_KEY
+  # changing it makes previously encrypted DB values unreadable. If these are empty
+  # no encryption is used.
+  encryption_public_key_file:
+  encryption_private_key_file:
 
 smtp:
   server: SMTP_SERVER

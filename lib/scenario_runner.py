@@ -5,6 +5,7 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
+from lib.secure_variable import SecureVariable
 from lib.venv_checker import check_venv
 check_venv() # this check must even run before __main__ as imports might not get resolved
 
@@ -133,7 +134,7 @@ class ScenarioRunner:
         self._branch = branch
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._requested_commit_hash = commit_hash
-        self._ssh_private_key = ssh_private_key
+        self._ssh_private_key = SecureVariable(ssh_private_key)
 
         self._tmp_folder = Path('/tmp/').resolve(strict=True).joinpath('green-metrics-tool') # since linux has /tmp and macos /private/tmp
         self._relations_folder = self._tmp_folder.joinpath('relations')
@@ -254,22 +255,19 @@ class ScenarioRunner:
         shutil.rmtree(path, ignore_errors=False)
         path.mkdir(parents=False, exist_ok=False)
 
-    def _docker_bind_source(self, path: Path | str) -> str:
-        source_path = Path(path).resolve(strict=True)
-        source = source_path.as_posix()
-        if source_path.is_dir() and not source.endswith('/'):
-            return f"{source}/"
-        return source
-
     def _ensure_ssh_private_key_file(self):
         if not self._ssh_private_key:
             return None
 
         self._ssh_private_key_file.write_text('', encoding='utf-8')
         os.chmod(self._ssh_private_key_file, 0o600)
-        self._ssh_private_key_file.write_text(self._ssh_private_key, encoding='utf-8')
+        self._ssh_private_key_file.write_text(self._ssh_private_key.get_value(), encoding='utf-8')
 
         return self._ssh_private_key_file
+
+    def _delete_ssh_private_key_file(self):
+        if self._ssh_private_key_file.exists():
+            self._ssh_private_key_file.unlink()
 
     def _get_git_environment(self):
         env = os.environ.copy()
@@ -1036,8 +1034,6 @@ class ScenarioRunner:
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
-        self._create_folders()
-
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
         for _, service in self.__usage_scenario.get('services', {}).items():
@@ -1080,8 +1076,8 @@ class ScenarioRunner:
                 docker_build_command.extend(
                     ['--mount', 'type=volume,dst=/workspace',
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
-                    '--mount', f"type=bind,source={self._docker_bind_source(self._repo_folder)},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
-                    '--mount', f"type=bind,source={self._docker_bind_source(self._build_dir)},target=/output"]
+                    '--mount', f"type=bind,source={self._repo_folder},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
+                    '--mount', f"type=bind,source={self._build_dir},target=/output"]
                 )
 
                 for relation_key, relation in self.__relations.items():
@@ -1089,7 +1085,7 @@ class ScenarioRunner:
                     if ',' in relation['mount_path']:
                         raise ValueError(f"Relation mount path may not contain commas (,) in the name: {relation['mount_path']}")
                     docker_build_command.append('--mount')
-                    docker_build_command.append(f"type=bind,source={self._docker_bind_source(relation['mount_path'])},target=/tmp/relations/{relation_key},readonly") # relation_key already checked in schema_checker
+                    docker_build_command.append(f"type=bind,source={relation['mount_path']},target=/tmp/relations/{relation_key},readonly") # relation_key already checked in schema_checker
 
                 docker_build_command.append('martizih/kaniko:slim')
 
@@ -1366,14 +1362,14 @@ class ScenarioRunner:
                 raise ValueError(f"Repo mount path may not contain commas (,) in the name: {repo_mount_path}")
             # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
             docker_run_string.append('--mount')
-            docker_run_string.append(f"type=bind,source={self._docker_bind_source(self._repo_folder)},target={repo_mount_path},readonly")
+            docker_run_string.append(f"type=bind,source={self._repo_folder},target={repo_mount_path},readonly")
 
             for relation_key, relation in self.__relations.items():
                 # still check for , although checked in schema checker to not de-sync when we ever allow commas
                 if ',' in relation['mount_path']:
                     raise ValueError(f"Relation mount path may not contain commas (,) in the name: {relation['mount_path']}")
                 docker_run_string.append('--mount')
-                docker_run_string.append(f"type=bind,source={self._docker_bind_source(relation['mount_path'])},target=/tmp/relations/{relation_key},readonly")
+                docker_run_string.append(f"type=bind,source={relation['mount_path']},target=/tmp/relations/{relation_key},readonly")
 
             # this is a special feature container with a reserved name.
             # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc == True
@@ -1440,13 +1436,12 @@ class ScenarioRunner:
                                     mount_type = 'bind'
                                     if not Path(mount_src).is_absolute():
                                         raise ValueError(f"Mount path in allow listed volume mounts must be absolute. Value was: {mount_src}")
-                                    mount_src = self._docker_bind_source(mount_src)
 
                             else:
                                 mount_type = 'bind'
                                 if mount_option != ',readonly':
                                     raise RuntimeError(f"Service '{service_name}': We only allow readonly (ro) as parameter in volume mounts in safe mode. Volume: {volume} - Try --allow-unsafe if you are running locally")
-                                mount_src = self._docker_bind_source(self._join_paths(self.__working_folder, mount_src))
+                                mount_src = self._join_paths(self.__working_folder, mount_src)
                         except FileNotFoundError as exc:
                             raise RuntimeError(f"The mount path {mount_src} could not be loaded or found at the specified path.") from exc
 
@@ -2474,11 +2469,11 @@ class ScenarioRunner:
 
     def _create_folders(self):
         ''' Must be here and not in init, as it must be created for every iteration'''
-        self._tmp_folder.mkdir(parents=True, exist_ok=True)
-        self._relations_folder.mkdir(parents=True, exist_ok=True)
-        self._repo_folder.mkdir(parents=True, exist_ok=True)
-        self._metrics_folder.mkdir(parents=True, exist_ok=True)
-        self._build_dir.mkdir(parents=True, exist_ok=True)
+        self._tmp_folder.mkdir(parents=False, exist_ok=True)
+        self._relations_folder.mkdir(parents=False, exist_ok=True)
+        self._repo_folder.mkdir(parents=False, exist_ok=True)
+        self._metrics_folder.mkdir(parents=False, exist_ok=True)
+        self._build_dir.mkdir(parents=False, exist_ok=True)
 
     def _start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
@@ -2741,6 +2736,7 @@ class ScenarioRunner:
         self.__relations.clear()
         self.__custom_metrics.clear()
         self.__sci_metrics.clear()
+        self._delete_ssh_private_key_file()
 
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)

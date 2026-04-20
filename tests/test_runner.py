@@ -1,6 +1,7 @@
 from contextlib import nullcontext as does_not_raise
 
 import io
+import json
 import pytest
 import re
 import os
@@ -14,6 +15,7 @@ from pathlib import Path
 
 from lib.log_types import LogType
 from lib.scenario_runner import ScenarioRunner
+from lib.secure_variable import SecureVariable, SecureVariableEncoder
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import utils
@@ -89,6 +91,27 @@ def test_git_environment_with_ssh_private_key():
     assert 'StrictHostKeyChecking=accept-new' in env['GIT_SSH_COMMAND']
     assert runner._ssh_private_key_file.read_text(encoding='utf-8') == key
     assert stat.S_IMODE(runner._ssh_private_key_file.stat().st_mode) == 0o600
+
+def test_git_environment_with_secure_variable_ssh_private_key():
+    key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner._create_folders()
+
+    env = runner._get_git_environment()
+
+    assert isinstance(runner._ssh_private_key, SecureVariable)
+    assert 'GIT_SSH_COMMAND' in env
+    assert runner._ssh_private_key_file.read_text(encoding='utf-8') == key
+
+def test_runner_arguments_obfuscate_ssh_private_key():
+    key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=key, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    runner_arguments = json.dumps(runner._arguments, cls=SecureVariableEncoder)
+
+    assert isinstance(runner._arguments['ssh_private_key'], SecureVariable)
+    assert key not in runner_arguments
+    assert runner_arguments.count('****OBFUSCATED****') == 1
 
 def test_non_git_root_supplied():
     runner = ScenarioRunner(uri=f"{GMT_DIR}/tests/data/usage_scenarios/", uri_type='folder', filename='invalid_image.yml', dev_no_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)

@@ -36,7 +36,7 @@ const renderSshPrivateKeyState = (hasSshPrivateKey) => {
 
     textarea.value = '';
     textarea.placeholder = hasSshPrivateKey
-        ? 'Paste a new private key here to replace the stored key.'
+        ? 'Paste a new private key here to replace the stored key. Saving empyt field deletes the stored key.'
         : 'Paste an OpenSSH private key here to enable private repository clones.';
     status.textContent = hasSshPrivateKey
         ? 'A private key is stored for this user.'

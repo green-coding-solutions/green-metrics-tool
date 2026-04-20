@@ -1,62 +1,160 @@
 import base64
-import hashlib
-from cryptography.fernet import Fernet, InvalidToken
+import binascii
+import json
+import os
+from pathlib import Path
+
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from lib.global_config import GlobalConfig
 
 ENCRYPTED_VALUE_PREFIX = 'gmt-encrypted:v1:'
-
+ENCRYPTION_ALGORITHM = 'RSA-OAEP-SHA256+A256GCM'
 
 class EncryptionConfigurationError(Exception):
     pass
 
 
-def _get_configured_encryption_key():
-    encryption_key = GlobalConfig().config.get('security', {}).get('encryption_key')
-
-    if not isinstance(encryption_key, str) or encryption_key.strip() in ('', 'PLEASE_CHANGE_THIS_ENCRYPTION_KEY'):
-        raise EncryptionConfigurationError('security.encryption_key must be set in config.yml before encrypting data')
-
-    encryption_key = encryption_key.strip()
-    if len(encryption_key) < 32:
-        raise EncryptionConfigurationError('security.encryption_key must be at least 32 characters long')
-
-    return encryption_key
+def _base64_encode(data):
+    return base64.urlsafe_b64encode(data).decode('ascii')
 
 
-def _get_fernet(encryption_key=None):
-    encryption_key = encryption_key or _get_configured_encryption_key()
-    derived_key = base64.urlsafe_b64encode(hashlib.sha256(encryption_key.encode('utf-8')).digest())
-    return Fernet(derived_key)
+def _base64_decode(data):
+    return base64.urlsafe_b64decode(data.encode('ascii'))
 
 
-def encrypt_data(data, encryption_key=None):
+def _resolve_configured_key_file(key):
+    configured_key_file = GlobalConfig().config.get('security', {}).get(key)
+
+    if not isinstance(configured_key_file, str) or configured_key_file.strip() == '':
+        return None
+
+    config_path = Path(configured_key_file.strip()).resolve()\
+
+    if config_path.is_file():
+        return config_path
+
+    return None
+
+
+def _load_public_key():
+    public_key_file = _resolve_configured_key_file('encryption_public_key_file')
+
+    if not public_key_file:
+        return None
+
+    try:
+        public_key = serialization.load_pem_public_key(public_key_file.read_bytes())
+    except ValueError as exc:
+        raise EncryptionConfigurationError(
+            f'Could not load public encryption key from {public_key_file}'
+        ) from exc
+
+    if not isinstance(public_key, rsa.RSAPublicKey):
+        raise EncryptionConfigurationError('security.encryption_public_key_file must contain an RSA public key')
+
+    return public_key
+
+
+def _load_private_key():
+    private_key_file =  _resolve_configured_key_file('encryption_private_key_file')
+
+    if not private_key_file:
+        return None
+
+    try:
+        private_key = serialization.load_pem_private_key(private_key_file.read_bytes(), password=None)
+    except (TypeError, ValueError) as exc:
+        raise EncryptionConfigurationError(
+            f'Could not load private encryption key from {private_key_file}'
+        ) from exc
+
+    if not isinstance(private_key, rsa.RSAPrivateKey):
+        raise EncryptionConfigurationError('security.encryption_private_key_file must contain an RSA private key')
+
+    return private_key
+
+
+
+def encrypt_data(data):
     if data is None:
         return None
+
     if not isinstance(data, str):
         raise ValueError('Only string values can be encrypted')
+
+    public_key = _load_public_key()
+    if public_key is None:
+        return data
+
     if data.startswith(ENCRYPTED_VALUE_PREFIX):
         return data
 
-    encrypted_data = _get_fernet(encryption_key).encrypt(data.encode('utf-8')).decode('utf-8')
-    return f'{ENCRYPTED_VALUE_PREFIX}{encrypted_data}'
+    # We need to generate a key and then encrypt this key as RSA can not encypt a full ssh key.
+    aes_key = AESGCM.generate_key(bit_length=256)
+    nonce = os.urandom(12)
+    encrypted_data = AESGCM(aes_key).encrypt(nonce, data.encode('utf-8'), None)
+    encrypted_key = public_key.encrypt(
+        aes_key,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None,
+        ),
+    )
+
+    envelope = {
+        'alg': ENCRYPTION_ALGORITHM,
+        'encrypted_key': _base64_encode(encrypted_key),
+        'nonce': _base64_encode(nonce),
+        'ciphertext': _base64_encode(encrypted_data),
+    }
+
+    encrypted_payload = _base64_encode(
+        json.dumps(envelope, separators=(',', ':'), sort_keys=True).encode('utf-8')
+    )
+
+    return f'{ENCRYPTED_VALUE_PREFIX}{encrypted_payload}'
 
 
-def is_encrypted_data(data):
-    return isinstance(data, str) and data.startswith(ENCRYPTED_VALUE_PREFIX)
-
-
-def decrypt_data(data, encryption_key=None):
+def decrypt_data(data):
     if data is None:
         return None
     if not isinstance(data, str):
         raise ValueError('Only string values can be decrypted')
-    if not is_encrypted_data(data):
+
+    private_key = _load_private_key()
+    if private_key is None:
         return data
 
-    encrypted_data = data.removeprefix(ENCRYPTED_VALUE_PREFIX)
+    if not data.startswith(ENCRYPTED_VALUE_PREFIX):
+        return data
+
+    encrypted_payload = data.removeprefix(ENCRYPTED_VALUE_PREFIX)
 
     try:
-        return _get_fernet(encryption_key).decrypt(encrypted_data.encode('utf-8')).decode('utf-8')
-    except InvalidToken as exc:
-        raise EncryptionConfigurationError('Could not decrypt stored data. Check security.encryption_key in config.yml') from exc
+        envelope = json.loads(_base64_decode(encrypted_payload).decode('utf-8'))
+        if envelope.get('alg') != ENCRYPTION_ALGORITHM:
+            raise ValueError(f"Unsupported encryption algorithm: {envelope.get('alg')}")
+
+        aes_key = private_key.decrypt(
+            _base64_decode(envelope['encrypted_key']),
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None,
+            ),
+        )
+        decrypted_data = AESGCM(aes_key).decrypt(
+            _base64_decode(envelope['nonce']),
+            _base64_decode(envelope['ciphertext']),
+            None,
+        )
+        return decrypted_data.decode('utf-8')
+    except (binascii.Error, InvalidTag, KeyError, TypeError, ValueError) as exc:
+        raise EncryptionConfigurationError(
+            'Could not decrypt stored data. Check security.encryption_private_key_file in config.yml'
+        ) from exc

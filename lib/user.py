@@ -1,6 +1,5 @@
 import json
 import hashlib
-import uuid
 
 from lib.secure_variable import SecureVariable
 from lib.db import DB
@@ -67,9 +66,6 @@ class User():
         return schedule_mode in self._capabilities['jobs']['schedule_modes']
 
     def change_setting(self, name, value):
-        if name == 'ssh_private_key':
-            self.update_ssh_private_key(value)
-            return
 
         if not self.can_change_setting(name):
             raise ValueError(f"You cannot change this setting: {name}")
@@ -96,6 +92,9 @@ class User():
                 if not (isinstance(value, int) or value.isdigit()) or int(value) <= 0 or int(value) > 86400:
                     raise ValueError(f'The setting {name} must be between 1 and 86400')
                 value = int(value)
+            case 'ssh_private_key':
+                self.update_ssh_private_key(value)
+                return
             case _:
                 raise ValueError(f'The setting {name} is unknown')
 
@@ -107,9 +106,10 @@ class User():
         return self._ssh_private_key is not None
 
     def get_ssh_private_key(self):
-        if self._ssh_private_key is None:
+        if self._ssh_private_key:
+            return self._ssh_private_key.get_value()
+        else:
             return None
-        return self._ssh_private_key.get_value()
 
     def update_ssh_private_key(self, value):
         if value is None:

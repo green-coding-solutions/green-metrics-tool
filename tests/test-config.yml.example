@@ -10,7 +10,8 @@ redis:
   port: 6380
 
 security:
-  encryption_key: test-encryption-key-for-green-metrics-tool-tests
+  encryption_public_key_file:
+  encryption_private_key_file:
 
 smtp:
   server: null

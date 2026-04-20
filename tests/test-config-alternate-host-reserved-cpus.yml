@@ -9,9 +9,6 @@ redis:
   host: test-green-coding-redis-container
   port: 6380
 
-security:
-  encryption_key: test-encryption-key-for-green-metrics-tool-tests
-
 
 machine:
   id: 1
