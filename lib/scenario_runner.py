@@ -1952,7 +1952,7 @@ class ScenarioRunner:
             return container_name, result if result else None
 
         except Exception as exc:  # pylint: disable=broad-exception-caught
-            print(f"Error executing energy-dependency-inspector for container {container_name}: {exc}")
+            error_helpers.log_error('Error executing energy-dependency-inspector', container=container_name, exception=exc)
             return container_name, None
 
     def _collect_container_dependencies(self):
