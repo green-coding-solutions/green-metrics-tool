@@ -48,3 +48,7 @@ tools/sgx_enable
 # GitHub App credentials
 gha-creds-*.json
 
+ql -h localhost*
+windows/exports/*.csv
+windows/exports/plots/
+windows/exports/*.png

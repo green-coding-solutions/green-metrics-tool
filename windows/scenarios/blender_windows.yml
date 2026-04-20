@@ -1,0 +1,15 @@
+name: Blender 5.1 Cycles CPU - Lone Monk 64spp
+author: max <dein@email.de>
+description: Blender Cycles CPU render benchmark, 64 samples
+services:
+    host:
+        image: gmt-test-image
+        init: true
+flow:
+  - name: Blender Render
+    container: host
+    commands:
+      - type: windows
+        command: '"C:\Program Files\Blender Foundation\Blender 5.1\blender.exe" --background "C:\blender_benchmark\lone-monk.blend" --python-expr "import bpy; bpy.context.scene.cycles.samples = 64" --render-frame 1'
+        log-stdout: true
+        log-stderr: true
