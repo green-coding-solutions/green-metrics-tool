@@ -45,7 +45,7 @@ class RunJob(Job):
             filename=self._filename,
             branch=self._branch,
             commit_hash=self._commit_hash,
-            ssh_private_key=SecureVariable(user.get_ssh_private_key()),
+            ssh_private_key=SecureVariable(user.get_ssh_private_key()) if user.has_ssh_private_key() else None,
             allow_unsafe=False, # cluster runs should never allow this. All should go through individual user permissions,
             skip_unsafe=user._capabilities['measurement']['skip_unsafe'],
             dev_no_system_checks=user._capabilities['measurement']['dev_no_system_checks'],
