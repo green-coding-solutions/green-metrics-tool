@@ -173,7 +173,10 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 derivative_avg = Decimal(classic_value_avg / (duration/value_count))
                 derivative_max = Decimal(max_value / (duration/value_count))
                 derivative_min = Decimal(min_value / (duration/value_count))
-                phase_warnings.add(f"Very few samples encountered in phase '{phase['name']}', MEAN values might be inaccurate")
+
+                # Some metrics should not be flagged as under-sampled as they are binary or are custom
+                if not metric.startswith('custom_') and not metric.startswith('cpu_throttling'):
+                    phase_warnings.add(f"Very few samples encountered in phase '{phase['name']}', MEAN values might be inaccurate")
             else:
                 value_avg = Decimal(weighted_value_avg)
                 derivative_avg = Decimal(derivative_avg)
