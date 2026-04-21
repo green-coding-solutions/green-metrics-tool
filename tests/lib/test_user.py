@@ -95,7 +95,7 @@ def test_encrypt_and_decrypt_data(tmp_path):
 def test_encrypt_data_returns_data_without_public_key(tmp_path):
     try:
         _override_security_config(tmp_path, 'security: {}\n')
-        assert encrypt_data('secret value') is 'secret value'
+        assert encrypt_data('secret value') == 'secret value'
     finally:
         _restore_test_config()
 
@@ -104,8 +104,8 @@ def test_decrypt_data_returns_data_without_private_key(tmp_path):
         _override_security_config(tmp_path, 'security: {}\n')
         encrypted_data = encrypt_data('secret value')
 
-        assert encrypted_data is 'secret value'
-        assert decrypt_data(encrypted_data) is 'secret value'
+        assert encrypted_data == 'secret value'
+        assert decrypt_data(encrypted_data) == 'secret value'
     finally:
         _restore_test_config()
 
@@ -122,8 +122,8 @@ def test_decrypt_data_fails_relative_key_paths_from_config_file(tmp_path):
             '  encryption_public_key_file: keys/public.pem\n'
             '  encryption_private_key_file: keys/private.pem\n',
         )
-        assert encrypt_data('secret value') is 'secret value'
-        assert decrypt_data('secret value') is 'secret value'
+        assert encrypt_data('secret value') == 'secret value'
+        assert decrypt_data('secret value') == 'secret value'
 
     finally:
         _restore_test_config()

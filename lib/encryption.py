@@ -34,10 +34,10 @@ def _resolve_configured_key_file(key):
 
     config_path = Path(configured_key_file.strip()).resolve()\
 
-    if config_path.is_file():
-        return config_path
+    if not config_path.is_file():
+        raise EncryptionConfigurationError(f'security.{key} does not point to a readable file: {config_path}')
 
-    return None
+    return config_path
 
 
 def _load_public_key():

@@ -13,7 +13,7 @@ const updateSetting = async (el) => {
             await makeAPICall('/v1/user/setting', {name: name, value: left_el.value}, null, true)
             if (name === 'ssh_private_key') {
                 showNotification('Save success!', 'ssh_private_key updated', 'success')
-                renderSshPrivateKeyState(true);
+                renderSshPrivateKeyState(left_el.value !== '');
                 left_el.value = '';
             } else {
                 showNotification('Save success!', `${name} = ${left_el.value}`, 'success')
@@ -36,7 +36,7 @@ const renderSshPrivateKeyState = (hasSshPrivateKey) => {
 
     textarea.value = '';
     textarea.placeholder = hasSshPrivateKey
-        ? 'Paste a new private key here to replace the stored key. Saving empyt field deletes the stored key.'
+        ? 'Paste a new private key here to replace the stored key. Saving empty field deletes the stored key.'
         : 'Paste an OpenSSH private key here to enable private repository clones.';
     status.textContent = hasSshPrivateKey
         ? 'A private key is stored for this user.'
