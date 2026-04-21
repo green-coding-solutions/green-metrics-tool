@@ -5,7 +5,7 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
-from lib.secure_variable import SecureVariable
+from lib.secure_variable import SecureVariable, SecureVariableEncoder
 from lib.venv_checker import check_venv
 check_venv() # this check must even run before __main__ as imports might not get resolved
 
@@ -134,7 +134,13 @@ class ScenarioRunner:
         self._branch = branch
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._requested_commit_hash = commit_hash
-        self._ssh_private_key = SecureVariable(ssh_private_key)
+        if isinstance(ssh_private_key, SecureVariable):
+            self._ssh_private_key = ssh_private_key if ssh_private_key.get_value() else None
+        elif ssh_private_key:
+            self._ssh_private_key = SecureVariable(ssh_private_key)
+        else:
+            self._ssh_private_key = None
+        self._arguments['ssh_private_key'] = self._ssh_private_key
 
         self._tmp_folder = Path('/tmp/').resolve(strict=True).joinpath('green-metrics-tool') # since linux has /tmp and macos /private/tmp
         self._relations_folder = self._tmp_folder.joinpath('relations')
@@ -256,12 +262,15 @@ class ScenarioRunner:
         path.mkdir(parents=False, exist_ok=False)
 
     def _ensure_ssh_private_key_file(self):
-        if not self._ssh_private_key:
+        if self._ssh_private_key is None:
+            return None
+        ssh_private_key = self._ssh_private_key.get_value()
+        if not ssh_private_key:
             return None
 
         self._ssh_private_key_file.write_text('', encoding='utf-8')
         os.chmod(self._ssh_private_key_file, 0o600)
-        self._ssh_private_key_file.write_text(self._ssh_private_key.get_value(), encoding='utf-8')
+        self._ssh_private_key_file.write_text(ssh_private_key, encoding='utf-8')
 
         return self._ssh_private_key_file
 
@@ -945,7 +954,7 @@ class ScenarioRunner:
                 RETURNING id
                 """, params=(
                     self._job_id, self._name, self._uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
-                    self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
+                    self._commit_hash, self._commit_timestamp, json.dumps(self._arguments, cls=SecureVariableEncoder),
                     json.dumps(machine_specs), json.dumps(measurement_config),
                     json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
                     gmt_hash,

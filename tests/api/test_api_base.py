@@ -45,6 +45,31 @@ def test_can_read_authentication_data():
     assert json_data['data']['_name'] == 'DEFAULT'
     assert json_data['data'].get('_ssh_private_key', None) is None
 
+def test_can_not_update_ssh_private_key_setting():
+    user = User(1)
+    user._capabilities['user']['updateable_settings'] = [
+        s for s in user._capabilities['user']['updateable_settings'] if s != 'ssh_private_key'
+    ]
+    user.update()
+
+    try:
+        payload = {
+            'name': 'ssh_private_key',
+            'value': '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----',
+        }
+
+        response = requests.put(f"{API_URL}/v1/user/setting", json=payload, timeout=15)
+        assert response.status_code == 422
+
+        user = User(1)
+        assert user.has_ssh_private_key() is False
+        assert user.get_ssh_private_key() is None
+    finally:
+        user = User(1)
+        if 'ssh_private_key' not in user._capabilities['user']['updateable_settings']:
+            user._capabilities['user']['updateable_settings'].append('ssh_private_key')
+            user.update()
+
 def test_can_update_ssh_private_key_setting():
     payload = {
         'name': 'ssh_private_key',
@@ -60,6 +85,9 @@ def test_can_update_ssh_private_key_setting():
         assert user.get_ssh_private_key() == '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
     finally:
         User(1).update_ssh_private_key('')
+        user = User(1)
+        user._capabilities['user']['updateable_settings'].remove('ssh_private_key')
+        user.update()
 
 def test_api_quota_exhausted():
     user = User(1)

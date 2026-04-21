@@ -55,6 +55,15 @@ def copy_sql_structure(ee=False):
     print('Copying SQL structure...')
     shutil.copyfile('../docker/structure.sql', './structure.sql')
 
+    with open('./structure.sql', 'r', encoding='utf-8') as f:
+        sql = f.read()
+    sql = sql.replace(
+        '"measurement.skip_volume_inspect"',
+        '"measurement.skip_volume_inspect",\n                "ssh_private_key"'
+    )
+    with open('./structure.sql', 'w', encoding='utf-8') as f:
+        f.write(sql)
+
     if ee:
         with open('../ee/docker/structure_ee.sql', 'r', encoding='utf-8') as source, open('./structure.sql', 'a', encoding='utf-8') as target:
             target.write(source.read())

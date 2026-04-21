@@ -73,15 +73,24 @@ def test_user_can_clear_ssh_private_key():
     finally:
         user.update_ssh_private_key('')
 
-def test_encrypt_and_decrypt_data():
+def test_encrypt_and_decrypt_data(tmp_path):
     data = 'secret value'
 
-    encrypted_data = encrypt_data(data)
+    try:
+        _override_security_config(
+            tmp_path,
+            f'security:\n'
+            f'  encryption_public_key_file: {TEST_PUBLIC_KEY_FILE}\n'
+            f'  encryption_private_key_file: {TEST_PRIVATE_KEY_FILE}\n',
+        )
 
-    assert encrypted_data.startswith(ENCRYPTED_VALUE_PREFIX)
-    assert encrypted_data != data
-    assert encrypted_data.startswith(ENCRYPTED_VALUE_PREFIX) is True
-    assert decrypt_data(encrypted_data) == data
+        encrypted_data = encrypt_data(data)
+
+        assert encrypted_data.startswith(ENCRYPTED_VALUE_PREFIX)
+        assert encrypted_data != data
+        assert decrypt_data(encrypted_data) == data
+    finally:
+        _restore_test_config()
 
 def test_encrypt_data_returns_data_without_public_key(tmp_path):
     try:
@@ -119,11 +128,18 @@ def test_decrypt_data_fails_relative_key_paths_from_config_file(tmp_path):
     finally:
         _restore_test_config()
 
-def test_user_stores_ssh_private_key_encrypted():
+def test_user_stores_ssh_private_key_encrypted(tmp_path):
     user = User(1)
     private_key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----'
 
     try:
+        _override_security_config(
+            tmp_path,
+            f'security:\n'
+            f'  encryption_public_key_file: {TEST_PUBLIC_KEY_FILE}\n'
+            f'  encryption_private_key_file: {TEST_PRIVATE_KEY_FILE}\n',
+        )
+
         user.update_ssh_private_key(private_key)
 
         raw_value = DB().fetch_one('SELECT ssh_private_key FROM users WHERE id = %s', params=(1,))[0]
@@ -133,6 +149,7 @@ def test_user_stores_ssh_private_key_encrypted():
         assert User(1).get_ssh_private_key() == f'{private_key}\n'
     finally:
         User(1).update_ssh_private_key('')
+
 
 def test_user_store_ssh_private_key_without_public_key(tmp_path):
     user = User(1)
