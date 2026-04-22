@@ -50,15 +50,9 @@ def test_even_if_token_set_for_user_zero_authenticate_still_fails():
         User.authenticate(SecureVariable('asd'))
     assert str(e.value) == 'User 0 is system user and cannot log in'
 
-def test_user_to_dict_does_not_expose_ssh_private_key(tmp_path):
+def test_user_to_dict_does_not_expose_ssh_private_key():
     user = User(1)
     try:
-        _override_security_config(
-            tmp_path,
-            f'security:\n'
-            f'  encryption_public_key_file: {TEST_PUBLIC_KEY_FILE}\n'
-            f'  encryption_private_key_file: {TEST_PRIVATE_KEY_FILE}\n',
-        )
 
         user.update_ssh_private_key('-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----')
 
@@ -67,15 +61,9 @@ def test_user_to_dict_does_not_expose_ssh_private_key(tmp_path):
     finally:
         user.update_ssh_private_key('')
 
-def test_user_can_clear_ssh_private_key(tmp_path):
+def test_user_can_clear_ssh_private_key():
     user = User(1)
     try:
-        _override_security_config(
-            tmp_path,
-            f'security:\n'
-            f'  encryption_public_key_file: {TEST_PUBLIC_KEY_FILE}\n'
-            f'  encryption_private_key_file: {TEST_PRIVATE_KEY_FILE}\n',
-        )
 
         user.update_ssh_private_key('-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----')
 
@@ -89,17 +77,10 @@ def test_user_can_clear_ssh_private_key(tmp_path):
     finally:
         user.update_ssh_private_key('')
 
-def test_encrypt_and_decrypt_data(tmp_path):
+def test_encrypt_and_decrypt_data():
     data = 'secret value'
 
     try:
-        _override_security_config(
-            tmp_path,
-            f'security:\n'
-            f'  encryption_public_key_file: {TEST_PUBLIC_KEY_FILE}\n'
-            f'  encryption_private_key_file: {TEST_PRIVATE_KEY_FILE}\n',
-        )
-
         encrypted_data = encrypt_data(data)
 
         assert encrypted_data.startswith(ENCRYPTED_VALUE_PREFIX)
@@ -130,17 +111,11 @@ def test_decrypt_data_fails_relative_key_paths_from_config_file(tmp_path):
     finally:
         _restore_test_config()
 
-def test_user_stores_ssh_private_key_encrypted(tmp_path):
+def test_user_stores_ssh_private_key_encrypted():
     user = User(1)
     private_key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----'
 
     try:
-        _override_security_config(
-            tmp_path,
-            f'security:\n'
-            f'  encryption_public_key_file: {TEST_PUBLIC_KEY_FILE}\n'
-            f'  encryption_private_key_file: {TEST_PRIVATE_KEY_FILE}\n',
-        )
 
         user.update_ssh_private_key(private_key)
 
