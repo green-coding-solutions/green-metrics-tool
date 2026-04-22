@@ -912,7 +912,7 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
 
         if self._dev_no_metrics:
-            print('Skipping import of metric providers due to --dev-no-save')
+            print('Skipping import of metric providers due to --dev-no-metrics')
             return
 
         config = GlobalConfig().config
