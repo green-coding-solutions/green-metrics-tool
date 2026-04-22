@@ -3,7 +3,7 @@ import hashlib
 
 from lib.secure_variable import SecureVariable
 from lib.db import DB
-from lib.encryption import decrypt_data, encrypt_data
+from lib.encryption import ENCRYPTED_VALUE_PREFIX, EncryptionConfigurationError, decrypt_data, encrypt_data
 
 def get_nested_value(dictionary, path):
     keys = path.split('.', 1)
@@ -30,7 +30,12 @@ class User():
         self._name = user[1]
         self._capabilities = user[2]
 
-        decrypted_ssh_private_key = decrypt_data(user[3]) if user[3] else None
+        raw_key = user[3]
+        if raw_key and raw_key.startswith(ENCRYPTED_VALUE_PREFIX):
+            decrypted_ssh_private_key = decrypt_data(raw_key)
+        else:
+            decrypted_ssh_private_key = raw_key or None
+
         self._ssh_private_key = SecureVariable(decrypted_ssh_private_key) if decrypted_ssh_private_key else None
 
     def to_dict(self):
@@ -125,7 +130,13 @@ class User():
             else:
                 normalized_value = f"{normalized_value}\n"
 
-        encrypted_value = encrypt_data(normalized_value) if normalized_value else None
+        if normalized_value:
+            try:
+                encrypted_value = encrypt_data(normalized_value)
+            except EncryptionConfigurationError as e:
+                raise ValueError('Cannot store SSH key: encryption is not configured on this server') from e
+        else:
+            encrypted_value = None
 
         DB().query("""
             UPDATE users

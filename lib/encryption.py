@@ -17,6 +17,10 @@ ENCRYPTION_ALGORITHM = 'RSA-OAEP-SHA256+A256GCM'
 class EncryptionConfigurationError(Exception):
     pass
 
+class EncryptionError(Exception):
+    pass
+
+
 
 def _base64_encode(data):
     return base64.urlsafe_b64encode(data).decode('ascii')
@@ -88,10 +92,8 @@ def encrypt_data(data):
 
     public_key = _load_public_key()
     if public_key is None:
-        return data
+        raise EncryptionConfigurationError('No public encryption key configured. Check security.encryption_public_key_file in config.yml')
 
-    if data.startswith(ENCRYPTED_VALUE_PREFIX):
-        return data
 
     # We need to generate a key and then encrypt this key as RSA can not encypt a full ssh key.
     aes_key = AESGCM.generate_key(bit_length=256)
@@ -121,17 +123,20 @@ def encrypt_data(data):
 
 
 def decrypt_data(data):
+
     if data is None:
         return None
+
     if not isinstance(data, str):
         raise ValueError('Only string values can be decrypted')
 
     private_key = _load_private_key()
     if private_key is None:
-        return data
+        raise EncryptionConfigurationError('No private encryption key configured. Check security.encryption_private_key_file in config.yml')
+
 
     if not data.startswith(ENCRYPTED_VALUE_PREFIX):
-        return data
+        raise EncryptionError('Data does not appear to be encrypted with the expected format')
 
     encrypted_payload = data.removeprefix(ENCRYPTED_VALUE_PREFIX)
 
