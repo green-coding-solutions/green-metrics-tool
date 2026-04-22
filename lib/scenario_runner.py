@@ -980,7 +980,7 @@ class ScenarioRunner:
 
     def _clean_image_name(self, name):
         # clean up image name for problematic characters
-        name = re.sub(r'[^A-Za-z0-9_]', '', name)
+        name = re.sub(r'[^A-Za-z0-9_]', '_', name)
         # only lowercase letters are allowed for tags
         name = name.lower()
         name = f"{name}_gmt_run_tmp"
