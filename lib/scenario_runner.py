@@ -966,7 +966,7 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
 
         if self._dev_no_metrics:
-            print('Skipping import of metric providers due to --dev-no-save')
+            print('Skipping import of metric providers due to --dev-no-metrics')
             return
 
         config = GlobalConfig().config
@@ -1034,7 +1034,7 @@ class ScenarioRunner:
 
     def _clean_image_name(self, name):
         # clean up image name for problematic characters
-        name = re.sub(r'[^A-Za-z0-9_]', '', name)
+        name = re.sub(r'[^A-Za-z0-9_]', '_', name)
         # only lowercase letters are allowed for tags
         name = name.lower()
         name = f"{name}_gmt_run_tmp"

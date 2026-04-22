@@ -12,11 +12,27 @@ from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
 from lib.scenario_runner import ScenarioRunner
 
+QUICK_OPTIONS= {
+    'dev_no_save': True,
+    'dev_no_sleeps': True,
+    'dev_cache_build': True,
+    'dev_no_metrics': True,
+    'dev_no_system_checks': True,
+    'dev_cache_repos': True,
+    'dev_no_phase_stats': True,
+    'dev_no_container_dependency_collection': True,
+
+    'skip_volume_inspect': False,
+    'skip_download_dependencies': False,
+    'skip_unsafe': False,
+    'skip_optimizations': False,
+}
+
 def test_global_timeout():
 
     measurement_total_duration = 1
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, measurement_total_duration=1, measurement_pre_test_sleep=1, measurement_baseline_duration=1, measurement_idle_duration=1, measurement_post_test_sleep=1, measurement_wait_time_dependencies=1, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', measurement_total_duration=1, measurement_pre_test_sleep=1, measurement_baseline_duration=1, measurement_idle_duration=1, measurement_post_test_sleep=1, measurement_wait_time_dependencies=1, **QUICK_OPTIONS)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -39,7 +55,7 @@ def test_global_timeout():
 def test_invalid_combination_measurement_flow_process_duration():
 
     with pytest.raises(ValueError) as err:
-        ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, measurement_total_duration=10, measurement_flow_process_duration=20, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+        ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', measurement_total_duration=10, measurement_flow_process_duration=20, **QUICK_OPTIONS)
 
     assert str(err.value) == 'Cannot run flows due to configuration error. Measurement_total_duration must be >= measurement_flow_process_duration, otherwise the flow will run into a timeout in every case. Values are: measurement_flow_process_duration: 20 and measurement_total_duration: 10'
 
@@ -47,7 +63,8 @@ def test_provider_disabling_not_active_by_default():
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    filtered_options = {k: v for k, v in QUICK_OPTIONS.items() if k != 'dev_no_metrics'}
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml',  **filtered_options)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
@@ -61,7 +78,8 @@ def test_provider_disabling_working():
 
     GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config-extra-network-and-duplicate-psu-providers.yml")
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True, disabled_metric_providers=['network_connections_proxy_container'], dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    filtered_options = {k: v for k, v in QUICK_OPTIONS.items() if k not in ('dev_no_save', 'dev_no_metrics') }
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', disabled_metric_providers=['network_connections_proxy_container'], **filtered_options)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
@@ -79,7 +97,8 @@ def test_phase_padding_inactive():
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/noop.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, phase_padding=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    filtered_options = {k: v for k, v in QUICK_OPTIONS.items() if k not in ('dev_no_save', ) }
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/noop.yml', phase_padding=False, **filtered_options)
 
     with redirect_stdout(out), redirect_stderr(err):
         run_id = runner.run()
@@ -108,7 +127,8 @@ def test_phase_padding_active():
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/noop.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, phase_padding=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    filtered_options = {k: v for k, v in QUICK_OPTIONS.items() if k not in ('dev_no_save', ) }
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/noop.yml', phase_padding=True, **filtered_options)
 
     with redirect_stdout(out), redirect_stderr(err):
         run_id = runner.run()
@@ -139,8 +159,9 @@ def test_phase_padding_active():
 
 def test_invalid_category():
 
+    filtered_options = {k: v for k, v in QUICK_OPTIONS.items() if k not in ('dev_no_save', ) }
     with pytest.raises(psycopg_RaiseException) as err:
-        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', category_ids=[3000], dev_no_system_checks=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', category_ids=[3000], **filtered_options)
         runner.run()
 
     assert str(err.value) == 'At least one category ID supplied ({3000}) does not exist as category. Please check if category is a typo otherwise add category first\nCONTEXT:  PL/pgSQL function validate_category_ids() line 12 at RAISE'
