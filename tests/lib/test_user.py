@@ -122,7 +122,7 @@ def test_decrypt_data_fails_relative_key_paths_from_config_file(tmp_path):
             '  encryption_public_key_file: keys/public.pem\n'
             '  encryption_private_key_file: keys/private.pem\n',
         )
-        with pytest.raises(EncryptionConfigurationError) as e:
+        with pytest.raises(EncryptionConfigurationError):
             encrypt_data('secret value')
             decrypt_data('secret value')
 
