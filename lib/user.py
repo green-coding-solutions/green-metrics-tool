@@ -172,7 +172,7 @@ class User():
             self.update()
 
     @classmethod
-    def authenticate(cls, token: SecureVariable | None, _):
+    def authenticate(cls, token: SecureVariable | None, _=False):
         sha256_hash = hashlib.sha256()
         sha256_hash.update(token.get_value().encode('UTF-8'))
 

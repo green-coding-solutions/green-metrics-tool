@@ -124,6 +124,7 @@ def test_decrypt_data_fails_relative_key_paths_from_config_file(tmp_path):
         )
         with pytest.raises(EncryptionConfigurationError):
             encrypt_data('secret value')
+        with pytest.raises(EncryptionConfigurationError):
             decrypt_data('secret value')
 
     finally:
