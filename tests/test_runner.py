@@ -80,7 +80,7 @@ def test_git_environment_without_ssh_private_key():
 
 def test_git_environment_with_ssh_private_key():
     key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=key, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     runner._create_folders()
 
     env = runner._get_git_environment()
@@ -105,7 +105,7 @@ def test_git_environment_with_secure_variable_ssh_private_key():
 
 def test_runner_arguments_obfuscate_ssh_private_key():
     key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=key, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
     runner_arguments = json.dumps(runner._arguments, cls=SecureVariableEncoder)
 

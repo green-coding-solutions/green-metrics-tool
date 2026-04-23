@@ -129,6 +129,13 @@ def edit_compose_file():
             new_vol_list.append(
                 f'{current_dir}/test-config.yml:/var/www/green-metrics-tool/config.yml')
 
+        # for gunicorn, mount encryption keys at host paths so the container can read them
+        if 'gunicorn' in service:
+            key_public = os.path.normpath(f'{current_dir}/data/encryption_public_key.pem')
+            key_private = os.path.normpath(f'{current_dir}/data/encryption_private_key.pem')
+            new_vol_list.append(f'{key_public}:{key_public}:ro')
+            new_vol_list.append(f'{key_private}:{key_private}:ro')
+
         compose['services'][service]['volumes'] = new_vol_list
 
         # For postgresql, change port mapping and password
@@ -183,7 +190,7 @@ def create_test_config_file(ee=False, ai=False):
     content = content.replace('activate_power_hog: False', 'activate_power_hog: True')
     content = content.replace('activate_carbon_db: False', 'activate_carbon_db: True')
     content = content.replace(
-        'security:\n  encryption_public_key_file:\n  encryption_private_key_file:\n',
+        'security:\n  encryption_public_key_file: none\n  encryption_private_key_file: none\n',
         'security:\n'
         f'  encryption_public_key_file: {public_key_file}\n'
         f'  encryption_private_key_file: {private_key_file}\n',

@@ -71,6 +71,11 @@ def test_can_not_update_ssh_private_key_setting():
             user.update()
 
 def test_can_update_ssh_private_key_setting():
+    user = User(1)
+    if 'ssh_private_key' not in user._capabilities['user']['updateable_settings']:
+        user._capabilities['user']['updateable_settings'].append('ssh_private_key')
+        user.update()
+
     payload = {
         'name': 'ssh_private_key',
         'value': '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----',
