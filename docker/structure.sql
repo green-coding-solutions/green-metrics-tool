@@ -58,7 +58,8 @@ VALUES (
                 "measurement.post_test_sleep",
                 "measurement.phase_transition_time",
                 "measurement.wait_time_dependencies",
-                "measurement.skip_volume_inspect"
+                "measurement.skip_volume_inspect",
+				"ssh_private_key"
             ]
         },
         "api": {
