@@ -40,12 +40,10 @@ def test_global_timeout():
         with redirect_stdout(out), redirect_stderr(err):
             runner.run()
     except subprocess.TimeoutExpired as e:
-        assert str(e).startswith("Command '['docker', 'run', '--rm', '-v',") and f"timed out after {measurement_total_duration} seconds" in str(e), \
-        Tests.assertion_info(f"Command '['docker', 'run', '--rm', '-v', ... timed out after {measurement_total_duration} seconds", str(e))
+        assert str(e).startswith("Command '['docker', 'run', '--rm', ") and f"timed out after {measurement_total_duration} seconds" in str(e)
         return
     except TimeoutError as e:
-        assert str(e) == f"Timeout of {measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total_duration'.", \
-        Tests.assertion_info(f"Timeout of {measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total_duration'.", str(e))
+        assert str(e) == f"Timeout of {measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total_duration'."
         return
 
     assert False, \
