@@ -1,0 +1,18 @@
+# Normalize line endings: always store LF in the repo,
+# check out LF on all platforms (including Windows).
+* text=auto eol=lf
+
+# Explicitly force LF for files that must run on Linux/macOS
+*.sh   text eol=lf
+*.py   text eol=lf
+*.conf text eol=lf
+*.sql  text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+
+# Windows-only scripts keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

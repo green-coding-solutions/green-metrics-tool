@@ -209,6 +209,60 @@ function Add-HostsLine {
     }
 }
 
+function Invoke-ScaphandreProviderBuild {
+    $providerDir = Join-Path $Root "metric_providers\cpu\energy\rapl\scaphandre\component"
+    $sourceFile = "rapl_reader_cli.c"
+    $outputBinary = "metric-provider-binary"
+
+    Write-Step "Building scaphandre RAPL provider binary"
+
+    # Happy path: cl.exe already in PATH (Developer Command Prompt / Developer PowerShell)
+    if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
+        Push-Location $providerDir
+        try {
+            & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+            } else {
+                Write-Host "Successfully built metric-provider-binary.exe"
+            }
+        } finally {
+            Pop-Location
+        }
+        return
+    }
+
+    # Fall back: locate MSVC via vswhere.exe
+    $vswherePath = @(
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
+        "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+    if ($vswherePath) {
+        $vsInstallPath = & $vswherePath -latest -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
+        if ($vsInstallPath) {
+            $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
+            if (Test-Path $vcvarsall) {
+                Write-Host "Found Visual Studio at: $vsInstallPath"
+                $absSource = Join-Path $providerDir $sourceFile
+                $absOutput = Join-Path $providerDir $outputBinary
+                # Run via cmd.exe so vcvarsall environment is inherited by cl.exe
+                cmd /c "`"$vcvarsall`" x64 > nul 2>&1 && cl.exe `"$absSource`" `"/Fe:$absOutput`" /O2 /W3 /nologo /link winmm.lib"
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                } else {
+                    Write-Host "Successfully built metric-provider-binary.exe"
+                }
+                return
+            }
+        }
+    }
+
+    Write-Warning "MSVC compiler (cl.exe) not found. The scaphandre RAPL energy provider was not built."
+    Write-Warning "To build it manually, open 'x64 Native Tools Command Prompt for VS 2022' and run build.bat in:"
+    Write-Warning "  $providerDir"
+}
+
 function Send-TelemetryPing {
     $machineGuid = "unknown"
     try {
@@ -409,6 +463,8 @@ if ($installPythonPackages) {
     & $venvPython -m pip install --timeout 100 --retries 10 -r docker/requirements.txt
     & $venvPython -m pip install --timeout 100 --retries 10 -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 }
+
+Invoke-ScaphandreProviderBuild
 
 if ($buildContainers) {
     Write-Step "Building / Updating docker containers"
