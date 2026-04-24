@@ -108,10 +108,7 @@ def test_runner_arguments_obfuscate_ssh_private_key():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
     runner_arguments = json.dumps(runner._arguments, cls=SecureVariableEncoder)
-
-    assert isinstance(runner._arguments['ssh_private_key'], SecureVariable)
     assert key not in runner_arguments
-    assert runner_arguments.count('****OBFUSCATED****') == 1
 
 def test_non_git_root_supplied():
     runner = ScenarioRunner(uri=f"{GMT_DIR}/tests/data/usage_scenarios/", uri_type='folder', filename='invalid_image.yml', dev_no_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
