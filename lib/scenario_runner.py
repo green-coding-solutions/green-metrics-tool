@@ -5,6 +5,7 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
+from lib.secure_variable import SecureVariable
 from lib.venv_checker import check_venv
 check_venv() # this check must even run before __main__ as imports might not get resolved
 
@@ -65,6 +66,7 @@ class ScenarioRunner:
         debug_mode=False, allow_unsafe=False,
         verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
         commit_hash=None,
+        ssh_private_key=None,
         docker_prune=False, job_id=None, user_id=1,
         disabled_metric_providers=None, allowed_run_args=None, allowed_volume_mounts=None,
         phase_padding=True, usage_scenario_variables=None,
@@ -133,11 +135,19 @@ class ScenarioRunner:
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._requested_commit_hash = commit_hash
 
+        if isinstance(ssh_private_key, SecureVariable):
+            self._ssh_private_key = ssh_private_key if ssh_private_key.get_value() else None
+        elif ssh_private_key is None:
+            self._ssh_private_key = None
+        else:
+            raise ValueError('ssh_private_key must be of type SecureVariable')
+
         self._tmp_folder = Path('/tmp/').resolve(strict=True).joinpath('green-metrics-tool') # since linux has /tmp and macos /private/tmp
         self._relations_folder = self._tmp_folder.joinpath('relations')
         self._repo_folder = self._tmp_folder.joinpath('repo') # default if not changed in checkout_repository
         self._metrics_folder = self._tmp_folder.joinpath('metrics')
         self._build_dir = self._tmp_folder.joinpath('docker_images')
+        self._ssh_private_key_file = self._tmp_folder.joinpath('user_ssh_key')
 
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
@@ -173,6 +183,10 @@ class ScenarioRunner:
         ).get('sampling_rate', 0)
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
+
+        if 'ssh_private_key' in self._arguments:
+            del self._arguments['ssh_private_key']
+
         self._safe_post_processing_steps = (
                 ('_end_measurement',  {'skip_on_already_ended': True}),
                 ('_patch_phases', {}),
@@ -250,6 +264,45 @@ class ScenarioRunner:
     def _initialize_folder(self, path: Path):
         shutil.rmtree(path, ignore_errors=False)
         path.mkdir(parents=False, exist_ok=False)
+
+    def _ensure_ssh_private_key_file(self):
+        if self._ssh_private_key is None:
+            return None
+        ssh_private_key = self._ssh_private_key.get_value()
+        if not ssh_private_key:
+            return None
+
+        self._ssh_private_key_file.write_text('', encoding='utf-8')
+        os.chmod(self._ssh_private_key_file, 0o600)
+        self._ssh_private_key_file.write_text(ssh_private_key, encoding='utf-8')
+
+        return self._ssh_private_key_file
+
+    def _delete_ssh_private_key_file(self):
+        if self._ssh_private_key_file.exists():
+            self._ssh_private_key_file.unlink()
+
+    def _get_git_environment(self):
+        env = os.environ.copy()
+        env['GIT_TERMINAL_PROMPT'] = '0'
+
+        ssh_private_key_file = self._ensure_ssh_private_key_file()
+        if ssh_private_key_file is None:
+            return env
+
+        ssh_command = [
+            'ssh',
+            '-F',
+            os.devnull,
+            '-i',
+            ssh_private_key_file.as_posix(),
+            '-o',
+            'IdentitiesOnly=yes',
+            '-o',
+            'StrictHostKeyChecking=accept-new',
+        ]
+        env['GIT_SSH_COMMAND'] = shlex.join(ssh_command)
+        return env
 
 
     def get_optimizations_ignore(self):
@@ -346,7 +399,8 @@ class ScenarioRunner:
                     check=True,
                     capture_output=True,
                     encoding='UTF-8',
-                    errors='replace'
+                    errors='replace',
+                    env=self._get_git_environment(),
                 )
 
             if self._requested_commit_hash:
@@ -390,6 +444,8 @@ class ScenarioRunner:
         if not self._dev_cache_repos:
             self._initialize_folder(self._relations_folder)
 
+        git_env_vars = self._get_git_environment()
+
         for relation_key, relation in self.__usage_scenario['relations'].items():
             relation_path = self._relations_folder.joinpath(relation_key).resolve() # relation_key already checked in schema_checker
 
@@ -421,7 +477,8 @@ class ScenarioRunner:
                     check=True,
                     capture_output=True,
                     encoding='UTF-8',
-                    errors='replace'
+                    errors='replace',
+                    env=git_env_vars,
                 )
 
             if 'commit_hash' in relation:
@@ -450,6 +507,7 @@ class ScenarioRunner:
             'encoding': 'UTF-8',
             'errors': 'replace',
             'cwd': repo_path,
+            'env': self._get_git_environment(),
         }
 
         try:
@@ -2638,6 +2696,8 @@ class ScenarioRunner:
         """Clean up all resources including containers, networks, processes, and metric providers."""
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
+        self._delete_ssh_private_key_file()
+
         print('Stopping metric providers')
         for metric_provider in self.__metric_providers:
             try:
@@ -2690,7 +2750,6 @@ class ScenarioRunner:
         self.__relations.clear()
         self.__custom_metrics.clear()
         self.__sci_metrics.clear()
-
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 

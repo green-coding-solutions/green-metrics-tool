@@ -1,9 +1,9 @@
 import json
 import hashlib
-import uuid
 
 from lib.secure_variable import SecureVariable
 from lib.db import DB
+from lib.encryption import ENCRYPTED_VALUE_PREFIX, EncryptionConfigurationError, decrypt_data, encrypt_data
 
 def get_nested_value(dictionary, path):
     keys = path.split('.', 1)
@@ -19,7 +19,7 @@ class User():
             raise UserAuthenticationError('User 0 is system user and cannot log in')
 
         user = DB().fetch_one("""
-                SELECT id, name, capabilities
+                SELECT id, name, capabilities, ssh_private_key
                 FROM users
                 WHERE id = %s
                 """, params=(user_id, ))
@@ -30,9 +30,19 @@ class User():
         self._name = user[1]
         self._capabilities = user[2]
 
+        raw_key = user[3]
+        if raw_key and raw_key.startswith(ENCRYPTED_VALUE_PREFIX):
+            decrypted_ssh_private_key = decrypt_data(raw_key)
+        else:
+            decrypted_ssh_private_key = raw_key or None
+
+        self._ssh_private_key = SecureVariable(decrypted_ssh_private_key) if decrypted_ssh_private_key else None
+
     def to_dict(self):
         values = self.__dict__.copy()
         del values['_id']
+        values.pop('_ssh_private_key', None)
+        values['_has_ssh_private_key'] = self._ssh_private_key is not None
         return values
 
     def __repr__(self):
@@ -86,12 +96,55 @@ class User():
                 if not (isinstance(value, int) or value.isdigit()) or int(value) <= 0 or int(value) > 86400:
                     raise ValueError(f'The setting {name} must be between 1 and 86400')
                 value = int(value)
+            case 'ssh_private_key':
+                self.update_ssh_private_key(value)
+                return
             case _:
                 raise ValueError(f'The setting {name} is unknown')
 
         (element, last_key, _) = get_nested_value(self._capabilities, name)
         element[last_key] = value
         self.update()
+
+    def has_ssh_private_key(self):
+        return self._ssh_private_key is not None
+
+    def get_ssh_private_key(self):
+        if self._ssh_private_key:
+            return self._ssh_private_key.get_value()
+        else:
+            return None
+
+    def update_ssh_private_key(self, value):
+        if value is None:
+            normalized_value = None
+        elif not isinstance(value, str):
+            raise ValueError('The setting ssh_private_key must be a string')
+        else:
+            normalized_value = value.strip()
+
+            if normalized_value == '':
+                normalized_value = None
+            elif not all(marker in normalized_value for marker in ('-----BEGIN', 'PRIVATE KEY-----', '-----END')):
+                raise ValueError('The setting ssh_private_key must contain a valid private key block')
+            else:
+                normalized_value = f"{normalized_value}\n"
+
+        if normalized_value:
+            try:
+                encrypted_value = encrypt_data(normalized_value)
+            except EncryptionConfigurationError as e:
+                raise ValueError('Cannot store SSH key: encryption is not configured on this server') from e
+        else:
+            encrypted_value = None
+
+        DB().query("""
+            UPDATE users
+            SET ssh_private_key = %s
+            WHERE id = %s
+            """, params=(encrypted_value, self._id, ))
+
+        self._ssh_private_key = SecureVariable(normalized_value) if normalized_value else None
 
     def can_change_setting(self, name):
         return name in self._capabilities['user']['updateable_settings']
@@ -119,7 +172,7 @@ class User():
             self.update()
 
     @classmethod
-    def authenticate(cls, token: SecureVariable | None, silent=False):
+    def authenticate(cls, token: SecureVariable | None):
         sha256_hash = hashlib.sha256()
         sha256_hash.update(token.get_value().encode('UTF-8'))
 
