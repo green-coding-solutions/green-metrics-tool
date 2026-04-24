@@ -183,6 +183,10 @@ class ScenarioRunner:
         ).get('sampling_rate', 0)
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
+
+        if 'ssh_private_key' in self._arguments:
+            del self._arguments['ssh_private_key']
+
         self._safe_post_processing_steps = (
                 ('_end_measurement',  {'skip_on_already_ended': True}),
                 ('_patch_phases', {}),
