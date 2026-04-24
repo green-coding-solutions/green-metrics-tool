@@ -99,7 +99,7 @@ function Get-CommandPath {
     foreach ($candidate in $Candidates) {
         $cmd = Get-Command $candidate -ErrorAction SilentlyContinue
         if ($cmd) {
-            return $cmd.Source
+            return $cmd.Path
         }
     }
     return $null
@@ -119,12 +119,13 @@ function Get-PythonCommand {
 
 function Invoke-Python {
     param([string[]]$Arguments)
-    $command = $script:PythonCommand[0]
+    command = [string]$script:PythonCommand[0]
+
     $prefixArguments = @()
     if ($script:PythonCommand.Length -gt 1) {
         $prefixArguments = $script:PythonCommand[1..($script:PythonCommand.Length - 1)]
     }
-    & $command @prefixArguments @Arguments
+    & "$command" @prefixArguments @Arguments
 }
 
 function Assert-PythonVersion {
@@ -247,7 +248,8 @@ function Invoke-ScaphandreProviderBuild {
                 $absSource = Join-Path $providerDir $sourceFile
                 $absOutput = Join-Path $providerDir $outputBinary
                 # Run via cmd.exe so vcvarsall environment is inherited by cl.exe
-                cmd /c "`"$vcvarsall`" x64 > nul 2>&1 && cl.exe `"$absSource`" `"/Fe:$absOutput`" /O2 /W3 /nologo /link winmm.lib"
+                $cmdLine = "`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib"
+                Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow
                 if ($LASTEXITCODE -ne 0) {
                     Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
                 } else {
