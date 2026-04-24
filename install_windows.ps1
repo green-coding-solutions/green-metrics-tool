@@ -119,7 +119,7 @@ function Get-PythonCommand {
 
 function Invoke-Python {
     param([string[]]$Arguments)
-    command = [string]$script:PythonCommand[0]
+    $command = [string]$script:PythonCommand[0]
 
     $prefixArguments = @()
     if ($script:PythonCommand.Length -gt 1) {
