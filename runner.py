@@ -190,7 +190,9 @@ if __name__ == '__main__':
                     #allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] # this is intentionally not supported as the user can just enter --allow-unsafe in CLI mode and using another args="+" for parsing CLI is flaky
                     )
     if not runner._skip_optimizations and not runner._dev_no_save and not runner._dev_no_metrics:
-        import optimization_providers.base  # We need to import this here as we need the correct config file
+        # We cannot import this at the top of the as we need the correct config file
+        # Config file is replaced through args.config_override sometimes
+        import optimization_providers.base
         print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
         optimization_providers.base.import_reporters()
 
