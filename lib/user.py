@@ -108,9 +108,7 @@ class User():
         return bool(self.__encrypted_ssh_private_key)
 
     def get_ssh_private_key(self):
-        if self.__decrypted_ssh_private_key:
-            return self.__decrypted_ssh_private_key.get_value()
-        elif self.has_ssh_private_key():
+        if self.__decrypted_ssh_private_key is None and self.has_ssh_private_key():
             if self.__encrypted_ssh_private_key.startswith(ENCRYPTED_VALUE_PREFIX):
                 decrypted_ssh_private_key = decrypt_data(self.__encrypted_ssh_private_key)
             else:
@@ -118,7 +116,9 @@ class User():
 
             self.__decrypted_ssh_private_key = SecureVariable(decrypted_ssh_private_key) if decrypted_ssh_private_key else None
 
-        return self.__decrypted_ssh_private_key
+        if self.__decrypted_ssh_private_key is None:
+            return None
+        return self.__decrypted_ssh_private_key.get_value()
 
     def update_ssh_private_key(self, value):
         if value is None:
