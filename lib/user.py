@@ -40,7 +40,7 @@ class User():
         del values['_id']
         values.pop('_User__encrypted_ssh_private_key', None)
         values.pop('_User__decrypted_ssh_private_key', None)
-        values['_has_ssh_private_key'] = bool(self.__encrypted_ssh_private_key) is not None
+        values['_has_ssh_private_key'] = bool(self.__encrypted_ssh_private_key)
         return values
 
     def __repr__(self):
