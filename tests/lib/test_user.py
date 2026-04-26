@@ -78,6 +78,21 @@ def test_user_can_clear_ssh_private_key():
     finally:
         user.update_ssh_private_key('')
 
+def test_user_dict_is_clean():
+    user = User(1)
+    try:
+
+        private_key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
+        user.update_ssh_private_key(private_key)
+
+        assert user.has_ssh_private_key() is True
+        assert user.get_ssh_private_key() == private_key
+        assert "BEGIN OPENSSH PRIVATE KEY" not in f"{user}"
+        assert ENCRYPTED_VALUE_PREFIX not in f"{user}"
+
+    finally:
+        user.update_ssh_private_key('')
+
 def test_encrypt_and_decrypt_data():
     data = 'secret value'
 
