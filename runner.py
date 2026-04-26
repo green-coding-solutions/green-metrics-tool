@@ -189,6 +189,10 @@ if __name__ == '__main__':
                     #disabled_metric_providers # this is intentionally not supported as the user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
                     #allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] # this is intentionally not supported as the user can just enter --allow-unsafe in CLI mode and using another args="+" for parsing CLI is flaky
                     )
+    if not runner._skip_optimizations and not runner._dev_no_save and not runner._dev_no_metrics:
+        import optimization_providers.base  # We need to import this here as we need the correct config file
+        print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
+        optimization_providers.base.import_reporters()
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
@@ -206,9 +210,6 @@ if __name__ == '__main__':
             # In a cloud setup it however makes sense to free the measurement machine as soon as possible
             # So this code should be individually callable, separate from the runner
             if not runner._skip_optimizations and not runner._dev_no_save and not runner._dev_no_metrics:
-                import optimization_providers.base  # We need to import this here as we need the correct config file
-                print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
-                optimization_providers.base.import_reporters()
                 print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
                 optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
