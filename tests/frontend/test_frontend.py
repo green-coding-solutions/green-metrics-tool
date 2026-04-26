@@ -806,6 +806,8 @@ class TestFrontendFunctionality:
             settings_response = response_info.value.json()
             assert settings_response['success'] is True
             assert '_ssh_private_key' not in settings_response['data']
+            assert '_User__decrypted_ssh_private_key' not in settings_response['data']
+            assert '_User__encrypted_ssh_private_key' not in settings_response['data']
             assert private_key not in json.dumps(settings_response)
 
             page.wait_for_load_state("load") # ALL JS should be done

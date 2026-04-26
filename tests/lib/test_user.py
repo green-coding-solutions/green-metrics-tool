@@ -73,6 +73,8 @@ def test_user_can_clear_ssh_private_key():
 
         assert user.has_ssh_private_key() is False
         assert user.get_ssh_private_key() is None
+        assert user._User__encrypted_ssh_private_key is None
+        assert user._User__decrypted_ssh_private_key is None
     finally:
         user.update_ssh_private_key('')
 
@@ -138,5 +140,7 @@ def test_user_error_without_key(tmp_path):
             user.update_ssh_private_key(private_key)
 
         assert user.has_ssh_private_key() is False
+        assert user._User__encrypted_ssh_private_key is None
+        assert user._User__decrypted_ssh_private_key is None
     finally:
         _restore_test_config()

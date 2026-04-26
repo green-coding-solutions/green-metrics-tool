@@ -38,8 +38,8 @@ class User():
     def to_dict(self):
         values = self.__dict__.copy()
         del values['_id']
-        values.pop('__encrypted_ssh_private_key', None)
-        values.pop('__decrypted_ssh_private_key', None)
+        values.pop('_User__encrypted_ssh_private_key', None)
+        values.pop('_User__decrypted_ssh_private_key', None)
         values['_has_ssh_private_key'] = bool(self.__encrypted_ssh_private_key) is not None
         return values
 
