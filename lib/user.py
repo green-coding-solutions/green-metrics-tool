@@ -29,20 +29,18 @@ class User():
         self._id = user[0]
         self._name = user[1]
         self._capabilities = user[2]
-
-        raw_key = user[3]
-        if raw_key and raw_key.startswith(ENCRYPTED_VALUE_PREFIX):
-            decrypted_ssh_private_key = decrypt_data(raw_key)
-        else:
-            decrypted_ssh_private_key = raw_key or None
-
-        self._ssh_private_key = SecureVariable(decrypted_ssh_private_key) if decrypted_ssh_private_key else None
+        self.__encrypted_ssh_private_key = user[3]
+        # value is not populated here directly as due to the security setup of GMT
+        # the server sometimes only has the public key to encrypt and would fail if the
+        # private key is missing
+        self.__decrypted_ssh_private_key = None
 
     def to_dict(self):
         values = self.__dict__.copy()
         del values['_id']
-        values.pop('_ssh_private_key', None)
-        values['_has_ssh_private_key'] = self._ssh_private_key is not None
+        values.pop('__encrypted_ssh_private_key', None)
+        values.pop('__decrypted_ssh_private_key', None)
+        values['_has_ssh_private_key'] = bool(self.__encrypted_ssh_private_key) is not None
         return values
 
     def __repr__(self):
@@ -107,13 +105,20 @@ class User():
         self.update()
 
     def has_ssh_private_key(self):
-        return self._ssh_private_key is not None
+        return bool(self.__encrypted_ssh_private_key)
 
     def get_ssh_private_key(self):
-        if self._ssh_private_key:
-            return self._ssh_private_key.get_value()
-        else:
-            return None
+        if self.__decrypted_ssh_private_key:
+            return self.__decrypted_ssh_private_key.get_value()
+        elif self.has_ssh_private_key():
+            if self.__encrypted_ssh_private_key.startswith(ENCRYPTED_VALUE_PREFIX):
+                decrypted_ssh_private_key = decrypt_data(self.__encrypted_ssh_private_key)
+            else:
+                decrypted_ssh_private_key = self.__encrypted_ssh_private_key or None
+
+            self.__decrypted_ssh_private_key = SecureVariable(decrypted_ssh_private_key) if decrypted_ssh_private_key else None
+
+        return self.__decrypted_ssh_private_key
 
     def update_ssh_private_key(self, value):
         if value is None:
@@ -144,7 +149,7 @@ class User():
             WHERE id = %s
             """, params=(encrypted_value, self._id, ))
 
-        self._ssh_private_key = SecureVariable(normalized_value) if normalized_value else None
+        self.__decrypted_ssh_private_key = SecureVariable(normalized_value) if normalized_value else None
 
     def can_change_setting(self, name):
         return name in self._capabilities['user']['updateable_settings']

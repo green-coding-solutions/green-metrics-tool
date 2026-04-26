@@ -71,7 +71,6 @@ def test_user_can_clear_ssh_private_key():
 
         user.update_ssh_private_key('')
 
-        assert user._ssh_private_key is None
         assert user.has_ssh_private_key() is False
         assert user.get_ssh_private_key() is None
     finally:
