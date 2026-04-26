@@ -149,6 +149,7 @@ class User():
             WHERE id = %s
             """, params=(encrypted_value, self._id, ))
 
+        self.__encrypted_ssh_private_key = encrypted_value
         self.__decrypted_ssh_private_key = SecureVariable(normalized_value) if normalized_value else None
 
     def can_change_setting(self, name):
