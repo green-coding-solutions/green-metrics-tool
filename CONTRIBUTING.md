@@ -193,3 +193,17 @@ Optional - consider starting the commit subject with an applicable emoji:
 [blog4]: https://git-scm.com/book/en/v2/Distributed-Git-Contributing-to-a-Project
 [holman]: https://zachholman.com/posts/git-commit-history/
 [pep8]: https://www.python.org/dev/peps/pep-0008/
+
+
+## Agentic AI Development
+
+### Contributing new example applications
+
+All the information how to contribute an application and test it are stored in the `AGENTS.md` file in
+the repository root. Point an AI to it and let it explain you how to contribute an application if in doubt :)
+
+### Self-Updating the repository
+
+The repository has a `SKILL.md` file that allows for updating the `AGENTS.md` files.
+
+Just run: `Use the SKILL.md and follow the instructions`
