@@ -79,7 +79,7 @@ class ScenarioRunner:
         # These switches may break or skew proper measurements or make them uncomparable due to missing info
         dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False, dev_no_system_checks=False,
         dev_flow_timetravel=False, dev_stream_outputs=False, dev_cache_repos=False, dev_no_phase_stats=False,
-        dev_no_container_dependency_collection=False,
+        dev_no_container_dependency_collection=False, dev_no_resource_limits=False,
 
         # These switches do not alter proper measurements, but might result in data not being generated
         skip_volume_inspect=False, skip_download_dependencies=False, skip_unsafe=False,
@@ -127,6 +127,7 @@ class ScenarioRunner:
         self._dev_stream_outputs = dev_stream_outputs
         self._dev_cache_repos = dev_cache_repos
         self._dev_no_system_checks = dev_no_system_checks
+        self._dev_no_resource_limits = dev_no_resource_limits
 
         self._uri = uri
         self._uri_type = uri_type
@@ -809,6 +810,10 @@ class ScenarioRunner:
                     service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
     def _populate_cpu_and_memory_limits(self):
+        if self._dev_no_resource_limits:
+            print("Skipping detection of resource limit for container due to --dev-no-resource-limits")
+            return
+
         services = self.__usage_scenario.get('services', {})
 
         assignable_memory = resource_limits.get_assignable_memory()
@@ -1599,23 +1604,28 @@ class ScenarioRunner:
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
 
-            # GMT core requirement is that the host has 2 CPUs so metric providers and user containers do never run on the same core
-            # get_assignable_cpus will thus always result in one core less than on the system
-            cpuset = ','.join(map(str, range(1,resource_limits.get_assignable_cpus()+1)))
+            if self._dev_no_resource_limits:
+                print("Skipping setting of resource limit for container due to --dev-no-resource-limits")
+                container_data['cpus'] = container_data['cpuset'] = container_data['mem_limit'] = container_data['memory_swap'] = container_data['oom_score_adj'] = None
+            else:
+                # GMT core requirement is that the host has 2 CPUs so metric providers and user containers do never run on the same core
+                # get_assignable_cpus will thus always result in one core less than on the system
+                cpuset = ','.join(map(str, range(1,resource_limits.get_assignable_cpus()+1)))
 
-            container_data['cpus'] = service['cpus']
-            container_data['cpuset'] = cpuset
-            container_data['mem_limit'] = service['mem_limit']
-            container_data['memory_swap'] = service['mem_limit']
-            container_data['oom_score_adj'] = 1000
+                container_data['cpus'] = service['cpus']
+                container_data['cpuset'] = cpuset
+                container_data['mem_limit'] = service['mem_limit']
+                container_data['memory_swap'] = service['mem_limit']
+                container_data['oom_score_adj'] = 1000
 
-            docker_run_string.append('--cpuset-cpus')
-            docker_run_string.append(container_data['cpuset']) # range is already exclusive, so no need to subtract 1
-            docker_run_string.append(f"--cpus={container_data['cpus']}")
-            docker_run_string.append(f"--oom-score-adj={container_data['oom_score_adj']}") # containers will be killed first so host does not OOM
-            docker_run_string.append(f"--memory={container_data['mem_limit']}")
-            docker_run_string.append(f"--env=GMT_CONTAINER_MEMORY_LIMIT={container_data['mem_limit']}")
-            docker_run_string.append(f"--memory-swap={container_data['mem_limit']}") # effectively disable swap
+                docker_run_string.append('--cpuset-cpus')
+                docker_run_string.append(container_data['cpuset']) # range is already exclusive, so no need to subtract 1
+                docker_run_string.append(f"--cpus={container_data['cpus']}")
+                docker_run_string.append(f"--oom-score-adj={container_data['oom_score_adj']}") # containers will be killed first so host does not OOM
+                docker_run_string.append(f"--memory={container_data['mem_limit']}")
+                docker_run_string.append(f"--env=GMT_CONTAINER_MEMORY_LIMIT={container_data['mem_limit']}")
+                docker_run_string.append(f"--memory-swap={container_data['mem_limit']}") # effectively disable swap
+
 
             if 'healthcheck' in service:  # must come last
                 if 'disable' in service['healthcheck'] and service['healthcheck']['disable'] is True:
