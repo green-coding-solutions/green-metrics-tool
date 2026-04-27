@@ -810,6 +810,10 @@ class ScenarioRunner:
                     service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
     def _populate_cpu_and_memory_limits(self):
+        if self._dev_no_resource_limits:
+            print("Skipping detection of resource limit for container due to --dev-no-resource-limits")
+            return
+
         services = self.__usage_scenario.get('services', {})
 
         assignable_memory = resource_limits.get_assignable_memory()
