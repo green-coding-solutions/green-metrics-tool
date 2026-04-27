@@ -54,7 +54,9 @@ def log_error(*messages, **kwargs):
 
     if error_email := GlobalConfig().config['admin']['error_email']:
         final_message = format_error(*messages, **kwargs, traceback_first=False)
-        final_message = f"{final_message}\n\nOriginal date and time: {datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z%z")}"
+
+        timestamp = datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %Z%z')
+        final_message += f"\n\nOriginal date and time: {timestamp}"
 
         # User 0 is the [GMT-SYSTEM] user
         Job.insert('email-simple', user_id=0, email=error_email, name='Green Metrics Tool Error', message=final_message)
