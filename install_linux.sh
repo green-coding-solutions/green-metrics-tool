@@ -45,6 +45,7 @@ if [[ $activate_scenario_runner == true ]] ; then
                exit 1
             fi
         fi
+    fi
 
 
     sudo systemctl stop tinyproxy
