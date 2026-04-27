@@ -136,7 +136,7 @@ class ScenarioRunner:
         self._requested_commit_hash = commit_hash
 
         if isinstance(ssh_private_key, SecureVariable):
-            self._ssh_private_key = ssh_private_key if ssh_private_key.get_value() else None
+            self._ssh_private_key = ssh_private_key
         elif ssh_private_key is None:
             self._ssh_private_key = None
         else:
