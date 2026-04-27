@@ -21,6 +21,7 @@ from lib import error_helpers
 from lib.terminal_colors import TerminalColors
 from lib.db import DB
 from lib.global_config import GlobalConfig
+from lib.secure_variable import SecureVariable
 
 if __name__ == '__main__':
     import argparse
@@ -36,6 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('--category', action='append', type=int, help='Category to store for this run. Use multiple times for multiple categories.')
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
     parser.add_argument('--user-id', type=int, default=1, help='A user-ID the run shall be mapped to. Defaults to 1 (the default user)')
+    parser.add_argument('--ssh-private-key', type=str, help='A filename path on your system that holds an SSH private key')
     parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
     parser.add_argument('--file-cleanup', action='store_true', help='Delete all temporary files that the runner produced')
     parser.add_argument('--debug', action='store_true', help='Activate steppable debug mode')
@@ -90,7 +92,7 @@ if __name__ == '__main__':
         error_helpers.log_error('Please supply --uri to get usage_scenario.yml from')
         sys.exit(1)
 
-    if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':
+    if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://' or args.uri[0:6] == 'ssh://' or args.uri[0:4] == 'git@':
         print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', args.uri, TerminalColors.ENDC)
         run_type = 'URL'
     elif args.uri[0:1] == '/':
@@ -157,12 +159,19 @@ if __name__ == '__main__':
     # Execute the given usage scenarios multiple times (if iterations > 1)
     filenames = filenames * args.iterations
 
+    if args.ssh_private_key:
+        with open(args.ssh_private_key, 'r', encoding='UTF-8') as f:
+            ssh_private_key_contents = SecureVariable(f.read())
+    else:
+        ssh_private_key_contents = None
+
     # Create ScenarioRunner once and reuse it for all files
     runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filenames[0],
                     branch=args.branch, commit_hash=args.commit_hash, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     full_docker_prune=args.full_docker_prune, docker_prune=args.docker_prune,
                     verbose_provider_boot=args.verbose_provider_boot,
-                    user_id=args.user_id, commit_hash_folder=args.commit_hash_folder,
+                    user_id=args.user_id, ssh_private_key=ssh_private_key_contents,
+                    commit_hash_folder=args.commit_hash_folder,
                     usage_scenario_variables=variables_dict, category_ids=args.category,
                     phase_padding=not args.no_phase_padding,
 
