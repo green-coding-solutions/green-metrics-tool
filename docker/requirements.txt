@@ -16,6 +16,6 @@ hiredis==3.3.1
 requests==2.33.1
 uvicorn-worker==0.4.0
 cachetools==7.0.6
-cryptography==46.0.5
+cryptography==47.0.0
 
 pytest==9.0.3 # needed because we need to exit in db.py if tests run with wrong config
