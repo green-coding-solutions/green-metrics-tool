@@ -65,6 +65,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-stream-outputs', action='store_true', help='Stream the output of the container build and the called processes in flows and setup-commands to the terminal. Note that this disallows capturing of errors and build outputs in logs and error messages.')
     parser.add_argument('--dev-cache-repos', action='store_true', help='Do not clone repository and relations again but use the one already present on disk.')
     parser.add_argument('--dev-no-container-dependency-collection', action='store_true', help='Do not collect dependency information of started containers')
+    parser.add_argument('--dev-no-resource-limits', action='store_true', help='Disable setting of resource limits per container')
 
     # Output settings
     parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
@@ -194,6 +195,7 @@ if __name__ == '__main__':
                     dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics, dev_no_save=args.dev_no_save,
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_system_checks=args.dev_no_system_checks,
                     dev_no_phase_stats=args.dev_no_phase_stats, dev_no_container_dependency_collection=args.dev_no_container_dependency_collection,
+                    dev_no_resource_limits=args.dev_no_resource_limits,
 
                     #disabled_metric_providers # this is intentionally not supported as the user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
                     #allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] # this is intentionally not supported as the user can just enter --allow-unsafe in CLI mode and using another args="+" for parsing CLI is flaky
