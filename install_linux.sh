@@ -27,23 +27,25 @@ if [[ $activate_scenario_runner == true ]] ; then
         sudo apt-get install -y  libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw libcurl4-openssl-dev
     fi
 
-    if cat /etc/os-release | grep -q "Fedora"; then
-        if ! sudo dnf -y install lm_sensors lm_sensors-devel; then
-            print_message "Failed to install lm_sensors lm_sensors-devel;" >&2
-            print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
-            exit 1
+    if [[ $install_sensors == true ]] ; then
+        if cat /etc/os-release | grep -q "Fedora"; then
+            if ! sudo dnf -y install lm_sensors lm_sensors-devel; then
+                print_message "Failed to install lm_sensors lm_sensors-devel;" >&2
+                print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
+                exit 1
+            fi
+        elif cat /etc/os-release | grep -q "openSUSE"; then
+            if ! sudo zypper -n in sensors libsensors4-devel; then
+                print_message "Failed to install sensors libsensors4-devel; continuing without Sensors."
+            fi
+        else
+            if ! sudo apt-get install -y lm-sensors libsensors-dev; then
+               print_message "Failed to install lm-sensors libsensors-dev;" >&2
+                print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
+               exit 1
+            fi
         fi
-    elif cat /etc/os-release | grep -q "openSUSE"; then
-        if ! sudo zypper -n in sensors libsensors4-devel; then
-            print_message "Failed to install sensors libsensors4-devel; continuing without Sensors."
-        fi
-    else
-        if ! sudo apt-get install -y lm-sensors libsensors-dev; then
-           print_message "Failed to install lm-sensors libsensors-dev;" >&2
-            print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
-           exit 1
-        fi
-    fi
+
 
     sudo systemctl stop tinyproxy
     sudo systemctl disable tinyproxy
