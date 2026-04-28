@@ -3,7 +3,7 @@ import hashlib
 
 from lib.secure_variable import SecureVariable
 from lib.db import DB
-from lib.encryption import ENCRYPTED_VALUE_PREFIX, EncryptionConfigurationError, decrypt_data, encrypt_data
+from lib.encryption import EncryptionConfigurationError, decrypt_data, encrypt_data
 
 def get_nested_value(dictionary, path):
     keys = path.split('.', 1)
@@ -109,11 +109,7 @@ class User():
 
     def get_ssh_private_key(self):
         if self.__decrypted_ssh_private_key is None and self.has_ssh_private_key():
-            if self.__encrypted_ssh_private_key.startswith(ENCRYPTED_VALUE_PREFIX):
-                decrypted_ssh_private_key = decrypt_data(self.__encrypted_ssh_private_key)
-            else:
-                decrypted_ssh_private_key = self.__encrypted_ssh_private_key or None
-
+            decrypted_ssh_private_key = decrypt_data(self.__encrypted_ssh_private_key)
             self.__decrypted_ssh_private_key = SecureVariable(decrypted_ssh_private_key) if decrypted_ssh_private_key else None
 
         if self.__decrypted_ssh_private_key is None:
