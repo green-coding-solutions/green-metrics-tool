@@ -129,8 +129,8 @@ class User():
     def update_ssh_private_key(self, key):
 
         if key is None:
-            self.__encrypted_ssh_private_key = self.__decrypted_ssh_private_key = None
             self._save_key_to_db(None)
+            self.__encrypted_ssh_private_key = self.__decrypted_ssh_private_key = None
             return
 
         if not isinstance(key, str):
@@ -139,8 +139,8 @@ class User():
         normalized_value = key.strip()
 
         if normalized_value == '':
-            self.__encrypted_ssh_private_key = self.__decrypted_ssh_private_key = None
             self._save_key_to_db(None)
+            self.__encrypted_ssh_private_key = self.__decrypted_ssh_private_key = None
             return
 
         if not is_valid_openssh_private_key(normalized_value):
@@ -153,9 +153,9 @@ class User():
         except EncryptionConfigurationError as e:
             raise ValueError('Cannot store SSH key: encryption is not configured on this server') from e
 
+        self._save_key_to_db(self.__encrypted_ssh_private_key)
         self.__encrypted_ssh_private_key = encrypted_value
         self.__decrypted_ssh_private_key = SecureVariable(normalized_value) if normalized_value else None
-        self._save_key_to_db(self.__encrypted_ssh_private_key)
 
     def can_change_setting(self, name):
         return name in self._capabilities['user']['updateable_settings']
