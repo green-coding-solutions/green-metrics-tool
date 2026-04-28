@@ -55,7 +55,7 @@ def test_can_not_update_ssh_private_key_setting():
     try:
         payload = {
             'name': 'ssh_private_key',
-            'value': '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----',
+            'value': Tests.OPENSSH_EXAMPLE_PRIVATE_KEY,
         }
 
         response = requests.put(f"{API_URL}/v1/user/setting", json=payload, timeout=15)
@@ -78,7 +78,7 @@ def test_can_update_ssh_private_key_setting():
 
     payload = {
         'name': 'ssh_private_key',
-        'value': '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----',
+        'value': Tests.OPENSSH_EXAMPLE_PRIVATE_KEY,
     }
 
     try:
@@ -87,7 +87,7 @@ def test_can_update_ssh_private_key_setting():
 
         user = User(1)
         assert user.has_ssh_private_key() is True
-        assert user.get_ssh_private_key() == '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
+        assert user.get_ssh_private_key() == f"{Tests.OPENSSH_EXAMPLE_PRIVATE_KEY}\n"
     finally:
         User(1).update_ssh_private_key('')
         user = User(1)
