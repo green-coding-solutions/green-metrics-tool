@@ -3,7 +3,7 @@ import hashlib
 
 from lib.secure_variable import SecureVariable
 from lib.db import DB
-from lib.encryption import EncryptionConfigurationError, decrypt_data, encrypt_data
+from lib.encryption import EncryptionConfigurationError, decrypt_data, encrypt_data, is_valid_openssh_private_key
 
 def get_nested_value(dictionary, path):
     keys = path.split('.', 1)
@@ -52,6 +52,14 @@ class User():
             SET capabilities = %s
             WHERE id = %s
             """, params=(json.dumps(self._capabilities), self._id, ))
+
+
+    def _save_key_to_db(self, encrypted_value):
+        DB().query("""
+            UPDATE users
+            SET ssh_private_key = %s
+            WHERE id = %s
+            """, params=(encrypted_value, self._id, ))
 
     def visible_users(self):
         return self._capabilities['user']['visible_users']
@@ -116,37 +124,38 @@ class User():
             return None
         return self.__decrypted_ssh_private_key.get_value()
 
-    def update_ssh_private_key(self, value):
-        if value is None:
-            normalized_value = None
-        elif not isinstance(value, str):
+
+
+    def update_ssh_private_key(self, key):
+
+        if key is None:
+            self.__encrypted_ssh_private_key = self.__decrypted_ssh_private_key = None
+            self._save_key_to_db(None)
+            return
+
+        if not isinstance(key, str):
             raise ValueError('The setting ssh_private_key must be a string')
-        else:
-            normalized_value = value.strip()
 
-            if normalized_value == '':
-                normalized_value = None
-            elif not all(marker in normalized_value for marker in ('-----BEGIN', 'PRIVATE KEY-----', '-----END')):
-                raise ValueError('The setting ssh_private_key must contain a valid private key block')
-            else:
-                normalized_value = f"{normalized_value}\n"
+        normalized_value = key.strip()
 
-        if normalized_value:
-            try:
-                encrypted_value = encrypt_data(normalized_value)
-            except EncryptionConfigurationError as e:
-                raise ValueError('Cannot store SSH key: encryption is not configured on this server') from e
-        else:
-            encrypted_value = None
+        if normalized_value == '':
+            self.__encrypted_ssh_private_key = self.__decrypted_ssh_private_key = None
+            self._save_key_to_db(None)
+            return
 
-        DB().query("""
-            UPDATE users
-            SET ssh_private_key = %s
-            WHERE id = %s
-            """, params=(encrypted_value, self._id, ))
+        if not is_valid_openssh_private_key(normalized_value):
+            raise ValueError('The setting ssh_private_key must contain a valid private key block')
+
+        normalized_value = f"{normalized_value.strip()}\n" # normalize line ends
+
+        try:
+            encrypted_value = encrypt_data(normalized_value)
+        except EncryptionConfigurationError as e:
+            raise ValueError('Cannot store SSH key: encryption is not configured on this server') from e
 
         self.__encrypted_ssh_private_key = encrypted_value
         self.__decrypted_ssh_private_key = SecureVariable(normalized_value) if normalized_value else None
+        self._save_key_to_db(self.__encrypted_ssh_private_key)
 
     def can_change_setting(self, name):
         return name in self._capabilities['user']['updateable_settings']
