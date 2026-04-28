@@ -10,6 +10,7 @@ CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name text NOT NULL,
     token text NOT NULL,
+    ssh_private_key text,
     capabilities JSONB NOT NULL,
     created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
@@ -28,6 +29,7 @@ INSERT INTO "public"."users"(
     "id",
     "name",
     "token",
+    "ssh_private_key",
     "capabilities",
     "created_at",
     "updated_at"
@@ -36,6 +38,7 @@ VALUES (
     1,
     E'DEFAULT',
     E'89dbf71048801678ca4abfbaa3ea8f7c651aae193357a3e23d68e21512cd07f5',
+    NULL,
     E'{
         "user": {
             "visible_users": [0,1],
@@ -55,7 +58,8 @@ VALUES (
                 "measurement.post_test_sleep",
                 "measurement.phase_transition_time",
                 "measurement.wait_time_dependencies",
-                "measurement.skip_volume_inspect"
+                "measurement.skip_volume_inspect",
+				"ssh_private_key"
             ]
         },
         "api": {
@@ -132,7 +136,7 @@ VALUES (
             "dev_no_sleeps": false,
             "skip_optimizations": false,
             "dev_no_container_dependency_collection": false,
-            "allow_unsafe": false,
+            "allowed_volume_mounts": [],
             "skip_unsafe": true,
             "dev_no_system_checks": false,
             "skip_volume_inspect": false,
@@ -167,11 +171,12 @@ VALUES (
 
 
 -- Default password for user 0 is empty
-INSERT INTO "public"."users"("id", "name","token","capabilities","created_at","updated_at")
+INSERT INTO "public"."users"("id", "name","token","ssh_private_key","capabilities","created_at","updated_at")
 VALUES (
     0,
     E'[GMT-SYSTEM]',
     E'',
+    NULL,
     E'{
         "api": {
             "quotas": {},

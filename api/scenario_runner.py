@@ -7,12 +7,11 @@ from datetime import date, datetime, timedelta
 import pprint
 
 from fastapi import APIRouter, Response, Depends, HTTPException, Request
-from fastapi.responses import ORJSONResponse
 
 import anybadge
 
 from api.object_specifications import Software, JobChange, WatchlistChange, RunChange
-from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics,
+from api.api_helpers import (CustomORJSONResponse, ORJSONResponseObjKeep, add_phase_stats_statistics,
                          determine_comparison_case,get_comparison_details,
                          get_phase_stats, get_phase_stats_object, check_run_failed,
                          is_valid_uuid, convert_value, get_timeline_query,
@@ -67,11 +66,11 @@ async def get_machines(
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 @router.get('/v1/jobs', deprecated=True)
 def old_v1_jobs_endpoint():
-    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/jobs'}, status_code=410)
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/jobs'}, status_code=410)
 
 
 @router.get('/v2/jobs')
@@ -117,7 +116,7 @@ async def get_jobs(
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 @router.put('/v1/job')
 async def update_job(
@@ -189,7 +188,7 @@ async def update_watchlist(
     if not deleted:
         raise HTTPException(status_code=404, detail='Watchlist entry not found or not owned by user')
 
-    return ORJSONResponse({'success': True, 'deleted_id': deleted['id']}, status_code=202)
+    return CustomORJSONResponse({'success': True, 'deleted_id': deleted['id']}, status_code=202)
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v1/notes/{run_id}')
@@ -315,12 +314,12 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 
 @router.get('/v1/runs', deprecated=True)
 def old_v1_runs_endpoint():
-    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/runs'}, status_code=410)
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/runs'}, status_code=410)
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v2/runs')
@@ -410,7 +409,7 @@ async def get_runs(name: str | None = None, uri: str | None = None, branch: str 
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 
 # Just copy and paste if we want to deprecate URLs
@@ -428,7 +427,7 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
 
     if not force_mode: # force_mode must always get fresh data
         if artifact := get_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}"):
-            return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
+            return CustomORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
 
     try:
         case, comparison_db_key = determine_comparison_case(user, ids, force_mode=force_mode)
@@ -468,7 +467,8 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
         filename = run_info['filename']
 
         match case:
-            case 'Repeated Run':
+
+            case 'Repeated Run on same Commit Hash' | 'Repeated Run (Two only) on same Commit Hash':
                 # same repo, same usage scenarios, same machines, same branches, same commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
                 phase_stats_object['common_info']['Filename'] = filename
@@ -515,7 +515,7 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
         store_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}", orjson.dumps(phase_stats_object)) # pylint: disable=no-member
 
 
-    return ORJSONResponse({'success': True, 'data': phase_stats_object})
+    return CustomORJSONResponse({'success': True, 'data': phase_stats_object})
 
 
 @router.get('/v1/phase_stats/single/{run_id}')
@@ -524,7 +524,7 @@ async def get_phase_stats_single(run_id: str, user: User = Depends(authenticate)
         raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     if artifact := get_artifact(ArtifactType.STATS, f"{user._id}_{str(run_id)}"):
-        return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
+        return CustomORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
 
     if not (phase_stats := get_phase_stats(user, [run_id])):
         return Response(status_code=204) # No-Content
@@ -574,6 +574,7 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
 async def get_timeline_stats(
     uri: str, machine_id: int, branch: str | None = None, filename: str | None = None,
     metric: str | None = None, phase: str | None = None,
+    show_archived: bool | None = None,
     start_date: date | None = None, end_date: date | None = None,  sorting: str | None = None,
     usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
     user: User = Depends(authenticate)):
@@ -585,19 +586,20 @@ async def get_timeline_stats(
         raise HTTPException(status_code=422, detail='Phase is empty')
 
     check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
-    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting)
+    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting, show_archived=show_archived)
 
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 @router.get('/v2/timeline')
 async def get_timeline_stats_v2(
     uri: str, machine_id: int, branch: str | None = None, filename: str | None = None,
     metric: str | None = None, phase: str | None = None,
+    show_archived: bool | None = None,
     start_date: date | None = None, end_date: date | None = None,  sorting: str | None = None,
     usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
     user: User = Depends(authenticate)):
@@ -609,14 +611,14 @@ async def get_timeline_stats_v2(
         raise HTTPException(status_code=422, detail='Phase is empty')
 
     check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
-    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting, v2=True)
+    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting, show_archived=show_archived, include_usage_scenario_variables=True)
 
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 # Show the timeline badges with regression trend
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
@@ -630,6 +632,7 @@ async def get_timeline_badge(
         metric: str, uri: str,
         unit: str = 'watt-hours',
         detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None,
+        show_archived: bool | None = None,
         usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
         user: User = Depends(authenticate)):
 
@@ -651,7 +654,7 @@ async def get_timeline_badge(
 
     date_30_days_ago = datetime.now() - timedelta(days=30)
 
-    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now())
+    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now(), show_archived=show_archived)
     # query already contains user access check. No need to have it in aggregate query too
     query = f"""
         WITH trend_data AS (
@@ -821,7 +824,7 @@ async def get_watchlist(user: User = Depends(authenticate)):
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 
 @router.post('/v1/software/add')
@@ -912,11 +915,11 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if notification_email := GlobalConfig().config['admin']['notification_email']:
         Job.insert('email-simple', user_id=user._id, name='New run added from Web Interface', message=pprint.pformat(software.model_dump(), width=60, indent=2), email=notification_email)
 
-    return ORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
+    return CustomORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
 
 @router.get('/v1/run/{run_id}', deprecated=True)
 def old_v1_run_endpoint():
-    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/run/{run_id}'}, status_code=410)
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/run/{run_id}'}, status_code=410)
 
 
 @router.get('/v2/run/{run_id}')
@@ -1018,7 +1021,7 @@ async def diff(ids: str, user: User = Depends(authenticate)):
         raise HTTPException(status_code=422, detail='Run IDs != 2. Only exactly 2 Run IDs can be diffed.')
 
     if artifact := get_artifact(ArtifactType.DIFF, f"{user._id}_{str(ids)}"):
-        return ORJSONResponse({'success': True, 'data': artifact})
+        return CustomORJSONResponse({'success': True, 'data': artifact})
 
     try:
         diff_runs = diff_rows(get_diffable_rows(user, ids))
@@ -1027,7 +1030,7 @@ async def diff(ids: str, user: User = Depends(authenticate)):
 
     store_artifact(ArtifactType.DIFF, f"{user._id}_{str(ids)}", diff_runs)
 
-    return ORJSONResponse({'success': True, 'data': diff_runs})
+    return CustomORJSONResponse({'success': True, 'data': diff_runs})
 
 
 @router.get('/v1/insights')

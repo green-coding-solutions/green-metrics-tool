@@ -184,7 +184,11 @@ const getURLParams = () => {
 }
 
 const getPretty = (metric_name, key)  => {
-    if (METRIC_MAPPINGS[metric_name] == null || METRIC_MAPPINGS[metric_name][key] == null) {
+    if(metric_name.startsWith('custom_')) {
+        if (key == 'source') return 'User supplied';
+        if (key == 'clean_name') return metric_name.replace(/^custom_/, '').replace(/_sci_global$/, ' (SCI)').split('_').map(e => e.charAt(0).toUpperCase() + e.slice(1)).join(' ');
+        if (key == 'explanation') return metric_name.endsWith('sci_global') ? 'SCI (Software Carbon Intensity) derived from user supplied custom metric' : 'User supplied custom metric';
+    } else if (METRIC_MAPPINGS[metric_name] == null || METRIC_MAPPINGS[metric_name][key] == null) {
         console.log(metric_name, ' is undefined in METRIC_MAPPINGS or has no key');
         return `${metric_name}_${key}`;
     }
@@ -197,26 +201,21 @@ const getPretty = (metric_name, key)  => {
 // one MUST use the sample STDDEV.
 // Still one could argue that one does not want to characterize the measured software but rather the measurement setup
 // it is safer to use the sample STDDEV as it is always higher
-const calculateStatistics = (data, object_access=false) => {
+const calculateStatistics = (data) => {
+    const getNumericValue = (entry) => {
+        if (Array.isArray(entry?.value)) return entry.value[1];
+        if (entry?.value != null) return entry.value;
+        return entry;
+    }
     let sum = null;
     let stddev = null;
     let mean = null;
-    if (object_access == true) {
-        sum = data.reduce((sum, value) => sum + value.value, 0)
-        mean = sum / data.length;
-        if (data.length < 2) {
-            stddev = 0
-        } else {
-            stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value.value - mean, 2), 0) / (data.length - 1) );
-        }
+    sum = data.reduce((sum, value) => sum + getNumericValue(value), 0)
+    mean = sum / data.length;
+    if (data.length < 2) {
+        stddev = 0
     } else {
-        sum = data.reduce((sum, value) => sum + value, 0)
-        mean = sum / data.length;
-        if (data.length < 2) {
-            stddev = 0
-        } else {
-            stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / (data.length - 1) );
-        }
+        stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(getNumericValue(value) - mean, 2), 0) / (data.length - 1) );
     }
     const stddev_rel = (stddev / mean) * 100;
 

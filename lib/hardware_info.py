@@ -19,6 +19,26 @@ CURRENT_PATH = os.path.dirname(__file__)
 # this can also be used to remove a \n at the end of single line
 rpwrs = lambda *x: ''.join(set(rpwr(*x).split('\n')))
 
+def get_display_resolutions():
+
+    x11_dir = "/tmp/.X11-unix/"
+    output = []
+
+    if not os.path.isdir(x11_dir):
+        return 'No Display'
+
+    sockets = [f for f in os.listdir(x11_dir) if f.startswith("X")]
+    sockets.sort()
+
+    for sock in sockets:
+        display_num = sock[1:]  # strip 'X'
+        display = f":{display_num}"
+        result = rpwr(f"DISPLAY={display} xdpyinfo", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL)
+        for line in result.splitlines():
+            if "dimensions" in line:
+                output.append(f"Display {display_num}: {line.replace('dimensions:', '').replace('dimension:', '').strip()}")
+    return "\n".join(output) if output else 'No Display'
+
 # For the matching the match group needs to be called 'o'
 linux_info_list = [
     [platform.system, 'Platform'],
@@ -71,7 +91,7 @@ linux_info_list = [
     [rfwr, 'IO Scheduling', '/sys/block/sda/queue/scheduler', r'(?P<o>.*)'],
     [rpwr, 'Network Interfaces', 'ip addr', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rfwr, 'Current Clocksource', '/sys/devices/system/clocksource/clocksource0/current_clocksource', r'(?P<o>.*)'],
-
+    [cf, 'Display Resolutions', get_display_resolutions],
 ]
 
 # This is a very slimmed down version in comparison to the linux list. This is because we will not be using this

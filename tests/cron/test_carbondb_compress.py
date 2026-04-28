@@ -53,10 +53,10 @@ def test_insert_and_compress_eco_ci_with_two_users():
     data = DB().fetch_one('SELECT * FROM carbondb_data WHERE date = CURRENT_DATE AND user_id = 1', fetch_mode='dict')
 
     energy_kWh =  eco_ci_data['energy_uj'] * RANGE_AMOUNT / FROM_UJ_TO_J / FROM_J_TO_KWH
-    assert math.isclose(data['energy_kwh_sum'], energy_kWh, rel_tol=1e-5)
+    assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
     carbon_kg = eco_ci_data['carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG
-    assert math.isclose(data['carbon_kg_sum'], carbon_kg, rel_tol=1e-5)
+    assert math.isclose(data['carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
 
     carbon_intensity_g_avg = int((carbon_kg/energy_kWh)*1000)
     assert carbon_intensity_g_avg-1 <= data['carbon_intensity_g_avg'] <= carbon_intensity_g_avg+1 # different rounding can cost 1 g different intensity. No need to be more precise here given that the margin of error in the source data is not know
@@ -64,10 +64,10 @@ def test_insert_and_compress_eco_ci_with_two_users():
     data = DB().fetch_one('SELECT * FROM carbondb_data WHERE date = CURRENT_DATE and user_id = 345', fetch_mode='dict')
 
     energy_kWh = eco_ci_data_2['energy_uj'] * RANGE_AMOUNT / FROM_UJ_TO_J / FROM_J_TO_KWH
-    assert math.isclose(data['energy_kwh_sum'], energy_kWh, rel_tol=1e-5)
+    assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
     carbon_kg = eco_ci_data_2['carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG
-    assert math.isclose(data['carbon_kg_sum'], carbon_kg, rel_tol=1e-5)
+    assert math.isclose(data['carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
 
     carbon_intensity_g_avg = int((carbon_kg/energy_kWh)*1000)
     assert carbon_intensity_g_avg-1 <= data['carbon_intensity_g_avg'] <= carbon_intensity_g_avg+1 # different rounding can cost 1 g different intensity. No need to be more precise here given that the margin of error in the source data is not know
@@ -98,20 +98,20 @@ def test_insert_and_compress_carbondb_with_two_users():
 
     data = DB().fetch_one('SELECT * FROM carbondb_data WHERE date = CURRENT_DATE and user_id = 1', fetch_mode='dict')
     energy_kWh = energy_data['energy_uj'] * RANGE_AMOUNT / FROM_UJ_TO_J / FROM_J_TO_KWH
-    assert math.isclose(data['energy_kwh_sum'], energy_kWh, rel_tol=1e-5)
+    assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
     carbon_kg = energy_kWh * energy_data['carbon_intensity_g'] / FROM_G_TO_KG
-    assert math.isclose(data['carbon_kg_sum'], carbon_kg, rel_tol=1e-5)
+    assert math.isclose(data['carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
 
     assert data['carbon_intensity_g_avg'] == energy_data['carbon_intensity_g']
 
 
     data = DB().fetch_one('SELECT * FROM carbondb_data WHERE date = CURRENT_DATE and user_id = 345', fetch_mode='dict')
     energy_kWh = energy_data_2['energy_uj'] * RANGE_AMOUNT / FROM_UJ_TO_J / FROM_J_TO_KWH
-    assert math.isclose(data['energy_kwh_sum'], energy_kWh, rel_tol=1e-5)
+    assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
     carbon_kg = energy_kWh * energy_data_2['carbon_intensity_g'] / FROM_G_TO_KG
-    assert math.isclose(data['carbon_kg_sum'], carbon_kg, rel_tol=1e-5)
+    assert math.isclose(data['carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
 
     assert data['carbon_intensity_g_avg'] == energy_data_2['carbon_intensity_g']
 
@@ -268,10 +268,10 @@ def test_big_values():
 
     data = DB().fetch_one('SELECT * FROM carbondb_data WHERE date = CURRENT_DATE and user_id = 1', fetch_mode='dict')
     energy_kWh = (energy_data['energy_uj']*RANGE_AMOUNT)/(1_000_000*3_600*1_000)
-    assert math.isclose(data['energy_kwh_sum'], energy_kWh, rel_tol=1e-5)
+    assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
     carbon_kg = (energy_kWh*energy_data['carbon_intensity_g'])/1_000
-    assert math.isclose(data['carbon_kg_sum'], carbon_kg, rel_tol=1e-5)
+    assert math.isclose(data['carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
 
     assert data['carbon_intensity_g_avg'] == energy_data['carbon_intensity_g']
 
@@ -290,10 +290,10 @@ def test_carbondb_backfill():
 
     data = DB().fetch_one('SELECT * FROM carbondb_data WHERE date = CURRENT_DATE and user_id = 1', fetch_mode='dict')
     energy_kWh = (energy_data['energy_uj'])/(1_000_000*3_600*1_000)
-    assert math.isclose(data['energy_kwh_sum'], energy_kWh, rel_tol=1e-5)
+    assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
     carbon_kg = (energy_kWh*CARBON_INTENSITY_TESTING_DEFAULT)/1_000
-    assert math.isclose(data['carbon_kg_sum'], carbon_kg, rel_tol=1e-5)
+    assert math.isclose(data['carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
 
     assert data['carbon_intensity_g_avg'] == CARBON_INTENSITY_TESTING_DEFAULT
 

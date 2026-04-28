@@ -16,6 +16,22 @@ class SchemaChecker():
             raise SchemaError(f"{value} does not use valid characters! (a-zA-Z0-9_-)")
         return value
 
+    def is_valid_string_with_spaces(self, value):
+        valid_chars = set(string.ascii_letters + string.digits + '_' + '-' + ' ')
+        if not set(value).issubset(valid_chars):
+            raise SchemaError(f"{value} does not use valid characters! (a-zA-Z0-9_-) and space")
+        return value
+
+    def regex_has_two_groups(self, value):
+        try:
+            regex = re.compile(value)
+        except re.error as exc:
+            raise SchemaError(f"Regex {value} for custom metric did not compile: {exc} ") from exc
+        if regex.groups != 2:
+            raise SchemaError(f"Regex {value} did not have two capture groups that capture TIMESTAMP_IN_MICRO_OR_NANOSECONDS and NUMERIC_VALUE")
+        return value
+
+
     def contains_no_invalid_chars(self, value):
         bad_values = re.findall(r'(\.\.|\$|\'|"|`|!)', value)
         if bad_values:
@@ -88,8 +104,12 @@ class SchemaChecker():
             Optional('ignore-unsupported-compose'): bool,
             Optional('version'): Or(str, int, float, datetime), # is part of compose. we ignore it as it is non functionaly anyway
             Optional('architecture'): And(str, Use(self.not_empty)),
-            Optional('sci'): {
-                'R_d': And(str, Use(self.not_empty)),
+            Optional('custom_metrics'): {
+                And(str, Use(self.not_empty), Use(self.is_valid_string)): {
+                    'unit': And(str, Use(self.not_empty), Use(self.is_valid_string_with_spaces)),
+                    Optional('regex'): And(str, Use(self.not_empty), Use(self.regex_has_two_groups)),
+                    Optional('sci'): bool,
+                },
             },
 
             Optional('networks'): Or(
@@ -188,7 +208,7 @@ class SchemaChecker():
                     Optional('log-stdout'): bool,
                     Optional('log-stderr'): bool,
                     Optional('read-notes-stdout'): bool,
-                    Optional('read-sci-stdout'): bool,
+                    Optional('read-sci-stdout'): bool, # not supported anymore and now always on. kept for backwards compatibility
                     Optional('docker-run-args'): [And(str, Use(self.not_empty))],
 
                 }

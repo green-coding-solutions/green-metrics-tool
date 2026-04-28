@@ -26,6 +26,7 @@ TEST_REDIS_PORT = 6380 # original port: 6379
 TEST_REDIS_PORT_MAPPING = [f"127.0.0.1:{TEST_REDIS_PORT}:{TEST_REDIS_PORT}"] # change external and internal port
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
+repo_root = os.path.normpath(f"{current_dir}/../")
 base_compose_path = os.path.join(current_dir, f"../docker/{BASE_COMPOSE_NAME}")
 test_compose_path = os.path.join(current_dir, f"../docker/{TEST_COMPOSE_NAME}")
 base_frontend_config_path = os.path.join(current_dir, f'../{BASE_FRONTEND_CONFIG_NAME}')
@@ -54,6 +55,15 @@ def check_sudo():
 def copy_sql_structure(ee=False):
     print('Copying SQL structure...')
     shutil.copyfile('../docker/structure.sql', './structure.sql')
+
+    with open('./structure.sql', 'r', encoding='utf-8') as f:
+        sql = f.read()
+    sql = sql.replace(
+        '"measurement.skip_volume_inspect"',
+        '"measurement.skip_volume_inspect",\n                "ssh_private_key"'
+    )
+    with open('./structure.sql', 'w', encoding='utf-8') as f:
+        f.write(sql)
 
     if ee:
         with open('../ee/docker/structure_ee.sql', 'r', encoding='utf-8') as source, open('./structure.sql', 'a', encoding='utf-8') as target:
@@ -119,6 +129,13 @@ def edit_compose_file():
             new_vol_list.append(
                 f'{current_dir}/test-config.yml:/var/www/green-metrics-tool/config.yml')
 
+        # for gunicorn, mount encryption keys at host paths so the container can read them
+        if 'gunicorn' in service:
+            key_public = os.path.normpath(f'{current_dir}/data/encryption_public_key.pem')
+            key_private = os.path.normpath(f'{current_dir}/data/encryption_private_key.pem')
+            new_vol_list.append(f'{key_public}:{key_public}:ro')
+            new_vol_list.append(f'{key_private}:{key_private}:ro')
+
         compose['services'][service]['volumes'] = new_vol_list
 
         # For postgresql, change port mapping and password
@@ -163,6 +180,8 @@ def edit_compose_file():
 
 def create_test_config_file(ee=False, ai=False):
     print('Creating test-config.yml...')
+    public_key_file = os.path.normpath(f'{current_dir}/data/encryption_public_key.pem')
+    private_key_file = os.path.normpath(f'{current_dir}/data/encryption_private_key.pem')
 
     with open('test-config.yml.example', 'r', encoding='utf-8') as file:
         content = file.read()
@@ -170,6 +189,12 @@ def create_test_config_file(ee=False, ai=False):
     content = content.replace('activate_eco_ci: False', 'activate_eco_ci: True')
     content = content.replace('activate_power_hog: False', 'activate_power_hog: True')
     content = content.replace('activate_carbon_db: False', 'activate_carbon_db: True')
+    content = content.replace(
+        'security:\n  encryption_public_key_file: none\n  encryption_private_key_file: none\n',
+        'security:\n'
+        f'  encryption_public_key_file: {public_key_file}\n'
+        f'  encryption_private_key_file: {private_key_file}\n',
+    )
 
     if ee:
         print('Activating enterprise in config.yml ...')

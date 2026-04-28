@@ -223,18 +223,33 @@
                                 <label>Sorting order:</label>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="sorting-commit" type="radio" name="sorting" value="commit" checked>
+                                        <input id="sorting-commit" type="radio" name="sorting" value="commit">
                                         <label for="sorting-commit">Date of commit</label>
                                     </div>
                                 </div>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="sorting-run" type="radio" name="sorting" value="run">
+                                        <input id="sorting-run" type="radio" name="sorting" value="run" checked>
                                         <label for="sorting-run">Date of measurement</label>
                                     </div>
                                 </div>
                                 <div class="field">
                                     <i class="info circle icon"></i> Will not affect badge
+                                </div>
+                            </div>
+                            <div class="inline fields">
+                                <label>Show archived runs:</label>
+                                <div class="field">
+                                    <div class="ui radio checkbox checked">
+                                        <input id="show-archived-no" type="radio" name="show_archived" value="false" checked>
+                                        <label for="show-archived-no">No</label>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="show-archived-yes" type="radio" name="show_archived" value="true">
+                                        <label for="show-archived-yes">Yes</label>
+                                    </div>
                                 </div>
                             </div>
                             <div class="inline fields">

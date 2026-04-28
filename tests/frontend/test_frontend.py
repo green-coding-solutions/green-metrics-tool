@@ -77,6 +77,65 @@ def use_demo_data():
     yield
     Tests.reset_db()
 
+def insert_demo_run_with_custom_sci_phase_stats():
+    run_id = str(uuid.uuid4())
+    phases = [
+        {"start": 1735933199000000, "name": "[BASELINE]", "hidden": False, "end": 1735933200000000},
+        {"start": 1735933200000000, "name": "[RUNTIME]", "hidden": False, "end": 1735933205000000},
+        {"start": 1735933200000100, "name": "Hit Generator", "hidden": False, "end": 1735933205000000},
+    ]
+    usage_scenario = {
+        "name": "Custom SCI Demo",
+        "author": "Tests",
+        "description": "demo",
+        "custom_metrics": {
+            "custom_my_coolness": {"unit": "gigacools"},
+            "custom_hits": {"unit": "Hits", "sci": True},
+        },
+    }
+
+    DB().query(
+        """
+        INSERT INTO runs ("id","name","uri","branch","commit_hash","usage_scenario","usage_scenario_variables","filename","machine_id","user_id","failed","logs","phases","created_at","updated_at")
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),NOW())
+        """,
+        params=(
+            run_id,
+            'Custom SCI Demo Run',
+            '/demo/custom-sci',
+            'main',
+            'deadbeef123456789abcdef',
+            json.dumps(usage_scenario),
+            json.dumps({}),
+            'tests/data/usage_scenarios/stress_custom_metrics.yml',
+            1,
+            1,
+            False,
+            json.dumps({}),
+            json.dumps(phases),
+        ),
+    )
+
+    DB().query(
+        """
+        INSERT INTO phase_stats ("run_id","metric","detail_name","phase","value","type","max_value","min_value","sampling_rate_avg","sampling_rate_max","sampling_rate_95p","unit","hidden","created_at","updated_at")
+        VALUES
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',1000000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',FALSE,NOW(),NULL),
+        (%s,E'embodied_carbon_share_machine',E'[SYSTEM]',E'000_[BASELINE]',10000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ug',FALSE,NOW(),NULL),
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_Hit Generator',5000000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',FALSE,NOW(),NULL),
+        (%s,E'custom_hits',E'test-container',E'001_Hit Generator',1000,E'TOTAL',1000,1000,100000,100000,100000,E'Hits',FALSE,NOW(),NULL),
+        (%s,E'custom_hits_sci_global',E'test-container',E'001_Hit Generator',120000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ugCO2e/Hits',FALSE,NOW(),NULL),
+        (%s,E'custom_my_coolness',E'test-container',E'001_Hit Generator',42,E'TOTAL',42,42,100000,100000,100000,E'gigacools',FALSE,NOW(),NULL),
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'002_[RUNTIME]',5000000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',FALSE,NOW(),NULL),
+        (%s,E'custom_hits',E'test-container',E'002_[RUNTIME]',1000,E'TOTAL',1000,1000,100000,100000,100000,E'Hits',FALSE,NOW(),NULL),
+        (%s,E'custom_hits_sci_global',E'test-container',E'002_[RUNTIME]',120000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ugCO2e/Hits',FALSE,NOW(),NULL),
+        (%s,E'custom_my_coolness',E'test-container',E'002_[RUNTIME]',42,E'TOTAL',42,42,100000,100000,100000,E'gigacools',FALSE,NOW(),NULL)
+        """,
+        params=(run_id, run_id, run_id, run_id, run_id, run_id, run_id, run_id, run_id, run_id),
+    )
+
+    return run_id
+
 @pytest.mark.usefixtures('use_demo_data')
 class TestFrontendFunctionality:
     """Functional frontend tests"""
@@ -259,12 +318,12 @@ class TestFrontendFunctionality:
         new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
         new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
-        machine_energy_value = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="energy"] div.ui.blue.card.machine-energy > div.extra.content span.value.bold').text_content()
-        phase_duration = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.runtime > div.extra.content span.value.bold').text_content()
-        cpu_package_power = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.orange.card.cpu-power > div.extra.content span.value.bold').text_content()
-        embodied_carbon = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.embodied-carbon > div.extra.content span.value.bold').text_content()
-        network_traffic = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.network-traffic > div.extra.content span.value.bold').text_content()
-        network_data = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.network-data > div.extra.content span.value.bold').text_content()
+        machine_energy_value = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.tab[data-tab="energy"] div.ui.blue.card.machine-energy > div.extra.content span.value.bold').text_content()
+        phase_duration = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.teal.card.runtime > div.extra.content span.value.bold').text_content()
+        cpu_package_power = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.tab[data-tab="power"] div.ui.orange.card.cpu-power > div.extra.content span.value.bold').text_content()
+        embodied_carbon = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.teal.card.embodied-carbon > div.extra.content span.value.bold').text_content()
+        network_traffic = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.teal.card.network-traffic > div.extra.content span.value.bold').text_content()
+        network_data = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.teal.card.network-data > div.extra.content span.value.bold').text_content()
 
         assert machine_energy_value.strip() == '21.14'
         assert phase_duration.strip() == '5.20'
@@ -323,7 +382,7 @@ class TestFrontendFunctionality:
 
         network_traffic_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(8) > td:nth-child(6)")
         assert network_traffic_value.text_content().strip() == '0.37'
-        assert network_traffic_value.inner_html().strip() == '<span title="367908">0.37</span>'
+        assert network_traffic_value.inner_html().strip() == '<span title="367908 Bytes">0.37</span>'
 
         network_traffic_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(8) > td:nth-child(7)").text_content()
         assert network_traffic_unit.strip() == 'MB'
@@ -333,7 +392,7 @@ class TestFrontendFunctionality:
         assert network_traffic_metric.strip() == 'Network Transmission CO₂'
 
         network_traffic_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(6)").inner_html()
-        assert network_traffic_value.strip() == '<span title="425">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 425 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
+        assert network_traffic_value.strip() == '<span title="425 ug">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 425 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
 
         network_traffic_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(7)").text_content()
         assert network_traffic_unit.strip() == 'g'
@@ -411,6 +470,26 @@ class TestFrontendFunctionality:
 
         assert new_page.locator('#runtime-hidden-info').is_hidden() is True # bc moved to other tab through click
 
+    def test_stats_custom_metric_sci(self):
+        run_id = insert_demo_run_with_custom_sci_phase_stats()
+
+        stats_url = f"{GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={run_id}"
+        page.goto(stats_url)
+        page.wait_for_load_state("networkidle")
+
+        page.locator('a.step[data-tab="[RUNTIME]"]').click()
+        page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
+
+        sci_card = page.locator('div.green.card.custom-metric-custom_hits_sci_global')
+        assert sci_card.locator('.metric-name').text_content() == 'Hits (SCI)'
+        assert sci_card.locator('.value.bold').text_content().strip() == '0.12'
+        assert sci_card.locator('.si-unit').text_content().strip() == 'gCO2e/Hits'
+        assert sci_card.locator('.source').text_content().strip() == 'via User supplied'
+
+        sci_table_row = page.locator('table.compare-metrics-table tbody tr', has_text='Hits (SCI)').first
+        assert sci_table_row.locator('td:nth-child(6)').text_content().strip() == '0.12'
+        assert sci_table_row.locator('td:nth-child(7)').text_content().strip() == 'gCO2e/Hits'
+
 
     def test_repositories_and_compare_with_diff(self):
 
@@ -432,12 +511,12 @@ class TestFrontendFunctionality:
         new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
         # compare key metrics
-        machine_energy_value = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="energy"] div.ui.blue.card.machine-energy > div.extra.content span.value.bold').text_content()
-        phase_duration = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.runtime > div.extra.content span.value.bold').text_content()
-        cpu_package_power = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.orange.card.cpu-power > div.extra.content span.value.bold').text_content()
-        embodied_carbon = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.embodied-carbon > div.extra.content span.value.bold').text_content()
-        network_traffic = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.network-traffic > div.extra.content span.value.bold').text_content()
-        network_data = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segments div.ui.tab[data-tab="power"] div.ui.teal.card.network-data > div.extra.content span.value.bold').text_content()
+        machine_energy_value = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.tab[data-tab="energy"] div.ui.blue.card.machine-energy > div.extra.content span.value.bold').text_content()
+        phase_duration = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.teal.card.runtime > div.extra.content span.value.bold').text_content()
+        cpu_package_power = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.tab[data-tab="power"] div.ui.orange.card.cpu-power > div.extra.content span.value.bold').text_content()
+        embodied_carbon = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.teal.card.embodied-carbon > div.extra.content span.value.bold').text_content()
+        network_traffic = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.teal.card.network-traffic > div.extra.content span.value.bold').text_content()
+        network_data = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.teal.card.network-data > div.extra.content span.value.bold').text_content()
 
         assert machine_energy_value.strip() == '+ 8.19 %'
         assert phase_duration.strip() == '+ 4.80 %'
@@ -453,7 +532,7 @@ class TestFrontendFunctionality:
 
         first_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(6)")
         assert first_value.text_content().strip() == '5.06'
-        assert first_value.inner_html().strip() == '<span title="5064843">5.06</span>'
+        assert first_value.inner_html().strip() == '<span title="5064843 us">5.06</span>'
 
         assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(8)").inner_html().strip() == 's'
 
@@ -473,9 +552,9 @@ class TestFrontendFunctionality:
 
         assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(1)").text_content().strip() == 'Network Transmission CO₂'
 
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(6)").inner_html() == '<span title="409">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 409 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
+        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(6)").inner_html() == '<span title="409 ug">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 409 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
 
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(7)").inner_html().strip() == '<span title="446">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 446 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
+        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(7)").inner_html().strip() == '<span title="446 ug">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 446 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
 
         assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(8)").inner_html().strip() == 'g'
 
@@ -506,7 +585,7 @@ class TestFrontendFunctionality:
         new_page.set_default_timeout(3_000)
 
         comparison_type = new_page.locator('#run-data-top > tbody:nth-child(1) > tr > td:nth-child(2)').text_content()
-        assert comparison_type == 'Repeated Run'
+        assert comparison_type == 'Repeated Run on same Commit Hash'
 
         runs_compared = new_page.locator('#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)').text_content()
         assert runs_compared == '3'
@@ -523,7 +602,7 @@ class TestFrontendFunctionality:
 
         first_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(6)")
         assert first_value.text_content().strip() == '8.64'
-        assert first_value.inner_html().strip() == '<span title="8637">8.64</span>'
+        assert first_value.inner_html().strip() == '<span title="8637 mW">8.64</span>'
 
         first_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(7)").text_content()
         assert first_unit.strip() == 'W'
@@ -532,7 +611,7 @@ class TestFrontendFunctionality:
         assert first_stddev.strip() == '± 2.85%'
 
 
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(6)").inner_html() == '<span title="435.5">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 435.5 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
+        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(6)").inner_html() == '<span title="435.5 ug">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 435.5 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
 
         assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(8)").inner_html() == '± 3.41%'
 
@@ -714,7 +793,33 @@ class TestFrontendFunctionality:
         time_series_avg_display = page.locator('#time-series-avg-display').text_content()
         assert time_series_avg_display.strip() == 'Currently not showing AVG in time series'
 
+    def test_settings_does_not_expose_ssh_private_key(self):
+
+        try:
+            User(1).update_ssh_private_key(Tests.OPENSSH_EXAMPLE_PRIVATE_KEY)
+
+            page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+            with page.expect_response(lambda response: '/v1/user/settings' in response.url and response.status == 200) as response_info:
+                page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
+
+            settings_response = response_info.value.json()
+            assert settings_response['success'] is True
+            assert '_ssh_private_key' not in settings_response['data']
+            assert '_User__decrypted_ssh_private_key' not in settings_response['data']
+            assert '_User__encrypted_ssh_private_key' not in settings_response['data']
+            assert Tests.OPENSSH_EXAMPLE_PRIVATE_KEY not in json.dumps(settings_response)
+
+            page.wait_for_load_state("load") # ALL JS should be done
+            page.locator("a#settings-tab-measurement").click()
+
+            value = page.locator('#ssh-private-key-status').text_content()
+            assert value.strip() == 'A private key is stored for this user.'
+            assert page.locator('#ssh-private-key').input_value() == ''
+        finally:
+            User(1).update_ssh_private_key('')
+
     def test_settings_measurement(self):
+        User(1).update_ssh_private_key('')
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
@@ -785,9 +890,12 @@ class TestFrontendFunctionality:
         value = page.locator('#measurement-skip-volume-inspect').is_checked()
         assert value is user._capabilities['measurement']['skip_volume_inspect']
 
+        value = page.locator('#ssh-private-key-status').text_content()
+        assert value.strip() == 'No private key stored for this user.'
+
 
         page.locator('#measurement-system-check-threshold').fill('2')
-        page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "NetworkConnectionsProxyContainerProvider");')
+        page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "network_connections_proxy_container");')
         page.locator('#measurement-flow-process-duration').fill('456')
         page.locator('#measurement-total-duration').fill('123')
         page.locator('#measurement-phase-padding').click()
@@ -815,12 +923,14 @@ class TestFrontendFunctionality:
         page.locator('#save-measurement-dev-no-sleeps').click()
         page.locator('#save-measurement-skip-optimizations').click()
         page.locator('#save-measurement-skip-volume-inspect').click()
+        page.locator('#ssh-private-key').fill(Tests.OPENSSH_EXAMPLE_PRIVATE_KEY)
+        page.locator('#save-ssh-private-key').click(timeout=15000)
 
         #page.wait_for_load_state("networkidle") # Network Idle sadly not enough here. The DB seems to take 1-2 seconds
-        time.sleep(1)
+        time.sleep(3)
 
         user = User(1)
-        assert user._capabilities['measurement']['disabled_metric_providers'] == ['NetworkConnectionsProxyContainerProvider']
+        assert user._capabilities['measurement']['disabled_metric_providers'] == ['network_connections_proxy_container']
         assert user._capabilities['measurement']['flow_process_duration'] == 456
         assert user._capabilities['measurement']['total_duration'] == 123
         assert user._capabilities['measurement']['phase_padding'] is False
@@ -834,6 +944,11 @@ class TestFrontendFunctionality:
         assert user._capabilities['measurement']['phase_transition_time'] == 2
         assert user._capabilities['measurement']['wait_time_dependencies'] == 120
         assert user._capabilities['measurement']['skip_volume_inspect'] is True
+        assert user.has_ssh_private_key() is True
+
+        page.locator('#clear-ssh-private-key').click()
+        time.sleep(1)
+        assert User(1).has_ssh_private_key() is False
 
 
 class TestXssSecurity:

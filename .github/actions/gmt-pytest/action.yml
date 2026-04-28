@@ -38,12 +38,12 @@ runs:
   using: 'composite'
   steps:
     - name: setup_python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.13'
 
     - id: python_cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: venv
         key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('docker/requirements.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
@@ -87,10 +87,10 @@ runs:
 
     - name: Set up Docker Buildx
       id: buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4
 
     - name: Login to Docker Registry
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
@@ -122,7 +122,7 @@ runs:
     # for debugging purposes you can setup a ssh connection by setting 'inputs.enable-ssh' to true
     - name: Setup upterm session
       if: ${{ inputs.enable-ssh == 'true' }}
-      uses: owenthereal/action-upterm@de23d094ff41be3a09894c4e2b8dd74378013f2e
+      uses: owenthereal/action-upterm@f26ebc11e22a09b8365f39d2cdafd06f63b42053
       with:
         limit-access-to-actor: true # Restrict to the user who triggered the workflow
 

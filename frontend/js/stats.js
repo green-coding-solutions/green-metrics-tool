@@ -855,7 +855,7 @@ const fetchAndFillNetworkIntercepts = async (run_id) => {
     } else {
         const node = document.querySelector("#network-intercepts");
         for (const item of network.data) {
-            const date = (new Date(Number(item[2]))).toLocaleString();
+            const date = dateToYMD(new Date(Number(item[2])), false, true);
             node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(date)}</strong></td><td>${escapeString(item[3])}</td><td>${escapeString(item[4])}</td></tr>`)
         }
     }
@@ -1144,7 +1144,7 @@ function renderUsageScenarioDependencies(container_name, dependency_data) {
 
 }
 
-function buildSingleAccordionItem(packageManager, displayName, data) {
+function buildSingleAccordionItem(packageManager, displayName, data, parentData) {
     const dependencies = data.dependencies || {};
     const dependenciesArray = Object.entries(dependencies).map(([name, pkgData]) => ({
         name: name,
@@ -1161,6 +1161,15 @@ function buildSingleAccordionItem(packageManager, displayName, data) {
     }
     if (data.location) {
         metadataContent += `<strong>Location:</strong> ${escapeString(data.location)}<br>`;
+    }
+    if (parentData.php_version) {
+        metadataContent += `<strong>PHP Version:</strong> ${escapeString(parentData.php_version)}<br>`;
+    }
+    if (parentData.node_version) {
+        metadataContent += `<strong>NodeJS Version:</strong> ${escapeString(parentData.node_version)}<br>`;
+    }
+    if (parentData.python_version) {
+        metadataContent += `<strong>Python Version:</strong> ${escapeString(parentData.python_version)}<br>`;
     }
     if (data.hash) {
         metadataContent += `<strong>Hash:</strong> <code>${escapeString(data.hash)}</code><br>`;
@@ -1197,11 +1206,11 @@ function buildPackageManagerAccordionItems(package_managers, container_dependenc
                 const scope = locationData.scope || 'unknown';
                 const displayName = `${packageManager} (${scope})`;
                 const dataWithLocation = { ...locationData, location: location };
-                accordion_items += buildSingleAccordionItem(packageManager, displayName, dataWithLocation);
+                accordion_items += buildSingleAccordionItem(packageManager, displayName, dataWithLocation, packageManagerData);
             }
         } else {
             // Handle system or project scope with direct dependencies
-            accordion_items += buildSingleAccordionItem(packageManager, packageManager, packageManagerData);
+            accordion_items += buildSingleAccordionItem(packageManager, packageManager, packageManagerData, packageManagerData);
         }
     });
 

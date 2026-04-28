@@ -10,6 +10,13 @@ redis:
   host: green-coding-redis-container
   port: 6379
 
+security:
+  # Used to encrypt secrets before storing them in the database. Keep this stable;
+  # changing it makes previously encrypted DB values unreadable. If these are empty
+  # no encryption is used.
+  encryption_public_key_file: null
+  encryption_private_key_file: null
+
 smtp:
   server: SMTP_SERVER
   sender: SMTP_SENDER
@@ -91,7 +98,7 @@ machine:
 
 measurement:
   full_docker_prune_whitelist:
-    - gcr.io/kaniko-project/executor
+    - martizih/kaniko:slim
   metric_providers:
   # Please select the needed providers according to the working ones on your system
   # More info https://docs.green-coding.io/docs/measuring/metric-providers
@@ -102,90 +109,90 @@ measurement:
     #--- Architecture - Linux Only
     linux:
     #--- Always-On - We recommend these providers to be always enabled
-      cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
+      cpu_utilization_procfs_system:
         sampling_rate: 99
     #--- CGroupV2 - Turn these on if you have CGroupsV2 working on your machine
-      cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
+      cpu_utilization_cgroup_container:
         sampling_rate: 99
-      memory.used.cgroup.container.provider.MemoryUsedCgroupContainerProvider:
+      memory_used_cgroup_container:
         sampling_rate: 99
-      network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
+      network_io_cgroup_container:
         sampling_rate: 99
-      disk.io.cgroup.container.provider.DiskIoCgroupContainerProvider:
+      disk_io_cgroup_container:
         sampling_rate: 99
     #--- RAPL - Only enable these if you have RAPL enabled on your machine
-#      cpu.energy.rapl.msr.component.provider.CpuEnergyRaplMsrComponentProvider:
+#      cpu_energy_rapl_msr_component:
 #        sampling_rate: 99
-#      memory.energy.rapl.msr.component.provider.MemoryEnergyRaplMsrComponentProvider:
+#      memory_energy_rapl_msr_component:
 #        sampling_rate: 99
     #--- Machine Energy - These providers need special hardware / lab equipment to work
-#      psu.energy.ac.gude.machine.provider.PsuEnergyAcGudeMachineProvider:
+#      psu_energy_ac_gude_machine:
 #        sampling_rate: 99
-#      psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
+#      psu_energy_ac_powerspy2_machine:
 #        sampling_rate: 250
-#      psu.energy.ac.mcp.machine.provider.PsuEnergyAcMcpMachineProvider:
+#      psu_energy_ac_mcp_machine:
 #        sampling_rate: 99
-#      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
+#      psu_energy_ac_ipmi_machine:
 #        sampling_rate: 99
-#      psu.energy.dc.rapl.msr.machine.provider.PsuEnergyDcRaplMsrMachineProvider:
+#      psu_energy_dc_rapl_msr_machine:
 #        sampling_rate: 99
     #--- GPU - Only enable these if you have GPUs with power measurement enabled in your machine
-#      gpu.energy.nvidia.nvml.component.provider.GpuEnergyNvidiaNvmlComponentProvider:
+#      gpu_energy_nvidia_nvml_component:
 #        sampling_rate: 99
     #--- Sensors - these providers need the lm-sensors package installed
-#      lmsensors.temperature.component.provider.LmsensorsTemperatureComponentProvider:
+#      lmsensors_temperature_component:
 #        sampling_rate: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
 #        features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
-#      lmsensors.fan.component.provider.LmsensorsFanComponentProvider:
+#      lmsensors_fan_component:
 #        sampling_rate: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000']
 #        features: ['fan1', 'fan2']
     #--- Debug - These providers should only be needed for debugging and introspection purposes
-#      cpu.throttling.msr.component.provider.CpuThrottlingMsrComponentProvider:
+#      cpu_throttling_msr_component:
 #        sampling_rate: 99
-#      cpu.frequency.sysfs.core.provider.CpuFrequencySysfsCoreProvider:
+#      cpu_frequency_sysfs_core:
 #        sampling_rate: 99
-#      cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
+#      cpu_time_cgroup_container:
 #        sampling_rate: 99
-#      cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider:
+#      cpu_time_cgroup_system:
 #        sampling_rate: 99
-#      cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider:
+#      cpu_time_procfs_system:
 #        sampling_rate: 99
-#      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
+#      disk_io_procfs_system:
 #        sampling_rate: 99
-#      network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
+#      network_io_procfs_system:
 #        sampling_rate: 99
 #        remove_virtual_interfaces: True
-#      disk.used.statvfs.system.provider.DiskUsedStatvfsSystemProvider:
+#      disk_used_statvfs_system:
 #        sampling_rate: 99
-#      memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
+#      memory_used_procfs_system:
 #        sampling_rate: 99
     #--- Cgroup system monitoring - These providers can be used to monitor background processes
-#      cpu.utilization.cgroup.system.provider.CpuUtilizationCgroupSystemProvider:
+#      cpu_utilization_cgroup_system:
 #        sampling_rate: 99
 #        cgroups:
 #            "org.gnome.Shell@wayland.service":
 #                name: "Window Manager incl. X11"
 #            "session-2.scope":
 #                name: "GNOME Desktop"
-#      memory.used.cgroup.system.provider.MemoryUsedCgroupSystemProvider:
+#      memory_used_cgroup_system:
 #        sampling_rate: 99
 #        cgroups:
 #            "org.gnome.Shell@wayland.service":
 #                name: "Window Manager incl. X11"
 #            "session-2.scope":
 #                name: "GNOME Desktop"
-#      disk.io.cgroup.system.provider.DiskIoCgroupSystemProvider:
+#      disk_io_cgroup_system:
 #        sampling_rate: 99
 #        cgroups:
 #            "org.gnome.Shell@wayland.service":
 #                name: "Window Manager incl. X11"
 #            "session-2.scope":
 #                name: "GNOME Desktop"
-#      network.io.cgroup.system.provider.NetworkIoCgroupSystemProvider:
+#      network_io_cgroup_system:
 #        sampling_rate: 99
 #        cgroups:
 #            "org.gnome.Shell@wayland.service":
@@ -196,20 +203,21 @@ measurement:
     #--- Architecture - MacOS
     macos:
     #--- MacOS: On Mac you only need this provider. Please remove all others!
-      powermetrics.provider.PowermetricsProvider:
+      powermetrics:
         sampling_rate: 499 # If you set this value too low powermetrics will not be able to accommodate the timing. We recommend no lower than 199 ms
-      cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
+      cpu_utilization_mach_system:
         sampling_rate: 99
     #--- Architecture - Common
     common:
-#      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
+#      network_connections_proxy_container:
 ##        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
+
     #--- Model based - These providers estimate rather than measure. Helpful where measuring is not possible, like in VMs
-#      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
+#      psu_energy_ac_sdia_machine:
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        TDP: 65
-#      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
+#      psu_energy_ac_xgboost_machine:
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        HW_CPUFreq: 3200
@@ -236,7 +244,7 @@ measurement:
 #        token: 'XXXX'
 #        sampling_rate: 99 # Remove if you don't want value padding
 ###### DEBUG
-#      network.connections.tcpdump.system.provider.NetworkConnectionsTcpdumpSystemProvider:
+#      network_connections_tcpdump_system:
 #        split_ports: True
 #--- END
 

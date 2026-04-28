@@ -4,6 +4,8 @@
 
 import sys
 import faulthandler
+
+from lib.secure_variable import SecureVariable
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
@@ -43,7 +45,8 @@ class RunJob(Job):
             filename=self._filename,
             branch=self._branch,
             commit_hash=self._commit_hash,
-            allow_unsafe=user._capabilities['measurement']['allow_unsafe'],
+            ssh_private_key=SecureVariable(user.get_ssh_private_key()) if user.has_ssh_private_key() else None,
+            allow_unsafe=False, # cluster runs should never allow this. All should go through individual user permissions,
             skip_unsafe=user._capabilities['measurement']['skip_unsafe'],
             dev_no_system_checks=user._capabilities['measurement']['dev_no_system_checks'],
             skip_volume_inspect=user._capabilities['measurement']['skip_volume_inspect'],
@@ -66,6 +69,7 @@ class RunJob(Job):
             dev_no_sleeps=user._capabilities['measurement']['dev_no_sleeps'],
             disabled_metric_providers=user._capabilities['measurement']['disabled_metric_providers'],
             allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'], # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
+            allowed_volume_mounts=user._capabilities['measurement']['allowed_volume_mounts'],
 
 
         )

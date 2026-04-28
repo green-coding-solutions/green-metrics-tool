@@ -248,6 +248,9 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         runs = await makeAPICall(url)
     } catch (err) {
         showNotification('Could not get run data from API', err);
+        const dt = el.DataTable();
+        dt.clear();
+        dt.draw();
         return
     }
 
