@@ -119,7 +119,7 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
             raise RuntimeError(f"Unexpected Elephant response for carbon intensity: {data}")
 
         if len(data) == 0:
-            # As the provicers take quite some time to provide data (5 min to 1 hour) it can happen that short running
+            # As the providers take quite some time to provide data (5 min to 1 hour) it can happen that short running
             # jobs don't have any data. So we just get the most current data point as a fallback.
             if self.provider_filter:
                 fallback_url = f"{self._elephant_base_url}/carbon-intensity/current"

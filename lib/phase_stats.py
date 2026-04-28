@@ -292,7 +292,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 if metric in ('cpu_utilization_cgroup_container', 'cpu_utilization_cgroup_system', ):
                     cpu_utilization_containers[detail_name] = value_avg
                 if metric in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', ):
-                    if not carbon_intensity:
+                    if carbon_intensity is not None:
                         phase_warnings.add(f"More than one carbon intensity provider is configured. Now using {metric}")
                     carbon_intensity = value_avg
 

@@ -128,6 +128,7 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
                 'zone': self.region,
                 'temporalGranularity': TEMPORAL_GRANULARITY,
             }
+            fallback_response = None
             try:
                 fallback_response = requests.get(
                     API_FUTURE_URL,
@@ -145,7 +146,8 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
                 error_string += f"Failed to query Electricity Maps carbon intensity service for fallback: {exc}\n"
                 return None
             finally:
-                fallback_response.close()
+                if fallback_response is not None:
+                    fallback_response.close()
 
 
             data = fallback_data.get('data')
@@ -185,7 +187,7 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
             records.append({
                 'time': parsed_time,
                 'value': float(value),
-                'detail_name': provider,
+                'provider': provider,
             })
 
         if not records and closest_entry is not None:
@@ -193,7 +195,7 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
             records.append({
                 'time': parsed_time,
                 'value': float(value),
-                'detail_name': provider,
+                'provider': provider,
             })
 
         df = pandas.DataFrame.from_records(records)
@@ -208,6 +210,10 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
         return df
 
     def _parse_metrics(self, df):
+
+        df['detail_name'] = df['provider']
+        df = df.drop(columns=['provider'])
+
         return df
 
     def _add_and_validate_sampling_rate_and_jitter(self, df):

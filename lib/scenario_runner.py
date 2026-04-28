@@ -924,7 +924,7 @@ class ScenarioRunner:
             print(TerminalColors.WARNING, arrows('No configuration found for carbon intensity elephant machine provider. Skipping setup of carbon simulator.'), TerminalColors.ENDC)
             return
 
-        if not config['location'] or not isinstance(config['elephant'], dict):
+        if not config.get('location') or not isinstance(config.get('elephant'), dict):
             raise MetricProviderConfigurationError('Please set the location config option for CarbonIntensityElephantMachineProvider in the config.yml')
 
 
