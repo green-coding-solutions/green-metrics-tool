@@ -794,10 +794,9 @@ class TestFrontendFunctionality:
         assert time_series_avg_display.strip() == 'Currently not showing AVG in time series'
 
     def test_settings_does_not_expose_ssh_private_key(self):
-        private_key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----'
 
         try:
-            User(1).update_ssh_private_key(private_key)
+            User(1).update_ssh_private_key(Tests.OPENSSH_EXAMPLE_PRIVATE_KEY)
 
             page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
             with page.expect_response(lambda response: '/v1/user/settings' in response.url and response.status == 200) as response_info:
@@ -806,7 +805,9 @@ class TestFrontendFunctionality:
             settings_response = response_info.value.json()
             assert settings_response['success'] is True
             assert '_ssh_private_key' not in settings_response['data']
-            assert private_key not in json.dumps(settings_response)
+            assert '_User__decrypted_ssh_private_key' not in settings_response['data']
+            assert '_User__encrypted_ssh_private_key' not in settings_response['data']
+            assert Tests.OPENSSH_EXAMPLE_PRIVATE_KEY not in json.dumps(settings_response)
 
             page.wait_for_load_state("load") # ALL JS should be done
             page.locator("a#settings-tab-measurement").click()
@@ -922,11 +923,11 @@ class TestFrontendFunctionality:
         page.locator('#save-measurement-dev-no-sleeps').click()
         page.locator('#save-measurement-skip-optimizations').click()
         page.locator('#save-measurement-skip-volume-inspect').click()
-        page.locator('#ssh-private-key').fill('-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----')
+        page.locator('#ssh-private-key').fill(Tests.OPENSSH_EXAMPLE_PRIVATE_KEY)
         page.locator('#save-ssh-private-key').click(timeout=15000)
 
         #page.wait_for_load_state("networkidle") # Network Idle sadly not enough here. The DB seems to take 1-2 seconds
-        time.sleep(1)
+        time.sleep(3)
 
         user = User(1)
         assert user._capabilities['measurement']['disabled_metric_providers'] == ['network_connections_proxy_container']

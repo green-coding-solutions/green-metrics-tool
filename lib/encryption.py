@@ -8,6 +8,7 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.backends import default_backend
 
 from lib.global_config import GlobalConfig
 
@@ -81,7 +82,21 @@ def _load_private_key():
 
     return private_key
 
+def is_valid_openssh_private_key(data: str) -> bool:
+    if not data.startswith("-----BEGIN OPENSSH PRIVATE KEY-----"):
+        return False
+    if not data.strip().endswith("-----END OPENSSH PRIVATE KEY-----"):
+        return False
 
+    try:
+        serialization.load_ssh_private_key(
+            data.encode(),
+            password=None,  # or b"passphrase" if encrypted
+            backend=default_backend()
+        )
+        return True
+    except Exception: # pylint: disable=broad-exception-caught
+        return False
 
 def encrypt_data(data):
     if data is None:
