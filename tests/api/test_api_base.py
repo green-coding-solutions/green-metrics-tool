@@ -7,6 +7,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.user import User
 from lib.global_config import GlobalConfig
+from lib.secure_variable import SecureVariable
 from tests import test_functions as Tests
 from tests.test_functions import delete_jobs_from_DB # pylint: disable=unused-import
 
@@ -87,7 +88,8 @@ def test_can_update_ssh_private_key_setting():
 
         user = User(1)
         assert user.has_ssh_private_key() is True
-        assert user.get_ssh_private_key() == f"{Tests.OPENSSH_EXAMPLE_PRIVATE_KEY}\n"
+        assert isinstance(user.get_ssh_private_key(), SecureVariable)
+        assert user.get_ssh_private_key().get_value() == f"{Tests.OPENSSH_EXAMPLE_PRIVATE_KEY}\n"
     finally:
         User(1).update_ssh_private_key('')
         user = User(1)
