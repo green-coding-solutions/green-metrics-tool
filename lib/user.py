@@ -153,7 +153,7 @@ class User():
         except EncryptionConfigurationError as e:
             raise ValueError('Cannot store SSH key: encryption is not configured on this server') from e
 
-        self._save_key_to_db(self.__encrypted_ssh_private_key)
+        self._save_key_to_db(encrypted_value)
         self.__encrypted_ssh_private_key = encrypted_value
         self.__decrypted_ssh_private_key = SecureVariable(normalized_value) if normalized_value else None
 
