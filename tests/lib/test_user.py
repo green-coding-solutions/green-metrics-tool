@@ -99,7 +99,8 @@ def test_user_dict_is_clean():
         user.update_ssh_private_key(Tests.OPENSSH_EXAMPLE_PRIVATE_KEY)
 
         assert user.has_ssh_private_key() is True
-        assert user.get_ssh_private_key() == f"{Tests.OPENSSH_EXAMPLE_PRIVATE_KEY}\n"
+        assert isinstance(user.get_ssh_private_key(), SecureVariable)
+        assert user.get_ssh_private_key().get_value() == f"{Tests.OPENSSH_EXAMPLE_PRIVATE_KEY}\n"
         assert "BEGIN OPENSSH PRIVATE KEY" not in f"{user}"
         assert ENCRYPTED_VALUE_PREFIX not in f"{user}"
 
@@ -150,7 +151,9 @@ def test_user_stores_ssh_private_key_encrypted():
 
         assert raw_value.startswith(ENCRYPTED_VALUE_PREFIX)
         assert Tests.OPENSSH_EXAMPLE_PRIVATE_KEY not in raw_value
-        assert User(1).get_ssh_private_key() == f"{Tests.OPENSSH_EXAMPLE_PRIVATE_KEY}\n"
+        ssh_private_key = User(1).get_ssh_private_key()
+        assert isinstance(ssh_private_key, SecureVariable)
+        assert ssh_private_key.get_value() == f"{Tests.OPENSSH_EXAMPLE_PRIVATE_KEY}\n"
     finally:
         User(1).update_ssh_private_key('')
 

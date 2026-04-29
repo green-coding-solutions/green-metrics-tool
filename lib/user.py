@@ -120,9 +120,7 @@ class User():
             decrypted_ssh_private_key = decrypt_data(self.__encrypted_ssh_private_key)
             self.__decrypted_ssh_private_key = SecureVariable(decrypted_ssh_private_key) if decrypted_ssh_private_key else None
 
-        if self.__decrypted_ssh_private_key is None:
-            return None
-        return self.__decrypted_ssh_private_key.get_value()
+        return self.__decrypted_ssh_private_key
 
 
 
