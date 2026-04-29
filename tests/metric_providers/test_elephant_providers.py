@@ -2,6 +2,8 @@ import shutil
 import pytest
 import requests
 import uuid
+from datetime import datetime, timezone
+
 
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -229,7 +231,6 @@ def test_read_metrics_expands_to_sampling_rate():
     # Regression test: expand_to_sampling_rate accesses _start_time/_end_time via
     # a module-level function; previously used double-underscore names which caused
     # AttributeError when sampling_rate > 0 due to Python's name-mangling rules.
-    from datetime import datetime, timezone
     provider = make_provider(sampling_rate=1000)  # 1 s in ms
     provider._start_time = datetime(2026, 4, 28, 12, 0, 0, tzinfo=timezone.utc)
     provider._end_time   = datetime(2026, 4, 28, 12, 0, 3, tzinfo=timezone.utc)
