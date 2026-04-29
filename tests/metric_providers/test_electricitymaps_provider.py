@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-import metric_providers.carbon.intensity.electricitymaps.machine.provider as em_module
 from metric_providers.carbon.intensity.electricitymaps.machine.provider import (
     CarbonIntensityElectricityMapsMachineProvider,
     API_PAST_URL,
@@ -32,12 +31,6 @@ def setup_metrics_dir():
     yield
     shutil.rmtree(GMT_METRICS_DIR)
 
-
-@pytest.fixture(autouse=True)
-def reset_error_string():
-    # error_string is a module-level global in the provider — reset it between tests
-    em_module.error_string = ""
-    yield
 
 
 def make_provider(**kwargs):
@@ -197,7 +190,7 @@ def test_fallback_http_error_returns_none():
     with patch('requests.get', side_effect=side_effect):
         result = provider._read_metrics()
     assert result is None
-    assert em_module.error_string != ''
+    assert provider._error_string != ''
 
 
 # --- _read_metrics: error paths ---
@@ -207,7 +200,7 @@ def test_http_error_returns_none_and_logs():
     with patch('requests.get', return_value=make_response(status_code=500)):
         result = provider._read_metrics()
     assert result is None
-    assert '500' in em_module.error_string
+    assert '500' in provider._error_string
 
 
 def test_network_failure_returns_none_and_logs():
@@ -215,7 +208,7 @@ def test_network_failure_returns_none_and_logs():
     with patch('requests.get', side_effect=requests.RequestException('timeout')):
         result = provider._read_metrics()
     assert result is None
-    assert em_module.error_string != ''
+    assert provider._error_string != ''
 
 
 # --- _read_metrics: missing start/end times ---
@@ -243,8 +236,8 @@ def test_out_of_window_entry_used_as_closest():
 def test_multiple_records_sorted_by_time():
     provider = make_provider()
     # Set fixed window that brackets both test records so neither is filtered out
-    provider._CarbonIntensityElectricityMapsMachineProvider__start_time = datetime(2026, 4, 28, 11, 59, 0, tzinfo=timezone.utc)
-    provider._CarbonIntensityElectricityMapsMachineProvider__end_time = datetime(2026, 4, 28, 12, 11, 0, tzinfo=timezone.utc)
+    provider._start_time = datetime(2026, 4, 28, 11, 59, 0, tzinfo=timezone.utc)
+    provider._end_time = datetime(2026, 4, 28, 12, 11, 0, tzinfo=timezone.utc)
     records = {
         'data': [
             {'datetime': '2026-04-28T12:10:00Z', 'carbonIntensity': 80},
@@ -256,3 +249,23 @@ def test_multiple_records_sorted_by_time():
     assert df['time'].is_monotonic_increasing
     assert df['value'].iloc[0] == 40
     assert df['value'].iloc[1] == 80
+
+
+# --- sampling_rate expansion ---
+
+def test_read_metrics_expands_to_sampling_rate():
+    # Regression test: expand_to_sampling_rate accesses _start_time/_end_time via
+    # a module-level function; previously used double-underscore names which caused
+    # AttributeError when sampling_rate > 0 due to Python's name-mangling rules.
+    provider = make_provider(sampling_rate=1000)  # 1 s in ms
+    provider._start_time = datetime(2026, 4, 28, 12, 0, 0, tzinfo=timezone.utc)
+    provider._end_time   = datetime(2026, 4, 28, 12, 0, 3, tzinfo=timezone.utc)
+
+    records = {'data': [{'datetime': '2026-04-28T12:00:00Z', 'carbonIntensity': 42}]}
+    with patch('requests.get', return_value=make_response(records)):
+        df = provider._read_metrics()
+
+    # 3-second window at 1 s steps → 4 rows (0 s, 1 s, 2 s, 3 s)
+    assert len(df) == 4
+    assert (df['value'] == 42).all()
+    assert df['time'].is_monotonic_increasing

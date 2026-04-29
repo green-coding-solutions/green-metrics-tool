@@ -71,9 +71,9 @@ def test_incomplete_elephant_config_raises():
 
 def test_check_system_success():
     provider = make_provider()
-    with patch('requests.get', return_value=make_response()) as mock_get:
+    with patch('requests.get', return_value=make_response({'status': 'healthy'})) as mock_get:
         provider.check_system()
-    mock_get.assert_called_once_with(BASE_URL, timeout=10)
+    mock_get.assert_called_once_with(f'{BASE_URL}/health', timeout=10)
 
 
 def test_check_system_failure_raises():
@@ -163,7 +163,7 @@ def test_http_error_returns_none_and_logs():
     with patch('requests.get', return_value=make_response(status_code=500)):
         result = provider._read_metrics()
     assert result is None
-    assert '500' in provider.error_string
+    assert '500' in provider._error_string
 
 
 def test_network_failure_returns_none_and_logs():
@@ -171,7 +171,7 @@ def test_network_failure_returns_none_and_logs():
     with patch('requests.get', side_effect=requests.RequestException('timeout')):
         result = provider._read_metrics()
     assert result is None
-    assert provider.error_string != ''
+    assert provider._error_string != ''
 
 
 def test_fallback_http_error_returns_none():
@@ -221,3 +221,24 @@ def test_multiple_records_sorted_by_time():
     assert df['time'].is_monotonic_increasing
     assert df['value'].iloc[0] == 40
     assert df['value'].iloc[1] == 80
+
+
+# --- sampling_rate expansion ---
+
+def test_read_metrics_expands_to_sampling_rate():
+    # Regression test: expand_to_sampling_rate accesses _start_time/_end_time via
+    # a module-level function; previously used double-underscore names which caused
+    # AttributeError when sampling_rate > 0 due to Python's name-mangling rules.
+    from datetime import datetime, timezone
+    provider = make_provider(sampling_rate=1000)  # 1 s in ms
+    provider._start_time = datetime(2026, 4, 28, 12, 0, 0, tzinfo=timezone.utc)
+    provider._end_time   = datetime(2026, 4, 28, 12, 0, 3, tzinfo=timezone.utc)
+
+    records = [{'time': '2026-04-28T12:00:00Z', 'carbon_intensity': 42, 'provider': FIXED_PROVIDER}]
+    with patch('requests.get', return_value=make_response(records)):
+        df = provider._read_metrics()
+
+    # 3-second window at 1 s steps → 4 rows (0 s, 1 s, 2 s, 3 s)
+    assert len(df) == 4
+    assert (df['value'] == 42).all()
+    assert df['time'].is_monotonic_increasing

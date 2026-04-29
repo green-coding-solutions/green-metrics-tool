@@ -7,15 +7,15 @@ def expand_to_sampling_rate(self, df):
     if self._sampling_rate <= 0:
         return df
 
-    if self.__start_time is None or self.__end_time is None:
+    if self._start_time is None or self._end_time is None:
         return df
 
     step_us = int(self._sampling_rate) * 1_000
     if step_us <= 0:
         raise RuntimeError(f"Invalid sampling_rate configured for {self._metric_name}: {self._sampling_rate}")
 
-    start_us = int(self.__start_time.timestamp() * 1_000_000)
-    end_us = int(self.__end_time.timestamp() * 1_000_000)
+    start_us = int(self._start_time.timestamp() * 1_000_000)
+    end_us = int(self._end_time.timestamp() * 1_000_000)
 
     if end_us < start_us:
         return df

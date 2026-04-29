@@ -231,7 +231,7 @@ measurement:
 #        VHost_Ratio: 1
 #
 #--- Carbon intensity
-#      carbon.intensity.elephant.machine.provider.CarbonIntensityElephantMachineProvider:
+#      carbon_intensity_elephant_machine:
 #        region: 'DE'
 #        sampling_rate: 99 # Remove if you don't want value padding
 #        provider: 'bundesnetzagentur' # optional
@@ -239,7 +239,7 @@ measurement:
 #          host: localhost
 #          port: 8085
 #          protocol: http
-#      carbon.intensity.electricitymaps.machine.provider.CarbonIntensityElectricityMapsMachineProvider:
+#      carbon_intensity_electricitymaps_machine:
 #        region: 'DE'
 #        token: 'XXXX'
 #        sampling_rate: 99 # Remove if you don't want value padding

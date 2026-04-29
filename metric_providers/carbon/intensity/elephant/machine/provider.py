@@ -14,10 +14,10 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
         self.provider_filter = provider
         self.elephant = elephant or {}
         self.simulation_uuid = simulation_uuid
-        self.__start_time = None
-        self.__end_time = None
+        self._start_time = None
+        self._end_time = None
         self._elephant_base_url = None
-        self.error_string = ""
+        self._error_string = ""
         self._folder = folder
 
         if not self.region:
@@ -51,21 +51,22 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         super().check_system(check_command=None, check_parallel_provider=False)
         try:
-            response = requests.get(self._elephant_base_url, timeout=10)
+            response = requests.get(f"{self._elephant_base_url}/health", timeout=10)
+            if  response.json().get('status', '').lower() != 'healthy':
+                raise MetricProviderConfigurationError(f"Elephant service health check failed. Expected 'healthy' but got: {response.text}")
             response.close()
         except requests.RequestException as exc:
-            raise MetricProviderConfigurationError(
-                f"Elephant base URL {self._elephant_base_url} could not be reached: {exc}") from exc
+            raise MetricProviderConfigurationError(f"Elephant base URL {self._elephant_base_url} could not be reached: {exc}") from exc
 
     def get_stderr(self):
-        return self.error_string
+        return self._error_string
 
     def start_profiling(self, _=None):
-        self.__start_time = datetime.now(timezone.utc)
+        self._start_time = datetime.now(timezone.utc)
         self._has_started = True
 
     def stop_profiling(self):
-        self.__end_time = datetime.now(timezone.utc)
+        self._end_time = datetime.now(timezone.utc)
         self._has_started = False
 
     def _format_time(self, timestamp):
@@ -85,14 +86,14 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
         return int(parsed.timestamp() * 1_000_000)
 
     def _read_metrics(self):
-        if self.__start_time is None or self.__end_time is None:
+        if self._start_time is None or self._end_time is None:
             raise RuntimeError(
                 f"{self._metric_name} provider did not record start/end times. Did start_profiling and stop_profiling run?")
 
         params = {
             'region': self.region,
-            'startTime': self._format_time(self.__start_time),
-            'endTime': self._format_time(self.__end_time),
+            'startTime': self._format_time(self._start_time),
+            'endTime': self._format_time(self._end_time),
             'update': 'true',
         }
 
@@ -100,18 +101,23 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
             params['provider'] = f"{self.provider_filter.lower()}_{self.region.lower()}"
 
         if self.simulation_uuid:
-            params['simulation_id'] = str(self.simulation_uuid)
+            params['simulationId'] = str(self.simulation_uuid)
 
         url = f"{self._elephant_base_url}/carbon-intensity/history"
+        response = None
         try:
             response = requests.get(url, params=params, timeout=30)
         except requests.RequestException as exc:
-            self.error_string += f"Failed to query Elephant carbon intensity service: {exc}\n"
-            return None
+            self._error_string += f"Failed to query Elephant carbon intensity service: {exc}\n"
+            pandas.DataFrame(columns=['time', 'value', 'provider'])
+
+        finally:
+            if response is not None:
+                response.close()
 
         if response.status_code != 200:
-            self.error_string += f"Elephant carbon intensity request failed with status {response.status_code}: {response.text}\n"
-            return None
+            self._error_string += f"Elephant carbon intensity request failed with status {response.status_code}: {response.text}\n"
+            pandas.DataFrame(columns=['time', 'value', 'provider'])
 
         data = response.json()
 
@@ -126,12 +132,13 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
             else:
                 fallback_url = f"{self._elephant_base_url}/carbon-intensity/current/primary"
 
+            fallback_response = None
             try:
                 fallback_response = requests.get(fallback_url, params={'region': self.region}, timeout=30)
 
                 if fallback_response.status_code != 200:
-                    self.error_string += f"Elephant carbon intensity fallback request failed with status {fallback_response.status_code}: {fallback_response.text}\n"
-                    return None
+                    self._error_string += f"Elephant carbon intensity fallback request failed with status {fallback_response.status_code}: {fallback_response.text}\n"
+                    return pandas.DataFrame(columns=['time', 'value', 'provider'])
 
                 data = fallback_response.json()
 
@@ -139,8 +146,12 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
                     data = [d for d in data if d.get('provider') == f"{self.provider_filter.lower()}_{self.region.lower()}"]
 
             except requests.RequestException as exc:
-                self.error_string += f"Failed to query Elephant carbon intensity service for fallback: {exc}\n"
-                return None
+                self._error_string += f"Failed to query Elephant carbon intensity service for fallback: {exc}\n"
+                return pandas.DataFrame(columns=['time', 'value', 'provider'])
+
+            finally:
+                if fallback_response is not None:
+                    fallback_response.close()
 
         if not isinstance(data, list):
             raise RuntimeError(f"Unexpected Elephant response for carbon intensity: {data}")

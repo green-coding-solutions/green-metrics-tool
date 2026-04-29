@@ -130,10 +130,15 @@ if __name__ == '__main__':
     if args.carbon_simulation is not None:
         try:
             carbon_simulation_value = json.loads(args.carbon_simulation) # this will catch number and [...] lists
-            if isinstance(carbon_simulation_value, int):
+            if isinstance(carbon_simulation_value, int) and not isinstance(carbon_simulation_value, bool):
                 carbon_simulation_value = [carbon_simulation_value]
+            elif not (
+                isinstance(carbon_simulation_value, list)
+                and all(isinstance(v, int) and not isinstance(v, bool) for v in carbon_simulation_value)
+            ):
+                raise TypeError
             carbon_simulation_to_pass = carbon_simulation_value
-        except json.JSONDecodeError:
+        except json.JSONDecodeError, TypeError:
             try:
                 carbon_simulation_to_pass = str(uuid.UUID(args.carbon_simulation))
             except ValueError:  # not a valid uuid

@@ -59,6 +59,10 @@ from lib import resource_limits
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
+def secure_conf_print(conf):
+    sanitized = {k: 'xxxx' if 'token' in k.lower() else v for k, v in conf.items()}
+    print(f"Configuration is {sanitized}")
+
 def validate_usage_scenario_variables(usage_scenario_variables):
     for key, _ in usage_scenario_variables.items():
         if not re.fullmatch(r'__GMT_VAR_[\w]+__', key):
@@ -919,12 +923,14 @@ class ScenarioRunner:
     def _setup_carbon_simulator(self):
         print(TerminalColors.HEADER, '\nSetting up carbon simulator', TerminalColors.ENDC)
 
-        config = GlobalConfig().config.get('measurement', {}).get('metric_providers', {}).get('common', {}).get('carbon.intensity.elephant.machine.provider.CarbonIntensityElephantMachineProvider', {})
+        # We need to do this as when common is present but has no entries it is parsed as None so the old implementation would fail
+        config = (GlobalConfig().config.get('measurement') or {}).get('metric_providers') or {}
+        config = (config.get('common') or {}).get('carbon_intensity_elephant_machine') or {}
         if config == {}:
             print(TerminalColors.WARNING, arrows('No configuration found for carbon intensity elephant machine provider. Skipping setup of carbon simulator.'), TerminalColors.ENDC)
             return
 
-        if not config.get('location') or not isinstance(config.get('elephant'), dict):
+        if not config.get('region') or not isinstance(config.get('elephant'), dict):
             raise MetricProviderConfigurationError('Please set the location config option for CarbonIntensityElephantMachineProvider in the config.yml')
 
 
@@ -1034,7 +1040,7 @@ class ScenarioRunner:
             optional_conf = {}
 
             if self.__carbon_simulation_uuid is not None:
-                if metric_provider.split('.')[-1] == 'CarbonIntensityElephantMachineProvider':
+                if metric_provider == 'carbon_intensity_elephant_machine':
                     optional_conf['simulation_uuid'] = str(self.__carbon_simulation_uuid)
 
             if self._dev_no_system_checks:
@@ -1046,7 +1052,7 @@ class ScenarioRunner:
             merged_conf = {**conf, **optional_conf, 'folder': self._metrics_folder}
 
             metric_provider_obj = getattr(module, class_name)(**merged_conf)
-            print(f"Configuration is {merged_conf}")
+            secure_conf_print(merged_conf)
 
             self.__metric_providers.append(metric_provider_obj)
 
