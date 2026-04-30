@@ -55,3 +55,36 @@ const rescaleCO2Value = (value,unit) => {
     return [value.toFixed(2) , unit];
 }
 
+const normalizeEnergyUnit = (unit, metric) => {
+    if (unit === '*' && typeof metric === 'string' && metric.includes('energy')) {
+        return 'uJ';
+    }
+    return unit;
+};
+
+const convertEnergyToKwh = (value, unit, metric) => {
+    if (value == null || !unit) return null;
+    const numericValue = Number(value);
+    if (Number.isNaN(numericValue)) return null;
+
+    const resolvedUnit = normalizeEnergyUnit(unit, metric);
+    const baseUnit = resolvedUnit.split('/', 2)[0];
+    switch (baseUnit) {
+        case 'uJ':
+            return numericValue / 3_600_000_000_000;
+        case 'mJ':
+            return numericValue / 3_600_000_000;
+        case 'J':
+            return numericValue / 3_600_000;
+        case 'kWh':
+            return numericValue;
+        case 'Wh':
+            return numericValue / 1_000;
+        case 'mWh':
+            return numericValue / 1_000_000;
+        case 'uWh':
+            return numericValue / 1_000_000_000;
+        default:
+            return null;
+    }
+};

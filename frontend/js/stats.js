@@ -83,6 +83,10 @@ const setAndShowAnalyticsLinks = (run_id, run_data) => {
         if (simulationLink) {
             simulationLink.href = `simulation.html?id=${encodeURIComponent(run_id)}`;
         }
+        const simulationYearlyLink = document.querySelector('#analytics-simulation-yearly-link');
+        if (simulationYearlyLink) {
+            simulationYearlyLink.href = `simulation-yearly.html?id=${encodeURIComponent(run_id)}`;
+        }
     } else {
         document.querySelector('a[data-tab="analytics-simulation"]').classList.add('hidden');
     }
