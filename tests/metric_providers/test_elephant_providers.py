@@ -3,6 +3,7 @@ import pandas
 import pytest
 import requests
 import uuid
+import tempfile
 from datetime import datetime, timezone
 
 
@@ -12,7 +13,7 @@ from unittest.mock import patch, MagicMock
 from metric_providers.carbon.intensity.elephant.machine.provider import CarbonIntensityElephantMachineProvider
 from metric_providers.base import MetricProviderConfigurationError
 
-GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
+GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-metrics-'))
 
 ELEPHANT_CONFIG = {'host': 'localhost', 'port': 9999, 'protocol': 'http'}
 BASE_URL = 'http://localhost:9999'

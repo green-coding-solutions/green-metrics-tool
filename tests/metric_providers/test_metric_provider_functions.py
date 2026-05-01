@@ -2,6 +2,7 @@ import os
 import math
 import pytest
 import shutil
+import tempfile
 
 from pathlib import Path
 
@@ -19,7 +20,7 @@ from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtiliz
 
 from unittest.mock import patch
 
-GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
+GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-metrics-'))
 
 ## Create a tmp folder only for this run
 @pytest.fixture(autouse=True, scope='module')

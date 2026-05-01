@@ -10,7 +10,7 @@ from lib.db import DB
 class Watchlist():
     #pylint:disable=redefined-outer-name
     @classmethod
-    def insert(cls, *, name, image_url, repo_url, branch, filename, usage_scenario_variables, category_ids, carbon_simulation, machine_id, user_id, schedule_mode, last_marker):
+    def insert(cls, *, name, image_url, repo_url, branch, filename, usage_scenario_variables, category_ids, machine_id, user_id, schedule_mode, last_marker, carbon_simulation=None):
         # Watchlist items never insert / use emails as they are always premium and made by admin
         # So they need no notification on success / add
         insert_query = """

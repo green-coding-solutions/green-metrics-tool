@@ -2,6 +2,7 @@ import shutil
 import pandas
 import pytest
 import requests
+import tempfile
 
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,7 +15,7 @@ from metric_providers.carbon.intensity.electricitymaps.machine.provider import (
 )
 from metric_providers.base import MetricProviderConfigurationError
 
-GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
+GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-metrics-'))
 
 FIXED_TOKEN = 'test-token-123'
 FIXED_REGION = 'DE'

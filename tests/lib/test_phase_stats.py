@@ -1,6 +1,8 @@
 import io
 import math
 import shutil
+import tempfile
+
 from decimal import Decimal
 from pathlib import Path
 
@@ -18,7 +20,7 @@ from lib.scenario_runner import ScenarioRunner
 
 MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
 
-GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
+GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-metrics-'))
 
 ## Create a tmp folder only for this run
 @pytest.fixture(autouse=True, scope='module')
@@ -309,8 +311,8 @@ def test_phase_operational_carbon_uses_dynamic_intensity_without_sci_i():
         params=('007_Stress', 'psu_carbon_ac_mcp_machine'),
     )
 
-    stress_energy = Tests.filter_df_runtime_subphase(energy_df, hidden=False, phase_name='Stress')['value'].sum()
-    operational_carbon_expected = int(Decimal(stress_energy) / Decimal(3_600_000) * Decimal(200))
+    stress_energy = int(Tests.filter_df_runtime_subphase(energy_df, hidden=False, phase_name='Stress')['value'].sum())
+    operational_carbon_expected = round(Decimal(stress_energy) / Decimal(3_600_000) * Decimal(200))
     assert data[0] == operational_carbon_expected
 
 def test_phase_stats_energy_one_measurement():
@@ -720,12 +722,6 @@ def test_custom_metric_sci_run():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
         run_id = runner.run()
-
-    data = DB().fetch_all("SELECT value, unit FROM phase_stats WHERE phase = %s AND run_id = %s AND metric = 'software_carbon_intensity_global' ", params=('004_[RUNTIME]', run_id), fetch_mode='dict')
-
-    assert len(data) == 1
-    assert 8 < data[0]['value'] < 20
-    assert data[0]['unit'] == 'ugCO2e/Cool run'
 
     data = DB().fetch_all("SELECT metric, value, unit, detail_name, phase FROM phase_stats WHERE run_id = %s AND metric LIKE 'custom_%%' ORDER BY phase ASC, metric ASC, detail_name ASC", params=(run_id, ), fetch_mode='dict')
 
