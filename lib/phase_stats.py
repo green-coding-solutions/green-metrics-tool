@@ -334,8 +334,9 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg_mW, 'MEAN', power_max_mW, power_min_mW, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
 
-                if sci.get('I', None) is not None or carbon_intensity is not None:
-                    value_carbon_ug = (value_sum / 3_600_000) * Decimal(sci['I'])
+                carbon_factor = carbon_intensity if carbon_intensity is not None else sci.get('I')
+                if carbon_factor is not None:
+                    value_carbon_ug = (value_sum / 3_600_000) * Decimal(carbon_factor)
 
                     csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", value_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
 
@@ -361,7 +362,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
         # after going through detail metrics, create cumulated ones
         if network_bytes_total:
-            if sci.get('N', None) is not None and sci.get('I', None) is not None:
+            if sci.get('N', None) is not None:
                 # build the network energy by using a formula: https://www.green-coding.io/co2-formulas/
                 # pylint: disable=invalid-name
                 network_io_in_kWh = Decimal(sum(network_bytes_total)) / 1_000_000_000 * Decimal(sci['N'])
@@ -373,10 +374,15 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_power_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_power_in_mW, 'TOTAL', None, None, None, None, None, 'mW'))
 
                 # co2 calculations
-                network_io_carbon_in_ug = network_io_in_kWh * Decimal(sci['I']) * 1_000_000
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
+                carbon_factor = carbon_intensity if carbon_intensity is not None else sci.get('I')
+                if carbon_factor is not None:
+                    network_io_carbon_in_ug = network_io_in_kWh * Decimal(carbon_factor) * 1_000_000
+                    csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
+                else:
+                    error_helpers.log_error('Cannot calculate the total network carbon consumption. SCI value I is missing in the config and no carbon intensity provider data was found.', run_id=run_id)
+                    network_io_carbon_in_ug = 0
             else:
-                error_helpers.log_error('Cannot calculate the total network energy consumption. SCI values I and N are missing in the config.', run_id=run_id)
+                error_helpers.log_error('Cannot calculate the total network energy consumption. SCI value N is missing in the config.', run_id=run_id)
                 network_io_carbon_in_ug = 0
         else:
             network_io_carbon_in_ug = 0

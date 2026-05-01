@@ -927,8 +927,7 @@ class ScenarioRunner:
         config = (GlobalConfig().config.get('measurement') or {}).get('metric_providers') or {}
         config = (config.get('common') or {}).get('carbon_intensity_elephant_machine') or {}
         if config == {}:
-            print(TerminalColors.WARNING, arrows('No configuration found for carbon intensity elephant machine provider. Skipping setup of carbon simulator.'), TerminalColors.ENDC)
-            return
+            raise MetricProviderConfigurationError('Carbon simulation was requested, but no carbon_intensity_elephant_machine provider config was found in config.yml')
 
         if not config.get('region') or not isinstance(config.get('elephant'), dict):
             raise MetricProviderConfigurationError('Please set the location config option for CarbonIntensityElephantMachineProvider in the config.yml')

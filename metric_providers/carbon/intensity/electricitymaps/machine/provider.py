@@ -8,10 +8,21 @@ from metric_providers.base import BaseMetricProvider, MetricProviderConfiguratio
 from metric_providers.carbon.intensity.helpers import expand_to_sampling_rate
 
 
-API_PAST_URL = "https://api.electricitymaps.com/v3/carbon-intensity/past-range"
-API_FUTURE_URL = "https://api.electricitymaps.com/v3/carbon-intensity/forecast"
+API_PAST_URL = "https://api.electricitymaps.com/v4/carbon-intensity/past-range"
+API_FUTURE_URL = "https://api.electricitymaps.com/v4/carbon-intensity/forecast"
 
 TEMPORAL_GRANULARITY = "5_minutes"
+
+def _extract_timeseries(payload):
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Unexpected Electricity Maps response for carbon intensity: {payload}")
+
+    for key in ('data', 'history', 'forecast'):
+        values = payload.get(key)
+        if isinstance(values, list):
+            return values
+
+    return []
 
 class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
     def __init__(self, region, token, folder, sampling_rate=-1, skip_check=False):
@@ -59,7 +70,10 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
                     raise MetricProviderConfigurationError(
                         'Electricity Maps token was rejected. Please verify electricity_maps_token in the config.yml'
                     )
-
+                if response.status_code != 200:
+                    raise MetricProviderConfigurationError(
+                        f"Electricity Maps health check failed with status {response.status_code}: {response.text}"
+                    )
         except requests.RequestException as exc:
             raise MetricProviderConfigurationError(f"Electricity Maps base URL {API_PAST_URL} could not be reached: {exc}") from exc
 
@@ -119,7 +133,7 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
             self._error_string += f"Electricity Maps carbon intensity request failed with status {response.status_code}: {response.text}\n"
             return pandas.DataFrame(columns=['time', 'value', 'provider'])
 
-        data = response.json().get('data')
+        data = _extract_timeseries(response.json())
 
         if len(data) == 0:
             # As the providers take quite some time to provide data it can happen that short running
@@ -151,10 +165,7 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
                     fallback_response.close()
 
 
-            data = fallback_data.get('data')
-
-            if not isinstance(data, list):
-                raise RuntimeError(f"Unexpected Electricity Maps response for carbon intensity: {data}")
+            data = _extract_timeseries(fallback_data)
 
         records = []
         start_us = int(self._start_time.timestamp() * 1_000_000)

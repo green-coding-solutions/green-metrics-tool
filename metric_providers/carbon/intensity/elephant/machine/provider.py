@@ -50,13 +50,16 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
 
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         super().check_system(check_command=None, check_parallel_provider=False)
+        response = None
         try:
             response = requests.get(f"{self._elephant_base_url}/health", timeout=10)
-            if  response.json().get('status', '').lower() != 'healthy':
+            if response.json().get('status', '').lower() != 'healthy':
                 raise MetricProviderConfigurationError(f"Elephant service health check failed. Expected 'healthy' but got: {response.text}")
-            response.close()
         except requests.RequestException as exc:
             raise MetricProviderConfigurationError(f"Elephant base URL {self._elephant_base_url} could not be reached: {exc}") from exc
+        finally:
+            if response is not None:
+                response.close()
 
     def get_stderr(self):
         return self._error_string
@@ -109,7 +112,7 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
             response = requests.get(url, params=params, timeout=30)
         except requests.RequestException as exc:
             self._error_string += f"Failed to query Elephant carbon intensity service: {exc}\n"
-            pandas.DataFrame(columns=['time', 'value', 'provider'])
+            return pandas.DataFrame(columns=['time', 'value', 'provider'])
 
         finally:
             if response is not None:
@@ -117,7 +120,7 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
 
         if response.status_code != 200:
             self._error_string += f"Elephant carbon intensity request failed with status {response.status_code}: {response.text}\n"
-            pandas.DataFrame(columns=['time', 'value', 'provider'])
+            return pandas.DataFrame(columns=['time', 'value', 'provider'])
 
         data = response.json()
 
@@ -134,13 +137,27 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
 
             fallback_response = None
             try:
-                fallback_response = requests.get(fallback_url, params={'region': self.region}, timeout=30)
+                fallback_params = {'region': self.region}
+                if self.simulation_uuid:
+                    fallback_params['simulationId'] = str(self.simulation_uuid)
+
+                fallback_response = requests.get(fallback_url, params=fallback_params, timeout=30)
 
                 if fallback_response.status_code != 200:
                     self._error_string += f"Elephant carbon intensity fallback request failed with status {fallback_response.status_code}: {fallback_response.text}\n"
                     return pandas.DataFrame(columns=['time', 'value', 'provider'])
 
                 data = fallback_response.json()
+
+                if isinstance(data, dict) and self.simulation_uuid:
+                    data = [{
+                        'time': self._format_time(self._end_time),
+                        'carbon_intensity': data.get('carbon_intensity'),
+                        'provider': data.get('simulationId', str(self.simulation_uuid)),
+                    }]
+
+                if not isinstance(data, list):
+                    raise RuntimeError(f"Unexpected Elephant response for carbon intensity: {data}")
 
                 if self.provider_filter:
                     data = [d for d in data if d.get('provider') == f"{self.provider_filter.lower()}_{self.region.lower()}"]

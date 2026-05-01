@@ -1,4 +1,5 @@
 import shutil
+import pandas
 import pytest
 import requests
 
@@ -124,6 +125,11 @@ def test_read_metrics_uses_past_url():
     assert mock_get.call_args[0][0] == API_PAST_URL
 
 
+def test_read_metrics_uses_v4_urls():
+    assert '/v4/' in API_PAST_URL
+    assert '/v4/' in API_FUTURE_URL
+
+
 def test_read_metrics_sends_auth_token():
     provider = profiled_provider()
     with patch('requests.get', return_value=make_response(PAST_RESPONSE)) as mock_get:
@@ -167,6 +173,17 @@ def test_empty_past_data_triggers_forecast_fallback():
     assert not df.empty
 
 
+def test_empty_past_data_accepts_v4_forecast_payload():
+    provider = profiled_provider()
+    fallback = {'forecast': [{'datetime': FIXED_TIME, 'carbonIntensity': 99}]}
+
+    with patch('requests.get', side_effect=_make_get_with_fallback(fallback)):
+        df = provider._read_metrics()
+
+    assert not df.empty
+    assert df['value'].iloc[0] == 99
+
+
 def test_fallback_sends_only_zone_param():
     provider = profiled_provider()
     fallback = {'data': [{'datetime': FIXED_TIME, 'carbonIntensity': 55}]}
@@ -189,7 +206,7 @@ def test_fallback_http_error_returns_none():
 
     with patch('requests.get', side_effect=side_effect):
         result = provider._read_metrics()
-    assert result is None
+    assert isinstance(result, pandas.DataFrame) and result.empty
     assert provider._error_string != ''
 
 
@@ -199,7 +216,7 @@ def test_http_error_returns_none_and_logs():
     provider = profiled_provider()
     with patch('requests.get', return_value=make_response(status_code=500)):
         result = provider._read_metrics()
-    assert result is None
+    assert isinstance(result, pandas.DataFrame) and result.empty
     assert '500' in provider._error_string
 
 
@@ -207,7 +224,8 @@ def test_network_failure_returns_none_and_logs():
     provider = profiled_provider()
     with patch('requests.get', side_effect=requests.RequestException('timeout')):
         result = provider._read_metrics()
-    assert result is None
+    assert isinstance(result, pandas.DataFrame) and result.empty
+
     assert provider._error_string != ''
 
 

@@ -77,4 +77,11 @@ def expand_to_sampling_rate(self, df):
                 'provider': provider_name,
             })
 
-    return pandas.DataFrame.from_records(expanded_records) if expanded_records else df.iloc[0:0].copy()
+    if not expanded_records:
+        return df.iloc[0:0].copy()
+
+    return (
+        pandas.DataFrame.from_records(expanded_records)
+        .sort_values(by=['time', 'provider'], kind='stable')
+        .reset_index(drop=True)
+    )

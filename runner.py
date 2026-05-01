@@ -138,7 +138,7 @@ if __name__ == '__main__':
             ):
                 raise TypeError
             carbon_simulation_to_pass = carbon_simulation_value
-        except json.JSONDecodeError, TypeError:
+        except (json.JSONDecodeError, TypeError):
             try:
                 carbon_simulation_to_pass = str(uuid.UUID(args.carbon_simulation))
             except ValueError:  # not a valid uuid
