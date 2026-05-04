@@ -45,13 +45,15 @@ const setLoadFailureVisible = (visible, header, text) => {
 };
 
 const fetchRunData = async (runId) => {
-    const run = await makeAPICall(`/v2/run/${runId}`);
+    const safeRunId = encodeURIComponent(String(runId));
+    const run = await makeAPICall(`/v2/run/${safeRunId}`);
     return run?.data;
 };
 
 const fetchMeasurements = async (runId) => {
+    const safeRunId = encodeURIComponent(String(runId));
     try {
-        const measurements = await makeAPICall(`/v1/measurements/single/${runId}`);
+        const measurements = await makeAPICall(`/v1/measurements/single/${safeRunId}`);
         return measurements?.data || [];
     } catch (err) {
         if (err instanceof APIEmptyResponse204) return [];
@@ -467,6 +469,7 @@ $(document).ready(() => {
         if (!runId || runId === 'null') {
             showNotification('No run id', 'ID parameter in URL is empty or missing.');
             queryY('#metric-dropdown')?.classList.remove('loading');
+            queryY('#phase-dropdown')?.classList.remove('loading');
             return;
         }
 
