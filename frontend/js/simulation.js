@@ -531,13 +531,15 @@ const renderRunDetails = (runData, runTimes) => {
 };
 
 const fetchRunData = async (runId) => {
-    const run = await makeAPICall(`/v2/run/${runId}`);
+    const safeRunId = encodeURIComponent(String(runId));
+    const run = await makeAPICall(`/v2/run/${safeRunId}`);
     return run?.data;
 };
 
 const fetchMeasurements = async (runId) => {
+    const safeRunId = encodeURIComponent(String(runId));
     try {
-        const measurements = await makeAPICall(`/v1/measurements/single/${runId}`);
+        const measurements = await makeAPICall(`/v1/measurements/single/${safeRunId}`);
         return measurements?.data || [];
     } catch (err) {
         if (err instanceof APIEmptyResponse204) {
@@ -647,40 +649,6 @@ const buildEnergySeriesRaw = (measurements, metric) => {
     };
 };
 
-const normalizeEnergyUnit = (unit, metric) => {
-    if (unit === '*' && typeof metric === 'string' && metric.includes('energy')) {
-        return 'uJ';
-    }
-    return unit;
-};
-
-const convertEnergyToKwh = (value, unit, metric) => {
-    if (value == null || !unit) return null;
-    const numericValue = Number(value);
-    if (Number.isNaN(numericValue)) return null;
-
-    const resolvedUnit = normalizeEnergyUnit(unit, metric);
-    const baseUnit = resolvedUnit.split('/', 2)[0];
-    switch (baseUnit) {
-        case 'uJ':
-            return numericValue / 3_600_000_000_000;
-        case 'mJ':
-            return numericValue / 3_600_000_000;
-        case 'J':
-            return numericValue / 3_600_000;
-        case 'kWh':
-            return numericValue;
-        case 'Wh':
-            return numericValue / 1_000;
-        case 'mWh':
-            return numericValue / 1_000_000;
-        case 'uWh':
-            return numericValue / 1_000_000_000;
-        default:
-            return null;
-    }
-};
-
 const buildEmissionSeries = (energySeries, carbonHistory, metric, timeOffsetMs = 0) => {
     if (!energySeries || !Array.isArray(energySeries.data)) {
         return { data: [], debug: { reason: 'invalid_energy_series' } };
@@ -718,9 +686,13 @@ const buildEmissionSeries = (energySeries, carbonHistory, metric, timeOffsetMs =
 
     energySeries.data.forEach((point) => {
         const shiftedTime = point.timeMs + timeOffsetMs;
-        const energyKwh = convertEnergyToKwh(point.value, point.unit, metric);
+        let energyKwh = point.value;
+        let energyUnit = point.unit === '*' && typeof metric === 'string' && metric.includes('energy') ? 'uJ' : point.unit;
+        for (let i = 0; i < 2 && energyUnit !== 'kWh'; i++) {
+            [energyKwh, energyUnit] = convertValue(energyKwh, energyUnit);
+        }
         debug.energyPoints += 1;
-        if (energyKwh == null) {
+        if (energyKwh == null || energyUnit !== 'kWh') {
             debug.skippedNoKwh += 1;
             return;
         }

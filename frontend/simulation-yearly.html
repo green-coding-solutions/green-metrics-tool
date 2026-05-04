@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Standard Meta -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <link rel="shortcut icon" href="/images/favicon.ico">
+    <link rel="icon" href="/images/favicon.ico">
+    <link rel="icon" href="/images/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" href="/images/favicon-32x32.png" sizes="32x32">
+    <!-- Site Properties -->
+    <title>Green Metrics Tool - Yearly Simulation</title>
+    <meta name="referrer" content="no-referrer-when-downgrade" />
+    <meta name="description" content="Simulate yearly carbon impact for a run across grid zones" />
+    <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/dist/js/toast.min.js" defer></script>
+    <script src="/dist/js/transition.min.js" defer></script>
+    <script src="/dist/js/dropdown.min.js" defer></script>
+    <script src="/dist/js/datatables.min.js" defer></script>
+    <script src="/js/helpers/config.js" defer></script>
+    <script src="/js/helpers/main.js" defer></script>
+    <script src="/js/helpers/converters.js" defer></script>
+    <script src="/js/simulation-yearly.js" defer></script>
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
+    <link rel="stylesheet" type="text/css" href="/dist/css/flag.min.css">
+    <link rel="stylesheet" type="text/css" href="/dist/css/datatables.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
+</head>
+<body class="preload">
+    <gmt-menu></gmt-menu>
+    <div class="main ui container" id="main">
+        <h1 class="ui header float left"><a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon opened"></i></a> Yearly Run Simulation</h1>
+        <div class="ui full-width-card card">
+            <div class="content">
+                <div class="header"><a class="ui red ribbon label">
+                    <h3>Yearly Carbon Simulation</h3>
+                </a></div>
+                <div class="description">
+                    <p>Estimates total CO2 emissions for the run against the average yearly carbon intensity of every grid zone provided by <a href="https://github.com/thegreenwebfoundation/co2.js/tree/main/src/data/electricity-maps" target="_blank" rel="noopener noreferrer">Electricity Maps</a>.</p>
+                    <div class="ui form">
+                        <div class="fields">
+                            <div class="sixteen wide field">
+                                <label>Year</label>
+                                <div id="year-buttons" class="ui buttons">
+                                    <button class="ui button loading" type="button" disabled>Loading...</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="fields">
+                            <div class="six wide field">
+                                <label>Energy Metric</label>
+                                <div id="metric-dropdown" class="ui fluid search icon selection dropdown loading">
+                                    <input type="hidden" name="metric">
+                                    <i class="dropdown icon"></i>
+                                    <div class="default text">Select a metric</div>
+                                    <div class="menu" id="metric-menu"></div>
+                                </div>
+                            </div>
+                            <div class="four wide field">
+                                <label>Phase</label>
+                                <div id="phase-dropdown" class="ui fluid search icon selection dropdown loading">
+                                    <input type="hidden" name="phase">
+                                    <i class="dropdown icon"></i>
+                                    <div class="default text">Runtime</div>
+                                    <div class="menu" id="phase-menu"></div>
+                                </div>
+                            </div>
+                            <div class="three wide field">
+                                <label for="num-runs-input">
+                                    Number of code runs
+                                    <span class="ui icon" data-tooltip="Code is normally not only run once. Here you can estimate how often the project is run" data-position="top center" data-inverted=""><i class="ui question circle icon"></i></span>
+                                </label>
+                                <div class="ui input">
+                                    <input id="num-runs-input" type="number" min="1" step="1" value="1000">
+                                </div>
+                            </div>
+                            <div class="three wide field">
+                                <label>Run Details</label>
+                                <div class="ui small labels" id="run-details">
+                                    <div class="ui label"><i class="bolt icon"></i> Total Energy <span id="run-energy">-</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="message-load-failure" class="ui icon message red hidden">
+            <i class="info circle icon"></i>
+            <div class="content">
+                <div class="header" id="message-load-failure-header">Failed loading data</div>
+                <div class="content" id="message-load-failure-text">Data could not be loaded.</div>
+            </div>
+        </div>
+
+        <div id="saved-rows-card" class="ui full-width-card card hidden">
+            <div class="content">
+                <div class="header"><a class="ui green ribbon label">
+                    <h3>Saved Rows</h3>
+                </a></div>
+                <div class="description">
+                    <table id="saved-rows-table" class="ui celled compact table" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>Year</th>
+                                <th>Flag</th>
+                                <th>Zone</th>
+                                <th>Country / Region</th>
+                                <th>Carbon Intensity (gCO2eq/kWh)</th>
+                                <th>Renewable Energy (%)</th>
+                                <th>Carbon Free Energy (%)</th>
+                                <th># Runs</th>
+                                <th>Estimated Run Emissions (gCO2eq)</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="ui full-width-card card">
+            <div class="content">
+                <div class="header"><a class="ui blue ribbon label">
+                    <h3>CO2 emissions per grid zone</h3>
+                </a></div>
+                <div class="description">
+                    <table id="yearly-table" class="ui celled compact table" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>Flag</th>
+                                <th>Zone</th>
+                                <th>Country / Region</th>
+                                <th>Carbon Intensity (gCO2eq/kWh)</th>
+                                <th>Renewable Energy (%)</th>
+                                <th>Carbon Free Energy (%)</th>
+                                <th>Estimated Run Emissions (gCO2eq)</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
