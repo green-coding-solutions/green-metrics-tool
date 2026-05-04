@@ -1,5 +1,5 @@
 gunicorn==25.3.0
-psycopg[binary]==3.3.3
+psycopg[binary]==3.3.4
 psycopg_pool==3.3.1
 fastapi[standard]==0.136.1
 starlette>=1.0.0
