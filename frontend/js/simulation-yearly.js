@@ -216,7 +216,7 @@ const renderTable = (rows) => {
                 searchable: false,
                 className: 'collapsing center aligned',
                 defaultContent: '',
-                render: () => '<i class="plus circle large green link icon save-row-btn" title="Save row"></i>'
+                render: () => '<button type="button" class="circular compact mini green ui icon button save-row-btn" aria-label="Save row" title="Save row"><i class="plus circle large icon"></i></button>'
             }
         ]
     });
@@ -304,7 +304,7 @@ const renderSavedTable = () => {
                 searchable: false,
                 className: 'collapsing center aligned',
                 defaultContent: '',
-                render: () => '<i class="trash large red link icon remove-row-btn" title="Remove row"></i>'
+                render: () => '<button type="button" class="ui basic icon button remove-row-btn" aria-label="Remove row" title="Remove row"><i class="trash large red icon"></i></button>'
             }
         ]
     });
