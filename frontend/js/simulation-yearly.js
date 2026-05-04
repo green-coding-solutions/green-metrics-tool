@@ -304,7 +304,7 @@ const renderSavedTable = () => {
                 searchable: false,
                 className: 'collapsing center aligned',
                 defaultContent: '',
-                render: () => '<button type="button" class="ui basic icon button remove-row-btn" aria-label="Remove row" title="Remove row"><i class="trash large red icon"></i></button>'
+                render: () => '<button type="button" class="ui tiny basic icon button remove-row-btn" aria-label="Remove row" title="Remove row"><i class="trash large red icon"></i></button>'
             }
         ]
     });
