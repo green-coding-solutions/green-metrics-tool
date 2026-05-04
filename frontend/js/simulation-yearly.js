@@ -26,7 +26,8 @@ const yearlyState = {
     phases: [],
     selectedPhase: null,
     savedRows: [],
-    savedTable: null
+    savedTable: null,
+    phaseStats: null
 };
 
 const queryY = (selector) => document.querySelector(selector);
@@ -61,6 +62,17 @@ const fetchMeasurements = async (runId) => {
     }
 };
 
+const fetchPhaseStats = async (runId) => {
+    const safeRunId = encodeURIComponent(String(runId));
+    try {
+        const response = await makeAPICall(`/v1/phase_stats/single/${safeRunId}`);
+        return response?.data || null;
+    } catch (err) {
+        if (err instanceof APIEmptyResponse204) return null;
+        throw err;
+    }
+};
+
 const getMeasurementMetrics = (measurements) => {
     const metrics = [];
     if (!Array.isArray(measurements)) return metrics;
@@ -86,45 +98,27 @@ const getDefaultMetric = (metrics) => {
     return metrics.includes(preferred) ? preferred : metrics[0];
 };
 
-const getPhaseTimeRange = (phaseName) => {
-    if (!phaseName) return null;
-    const phase = yearlyState.phases.find((p) => p?.name === phaseName);
-    if (!phase || phase.start == null || phase.end == null) return null;
-    return { start: Number(phase.start), end: Number(phase.end) };
+const getPhaseEnergyEntry = (phaseStats, phaseName, metric) => {
+    const metricData = phaseStats?.data?.[phaseName]?.data?.[metric];
+    if (!metricData) return null;
+    const detailEntries = metricData.data?.['[MACHINE]']?.data
+        || Object.values(metricData.data || {})[0]?.data;
+    if (!detailEntries) return null;
+    const runEntry = Object.values(detailEntries)[0];
+    if (!runEntry || runEntry.mean == null) return null;
+    return { value: runEntry.mean, unit: metricData.unit };
 };
 
-const computeTotalEnergyKwh = (measurements, metric, phaseName) => {
-    if (!Array.isArray(measurements) || measurements.length === 0 || !metric) return null;
-    const range = getPhaseTimeRange(phaseName);
-    if (!range) return null;
-    const inRange = (entry) => {
-        const t = Number(entry?.[1]);
-        if (!Number.isFinite(t)) return false;
-        return t >= range.start && t <= range.end;
-    };
-    let total = 0;
-    let matched = 0;
-    measurements.forEach((entry) => {
-        if (entry?.[2] !== metric) return;
-        if (entry?.[0] !== '[MACHINE]') return;
-        if (!inRange(entry)) return;
-        const kwh = convertEnergyToKwh(entry[3], entry[4], metric);
-        if (kwh == null) return;
-        total += kwh;
-        matched += 1;
-    });
-    if (matched === 0) {
-        // Fall back to all detail rows summed if no [MACHINE] aggregate is present.
-        measurements.forEach((entry) => {
-            if (entry?.[2] !== metric) return;
-            if (!inRange(entry)) return;
-            const kwh = convertEnergyToKwh(entry[3], entry[4], metric);
-            if (kwh == null) return;
-            total += kwh;
-            matched += 1;
-        });
+const computeTotalEnergyKwh = (phaseStats, metric, phaseName) => {
+    if (!phaseStats || !metric || !phaseName) return null;
+    const entry = getPhaseEnergyEntry(phaseStats, phaseName, metric);
+    if (!entry) return null;
+    let energyKwh = entry.value;
+    let energyUnit = entry.unit === '*' && typeof metric === 'string' && metric.includes('energy') ? 'uJ' : entry.unit;
+    for (let i = 0; i < 2 && energyUnit !== 'kWh'; i++) {
+        [energyKwh, energyUnit] = convertValue(energyKwh, energyUnit);
     }
-    return matched > 0 ? total : null;
+    return energyUnit === 'kWh' ? energyKwh : null;
 };
 
 const formatEnergy = (kwh) => {
@@ -336,7 +330,7 @@ const recalculateAndRender = async () => {
     if (yearlyState.selectedYear == null) return;
     if (!yearlyState.selectedMetric) return;
 
-    yearlyState.totalEnergyKwh = computeTotalEnergyKwh(yearlyState.measurements, yearlyState.selectedMetric, yearlyState.selectedPhase);
+    yearlyState.totalEnergyKwh = computeTotalEnergyKwh(yearlyState.phaseStats, yearlyState.selectedMetric, yearlyState.selectedPhase);
     setTextY('#run-energy', formatEnergy(yearlyState.totalEnergyKwh));
 
     if (yearlyState.totalEnergyKwh == null) {
@@ -476,12 +470,14 @@ $(document).ready(() => {
         yearlyState.runId = runId;
 
         try {
-            const [runData, measurements] = await Promise.all([
+            const [runData, measurements, phaseStats] = await Promise.all([
                 fetchRunData(runId),
-                fetchMeasurements(runId)
+                fetchMeasurements(runId),
+                fetchPhaseStats(runId)
             ]);
 
             yearlyState.measurements = measurements;
+            yearlyState.phaseStats = phaseStats;
             yearlyState.phases = Array.isArray(runData?.phases) ? runData.phases : [];
             populatePhases(yearlyState.phases);
             queryY('#phase-dropdown')?.classList.remove('loading');
