@@ -1,4 +1,4 @@
-gunicorn==25.3.0
+gunicorn==26.0.0
 psycopg[binary]==3.3.4
 psycopg_pool==3.3.1
 fastapi[standard]==0.136.1
