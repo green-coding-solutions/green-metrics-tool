@@ -1,6 +1,8 @@
 import io
 import math
 import shutil
+import tempfile
+
 from decimal import Decimal
 from pathlib import Path
 
@@ -12,13 +14,13 @@ from contextlib import redirect_stdout, redirect_stderr
 
 from tests import test_functions as Tests
 from lib.db import DB
-from lib.phase_stats import build_and_store_phase_stats
+from lib.phase_stats import build_and_store_phase_stats, calculate_co2_intensity
 from lib import metric_importer
 from lib.scenario_runner import ScenarioRunner
 
 MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
 
-GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
+GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-metrics-'))
 
 ## Create a tmp folder only for this run
 @pytest.fixture(autouse=True, scope='module')
@@ -283,6 +285,35 @@ def test_phase_embodied_and_operational_carbon():
     assert embodied_carbon_share_machine['sampling_rate_avg'] is None, 'AVG sampling rate not in expected range'
     assert embodied_carbon_share_machine['sampling_rate_max'] is None, 'MAX sampling rate not in expected range'
     assert embodied_carbon_share_machine['sampling_rate_95p'] is None, '95p sampling rate not in expected range'
+
+
+def test_phase_operational_carbon_uses_dynamic_intensity_without_sci_i():
+    run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
+    energy_df = Tests.import_machine_energy(run_id)
+    stress_phase = next(phase for phase in Tests.TEST_MEASUREMENT_PHASES if phase['name'] == 'Stress')
+
+    import_custom_metric(
+        run_id,
+        'carbon_intensity_elephant_machine',
+        'gCO2e/kWh',
+        [
+            [stress_phase['start'] + 100, 200],
+            [stress_phase['start'] + 500_000, 200],
+            [stress_phase['end'] - 100, 200],
+        ],
+        detail_name='simulation',
+    )
+
+    build_and_store_phase_stats(run_id, sci={})
+
+    data = DB().fetch_one(
+        'SELECT value FROM phase_stats WHERE phase = %s AND metric = %s',
+        params=('007_Stress', 'psu_carbon_ac_mcp_machine'),
+    )
+
+    stress_energy = int(Tests.filter_df_runtime_subphase(energy_df, hidden=False, phase_name='Stress')['value'].sum())
+    operational_carbon_expected = round(Decimal(stress_energy) / Decimal(3_600_000) * Decimal(200))
+    assert data[0] == operational_carbon_expected
 
 def test_phase_stats_energy_one_measurement():
     run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
@@ -562,6 +593,38 @@ def test_phase_stats_network_data():
     assert network_carbon_entry['type'] == 'TOTAL'
     assert network_carbon_entry['value'] == 6 # due to multiple rounding steps the current data actually gives 7 when calculated directly, but the rounding gets it down to 6
 
+
+def test_phase_stats_network_carbon_uses_dynamic_intensity_without_sci_i():
+    run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
+    Tests.import_network_io_cgroup_container(run_id)
+
+    carbon_measurements = []
+    for phase in Tests.TEST_MEASUREMENT_PHASES:
+        if ']' not in phase['name'] and not phase['hidden']:
+            carbon_measurements.extend([
+                [phase['start'] + 100, 200],
+                [phase['start'] + ((phase['end'] - phase['start']) // 2), 200],
+                [phase['end'] - 100, 200],
+            ])
+
+    import_custom_metric(
+        run_id,
+        'carbon_intensity_elephant_machine',
+        'gCO2e/kWh',
+        carbon_measurements,
+        detail_name='simulation',
+    )
+
+    build_and_store_phase_stats(run_id, sci={'N': 0.001})
+
+    network_carbon_data = DB().fetch_all(
+        'SELECT metric, detail_name, unit, value, type FROM phase_stats WHERE phase = %s AND metric = %s',
+        params=('004_[RUNTIME]', 'network_carbon_formula_global'), fetch_mode='dict'
+    )
+
+    assert len(network_carbon_data) == 1
+    assert network_carbon_data[0]['value'] > 0
+
 def test_sci_calculation_for_custom_metric():
     run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
     Tests.import_machine_energy(run_id)  # Machine energy component
@@ -730,3 +793,59 @@ def test_custom_metric_sci_run():
     assert data[11]['detail_name'] == 'test-container-2'
     assert data[11]['phase'] == '006_Stress 2'
     assert 10 < data[11]['value'] < 250
+
+
+def test_calculate_co2_intensity_uses_microgram_scale():
+    run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
+
+    carbon_metric_id = DB().fetch_one(
+        '''
+        INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id
+        ''',
+        params=(run_id, 'carbon_intensity_elephant_machine', 'provider_1', 'gCO2e/kWh')
+    )[0]
+
+    energy_metric_id = DB().fetch_one(
+        '''
+        INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id
+        ''',
+        params=(run_id, 'psu_energy_ac_mcp_machine', '[MACHINE]', 'uJ')
+    )[0]
+
+    DB().query(
+        '''
+        INSERT INTO measurement_values (measurement_metric_id, time, value)
+        VALUES
+            (%s, %s, %s),
+            (%s, %s, %s)
+        ''',
+        params=(carbon_metric_id, 500_000, 100, carbon_metric_id, 1_500_000, 200)
+    )
+
+    DB().query(
+        '''
+        INSERT INTO measurement_values (measurement_metric_id, time, value)
+        VALUES
+            (%s, %s, %s),
+            (%s, %s, %s)
+        ''',
+        params=(energy_metric_id, 1_000_000, 3_600_000, energy_metric_id, 2_000_000, 7_200_000)
+    )
+
+    calculate_co2_intensity(run_id)
+
+    derived_metric_id = DB().fetch_one(
+        "SELECT id FROM measurement_metrics WHERE run_id = %s AND metric = %s AND unit = %s",
+        params=(run_id, 'psu_carbon_elephant_machine', 'ugCO2e')
+    )[0]
+
+    derived_values = DB().fetch_all(
+        "SELECT value FROM measurement_values WHERE measurement_metric_id = %s ORDER BY time ASC",
+        params=(derived_metric_id,)
+    )
+
+    assert derived_values == [(100,), (400,)]

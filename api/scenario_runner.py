@@ -1,5 +1,7 @@
 import os
 import re
+import json
+import uuid
 import orjson
 from typing import Annotated
 from xml.sax.saxutils import escape as xml_escape
@@ -54,6 +56,41 @@ def parse_usage_scenario_variables(request: Request, usage_scenario_variables: s
         return 'false'
 
     raise HTTPException(status_code=422, detail='Usage Scenario Variables must be usage_scenario_variables[KEY]=VALUE pairs or the string false')
+
+def parse_carbon_simulation(carbon_simulation):
+    if carbon_simulation is None:
+        return None
+
+    if isinstance(carbon_simulation, bool):
+        raise HTTPException(status_code=422, detail='Carbon simulation must be an integer, list of integers, or UUID string')
+
+    if isinstance(carbon_simulation, int):
+        return [carbon_simulation]
+
+    if isinstance(carbon_simulation, list):
+        if all(isinstance(value, int) and not isinstance(value, bool) for value in carbon_simulation):
+            return carbon_simulation
+        raise HTTPException(status_code=422, detail='Carbon simulation list must contain only integers')
+
+    if isinstance(carbon_simulation, str):
+        carbon_simulation = carbon_simulation.strip()
+        if carbon_simulation == '':
+            return None
+
+        try:
+            parsed_value = json.loads(carbon_simulation)
+        except json.JSONDecodeError:
+            try:
+                return str(uuid.UUID(carbon_simulation))
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail='Carbon simulation must be an integer, list of integers, or UUID string'
+                ) from exc
+
+        return parse_carbon_simulation(parsed_value)
+
+    raise HTTPException(status_code=422, detail='Carbon simulation must be an integer, list of integers, or UUID string')
 
 
 # Return a list of all known machines in the cluster
@@ -855,6 +892,8 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if software.usage_scenario_variables is None:
         software.usage_scenario_variables = {}
 
+    carbon_simulation = parse_carbon_simulation(software.carbon_simulation)
+
     unique_category_ids = None
     if software.category_ids:
         result = DB().fetch_one("SELECT array_agg(id) FROM categories WHERE id = ANY(%s)", (software.category_ids,))[0]
@@ -897,7 +936,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         except RuntimeError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
     job_ids_inserted = []
 
@@ -909,7 +948,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         amount = 1
 
     for _ in range(0,amount):
-        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, commit_hash=software.commit_hash, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids))
+        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, commit_hash=software.commit_hash, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation))
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:
