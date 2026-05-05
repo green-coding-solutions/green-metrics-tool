@@ -24,7 +24,7 @@ def _extract_timeseries(payload):
 
     return []
 
-class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
+class CarbonIntensityElectricitymapsMachineProvider(BaseMetricProvider):
     def __init__(self, region, token, folder, sampling_rate=-1, skip_check=False):
 
         self.region = region
