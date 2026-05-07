@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
             break;
 
         case 'f':
-            base_ghz = atof(optarg);
+            base_ghz = parse_double(optarg);
             break;
 
         case 'c':
