@@ -849,3 +849,85 @@ def test_calculate_co2_intensity_uses_microgram_scale():
     )
 
     assert derived_values == [(100,), (400,)]
+
+def test_phase_stats_maps_elephant_machine_carbon():
+    run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
+    stress_phase = next(phase for phase in Tests.TEST_MEASUREMENT_PHASES if phase['name'] == 'Stress')
+    sample_times = [
+        stress_phase['start'] + 100_000,
+        stress_phase['start'] + 200_000,
+        stress_phase['start'] + 300_000,
+    ]
+
+    carbon_metric_id = DB().fetch_one(
+        '''
+        INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id
+        ''',
+        params=(run_id, 'carbon_intensity_elephant_machine', 'bundesnetzagentur_de', 'gCO2e/kWh')
+    )[0]
+
+    energy_metric_id = DB().fetch_one(
+        '''
+        INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id
+        ''',
+        params=(run_id, 'psu_energy_ac_sdia_machine', '[MACHINE]', 'uJ')
+    )[0]
+
+    DB().query(
+        '''
+        INSERT INTO measurement_values (measurement_metric_id, time, value)
+        VALUES
+            (%s, %s, %s),
+            (%s, %s, %s),
+            (%s, %s, %s)
+        ''',
+        params=(
+            carbon_metric_id, sample_times[0], 200,
+            carbon_metric_id, sample_times[1], 200,
+            carbon_metric_id, sample_times[2], 200,
+        )
+    )
+
+    DB().query(
+        '''
+        INSERT INTO measurement_values (measurement_metric_id, time, value)
+        VALUES
+            (%s, %s, %s),
+            (%s, %s, %s),
+            (%s, %s, %s)
+        ''',
+        params=(
+            energy_metric_id, sample_times[0], 3_600_000,
+            energy_metric_id, sample_times[1], 7_200_000,
+            energy_metric_id, sample_times[2], 10_800_000,
+        )
+    )
+
+    calculate_co2_intensity(run_id)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        build_and_store_phase_stats(run_id, sci={})
+
+    assert 'Unmapped phase_stat found' not in err.getvalue()
+
+    data = DB().fetch_one(
+        '''
+        SELECT metric, detail_name, unit, value, type
+        FROM phase_stats
+        WHERE phase = %s AND metric = %s
+        ''',
+        params=('007_Stress', 'psu_carbon_elephant_machine'),
+        fetch_mode='dict',
+    )
+
+    assert data['metric'] == 'psu_carbon_elephant_machine'
+    assert data['detail_name'] == 'psu_energy_ac_sdia_machine_[MACHINE]_carbon_intensity_elephant_machine_bundesnetzagentur_de'
+    assert data['unit'] == 'ugCO2e'
+    assert data['value'] == 1200
+    assert data['type'] == 'TOTAL'

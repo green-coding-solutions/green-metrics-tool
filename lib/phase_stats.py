@@ -351,6 +351,9 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                         machine_energy_current_phase = value_sum
                         machine_power_current_phase = power_avg_mW
 
+            elif '_carbon_' in metric and unit in ('ug', 'ugCO2e'):
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+
             else: # Default
                 if metric.startswith('custom_'):
                     sci_phase_data_custom.setdefault(metric, {})[detail_name] = {'value': value_sum, 'unit': unit}
