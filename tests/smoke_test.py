@@ -2,6 +2,7 @@ import io
 import os
 import subprocess
 import re
+import json
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -145,3 +146,22 @@ def test_run_contains_warnings():
         if warning[0].startswith('You have other containers running on the system. This is usually what you want in local development'):
             found_warning = True
     assert found_warning is True, 'Did not find "You have other containers running on the system. This is usually what you want in local development" in warning strings'
+
+def test_run_contains_no_security_info():
+    # check that SSH private key from security is never stored in any column of the runs table
+
+    run_id = utils.get_run_data(RUN_NAME)["id"]
+    run_row = DB().fetch_one(
+        "SELECT * FROM runs WHERE id = %s", params=(run_id,), fetch_mode="dict"
+    )
+
+    run_row_as_str = json.dumps(run_row, default=str)
+
+    assert (
+        "encryption_private_key_file" not in run_row_as_str
+        and "encryption_public_key_file" not in run_row_as_str
+    ), f"Security Information in the runs table for run {run_id}"
+
+    assert "BEGIN PRIVATE KEY" not in run_row_as_str, (
+        f"SSH Key Information in the runs table for run {run_id}"
+    )
