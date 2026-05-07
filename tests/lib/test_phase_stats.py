@@ -1,7 +1,6 @@
 import io
 import math
 import shutil
-import tempfile
 
 from decimal import Decimal
 from pathlib import Path
@@ -20,7 +19,7 @@ from lib.scenario_runner import ScenarioRunner
 
 MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
 
-GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-metrics-'))
+GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
 
 ## Create a tmp folder only for this run
 @pytest.fixture(autouse=True, scope='module')
