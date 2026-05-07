@@ -50,6 +50,30 @@ unsigned int parse_int(char *argument) {
     return number;
 }
 
+double parse_double(char *argument) {
+    double number = 0.0;
+    char *endptr;
+
+    errno = 0;
+    number = strtod(argument, &endptr);
+
+    if (errno == ERANGE && (number == HUGE_VAL || number == -HUGE_VAL)) {
+        fprintf(stderr, "Error: Could not parse float argument - out of range\n");
+        exit(1);
+    } else if (errno != 0 && number == 0.0) {
+        fprintf(stderr, "Error: Could not parse float argument - invalid number\n");
+        exit(1);
+    } else if (endptr == argument) {
+        fprintf(stderr, "Error: Could not parse float argument - no digits found\n");
+        exit(1);
+    } else if (*endptr != '\0') {
+        fprintf(stderr, "Error: Could not parse float argument - invalid trailing characters\n");
+        exit(1);
+    }
+
+    return number;
+}
+
 void get_time_offset(struct timespec *offset) {
     struct timespec realtime, monotonic;
 

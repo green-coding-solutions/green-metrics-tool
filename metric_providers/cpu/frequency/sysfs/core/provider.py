@@ -10,7 +10,6 @@ class CpuFrequencySysfsCoreProvider(BaseMetricProvider):
             sampling_rate=sampling_rate,
             unit='Hz',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
-            metric_provider_executable='get-scaling-cur-freq.sh',
             skip_check=skip_check,
             folder=folder,
         )
