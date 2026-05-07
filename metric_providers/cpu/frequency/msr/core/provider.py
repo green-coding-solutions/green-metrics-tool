@@ -2,10 +2,10 @@ import os
 
 from metric_providers.base import BaseMetricProvider
 
-class CpuFrequencySysfsCoreProvider(BaseMetricProvider):
+class CpuFrequencyMsrCoreProvider(BaseMetricProvider):
     def __init__(self, sampling_rate, folder, skip_check=False):
         super().__init__(
-            metric_name='cpu_frequency_sysfs_core',
+            metric_name='cpu_frequency_msr_core',
             metrics={'time': int, 'value': int, 'core_id': int},
             sampling_rate=sampling_rate,
             unit='Hz',

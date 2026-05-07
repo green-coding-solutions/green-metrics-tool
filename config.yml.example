@@ -153,7 +153,7 @@ measurement:
     #--- Debug - These providers should only be needed for debugging and introspection purposes
 #      cpu_throttling_msr_component:
 #        sampling_rate: 99
-#      cpu_frequency_sysfs_core:
+#      cpu_frequency_msr_core:
 #        sampling_rate: 99
 #      cpu_time_cgroup_container:
 #        sampling_rate: 99
