@@ -155,6 +155,7 @@ measurement:
 #        sampling_rate: 99
 #      cpu_frequency_msr_core:
 #        sampling_rate: 99
+#        base_ghz: 2.4  # Set to the nominal (non-turbo) base clock of your Intel CPU in GHz
 #      cpu_time_cgroup_container:
 #        sampling_rate: 99
 #      cpu_time_cgroup_system:
