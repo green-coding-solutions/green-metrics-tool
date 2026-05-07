@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <time.h>
+#include <math.h>
 #include <stdbool.h>
 #include <sys/time.h>
 
