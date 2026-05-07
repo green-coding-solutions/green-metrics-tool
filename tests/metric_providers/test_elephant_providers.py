@@ -4,7 +4,7 @@ import pytest
 import requests
 import uuid
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 
 from pathlib import Path
@@ -63,7 +63,7 @@ def test_missing_region_raises():
 
 def test_missing_elephant_block_raises():
     with pytest.raises(MetricProviderConfigurationError, match='elephant'):
-        CarbonIntensityElephantMachineProvider(region='DE', elephant=None, folder=GMT_METRICS_DIR, skip_check=True)
+        CarbonIntensityElephantMachineProvider(region='DE', provider='test', elephant=None, folder=GMT_METRICS_DIR, skip_check=True)
 
 
 def test_incomplete_elephant_config_raises():
@@ -264,3 +264,42 @@ def test_read_metrics_expands_to_sampling_rate():
     assert len(df) == 4
     assert (df['value'] == 42).all()
     assert df['time'].is_monotonic_increasing
+
+
+# --- Live integration test (hits the real Elephant service) ---
+
+LIVE_ELEPHANT_CONFIG = {'host': 'elephant.green-coding.io', 'port': 443, 'protocol': 'https'}
+LIVE_ELEPHANT_BASE_URL = 'https://elephant.green-coding.io'
+
+
+def _live_elephant_reachable():
+    try:
+        requests.get(f"{LIVE_ELEPHANT_BASE_URL}/health", timeout=5).close()
+        return True
+    except requests.RequestException:
+        return False
+
+
+@pytest.mark.skipif(not _live_elephant_reachable(), reason='Elephant service not reachable')
+def test_live_check_system_passes():
+    provider = CarbonIntensityElephantMachineProvider(
+        region='DE', provider='test', elephant=LIVE_ELEPHANT_CONFIG, folder=GMT_METRICS_DIR, skip_check=True,
+    )
+    provider.check_system()
+
+
+@pytest.mark.skipif(not _live_elephant_reachable(), reason='Elephant service not reachable')
+def test_live_read_metrics_returns_real_data():
+    provider = CarbonIntensityElephantMachineProvider(
+        region='DE', provider='bundesnetzagentur', elephant=LIVE_ELEPHANT_CONFIG, folder=GMT_METRICS_DIR, skip_check=True,
+    )
+    provider.start_profiling()
+    # Widen the window so the history endpoint has data even on a fast run
+    provider._start_time = datetime.now(timezone.utc) - timedelta(hours=2)
+    provider.stop_profiling()
+    provider._end_time = datetime.now(timezone.utc)
+
+    df = provider._read_metrics()
+
+    assert not df.empty, f"Expected data from live Elephant service. stderr: {provider.get_stderr()}"
+    assert (df['value'] > 0).all()
