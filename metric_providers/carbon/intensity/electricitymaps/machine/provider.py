@@ -24,7 +24,7 @@ def _extract_timeseries(payload):
 
     return []
 
-class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
+class CarbonIntensityElectricitymapsMachineProvider(BaseMetricProvider):
     def __init__(self, region, token, folder, sampling_rate=-1, skip_check=False):
 
         self.region = region
@@ -37,11 +37,11 @@ class CarbonIntensityElectricityMapsMachineProvider(BaseMetricProvider):
 
         if not self.region:
             raise MetricProviderConfigurationError(
-                'Please set the region config option for CarbonIntensityElectricityMapsMachineProvider (electricity_maps) in the config.yml')
+                'Please set the region config option for CarbonIntensityElectricitymapsMachineProvider (electricity_maps) in the config.yml')
 
         if not self.token:
             raise MetricProviderConfigurationError(
-                'Please set the token config option for CarbonIntensityElectricityMapsMachineProvider (electricity_maps) in the config.yml')
+                'Please set the token config option for CarbonIntensityElectricitymapsMachineProvider (electricity_maps) in the config.yml')
 
         super().__init__(
             metric_name='carbon_intensity_electricity_maps_machine',

@@ -4,12 +4,12 @@ import pytest
 import requests
 import tempfile
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from metric_providers.carbon.intensity.electricitymaps.machine.provider import (
-    CarbonIntensityElectricityMapsMachineProvider,
+    CarbonIntensityElectricitymapsMachineProvider,
     API_PAST_URL,
     API_FUTURE_URL,
 )
@@ -38,7 +38,7 @@ def setup_metrics_dir():
 def make_provider(**kwargs):
     defaults = {'region': FIXED_REGION, 'token': FIXED_TOKEN, 'folder': GMT_METRICS_DIR, 'skip_check': True}
     defaults.update(kwargs)
-    return CarbonIntensityElectricityMapsMachineProvider(**defaults)
+    return CarbonIntensityElectricitymapsMachineProvider(**defaults)
 
 
 def make_response(json_data=None, status_code=200):
@@ -64,12 +64,12 @@ def profiled_provider(**kwargs):
 
 def test_missing_region_raises():
     with pytest.raises(MetricProviderConfigurationError, match='region'):
-        CarbonIntensityElectricityMapsMachineProvider(region='', token=FIXED_TOKEN, folder=GMT_METRICS_DIR, skip_check=True)
+        CarbonIntensityElectricitymapsMachineProvider(region='', token=FIXED_TOKEN, folder=GMT_METRICS_DIR, skip_check=True)
 
 
 def test_missing_token_raises():
     with pytest.raises(MetricProviderConfigurationError, match='token'):
-        CarbonIntensityElectricityMapsMachineProvider(region=FIXED_REGION, token='', folder=GMT_METRICS_DIR, skip_check=True)
+        CarbonIntensityElectricitymapsMachineProvider(region=FIXED_REGION, token='', folder=GMT_METRICS_DIR, skip_check=True)
 
 
 # --- check_system ---
@@ -288,3 +288,45 @@ def test_read_metrics_expands_to_sampling_rate():
     assert len(df) == 4
     assert (df['value'] == 42).all()
     assert df['time'].is_monotonic_increasing
+
+
+# --- Live integration test (hits the real Electricity Maps API) ---
+
+LIVE_TOKEN = 'WgKazgtDkyxaMHAvSFYY'
+
+
+def _live_api_reachable():
+    try:
+        requests.get('https://api.electricitymaps.com/v4/carbon-intensity/past-range',
+                     params={'zone': 'DE'},
+                     headers={'auth-token': LIVE_TOKEN},
+                     timeout=5).close()
+        return True
+    except requests.RequestException:
+        return False
+
+
+@pytest.mark.skipif(not _live_api_reachable(), reason='Electricity Maps API not reachable')
+def test_live_check_system_passes():
+    provider = CarbonIntensityElectricitymapsMachineProvider(
+        region='DE', token=LIVE_TOKEN, folder=GMT_METRICS_DIR, skip_check=True,
+    )
+    provider.check_system()
+
+
+@pytest.mark.skipif(not _live_api_reachable(), reason='Electricity Maps API not reachable')
+def test_live_read_metrics_returns_real_data():
+    provider = CarbonIntensityElectricitymapsMachineProvider(
+        region='DE', token=LIVE_TOKEN, folder=GMT_METRICS_DIR, skip_check=True,
+    )
+    provider.start_profiling()
+    # Widen the window so the past-range endpoint has data even on a fast run
+    provider._start_time = datetime.now(timezone.utc) - timedelta(hours=2)
+    provider.stop_profiling()
+    provider._end_time = datetime.now(timezone.utc)
+
+    df = provider._read_metrics()
+
+    assert not df.empty, f"Expected data from live API. stderr: {provider.get_stderr()}"
+    assert (df['value'] > 0).all()
+    assert (df['provider'] == 'electricity_maps').all()
