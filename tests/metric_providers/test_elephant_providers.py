@@ -33,7 +33,7 @@ def setup_metrics_dir():
 
 
 def make_provider(**kwargs):
-    defaults = {'region': 'DE', 'elephant': ELEPHANT_CONFIG, 'folder': GMT_METRICS_DIR, 'skip_check': True}
+    defaults = {'region': 'DE', 'provider': 'test', 'elephant': ELEPHANT_CONFIG, 'folder': GMT_METRICS_DIR, 'skip_check': True}
     defaults.update(kwargs)
     return CarbonIntensityElephantMachineProvider(**defaults)
 
@@ -68,7 +68,12 @@ def test_missing_elephant_block_raises():
 
 def test_incomplete_elephant_config_raises():
     with pytest.raises(MetricProviderConfigurationError):
-        CarbonIntensityElephantMachineProvider(region='DE', elephant={'host': 'localhost'}, folder=GMT_METRICS_DIR, skip_check=True)
+        CarbonIntensityElephantMachineProvider(region='DE', provider='test', elephant={'host': 'localhost'}, folder=GMT_METRICS_DIR, skip_check=True)
+
+
+def test_missing_provider_without_simulation_raises():
+    with pytest.raises(MetricProviderConfigurationError, match='provider'):
+        CarbonIntensityElephantMachineProvider(region='DE', elephant=ELEPHANT_CONFIG, folder=GMT_METRICS_DIR, skip_check=True)
 
 
 # --- check_system ---
@@ -138,7 +143,7 @@ def _make_get_with_fallback(fallback_json):
 
 
 def test_empty_history_triggers_primary_fallback():
-    provider = profiled_provider()
+    provider = profiled_provider(provider=None, simulation_uuid=uuid.uuid4())
     fallback = [{'time': FIXED_TIME, 'carbon_intensity': 99, 'provider': FIXED_PROVIDER}]
     with patch('requests.get', side_effect=_make_get_with_fallback(fallback)) as mock_get:
         df = provider._read_metrics()
@@ -162,7 +167,7 @@ def test_empty_history_with_provider_filter_uses_current_endpoint():
 
 def test_empty_history_with_simulation_uses_simulation_fallback():
     sim_id = uuid.uuid4()
-    provider = profiled_provider(simulation_uuid=sim_id)
+    provider = profiled_provider(provider=None, simulation_uuid=sim_id)
     fallback = {'simulationId': str(sim_id), 'carbon_intensity': 66}
 
     with patch('requests.get', side_effect=_make_get_with_fallback(fallback)) as mock_get:

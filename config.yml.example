@@ -234,7 +234,7 @@ measurement:
 #      carbon_intensity_elephant_machine:
 #        region: 'DE'
 #        sampling_rate: 99 # Remove if you don't want value padding
-#        provider: 'bundesnetzagentur' # optional
+#        provider: 'bundesnetzagentur'
 #        elephant:
 #          host: localhost
 #          port: 8085

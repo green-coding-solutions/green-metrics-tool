@@ -24,6 +24,10 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
             raise MetricProviderConfigurationError(
                 'Please set the region config option for CarbonIntensityElephantMachineProvider in the config.yml')
 
+        if not self.provider_filter and not self.simulation_uuid:
+            raise MetricProviderConfigurationError(
+                'Please set the provider config option for CarbonIntensityElephantMachineProvider in the config.yml.')
+
         if not isinstance(self.elephant, dict):
             raise MetricProviderConfigurationError(
                 'Please set the elephant config block for CarbonIntensityElephantMachineProvider in the config.yml')
