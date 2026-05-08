@@ -281,10 +281,9 @@ static int detect_packages(void) {
             total_packages++;
             package_map[package]=i;
         }
-
+        total_cores++;
     }
 
-    total_cores=i;
     return 0;
 }
 
