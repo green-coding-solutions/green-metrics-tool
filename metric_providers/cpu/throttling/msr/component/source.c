@@ -87,6 +87,12 @@ static void detect_packages(void) {
             package_map[package] = i;
         }
     }
+
+    if (total_packages == 0) {
+        fprintf(stderr, "No CPU packages detected\n");
+        exit(1);
+    }
+
 }
 
 static int check_system() {

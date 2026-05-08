@@ -284,6 +284,11 @@ static int detect_packages(void) {
         total_cores++;
     }
 
+    if (total_cores == 0 || total_packages == 0) {
+        fprintf(stderr, "No CPU cores or packages detected\n");
+        exit(1);
+    }
+
     return 0;
 }
 

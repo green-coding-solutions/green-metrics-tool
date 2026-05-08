@@ -71,6 +71,12 @@ static void detect_cores(void) {
 
         cpu_map[total_cores++] = i;
     }
+
+    if (total_cores == 0) {
+        fprintf(stderr, "No CPU cores detected\n");
+        exit(1);
+    }
+
 }
 
 static int test_msr(void) {
