@@ -269,7 +269,7 @@ static int detect_packages(void) {
     for(i=0;i<MAX_CPUS;i++) {
         snprintf(filename, PATH_MAX, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id",i);
         fff=fopen(filename,"r");
-        if (fff==NULL) break;
+        if (fff==NULL) continue; // CPU offline / non-contiguous numbering
         int match_result = fscanf(fff,"%d",&package);
         fclose(fff);
         if (match_result != 1) {

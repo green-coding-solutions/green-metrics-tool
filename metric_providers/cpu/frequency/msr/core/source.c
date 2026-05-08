@@ -53,18 +53,19 @@ static long long read_msr(int fd, unsigned int which) {
 static void detect_cores(void) {
     cpu_map = malloc(sizeof(int) * MAX_CPUS);
 
+    int id;
+    char path[PATH_MAX];
+
     for (int i = 0; i < MAX_CPUS; i++) {
-        char path[PATH_MAX];
-        snprintf(path, PATH_MAX,
-                 "/sys/devices/system/cpu/cpu%d/topology/core_id", i);
+        snprintf(path, PATH_MAX, "/sys/devices/system/cpu/cpu%d/topology/core_id", i);
 
         FILE *f = fopen(path, "r");
-        if (!f) break;
+        if (!f) continue; // CPU offline / non-contiguous numbering
 
-        int id;
         if (fscanf(f, "%d", &id) != 1) {
             fclose(f);
-            break;
+            fprintf(stderr, "Could not read cpu topology %s. Was expecting integer, found no match in file.\n", path);
+            exit(127);
         }
         fclose(f);
 
