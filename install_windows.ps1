@@ -220,113 +220,20 @@ function Add-HostsLine {
     }
 }
 
-function Find-VsInstallPath {
-    $vswherePath = @(
-        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
-        "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
-    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-    if (-not $vswherePath) { return $null }
-
-    $vsInstallPath = & $vswherePath -latest -prerelease -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
-    if (-not $vsInstallPath) { return $null }
-
-    $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
-    if (-not (Test-Path $vcvarsall)) { return $null }
-
-    return [pscustomobject]@{
-        InstallPath = $vsInstallPath
-        Vcvarsall   = $vcvarsall
-    }
-}
-
-function Find-WindowsSdkWindowsH {
-    $roots = @(
-        "${env:ProgramFiles(x86)}\Windows Kits\10\Include",
-        "${env:ProgramFiles}\Windows Kits\10\Include"
-    ) | Where-Object { Test-Path $_ }
-
-    foreach ($root in $roots) {
-        $versions = Get-ChildItem $root -Directory -ErrorAction SilentlyContinue |
-            Sort-Object Name -Descending
-        foreach ($v in $versions) {
-            $header = Join-Path $v.FullName "um\windows.h"
-            if (Test-Path $header) {
-                return $v.FullName
-            }
-        }
-    }
-    return $null
-}
-
-function Test-CompilerEnvironment {
-    $issues = @()
-    $hints  = @()
-
-    $clOnPath = [bool](Get-Command "cl.exe" -ErrorAction SilentlyContinue)
-    $vs       = Find-VsInstallPath
-
-    if (-not $clOnPath -and -not $vs) {
-        $issues += "MSVC C++ compiler (cl.exe) was not found and Visual Studio could not be located via vswhere."
-        $hints  += "Install the 'Desktop development with C++' workload via the Visual Studio Installer (VS 2026 Community is fine)."
-    }
-
-    $sdkInclude = Find-WindowsSdkWindowsH
-    if (-not $sdkInclude) {
-        $issues += "Windows SDK not found on disk (no '...\Windows Kits\10\Include\<ver>\um\windows.h')."
-        $hints  += "Open the Visual Studio Installer -> Modify -> Individual components -> tick 'Windows 11 SDK' (or 'Windows 10 SDK'), then re-run."
-    }
-
-    # If we are running inside a developer prompt, verify the env actually wired in the SDK.
-    # Common failure: x86 prompt, or SDK installed AFTER the prompt was opened.
-    if ($clOnPath -and $env:INCLUDE) {
-        $includeSegments = $env:INCLUDE -split ';' | Where-Object { $_ }
-        $hasSdkUm = $includeSegments | Where-Object { $_ -match '\\Windows Kits\\10\\Include\\.*\\um$' }
-        if (-not $hasSdkUm) {
-            $issues += "Current shell's INCLUDE has no Windows SDK 'um' path. Likely you opened the x86 prompt, a non-developer shell, or installed the SDK after the prompt was launched."
-            $hints  += "Open a fresh 'x64 Native Tools Command Prompt for VS 2026' and re-run, or launch this installer from a regular Administrator PowerShell so it can call vcvarsall itself."
-        }
-    }
-
-    return [pscustomobject]@{
-        Ok        = ($issues.Count -eq 0)
-        Issues    = $issues
-        Hints     = $hints
-        ClOnPath  = $clOnPath
-        Vs        = $vs
-        SdkPath   = $sdkInclude
-    }
-}
-
 function Invoke-ScaphandreProviderBuild {
     $providerDir = Join-Path $Root "metric_providers\cpu\energy\rapl\scaphandre\component"
     $sourceFile = "rapl_reader_cli.c"
     $outputBinary = "metric-provider-binary"
 
-    Write-Step "Checking C/C++ build prerequisites for scaphandre RAPL provider"
-    $envCheck = Test-CompilerEnvironment
-    if ($envCheck.ClOnPath) { Write-Host "  [OK] cl.exe found on PATH" } else { Write-Host "  [--] cl.exe not on PATH (will try vcvarsall if available)" }
-    if ($envCheck.Vs)       { Write-Host "  [OK] Visual Studio: $($envCheck.Vs.InstallPath)" } else { Write-Host "  [--] Visual Studio install not detected via vswhere" }
-    if ($envCheck.SdkPath)  { Write-Host "  [OK] Windows SDK headers: $($envCheck.SdkPath)" } else { Write-Host "  [--] Windows SDK headers not found" }
-
-    if (-not $envCheck.Ok) {
-        Write-Warning "Build prerequisites are not met. The scaphandre RAPL provider will NOT be built."
-        foreach ($issue in $envCheck.Issues) { Write-Warning "  - $issue" }
-        Write-Warning "Suggested fixes:"
-        foreach ($hint in $envCheck.Hints) { Write-Warning "  * $hint" }
-        Write-Warning "After fixing, re-run this installer or run build.bat manually in:`n  $providerDir"
-        return
-    }
-
     Write-Step "Building scaphandre RAPL provider binary"
 
-    # Happy path: cl.exe in PATH AND INCLUDE wired up (verified above)
-    if ($envCheck.ClOnPath) {
+    # Happy path: cl.exe already in PATH (Developer Command Prompt / Developer PowerShell)
+    if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
         Push-Location $providerDir
         try {
             & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
             if ($LASTEXITCODE -ne 0) {
-                Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt for VS 2026 in:`n  $providerDir"
+                Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
             } else {
                 Write-Host "Successfully built metric-provider-binary.exe"
             }
@@ -336,23 +243,36 @@ function Invoke-ScaphandreProviderBuild {
         return
     }
 
-    # Fall back: invoke vcvarsall.bat then cl.exe inside the same cmd.exe
-    if ($envCheck.Vs) {
-        Write-Host "Found Visual Studio at: $($envCheck.Vs.InstallPath)"
-        $absSource = Join-Path $providerDir $sourceFile
-        $absOutput = Join-Path $providerDir $outputBinary
-        $cmdLine = "`"$($envCheck.Vs.Vcvarsall)`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib"
-        Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow
-        if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt for VS 2026 in:`n  $providerDir"
-        } else {
-            Write-Host "Successfully built metric-provider-binary.exe"
+    # Fall back: locate MSVC via vswhere.exe
+    $vswherePath = @(
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
+        "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+    if ($vswherePath) {
+        $vsInstallPath = & $vswherePath -latest -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
+        if ($vsInstallPath) {
+            $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
+            if (Test-Path $vcvarsall) {
+                Write-Host "Found Visual Studio at: $vsInstallPath"
+                $absSource = Join-Path $providerDir $sourceFile
+                $absOutput = Join-Path $providerDir $outputBinary
+                # Run via cmd.exe so vcvarsall environment is inherited by cl.exe
+                $cmdLine = "`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib"
+                Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                } else {
+                    Write-Host "Successfully built metric-provider-binary.exe"
+                }
+                return
+            }
         }
-        return
     }
 
-    Write-Warning "Could not locate a working MSVC toolchain. The scaphandre RAPL energy provider was not built."
-    Write-Warning "Open 'x64 Native Tools Command Prompt for VS 2026' and run build.bat in:`n  $providerDir"
+    Write-Warning "MSVC compiler (cl.exe) not found. The scaphandre RAPL energy provider was not built."
+    Write-Warning "To build it manually, open 'x64 Native Tools Command Prompt for VS 2026' and run build.bat in:"
+    Write-Warning "  $providerDir"
 }
 
 function Send-TelemetryPing {
