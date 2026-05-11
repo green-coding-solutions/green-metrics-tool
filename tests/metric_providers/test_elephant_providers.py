@@ -4,14 +4,21 @@ import pytest
 import requests
 import uuid
 import tempfile
+import yaml
 from datetime import datetime, timedelta, timezone
 
 
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
+from lib.db import DB
+from lib.global_config import GlobalConfig
+from lib.scenario_runner import ScenarioRunner
 from metric_providers.carbon.intensity.elephant.machine.provider import CarbonIntensityElephantMachineProvider
 from metric_providers.base import MetricProviderConfigurationError
+
+TESTS_DIR = Path(__file__).resolve().parent.parent
+GMT_ROOT_DIR = TESTS_DIR.parent
 
 GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-metrics-'))
 
@@ -303,3 +310,96 @@ def test_live_read_metrics_returns_real_data():
 
     assert not df.empty, f"Expected data from live Elephant service. stderr: {provider.get_stderr()}"
     assert (df['value'] > 0).all()
+
+
+@pytest.mark.skipif(not _live_elephant_reachable(), reason='Elephant service not reachable')
+def test_live_full_gmt_run_creates_metric_and_phase_stat():
+    # End-to-end integration test: run a real GMT scenario with the
+    # elephant carbon intensity provider configured against the live service
+    # and check that values land in the measurement_metrics, measurement_values
+    # and phase_stats tables.
+
+    base_config_path = TESTS_DIR / 'test-config.yml'
+
+    with open(base_config_path, encoding='utf-8') as fh:
+        config = yaml.safe_load(fh)
+
+    common = config['measurement']['metric_providers'].setdefault('common', {}) or {}
+    # sampling_rate must be set so helpers.expand_to_sampling_rate fans the few
+    # API records into a dense series across the measurement window; otherwise
+    # the phase_stats time-window filter would drop them and
+    # reconstruct_runtime_phase would produce no row for carbon_intensity_*.
+    common['carbon_intensity_elephant_machine'] = {
+        'region': 'DE',
+        'provider': 'bundesnetzagentur',
+        'elephant': LIVE_ELEPHANT_CONFIG,
+        'sampling_rate': 99,
+    }
+    config['measurement']['metric_providers']['common'] = common
+
+    tmp_config_dir = Path(tempfile.mkdtemp(prefix='gmt-elephant-config-'))
+    tmp_config = tmp_config_dir / 'test-config.yml'
+    with open(tmp_config, 'w', encoding='utf-8') as fh:
+        yaml.safe_dump(config, fh)
+
+    GlobalConfig().override_config(config_location=tmp_config.as_posix())
+
+    try:
+        runner = ScenarioRunner(
+            uri=GMT_ROOT_DIR.as_posix(),
+            uri_type='folder',
+            filename='tests/data/usage_scenarios/basic_stress.yml',
+            dev_no_system_checks=True,
+            dev_cache_build=True,
+            dev_no_sleeps=True,
+            dev_no_metrics=False,
+            dev_no_phase_stats=False,
+            dev_no_container_dependency_collection=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
+        )
+        run_id = runner.run()
+
+        db_metric_name = 'carbon_intensity_elephant_machine'
+        # provider_filter.lower() + '_' + region.lower(); see provider.py:108
+        expected_detail_name = 'bundesnetzagentur_de'
+
+        # --- measurement_metrics: the metric was registered for the run ---
+        metric_row = DB().fetch_one(
+            'SELECT id, metric, detail_name, unit FROM measurement_metrics '
+            'WHERE run_id = %s AND metric = %s',
+            params=(run_id, db_metric_name),
+            fetch_mode='dict',
+        )
+        assert metric_row is not None, f'No measurement_metrics row for {db_metric_name}'
+        assert metric_row['detail_name'] == expected_detail_name
+        assert metric_row['unit'] == 'gCO2e/kWh'
+
+        # --- measurement_values: at least one raw datapoint was stored ---
+        values = DB().fetch_all(
+            'SELECT value FROM measurement_values WHERE measurement_metric_id = %s',
+            params=(metric_row['id'],),
+            fetch_mode='dict',
+        )
+        assert len(values) >= 1, 'No measurement_values rows stored for the live carbon intensity'
+        assert all(row['value'] > 0 for row in values), 'Carbon intensity values must be positive'
+
+        # --- phase_stats: aggregated MEAN row was computed for the [RUNTIME] phase ---
+        phase_stat = DB().fetch_one(
+            "SELECT value, type, unit, max_value, min_value FROM phase_stats "
+            "WHERE run_id = %s AND metric = %s AND phase LIKE %s",
+            params=(run_id, db_metric_name, '%_[RUNTIME]'),
+            fetch_mode='dict',
+        )
+        assert phase_stat is not None, f'No phase_stats row for {db_metric_name}'
+        assert phase_stat['type'] == 'MEAN'
+        assert phase_stat['unit'] == 'gCO2e/kWh'
+        assert phase_stat['value'] > 0
+        assert phase_stat['min_value'] <= phase_stat['value'] <= phase_stat['max_value']
+        # Sanity bound for real-world DE grid carbon intensity
+        assert phase_stat['max_value'] < 2000, (
+            f"Carbon intensity max {phase_stat['max_value']} gCO2e/kWh implausibly high for live DE data"
+        )
+    finally:
+        GlobalConfig().override_config(config_location=base_config_path.as_posix())
+        shutil.rmtree(tmp_config_dir, ignore_errors=True)
