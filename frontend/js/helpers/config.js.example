@@ -33,7 +33,7 @@ const top_bar_chart_condition = (metric) => {
 // title and filter function for the top right radar chart in the Detailed Metrics / Compare view
 const RADAR_CHART_TITLE = 'General Metrics';
 const radar_chart_condition = (metric) => {
-    return metric.indexOf('cpu_frequency_sysfs_core') == -1 && metric.indexOf('temperature') == -1  && metric.indexOf('energy') == -1 && metric.indexOf('throttling') == -1 && metric.indexOf('power') == -1 && metric.indexOf('carbon') == -1;
+    return metric.indexOf('cpu_frequency_msr_core') == -1 && metric.indexOf('temperature') == -1  && metric.indexOf('energy') == -1 && metric.indexOf('throttling') == -1 && metric.indexOf('power') == -1 && metric.indexOf('carbon') == -1;
 }
 
 // filter function for the CO₂ calculations in the Detailed Metrics
@@ -387,10 +387,10 @@ METRIC_MAPPINGS = {
         "source": "Picolog",
         "explanation": "Full machine power (DC) as reported by PicoLog HRDL ADC-24"
     },
-    "cpu_frequency_sysfs_core": {
+    "cpu_frequency_msr_core": {
         "clean_name": "CPU Frequency",
-        "source": "sysfs",
-        "explanation": "CPU Frequency per core as reported by sysfs"
+        "source": "msr",
+        "explanation": "CPU Frequency per core as measured via MSR APERF/MPERF counters"
     },
     "cpu_throttling_thermal_msr_component": {
         "clean_name": "CPU Throttling (Thermal)",
