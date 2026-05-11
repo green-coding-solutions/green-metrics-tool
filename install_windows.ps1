@@ -119,11 +119,12 @@ function Get-PythonCommand {
 
 function Invoke-Python {
     param([string[]]$Arguments)
-    $command = [string]$script:PythonCommand[0]
+    $commandArr = [string[]]@($script:PythonCommand)
+    $command = $commandArr[0]
 
     $prefixArguments = @()
-    if ($script:PythonCommand.Length -gt 1) {
-        $prefixArguments = $script:PythonCommand[1..($script:PythonCommand.Length - 1)]
+    if ($commandArr.Length -gt 1) {
+        $prefixArguments = $commandArr[1..($commandArr.Length - 1)]
     }
     & "$command" @prefixArguments @Arguments
 }
@@ -289,7 +290,7 @@ function Send-TelemetryPing {
     Invoke-WebRequest -Uri "https://plausible.io/api/event" -Method Post -Body $body -ContentType "application/json" -Headers @{"User-Agent" = $randomHash} | Out-Null
 }
 
-$script:PythonCommand = Get-PythonCommand
+[string[]]$script:PythonCommand = Get-PythonCommand
 Assert-PythonVersion
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
