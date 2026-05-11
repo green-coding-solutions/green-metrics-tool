@@ -4,7 +4,7 @@
 :: Compiles rapl_reader_cli.c
 ::
 :: Usage:
-::   1. Open "x64 Native Tools Command Prompt for VS 2022"
+::   1. Open "x64 Native Tools Command Prompt for VS 2026"
 ::   2. cd to this folder
 ::   3. Run: build.bat
 
@@ -19,7 +19,7 @@ where cl.exe >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] cl.exe not found!
     echo Please run this script from the
-    echo "x64 Native Tools Command Prompt for VS 2022"
+    echo "x64 Native Tools Command Prompt for VS 2026"
     exit /b 1
 )
 
