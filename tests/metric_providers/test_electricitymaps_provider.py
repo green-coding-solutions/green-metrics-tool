@@ -1,3 +1,4 @@
+import os
 import shutil
 import pandas
 import pytest
@@ -299,21 +300,14 @@ def test_read_metrics_expands_to_sampling_rate():
 
 # --- Live integration test (hits the real Electricity Maps API) ---
 
-LIVE_TOKEN = 'WgKazgtDkyxaMHAvSFYY'
+LIVE_TOKEN = os.environ.get('ELECTRICITY_MAPS_TOKEN')
 
+skip_without_live_token = pytest.mark.skipif(
+    not LIVE_TOKEN,
+    reason='ELECTRICITY_MAPS_TOKEN env var not set',
+)
 
-def _live_api_reachable():
-    try:
-        requests.get('https://api.electricitymaps.com/v4/carbon-intensity/past-range',
-                     params={'zone': 'DE'},
-                     headers={'auth-token': LIVE_TOKEN},
-                     timeout=5).close()
-        return True
-    except requests.RequestException:
-        return False
-
-
-@pytest.mark.skipif(not _live_api_reachable(), reason='Electricity Maps API not reachable')
+@skip_without_live_token
 def test_live_check_system_passes():
     provider = CarbonIntensityElectricitymapsMachineProvider(
         region='DE', token=LIVE_TOKEN, folder=GMT_METRICS_DIR, skip_check=True,
@@ -321,7 +315,7 @@ def test_live_check_system_passes():
     provider.check_system()
 
 
-@pytest.mark.skipif(not _live_api_reachable(), reason='Electricity Maps API not reachable')
+@skip_without_live_token
 def test_live_read_metrics_returns_real_data():
     provider = CarbonIntensityElectricitymapsMachineProvider(
         region='DE', token=LIVE_TOKEN, folder=GMT_METRICS_DIR, skip_check=True,
@@ -339,7 +333,7 @@ def test_live_read_metrics_returns_real_data():
     assert (df['provider'] == 'electricity_maps').all()
 
 
-@pytest.mark.skipif(not _live_api_reachable(), reason='Electricity Maps API not reachable')
+@skip_without_live_token
 def test_live_full_gmt_run_creates_metric_and_phase_stat():
 
     base_config_path = TESTS_DIR / 'test-config.yml'
