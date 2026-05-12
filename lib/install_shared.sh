@@ -21,6 +21,7 @@ ask_ai_optimisations=true
 activate_ai_optimisations=false
 build_docker_containers=true
 install_python_packages=true
+install_tinyproxy=true
 modify_hosts=true
 ask_tmpfs=true
 install_ipmi=true
@@ -497,6 +498,10 @@ while [[ $# -gt 0 ]]; do
             install_nvidia_toolkit_headers=true
             shift
             ;;
+        --disable-tinyproxy)
+            install_tinyproxy=false
+            shift
+            ;;
         --disable-path-security)
             disable_path_security_checks=true
             shift
@@ -647,35 +652,47 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h)
-            echo 'usage: ./install_XXX [p:] [a:] [m:] [N] [h] [T] [B] [I] [S] [u] [R] [L] [c:] [k:] [e:] [z] [Z] [d] [D] [g] [G] [f] [F] [j] [J]'
+            echo 'usage: ./install_XXX [options]'
             echo ''
             echo 'options:'
-            echo -e '  -p DB_PW:\t\tSupply DB password'
+            echo -e '  --tz TZ:\t\t\tSet timezone'
+            echo -e '  --nvidia-gpu:\t\tInstall NVIDIA container toolkit headers'
+            echo -e '  --disable-tinyproxy:\tDo not install tinyproxy'
+            echo -e '  --disable-path-security:\tDisable path security checks'
+            echo -e '  --elephant-url URL:\tSupply Elephant URL'
+            echo -e '  --no-elephant:\t\tDo not configure Elephant'
+
+            echo -e '  -p DB_PW:\t\t\tSupply DB password'
             echo -e '  -a API_URL:\t\tSupply API URL'
             echo -e '  -m METRICS_URL:\tSupply Dashboard URL'
+
             echo -e '  -B:\t\t\tDo not build docker containers'
-            echo -e '  -W:\t\t\tDo not Modify hosts'
+            echo -e '  -W:\t\t\tDo not modify hosts file'
             echo -e '  -N:\t\t\tDo not install Python packages'
             echo -e '  -T:\t\t\tDo not ask for tmpfs remounting'
             echo -e '  -I:\t\t\tDo not install IPMI drivers'
             echo -e '  -S:\t\t\tDo not install lm-sensors package'
             echo -e '  -R:\t\t\tDo not install MSR tools'
-            echo -e '  -u:\t\t\tUse Python system packages'
+
+            echo -e '  -u:\t\t\tUse Python system site packages'
             echo -e '  -L:\t\t\tDisable SSL'
             echo -e '  -X:\t\t\tDo not build SGX checking binaries'
-            echo -e '  -c:\t\t\tSupply SSL .crt file'
-            echo -e '  -k:\t\t\tSupply SSL .key file'
-            echo -e '  -e: EE_TOKEN\t\tActivate enterprise features and store token'
+
+            echo -e '  -c FILE:\t\tSupply SSL .crt file'
+            echo -e '  -k FILE:\t\tSupply SSL .key file'
+            echo -e '  -e TOKEN:\t\tActivate enterprise features and store token'
+
             echo -e '  -z:\t\t\tDo not ask to send install telemetry ping'
-            echo -e '  -Z:\t\t\tForce to send install telemetry ping'
+            echo -e '  -Z:\t\t\tForce sending install telemetry ping'
+
             echo -e '  -d:\t\t\tActivate CarbonDB'
-            echo -e '  -D:\t\t\tDe-activate CarbonDB'
+            echo -e '  -D:\t\t\tDeactivate CarbonDB'
             echo -e '  -g:\t\t\tActivate PowerHOG'
-            echo -e '  -G:\t\t\tDe-activate PowerHOG'
+            echo -e '  -G:\t\t\tDeactivate PowerHOG'
             echo -e '  -f:\t\t\tActivate ScenarioRunner'
-            echo -e '  -F:\t\t\tDe-activate ScenarioRunner'
+            echo -e '  -F:\t\t\tDeactivate ScenarioRunner'
             echo -e '  -j:\t\t\tActivate Eco CI'
-            echo -e '  -J:\t\t\tDe-activate Eco CI'
+            echo -e '  -J:\t\t\tDeactivate Eco CI'
 
             exit 0
             ;;

@@ -201,7 +201,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 'memory_used_procfs_system',
                 'energy_impact_powermetrics_vm',
                 'disk_used_statvfs_system',
-                'cpu_frequency_sysfs_core',
+                'cpu_frequency_msr_core',
                 'cpu_throttling_thermal_msr_component',
                 'cpu_throttling_power_msr_component',
             ):

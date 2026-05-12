@@ -5,6 +5,7 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
+from lib.secure_variable import SecureVariable
 from lib.venv_checker import check_venv
 check_venv() # this check must even run before __main__ as imports might not get resolved
 
@@ -66,6 +67,7 @@ class ScenarioRunner:
         debug_mode=False, allow_unsafe=False,
         verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
         commit_hash=None,
+        ssh_private_key=None,
         docker_prune=False, job_id=None, user_id=1,
         disabled_metric_providers=None, allowed_run_args=None, allowed_volume_mounts=None,
         phase_padding=True, usage_scenario_variables=None,
@@ -78,7 +80,7 @@ class ScenarioRunner:
         # These switches may break or skew proper measurements or make them uncomparable due to missing info
         dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False, dev_no_system_checks=False,
         dev_flow_timetravel=False, dev_stream_outputs=False, dev_cache_repos=False, dev_no_phase_stats=False,
-        dev_no_container_dependency_collection=False,
+        dev_no_container_dependency_collection=False, dev_no_resource_limits=False,
 
         # These switches do not alter proper measurements, but might result in data not being generated
         skip_volume_inspect=False, skip_download_dependencies=False, skip_unsafe=False,
@@ -126,6 +128,7 @@ class ScenarioRunner:
         self._dev_stream_outputs = dev_stream_outputs
         self._dev_cache_repos = dev_cache_repos
         self._dev_no_system_checks = dev_no_system_checks
+        self._dev_no_resource_limits = dev_no_resource_limits
 
         self._uri = uri
         self._uri_type = uri_type
@@ -135,10 +138,19 @@ class ScenarioRunner:
         self._requested_commit_hash = commit_hash
 
         self._tmp_folder = host_platform.get_tmp_root().joinpath('green-metrics-tool')
+
+        if isinstance(ssh_private_key, SecureVariable):
+            self._ssh_private_key = ssh_private_key
+        elif ssh_private_key is None:
+            self._ssh_private_key = None
+        else:
+            raise ValueError('ssh_private_key must be of type SecureVariable')
+
         self._relations_folder = self._tmp_folder.joinpath('relations')
         self._repo_folder = self._tmp_folder.joinpath('repo') # default if not changed in checkout_repository
         self._metrics_folder = self._tmp_folder.joinpath('metrics')
         self._build_dir = self._tmp_folder.joinpath('docker_images')
+        self._ssh_private_key_file = self._tmp_folder.joinpath('user_ssh_key')
 
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
@@ -177,6 +189,10 @@ class ScenarioRunner:
             ).get('sampling_rate', 0)
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
+
+        if 'ssh_private_key' in self._arguments:
+            del self._arguments['ssh_private_key']
+
         self._safe_post_processing_steps = (
                 ('_end_measurement',  {'skip_on_already_ended': True}),
                 ('_patch_phases', {}),
@@ -254,6 +270,45 @@ class ScenarioRunner:
     def _initialize_folder(self, path: Path):
         shutil.rmtree(path, ignore_errors=False)
         path.mkdir(parents=False, exist_ok=False)
+
+    def _ensure_ssh_private_key_file(self):
+        if self._ssh_private_key is None:
+            return None
+        ssh_private_key = self._ssh_private_key.get_value()
+        if not ssh_private_key:
+            return None
+
+        self._ssh_private_key_file.write_text('', encoding='utf-8')
+        os.chmod(self._ssh_private_key_file, 0o600)
+        self._ssh_private_key_file.write_text(ssh_private_key, encoding='utf-8')
+
+        return self._ssh_private_key_file
+
+    def _delete_ssh_private_key_file(self):
+        if self._ssh_private_key_file.exists():
+            self._ssh_private_key_file.unlink()
+
+    def _get_git_environment(self):
+        env = os.environ.copy()
+        env['GIT_TERMINAL_PROMPT'] = '0'
+
+        ssh_private_key_file = self._ensure_ssh_private_key_file()
+        if ssh_private_key_file is None:
+            return env
+
+        ssh_command = [
+            'ssh',
+            '-F',
+            os.devnull,
+            '-i',
+            ssh_private_key_file.as_posix(),
+            '-o',
+            'IdentitiesOnly=yes',
+            '-o',
+            'StrictHostKeyChecking=accept-new',
+        ]
+        env['GIT_SSH_COMMAND'] = shlex.join(ssh_command)
+        return env
 
 
     def get_optimizations_ignore(self):
@@ -345,7 +400,8 @@ class ScenarioRunner:
                     check=True,
                     capture_output=True,
                     encoding='UTF-8',
-                    errors='replace'
+                    errors='replace',
+                    env=self._get_git_environment(),
                 )
 
             if self._requested_commit_hash:
@@ -389,6 +445,8 @@ class ScenarioRunner:
         if not self._dev_cache_repos:
             self._initialize_folder(self._relations_folder)
 
+        git_env_vars = self._get_git_environment()
+
         for relation_key, relation in self.__usage_scenario['relations'].items():
             relation_path = self._relations_folder.joinpath(relation_key).resolve() # relation_key already checked in schema_checker
 
@@ -420,7 +478,8 @@ class ScenarioRunner:
                     check=True,
                     capture_output=True,
                     encoding='UTF-8',
-                    errors='replace'
+                    errors='replace',
+                    env=git_env_vars,
                 )
 
             if 'commit_hash' in relation:
@@ -449,6 +508,7 @@ class ScenarioRunner:
             'encoding': 'UTF-8',
             'errors': 'replace',
             'cwd': repo_path,
+            'env': self._get_git_environment(),
         }
 
         try:
@@ -750,6 +810,10 @@ class ScenarioRunner:
                     service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
     def _populate_cpu_and_memory_limits(self):
+        if self._dev_no_resource_limits:
+            print("Skipping detection of resource limit for container due to --dev-no-resource-limits")
+            return
+
         services = self.__usage_scenario.get('services', {})
 
         assignable_memory = resource_limits.get_assignable_memory()
@@ -900,7 +964,7 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
 
         if self._dev_no_metrics:
-            print('Skipping import of metric providers due to --dev-no-save')
+            print('Skipping import of metric providers due to --dev-no-metrics')
             return
 
         config = GlobalConfig().config
@@ -968,7 +1032,7 @@ class ScenarioRunner:
 
     def _clean_image_name(self, name):
         # clean up image name for problematic characters
-        name = re.sub(r'[^A-Za-z0-9_]', '', name)
+        name = re.sub(r'[^A-Za-z0-9_]', '_', name)
         # only lowercase letters are allowed for tags
         name = name.lower()
         name = f"{name}_gmt_run_tmp"
@@ -1528,23 +1592,28 @@ class ScenarioRunner:
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
 
-            # GMT core requirement is that the host has 2 CPUs so metric providers and user containers do never run on the same core
-            # get_assignable_cpus will thus always result in one core less than on the system
-            cpuset = ','.join(map(str, range(1,resource_limits.get_assignable_cpus()+1)))
+            if self._dev_no_resource_limits:
+                print("Skipping setting of resource limit for container due to --dev-no-resource-limits")
+                container_data['cpus'] = container_data['cpuset'] = container_data['mem_limit'] = container_data['memory_swap'] = container_data['oom_score_adj'] = None
+            else:
+                # GMT core requirement is that the host has 2 CPUs so metric providers and user containers do never run on the same core
+                # get_assignable_cpus will thus always result in one core less than on the system
+                cpuset = ','.join(map(str, range(1,resource_limits.get_assignable_cpus()+1)))
 
-            container_data['cpus'] = service['cpus']
-            container_data['cpuset'] = cpuset
-            container_data['mem_limit'] = service['mem_limit']
-            container_data['memory_swap'] = service['mem_limit']
-            container_data['oom_score_adj'] = 1000
+                container_data['cpus'] = service['cpus']
+                container_data['cpuset'] = cpuset
+                container_data['mem_limit'] = service['mem_limit']
+                container_data['memory_swap'] = service['mem_limit']
+                container_data['oom_score_adj'] = 1000
 
-            docker_run_string.append('--cpuset-cpus')
-            docker_run_string.append(container_data['cpuset']) # range is already exclusive, so no need to subtract 1
-            docker_run_string.append(f"--cpus={container_data['cpus']}")
-            docker_run_string.append(f"--oom-score-adj={container_data['oom_score_adj']}") # containers will be killed first so host does not OOM
-            docker_run_string.append(f"--memory={container_data['mem_limit']}")
-            docker_run_string.append(f"--env=GMT_CONTAINER_MEMORY_LIMIT={container_data['mem_limit']}")
-            docker_run_string.append(f"--memory-swap={container_data['mem_limit']}") # effectively disable swap
+                docker_run_string.append('--cpuset-cpus')
+                docker_run_string.append(container_data['cpuset']) # range is already exclusive, so no need to subtract 1
+                docker_run_string.append(f"--cpus={container_data['cpus']}")
+                docker_run_string.append(f"--oom-score-adj={container_data['oom_score_adj']}") # containers will be killed first so host does not OOM
+                docker_run_string.append(f"--memory={container_data['mem_limit']}")
+                docker_run_string.append(f"--env=GMT_CONTAINER_MEMORY_LIMIT={container_data['mem_limit']}")
+                docker_run_string.append(f"--memory-swap={container_data['mem_limit']}") # effectively disable swap
+
 
             if 'healthcheck' in service:  # must come last
                 if 'disable' in service['healthcheck'] and service['healthcheck']['disable'] is True:
@@ -2634,6 +2703,8 @@ class ScenarioRunner:
         """Clean up all resources including containers, networks, processes, and metric providers."""
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
+        self._delete_ssh_private_key_file()
+
         print('Stopping metric providers')
         for metric_provider in self.__metric_providers:
             try:
@@ -2686,7 +2757,6 @@ class ScenarioRunner:
         self.__relations.clear()
         self.__custom_metrics.clear()
         self.__sci_metrics.clear()
-
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 

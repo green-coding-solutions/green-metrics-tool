@@ -173,6 +173,19 @@
                                     <td><button id="save-measurement-wait-time-dependencies" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
                                 </tr>
                                 <tr>
+                                    <td>Git SSH private key<br>
+                                        <span><small><i class="question circle icon"></i>Used for git clone, submodules and relations when jobs access private repositories. Saving replaces the currently stored key.</small></span>
+                                    </td>
+                                    <td>
+                                        <textarea id="ssh-private-key" name="ssh-private-key" data-setting="ssh_private_key" rows="8" placeholder="Paste an OpenSSH private key here to enable private repository clones."></textarea>
+                                        <div style="margin-top: 8px;"><small id="ssh-private-key-status"></small></div>
+                                    </td>
+                                    <td>
+                                        <button id="save-ssh-private-key" class="ui positive small button" onclick="updateSetting(this);">Save</button>
+                                        <button id="clear-ssh-private-key" class="ui button" onclick="clearSshPrivateKey();">Clear</button>
+                                    </td>
+                                </tr>
+                                <tr>
                                     <td>Skip optimizations after run<br><span><small><i class="question circle icon"></i>If you do not want the cluster to process optimizations you can turn it of. Will speed up runs slightly.</small></span></td>
                                     <td><input type="checkbox"  id="measurement-skip-optimizations" name="measurement-skip-optimizations" data-setting="measurement.skip_optimizations"></td>
                                     <td><button id="save-measurement-skip-optimizations" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>

@@ -36,6 +36,7 @@ tools/sgx_enable
 /templates/ai/usage_scenario.yml.tmp
 /templates/website/usage_scenario.yml.tmp
 .nova/
+.rsa/
 
 ## Files that will be created if Enterprise Version gets installed with valid license
 /ee

@@ -10,6 +10,13 @@ redis:
   host: green-coding-redis-container
   port: 6379
 
+security:
+  # Used to encrypt secrets before storing them in the database. Keep this stable;
+  # changing it makes previously encrypted DB values unreadable. If these are empty
+  # no encryption is used.
+  encryption_public_key_file: null
+  encryption_private_key_file: null
+
 smtp:
   server: SMTP_SERVER
   sender: SMTP_SENDER
@@ -146,8 +153,9 @@ measurement:
     #--- Debug - These providers should only be needed for debugging and introspection purposes
 #      cpu_throttling_msr_component:
 #        sampling_rate: 99
-#      cpu_frequency_sysfs_core:
+#      cpu_frequency_msr_core:
 #        sampling_rate: 99
+#        base_ghz: 2.4  # Set to the nominal (non-turbo) base clock of your Intel CPU in GHz
 #      cpu_time_cgroup_container:
 #        sampling_rate: 99
 #      cpu_time_cgroup_system:

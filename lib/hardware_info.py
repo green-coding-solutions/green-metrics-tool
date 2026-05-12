@@ -65,6 +65,7 @@ linux_info_list = [
     [rpwr, 'Docker Images', 'docker images', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Volumes', "docker system df -v --format '{{json .}}' | jq -r '.Volumes[] | \"\\(.Name)\t\\(.Size)\"'", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],
+    [rpwr, 'Docker Virtual Machine', 'kata-runtime env', r'(?P<o>.*)'],
     [rpwr, 'Installed System Packages', 'if [ -f /etc/lsb-release ]; then dpkg -l ; elif [ -f /etc/redhat-release ]; then dnf list --installed --assumeno; fi', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Installed Python Packages', f"{sys.executable} -m pip freeze", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Processes', '/usr/bin/ps -aux', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],

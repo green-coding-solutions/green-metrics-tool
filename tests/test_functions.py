@@ -21,6 +21,14 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 TEST_MEASUREMENT_CONTAINERS = {'bb0ea912f295ab0d8b671caf061929de9bb8b106128c071d6a196f9b6c05cd98': {'name': 'Arne'}, 'f78f0ca43069836d975f2bd4c45724227bbc71fc4788e60b33a77f1494cd2e0c': {'name': 'Not-Arne'}}
 
+OPENSSH_EXAMPLE_PRIVATE_KEY = '''-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACBaJtSTmDwlgU0uPP0+zPSerJQZaYWd9dYCctpibwl4ZwAAAJgWu55CFrue
+QgAAAAtzc2gtZWQyNTUxOQAAACBaJtSTmDwlgU0uPP0+zPSerJQZaYWd9dYCctpibwl4Zw
+AAAEDIFKWnFdbeP4joIRyTvJ1KG2Z3IPmEy9XNhScJwmsffFom1JOYPCWBTS48/T7M9J6s
+lBlphZ311gJy2mJvCXhnAAAAE2FybmVAbWludGJvb2subG9jYWwBAg==
+-----END OPENSSH PRIVATE KEY-----'''
+
 def add_random_padding():
     return random.randint(100, 10000)
 
