@@ -60,10 +60,6 @@ from lib import resource_limits
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
-def secure_conf_print(conf):
-    sanitized = {k: 'xxxx' if 'token' in k.lower() else v for k, v in conf.items()}
-    print(f"Configuration is {sanitized}")
-
 def validate_usage_scenario_variables(usage_scenario_variables):
     for key, _ in usage_scenario_variables.items():
         if not re.fullmatch(r'__GMT_VAR_[\w]+__', key):
@@ -964,8 +960,8 @@ class ScenarioRunner:
 
         measurement_config = {}
 
-        measurement_config['measurement_settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric_providers'} # filter out static metric providers which might not be relevant for platform we are running on
-        measurement_config['configured_metric_providers'] = utils.get_metric_providers(config, self._disabled_metric_providers) # get only the providers relevant to our platform
+        measurement_config['measurement_settings'] = utils.sanitize_config({k: v for k, v in config['measurement'].items() if k != 'metric_providers'}) # filter out static metric providers which might not be relevant for platform we are running on
+        measurement_config['configured_metric_providers'] = utils.sanitize_config(utils.get_metric_providers(config, self._disabled_metric_providers)) # get only the providers relevant to our platform
         measurement_config['cluster_settings'] = config.get('cluster', {}) # untypical that it is empty, but it does not necessarily need to exist
         measurement_config['machine_settings'] = config['machine']
         measurement_config['allowed_run_args'] = self._allowed_run_args
@@ -1040,7 +1036,7 @@ class ScenarioRunner:
             merged_conf = {**conf, **optional_conf, 'folder': self._metrics_folder}
 
             metric_provider_obj = getattr(module, class_name)(**merged_conf)
-            secure_conf_print(merged_conf)
+            print(f"Configuration is {utils.sanitize_config(merged_conf)}")
 
             self.__metric_providers.append(metric_provider_obj)
 
