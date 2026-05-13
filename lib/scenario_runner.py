@@ -2697,7 +2697,7 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
 
         # We need to calculate the CO2 intensity first as phase stats needs to calculate the averages etc ...
-        from lib.phase_stats import calculate_co2_intensity # pylint: disable=import-outside-toplevel
+        from lib.post_metric_providers.calculate_co2_intensity import calculate_co2_intensity # pylint: disable=import-outside-toplevel
         calculate_co2_intensity(self._run_id)
 
         # get all the metrics from the measurements table grouped by metric

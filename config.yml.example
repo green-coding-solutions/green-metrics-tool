@@ -254,6 +254,11 @@ measurement:
 #        region: 'DE'
 #        token: 'XXXX'
 #        sampling_rate: 99 # Remove if you don't want value padding
+#      carbon_intensity_static_machine:
+#        # Static carbon intensity in gCO2e/kWh. Replaces the former SCI 'I' value.
+#        # The number 334 is for Germany 2025 (https://app.electricitymaps.com/zone/DE/all/yearly)
+#        value: 342
+#        sampling_rate: 99
 ###### DEBUG
 #      network_connections_tcpdump_system:
 #        split_ports: True
@@ -280,13 +285,8 @@ sci:
     # https://www.delltechnologies.com/asset/en-us/products/servers/technical-support/Full_LCA_Dell_R740.pdf
     # The default is the value for a developer machine (Pro Laptop - https://dataviz.boavizta.org/terminalimpact)
     TE: 181000
-    # I is the Carbon Intensity at the location of this machine
-    # The value can either be a number in gCO2e/kWh or a carbon intensity provider that fetches this number dynamically
-    # https://docs.green-coding.io/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/ (TODO)
-    # For fixed world-wide values get the number from https://ember-climate.org/insights/research/global-electricity-review-2025/
-    # The number worldwide for 2024 is 473
-    # The number 334 that comes as default is for Germany from 2024 and comes from https://app.electricitymaps.com/zone/DE/all/yearly
-    I: 334
+    # Carbon Intensity (SCI 'I') is now provided by a metric provider — see the
+    # carbon_intensity_*_machine entries under metric_providers above (e.g. carbon_intensity_static_machine).
     # N is not technically part of the SCI, but we keep the value here for better clustering.
     # N is the network energy intensity per transferred data. It transforms values like GB to kWh
     # See https://www.green-coding.io/co2-formulas/ for details

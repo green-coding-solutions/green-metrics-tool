@@ -36,6 +36,20 @@ def import_custom_metric(run_id, metric_name, unit, measurements, detail_name='t
     metric_importer.import_measurements(df, metric_name, run_id)
     return df
 
+def import_static_carbon_intensity(run_id, value):
+    measurements = []
+    for phase in Tests.TEST_MEASUREMENT_PHASES:
+        # phase_stats selects with strict time > start AND time < end, so offset slightly
+        measurements.append((phase['start'] + 1, value))
+        measurements.append((phase['end'] - 1, value))
+    import_custom_metric(
+        run_id,
+        'carbon_intensity_static_machine',
+        'gCO2e/kWh',
+        measurements,
+        detail_name='static',
+    )
+
 def test_phase_stats_single_energy():
     run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
     df = Tests.import_machine_energy(run_id)
@@ -252,30 +266,29 @@ def test_phase_embodied_and_operational_carbon():
     run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
     Tests.import_machine_energy(run_id)
 
-    sci = {"I":436,"R":0,"EL":4,"RS":1,"TE":181000}
+    carbon_intensity_value = 436
+    import_static_carbon_intensity(run_id, carbon_intensity_value)
+
+    sci = {"R":0,"EL":4,"RS":1,"TE":181000}
     build_and_store_phase_stats(run_id, sci=sci)
 
     data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, phase FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
 
-    assert len(data) == 5
-    psu_energy_ac_mcp_machine = data[1]
-    assert psu_energy_ac_mcp_machine['metric'] == 'psu_energy_ac_mcp_machine'
+    assert len(data) == 6
+    psu_energy_ac_mcp_machine = next(d for d in data if d['metric'] == 'psu_energy_ac_mcp_machine')
+    psu_carbon_ac_mcp_machine = next(d for d in data if d['metric'] == 'psu_carbon_ac_mcp_machine')
 
-    psu_carbon_ac_mcp_machine = data[2]
-
-    assert psu_carbon_ac_mcp_machine['metric'] == 'psu_carbon_ac_mcp_machine'
     assert psu_carbon_ac_mcp_machine['detail_name'] == '[MACHINE]'
     assert psu_carbon_ac_mcp_machine['unit'] == 'ug'
 
-    operational_carbon_expected = int(psu_energy_ac_mcp_machine['value'] * MICROJOULES_TO_KWH * sci['I'] * 1_000_000)
+    operational_carbon_expected = int(psu_energy_ac_mcp_machine['value'] * MICROJOULES_TO_KWH * carbon_intensity_value * 1_000_000)
     assert psu_carbon_ac_mcp_machine['value'] == operational_carbon_expected
     assert psu_carbon_ac_mcp_machine['type'] == 'TOTAL'
 
     phase_time_in_years = Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN_S / (60 * 60 * 24 * 365)
     embodied_carbon_expected = int((phase_time_in_years / sci['EL']) * sci['TE'] * sci['RS'] * 1_000_000)
 
-    embodied_carbon_share_machine = data[3]
-    assert embodied_carbon_share_machine['metric'] == 'embodied_carbon_share_machine'
+    embodied_carbon_share_machine = next(d for d in data if d['metric'] == 'embodied_carbon_share_machine')
     assert embodied_carbon_share_machine['detail_name'] == '[SYSTEM]'
     assert embodied_carbon_share_machine['unit'] == 'ug'
     assert embodied_carbon_share_machine['value'] == embodied_carbon_expected
@@ -546,8 +559,8 @@ def test_phase_stats_network_data():
 
     test_sci_config = {
         'N': 0.001,    # Network energy intensity (kWh/GB)
-        'I': 500,      # Carbon intensity (gCO2e/kWh)
     }
+    import_static_carbon_intensity(run_id, 500)
 
     build_and_store_phase_stats(run_id, sci=test_sci_config)
 
@@ -584,7 +597,7 @@ def test_phase_stats_network_data():
     assert len(network_carbon_data) == 1, "Expected 1 network carbon formula entry"
 
     network_carbon_entry = network_carbon_data[0]
-    # expected_network_carbon_ug = expected_network_energy_kwh * Decimal(test_sci_config['I']) * 1_000_000 # not used ATM. See below
+    # expected_network_carbon_ug = expected_network_energy_kwh * Decimal(500) * 1_000_000 # not used ATM. See below
 
     assert network_carbon_entry['metric'] == 'network_carbon_formula_global'
     assert network_carbon_entry['detail_name'] == '[FORMULA]'
@@ -638,9 +651,10 @@ def test_sci_calculation_for_custom_metric():
         detail_name='gcb-alpine-stress',
     )
 
+    import_static_carbon_intensity(run_id, 500)
+
     # Define comprehensive SCI configuration with all required parameters
     test_sci_config = {
-        'I': 500,      # Carbon intensity (gCO2e/kWh)
         'EL': 4,       # Expected lifespan (years)
         'TE': 300000,  # Total embodied emissions (gCO2e)
         'RS': 1,       # Resource share (100%)
