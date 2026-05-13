@@ -684,3 +684,13 @@ a {
         margin-bottom: 1em !important;
     }
 }
+
+/* Detail names can get quite long. */
+.detail-name-ellipsis {
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  display: block;
+}
