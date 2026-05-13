@@ -1,18 +1,9 @@
-import signal
-import os
 import subprocess
 
-def kill_pg(ps, cmd):
-    pgid = os.getpgid(ps.pid)
-    print(f"Trying to kill {cmd} with PGID: {pgid}")
+from lib import host_platform
 
-    os.killpg(pgid, signal.SIGTERM)
-    try:
-        ps.wait(timeout=10)
-    except subprocess.TimeoutExpired as exc:
-        # If the process hasn't gracefully exited after 5 seconds we kill it
-        os.killpg(pgid, signal.SIGKILL)
-        raise RuntimeError(f"Killed the process {cmd} with SIGKILL. This could lead to corrupted data!") from exc
+def kill_pg(ps, cmd):
+    host_platform.terminate_process_group(ps, cmd)
 
 def kill_ps(ps, cmd):
     print(f"Trying to kill {cmd} with PID: {ps.pid}")

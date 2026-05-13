@@ -8,6 +8,7 @@ from functools import cache
 from pathlib import Path
 
 from lib import error_helpers
+from lib import host_platform
 from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -113,6 +114,9 @@ def df_fill_mean(group):
 
 
 def get_network_interfaces(mode='all'):
+    if host_platform.is_windows():
+        raise RuntimeError('get_network_interfaces is not supported on Windows hosts')
+
     # Path to network interfaces in sysfs
     sysfs_net_path = '/sys/class/net'
 
@@ -189,12 +193,7 @@ def get_metric_providers_names(config):
     return [(m.split('.')[-1]) for m in metric_providers_keys]
 
 def get_architecture():
-    ps = subprocess.run(['uname', '-s'], check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8', errors='replace')
-    output = ps.stdout.strip().lower()
-
-    if output == 'darwin':
-        return 'macos'
-    return output
+    return host_platform.get_architecture_name()
 
 
 def is_rapl_energy_filtering_deactivated():
@@ -221,6 +220,9 @@ def normalize_timestamp(time_str):
 
 @cache
 def find_own_cgroup_name():
+    if host_platform.is_windows():
+        raise RuntimeError('Cgroup detection is not supported on Windows hosts')
+
     current_pid = os.getpid()
     with open(f"/proc/{current_pid}/cgroup", 'r', encoding='utf-8', errors='replace') as file:
         lines = file.readlines()
@@ -231,6 +233,9 @@ def find_own_cgroup_name():
 
 
 def runtime_dir():
+    if host_platform.is_windows():
+        return os.environ.get("TEMP") or os.environ.get("TMP") or str(host_platform.get_tmp_root())
+
     uid = os.getuid()
 
     xdg = os.environ.get("XDG_RUNTIME_DIR")

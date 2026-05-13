@@ -103,7 +103,7 @@ root_info_list = [
 ]
 
 def get_root_list():
-    if platform.system() == 'Darwin':
+    if platform.system() in ('Darwin', 'Windows'):
         return []
 
     return root_info_list
@@ -114,7 +114,7 @@ if __name__ == '__main__':
     # This means that all imports at the top still can read os.environ ... but that should not be too risky
     os.environ.clear() # we do not want any of these values to ever be accessed or influence our scripts
 
-    if platform.system() == 'Darwin':
+    if platform.system() in ('Darwin', 'Windows'):
         print('{}')
     else:
         # not using argparse, which needs os.environ

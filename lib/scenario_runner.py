@@ -33,6 +33,7 @@ GMT_ROOT_DIR = Path(__file__).resolve().parent.parent
 
 from lib import utils
 from lib import process_helpers
+from lib import host_platform
 from lib import hardware_info
 from lib import hardware_info_root_original as hardware_info_root
 from lib import error_helpers
@@ -136,6 +137,8 @@ class ScenarioRunner:
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._requested_commit_hash = commit_hash
 
+        self._tmp_folder = host_platform.get_tmp_root().joinpath('green-metrics-tool')
+
         if isinstance(ssh_private_key, SecureVariable):
             self._ssh_private_key = ssh_private_key
         elif ssh_private_key is None:
@@ -143,7 +146,6 @@ class ScenarioRunner:
         else:
             raise ValueError('ssh_private_key must be of type SecureVariable')
 
-        self._tmp_folder = Path('/tmp/').resolve(strict=True).joinpath('green-metrics-tool') # since linux has /tmp and macos /private/tmp
         self._relations_folder = self._tmp_folder.joinpath('relations')
         self._repo_folder = self._tmp_folder.joinpath('repo') # default if not changed in checkout_repository
         self._metrics_folder = self._tmp_folder.joinpath('metrics')
@@ -178,10 +180,13 @@ class ScenarioRunner:
         self._measurement_wait_time_dependencies = measurement_wait_time_dependencies
         self._last_measurement_duration = 0
         self._phase_padding = phase_padding
-        self._phase_padding_ms = max(
-            utils.get_metric_providers(config, self._disabled_metric_providers).values(),
-            key=lambda x: x.get('sampling_rate', 0) if x else 0
-        ).get('sampling_rate', 0)
+        configured_metric_providers = utils.get_metric_providers(config, self._disabled_metric_providers)
+        self._phase_padding_ms = 0
+        if configured_metric_providers:
+            self._phase_padding_ms = max(
+                configured_metric_providers.values(),
+                key=lambda x: x.get('sampling_rate', 0) if x else 0
+            ).get('sampling_rate', 0)
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
@@ -352,12 +357,7 @@ class ScenarioRunner:
         self.__notes_helper.save_to_db(self._run_id)
 
     def _clear_caches(self):
-        subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
-
-        if platform.system() == 'Darwin':
-            return
-        # 3 instructs kernel to drops page caches AND inode caches
-        subprocess.check_output(['sudo', Path('/usr/sbin/sysctl').resolve(strict=True).as_posix(), '-w', 'vm.drop_caches=3'], encoding='UTF-8', errors='replace')
+        host_platform.clear_file_system_caches()
 
     def _check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
@@ -864,23 +864,12 @@ class ScenarioRunner:
             print('Skipping removing of all temporary GMT images skipped due to --dev-cache-build')
             return
 
-        subprocess.run(
-            'docker images --format "{{.Repository}}:{{.Tag}}" | grep "gmt_run_tmp" | xargs docker rmi -f',
-            shell=True,
-            stderr=subprocess.DEVNULL, # to suppress showing of stderr
-            check=False,
-        )
+        host_platform.remove_gmt_tmp_images()
 
         if self._full_docker_prune:
             print(TerminalColors.HEADER, '\nStopping and removing all containers, build caches, volumes and images on the system', TerminalColors.ENDC)
-            subprocess.run('docker ps -aq | xargs docker stop', shell=True, check=False)
-
-            docker_prune_images_cmd = 'docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}"'
-            for whitelisted_image in config['measurement']['full_docker_prune_whitelist']:
-                docker_prune_images_cmd += f" | grep -v {shlex.quote(whitelisted_image)}"
-            docker_prune_images_cmd += " | awk '{print $2}'"
-            docker_prune_images_cmd += " | xargs docker rmi -f"
-            subprocess.run(docker_prune_images_cmd, shell=True, check=False)
+            host_platform.stop_all_docker_containers()
+            host_platform.remove_docker_images_except(config['measurement']['full_docker_prune_whitelist'])
 
             subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
         elif self._docker_prune:
@@ -1237,8 +1226,7 @@ class ScenarioRunner:
 
             # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
             output = subprocess.check_output(
-                f"docker image inspect {tmp_img_name} " + '--format={{.Size}}',
-                shell=True,
+                ['docker', 'image', 'inspect', tmp_img_name, '--format={{.Size}}'],
                 encoding='UTF-8',
                 errors='replace',
             )
@@ -1247,7 +1235,7 @@ class ScenarioRunner:
         # du -s -b does not work on macOS and also the docker image is in a VM and not accessible with du for us
         # This call is guarded with --allow-unsafe bc volume information reveals host filesystem paths
         # and potentially also volumes from other users can be probed through this
-        if not self._skip_volume_inspect and self._allow_unsafe and platform.system() != 'Darwin':
+        if not self._skip_volume_inspect and self._allow_unsafe and platform.system() not in ('Darwin', 'Windows'):
             for volume in self.__usage_scenario.get('volumes', {}):
                 # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
                 try:
@@ -1401,7 +1389,7 @@ class ScenarioRunner:
                 if self._allow_unsafe:
                     for volume in service['volumes']:
                         docker_run_string.append('-v') # since the volume can be bind or anonymous we use the more flexible -v syntax here
-                        vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
+                        vol = host_platform.split_volume_spec(volume, 1) # there might be an :ro etc at the end, so only split once
                         if not Path(vol[0]).is_absolute(): # we have a bind-mount with relative path
                             path = Path(self.__working_folder, vol[0]).resolve()
                             if not path.exists():
@@ -1411,7 +1399,7 @@ class ScenarioRunner:
                             docker_run_string.append(f"{volume}")
                 else:
                     for volume in service['volumes']:
-                        vol = volume.split(':')
+                        vol = host_platform.split_volume_spec(volume)
 
                         vol_len = len(vol)
                         # We always assume the format to be ./dir:dir:[flag] as when we would
@@ -1841,9 +1829,9 @@ class ScenarioRunner:
                         d_command,
                         stderr=subprocess.DEVNULL,
                         stdout=subprocess.DEVNULL,
-                        preexec_fn=os.setsid,
                         encoding='UTF-8',
                         errors='replace',
+                        **host_platform.popen_process_group_kwargs(),
                     )
 
                     self.__ps_to_kill.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
@@ -2198,14 +2186,14 @@ class ScenarioRunner:
                             docker_exec_command,
                             stderr=stderr_behaviour,
                             stdout=stdout_behaviour,
-                            preexec_fn=os.setsid,
                             encoding='UTF-8',
                             errors='replace',
+                            **host_platform.popen_process_group_kwargs(),
                         )
                         if stderr_behaviour == subprocess.PIPE:
-                            os.set_blocking(ps.stderr.fileno(), False)
+                            host_platform.set_nonblocking(ps.stderr)
                         if  stdout_behaviour == subprocess.PIPE:
-                            os.set_blocking(ps.stdout.fileno(), False)
+                            host_platform.set_nonblocking(ps.stdout)
 
                         ps_to_kill_tmp.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
                     else:
@@ -2618,6 +2606,15 @@ class ScenarioRunner:
         # on macOS we run our tests inside the VM. Thus measurements are not reliable as they contain the overhead and reproducability is quite bad.
         if platform.system() == 'Darwin':
             invalid_message = 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\n'
+            print(TerminalColors.WARNING, invalid_message, TerminalColors.ENDC)
+
+            if not self._run_id or self._dev_no_save:
+                print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
+            else:
+                self.__warnings.append(invalid_message)
+
+        if platform.system() == 'Windows':
+            invalid_message = 'Measurements are not directly comparable to Linux bare-metal runs because Docker Desktop runs Linux containers in a virtualized environment on Windows.\n'
             print(TerminalColors.WARNING, invalid_message, TerminalColors.ENDC)
 
             if not self._run_id or self._dev_no_save:
