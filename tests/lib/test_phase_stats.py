@@ -13,7 +13,8 @@ from contextlib import redirect_stdout, redirect_stderr
 
 from tests import test_functions as Tests
 from lib.db import DB
-from lib.phase_stats import build_and_store_phase_stats, calculate_co2_intensity
+from lib.phase_stats import build_and_store_phase_stats
+from lib.post_metric_providers.calculate_co2_intensity import calculate_co2_intensity
 from lib import metric_importer
 from lib.scenario_runner import ScenarioRunner
 
