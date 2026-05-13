@@ -33,6 +33,9 @@ measurement:
         TDP: 65
         HW_MemAmountGB: 16
         Hardware_Availability_Year: 2011
+      carbon_intensity_static_machine:
+        value: 436
+        sampling_rate: 99
 
 sci:
   EL: 4
