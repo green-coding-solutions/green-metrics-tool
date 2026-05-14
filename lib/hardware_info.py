@@ -51,6 +51,7 @@ linux_info_list = [
     [rpwr, 'Kernel Modules', 'lsmod | sort', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Environment Variables', 'printenv | sort', r'(?P<o>.*)', re.DOTALL],
     [rfwr, 'Kernel Boot Parameters', '/proc/cmdline', r'(?P<o>.*)'],
+    [rpwr, 'Systemd Tmpfiles Rules', 'awk \'FNR==1 {print "== " FILENAME " =="} {print}\' /etc/tmpfiles.d/*', r'(?P<o>.*)', re.DOTALL],
     [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
     [cf, 'Available Memory', psutil.virtual_memory, [], 'available'],
     [cf, 'Disk Usage', psutil.disk_usage, ['/'], 'used'],
