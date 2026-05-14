@@ -10,6 +10,10 @@ services:
             - command: cd /tmp/gmt-utils && npm init -y && npm install playwright@1.59.1
               shell: bash
         # playwright-ipc.js will be mounted into container via lib/scenario_runner.py to not conflict with include directory restrictions
+        volumes:
+          - /tmp/.X11-unix:/tmp/.X11-unix
+        environment:
+           DISPLAY: ":0"
 
     squid:
         image: greencoding/squid_reverse_proxy:v5
