@@ -65,6 +65,7 @@ VALUES (
         "api": {
             "quotas": {},
             "routes": [
+                "/v1/software",
                 "/v1/warnings/{run_id}",
                 "/v1/insights",
                 "/v1/ci/insights",

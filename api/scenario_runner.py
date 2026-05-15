@@ -411,6 +411,42 @@ async def get_runs(name: str | None = None, uri: str | None = None, branch: str 
 
     return CustomORJSONResponse({'success': True, 'data': data})
 
+@router.get('/v1/software')
+async def get_softwares(user: User = Depends(authenticate)):
+    # This Endpoint returns the software in the DB. A software is a run that is an aggregation of runs
+
+    query = '''
+            SELECT
+                r.id AS newest_run_id,
+                r.name,
+                r.uri,
+                r.filename,
+                r.branch,
+                (
+                    SELECT STRING_AGG(t.name, ', ')
+                    FROM unnest(r.category_ids) AS elements
+                    LEFT JOIN categories AS t ON t.id = elements
+                ) AS categories
+            FROM (
+                SELECT DISTINCT ON (name, uri, filename, branch, category_ids) *
+                FROM runs
+                WHERE
+                    category_ids IS NOT NULL
+                    AND (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
+                ORDER BY name, uri, filename, branch, category_ids, created_at DESC
+            ) r
+            ORDER BY r.created_at DESC
+
+    '''
+    params = (user.is_super_user(), user.visible_users())
+
+    data = DB().fetch_all(query, params=params)
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    return CustomORJSONResponse({'success': True, 'data': data})
+
+
 
 # Just copy and paste if we want to deprecate URLs
 # @router.get('/v1/measurements/uri', deprecated=True) # Here you can see, that URL is nevertheless accessible as variable
