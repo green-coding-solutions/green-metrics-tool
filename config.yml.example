@@ -259,6 +259,10 @@ measurement:
 #        # The number 334 is for Germany 2025 (https://app.electricitymaps.com/zone/DE/all/yearly)
 #        value: 342
 #        sampling_rate: 99
+#      carbon_intensity_level_electricitymaps_machine:
+#        region: 'DE'
+#        token: 'XXXX'
+#        sampling_rate: 99 # Remove if you don't want value padding
 ###### DEBUG
 #      network_connections_tcpdump_system:
 #        split_ports: True
