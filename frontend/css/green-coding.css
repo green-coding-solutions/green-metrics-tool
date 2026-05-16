@@ -684,14 +684,22 @@ a {
 /* Compare Mode Buttons */
 #compare-button {
     margin-right: 0px;
+    margin-bottom: 5px;
+    font-size:15px;
 }
 
 #compare-force-mode-dropdown {
   visibility: hidden;
 }
 
+#compare-force-mode-dropdown span {
+    font-size: 1em;
+    color: rgba(0,0,0,0.5);
+    white-space: nowrap;
+}
+
 #compare-force-mode {
-    font-size: 0.8em;
+    font-size: 1em;
     padding: 1px 4px;
     border: 1px solid #ccc;
     border-radius: 3px;
