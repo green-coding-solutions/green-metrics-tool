@@ -692,7 +692,7 @@ a {
   visibility: hidden;
 }
 
-#compare-force-mode-dropdown span {
+#compare-force-mode-dropdown label {
     font-size: 1em;
     color: rgba(0,0,0,0.5);
     white-space: nowrap;
