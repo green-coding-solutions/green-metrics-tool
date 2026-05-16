@@ -667,8 +667,6 @@ class TestFrontendFunctionality:
         elements[3].click()
         elements[5].click()
 
-        page.locator('.ui.accordion.compare-force-mode .title').click() # open accordion
-
         page.locator('#compare-force-mode').select_option("Machines")
 
         with context.expect_page() as new_page_info:
@@ -702,9 +700,7 @@ class TestFrontendFunctionality:
         for element in elements:
             element.click()
 
-        page.locator('.ui.accordion.compare-force-mode .title').click() # open accordion
-        page.locator('#compare-force-mode').select_option("Usage Scenario Variables")
-
+        page.locator('#compare-force-mode').select_option('Variables')
 
         with context.expect_page() as new_page_info:
             page.locator('#compare-button').click()

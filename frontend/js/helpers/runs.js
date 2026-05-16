@@ -28,12 +28,11 @@ const updateCompareCount = () => {
     const checkedCount = document.querySelectorAll('input[type=checkbox]:checked').length;
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
     if (checkedCount === 0) {
-        document.querySelector('.ui.accordion.compare-force-mode').style.display = 'none';
-        document.querySelector('#unselect-button').style.display = 'none';
-
+        document.querySelector('#compare-force-mode-dropdown').style.visibility = 'hidden';
+        document.querySelector('#unselect-button').classList.add('hidden');
     } else {
-        document.querySelector('#unselect-button').style.display = 'block';
-        document.querySelector('.ui.accordion.compare-force-mode').style.display = 'block';
+        document.querySelector('#compare-force-mode-dropdown').style.visibility = 'visible';
+        document.querySelector('#unselect-button').classList.remove('hidden');
     }
 }
 
