@@ -33,7 +33,7 @@ def get_display_resolutions():
     for sock in sockets:
         display_num = sock[1:]  # strip 'X'
         display = f":{display_num}"
-        result = rpwr(f"DISPLAY={display} xdpyinfo", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL)
+        result = rpwr(f"DISPLAY={display} xdpyinfo", r'(?P<o>.*)', re.DOTALL)
         for line in result.splitlines():
             if "dimensions" in line:
                 output.append(f"Display {display_num}: {line.replace('dimensions:', '').replace('dimension:', '').strip()}")
@@ -48,7 +48,7 @@ linux_info_list = [
     [rfwr, 'Operating System', '/etc/os-release', r'^(?:NAME|VERSION_ID)=(["\'])(?P<o>.+)\1$[\n.]*^(?:NAME|VERSION_ID)=(["\'])(?P<o2>.*)\3$', re.MULTILINE, ('o', 'o2')],
     [rpwr, 'Hostname', 'uname -n', r'(?P<o>.*)'],
     [rpwr, 'Architecture', 'uname -m', r'(?P<o>.*)'],
-    [rpwr, 'Kernel Modules', 'lsmod | sort', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Kernel Modules', 'lsmod | sort', r'(?P<o>.*)', re.DOTALL],
     [rpwr, 'Environment Variables', 'printenv | sort', r'(?P<o>.*)', re.DOTALL],
     [rfwr, 'Kernel Boot Parameters', '/proc/cmdline', r'(?P<o>.*)'],
     [rpwr, 'Systemd Tmpfiles Rules', 'awk \'FNR==1 {print "== " FILENAME " =="} {print}\' /etc/tmpfiles.d/*', r'(?P<o>.*)', re.DOTALL],
@@ -61,22 +61,16 @@ linux_info_list = [
     [rfwr, 'Hardware Model', '/sys/class/dmi/id/product_name', r'(?P<o>.*)'],
     [rpwr, 'PCI Devices', 'lspci', r'(?P<o>.*)'], # partially duplicate to lshw, but gives more readable output
     [rpwr, 'Block Devices', 'lsblk', r'(?P<o>.*)'], # partially duplicate to lshw but outputs major and minor number
-    [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Docker Images', 'docker images', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Docker Volumes', "docker system df -v --format '{{json .}}' | jq -r '.Volumes[] | \"\\(.Name)\t\\(.Size)\"'", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Docker Images', 'docker images', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Docker Volumes', "docker system df -v --format '{{json .}}' | jq -r '.Volumes[] | \"\\(.Name)\t\\(.Size)\"'", r'(?P<o>.*)', re.DOTALL],
     [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],
     [rpwr, 'Docker Virtual Machine', 'kata-runtime env', r'(?P<o>.*)', re.DOTALL],
-    [rpwr, 'Installed System Packages', 'if [ -f /etc/lsb-release ]; then dpkg -l ; elif [ -f /etc/redhat-release ]; then dnf list --installed --assumeno; fi', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Installed Python Packages', f"{sys.executable} -m pip freeze", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Processes', '/usr/bin/ps -aux', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [
-        rpwrs,
-        'Scaling Governor',
-        '/usr/bin/cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor',
-        r'(?P<o>.*)',
-        re.IGNORECASE | re.DOTALL,
-    ],
+    [rpwr, 'Installed System Packages', 'if [ -f /etc/lsb-release ]; then dpkg -l ; elif [ -f /etc/redhat-release ]; then dnf list --installed --assumeno; fi', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Installed Python Packages', f"{sys.executable} -m pip freeze", r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Processes', '/usr/bin/ps -aux', r'(?P<o>.*)', re.DOTALL],
+    [rpwrs, 'Scaling Governor', '/usr/bin/cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor', r'(?P<o>.*)', re.DOTALL],
     [rfwr, 'Hyper Threading', '/sys/devices/system/cpu/smt/active', r'(?P<o>.*)'],
     [rdr, 'CPU Complete Dump', '/sys/devices/system/cpu/'],
     # This is also listed in the complete dump but we include it here again so it is more visible in the listing
@@ -89,9 +83,9 @@ linux_info_list = [
     [rfwr, 'Turbo Boost (1=off)', '/sys/devices/system/cpu/intel_pstate/no_turbo', r'(?P<o>.*)'],
     [rfwr, 'Turbo Boost (Legacy non intel_pstate)', '/sys/devices/system/cpu/cpufreq/boost', r'(?P<o>.*)'],
     [rfwr, 'Virtualization', '/proc/cpuinfo', r'(?P<o>hypervisor)'],
-    [rpwrs, 'SGX', f"{os.path.join(CURRENT_PATH, '../tools/sgx_enable')} -s", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwrs, 'SGX', f"{os.path.join(CURRENT_PATH, '../tools/sgx_enable')} -s", r'(?P<o>.*)', re.DOTALL],
     [rfwr, 'IO Scheduling', '/sys/block/sda/queue/scheduler', r'(?P<o>.*)'],
-    [rpwr, 'Network Interfaces', 'ip addr', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Network Interfaces', 'ip addr', r'(?P<o>.*)', re.DOTALL],
     [rfwr, 'Current Clocksource', '/sys/devices/system/clocksource/clocksource0/current_clocksource', r'(?P<o>.*)'],
     [cf, 'Display Resolutions', get_display_resolutions],
 ]
@@ -106,20 +100,20 @@ mac_info_list = [
     [rpwr, 'Hostname', 'uname -n', r'(?P<o>.*)'],
     [rpwr, 'Build Version', 'sw_vers -buildVersion', r'(?P<o>.*)'],
     [rpwr, 'Kernel Version', 'uname -srv', r'(?P<o>.*)'],
-    [rpwr, 'Kernel Modules', 'kextstat', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Kernel Modules', 'kextstat', r'(?P<o>.*)', re.DOTALL],
     [rpwr, 'Environment Variables', 'printenv | sort', r'(?P<o>.*)', re.DOTALL],
     [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
     [cf, 'Available Memory', psutil.virtual_memory, [], 'available'],
     [cf, 'Disk Usage', psutil.disk_usage, ['/'], 'used'],
     [cf, 'Disk Free', psutil.disk_usage, ['/'], 'free'],
     [rpwr, 'Uptime', '/usr/bin/uptime', r'(?P<o>.*)'],
-    [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Docker Images', 'docker images', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Docker Volumes', "docker system df -v --format '{{json .}}' | jq -r '.Volumes[] | \"\\(.Name)\t\\(.Size)\"'", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Docker Images', 'docker images', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Docker Volumes', "docker system df -v --format '{{json .}}' | jq -r '.Volumes[] | \"\\(.Name)\t\\(.Size)\"'", r'(?P<o>.*)', re.DOTALL],
     [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],
-    [rpwr, 'Processes', '/bin/ps -ax', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Network Interfaces', 'ifconfig', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Processes', '/bin/ps -ax', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Network Interfaces', 'ifconfig', r'(?P<o>.*)', re.DOTALL],
 
 ]
 
@@ -134,14 +128,14 @@ windows_info_list = [
     [cf, 'Available Memory', psutil.virtual_memory, [], 'available'],
     [cf, 'Disk Usage', psutil.disk_usage, [os.path.abspath(os.sep)], 'used'],
     [cf, 'Disk Free', psutil.disk_usage, [os.path.abspath(os.sep)], 'free'],
-    [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Docker Images', 'docker images', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Docker Volumes', 'docker system df -v', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Docker Images', 'docker images', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Docker Volumes', 'docker system df -v', r'(?P<o>.*)', re.DOTALL],
     [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],
-    [rpwr, 'Installed Python Packages', f"{sys.executable} -m pip freeze", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Processes', 'tasklist', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rpwr, 'Network Interfaces', 'ipconfig /all', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Installed Python Packages', f"{sys.executable} -m pip freeze", r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Processes', 'tasklist', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Network Interfaces', 'ipconfig /all', r'(?P<o>.*)', re.DOTALL],
 ]
 
 def get_list():
