@@ -594,8 +594,8 @@ class ScenarioRunner:
             def include_gmt_helper(loader: Loader, node):
                 nodes = loader.get_constructed_nodes(node)
 
-                if not re.fullmatch(r'gmt-playwright(?:-with-cache)?\.yml', nodes[0]):
-                    raise ValueError(f"You tried include unallowed files with !include-gmt-helper function. Included files must conform to regex gmt-playwright(?:-with-cache)?\\.yml but actually is {nodes[0]}")
+                if not re.fullmatch(r'gmt-playwright(?:-headful)?(?:-with-cache)?\.yml', nodes[0]):
+                    raise ValueError(f"You tried include unallowed files with !include-gmt-helper function. Included files must conform to regex gmt-playwright(?:-headful)?(?:-with-cache)?\\.yml but actually is {nodes[0]}")
 
                 filename = runner_join_paths(f"{GMT_ROOT_DIR}/templates/partials/", nodes[0], force_path_as_root=True, force_path_in_repo=False)
 
@@ -634,7 +634,7 @@ class ScenarioRunner:
                 usage_scenario_file=usage_scenario_file,
             )
 
-            if re.search(r'!include-gmt-helper gmt-playwright(?:-with-cache)?\.yml', usage_scenario):
+            if re.search(r'!include-gmt-helper gmt-playwright(?:-headful)?(?:-with-cache)?\.yml', usage_scenario):
                 self.__include_playwright_ipc = True
 
             # We can use load here as the Loader extends SafeLoader

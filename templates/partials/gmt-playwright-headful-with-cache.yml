@@ -10,6 +10,10 @@ services:
             - command: cd /tmp/gmt-utils && npm init -y && npm install playwright@1.60.0
               shell: bash
         # playwright-ipc.js will be mounted into container via lib/scenario_runner.py to not conflict with include directory restrictions
+        volumes:
+          - /tmp/.X11-unix:/tmp/.X11-unix
+        environment:
+           DISPLAY: ":0"
 
     squid:
         image: greencoding/squid_reverse_proxy:v5
@@ -28,7 +32,7 @@ flow-prepend:
     hidden: true
     commands:
       - type: console
-        command: node /tmp/gmt-utils/gmt-playwright-ipc.js --headless true --browser firefox --proxy http://squid:3128
+        command: node /tmp/gmt-utils/gmt-playwright-ipc.js --headless false --browser firefox --proxy http://squid:3128
         note: Starting browser in background process with IPC
         detach: true
       - type: console
