@@ -46,6 +46,10 @@ cluster:
     jobs_processing: "random"
     update_os_packages: True
     shutdown_on_job_no: suspend
+    # Force a reboot after the machine has been running for this many seconds. Only triggers when no
+    # measurement is active. If the job queue is never empty the reboot will be deferred indefinitely.
+    # Set to False or 0 to disable. Example: 86400 = 24 hours.
+    reboot_after_seconds: False
     # These two parameters have only effect in cluster mode. When using CLI they will be set via flags --docker-prune and --full-docker-prune only
     docker_prune: False
     full_docker_prune: True
