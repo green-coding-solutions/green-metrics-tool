@@ -63,6 +63,19 @@ def set_status(status_code, data=None, run_id=None):
     )
     DB().query(query=query, params=params)
 
+def reboot_if_uptime_exceeded(reboot_after_s):
+
+    if not reboot_after_s:
+        return
+
+    with open('/proc/uptime', encoding='UTF-8') as f:
+        uptime_seconds = float(f.read().split()[0])
+
+    if uptime_seconds > reboot_after_s:
+        print(f"Uptime {uptime_seconds:.0f}s exceeds reboot_after_seconds {reboot_after_s}s. Rebooting...")
+        subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
+        subprocess.check_output(['sudo', 'systemctl', 'reboot'], encoding='UTF-8', errors='replace')
+
 def do_maintenance():
     config = GlobalConfig().config # pylint: disable=redefined-outer-name
 
@@ -304,12 +317,16 @@ if __name__ == '__main__':
 
             else:
                 set_status('job_no')
-                if config['cluster']['client']['shutdown_on_job_no']:
-                    subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
-                    time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
-                    subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
 
                 if not args.testing:
+                    if config['cluster']['client']['reboot_after_seconds']: # 0 will also resolve to false, which is what we want
+                        reboot_if_uptime_exceeded(config['cluster']['client']['reboot_after_seconds'])
+
+                    if config['cluster']['client']['shutdown_on_job_no']:
+                        subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
+                        time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
+                        subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
+
                     time.sleep(config['cluster']['client']['sleep_time_no_job'])
 
             if args.testing:
