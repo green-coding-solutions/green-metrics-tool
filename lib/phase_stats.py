@@ -235,6 +235,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 'carbon_intensity_elephant_machine',
                 'carbon_intensity_electricity_maps_machine',
                 'carbon_intensity_static_machine',
+                'carbon_intensity_level_electricitymaps_machine',
             ):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_avg, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
