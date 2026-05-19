@@ -103,11 +103,18 @@ class CarbonIntensityLevelElectricitymapsMachineProvider(BaseMetricProvider):
         if not isinstance(payload, dict):
             raise RuntimeError(f"Unexpected Electricity Maps carbon intensity level response: {payload}\n")
 
-        raw_level = payload.get('data', [{}])[0].get('level')
-        if raw_level is None:
-            raise RuntimeError(f"carbonIntensityLevel key missing from Electricity Maps response: {payload}\n")
+        data = payload.get('data')
+        if not data or not isinstance(data, list) or len(data) == 0:
+            raise RuntimeError(f"'data' array missing or empty in Electricity Maps response: {payload}\n")
 
-        level_value = LEVEL_MAP.get(str(raw_level).lower().strip(), 0)
+        raw_level = data[0].get('level')
+        if raw_level is None:
+            raise RuntimeError(f"'level' key missing from Electricity Maps response: {payload}\n")
+
+        level_key = str(raw_level).lower().strip()
+        if level_key not in LEVEL_MAP:
+            raise RuntimeError(f"Unknown carbon intensity level '{raw_level}' from Electricity Maps\n")
+        level_value = LEVEL_MAP[level_key]
 
         start_us = int(self._start_time.timestamp() * 1_000_000)
         end_us = int(self._end_time.timestamp() * 1_000_000)
