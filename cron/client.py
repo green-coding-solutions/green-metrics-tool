@@ -319,8 +319,8 @@ if __name__ == '__main__':
                 set_status('job_no')
 
                 if not args.testing:
-                    if reboot_after_seconds:= config['cluster']['client'].get('reboot_after_seconds'): # 0 will also resolve to false, which is what we want
-                        reboot_if_uptime_exceeded(reboot_after_seconds)
+                    if config['cluster']['client']['reboot_after_seconds']: # 0 will also resolve to false, which is what we want
+                        reboot_if_uptime_exceeded(config['cluster']['client']['reboot_after_seconds'])
 
                     if config['cluster']['client']['shutdown_on_job_no']:
                         subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
