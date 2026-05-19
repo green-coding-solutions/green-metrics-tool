@@ -130,30 +130,45 @@ def check_tty_attached(*_, **__):
     return not sys.stdin.isatty()
 
 
-# This text we compare with indicates that no swap is used
-#pylint: disable=no-else-return
 def check_swap_disabled(*_, **__):
+    
     if host_platform.is_windows():
-        return True
-    if platform.system() == 'Darwin':
+        result = subprocess.check_output(
+            ['powershell', '-NonInteractive', '-NoProfile', '-Command',
+             'Get-WmiObject Win32_PageFileUsage | Measure-Object | Select-Object -ExpandProperty Count'],
+            encoding='utf-8', errors='replace'
+        )
+        return result.strip() == '0'
+    
+    if host_platform.is_macos():
         result = subprocess.check_output(['sysctl', 'vm.swapusage'], encoding='utf-8', errors='replace')
         return result.strip() == 'vm.swapusage: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)'
-    else:
-        result = subprocess.check_output(['free'], encoding='utf-8', errors='replace')
-        for line in result.splitlines():
-            # we want this output: Swap:              0           0           0
-            # and condense it to Swap:000
-            if line.startswith('Swap') and line.replace(' ', '') != 'Swap:000':
-                return False
-        return True
+    
+    result = subprocess.check_output(['free'], encoding='utf-8', errors='replace')
+    for line in result.splitlines():
+        # we want this output: Swap:              0           0           0
+        # and condense it to Swap:000
+        if line.startswith('Swap') and line.replace(' ', '') != 'Swap:000':
+            return False
+    return True
+
 
 def check_suspend(*, run_duration):
-    if host_platform.is_windows():
-        return True
-
     run_duration = math.ceil(run_duration/1e6)
 
-    if platform.system() == 'Darwin': # no NTP for darwin, as this is linux cluster only functionality
+    if host_platform.is_windows():
+        # Event ID 42 (Kernel-Power) is logged when the system enters sleep/suspend
+        command = [
+            'powershell', '-NoProfile', '-Command',
+            f"Get-WinEvent -FilterHashtable @{{LogName='System'; Id=42; StartTime=(Get-Date).AddSeconds(-{run_duration})}} -ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count"
+        ]
+        ps = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, encoding='UTF-8', errors='replace')
+        if ps.stderr:
+            raise RuntimeError(f"Could not check for system suspend state: {ps.stderr}")
+        return ps.stdout.strip() == '0'
+
+
+    if host_platform.is_macos(): # no NTP for darwin, as this is linux cluster only functionality
         command = [f"log show --style syslog --predicate 'eventMessage contains[c] \"Entering sleep\" OR eventMessage contains[c] \"Entering Sleep\"' --last {run_duration}s --info --debug | tail -n+1 | grep -v 'log run noninteractively'"]
     else:
         command = [f"journalctl --grep='suspend' --output=short-iso --since '{run_duration} seconds ago' -q"]

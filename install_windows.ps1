@@ -557,6 +557,14 @@ if ($buildContainers -and -not $NoDocker) {
     docker compose -f docker/compose.yml pull
 }
 
+Write-Step "Registering filesystem cache-clearing scheduled task"
+$clearCacheScript = Join-Path $Root "lib\clear_fs_cache.ps1"
+$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NonInteractive -NoProfile -File `"$clearCacheScript`""
+$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 1)
+$principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -RunLevel Highest
+Register-ScheduledTask -TaskName 'GreenMetricsClearFSCache' -Action $action -Settings $settings -Principal $principal -Force | Out-Null
+Write-Host "Registered scheduled task 'GreenMetricsClearFSCache' (runs as SYSTEM, no UAC prompt)"
+
 Write-Host ""
 Write-Host "Successfully installed Green Metrics Tool!" -ForegroundColor Green
 Write-Host "Please remember to activate your venv when using GMT:"
