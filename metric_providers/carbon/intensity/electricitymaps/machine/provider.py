@@ -33,8 +33,6 @@ class CarbonIntensityElectricitymapsMachineProvider(BaseMetricProvider):
         self._start_time = None
         self._end_time = None
 
-        self._error_string = ""
-
         if not self.region:
             raise MetricProviderConfigurationError(
                 'Please set the region config option for CarbonIntensityElectricitymapsMachineProvider (electricity_maps) in the config.yml')
@@ -78,7 +76,7 @@ class CarbonIntensityElectricitymapsMachineProvider(BaseMetricProvider):
             raise MetricProviderConfigurationError(f"Electricity Maps base URL {API_PAST_URL} could not be reached: {exc}") from exc
 
     def get_stderr(self):
-        return self._error_string
+        return None
 
     def start_profiling(self, _=None):
         self._start_time = datetime.now(timezone.utc)
@@ -123,15 +121,13 @@ class CarbonIntensityElectricitymapsMachineProvider(BaseMetricProvider):
         try:
             response = requests.get(API_PAST_URL, params=params, headers=headers, timeout=30)
         except requests.RequestException as exc:
-            self._error_string += f"Failed to query Electricity Maps carbon intensity service: {exc}\n"
-            return pandas.DataFrame(columns=['time', 'value', 'provider'])
+            raise RuntimeError(f"Failed to query Electricity Maps carbon intensity service: {exc}\n") from exc
         finally:
             if response is not None:
                 response.close()
 
         if response.status_code != 200:
-            self._error_string += f"Electricity Maps carbon intensity request failed with status {response.status_code}: {response.text}\n"
-            return pandas.DataFrame(columns=['time', 'value', 'provider'])
+            raise RuntimeError(f"Electricity Maps carbon intensity request failed with status {response.status_code}: {response.text}\n")
 
         data = _extract_timeseries(response.json())
 
@@ -152,13 +148,11 @@ class CarbonIntensityElectricitymapsMachineProvider(BaseMetricProvider):
                 )
 
                 if fallback_response.status_code != 200:
-                    self._error_string += f"Electricity Maps carbon intensity fallback request failed with status {fallback_response.status_code}: {fallback_response.text}\n"
-                    return pandas.DataFrame(columns=['time', 'value', 'provider'])
+                    raise RuntimeError(f"Electricity Maps carbon intensity fallback request failed with status {fallback_response.status_code}: {fallback_response.text}\n")
 
                 fallback_data = fallback_response.json()
             except requests.RequestException as exc:
-                self._error_string += f"Failed to query Electricity Maps carbon intensity service for fallback: {exc}\n"
-                return pandas.DataFrame(columns=['time', 'value', 'provider'])
+                raise RuntimeError(f"Failed to query Electricity Maps carbon intensity service for fallback: {exc}\n") from exc
 
             finally:
                 if fallback_response is not None:
