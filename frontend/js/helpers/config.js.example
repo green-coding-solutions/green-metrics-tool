@@ -647,6 +647,11 @@ METRIC_MAPPINGS = {
         "source": "Elephant",
         "explanation": "The Grid intensity as reported by Elephant"
     },
+    "carbon_intensity_static_machine": {
+        "clean_name": "Grid Intensity",
+        "source": "Static",
+        "explanation": "The Grid intensity fixed with a static value"
+    },
     "carbon_intensity_level_electricitymaps_machine": {
         "clean_name": "Grid Intensity Level",
         "source": "Electricity Maps",
