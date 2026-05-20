@@ -18,6 +18,7 @@ from lib.repo_info import get_repo_info
 from lib import validate
 from lib.temperature import get_temperature
 from lib import error_helpers
+from lib import utils
 from lib.configuration_check_error import ConfigurationCheckError, Status
 
 # We currently have this dynamically as it will probably change quite a bit
@@ -57,7 +58,7 @@ def set_status(status_code, data=None, run_id=None):
         status_code,
         config['machine']['base_temperature_value'], config['cluster']['client']['jobs_processing'],
         gmt_hash, gmt_timestamp,
-        json.dumps({'measurement': config['measurement'], 'machine': config['machine'], 'cluster': config['cluster']}),
+        json.dumps(utils.sanitize_config({'measurement': config['measurement'], 'machine': config['machine'], 'cluster': config['cluster']})),
         config['machine']['id'],
 
     )

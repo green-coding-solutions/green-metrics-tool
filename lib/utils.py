@@ -163,6 +163,27 @@ def get_run_data(run_name):
 def get_pascal_case(in_string):
     return ''.join([s.capitalize() for s in in_string.split('_')])
 
+SENSITIVE_CONFIG_KEYS = frozenset({
+    'token',
+    'electricity_maps_token',
+    'password',
+    'secret',
+    'api_key',
+    'auth_token',
+})
+
+def sanitize_config(value, _redacted='__REDACTED__'):
+    if isinstance(value, dict):
+        return {
+            k: _redacted if isinstance(k, str) and k.lower() in SENSITIVE_CONFIG_KEYS else sanitize_config(v, _redacted)
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [sanitize_config(item, _redacted) for item in value]
+    if isinstance(value, tuple):
+        return tuple(sanitize_config(item, _redacted) for item in value)
+    return value
+
 def get_metric_providers(config, disabled_metric_providers=None):
     architecture = get_architecture()
 

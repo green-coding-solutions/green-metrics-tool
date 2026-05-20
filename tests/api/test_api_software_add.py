@@ -28,6 +28,19 @@ def test_post_run_add_github_one_off():
     assert job_ids == data['data']
 
 
+def test_post_run_add_github_with_carbon_simulation():
+    run_name = 'test_' + utils.randomword(12)
+    carbon_simulation = [100, 200]
+    run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='daily', carbon_simulation=carbon_simulation)
+    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    job_ids = get_job_ids(run_name)
+    assert job_ids == response.json()['data']
+    assert get_job_carbon_simulation(run_name) == carbon_simulation
+    assert get_watchlist_carbon_simulation(run_name) == carbon_simulation
+
+
 
 def test_post_run_add_github_tags():
     run_name = 'test_' + utils.randomword(12)
@@ -245,3 +258,33 @@ def get_job_ids(run_name):
     if data is None or data == []:
         return None
     return [el[0] for el in data] # unpack
+
+def get_job_carbon_simulation(run_name):
+    query = """
+            SELECT
+                carbon_simulation
+            FROM
+                jobs
+            WHERE name = %s
+            ORDER BY id DESC
+            LIMIT 1
+            """
+    data = DB().fetch_one(query, (run_name, ))
+    if data is None:
+        return None
+    return data[0]
+
+def get_watchlist_carbon_simulation(run_name):
+    query = """
+            SELECT
+                carbon_simulation
+            FROM
+                watchlist
+            WHERE name = %s
+            ORDER BY id DESC
+            LIMIT 1
+            """
+    data = DB().fetch_one(query, (run_name, ))
+    if data is None:
+        return None
+    return data[0]

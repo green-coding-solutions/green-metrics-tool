@@ -10,6 +10,7 @@ from io import StringIO
 from lib.db import DB
 from lib import error_helpers
 
+
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
     # First we create averages for all types. This includes means and totals
     DB().query('''
@@ -74,6 +75,8 @@ def generate_csv_line(hidden, run_id, metric, detail_name, phase_name, value, va
     # else '' resolves to NULL
     return f"{hidden},{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{round(sampling_rate_avg) if sampling_rate_avg is not None else ''},{round(sampling_rate_max) if sampling_rate_max is not None else ''},{round(sampling_rate_95p) if sampling_rate_95p is not None else ''},{unit},NOW()\n"
 
+
+
 def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
     if not sci:
         sci = {}
@@ -120,6 +123,8 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
         cpu_utilization_containers = {}
         cpu_utilization_machine = None
         network_io_carbon_in_ug = None
+        carbon_intensity = None
+        chosen_carbon_metric_name = None
         sci_phase_data = {}
         sci_phase_data_custom = {}
         machine_power_current_phase = None
@@ -153,6 +158,29 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
         duration = Decimal(phase['end']-phase['start'])
         duration_in_s = Decimal(duration / 1_000_000)
         csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, None, None, None, 'us'))
+
+
+        for measurement_metric_id, metric, unit, detail_name in metrics:
+            params = (measurement_metric_id, phase['start'], phase['end'])
+            results = DB().fetch_one(select_query, params=params)
+
+            if metric not in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', 'carbon_intensity_static_machine'):
+                continue
+
+            value_sum, _, _, classic_value_avg, weighted_value_avg, _, _, _, value_count, _, _, _ = results
+
+            if value_count == 0:
+                continue
+
+            if value_count <= 2:
+                resolved_value_avg = Decimal(classic_value_avg)
+            else:
+                resolved_value_avg = Decimal(weighted_value_avg)
+
+            if carbon_intensity is not None:
+                phase_warnings.add(f"More than one carbon intensity provider is configured. Now using {metric}")
+            carbon_intensity = resolved_value_avg
+            chosen_carbon_metric_name = metric
 
         # now we go through all metrics in the run and aggregate them
         for measurement_metric_id, metric, unit, detail_name in metrics: # unpack
@@ -204,6 +232,10 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 'cpu_frequency_msr_core',
                 'cpu_throttling_thermal_msr_component',
                 'cpu_throttling_power_msr_component',
+                'carbon_intensity_elephant_machine',
+                'carbon_intensity_electricity_maps_machine',
+                'carbon_intensity_static_machine',
+                'carbon_intensity_level_electricitymaps_machine',
             ):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_avg, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
@@ -250,21 +282,18 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg_mW, 'MEAN', power_max_mW, power_min_mW, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
 
-                if sci.get('I', None) is not None:
-                    value_carbon_ug = (value_sum / 3_600_000) * Decimal(sci['I'])
-
-                    csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", value_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
-
-                    if metric.endswith('_machine') :
-                        sci_phase_data['machine_carbon_ug'] = sci_phase_data.get('machine_carbon_ug', 0) + value_carbon_ug
-
-
                 if metric.endswith('_machine'):
                     if phase['name'] == '[BASELINE]':
                         machine_power_baseline = power_avg_mW
                     else: # this will effectively happen for all subsequent phases where energy data is available
                         machine_energy_current_phase = value_sum
                         machine_power_current_phase = power_avg_mW
+
+            elif '_carbon_' in metric and unit in ('ug', 'ugCO2e'):
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+
+                if metric.endswith('_machine') and chosen_carbon_metric_name is not None and chosen_carbon_metric_name in detail_name:
+                    sci_phase_data['machine_carbon_ug'] = sci_phase_data.get('machine_carbon_ug', 0) + Decimal(value_sum)
 
             else: # Default
                 if metric.startswith('custom_'):
@@ -277,7 +306,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
         # after going through detail metrics, create cumulated ones
         if network_bytes_total:
-            if sci.get('N', None) is not None and sci.get('I', None) is not None:
+            if sci.get('N', None) is not None:
                 # build the network energy by using a formula: https://www.green-coding.io/co2-formulas/
                 # pylint: disable=invalid-name
                 network_io_in_kWh = Decimal(sum(network_bytes_total)) / 1_000_000_000 * Decimal(sci['N'])
@@ -289,10 +318,14 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_power_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_power_in_mW, 'TOTAL', None, None, None, None, None, 'mW'))
 
                 # co2 calculations
-                network_io_carbon_in_ug = network_io_in_kWh * Decimal(sci['I']) * 1_000_000
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
+                if carbon_intensity is not None:
+                    network_io_carbon_in_ug = network_io_in_kWh * Decimal(carbon_intensity) * 1_000_000
+                    csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
+                else:
+                    error_helpers.log_error('Cannot calculate the total network carbon consumption. No carbon intensity provider data was found. Configure a carbon_intensity_*_machine provider (e.g. carbon_intensity_static_machine) in the config.', run_id=run_id)
+                    network_io_carbon_in_ug = 0
             else:
-                error_helpers.log_error('Cannot calculate the total network energy consumption. SCI values I and N are missing in the config.', run_id=run_id)
+                error_helpers.log_error('Cannot calculate the total network energy consumption. SCI value N is missing in the config.', run_id=run_id)
                 network_io_carbon_in_ug = 0
         else:
             network_io_carbon_in_ug = 0

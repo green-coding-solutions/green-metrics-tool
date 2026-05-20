@@ -681,6 +681,15 @@ a {
     }
 }
 
+/* Detail names can get quite long. */
+.detail-name-ellipsis {
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  display: block;
+}
 /* Compare Mode Buttons */
 #compare-button {
     margin-right: 0px;
