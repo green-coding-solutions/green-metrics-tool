@@ -7,6 +7,7 @@ import requests
 from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
 from metric_providers.carbon.intensity.helpers import expand_to_sampling_rate
 
+
 class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
     def __init__(self, *, region, elephant, folder, sampling_rate=-1, simulation_uuid=None, provider=None, skip_check=False):
 
@@ -17,7 +18,6 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
         self._start_time = None
         self._end_time = None
         self._elephant_base_url = None
-        self._error_string = ""
         self._folder = folder
 
         if not self.region:
@@ -65,8 +65,10 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
             if response is not None:
                 response.close()
 
+        self._get_current_intensity() # Also check if at least one provider / selected provider is active in Elephant
+
     def get_stderr(self):
-        return self._error_string
+        return None
 
     def start_profiling(self, _=None):
         self._start_time = datetime.now(timezone.utc)
@@ -75,6 +77,53 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
     def stop_profiling(self):
         self._end_time = datetime.now(timezone.utc)
         self._has_started = False
+
+    def _get_current_intensity(self):
+
+        # As the providers take quite some time to provide data (5 min to 1 hour) it can happen that short running
+        # jobs don't have any data. So we just get the most current data point as a fallback.
+        if self.provider_filter:
+            fallback_url = f"{self._elephant_base_url}/carbon-intensity/current"
+        else:
+            fallback_url = f"{self._elephant_base_url}/carbon-intensity/current/primary"
+
+        fallback_response = None
+        try:
+            fallback_params = {'region': self.region}
+            if self.simulation_uuid:
+                fallback_params['simulationId'] = str(self.simulation_uuid)
+
+            fallback_response = requests.get(fallback_url, params=fallback_params, timeout=30)
+
+            if fallback_response.status_code != 200:
+                raise RuntimeError(f"Elephant carbon intensity request failed with status {fallback_response.status_code}: {fallback_response.text}\n")
+
+            data = fallback_response.json()
+
+            if isinstance(data, dict) and self.simulation_uuid:
+                data = [{
+                    'time': self._format_time(self._end_time),
+                    'carbon_intensity': data.get('carbon_intensity'),
+                    'provider': data.get('simulationId', str(self.simulation_uuid)),
+                }]
+
+            if not isinstance(data, list):
+                raise RuntimeError(f"Unexpected Elephant response for carbon intensity: {data}")
+
+            if self.provider_filter:
+                data = [d for d in data if d.get('provider') == f"{self.provider_filter.lower()}_{self.region.lower()}"]
+
+            if not data:
+                raise RuntimeError(f"Filtering for your selected carbon intensity provider ({self.provider_filter.lower()}_{self.region.lower()}) resulted in no matches. Are you sure there is no typo in the name and the provider is active on {self._elephant_base_url}?")
+
+        except requests.RequestException as exc:
+            raise RuntimeError(f"Failed to query Elephant carbon intensity service: {exc}\n") from exc
+
+        finally:
+            if fallback_response is not None:
+                fallback_response.close()
+
+        return data
 
     def _format_time(self, timestamp):
         if timestamp.tzinfo is None:
@@ -115,16 +164,14 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
         try:
             response = requests.get(url, params=params, timeout=30)
         except requests.RequestException as exc:
-            self._error_string += f"Failed to query Elephant carbon intensity service: {exc}\n"
-            return pandas.DataFrame(columns=['time', 'value', 'provider'])
+            raise RuntimeError(f"Failed to query Elephant carbon intensity service: {exc}\n") from exc
 
         finally:
             if response is not None:
                 response.close()
 
         if response.status_code != 200:
-            self._error_string += f"Elephant carbon intensity request failed with status {response.status_code}: {response.text}\n"
-            return pandas.DataFrame(columns=['time', 'value', 'provider'])
+            raise RuntimeError(f"Elephant carbon intensity request failed with status {response.status_code}: {response.text}\n")
 
         data = response.json()
 
@@ -132,47 +179,7 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
             raise RuntimeError(f"Unexpected Elephant response for carbon intensity: {data}")
 
         if len(data) == 0:
-            # As the providers take quite some time to provide data (5 min to 1 hour) it can happen that short running
-            # jobs don't have any data. So we just get the most current data point as a fallback.
-            if self.provider_filter:
-                fallback_url = f"{self._elephant_base_url}/carbon-intensity/current"
-            else:
-                fallback_url = f"{self._elephant_base_url}/carbon-intensity/current/primary"
-
-            fallback_response = None
-            try:
-                fallback_params = {'region': self.region}
-                if self.simulation_uuid:
-                    fallback_params['simulationId'] = str(self.simulation_uuid)
-
-                fallback_response = requests.get(fallback_url, params=fallback_params, timeout=30)
-
-                if fallback_response.status_code != 200:
-                    self._error_string += f"Elephant carbon intensity fallback request failed with status {fallback_response.status_code}: {fallback_response.text}\n"
-                    return pandas.DataFrame(columns=['time', 'value', 'provider'])
-
-                data = fallback_response.json()
-
-                if isinstance(data, dict) and self.simulation_uuid:
-                    data = [{
-                        'time': self._format_time(self._end_time),
-                        'carbon_intensity': data.get('carbon_intensity'),
-                        'provider': data.get('simulationId', str(self.simulation_uuid)),
-                    }]
-
-                if not isinstance(data, list):
-                    raise RuntimeError(f"Unexpected Elephant response for carbon intensity: {data}")
-
-                if self.provider_filter:
-                    data = [d for d in data if d.get('provider') == f"{self.provider_filter.lower()}_{self.region.lower()}"]
-
-            except requests.RequestException as exc:
-                self._error_string += f"Failed to query Elephant carbon intensity service for fallback: {exc}\n"
-                return pandas.DataFrame(columns=['time', 'value', 'provider'])
-
-            finally:
-                if fallback_response is not None:
-                    fallback_response.close()
+            data = self._get_current_intensity()
 
         if not isinstance(data, list):
             raise RuntimeError(f"Unexpected Elephant response for carbon intensity: {data}")
@@ -192,6 +199,7 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
             })
 
         df = pandas.DataFrame.from_records(records)
+
         if df.empty:
             return df
 
