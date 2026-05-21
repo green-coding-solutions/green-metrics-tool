@@ -12,9 +12,8 @@ API_LATEST_URL = "https://api.electricitymaps.com/v4/carbon-intensity-level/late
 
 LEVEL_MAP = {
     "low": 1,
-    "medium": 2,
+    "moderate": 2,
     "high": 3,
-    "very_high": 4,
 }
 
 
