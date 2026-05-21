@@ -80,7 +80,7 @@ def set_status(status_code, data=None, run_id=None):
 def reboot_if_uptime_exceeded(reboot_after_s):
 
     if type(reboot_after_s) is int: # pylint: disable=unidiomatic-typecheck - # cannot be isinstance as True is subclass
-        error_helpers.log_error('Wrong type configured for reboot_after_s. Must be int', type(reboot_after_s))
+        error_helpers.log_error('Wrong type configured for reboot_after_s. Must be int', type=type(reboot_after_s))
         return
 
     if not reboot_after_s:
