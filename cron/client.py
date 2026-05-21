@@ -21,8 +21,21 @@ from lib import error_helpers
 from lib import utils
 from lib.configuration_check_error import ConfigurationCheckError, Status
 
-# We currently have this dynamically as it will probably change quite a bit
-STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_end', 'maintenance_start', 'maintenance_end', 'maintenance_error', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
+STATUS_LIST = (
+    'cooldown',
+    'warmup',
+    'job_no',
+    'job_start',
+    'job_error',
+    'job_end',
+    'maintenance_start',
+    'maintenance_end',
+    'maintenance_error',
+    'measurement_control_start',
+    'measurement_control_end',
+    'measurement_control_error',
+    'reboot',
+)
 
 GMT_ROOT_DIR = Path(__file__).resolve().parent.parent
 
@@ -78,8 +91,11 @@ def reboot_if_uptime_exceeded(reboot_after_s):
 
     if uptime_seconds > reboot_after_s:
         print(f"Uptime {uptime_seconds:.0f}s exceeds reboot_after_seconds {reboot_after_s}s. Rebooting...")
+        set_status('reboot')
         subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
         subprocess.check_output(['sudo', 'systemctl', 'reboot'], encoding='UTF-8', errors='replace')
+        time.sleep(86400) # reboot request might not be handled directly, thus we wait until this process gets killed.
+
 
 def do_maintenance():
     config = GlobalConfig().config # pylint: disable=redefined-outer-name
