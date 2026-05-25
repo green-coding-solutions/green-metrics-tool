@@ -40,13 +40,13 @@ STATUS_LIST = (
 GMT_ROOT_DIR = Path(__file__).resolve().parent.parent
 
 def set_status(status_code, data=None, run_id=None):
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
+
     if not hasattr(set_status, "last_status"):
         set_status.last_status = status_code  # static variable
     elif set_status.last_status == status_code:
         return # no need to update status, if it has not changed since last time
     set_status.last_status = status_code
-
-    config = GlobalConfig().config # pylint: disable=redefined-outer-name
 
     if status_code not in STATUS_LIST:
         raise ValueError(f"Status code not valid: '{status_code}'. Should be in: {STATUS_LIST}")
@@ -78,9 +78,10 @@ def set_status(status_code, data=None, run_id=None):
     DB().query(query=query, params=params)
 
 def reboot_if_uptime_exceeded(reboot_after_s):
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
 
     if type(reboot_after_s) is int: # pylint: disable=unidiomatic-typecheck - # cannot be isinstance as True is subclass
-        error_helpers.log_error('Wrong type configured for reboot_after_s. Must be int', type=type(reboot_after_s))
+        error_helpers.log_error('Wrong type configured for reboot_after_s. Must be int', type=type(reboot_after_s), machine=config['machine']['description'])
         return
 
     if not reboot_after_s:
@@ -126,7 +127,7 @@ def do_maintenance():
     )
     if ps.returncode != 0:
         set_status('maintenance_error')
-        error_helpers.log_error('Cluster maintenance failed', stdout=ps.stdout)
+        error_helpers.log_error('Cluster maintenance failed', stdout=ps.stdout, machine=config['machine']['description'])
         time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
 
     set_status('maintenance_end', data=ps.stdout)
@@ -227,7 +228,7 @@ if __name__ == '__main__':
         if args.config_override is not None:
             if args.config_override[-4:] != '.yml':
                 parser.print_help()
-                error_helpers.log_error('Config override file must be a yml file')
+                error_helpers.log_error('Config override file must be a yml file', machine=GlobalConfig().config['machine']['description'])
                 sys.exit(1)
             GlobalConfig(config_location=args.config_override) # will create a singleton and subsequent calls will retrieve object with altered default config file
 
