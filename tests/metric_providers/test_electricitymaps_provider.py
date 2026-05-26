@@ -1,6 +1,5 @@
 import os
 import shutil
-import pandas
 import pytest
 import requests
 import tempfile
@@ -214,9 +213,8 @@ def test_fallback_http_error_returns_none():
         return make_response(status_code=503)
 
     with patch('requests.get', side_effect=side_effect):
-        result = provider._read_metrics()
-    assert isinstance(result, pandas.DataFrame) and result.empty
-    assert provider._error_string != ''
+        with pytest.raises(RuntimeError, match='503'):
+            provider._read_metrics()
 
 
 # --- _read_metrics: error paths ---
@@ -224,18 +222,15 @@ def test_fallback_http_error_returns_none():
 def test_http_error_returns_none_and_logs():
     provider = profiled_provider()
     with patch('requests.get', return_value=make_response(status_code=500)):
-        result = provider._read_metrics()
-    assert isinstance(result, pandas.DataFrame) and result.empty
-    assert '500' in provider._error_string
+        with pytest.raises(RuntimeError, match='500'):
+            provider._read_metrics()
 
 
 def test_network_failure_returns_none_and_logs():
     provider = profiled_provider()
     with patch('requests.get', side_effect=requests.RequestException('timeout')):
-        result = provider._read_metrics()
-    assert isinstance(result, pandas.DataFrame) and result.empty
-
-    assert provider._error_string != ''
+        with pytest.raises(RuntimeError, match='timeout'):
+            provider._read_metrics()
 
 
 # --- _read_metrics: missing start/end times ---

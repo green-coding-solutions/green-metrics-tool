@@ -101,6 +101,17 @@ def test_db_rows_are_written_and_presented():
 
         metric_providers.extend(pm_additional_list)
 
+    # calculate_co2_intensity derives a carbon metric for each energy+carbon_intensity combo.
+    # Add those expected derived names so the assertion below can validate them.
+    if any('carbon_intensity_' in p for p in metric_providers):
+        derived_carbon_metrics = [
+            p.replace('_energy_', '_carbon_')
+            for p in metric_providers if '_energy_' in p
+        ]
+        metric_providers.extend(derived_carbon_metrics)
+    else:
+        derived_carbon_metrics = []
+
     do_check = True
 
     for d in data:
@@ -119,7 +130,7 @@ def test_db_rows_are_written_and_presented():
                 match = re.search(r"Imported \S* (\d+) \S* metrics from  PowermetricsProvider", run_stdout, re.MULTILINE)
                 assert match is not None
                 do_check = False
-            else:
+            elif d_provider not in derived_carbon_metrics:
                 ## Assert the information printed to std.out matches what's in the db
                 match = re.search(rf"Imported \S* (\d+) \S* metrics from\s*{d_class_name}", run_stdout)
                 assert match is not None
