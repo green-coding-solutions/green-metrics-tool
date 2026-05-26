@@ -281,6 +281,8 @@ const updateKeyMetric = (
         selector = '.network-data';
     } else if (network_total_metric_condition(metric_name)) {
         selector = '.network-traffic';
+    } else if (carbon_grid_intensity_condition(metric_name)) {
+        selector = '.grid-intensity';
     }
     /*else if (network_carbon_metric_condition(metric_name)) {
         selector = '.network-carbon';
