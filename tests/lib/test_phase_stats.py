@@ -281,7 +281,7 @@ def test_phase_embodied_and_operational_carbon():
     psu_energy_ac_mcp_machine = next(d for d in data if d['metric'] == 'psu_energy_ac_mcp_machine')
     psu_carbon_ac_mcp_machine = next(d for d in data if d['metric'] == 'psu_carbon_ac_mcp_machine')
 
-    assert psu_carbon_ac_mcp_machine['detail_name'] == 'psu_energy_ac_mcp_machine_[MACHINE]_carbon_intensity_static_machine_static'
+    assert psu_carbon_ac_mcp_machine['detail_name'] == '[MACHINE]_carbon_intensity_static_machine_static'
     assert psu_carbon_ac_mcp_machine['unit'] == 'ugCO2e'
 
     operational_carbon_expected = int(psu_energy_ac_mcp_machine['value'] * MICROJOULES_TO_KWH * carbon_intensity_value * 1_000_000)
