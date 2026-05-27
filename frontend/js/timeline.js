@@ -166,8 +166,8 @@ const fillInputsFromURL = (url_params) => {
         showNotification('No uri', 'uri parameter in URL is empty or not present. Did you follow a correct URL?');
         throw "Error";
     }
-    if(!repository_uri.startsWith('http') && !repository_uri.startsWith('/')) {
-        showNotification('Invalid URI', 'URI must be a valid HTTP/HTTPS URL or absolute file path');
+    if(!repository_uri.startsWith('http') && !repository_uri.startsWith('/') && !repository_uri.startsWith('git@') && !repository_uri.startsWith('ssh://')) {
+        showNotification('Invalid URI', 'URI must be a valid HTTP/HTTPS URL, absolute file path, or SSH repository URI (git@/ssh://)');
         throw "Error";
     }
     // setting as value / innerText needs no XSS escaping
@@ -552,7 +552,7 @@ const loadCharts = async () => {
                         const container = document.createElement('div');
                         container.innerHTML = html_content;
                         // adding as href will not trigger any XSS problems which might come from user input here
-                        container.querySelector('.commit-hash-link').href = `${repository_uri}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}`
+                        container.querySelector('.commit-hash-link').href = `${toHttpsUri(repository_uri)}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}`
                         return container;
 
 

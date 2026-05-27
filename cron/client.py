@@ -18,21 +18,35 @@ from lib.repo_info import get_repo_info
 from lib import validate
 from lib.temperature import get_temperature
 from lib import error_helpers
+from lib import utils
 from lib.configuration_check_error import ConfigurationCheckError, Status
 
-# We currently have this dynamically as it will probably change quite a bit
-STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_end', 'maintenance_start', 'maintenance_end', 'maintenance_error', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
+STATUS_LIST = (
+    'cooldown',
+    'warmup',
+    'job_no',
+    'job_start',
+    'job_error',
+    'job_end',
+    'maintenance_start',
+    'maintenance_end',
+    'maintenance_error',
+    'measurement_control_start',
+    'measurement_control_end',
+    'measurement_control_error',
+    'reboot',
+)
 
 GMT_ROOT_DIR = Path(__file__).resolve().parent.parent
 
 def set_status(status_code, data=None, run_id=None):
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
+
     if not hasattr(set_status, "last_status"):
         set_status.last_status = status_code  # static variable
     elif set_status.last_status == status_code:
         return # no need to update status, if it has not changed since last time
     set_status.last_status = status_code
-
-    config = GlobalConfig().config # pylint: disable=redefined-outer-name
 
     if status_code not in STATUS_LIST:
         raise ValueError(f"Status code not valid: '{status_code}'. Should be in: {STATUS_LIST}")
@@ -57,11 +71,32 @@ def set_status(status_code, data=None, run_id=None):
         status_code,
         config['machine']['base_temperature_value'], config['cluster']['client']['jobs_processing'],
         gmt_hash, gmt_timestamp,
-        json.dumps({'measurement': config['measurement'], 'machine': config['machine'], 'cluster': config['cluster']}),
+        json.dumps(utils.sanitize_config({'measurement': config['measurement'], 'machine': config['machine'], 'cluster': config['cluster']})),
         config['machine']['id'],
 
     )
     DB().query(query=query, params=params)
+
+def reboot_if_uptime_exceeded(reboot_after_s):
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
+
+    if type(reboot_after_s) is int: # pylint: disable=unidiomatic-typecheck - # cannot be isinstance as True is subclass
+        error_helpers.log_error('Wrong type configured for reboot_after_s. Must be int', type=type(reboot_after_s), machine=config['machine']['description'])
+        return
+
+    if not reboot_after_s:
+        return
+
+    with open('/proc/uptime', encoding='UTF-8') as f:
+        uptime_seconds = float(f.read().split()[0])
+
+    if uptime_seconds > reboot_after_s:
+        print(f"Uptime {uptime_seconds:.0f}s exceeds reboot_after_seconds {reboot_after_s}s. Rebooting...")
+        set_status('reboot')
+        subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
+        subprocess.check_output(['sudo', 'systemctl', 'reboot'], encoding='UTF-8', errors='replace')
+        time.sleep(86400) # reboot request might not be handled directly, thus we wait until this process gets killed.
+
 
 def do_maintenance():
     config = GlobalConfig().config # pylint: disable=redefined-outer-name
@@ -92,7 +127,7 @@ def do_maintenance():
     )
     if ps.returncode != 0:
         set_status('maintenance_error')
-        error_helpers.log_error('Cluster maintenance failed', stdout=ps.stdout)
+        error_helpers.log_error('Cluster maintenance failed', stdout=ps.stdout, machine=config['machine']['description'])
         time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
 
     set_status('maintenance_end', data=ps.stdout)
@@ -193,7 +228,7 @@ if __name__ == '__main__':
         if args.config_override is not None:
             if args.config_override[-4:] != '.yml':
                 parser.print_help()
-                error_helpers.log_error('Config override file must be a yml file')
+                error_helpers.log_error('Config override file must be a yml file', machine=GlobalConfig().config['machine']['description'])
                 sys.exit(1)
             GlobalConfig(config_location=args.config_override) # will create a singleton and subsequent calls will retrieve object with altered default config file
 
@@ -304,12 +339,16 @@ if __name__ == '__main__':
 
             else:
                 set_status('job_no')
-                if config['cluster']['client']['shutdown_on_job_no']:
-                    subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
-                    time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
-                    subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
 
                 if not args.testing:
+                    if config['cluster']['client']['reboot_after_seconds']: # 0 will also resolve to false, which is what we want
+                        reboot_if_uptime_exceeded(config['cluster']['client']['reboot_after_seconds'])
+
+                    if config['cluster']['client']['shutdown_on_job_no']:
+                        subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
+                        time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
+                        subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
+
                     time.sleep(config['cluster']['client']['sleep_time_no_job'])
 
             if args.testing:

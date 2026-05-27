@@ -9,13 +9,16 @@ from pathlib import Path
 def system_name():
     return platform.system()
 
-
 def is_windows():
     return system_name() == 'Windows'
 
 
 def is_macos():
     return system_name() == 'Darwin'
+
+
+def is_linux():
+    return system_name() == 'Linux'
 
 
 def get_architecture_name():
@@ -28,12 +31,27 @@ def get_architecture_name():
 
 
 def get_tmp_root():
-    return Path(tempfile.gettempdir()).resolve(strict=True)
-
-
+    if is_windows():
+        return Path(tempfile.gettempdir()).resolve(strict=True)
+    else:
+        return Path('/tmp/').resolve(strict=True)
+    
 def clear_file_system_caches():
     if is_windows():
-        print('Skipping filesystem cache clearing on Windows')
+        try:
+            subprocess.check_output(
+                ['powershell', '-NonInteractive', '-NoProfile', '-Command',
+                 'Start-ScheduledTask -TaskName GreenMetricsClearFSCache; '
+                 'while ((Get-ScheduledTask -TaskName GreenMetricsClearFSCache).State -eq "Running") { Start-Sleep -Milliseconds 100 }'],
+                encoding='UTF-8',
+                errors='replace',
+                stderr=subprocess.STDOUT,
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(
+                'Failed to clear filesystem cache on Windows. '
+                'Ensure the GreenMetricsClearFSCache scheduled task is registered by re-running install_windows.ps1 as Administrator.'
+            ) from e
         return
 
     subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
@@ -121,12 +139,9 @@ def _docker_image_rows():
 
 
 def remove_gmt_tmp_images():
-    try:
-        image_rows = _docker_image_rows()
-    except subprocess.CalledProcessError:
-        return
 
-    image_ids = [image_id for image_name, image_id in image_rows if 'gmt_run_tmp' in image_name]
+    image_ids = [image_id for image_name, image_id in _docker_image_rows() if 'gmt_run_tmp' in image_name]
+    
     if image_ids:
         subprocess.run(['docker', 'rmi', '-f', *image_ids], stderr=subprocess.DEVNULL, check=False)
 
