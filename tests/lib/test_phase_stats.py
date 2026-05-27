@@ -946,7 +946,7 @@ def test_phase_stats_maps_elephant_machine_carbon():
     )
 
     assert data['metric'] == 'psu_carbon_ac_sdia_machine'
-    assert data['detail_name'] == 'psu_energy_ac_sdia_machine_[MACHINE]_carbon_intensity_elephant_machine_bundesnetzagentur_de'
+    assert data['detail_name'] == '[MACHINE]_carbon_intensity_elephant_machine_bundesnetzagentur_de'
     assert data['unit'] == 'ugCO2e'
     assert data['value'] == 1200
     assert data['type'] == 'TOTAL'
