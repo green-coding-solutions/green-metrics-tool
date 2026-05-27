@@ -224,14 +224,11 @@ const fetchAndFillRunData = async (run_id) => {
             run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data[item]}">${escapeString(run_data[item])}</a></td></tr>`);
         } else if(item == 'uri') {
             const uri = run_data[item];
-            let uriDisplay;
-            if(uri.startsWith('http')) {
-                // URI is safe for href attribute: validated to have http/https protocol prevents XSS
-                // HTML escaping not needed here and would break URLs (e.g., & would become &amp;)
-                uriDisplay = `<a href="${uri}">${escapeString(uri)}</a>`;
-            } else {
-                uriDisplay = escapeString(uri);
-            }
+            const httpsUri = toHttpsUri(uri);
+            // URI is safe for href: toHttpsUri normalises SSH/git@ to https://, absolute paths stay as text
+            const uriDisplay = httpsUri.startsWith('http')
+                ? `<a href="${httpsUri}">${escapeString(uri)}</a>`
+                : escapeString(uri);
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
         } else if(item == 'note') {
             const note = run_data[item].trim();
