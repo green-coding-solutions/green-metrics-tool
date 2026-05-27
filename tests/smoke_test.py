@@ -103,14 +103,13 @@ def test_db_rows_are_written_and_presented():
 
     # calculate_co2_intensity derives a carbon metric for each energy+carbon_intensity combo.
     # Add those expected derived names so the assertion below can validate them.
-    if any('carbon_intensity_' in p for p in metric_providers):
-        derived_carbon_metrics = [
-            p.replace('_energy_', '_carbon_')
-            for p in metric_providers if '_energy_' in p
-        ]
-        metric_providers.extend(derived_carbon_metrics)
-    else:
-        derived_carbon_metrics = []
+    assert any('carbon_intensity_' in p for p in metric_providers), \
+        "carbon_intensity provider must be present in test-config.yml"
+    derived_carbon_metrics = [
+        p.replace('_energy_', '_carbon_')
+        for p in metric_providers if '_energy_' in p
+    ]
+    metric_providers.extend(derived_carbon_metrics)
 
     do_check = True
 

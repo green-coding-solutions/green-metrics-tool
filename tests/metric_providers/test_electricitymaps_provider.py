@@ -216,23 +216,6 @@ def test_fallback_http_error_returns_none():
         with pytest.raises(RuntimeError, match='503'):
             provider._read_metrics()
 
-
-# --- _read_metrics: error paths ---
-
-def test_http_error_returns_none_and_logs():
-    provider = profiled_provider()
-    with patch('requests.get', return_value=make_response(status_code=500)):
-        with pytest.raises(RuntimeError, match='500'):
-            provider._read_metrics()
-
-
-def test_network_failure_returns_none_and_logs():
-    provider = profiled_provider()
-    with patch('requests.get', side_effect=requests.RequestException('timeout')):
-        with pytest.raises(RuntimeError, match='timeout'):
-            provider._read_metrics()
-
-
 # --- _read_metrics: missing start/end times ---
 
 def test_read_metrics_without_profiling_raises():

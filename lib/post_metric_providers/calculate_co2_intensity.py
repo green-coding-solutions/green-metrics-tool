@@ -52,7 +52,7 @@ def calculate_co2_intensity(run_id):
             if not energy_values:
                 continue
 
-            detail_name = f"{energy_metric}_{energy_detail_name}_{carbon_metric}_{carbon_detail_name}"
+            detail_name = f"{energy_detail_name}_{carbon_metric}_{carbon_detail_name}"
             derived_metric = energy_metric.replace('_energy_', '_carbon_')
             derived_metric_id = DB().fetch_one('''
                 INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
