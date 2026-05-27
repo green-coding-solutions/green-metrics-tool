@@ -52,13 +52,37 @@ def check_repo(repo_url, branch='main'):
         error_helpers.log_error(f"Request to {git_api} API failed",url=url,exception=str(exc))
         raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?") from exc
 
-    # We do not fail here, but only do a warning, bc often times the SSH or token which might be supplied in the URL is too restrictive then and cannot be used to query the commits also
-    # However we do check the commits endpoint bc this tells us if the repo is non empty or not
+    message = _extract_api_message(response)
+
+    # ---- Rate limit detection (works even on 403) ----
+    if response.status_code == 403 and isinstance(message, str) and message.startswith("API rate limit exceeded"):
+        error_helpers.log_error(f"{git_api} rate limit exceeded while accessing {repo_url}. Skipping repo validation - Consider authenticating future requests.")
+        return
+
+    # ---- Status-based handling ----
+    if response.status_code == 403:
+        raise PermissionError(
+            f"Access denied (403) for repository {repo_url}. "
+            f"Repo may be private or credentials are insufficient."
+        )
+
+    if response.status_code == 404:
+        raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?")
+
     if response.status_code != 200:
+        # We do not fail here, but only do a warning, bc often times the SSH or token which might be supplied in the URL is too restrictive then and cannot be used to query the commits also
+        # However we do check the commits endpoint bc this tells us if the repo is non empty or not
         if git_api in ('gitlab', 'github'):
             raise RuntimeError(f"Repository returned bad status code ({response.status_code}). Is the repo ({repo_url}) publicly accessible, not empty and does the branch {branch} exist?")
         else:
             error_helpers.log_error(f"Connect to {git_api} API was possible, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
+
+def _extract_api_message(response):
+    try:
+        data = response.json()
+        return data.get("message", "") if isinstance(data, dict) else ""
+    except Exception: # pylint: disable=broad-exception-caught
+        return response.text or ""
 
 def get_repo_last_marker(repo_url, marker, branch=None):
 
