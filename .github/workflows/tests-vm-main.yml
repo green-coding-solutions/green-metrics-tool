@@ -52,6 +52,9 @@ jobs:
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
+        # Never bringt this to the PR test, as other people can then extract it. Running it on the periodic tests is enough
+        env:
+          ELECTRICITY_MAPS_TOKEN: ${{ secrets.ELECTRICITYMAPS_SANDBOX_TOKEN }}
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
          enable-ssh: ${{ inputs.enable-ssh }}
