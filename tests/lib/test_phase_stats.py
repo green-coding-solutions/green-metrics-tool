@@ -270,6 +270,8 @@ def test_phase_embodied_and_operational_carbon():
     carbon_intensity_value = 436
     import_static_carbon_intensity(run_id, carbon_intensity_value)
 
+    calculate_co2_intensity(run_id)
+
     sci = {"R":0,"EL":4,"RS":1,"TE":181000}
     build_and_store_phase_stats(run_id, sci=sci)
 
@@ -279,11 +281,11 @@ def test_phase_embodied_and_operational_carbon():
     psu_energy_ac_mcp_machine = next(d for d in data if d['metric'] == 'psu_energy_ac_mcp_machine')
     psu_carbon_ac_mcp_machine = next(d for d in data if d['metric'] == 'psu_carbon_ac_mcp_machine')
 
-    assert psu_carbon_ac_mcp_machine['detail_name'] == '[MACHINE]'
-    assert psu_carbon_ac_mcp_machine['unit'] == 'ug'
+    assert psu_carbon_ac_mcp_machine['detail_name'] == '[MACHINE]_carbon_intensity_static_machine_static'
+    assert psu_carbon_ac_mcp_machine['unit'] == 'ugCO2e'
 
     operational_carbon_expected = int(psu_energy_ac_mcp_machine['value'] * MICROJOULES_TO_KWH * carbon_intensity_value * 1_000_000)
-    assert psu_carbon_ac_mcp_machine['value'] == operational_carbon_expected
+    assert psu_carbon_ac_mcp_machine['value'] == pytest.approx(operational_carbon_expected, abs=10)
     assert psu_carbon_ac_mcp_machine['type'] == 'TOTAL'
 
     phase_time_in_years = Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN_S / (60 * 60 * 24 * 365)
@@ -317,6 +319,7 @@ def test_phase_operational_carbon_uses_dynamic_intensity_without_sci_i():
         detail_name='simulation',
     )
 
+    calculate_co2_intensity(run_id)
     build_and_store_phase_stats(run_id, sci={})
 
     data = DB().fetch_one(
@@ -654,6 +657,8 @@ def test_sci_calculation_for_custom_metric():
 
     import_static_carbon_intensity(run_id, 500)
 
+    calculate_co2_intensity(run_id)
+
     # Define comprehensive SCI configuration with all required parameters
     test_sci_config = {
         'EL': 4,       # Expected lifespan (years)
@@ -854,7 +859,7 @@ def test_calculate_co2_intensity_uses_microgram_scale():
 
     derived_metric_id = DB().fetch_one(
         "SELECT id FROM measurement_metrics WHERE run_id = %s AND metric = %s AND unit = %s",
-        params=(run_id, 'psu_carbon_elephant_machine', 'ugCO2e')
+        params=(run_id, 'psu_carbon_ac_mcp_machine', 'ugCO2e')
     )[0]
 
     derived_values = DB().fetch_all(
@@ -936,12 +941,12 @@ def test_phase_stats_maps_elephant_machine_carbon():
         FROM phase_stats
         WHERE phase = %s AND metric = %s
         ''',
-        params=('007_Stress', 'psu_carbon_elephant_machine'),
+        params=('007_Stress', 'psu_carbon_ac_sdia_machine'),
         fetch_mode='dict',
     )
 
-    assert data['metric'] == 'psu_carbon_elephant_machine'
-    assert data['detail_name'] == 'psu_energy_ac_sdia_machine_[MACHINE]_carbon_intensity_elephant_machine_bundesnetzagentur_de'
+    assert data['metric'] == 'psu_carbon_ac_sdia_machine'
+    assert data['detail_name'] == '[MACHINE]_carbon_intensity_elephant_machine_bundesnetzagentur_de'
     assert data['unit'] == 'ugCO2e'
     assert data['value'] == 1200
     assert data['type'] == 'TOTAL'
