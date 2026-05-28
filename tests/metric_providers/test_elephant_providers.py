@@ -1,5 +1,4 @@
 import shutil
-import pandas
 import pytest
 import requests
 import uuid
@@ -87,9 +86,17 @@ def test_missing_provider_without_simulation_raises():
 
 def test_check_system_success():
     provider = make_provider()
-    with patch('requests.get', return_value=make_response({'status': 'healthy'})) as mock_get:
+    current_data = [{'time': FIXED_TIME, 'carbon_intensity': FIXED_VALUE, 'provider': 'test_de'}]
+
+    def side_effect(url, **_):
+        if '/health' in url:
+            return make_response({'status': 'healthy'})
+        return make_response(current_data)
+
+    with patch('requests.get', side_effect=side_effect) as mock_get:
         provider.check_system()
-    mock_get.assert_called_once_with(f'{BASE_URL}/health', timeout=10)
+
+    assert mock_get.call_args_list[0][0][0] == f'{BASE_URL}/health'
 
 
 def test_check_system_failure_raises():
@@ -117,7 +124,7 @@ def test_read_metrics_url_and_params():
     call_kwargs = mock_get.call_args
     assert call_kwargs[0][0] == f'{BASE_URL}/carbon-intensity/history'
     assert call_kwargs[1]['params']['region'] == 'DE'
-    assert call_kwargs[1]['params']['update'] == 'true'
+    assert 'update' not in call_kwargs[1]['params']
 
 
 def test_read_metrics_with_provider_filter():
@@ -191,43 +198,41 @@ def test_empty_history_with_simulation_uses_simulation_fallback():
 def test_http_error_returns_none_and_logs():
     provider = profiled_provider()
     with patch('requests.get', return_value=make_response(status_code=500)):
-        result = provider._read_metrics()
-    assert isinstance(result, pandas.DataFrame) and result.empty
-    assert '500' in provider._error_string
+        with pytest.raises(RuntimeError, match='500'):
+            provider._read_metrics()
 
 
 def test_network_failure_returns_none_and_logs():
     provider = profiled_provider()
     with patch('requests.get', side_effect=requests.RequestException('timeout')):
-        result = provider._read_metrics()
-    assert isinstance(result, pandas.DataFrame) and result.empty
-    assert provider._error_string != ''
+        with pytest.raises(RuntimeError, match='timeout'):
+            provider._read_metrics()
 
 
 def test_fallback_http_error_returns_none():
     provider = profiled_provider()
 
-    def side_effect(url, **_kwargs):
+    def side_effect(url, **_):
         if 'history' in url:
             return make_response([])
         return make_response(status_code=503)
 
     with patch('requests.get', side_effect=side_effect):
-        result = provider._read_metrics()
-    assert isinstance(result, pandas.DataFrame) and result.empty
+        with pytest.raises(RuntimeError, match='503'):
+            provider._read_metrics()
 
 
 def test_fallback_network_failure_returns_none():
     provider = profiled_provider()
 
-    def side_effect(url, **_kwargs):
+    def side_effect(url, **_):
         if 'history' in url:
             return make_response([])
         raise requests.RequestException('unreachable')
 
     with patch('requests.get', side_effect=side_effect):
-        result = provider._read_metrics()
-    assert isinstance(result, pandas.DataFrame) and result.empty
+        with pytest.raises(RuntimeError, match='unreachable'):
+            provider._read_metrics()
 
 
 # --- _read_metrics: missing start/end times ---
@@ -290,7 +295,7 @@ def _live_elephant_reachable():
 @pytest.mark.skipif(not _live_elephant_reachable(), reason='Elephant service not reachable')
 def test_live_check_system_passes():
     provider = CarbonIntensityElephantMachineProvider(
-        region='DE', provider='test', elephant=LIVE_ELEPHANT_CONFIG, folder=GMT_METRICS_DIR, skip_check=True,
+        region='DE', provider='bundesnetzagentur', elephant=LIVE_ELEPHANT_CONFIG, folder=GMT_METRICS_DIR, skip_check=True,
     )
     provider.check_system()
 
