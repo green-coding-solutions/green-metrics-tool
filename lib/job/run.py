@@ -17,6 +17,7 @@ from lib.db import DB
 from lib.user import User
 from lib.terminal_colors import TerminalColors
 from lib.scenario_runner import ScenarioRunner
+from lib import host_platform
 import optimization_providers.base
 
 
@@ -94,6 +95,21 @@ class RunJob(Job):
                 )
 
         finally:
-            shutil.rmtree(runner._tmp_folder) # we see no sane reason for keeping tmp files on the cluster after a run
+            # we see no sane reason for keeping tmp files on the cluster after a run.
+            # On macOS, however, we wipe contents in place rather than removing
+            # _tmp_folder itself, so the directory's inode (and the inodes of subdirs
+            # like repo/) stay stable across runs. Docker Desktop on macOS caches
+            # inode<->path mappings in its virtiofs layer; deleting and recreating a
+            # bind-mount source between runs causes subsequent containers to see a
+            # stale/empty view until Docker Desktop is restarted.
+            if host_platform.is_macos():
+                if runner._tmp_folder.exists():
+                    for child in runner._tmp_folder.iterdir():
+                        if child.is_symlink() or not child.is_dir():
+                            child.unlink()
+                        else:
+                            shutil.rmtree(child, ignore_errors=False)
+            else:
+                shutil.rmtree(runner._tmp_folder)
             self._run_id = runner._run_id # might not be set yet due to error
             user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds
