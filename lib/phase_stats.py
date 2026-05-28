@@ -201,15 +201,25 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 derivative_avg = Decimal(classic_value_avg / (duration/value_count))
                 derivative_max = Decimal(max_value / (duration/value_count))
                 derivative_min = Decimal(min_value / (duration/value_count))
-
-                # Some metrics should not be flagged as under-sampled as they are binary or are custom
-                if not metric.startswith('custom_') and not metric.startswith('cpu_throttling'):
-                    phase_warnings.add(f"Very few samples encountered in phase '{phase['name']}', MEAN values might be inaccurate")
             else:
                 value_avg = Decimal(weighted_value_avg)
                 derivative_avg = Decimal(derivative_avg)
                 derivative_max = Decimal(derivative_max)
                 derivative_min = Decimal(derivative_min)
+
+            # Dynamic undersampling warning: flag when actual samples < 50% of what the observed
+            # sampling rate implies we should have received over the phase duration.
+            # Some metrics should not be flagged as they are custom.
+            if not metric.startswith('custom_'):
+                if sampling_rate_avg is not None and sampling_rate_avg > 0:
+                    # sampling_rate_avg and duration are both in microseconds
+                    expected_samples = duration / Decimal(sampling_rate_avg)
+                    is_undersampled = Decimal(value_count) < expected_samples * Decimal('0.5')
+                else:
+                    # value_count == 1: no LAG diff available, cannot estimate rate — always undersampled
+                    is_undersampled = True
+                if is_undersampled:
+                    phase_warnings.add(f"Very few samples (< 50% of observed duration or < 2) encountered in phase '{phase['name']}', MEAN values might be inaccurate")
 
             # we make everything Decimal so in subsequent divisions these values stay Decimal
             value_sum = Decimal(value_sum)

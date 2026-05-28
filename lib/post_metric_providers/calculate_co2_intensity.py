@@ -8,8 +8,6 @@ from io import StringIO
 
 from lib.db import DB
 
-DERIVED_METRIC = 'psu_carbon_elephant_machine'
-
 def calculate_co2_intensity(run_id):
     carbon_intensity_metrics = DB().fetch_all('''
         SELECT id, metric, detail_name
@@ -54,12 +52,13 @@ def calculate_co2_intensity(run_id):
             if not energy_values:
                 continue
 
-            detail_name = f"{energy_metric}_{energy_detail_name}_{carbon_metric}_{carbon_detail_name}"
+            detail_name = f"{energy_detail_name}_{carbon_metric}_{carbon_detail_name}"
+            derived_metric = energy_metric.replace('_energy_', '_carbon_')
             derived_metric_id = DB().fetch_one('''
                 INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
                 VALUES (%s, %s, %s, %s)
                 RETURNING id
-            ''', params=(run_id, DERIVED_METRIC, detail_name, 'ugCO2e'))[0]
+            ''', params=(run_id, derived_metric, detail_name, 'ugCO2e'))[0]
 
             csv_buffer = StringIO()
             carbon_times = [entry[0] for entry in carbon_values]
@@ -81,4 +80,3 @@ def calculate_co2_intensity(run_id):
                 columns=('measurement_metric_id', 'value', 'time')
             )
             csv_buffer.close()
-

@@ -150,7 +150,6 @@ class CarbonIntensityElephantMachineProvider(BaseMetricProvider):
             'region': self.region,
             'startTime': self._format_time(self._start_time),
             'endTime': self._format_time(self._end_time),
-            'update': 'true',
         }
 
         if self.provider_filter:
