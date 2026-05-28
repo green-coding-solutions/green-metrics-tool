@@ -2,17 +2,17 @@
 
 const compareButton = () => {
     const checkedBoxes = document.querySelectorAll('input[type=checkbox]:checked');
-
-    let link = '/compare.html?ids='
-
-    checkedBoxes.forEach(checkbox => {
-        link = `${link}${checkbox.value},`;
-    });
-    link = link.slice(0,link.length-1);
+    const ids = Array.from(checkedBoxes).map(cb => cb.value).join(',');
 
     const value = document.querySelector('#compare-force-mode').value;
-    link = `${link}&force_mode=${value}`
     localStorage.setItem('compare_mode_last_value', value);
+
+    let link;
+    if (value === 'simple_table') {
+        link = `/compare-simple.html?ids=${ids}`;
+    } else {
+        link = `/compare.html?ids=${ids}&force_mode=${value}`;
+    }
 
     window.open(link, '_blank');
 }

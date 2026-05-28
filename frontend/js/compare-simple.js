@@ -1,0 +1,377 @@
+"use strict";
+
+const DEFAULT_PHASE = '[RUNTIME]';
+
+const compareSimpleState = {
+    runIds: [],
+    runMeta: {},
+    phaseStats: {},
+    availablePhases: new Set(),
+    selectedPhase: DEFAULT_PHASE,
+    metricsOnY: true,
+    colorize: false,
+    showSource: false,
+    showDetail: false,
+    dataTable: null,
+};
+
+// Green (hsl 120) → red (hsl 0), low = best.
+const colorForRatio = (ratio) => {
+    const r = Math.max(0, Math.min(1, ratio));
+    const hue = 120 * (1 - r);
+    return `hsl(${hue}, 70%, 80%)`;
+};
+
+const buildMetricRanges = (metricKeys, lookup) => {
+    const ranges = {};
+    metricKeys.forEach((m) => {
+        const key = `${m.metric_name}||${m.detail_name}`;
+        const values = compareSimpleState.runIds
+            .map((rid) => lookup[rid][key]?.mean)
+            .filter((v) => v != null && !Number.isNaN(v));
+        if (values.length < 2) return;
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        if (min === max) return;
+        ranges[key] = { min, max };
+    });
+    return ranges;
+};
+
+const fetchSinglePhaseStats = async (run_id) => {
+    try {
+        const response = await makeAPICall(`/v1/phase_stats/single/${encodeURIComponent(run_id)}`);
+        return response?.data || null;
+    } catch (err) {
+        if (err instanceof APIEmptyResponse204) return null;
+        showNotification(`Could not load phase stats for run ${run_id}`, err);
+        return null;
+    }
+};
+
+const fetchRunMeta = async (run_id) => {
+    try {
+        const response = await makeAPICall(`/v2/run/${encodeURIComponent(run_id)}`);
+        return response?.data || null;
+    } catch (err) {
+        showNotification(`Could not load run info for ${run_id}`, err);
+        return null;
+    }
+};
+
+const buildRunLabel = (run_id, meta) => {
+    if (!meta) return run_id.slice(0, 8);
+    const parts = [];
+    if (meta.name) parts.push(escapeString(meta.name));
+    if (meta.commit_hash) parts.push(`<code>${escapeString(String(meta.commit_hash).slice(0, 7))}</code>`);
+    return parts.join('<br>') || run_id.slice(0, 8);
+};
+
+const extractMetricRowsForPhase = (phaseStatsObject, phase, run_id) => {
+    const rows = [];
+    const phase_data = phaseStatsObject?.data?.[phase]?.data;
+    if (!phase_data) return rows;
+
+    for (const metric_name in phase_data) {
+        const metric_data = phase_data[metric_name];
+        const unit = metric_data.unit;
+        for (const detail_name in metric_data.data) {
+            const detail = metric_data.data[detail_name];
+            // For a single run the key in detail.data is the run_id itself.
+            const value_entry = detail.data?.[run_id] || Object.values(detail.data || {})[0];
+            if (value_entry == null) continue;
+            const [converted_value, converted_unit] = convertValue(value_entry.mean, unit);
+            rows.push({
+                metric_name,
+                detail_name,
+                source: getPretty(metric_name, 'source'),
+                clean_name: getPretty(metric_name, 'clean_name'),
+                unit: converted_unit,
+                mean: converted_value,
+            });
+        }
+    }
+    return rows;
+};
+
+const buildMetricKeys = (phase) => {
+    const map = new Map();
+    compareSimpleState.runIds.forEach((run_id) => {
+        const stats = compareSimpleState.phaseStats[run_id];
+        if (!stats) return;
+        const rows = extractMetricRowsForPhase(stats, phase, run_id);
+        rows.forEach((row) => {
+            const key = `${row.metric_name}||${row.detail_name}`;
+            if (!map.has(key)) {
+                map.set(key, {
+                    metric_name: row.metric_name,
+                    detail_name: row.detail_name,
+                    source: row.source,
+                    clean_name: row.clean_name,
+                    unit: row.unit,
+                });
+            }
+        });
+    });
+    return [...map.values()].sort((a, b) => {
+        if (a.source !== b.source) return a.source.localeCompare(b.source);
+        if (a.clean_name !== b.clean_name) return a.clean_name.localeCompare(b.clean_name);
+        return a.detail_name.localeCompare(b.detail_name);
+    });
+};
+
+const buildValueLookup = (phase) => {
+    const lookup = {};
+    compareSimpleState.runIds.forEach((run_id) => {
+        lookup[run_id] = {};
+        const stats = compareSimpleState.phaseStats[run_id];
+        if (!stats) return;
+        const rows = extractMetricRowsForPhase(stats, phase, run_id);
+        rows.forEach((row) => {
+            lookup[run_id][`${row.metric_name}||${row.detail_name}`] = { mean: row.mean, unit: row.unit };
+        });
+    });
+    return lookup;
+};
+
+const formatValue = (value) => {
+    if (value == null || Number.isNaN(value)) return '';
+    return numberFormatter.format(value);
+};
+
+const populatePhaseDropdown = () => {
+    const select = document.querySelector('#phase-select');
+    const allowedPhases = ['[BASELINE]', '[INSTALLATION]', '[BOOT]', '[IDLE]', '[RUNTIME]', '[REMOVE]'];
+
+    Array.from(select.options).forEach((opt) => {
+        if (!compareSimpleState.availablePhases.has(opt.value)) {
+            opt.disabled = true;
+            opt.text = `${opt.text} (no data)`;
+        }
+    });
+
+    if (!compareSimpleState.availablePhases.has(compareSimpleState.selectedPhase)) {
+        const fallback = allowedPhases.find((p) => compareSimpleState.availablePhases.has(p));
+        if (fallback) {
+            compareSimpleState.selectedPhase = fallback;
+            select.value = fallback;
+        }
+    } else {
+        select.value = compareSimpleState.selectedPhase;
+    }
+
+    select.addEventListener('change', () => {
+        compareSimpleState.selectedPhase = select.value;
+        renderTable();
+    });
+
+    $(select).dropdown();
+};
+
+const updateAxisSwitchLabel = () => {
+    const label = document.querySelector('#axis-switch-label');
+    label.textContent = compareSimpleState.metricsOnY
+        ? 'Metrics on Y / Runs on X'
+        : 'Runs on Y / Metrics on X';
+};
+
+const resetTableElement = () => {
+    const tableEl = $('#compare-simple-table');
+    if (compareSimpleState.dataTable) {
+        compareSimpleState.dataTable.destroy();
+        compareSimpleState.dataTable = null;
+    }
+    tableEl.empty();
+};
+
+const renderMetricsOnY = (metricKeys, lookup) => {
+    const ranges = compareSimpleState.colorize ? buildMetricRanges(metricKeys, lookup) : {};
+    const columns = [
+        { title: 'Metric', data: 'metric' },
+    ];
+    if (compareSimpleState.showSource) {
+        columns.push({ title: 'Source', data: 'source' });
+    }
+    if (compareSimpleState.showDetail) {
+        columns.push({ title: 'Detail', data: 'detail' });
+    }
+    columns.push({ title: 'Unit', data: 'unit' });
+    compareSimpleState.runIds.forEach((run_id, idx) => {
+        const label = buildRunLabel(run_id, compareSimpleState.runMeta[run_id]);
+        columns.push({
+            title: `<a href="/stats.html?id=${encodeURIComponent(run_id)}" target="_blank">${label}</a>`,
+            data: `run_${idx}`,
+            className: 'dt-body-right',
+            render: function (val, type) {
+                if (type === 'display' || type === 'filter') return formatValue(val);
+                return val == null ? null : val;
+            },
+            createdCell: function (td, cellData, rowData) {
+                const range = ranges[rowData._key];
+                if (!range || cellData == null || Number.isNaN(cellData)) return;
+                td.style.backgroundColor = colorForRatio((cellData - range.min) / (range.max - range.min));
+            },
+        });
+    });
+
+    const data = metricKeys.map((m) => {
+        const key = `${m.metric_name}||${m.detail_name}`;
+        const row = {
+            _key: key,
+            metric: escapeString(m.clean_name),
+            source: escapeString(m.source),
+            detail: escapeString(m.detail_name),
+            unit: escapeString(m.unit || ''),
+        };
+        compareSimpleState.runIds.forEach((run_id, idx) => {
+            row[`run_${idx}`] = lookup[run_id][key]?.mean ?? null;
+        });
+        return row;
+    });
+
+    return { columns, data };
+};
+
+const renderRunsOnY = (metricKeys, lookup) => {
+    const ranges = compareSimpleState.colorize ? buildMetricRanges(metricKeys, lookup) : {};
+    const columns = [
+        {
+            title: 'Run',
+            data: 'run',
+            render: function (val, type) {
+                if (type === 'display') return val;
+                return val.replace(/<[^>]*>/g, '');
+            },
+        },
+    ];
+    metricKeys.forEach((m, idx) => {
+        const key = `${m.metric_name}||${m.detail_name}`;
+        const header = `${escapeString(m.clean_name)}<br><small>${escapeString(m.source)} / ${escapeString(m.detail_name)}${m.unit ? ` (${escapeString(m.unit)})` : ''}</small>`;
+        columns.push({
+            title: header,
+            data: `metric_${idx}`,
+            className: 'dt-body-right',
+            render: function (val, type) {
+                if (type === 'display' || type === 'filter') return formatValue(val);
+                return val == null ? null : val;
+            },
+            createdCell: function (td, cellData) {
+                const range = ranges[key];
+                if (!range || cellData == null || Number.isNaN(cellData)) return;
+                td.style.backgroundColor = colorForRatio((cellData - range.min) / (range.max - range.min));
+            },
+        });
+    });
+
+    const data = compareSimpleState.runIds.map((run_id) => {
+        const label = buildRunLabel(run_id, compareSimpleState.runMeta[run_id]);
+        const row = {
+            run: `<a href="/stats.html?id=${encodeURIComponent(run_id)}" target="_blank">${label}</a>`,
+        };
+        metricKeys.forEach((m, idx) => {
+            row[`metric_${idx}`] = lookup[run_id][`${m.metric_name}||${m.detail_name}`]?.mean ?? null;
+        });
+        return row;
+    });
+
+    return { columns, data };
+};
+
+const renderTable = () => {
+    const phase = compareSimpleState.selectedPhase;
+    const metricKeys = buildMetricKeys(phase);
+    const noDataEl = document.querySelector('#no-data-message');
+
+    if (metricKeys.length === 0) {
+        resetTableElement();
+        noDataEl.classList.remove('hidden');
+        return;
+    }
+    noDataEl.classList.add('hidden');
+
+    const lookup = buildValueLookup(phase);
+    const { columns, data } = compareSimpleState.metricsOnY
+        ? renderMetricsOnY(metricKeys, lookup)
+        : renderRunsOnY(metricKeys, lookup);
+
+    resetTableElement();
+
+    compareSimpleState.dataTable = $('#compare-simple-table').DataTable({
+        data: data,
+        columns: columns,
+        deferRender: true,
+        autoWidth: false,
+        lengthMenu: [[25, 50, 100, -1], [25, 50, 100, 'All']],
+        pageLength: 100,
+        layout: {
+            topStart: 'pageLength',
+            topEnd: 'search',
+            bottomStart: 'info',
+            bottomEnd: 'paging',
+        },
+        order: [],
+    });
+};
+
+$(document).ready(() => {
+    (async () => {
+        const url_params = getURLParams();
+
+        if (url_params['ids'] == null || url_params['ids'] === '' || url_params['ids'] === 'null') {
+            showNotification('No ids', 'ids parameter in URL is empty or not present. Did you follow a correct URL?');
+            document.querySelector('#loader-compare-simple').remove();
+            return;
+        }
+
+        compareSimpleState.runIds = url_params['ids'].split(',').filter((s) => s.length > 0);
+
+        if (compareSimpleState.runIds.length === 0) {
+            showNotification('No ids', 'ids parameter is empty after parsing.');
+            document.querySelector('#loader-compare-simple').remove();
+            return;
+        }
+
+        const results = await Promise.all(compareSimpleState.runIds.map(async (run_id) => {
+            const [stats, meta] = await Promise.all([
+                fetchSinglePhaseStats(run_id),
+                fetchRunMeta(run_id),
+            ]);
+            return { run_id, stats, meta };
+        }));
+
+        results.forEach(({ run_id, stats, meta }) => {
+            if (stats) {
+                compareSimpleState.phaseStats[run_id] = stats;
+                Object.keys(stats.data || {}).forEach((p) => compareSimpleState.availablePhases.add(p));
+            }
+            if (meta) compareSimpleState.runMeta[run_id] = meta;
+        });
+
+        document.querySelector('#loader-compare-simple').remove();
+
+        populatePhaseDropdown();
+        updateAxisSwitchLabel();
+
+        document.querySelector('#axis-switch-button').addEventListener('click', () => {
+            compareSimpleState.metricsOnY = !compareSimpleState.metricsOnY;
+            updateAxisSwitchLabel();
+            renderTable();
+        });
+
+        const wireToggleButton = (selector, stateKey) => {
+            const btn = document.querySelector(selector);
+            btn.addEventListener('click', () => {
+                compareSimpleState[stateKey] = !compareSimpleState[stateKey];
+                btn.classList.toggle('active', compareSimpleState[stateKey]);
+                btn.classList.toggle('basic', !compareSimpleState[stateKey]);
+                renderTable();
+            });
+        };
+
+        wireToggleButton('#colorize-button', 'colorize');
+        wireToggleButton('#source-toggle-button', 'showSource');
+        wireToggleButton('#detail-toggle-button', 'showDetail');
+
+        renderTable();
+    })();
+});

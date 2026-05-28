@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Standard Meta -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <link rel="shortcut icon" href="/images/favicon.ico">
+    <link rel="icon" href="/images/favicon.ico">
+    <link rel="icon" href="/images/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" href="/images/favicon-32x32.png" sizes="32x32">
+    <!-- Site Properties -->
+    <title>Green Metrics Tool - Simple Compare</title>
+    <meta name="referrer" content="no-referrer-when-downgrade" />
+    <meta name="description" content="Simple side-by-side comparison of run metrics" />
+    <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/dist/js/datatables.min.js" defer></script>
+    <script src="/dist/js/toast.min.js" defer></script>
+    <script src="/dist/js/transition.min.js" defer></script>
+    <script src="/dist/js/accordion.min.js" defer></script>
+    <script src="/dist/js/dropdown.min.js" defer></script>
+    <script src="/js/helpers/config.js" defer></script>
+    <script src="/js/helpers/main.js" defer></script>
+    <script src="/js/helpers/converters.js" defer></script>
+    <script src="/js/compare-simple.js" defer></script>
+
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
+    <link rel="stylesheet" type="text/css" href="/dist/css/datatables.min.css">
+</head>
+<body class="preload">
+    <gmt-menu data-active-item="runs-repos"></gmt-menu>
+    <div class="main ui container" id="main">
+        <h1 class="ui header float left">
+            <a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon opened"></i></a>
+            <span>Simple comparison of runs</span>
+        </h1>
+        <div class="ui full-width-card card">
+            <div class="content">
+                <div class="header">
+                    <a class="ui red ribbon label">
+                        <h3>Controls</h3>
+                    </a>
+                </div>
+                <div class="description">
+                    <div class="ui form">
+                        <div class="fields">
+                            <div class="four wide field">
+                                <label>Phase</label>
+                                <select id="phase-select" class="ui fluid dropdown">
+                                    <option value="[BASELINE]">Baseline</option>
+                                    <option value="[INSTALLATION]">Installation</option>
+                                    <option value="[BOOT]">Boot</option>
+                                    <option value="[IDLE]">Idle</option>
+                                    <option value="[RUNTIME]" selected>Runtime</option>
+                                    <option value="[REMOVE]">Remove</option>
+                                </select>
+                            </div>
+                            <div class="twelve wide field">
+                                <label>Display Options</label>
+                                <div class="ui small buttons">
+                                    <button id="axis-switch-button" class="ui basic button" type="button" data-tooltip="Swap axes (metrics ↔ runs)" data-position="top center" data-inverted="">
+                                        <i class="exchange icon"></i>
+                                        <span id="axis-switch-label">Metrics on Y / Runs on X</span>
+                                    </button>
+                                    <button id="colorize-button" class="ui basic button" type="button" data-tooltip="Color cells from green (lowest per metric) to red (highest)" data-position="top center" data-inverted="">
+                                        <i class="tint icon"></i>
+                                        <span id="colorize-label">Colorize</span>
+                                    </button>
+                                    <button id="source-toggle-button" class="ui basic button" type="button" data-tooltip="Toggle Source column" data-position="top center" data-inverted="">
+                                        <i class="eye icon"></i>
+                                        <span id="source-toggle-label">Source</span>
+                                    </button>
+                                    <button id="detail-toggle-button" class="ui basic button" type="button" data-tooltip="Toggle Detail column" data-position="top center" data-inverted="">
+                                        <i class="eye icon"></i>
+                                        <span id="detail-toggle-label">Detail</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loader-compare-simple" class="ui segment">
+            <div class="ui active inverted dimmer">
+                <div class="ui text loader">Loading run data</div>
+            </div>
+            <p><br><br><br></p>
+        </div>
+
+        <div id="no-data-message" class="ui icon message warning hidden">
+            <i class="info circle icon"></i>
+            <div class="content">
+                <div class="header">No data for this phase</div>
+                <p>None of the selected runs have data for the selected phase.</p>
+            </div>
+        </div>
+
+        <div class="ui full-width-card card">
+            <div class="content">
+                <div class="header">
+                    <a class="ui blue ribbon label">
+                        <h3>Comparison Table</h3>
+                    </a>
+                </div>
+                <div class="description">
+                    <table id="compare-simple-table" class="ui celled striped table" style="width:100%"></table>
+                </div>
+            </div>
+        </div>
+
+        <div class="clearing" style="display:block; height: 10px;"></div>
+    </div>
+</body>
+</html>
