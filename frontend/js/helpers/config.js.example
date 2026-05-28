@@ -118,6 +118,10 @@ const network_total_metric_condition = (metric) => {
     return metric == 'network_total_cgroup_container';
 }
 
+const carbon_grid_intensity_condition = (metric) => {
+    return metric.startsWith('carbon_intensity') && metric.endsWith('_machine');
+}
+
 const sci_metric_condition = (metric) => {
     return metric == 'software_carbon_intensity_global';
 }
@@ -144,6 +148,7 @@ const EXTRACARDS = [
     { key: 'network-data', name: 'Data Transferred', icon: 'exchange', variable:false },
     { key: 'network-traffic', name: 'Network', icon: 'sitemap', variable:false },
     { key: 'embodied-carbon', name: 'Machine CO₂ (embodied)', icon: 'industry', variable:false },
+    { key: 'grid-intensity', name: 'Grid Intensity', icon: 'fire alternate', variable:false },
 ];
 
 /*

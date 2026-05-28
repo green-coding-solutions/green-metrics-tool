@@ -13,6 +13,16 @@ const escapeString = (string) =>{
     return my_string.replace(reg, (match) => map[match]);
 }
 
+const toHttpsUri = (uri) => {
+    if (uri.startsWith('git@')) {
+        return uri.replace(/^git@([^:]+):/, 'https://$1/').replace(/\.git$/, '');
+    }
+    if (uri.startsWith('ssh://')) {
+        return uri.replace(/^ssh:\/\/(?:[^@]+@)?/, 'https://').replace(/\.git$/, '');
+    }
+    return uri;
+};
+
 class APIEmptyResponse204 extends Error {}
 
 const date_options = {
@@ -225,7 +235,7 @@ const calculateStatistics = (data) => {
 
 const replaceRepoIcon = (uri) => {
 
-  uri = String(uri)
+  uri = toHttpsUri(String(uri))
   if(!uri.startsWith('http')) return escapeString(uri); // ignore filesystem paths, but escape them for HTML
 
   let url;
@@ -259,8 +269,9 @@ const replaceRepoIcon = (uri) => {
 const createExternalIconLink = (url) => {
     // Creates a safe external icon link with protocol validation to prevent XSS attacks
     // Only allows http/https protocols, returns empty string for non-HTTP URLs
-    if (url && url.startsWith('http')) {
-        return `<a href="${url}" target="_blank"><i class="icon external alternate"></i></a>`;
+    const httpsUrl = url ? toHttpsUri(url) : url;
+    if (httpsUrl && httpsUrl.startsWith('http')) {
+        return `<a href="${httpsUrl}" target="_blank"><i class="icon external alternate"></i></a>`;
     }
     return '';
 }
