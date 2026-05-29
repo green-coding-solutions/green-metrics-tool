@@ -8,8 +8,9 @@ const compareSimpleState = {
     phaseStats: {},
     availablePhases: new Set(),
     selectedPhase: DEFAULT_PHASE,
-    metricsOnY: true,
-    colorize: false,
+    selectedMetrics: null, // null = no filter (show all); otherwise a Set of `${metric_name}||${detail_name}` keys
+    metricsOnY: false,
+    colorize: true,
     showSource: false,
     showDetail: false,
     dataTable: null,
@@ -141,8 +142,9 @@ const formatValue = (value) => {
 
 const populatePhaseDropdown = () => {
     const select = document.querySelector('#phase-select');
-    const allowedPhases = ['[BASELINE]', '[INSTALLATION]', '[BOOT]', '[IDLE]', '[RUNTIME]', '[REMOVE]'];
+    const mainPhases = ['[BASELINE]', '[INSTALLATION]', '[BOOT]', '[IDLE]', '[RUNTIME]', '[REMOVE]'];
 
+    // Mark hardcoded main-phase options as disabled when no run produced data for them.
     Array.from(select.options).forEach((opt) => {
         if (!compareSimpleState.availablePhases.has(opt.value)) {
             opt.disabled = true;
@@ -150,8 +152,26 @@ const populatePhaseDropdown = () => {
         }
     });
 
+    // Append sub-phases (anything without [BRACKETS]) that exist in any run, grouped under an optgroup.
+    const subPhases = [...compareSimpleState.availablePhases]
+        .filter((p) => !mainPhases.includes(p))
+        .sort((a, b) => a.localeCompare(b));
+
+    if (subPhases.length > 0) {
+        const group = document.createElement('optgroup');
+        group.label = 'Sub-phases';
+        subPhases.forEach((phase) => {
+            const opt = document.createElement('option');
+            opt.value = phase;
+            opt.text = phase;
+            group.appendChild(opt);
+        });
+        select.appendChild(group);
+    }
+
     if (!compareSimpleState.availablePhases.has(compareSimpleState.selectedPhase)) {
-        const fallback = allowedPhases.find((p) => compareSimpleState.availablePhases.has(p));
+        const fallback = mainPhases.find((p) => compareSimpleState.availablePhases.has(p))
+            || subPhases[0];
         if (fallback) {
             compareSimpleState.selectedPhase = fallback;
             select.value = fallback;
@@ -162,10 +182,42 @@ const populatePhaseDropdown = () => {
 
     select.addEventListener('change', () => {
         compareSimpleState.selectedPhase = select.value;
+        // Re-list the dropdown options for the new phase, but keep the selection — metrics that don't
+        // exist in the new phase are silently dropped from view but preserved in state for if the user
+        // switches back.
+        populateMetricsDropdown();
         renderTable();
     });
 
     $(select).dropdown();
+};
+
+const populateMetricsDropdown = () => {
+    const select = document.querySelector('#metrics-select');
+    const allMetrics = buildMetricKeys(compareSimpleState.selectedPhase);
+
+    if ($(select).data('moduleDropdown')) {
+        $(select).dropdown('destroy');
+    }
+    select.innerHTML = '';
+    allMetrics.forEach((m) => {
+        const opt = document.createElement('option');
+        opt.value = `${m.metric_name}||${m.detail_name}`;
+        opt.text = `${m.clean_name} — ${m.detail_name}${m.unit ? ` (${m.unit})` : ''}`;
+        if (compareSimpleState.selectedMetrics != null && compareSimpleState.selectedMetrics.has(opt.value)) {
+            opt.selected = true;
+        }
+        select.appendChild(opt);
+    });
+
+    $(select).dropdown({
+        placeholder: 'All metrics shown',
+        onChange: () => {
+            const selected = Array.from(select.selectedOptions).map((o) => o.value);
+            compareSimpleState.selectedMetrics = selected.length === 0 ? null : new Set(selected);
+            renderTable();
+        },
+    });
 };
 
 const updateAxisSwitchLabel = () => {
@@ -246,7 +298,17 @@ const renderRunsOnY = (metricKeys, lookup) => {
     ];
     metricKeys.forEach((m, idx) => {
         const key = `${m.metric_name}||${m.detail_name}`;
-        const header = `${escapeString(m.clean_name)}<br><small>${escapeString(m.source)} / ${escapeString(m.detail_name)}${m.unit ? ` (${escapeString(m.unit)})` : ''}</small>`;
+        const nameLine = m.unit
+            ? `${escapeString(m.clean_name)} <small>(${escapeString(m.unit)})</small>`
+            : escapeString(m.clean_name);
+        const parts = [`<div>${nameLine}</div>`];
+        if (compareSimpleState.showSource) {
+            parts.push(`<small class="detail-name-ellipsis" title="${escapeString(m.source)}">${escapeString(m.source)}</small>`);
+        }
+        if (compareSimpleState.showDetail) {
+            parts.push(`<small class="detail-name-ellipsis" title="${escapeString(m.detail_name)}">${escapeString(m.detail_name)}</small>`);
+        }
+        const header = parts.join('');
         columns.push({
             title: header,
             data: `metric_${idx}`,
@@ -279,15 +341,19 @@ const renderRunsOnY = (metricKeys, lookup) => {
 
 const renderTable = () => {
     const phase = compareSimpleState.selectedPhase;
-    const metricKeys = buildMetricKeys(phase);
+    const allMetricKeys = buildMetricKeys(phase);
     const noDataEl = document.querySelector('#no-data-message');
 
-    if (metricKeys.length === 0) {
+    if (allMetricKeys.length === 0) {
         resetTableElement();
         noDataEl.classList.remove('hidden');
         return;
     }
     noDataEl.classList.add('hidden');
+
+    const metricKeys = compareSimpleState.selectedMetrics == null
+        ? allMetricKeys
+        : allMetricKeys.filter((m) => compareSimpleState.selectedMetrics.has(`${m.metric_name}||${m.detail_name}`));
 
     const lookup = buildValueLookup(phase);
     const { columns, data } = compareSimpleState.metricsOnY
@@ -339,17 +405,26 @@ $(document).ready(() => {
             return { run_id, stats, meta };
         }));
 
+        const phaseSetsPerRun = [];
         results.forEach(({ run_id, stats, meta }) => {
             if (stats) {
                 compareSimpleState.phaseStats[run_id] = stats;
-                Object.keys(stats.data || {}).forEach((p) => compareSimpleState.availablePhases.add(p));
+                phaseSetsPerRun.push(new Set(Object.keys(stats.data || {})));
             }
             if (meta) compareSimpleState.runMeta[run_id] = meta;
         });
 
+        // Intersection across all runs that returned stats — a phase is only "available" when every run has it.
+        if (phaseSetsPerRun.length > 0) {
+            compareSimpleState.availablePhases = phaseSetsPerRun.reduce(
+                (acc, set) => new Set([...acc].filter((p) => set.has(p))),
+            );
+        }
+
         document.querySelector('#loader-compare-simple').remove();
 
         populatePhaseDropdown();
+        populateMetricsDropdown();
         updateAxisSwitchLabel();
 
         document.querySelector('#axis-switch-button').addEventListener('click', () => {
@@ -360,10 +435,14 @@ $(document).ready(() => {
 
         const wireToggleButton = (selector, stateKey) => {
             const btn = document.querySelector(selector);
-            btn.addEventListener('click', () => {
-                compareSimpleState[stateKey] = !compareSimpleState[stateKey];
+            const syncVisual = () => {
                 btn.classList.toggle('active', compareSimpleState[stateKey]);
                 btn.classList.toggle('basic', !compareSimpleState[stateKey]);
+            };
+            syncVisual();
+            btn.addEventListener('click', () => {
+                compareSimpleState[stateKey] = !compareSimpleState[stateKey];
+                syncVisual();
                 renderTable();
             });
         };
