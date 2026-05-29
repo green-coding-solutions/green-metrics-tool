@@ -245,7 +245,17 @@ if __name__ == '__main__':
                 optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
             if args.file_cleanup:
-                shutil.rmtree(runner._tmp_folder)
+                # Wipe contents in place rather than removing _tmp_folder itself, so the
+                # directory's inode (and the inodes of subdirs like repo/) stay stable
+                # across runs. Docker Desktop on macOS caches inode<->path mappings in
+                # its virtiofs layer; deleting and recreating a bind-mount source
+                # between runs causes subsequent containers to see a stale/empty view.
+                if runner._tmp_folder.exists():
+                    for child in runner._tmp_folder.iterdir():
+                        if child.is_symlink() or not child.is_dir():
+                            child.unlink()
+                        else:
+                            shutil.rmtree(child, ignore_errors=False)
 
             if not runner._dev_no_save:
                 print(TerminalColors.OKGREEN,'\n\n####################################################################################')

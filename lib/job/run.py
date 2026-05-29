@@ -102,14 +102,12 @@ class RunJob(Job):
             # inode<->path mappings in its virtiofs layer; deleting and recreating a
             # bind-mount source between runs causes subsequent containers to see a
             # stale/empty view until Docker Desktop is restarted.
-            if host_platform.is_macos():
-                if runner._tmp_folder.exists():
-                    for child in runner._tmp_folder.iterdir():
-                        if child.is_symlink() or not child.is_dir():
-                            child.unlink()
-                        else:
-                            shutil.rmtree(child, ignore_errors=False)
-            else:
-                shutil.rmtree(runner._tmp_folder)
+            if runner._tmp_folder.exists():
+                for child in runner._tmp_folder.iterdir():
+                    if child.is_symlink() or not child.is_dir():
+                        child.unlink()
+                    else:
+                        shutil.rmtree(child, ignore_errors=False)
+
             self._run_id = runner._run_id # might not be set yet due to error
             user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds

@@ -89,7 +89,7 @@ def test_provider_disabling_working():
 
     providers = list(run_data['configured_metric_providers'].keys())
     # or check bc in linux / macos there is a different result set of configured providers
-    assert providers == ['psu_energy_ac_sdia_machine', 'cpu_utilization_mach_system', 'psu_energy_ac_xgboost_machine'] or providers == ['disk_used_statvfs_system', 'network_io_procfs_system', 'memory_used_procfs_system', 'psu_energy_ac_sdia_machine', 'cpu_utilization_procfs_system', 'psu_energy_ac_xgboost_machine', 'carbon_intensity_static_machine'], 'Network Connections provider still in configured_metric_providers' #pylint: disable=consider-using-in
+    assert providers == ['psu_energy_ac_sdia_machine', 'cpu_utilization_mach_system', 'psu_energy_ac_xgboost_machine', 'carbon_intensity_static_machine'] or providers == ['disk_used_statvfs_system', 'network_io_procfs_system', 'memory_used_procfs_system', 'psu_energy_ac_sdia_machine', 'cpu_utilization_procfs_system', 'psu_energy_ac_xgboost_machine', 'carbon_intensity_static_machine'], 'Network Connections provider still in configured_metric_providers' #pylint: disable=consider-using-in
 
 def test_phase_padding_inactive():
     out = io.StringIO()

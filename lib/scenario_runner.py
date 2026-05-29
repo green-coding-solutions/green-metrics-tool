@@ -274,20 +274,17 @@ class ScenarioRunner:
             time.sleep(sleep_time)
 
     def _initialize_folder(self, path: Path):
-        if host_platform.is_macos():
-            # Wipe contents in place rather than rmtree+mkdir so the directory's inode
-            # stays stable across runs. Docker Desktop on macOS caches inode<->path
-            # mappings in its virtiofs layer; if a bind-mount source is deleted and
-            # recreated between runs, subsequent containers can see a stale/empty
-            # view of the directory until Docker Desktop is restarted.
-            for child in path.iterdir():
-                if child.is_symlink() or not child.is_dir():
-                    child.unlink()
-                else:
-                    shutil.rmtree(child, ignore_errors=False)
-            return
-        shutil.rmtree(path, ignore_errors=False)
-        path.mkdir(parents=False, exist_ok=False)
+        # Wipe contents in place rather than rmtree+mkdir so the directory's inode
+        # stays stable across runs. Docker Desktop on macOS caches inode<->path
+        # mappings in its virtiofs layer; if a bind-mount source is deleted and
+        # recreated between runs, subsequent containers can see a stale/empty
+        # view of the directory until Docker Desktop is restarted.
+        for child in path.iterdir():
+            if child.is_symlink() or not child.is_dir():
+                child.unlink()
+            else:
+                shutil.rmtree(child, ignore_errors=False)
+
 
     def _ensure_ssh_private_key_file(self):
         if self._ssh_private_key is None:
@@ -1268,10 +1265,7 @@ class ScenarioRunner:
         # maybe create a switch here later to keep this artifact if we have a use case ...
         # On macOS we wipe contents in place to keep the inode stable: this dir is bind-mounted
         # into kaniko as /output, and Docker Desktop's virtiofs caches inode<->path mappings.
-        if host_platform.is_macos():
-            self._initialize_folder(self._build_dir)
-        else:
-            shutil.rmtree(self._build_dir)
+        self._initialize_folder(self._build_dir)
 
     def _save_image_and_volume_sizes(self):
 

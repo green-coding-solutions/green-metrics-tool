@@ -147,8 +147,8 @@ def test_uri_github_repo_and_using_default_filename():
     assert uri_in_db == uri, Tests.assertion_info(f"uri: {uri}", uri_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
-    # also check that the tmp folder was deleted locally
-    assert not tmp_folder.exists(), '/tmp/green-metrics-tool was not deleted after run although --file-cleanup was set'
+    # also check that the tmp folder was emptied locally
+    assert tmp_folder.exists() and not any(tmp_folder.iterdir()), '/tmp/green-metrics-tool was not emptied after run although --file-cleanup was set'
 
 ## --branch BRANCH
 #    Optionally specify the git branch when targeting a git repository
@@ -447,8 +447,9 @@ def test_file_cleanup():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-    assert not os.path.exists('/tmp/green-metrics-tool'), \
-        Tests.assertion_info('tmp directory exists', not os.path.exists('/tmp/green-metrics-tool'))
+    tmp_folder = Path('/tmp/green-metrics-tool')
+    assert tmp_folder.exists() and not any(tmp_folder.iterdir()), \
+        Tests.assertion_info('tmp directory emptied', f"exists={tmp_folder.exists()}, contents={list(tmp_folder.iterdir()) if tmp_folder.exists() else None}")
 
 ## --skip-unsafe and --allow-unsafe
 #pylint: disable=unused-variable
