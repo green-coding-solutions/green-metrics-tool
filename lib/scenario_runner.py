@@ -274,11 +274,18 @@ class ScenarioRunner:
             time.sleep(sleep_time)
 
     def _initialize_folder(self, path: Path):
-        # Wipe contents in place rather than rmtree+mkdir so the directory's inode
-        # stays stable across runs. Docker Desktop on macOS caches inode<->path
-        # mappings in its virtiofs layer; if a bind-mount source is deleted and
-        # recreated between runs, subsequent containers can see a stale/empty
-        # view of the directory until Docker Desktop is restarted.
+        # Ensures the folder exists and is empty for a new run. When it already exists
+        # we wipe its contents in place rather than rmtree+mkdir so the directory's
+        # inode (and the inodes of subdirs like repo/) stays stable across runs.
+        # Docker Desktop on macOS caches inode<->path mappings in its virtiofs layer;
+        # if a bind-mount source is deleted and recreated between runs, subsequent
+        # containers can see a stale/empty view of the directory until Docker Desktop
+        # is restarted. The mkdir only runs when the folder is missing, where there is
+        # no existing inode to preserve.
+        if not path.exists():
+            path.mkdir(parents=False, exist_ok=False)
+            return
+
         for child in path.iterdir():
             if child.is_symlink() or not child.is_dir():
                 child.unlink()

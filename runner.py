@@ -8,7 +8,6 @@ faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to st
 from lib.venv_checker import check_venv
 check_venv() # this check must even run before __main__ as imports might not get resolved
 
-import shutil
 import os
 import re
 import subprocess
@@ -245,17 +244,10 @@ if __name__ == '__main__':
                 optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
             if args.file_cleanup:
-                # Wipe contents in place rather than removing _tmp_folder itself, so the
-                # directory's inode (and the inodes of subdirs like repo/) stay stable
-                # across runs. Docker Desktop on macOS caches inode<->path mappings in
-                # its virtiofs layer; deleting and recreating a bind-mount source
-                # between runs causes subsequent containers to see a stale/empty view.
-                if runner._tmp_folder.exists():
-                    for child in runner._tmp_folder.iterdir():
-                        if child.is_symlink() or not child.is_dir():
-                            child.unlink()
-                        else:
-                            shutil.rmtree(child, ignore_errors=False)
+                # Empty the folder in place rather than removing it (see
+                # ScenarioRunner._initialize_folder) so the directory inode stays stable
+                # for Docker Desktop's virtiofs cache on macOS.
+                runner._initialize_folder(runner._tmp_folder)
 
             if not runner._dev_no_save:
                 print(TerminalColors.OKGREEN,'\n\n####################################################################################')
