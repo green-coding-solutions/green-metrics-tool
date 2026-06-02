@@ -634,6 +634,7 @@ class ScenarioRunner:
                 usage_scenario_file=usage_scenario_file,
             )
 
+            # must be here, bc if we put it in include_gmt_helper() we cannot access self.__ of the Runner anymore
             if re.search(r'!include-gmt-helper gmt-playwright(?:-headful)?(?:-with-cache)?\.yml', usage_scenario):
                 self.__include_playwright_ipc = True
 
