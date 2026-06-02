@@ -8,7 +8,6 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
-import shutil
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -94,6 +93,11 @@ class RunJob(Job):
                 )
 
         finally:
-            shutil.rmtree(runner._tmp_folder) # we see no sane reason for keeping tmp files on the cluster after a run
+            # we see no sane reason for keeping tmp files on the cluster after a run.
+            # We empty the folder in place rather than removing it (see
+            # ScenarioRunner._initialize_folder) so the directory inode stays stable
+            # for Docker Desktop's virtiofs cache on macOS.
+            runner._initialize_folder(runner._tmp_folder)
+
             self._run_id = runner._run_id # might not be set yet due to error
             user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds

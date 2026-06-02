@@ -8,7 +8,6 @@ faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to st
 from lib.venv_checker import check_venv
 check_venv() # this check must even run before __main__ as imports might not get resolved
 
-import shutil
 import os
 import re
 import subprocess
@@ -245,7 +244,10 @@ if __name__ == '__main__':
                 optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
             if args.file_cleanup:
-                shutil.rmtree(runner._tmp_folder)
+                # Empty the folder in place rather than removing it (see
+                # ScenarioRunner._initialize_folder) so the directory inode stays stable
+                # for Docker Desktop's virtiofs cache on macOS.
+                runner._initialize_folder(runner._tmp_folder)
 
             if not runner._dev_no_save:
                 print(TerminalColors.OKGREEN,'\n\n####################################################################################')

@@ -40,4 +40,4 @@ def test_simple_cluster_run():
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
     # also check that the tmp folder was deleted locally
-    assert not tmp_folder.exists(), '/tmp/green-metrics-tool was still present after cluster run. It should have been deleted though'
+    assert tmp_folder.exists() and not any(tmp_folder.iterdir()), '/tmp/green-metrics-tool was not emptied after run although --file-cleanup was set'
