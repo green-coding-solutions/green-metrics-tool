@@ -23,13 +23,21 @@ const colorForRatio = (ratio) => {
     return `hsl(${hue}, 70%, 80%)`;
 };
 
+// Round a value the same way it is displayed, so cells that show identical numbers also get
+// identical colours (the raw means can differ below the displayed precision).
+const roundForDisplay = (value) => {
+    if (value == null || Number.isNaN(value)) return value;
+    return Number(numberFormatter.format(value).replace(/,/g, ''));
+};
+
 const buildMetricRanges = (metricKeys, lookup) => {
     const ranges = {};
     metricKeys.forEach((m) => {
         const key = `${m.metric_name}||${m.detail_name}`;
         const values = compareSimpleState.runIds
             .map((rid) => lookup[rid][key]?.mean)
-            .filter((v) => v != null && !Number.isNaN(v));
+            .filter((v) => v != null && !Number.isNaN(v))
+            .map(roundForDisplay);
         if (values.length < 2) return;
         const min = Math.min(...values);
         const max = Math.max(...values);
@@ -261,7 +269,8 @@ const renderMetricsOnY = (metricKeys, lookup) => {
             createdCell: function (td, cellData, rowData) {
                 const range = ranges[rowData._key];
                 if (!range || cellData == null || Number.isNaN(cellData)) return;
-                td.style.backgroundColor = colorForRatio((cellData - range.min) / (range.max - range.min));
+                const value = roundForDisplay(cellData);
+                td.style.backgroundColor = colorForRatio((value - range.min) / (range.max - range.min));
             },
         });
     });
@@ -320,7 +329,8 @@ const renderRunsOnY = (metricKeys, lookup) => {
             createdCell: function (td, cellData) {
                 const range = ranges[key];
                 if (!range || cellData == null || Number.isNaN(cellData)) return;
-                td.style.backgroundColor = colorForRatio((cellData - range.min) / (range.max - range.min));
+                const value = roundForDisplay(cellData);
+                td.style.backgroundColor = colorForRatio((value - range.min) / (range.max - range.min));
             },
         });
     });
