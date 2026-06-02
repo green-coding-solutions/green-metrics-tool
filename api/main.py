@@ -24,9 +24,6 @@ from lib.secure_variable import SecureVariable
 
 from api.object_specifications import UserSetting
 
-from enum import Enum
-ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
-
 app = FastAPI()
 
 @app.exception_handler(RequestValidationError)
@@ -275,6 +272,10 @@ if GlobalConfig().config.get('activate_carbon_db', False):
 if GlobalConfig().config.get('activate_ai_optimisations', False):
     from ee.api import ai_optimisations
     app.include_router(ai_optimisations.router)
+
+if GlobalConfig().config.get('activate_energy_id', False):
+    from api import energy_id
+    app.include_router(energy_id.router)
 
 
 if __name__ == '__main__':

@@ -12,7 +12,7 @@ from fastapi import APIRouter, Response, Depends, HTTPException, Request
 
 import anybadge
 
-from api.object_specifications import Software, JobChange, WatchlistChange, RunChange
+from api.object_specifications import Software, JobChange, WatchlistChange, RunChange, ArtifactType
 from api.api_helpers import (CustomORJSONResponse, ORJSONResponseObjKeep, add_phase_stats_statistics,
                          determine_comparison_case,get_comparison_details,
                          get_phase_stats, get_phase_stats_object, check_run_failed,
@@ -29,8 +29,6 @@ from lib.watchlist import Watchlist
 from lib import utils
 from lib import error_helpers
 
-from enum import Enum
-ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -447,43 +445,6 @@ async def get_runs(name: str | None = None, uri: str | None = None, branch: str 
         return Response(status_code=204) # No-Content
 
     return CustomORJSONResponse({'success': True, 'data': data})
-
-@router.get('/v1/software')
-async def get_softwares(user: User = Depends(authenticate)):
-    # This Endpoint returns the software in the DB. A software is a run that is an aggregation of runs
-
-    query = '''
-            SELECT
-                r.id AS newest_run_id,
-                r.name,
-                r.uri,
-                r.filename,
-                r.branch,
-                (
-                    SELECT STRING_AGG(t.name, ', ')
-                    FROM unnest(r.category_ids) AS elements
-                    LEFT JOIN categories AS t ON t.id = elements
-                ) AS categories
-            FROM (
-                SELECT DISTINCT ON (name, uri, filename, branch, category_ids) *
-                FROM runs
-                WHERE
-                    category_ids IS NOT NULL
-                    AND (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
-                ORDER BY name, uri, filename, branch, category_ids, created_at DESC
-            ) r
-            ORDER BY r.created_at DESC
-
-    '''
-    params = (user.is_super_user(), user.visible_users())
-
-    data = DB().fetch_all(query, params=params)
-    if data is None or data == []:
-        return Response(status_code=204) # No-Content
-
-    return CustomORJSONResponse({'success': True, 'data': data})
-
-
 
 # Just copy and paste if we want to deprecate URLs
 # @router.get('/v1/measurements/uri', deprecated=True) # Here you can see, that URL is nevertheless accessible as variable
