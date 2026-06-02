@@ -666,6 +666,8 @@ class ScenarioRunner:
             new_dict = {}
 
             if 'compose-file' in yml_obj.keys():
+                if not isinstance(yml_obj['compose-file'], dict):
+                    raise ValueError('magic key "compose-file" did not resolve correctly. Did you use the correcty syntax (without any quotes): !include FILENAME.yml  ?')
                 for k,v in yml_obj['compose-file'].items():
                     if k in yml_obj:
                         new_dict[k] = merge_dicts(v,yml_obj[k])
