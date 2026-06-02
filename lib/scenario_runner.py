@@ -274,8 +274,24 @@ class ScenarioRunner:
             time.sleep(sleep_time)
 
     def _initialize_folder(self, path: Path):
-        shutil.rmtree(path, ignore_errors=False)
-        path.mkdir(parents=False, exist_ok=False)
+        # Ensures the folder exists and is empty for a new run. When it already exists
+        # we wipe its contents in place rather than rmtree+mkdir so the directory's
+        # inode (and the inodes of subdirs like repo/) stays stable across runs.
+        # Docker Desktop on macOS caches inode<->path mappings in its virtiofs layer;
+        # if a bind-mount source is deleted and recreated between runs, subsequent
+        # containers can see a stale/empty view of the directory until Docker Desktop
+        # is restarted. The mkdir only runs when the folder is missing, where there is
+        # no existing inode to preserve.
+        if not path.exists():
+            path.mkdir(parents=False, exist_ok=False)
+            return
+
+        for child in path.iterdir():
+            if child.is_symlink() or not child.is_dir():
+                child.unlink()
+            else:
+                shutil.rmtree(child, ignore_errors=False)
+
 
     def _ensure_ssh_private_key_file(self):
         if self._ssh_private_key is None:
@@ -634,6 +650,7 @@ class ScenarioRunner:
                 usage_scenario_file=usage_scenario_file,
             )
 
+            # must be here, bc if we put it in include_gmt_helper() we cannot access self.__ of the Runner anymore
             if re.search(r'!include-gmt-helper gmt-playwright(?:-headful)?(?:-with-cache)?\.yml', usage_scenario):
                 self.__include_playwright_ipc = True
 
@@ -665,6 +682,8 @@ class ScenarioRunner:
             new_dict = {}
 
             if 'compose-file' in yml_obj.keys():
+                if not isinstance(yml_obj['compose-file'], dict):
+                    raise ValueError('magic key "compose-file" did not resolve correctly. Did you use the correcty syntax (without any quotes): !include FILENAME.yml  ?')
                 for k,v in yml_obj['compose-file'].items():
                     if k in yml_obj:
                         new_dict[k] = merge_dicts(v,yml_obj[k])
@@ -1254,7 +1273,9 @@ class ScenarioRunner:
 
         # Delete the directory /tmp/gmt_docker_images as we do not want to keep the tar and the loaded image
         # maybe create a switch here later to keep this artifact if we have a use case ...
-        shutil.rmtree(self._build_dir)
+        # On macOS we wipe contents in place to keep the inode stable: this dir is bind-mounted
+        # into kaniko as /output, and Docker Desktop's virtiofs caches inode<->path mappings.
+        self._initialize_folder(self._build_dir)
 
     def _save_image_and_volume_sizes(self):
 
