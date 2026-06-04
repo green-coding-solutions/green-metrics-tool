@@ -239,7 +239,7 @@ def edit_etc_hosts():
 
 
 def build_test_docker_image():
-    subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build', '--no-cache'], check=True)
+    subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build'], check=True)
 
 def pull_test_docker_image():
     subprocess.run(['docker', 'compose', '-f', test_compose_path, 'pull'], check=True)
