@@ -18,7 +18,7 @@ OVERLAY_FRONTEND_CONFIG_NAME = 'frontend/js/helpers/config.js'
 TEST_FRONTEND_CONFIG_NAME = 'test-config.js'
 BASE_NGINX_PORT = 9142
 TEST_NGINX_PORT = 9143
-TEST_NGINX_PORT_MAPPING = [f"{TEST_NGINX_PORT}:{BASE_NGINX_PORT}"] # only change public port
+TEST_NGINX_PORT_MAPPING = [f"127.0.0.1:{TEST_NGINX_PORT}:{BASE_NGINX_PORT}"] # bind to loopback only: a 0.0.0.0-published port lets Docker Desktop route host traffic via the VM's external interface, so the container intermittently sees the host's real LAN/VPN IP instead of the internal gateway (breaks the is_private IP check). Loopback keeps it on the internal path.
 BASE_DATABASE_PORT = 9573
 TEST_DATABASE_PORT = 9574
 TEST_DATABASE_PORT_MAPPING = [f"{TEST_DATABASE_PORT}:{TEST_DATABASE_PORT}"] # change external and internal port
@@ -239,7 +239,7 @@ def edit_etc_hosts():
 
 
 def build_test_docker_image():
-    subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build'], check=True)
+    subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build', '--no-cache'], check=True)
 
 def pull_test_docker_image():
     subprocess.run(['docker', 'compose', '-f', test_compose_path, 'pull'], check=True)
