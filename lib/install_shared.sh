@@ -43,6 +43,7 @@ install_nvidia_toolkit_headers=false
 disable_path_security_checks=false
 ee_branch=''
 ask_elephant=true
+non_interactive=false
 
 function print_message {
     echo ""
@@ -530,6 +531,10 @@ while [[ $# -gt 0 ]]; do
             ask_elephant=false
             shift
             ;;
+        --non-interactive)
+            non_interactive=true
+            shift
+            ;;
 
         -p)
             check_optarg 'p' "${2:-}"
@@ -661,6 +666,7 @@ while [[ $# -gt 0 ]]; do
             echo -e '  --disable-path-security:\tDisable path security checks'
             echo -e '  --elephant-url URL:\tSupply Elephant URL'
             echo -e '  --no-elephant:\t\tDo not configure Elephant'
+            echo -e '  --non-interactive:\tAssume the default for every prompt (no questions asked)'
 
             echo -e '  -p DB_PW:\t\t\tSupply DB password'
             echo -e '  -a API_URL:\t\tSupply API URL'
@@ -710,6 +716,22 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# When running non-interactively we assume the default for every prompt, i.e. the
+# same outcome as pressing enter on each question. Note that for SSL pressing enter
+# means "no", so we must explicitly disable it here (its flag default is enabled).
+if [[ $non_interactive == true ]]; then
+    ask_ssl=false
+    enable_ssl=false
+    ask_scenario_runner=false
+    ask_eco_ci=false
+    ask_carbon_db=false
+    ask_power_hog=false
+    ask_ai_optimisations=false
+    ask_ping=false
+    ask_tmpfs=false
+    ask_elephant=false
+fi
+
 
 if [[ $enterprise == true ]] ; then
     echo "Validating enterprise token"
@@ -741,16 +763,20 @@ fi
 
 
 if [[ -z $api_url ]] ; then
-    echo ""
-    echo "Please enter the desired API endpoint URL"
-    read -p "Use port 9142 for local installs and no port for production to auto-use 80/443: (default: http://api.green-coding.internal:9142): " api_url
+    if [[ $non_interactive == false ]]; then
+        echo ""
+        echo "Please enter the desired API endpoint URL"
+        read -p "Use port 9142 for local installs and no port for production to auto-use 80/443: (default: http://api.green-coding.internal:9142): " api_url
+    fi
     api_url=${api_url:-"http://api.green-coding.internal:9142"}
 fi
 
 if [[ -z $metrics_url ]] ; then
-    echo ""
-    echo "Please enter the desired metrics dashboard URL"
-    read -p "Use port 9142 for local installs and no port for production to auto-use 80/443: (default: http://metrics.green-coding.internal:9142): " metrics_url
+    if [[ $non_interactive == false ]]; then
+        echo ""
+        echo "Please enter the desired metrics dashboard URL"
+        read -p "Use port 9142 for local installs and no port for production to auto-use 80/443: (default: http://metrics.green-coding.internal:9142): " metrics_url
+    fi
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
 fi
 
@@ -776,8 +802,10 @@ if [[ -z $tz ]] ; then
         default_tz="$(realpath /etc/localtime 2>/dev/null | sed -E 's#.*/zoneinfo(\.default)?/##')"
     fi
     default_tz="${default_tz:-Europe/Berlin}"
-    echo ""
-    read -p "Enter timezone for Postgres and containers (e.g., Europe/Berlin) (default: ${default_tz}): " tz
+    if [[ $non_interactive == false ]]; then
+        echo ""
+        read -p "Enter timezone for Postgres and containers (e.g., Europe/Berlin) (default: ${default_tz}): " tz
+    fi
     tz="${tz:-$default_tz}"
 fi
 
@@ -788,9 +816,11 @@ fi
 default_password=${password_from_file:-$(generate_random_password 12)}
 
 if [[ -z "$db_pw" ]] ; then
-    echo ""
-    read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
-    echo "" # force a newline, because read -sp will consume it
+    if [[ $non_interactive == false ]]; then
+        echo ""
+        read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
+        echo "" # force a newline, because read -sp will consume it
+    fi
     db_pw=${db_pw:-"$default_password"}
 fi
 
