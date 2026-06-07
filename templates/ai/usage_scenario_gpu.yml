@@ -5,7 +5,7 @@ description: Run an inference with a cached AI model on the GPU
 
 services:
   gcb-ai-model:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.24.0
     docker-run-args:
       - -v ollama:/root/.ollama:ro
       - --gpus=all
