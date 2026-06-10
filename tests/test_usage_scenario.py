@@ -716,10 +716,9 @@ def test_read_detached_process_no_exit():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    assert 'setting to a 1 min, 40 secs run per stressor' in out.getvalue(), \
-        Tests.assertion_info('setting to a 1 min, 40 secs run per stressor', out.getvalue())
-    assert 'successful run completed' not in out.getvalue(), \
-        Tests.assertion_info('NOT successful run completed', out.getvalue())
+
+    assert re.search(r'setting to a 1 min,?\s+40 secs run per stressor', out.getvalue())
+    assert 'successful run completed' not in out.getvalue()
 
 def test_read_detached_process_after_exit():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_exit.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
