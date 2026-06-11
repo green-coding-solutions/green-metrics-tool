@@ -1073,7 +1073,7 @@ class ScenarioRunner:
             print('Skipping downloading dependencies due to --skip-download-dependencies')
             return
 
-        subprocess.run(['docker', 'pull', 'martizih/kaniko:slim'], check=True)
+        subprocess.run(['docker', 'pull', 'martizih/kaniko:v1.27.5-slim'], check=True)
 
     def _get_build_info(self, service):
         if isinstance(service['build'], str):
@@ -1152,7 +1152,7 @@ class ScenarioRunner:
                     docker_build_command.append('--mount')
                     docker_build_command.append(f"type=bind,source={relation['mount_path']},target=/tmp/relations/{relation_key},readonly") # relation_key already checked in schema_checker
 
-                docker_build_command.append('martizih/kaniko:slim')
+                docker_build_command.append('martizih/kaniko:v1.27.5-slim')
 
                 # from here args for kaniko directly
                 docker_build_command.extend(
