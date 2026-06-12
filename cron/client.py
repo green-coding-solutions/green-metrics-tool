@@ -209,8 +209,15 @@ def do_measurement_control():
                 message='\n'.join(message)
             )
 
-    except Exception as exception: # pylint: disable=broad-except
-        validate.handle_validate_exception(exception)
+    except Exception as exc: # pylint: disable=broad-except
+
+        error_helpers.log_error('Workload Validation Failed: ',
+            exception=exc,
+            details=f"Please check under {config['cluster']['metrics_url']}/timeline.html?uri={cwl['uri']}&branch={cwl['branch']}&filename={cwl['filename']}&machine_id={config['machine']['id']}",
+            name='Measurement control Workload (on boot)',
+            machine=config['machine']['description'],
+        )
+
         set_status('measurement_control_error')
         # the process will now go to sleep for 'time_between_control_workload_validations''
         # This is as long as the next validation is needed and thus it will loop
