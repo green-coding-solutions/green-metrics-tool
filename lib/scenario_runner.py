@@ -1873,7 +1873,7 @@ class ScenarioRunner:
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
                 if shell := cmd_obj.get('shell', False):
-                    d_command = ['docker', 'exec', container_name, shell, '-c', cmd_obj['command']] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, shell, '-ec', cmd_obj['command']] # This must be a list!
                 else:
                     d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'], posix=False)] # This must be a list!
 
@@ -2217,7 +2217,7 @@ class ScenarioRunner:
 
                     if cmd_obj['type'] == 'playwright':
                         docker_exec_command.append(cmd_obj.get('shell', 'sh'))
-                        docker_exec_command.append('-c')
+                        docker_exec_command.append('-ec')
                         escaped_command = cmd_obj['command'].replace("'", "\\'")
                         docker_exec_command.append(f"echo '{escaped_command}' > /tmp/playwright-ipc-commands")
 
@@ -2225,7 +2225,7 @@ class ScenarioRunner:
 
                         if shell := cmd_obj.get('shell', False):
                             docker_exec_command.append(shell)
-                            docker_exec_command.append('-c')
+                            docker_exec_command.append('-ec')
                             docker_exec_command.append(cmd_obj['command'])
                         else:
                             docker_exec_command.extend(shlex.split(cmd_obj['command'], posix=False))

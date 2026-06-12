@@ -279,10 +279,8 @@ def test_setup_commands_one_command():
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    assert 'Running command:  docker exec test-container sh -c ps -a' in out.getvalue(), \
-        Tests.assertion_info('stdout message: Running command: docker exec  ps -a', out.getvalue())
-    assert '1 root      0:00 /bin/sh' in out.getvalue(), \
-        Tests.assertion_info('container stdout showing /bin/sh as process 1', 'different message in container stdout')
+    assert 'Running command:  docker exec test-container sh -ec ps -a' in out.getvalue()
+    assert '1 root      0:00 /bin/sh' in out.getvalue(), 'Expected container stdout showing /bin/sh as process 1'
 
 def test_setup_commands_multiple_commands():
     out = io.StringIO()
