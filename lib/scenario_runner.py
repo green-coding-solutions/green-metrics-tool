@@ -274,8 +274,24 @@ class ScenarioRunner:
             time.sleep(sleep_time)
 
     def _initialize_folder(self, path: Path):
-        shutil.rmtree(path, ignore_errors=False)
-        path.mkdir(parents=False, exist_ok=False)
+        # Ensures the folder exists and is empty for a new run. When it already exists
+        # we wipe its contents in place rather than rmtree+mkdir so the directory's
+        # inode (and the inodes of subdirs like repo/) stays stable across runs.
+        # Docker Desktop on macOS caches inode<->path mappings in its virtiofs layer;
+        # if a bind-mount source is deleted and recreated between runs, subsequent
+        # containers can see a stale/empty view of the directory until Docker Desktop
+        # is restarted. The mkdir only runs when the folder is missing, where there is
+        # no existing inode to preserve.
+        if not path.exists():
+            path.mkdir(parents=False, exist_ok=False)
+            return
+
+        for child in path.iterdir():
+            if child.is_symlink() or not child.is_dir():
+                child.unlink()
+            else:
+                shutil.rmtree(child, ignore_errors=False)
+
 
     def _ensure_ssh_private_key_file(self):
         if self._ssh_private_key is None:
@@ -634,6 +650,7 @@ class ScenarioRunner:
                 usage_scenario_file=usage_scenario_file,
             )
 
+            # must be here, bc if we put it in include_gmt_helper() we cannot access self.__ of the Runner anymore
             if re.search(r'!include-gmt-helper gmt-playwright(?:-headful)?(?:-with-cache)?\.yml', usage_scenario):
                 self.__include_playwright_ipc = True
 
@@ -665,6 +682,8 @@ class ScenarioRunner:
             new_dict = {}
 
             if 'compose-file' in yml_obj.keys():
+                if not isinstance(yml_obj['compose-file'], dict):
+                    raise ValueError('magic key "compose-file" did not resolve correctly. Did you use the correcty syntax (without any quotes): !include FILENAME.yml  ?')
                 for k,v in yml_obj['compose-file'].items():
                     if k in yml_obj:
                         new_dict[k] = merge_dicts(v,yml_obj[k])
@@ -1054,7 +1073,7 @@ class ScenarioRunner:
             print('Skipping downloading dependencies due to --skip-download-dependencies')
             return
 
-        subprocess.run(['docker', 'pull', 'martizih/kaniko:slim'], check=True)
+        subprocess.run(['docker', 'pull', 'martizih/kaniko:v1.27.5-slim'], check=True)
 
     def _get_build_info(self, service):
         if isinstance(service['build'], str):
@@ -1133,7 +1152,7 @@ class ScenarioRunner:
                     docker_build_command.append('--mount')
                     docker_build_command.append(f"type=bind,source={relation['mount_path']},target=/tmp/relations/{relation_key},readonly") # relation_key already checked in schema_checker
 
-                docker_build_command.append('martizih/kaniko:slim')
+                docker_build_command.append('martizih/kaniko:v1.27.5-slim')
 
                 # from here args for kaniko directly
                 docker_build_command.extend(
@@ -1254,7 +1273,9 @@ class ScenarioRunner:
 
         # Delete the directory /tmp/gmt_docker_images as we do not want to keep the tar and the loaded image
         # maybe create a switch here later to keep this artifact if we have a use case ...
-        shutil.rmtree(self._build_dir)
+        # On macOS we wipe contents in place to keep the inode stable: this dir is bind-mounted
+        # into kaniko as /output, and Docker Desktop's virtiofs caches inode<->path mappings.
+        self._initialize_folder(self._build_dir)
 
     def _save_image_and_volume_sizes(self):
 
@@ -1852,7 +1873,7 @@ class ScenarioRunner:
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
                 if shell := cmd_obj.get('shell', False):
-                    d_command = ['docker', 'exec', container_name, shell, '-c', cmd_obj['command']] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, shell, '-ec', cmd_obj['command']] # This must be a list!
                 else:
                     d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'], posix=False)] # This must be a list!
 
@@ -2196,7 +2217,7 @@ class ScenarioRunner:
 
                     if cmd_obj['type'] == 'playwright':
                         docker_exec_command.append(cmd_obj.get('shell', 'sh'))
-                        docker_exec_command.append('-c')
+                        docker_exec_command.append('-ec')
                         escaped_command = cmd_obj['command'].replace("'", "\\'")
                         docker_exec_command.append(f"echo '{escaped_command}' > /tmp/playwright-ipc-commands")
 
@@ -2204,7 +2225,7 @@ class ScenarioRunner:
 
                         if shell := cmd_obj.get('shell', False):
                             docker_exec_command.append(shell)
-                            docker_exec_command.append('-c')
+                            docker_exec_command.append('-ec')
                             docker_exec_command.append(cmd_obj['command'])
                         else:
                             docker_exec_command.extend(shlex.split(cmd_obj['command'], posix=False))

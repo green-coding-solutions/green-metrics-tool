@@ -35,7 +35,7 @@ def get_tmp_root():
         return Path(tempfile.gettempdir()).resolve(strict=True)
     else:
         return Path('/tmp/').resolve(strict=True)
-    
+
 def clear_file_system_caches():
     if is_windows():
         try:
@@ -120,7 +120,7 @@ def split_volume_spec(volume, maxsplit=-1):
 
 def _docker_image_rows():
     ps = subprocess.run(
-        ['docker', 'images', '--format', '{{.Repository}}:{{.Tag}} {{.ID}}'],
+        ['docker', 'images', '--format', '{{.Repository}}:{{.Tag}}'],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
@@ -130,20 +130,15 @@ def _docker_image_rows():
     if ps.returncode != 0:
         raise subprocess.CalledProcessError(ps.returncode, ps.args, output=ps.stdout, stderr=ps.stderr)
 
-    rows = []
-    for line in ps.stdout.splitlines():
-        parts = line.rsplit(maxsplit=1)
-        if len(parts) == 2:
-            rows.append((parts[0], parts[1]))
-    return rows
+    return ps.stdout.splitlines()
 
 
 def remove_gmt_tmp_images():
 
-    image_ids = [image_id for image_name, image_id in _docker_image_rows() if 'gmt_run_tmp' in image_name]
-    
-    if image_ids:
-        subprocess.run(['docker', 'rmi', '-f', *image_ids], stderr=subprocess.DEVNULL, check=False)
+    image_names = [image_name for image_name in _docker_image_rows() if 'gmt_run_tmp' in image_name]
+
+    if image_names:
+        subprocess.run(['docker', 'rmi', '-f', *image_names], stderr=subprocess.DEVNULL, check=False)
 
 
 def stop_all_docker_containers():
@@ -164,10 +159,10 @@ def stop_all_docker_containers():
 
 
 def remove_docker_images_except(whitelist):
-    image_ids = [
-        image_id
-        for image_name, image_id in _docker_image_rows()
+    image_names = [
+        image_name
+        for image_name in _docker_image_rows()
         if not any(whitelisted_image in image_name for whitelisted_image in whitelist)
     ]
-    if image_ids:
-        subprocess.run(['docker', 'rmi', '-f', *image_ids], check=False)
+    if image_names:
+        subprocess.run(['docker', 'rmi', '-f', *image_names], check=False)

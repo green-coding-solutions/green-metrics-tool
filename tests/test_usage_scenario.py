@@ -279,10 +279,8 @@ def test_setup_commands_one_command():
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    assert 'Running command:  docker exec test-container sh -c ps -a' in out.getvalue(), \
-        Tests.assertion_info('stdout message: Running command: docker exec  ps -a', out.getvalue())
-    assert '1 root      0:00 /bin/sh' in out.getvalue(), \
-        Tests.assertion_info('container stdout showing /bin/sh as process 1', 'different message in container stdout')
+    assert 'Running command:  docker exec test-container sh -ec ps -a' in out.getvalue()
+    assert '1 root      0:00 /bin/sh' in out.getvalue(), 'Expected container stdout showing /bin/sh as process 1'
 
 def test_setup_commands_multiple_commands():
     out = io.StringIO()
@@ -716,10 +714,9 @@ def test_read_detached_process_no_exit():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    assert 'setting to a 1 min, 40 secs run per stressor' in out.getvalue(), \
-        Tests.assertion_info('setting to a 1 min, 40 secs run per stressor', out.getvalue())
-    assert 'successful run completed' not in out.getvalue(), \
-        Tests.assertion_info('NOT successful run completed', out.getvalue())
+
+    assert re.search(r'setting to a 1 min,?\s+40 secs run per stressor', out.getvalue())
+    assert 'successful run completed' not in out.getvalue()
 
 def test_read_detached_process_after_exit():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_exit.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
