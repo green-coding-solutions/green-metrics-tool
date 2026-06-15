@@ -267,6 +267,9 @@ class ScenarioRunner:
             if value is not None and value > self._measurement_total_duration:
                 raise ValueError(f"Cannot run flows due to configuration error. Measurement_total_duration must be >= {key}, otherwise the flow will run into a timeout in every case. Values are: {key}: {value} and measurement_total_duration: {self._measurement_total_duration}")
 
+    def _append_and_print_warning(self, warning):
+        print(TerminalColors.WARNING, '\n', warning, TerminalColors.ENDC, sep='')
+        self.__warnings.append(warning)
 
     def _custom_sleep(self, sleep_time):
         if not self._dev_no_sleeps:
@@ -389,7 +392,7 @@ class ScenarioRunner:
 
         warnings = system_checks.system_check(mode, self._measurement_system_check_threshold, run_duration=self._last_measurement_duration)
         for warn in warnings:
-            self.__warnings.append(warn)
+            self.__warnings.append(warn) # are already printed via system_checks
 
 
     def _checkout_repository(self):
@@ -875,7 +878,7 @@ class ScenarioRunner:
         if service_count > 0:
             memory_per_service = math.floor(assignable_memory/service_count)
             if memory_per_service < 1024**3:
-                self.__warnings.append('Auto-assigned memory for containers was less than 1 GB per container because no more memory was available to the host. If you feel that this is too low please set memory limits manually or upgrade to a bigger host.')
+                self._append_and_print_warning('Auto-assigned memory for containers was less than 1 GB per container because no more memory was available to the host. If you feel that this is too low please set memory limits manually or upgrade to a bigger host.')
             for service_name in to_be_assigned_services:
                 services[service_name]['mem_limit'] = memory_per_service
 
@@ -1750,8 +1753,7 @@ class ScenarioRunner:
                 raise RuntimeError(f"Container '{container_name}' cannot run due to architecture incompatibility. Image architecture is '{image_arch}' but host architecture is '{host_arch}' and emulation is not available.")
             elif compatibility_status == CompatibilityStatus.EMULATED:
                 # Image can run via emulation - add warning but allow Docker to handle it
-                self.__warnings.append(f"Container '{container_name}' will run with architecture emulation. Image architecture is '{image_arch}' but host architecture is '{host_arch}'. This may impact performance.")
-                print(f"Warning: Container will use emulation (image: {image_arch}, host: {host_arch})")
+                self._append_and_print_warning(f"Container '{container_name}' will run with architecture emulation. Image architecture is '{image_arch}' but host architecture is '{host_arch}'. This may impact performance.")
             elif compatibility_status == CompatibilityStatus.NATIVE:
                 # Native compatibility - no action needed
                 print(f"Architecture compatible: {image_arch} (native)")
@@ -2442,13 +2444,16 @@ class ScenarioRunner:
                 if not matches:
                     continue
                 if not isinstance(matches[0], tuple) or len(matches[0]) != 2:
-                    raise RuntimeError(f"Capturing regex for custom metric {key} did not result in two capture groups. Must be a timestamp and value pair. Resulting capture groups are: {matches}. Regex was: {custom_metric['regex']}")
+                    self._append_and_print_warning(f"Capturing regex for custom metric {key} did not result in two capture groups. Must be a timestamp and value pair. Resulting capture groups are: {matches}. Regex was: {custom_metric['regex']}")
+                    return
 
                 df = pandas.DataFrame(matches, columns=['time', 'value'])
                 try:
                     df['time'] = df['time'].apply(utils.normalize_timestamp).astype('int64')
                 except ValueError as exc:
-                    raise ValueError(f"Parsing time string for custom metric from stdout failed: {exc}") from exc
+                    self._append_and_print_warning(f"Parsing time string for custom metric from stdout failed: {exc}")
+                    return
+
                 df['value'] = df['value'].astype('int64')
                 df['metric'] = key
                 df['detail_name'] = container_name
@@ -2530,7 +2535,7 @@ class ScenarioRunner:
         for metric_name, custom_metric in self.__custom_metrics.items():
             if custom_metric.get('data', pandas.DataFrame()).empty:
                 metric_original_name = metric_name[7:]
-                print(TerminalColors.WARNING, f"Custom metric '{metric_original_name}' yielded no results to import. Please check your regex and / or check if you turned of log_stdout in the usage_scenario.yml", TerminalColors.ENDC)
+                self._append_and_print_warning(f"Custom metric '{metric_original_name}' yielded no results to import. Please check your regex and / or check if you turned of log_stdout in the usage_scenario.yml")
                 continue
 
             metric_importer.import_measurements(custom_metric['data'], metric_name, self._run_id)
@@ -2665,33 +2670,24 @@ class ScenarioRunner:
 
         # on macOS we run our tests inside the VM. Thus measurements are not reliable as they contain the overhead and reproducability is quite bad.
         if platform.system() == 'Darwin':
-            invalid_message = 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\n'
-            print(TerminalColors.WARNING, invalid_message, TerminalColors.ENDC)
+            self._append_and_print_warning('Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.')
 
             if not self._run_id or self._dev_no_save:
                 print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
-            else:
-                self.__warnings.append(invalid_message)
 
         if platform.system() == 'Windows':
-            invalid_message = 'Measurements are not directly comparable to Linux bare-metal runs because Docker Desktop runs Linux containers in a virtualized environment on Windows.\n'
-            print(TerminalColors.WARNING, invalid_message, TerminalColors.ENDC)
+            self._append_and_print_warning('Measurements are not directly comparable to Linux bare-metal runs because Docker Desktop runs Linux containers in a virtualized environment on Windows.')
 
             if not self._run_id or self._dev_no_save:
                 print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
-            else:
-                self.__warnings.append(invalid_message)
 
         for argument in self._arguments:
             # dev no optimizations does not make the run invalid ... all others do
             if argument.startswith('dev_') and self._arguments[argument] not in (False, None):
-                invalid_message = 'Development switches (--dev-*) were active for this run. This will likely produce skewed measurement data and should only be used in local development.\n'
-                print(TerminalColors.WARNING, invalid_message, TerminalColors.ENDC)
+                self._append_and_print_warning('Development switches (--dev-*) were active for this run. This will likely produce skewed measurement data and should only be used in local development.')
 
                 if not self._run_id or self._dev_no_save:
                     print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
-                else:
-                    self.__warnings.append(invalid_message)
                 break # one is enough
 
     def _patch_phases(self):
