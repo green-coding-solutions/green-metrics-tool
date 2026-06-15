@@ -94,7 +94,7 @@ def reboot_if_uptime_exceeded(reboot_after_s):
         print(f"Uptime {uptime_seconds:.0f}s exceeds reboot_after_seconds {reboot_after_s}s. Rebooting...")
         set_status('reboot')
         subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
-        subprocess.check_output(['sudo', 'systemctl', 'reboot'], encoding='UTF-8', errors='replace')
+        subprocess.check_output(['/usr/bin/sudo', '/usr/bin/systemctl', 'reboot'], encoding='UTF-8', errors='replace')
         time.sleep(86400) # reboot request might not be handled directly, thus we wait until this process gets killed.
 
 
@@ -105,7 +105,7 @@ def do_maintenance():
 
     python_realpath = Path('/usr/bin/python3').resolve(strict=True) # bc typically symlinked to python3.12 or similar
 
-    maintenance_cmd = ['sudo', python_realpath.as_posix(), '-I', '-B', '-S', Path('/usr/local/bin/green-metrics-tool/maintenance.py').resolve(strict=True).as_posix()]
+    maintenance_cmd = ['/usr/bin/sudo', python_realpath.as_posix(), '-I', '-B', '-S', Path('/usr/local/bin/green-metrics-tool/maintenance.py').resolve(strict=True).as_posix()]
 
     # first we need to determine if an apt update is also necessary. We only want to update once a day
     now = time.time()
@@ -224,6 +224,12 @@ def do_measurement_control():
         # endlessly in validation until manually handled, which is what we want.
         time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
 
+def reboot():
+    set_status('reboot')
+    subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
+    subprocess.check_output(['/usr/bin/sudo', '/usr/bin/systemctl', 'reboot'], encoding='UTF-8', errors='replace')
+    time.sleep(86400)
+
 if __name__ == '__main__':
     try:
         parser = argparse.ArgumentParser()
@@ -241,14 +247,20 @@ if __name__ == '__main__':
 
         config = GlobalConfig().config
 
-        must_revalidate_bc_new_packages = False
+        needs_revalidation = False
         last_24h_maintenance = 0
+
+        result = DB().fetch_one('SELECT needs_revalidation FROM machines WHERE id = %s', params=(config['machine']['id'],), fetch_mode='dict')
+        if result and result['needs_revalidation']:
+            needs_revalidation = True
 
         while True:
 
             # run forced maintenance with maintenance every 24 hours
             if not args.testing and last_24h_maintenance < (time.time() - 43200): # every 12 hours
-                must_revalidate_bc_new_packages = do_maintenance()
+                if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
+                    DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
+                    reboot()
                 last_24h_maintenance = time.time()
 
             job = Job.get_job('run')
@@ -264,9 +276,10 @@ if __name__ == '__main__':
                 else:
                     continue # retry all checks
 
-            if not args.testing and (must_revalidate_bc_new_packages or validate.is_validation_needed(config['machine']['id'], config['cluster']['client']['time_between_control_workload_validations'])):
+            if not args.testing and (needs_revalidation or validate.is_validation_needed(config['machine']['id'], config['cluster']['client']['time_between_control_workload_validations'])):
                 do_measurement_control()
-                must_revalidate_bc_new_packages = False # reset as measurement control has run. even if failed
+                DB().query('UPDATE machines SET needs_revalidation = false WHERE id = %s', params=(config['machine']['id'],))
+                needs_revalidation = False # reset as measurement control has run. even if failed
                 continue # re-do temperature checks
 
             if job:
@@ -341,7 +354,9 @@ if __name__ == '__main__':
                         )
                 finally: # run periodic maintenance between every run
                     if not args.testing:
-                        must_revalidate_bc_new_packages = do_maintenance() # when new packages are installed, we must revalidate
+                        if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
+                            DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
+                            reboot()
                         last_24h_maintenance = time.time()
 
             else:
@@ -354,7 +369,7 @@ if __name__ == '__main__':
                     if config['cluster']['client']['shutdown_on_job_no']:
                         subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
                         time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
-                        subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
+                        subprocess.check_output(['/usr/bin/sudo', '/usr/bin/systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
 
                     time.sleep(config['cluster']['client']['sleep_time_no_job'])
 
