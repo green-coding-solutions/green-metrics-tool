@@ -6,19 +6,28 @@ from datetime import datetime
 
 # https://github.com/compose-spec/compose-spec/blob/master/spec.md
 
+VALID_CHARS = set(string.ascii_letters + string.digits + '_' + '-')
+
+VALID_CHARS_SPACE = VALID_CHARS.copy()
+VALID_CHARS_SPACE.add(' ')
+
 class SchemaChecker():
     def __init__(self, validate_compose_flag):
         self._validate_compose_flag = validate_compose_flag
 
+    def no_newlines(self, value):
+        if re.findall(r'\n', value):
+            raise SchemaError(f"{value} must not contain a newline character")
+        return value
+
+
     def is_valid_string(self, value):
-        valid_chars = set(string.ascii_letters + string.digits + '_' + '-')
-        if not set(value).issubset(valid_chars):
+        if not set(value).issubset(VALID_CHARS):
             raise SchemaError(f"{value} does not use valid characters! (a-zA-Z0-9_-)")
         return value
 
     def is_valid_string_with_spaces(self, value):
-        valid_chars = set(string.ascii_letters + string.digits + '_' + '-' + ' ')
-        if not set(value).issubset(valid_chars):
+        if not set(value).issubset(VALID_CHARS_SPACE):
             raise SchemaError(f"{value} does not use valid characters! (a-zA-Z0-9_-) and space")
         return value
 
@@ -106,7 +115,7 @@ class SchemaChecker():
             Optional('architecture'): And(str, Use(self.not_empty)),
             Optional('custom_metrics'): {
                 And(str, Use(self.not_empty), Use(self.is_valid_string)): {
-                    'unit': And(str, Use(self.not_empty), Use(self.is_valid_string_with_spaces)),
+                    'unit': And(str, Use(self.not_empty), Use(self.no_newlines)),
                     Optional('regex'): And(str, Use(self.not_empty), Use(self.regex_has_two_groups)),
                     Optional('sci'): bool,
                 },
