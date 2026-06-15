@@ -223,9 +223,28 @@ const populateMetricsDropdown = () => {
         onChange: () => {
             const selected = Array.from(select.selectedOptions).map((o) => o.value);
             compareSimpleState.selectedMetrics = selected.length === 0 ? null : new Set(selected);
+            syncURLParams();
             renderTable();
         },
     });
+};
+
+const syncURLParams = () => {
+    const url = new URL(window.location.href);
+    const p = url.searchParams;
+
+    if (compareSimpleState.metricsOnY) { p.set('swap_axes', 'true'); } else { p.delete('swap_axes'); }
+    if (compareSimpleState.showSource)  { p.set('source', 'true'); }   else { p.delete('source'); }
+    if (compareSimpleState.showDetail)  { p.set('detail', 'true'); }   else { p.delete('detail'); }
+
+    if (compareSimpleState.selectedMetrics != null && compareSimpleState.selectedMetrics.size > 0) {
+        const names = [...new Set([...compareSimpleState.selectedMetrics].map((k) => k.split('||')[0]))];
+        p.set('metrics', names.join(','));
+    } else {
+        p.delete('metrics');
+    }
+
+    history.replaceState(null, '', url.toString());
 };
 
 const updateAxisSwitchLabel = () => {
@@ -407,6 +426,10 @@ $(document).ready(() => {
             return;
         }
 
+        if (url_params['swap_axes'] === 'true') compareSimpleState.metricsOnY = true;
+        if (url_params['source'] === 'true') compareSimpleState.showSource = true;
+        if (url_params['detail'] === 'true') compareSimpleState.showDetail = true;
+
         const results = await Promise.all(compareSimpleState.runIds.map(async (run_id) => {
             const [stats, meta] = await Promise.all([
                 fetchSinglePhaseStats(run_id),
@@ -434,16 +457,29 @@ $(document).ready(() => {
         document.querySelector('#loader-compare-simple').remove();
 
         populatePhaseDropdown();
+
+        if (url_params['metrics']) {
+            const requestedMetrics = url_params['metrics'].split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+            const allMetricKeys = buildMetricKeys(compareSimpleState.selectedPhase);
+            const matched = new Set();
+            requestedMetrics.forEach((requested) => {
+                allMetricKeys.forEach((m) => {
+                    if (m.metric_name === requested || m.clean_name.toLowerCase() === requested.toLowerCase()) {
+                        matched.add(`${m.metric_name}||${m.detail_name}`);
+                    }
+                });
+            });
+            if (matched.size === 0) {
+                showNotification('Invalid deeplink', `No metrics matched the provided 'metrics' parameter: "${url_params['metrics']}". Showing all metrics.`);
+            } else {
+                compareSimpleState.selectedMetrics = matched;
+            }
+        }
+
         populateMetricsDropdown();
         updateAxisSwitchLabel();
 
-        document.querySelector('#axis-switch-button').addEventListener('click', () => {
-            compareSimpleState.metricsOnY = !compareSimpleState.metricsOnY;
-            updateAxisSwitchLabel();
-            renderTable();
-        });
-
-        const wireToggleButton = (selector, stateKey) => {
+        const wireToggleButton = (selector, stateKey, onAfterToggle) => {
             const btn = document.querySelector(selector);
             const syncVisual = () => {
                 btn.classList.toggle('active', compareSimpleState[stateKey]);
@@ -453,10 +489,13 @@ $(document).ready(() => {
             btn.addEventListener('click', () => {
                 compareSimpleState[stateKey] = !compareSimpleState[stateKey];
                 syncVisual();
+                if (onAfterToggle) onAfterToggle();
+                syncURLParams();
                 renderTable();
             });
         };
 
+        wireToggleButton('#axis-switch-button', 'metricsOnY', updateAxisSwitchLabel);
         wireToggleButton('#colorize-button', 'colorize');
         wireToggleButton('#source-toggle-button', 'showSource');
         wireToggleButton('#detail-toggle-button', 'showDetail');
