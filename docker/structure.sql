@@ -216,6 +216,7 @@ CREATE TABLE machines (
     description text NOT NULL,
     available boolean DEFAULT false,
     status_code text,
+    needs_revalidation boolean NOT NULL DEFAULT false,
     jobs_processing text,
     cooldown_time_after_job integer,
     base_temperature integer,
