@@ -94,7 +94,7 @@ def reboot_if_uptime_exceeded(reboot_after_s):
         print(f"Uptime {uptime_seconds:.0f}s exceeds reboot_after_seconds {reboot_after_s}s. Rebooting...")
         set_status('reboot')
         subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
-        subprocess.check_output(['sudo', 'systemctl', 'reboot'], encoding='UTF-8', errors='replace')
+        subprocess.check_output(['/usr/bin/sudo', '/usr/bin/systemctl', 'reboot'], encoding='UTF-8', errors='replace')
         time.sleep(86400) # reboot request might not be handled directly, thus we wait until this process gets killed.
 
 
@@ -105,7 +105,7 @@ def do_maintenance():
 
     python_realpath = Path('/usr/bin/python3').resolve(strict=True) # bc typically symlinked to python3.12 or similar
 
-    maintenance_cmd = ['sudo', python_realpath.as_posix(), '-I', '-B', '-S', Path('/usr/local/bin/green-metrics-tool/maintenance.py').resolve(strict=True).as_posix()]
+    maintenance_cmd = ['/usr/bin/sudo', python_realpath.as_posix(), '-I', '-B', '-S', Path('/usr/local/bin/green-metrics-tool/maintenance.py').resolve(strict=True).as_posix()]
 
     # first we need to determine if an apt update is also necessary. We only want to update once a day
     now = time.time()
@@ -227,7 +227,7 @@ def do_measurement_control():
 def reboot():
     set_status('reboot')
     subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
-    subprocess.check_output(['sudo', 'systemctl', 'reboot'], encoding='UTF-8', errors='replace')
+    subprocess.check_output(['/usr/bin/sudo', '/usr/bin/systemctl', 'reboot'], encoding='UTF-8', errors='replace')
     time.sleep(86400)
 
 if __name__ == '__main__':
@@ -369,7 +369,7 @@ if __name__ == '__main__':
                     if config['cluster']['client']['shutdown_on_job_no']:
                         subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
                         time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
-                        subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
+                        subprocess.check_output(['/usr/bin/sudo', '/usr/bin/systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
 
                     time.sleep(config['cluster']['client']['sleep_time_no_job'])
 
