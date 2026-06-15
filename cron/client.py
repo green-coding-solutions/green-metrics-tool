@@ -224,6 +224,12 @@ def do_measurement_control():
         # endlessly in validation until manually handled, which is what we want.
         time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
 
+def reboot():
+    set_status('reboot')
+    subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
+    subprocess.check_output(['sudo', 'systemctl', 'reboot'], encoding='UTF-8', errors='replace')
+    time.sleep(86400)
+
 if __name__ == '__main__':
     try:
         parser = argparse.ArgumentParser()
@@ -244,11 +250,18 @@ if __name__ == '__main__':
         must_revalidate_bc_new_packages = False
         last_24h_maintenance = 0
 
+        result = DB().fetch_one('SELECT needs_revalidation FROM machines WHERE id = %s', params=(config['machine']['id'],), fetch_mode='dict')
+        if result and result['needs_revalidation']:
+            must_revalidate_bc_new_packages = True
+            DB().query('UPDATE machines SET needs_revalidation = false WHERE id = %s', params=(config['machine']['id'],))
+
         while True:
 
             # run forced maintenance with maintenance every 24 hours
             if not args.testing and last_24h_maintenance < (time.time() - 43200): # every 12 hours
-                must_revalidate_bc_new_packages = do_maintenance()
+                if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
+                    DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
+                    reboot()
                 last_24h_maintenance = time.time()
 
             job = Job.get_job('run')
@@ -341,7 +354,9 @@ if __name__ == '__main__':
                         )
                 finally: # run periodic maintenance between every run
                     if not args.testing:
-                        must_revalidate_bc_new_packages = do_maintenance() # when new packages are installed, we must revalidate
+                        if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
+                            DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
+                            reboot()
                         last_24h_maintenance = time.time()
 
             else:
