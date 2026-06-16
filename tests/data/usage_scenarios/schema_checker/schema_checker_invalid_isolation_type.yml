@@ -1,0 +1,20 @@
+---
+name: Test
+author: Dan Mateas
+description: test
+
+isolation:
+  type: invalid-type
+  backend: docker
+
+services:
+  test-container:
+    image: alpine:latest
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress

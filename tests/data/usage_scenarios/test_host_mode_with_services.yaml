@@ -1,0 +1,22 @@
+---
+name: Stress in different isolations - Host
+author: Arne Tarara <arne@green-coding.io>
+description: Testing stress-ng in different isolations
+
+isolation:
+  type: host
+  backend: null
+
+services:
+  test-container:
+    image: alpine:latest
+    setup-commands:
+      - command: apk add stress-ng
+
+flow:
+  - name: Running Command
+    container: test-container
+    commands:
+      - type: console
+        command: __GMT_VAR_COMMAND__
+        note: Running __GMT_VAR_COMMAND__
