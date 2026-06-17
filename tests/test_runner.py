@@ -609,10 +609,10 @@ def test_runner_run_invalidated():
 
     messages = [d[0] for d in data]
 
-    assert 'Development switches (--dev-*) were active for this run. This will likely produce skewed measurement data and should only be used in local development.\n' in messages
+    assert 'Development switches (--dev-*) were active for this run. This will likely produce skewed measurement data and should only be used in local development.' in messages
 
     if platform.system() == 'Darwin':
-        assert 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\n' in messages
+        assert 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.' in messages
 
 
 ## Docker pull logic tests

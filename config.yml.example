@@ -82,6 +82,9 @@ cluster:
         network_total_cgroup_container:
           threshold: 10000 # 10 kB
           type: stddev
+        custom_sysbench_events_sci_global:
+          threshold: 0.01
+          type: stddev_rel
         phase_time_syscall_system:
           threshold: 0.01 # 1%
           type: stddev_rel
