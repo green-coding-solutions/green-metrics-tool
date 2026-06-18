@@ -571,7 +571,7 @@ def test_network_alias_added():
             context.run_until('setup_services')
 
     assert 'Adding network alias test-alias for network gmt-test-network in service test-container' in out.getvalue()
-    docker_run_command = re.search(r"Calling docker with these paramters: ([^\r\n]+)", out.getvalue()).group(1)
+    docker_run_command = re.search(r"Calling docker with these parameters: ([^\r\n]+)", out.getvalue()).group(1)
     assert "'--network-alias', 'test-alias'" in docker_run_command
 
 def test_network_host_join_blocked():
@@ -701,7 +701,7 @@ def test_entrypoint_empty():
         )
         docker_ps_out = ps.stdout
     docker_run_command = re.search(
-        r"Calling docker with these paramters: (.*)",
+        r"Calling docker with these parameters: (.*)",
         str(out.getvalue())
     ).group(1)
     assert '--entrypoint=' in docker_run_command, f"--entrypoint= not found in docker run command: {docker_run_command}"
@@ -889,7 +889,7 @@ def test_good_arg():
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
 
-    docker_run_command = re.search(r"Calling docker with these paramters: ([^\r\n]+)", str(out.getvalue()))
+    docker_run_command = re.search(r"Calling docker with these parameters: ([^\r\n]+)", str(out.getvalue()))
     assert docker_run_command, f"Docker run command not found in output: {out.getvalue()}"
     assert "'docker', 'run', '-it', '-d'" in docker_run_command.group(1), f"docker run prefix not found in docker run command: {docker_run_command.group(1)}"
     assert "'--label', 'test=true'" in docker_run_command.group(1), f"--label test=true not found in docker run command: {docker_run_command.group(1)}"
