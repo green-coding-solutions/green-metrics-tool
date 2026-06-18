@@ -354,6 +354,9 @@ class RunUntilManager:
             self.__runner._initial_parse()
             self.__runner._checkout_relations()
             self.__runner._register_machine_id()
+            if self.__runner._carbon_simulation:
+                self.__runner._setup_carbon_simulator()
+
             self.__runner._import_metric_providers()
             yield 'import_metric_providers'
             if stop_at == 'import_metric_providers':
