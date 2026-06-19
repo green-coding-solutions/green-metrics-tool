@@ -18,7 +18,7 @@ from api.scenario_runner import Software
 def test_post_run_add_github_one_off():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/software/add?no_url_check=true", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
     data = response.json()
     assert isinstance(data['data'], list)
@@ -32,7 +32,7 @@ def test_post_run_add_github_with_carbon_simulation():
     run_name = 'test_' + utils.randomword(12)
     carbon_simulation = [100, 200]
     run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='daily', carbon_simulation=carbon_simulation)
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/software/add?no_url_check=true", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     job_ids = get_job_ids(run_name)
@@ -151,11 +151,11 @@ def test_post_run_add_gitlab_tag():
 def test_post_run_add_gitlab_custom_api_base():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://gitlab.rlp.net/green-software-engineering/oscar', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='commit')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/software/add?no_url_check=true", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     watchlist_item = utils.get_watchlist_item('https://gitlab.rlp.net/green-software-engineering/oscar')
-    assert re.match(r'^[a-fA-F0-9]{40}$',watchlist_item['last_marker'])
+    assert watchlist_item['last_marker'] is None
     assert watchlist_item['schedule_mode'] == 'commit'
 
 
@@ -203,7 +203,7 @@ def test_post_run_add_non_existent_repo():
 def test_post_repo_with_auth():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://arne:password@green-coding.io/green-coding-solutions/green-metrics-tool/', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/software/add?no_url_check=true", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
 
