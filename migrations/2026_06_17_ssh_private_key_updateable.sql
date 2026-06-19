@@ -7,4 +7,4 @@ SET capabilities = jsonb_set(
         '["ssh_private_key"]'::jsonb
     ),
     true
-);
+) WHERE id != 0;
