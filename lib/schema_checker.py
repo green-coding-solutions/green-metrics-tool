@@ -113,6 +113,10 @@ class SchemaChecker():
             Optional('ignore-unsupported-compose'): bool,
             Optional('version'): Or(str, int, float, datetime), # is part of compose. we ignore it as it is non functionaly anyway
             Optional('architecture'): And(str, Use(self.not_empty)),
+            Optional('isolation'): {
+                'type': Or('host', 'container', 'vm'),
+                Optional('backend'): Or(None, 'docker', 'kata-qemu', 'kata-cloud-hypervisor'),
+            },
             Optional('custom_metrics'): {
                 And(str, Use(self.not_empty), Use(self.is_valid_string)): {
                     'unit': And(str, Use(self.not_empty), Use(self.no_newlines)),

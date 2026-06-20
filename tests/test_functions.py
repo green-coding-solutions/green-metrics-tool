@@ -352,6 +352,7 @@ class RunUntilManager:
             self.__runner._checkout_repository()
             self.__runner._load_yml_file()
             self.__runner._initial_parse()
+            self.__runner._prepare_and_validate_isolation()
             self.__runner._checkout_relations()
             self.__runner._register_machine_id()
             if self.__runner._carbon_simulation:
@@ -363,7 +364,6 @@ class RunUntilManager:
                 return
             self.__runner._populate_image_names()
             self.__runner._populate_cpu_and_memory_limits()
-            self.__runner._prepare_docker()
             self.__runner._check_running_containers_before_start()
             self.__runner._remove_docker_images()
             self.__runner._download_dependencies()

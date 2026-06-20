@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ -z "${1-}" ]; then
+    echo "Usage: host-executor COMMAND [ARGS...]"
+    echo "  Expects docker CLI syntax. 'exec CONTAINER COMMAND [ARGS...]' runs the command on the host, ignoring CONTAINER. All other commands are forwarded to docker."
+    exit 1
+fi
+
+if [[ "${1-}" == "exec" ]]; then
+    if [ -z "${2-}" ]; then
+        echo "Please supply container name as second argument"
+        exit 1
+    fi
+
+    if [ -z "${3-}" ]; then
+        echo "Please supply command as third argument"
+        exit 1
+    fi
+
+    # Drop 'exec' and container name, run the rest directly on the host
+    shift 2
+    exec "$@"
+else
+    exec docker "$@"
+fi

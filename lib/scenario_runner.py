@@ -244,8 +244,9 @@ class ScenarioRunner:
         self.__carbon_simulation_uuid = None
         self.__custom_metrics = {}
         self.__sci_metrics = []
-
-
+        self.__isolation_type = None
+        self.__isolation_backend = None
+        self.__isolation_executor = None
 
         self._check_all_durations()
 
@@ -747,12 +748,51 @@ class ScenarioRunner:
             if custom_metric.get('sci', False):
                 self.__sci_metrics.append(safe_key)
 
-    def _prepare_docker(self):
-        # Disable Docker CLI hints (e.g. "What's Next? ...")
-        os.environ['DOCKER_CLI_HINTS'] = 'false'
+    def _prepare_and_validate_isolation(self):
+        self.__isolation_type = self.__usage_scenario.get('isolation',{}).get('type', 'container')
+        self.__isolation_backend = self.__usage_scenario.get('isolation',{}).get('backend', None)
+
+        if self.__isolation_type == 'host':
+            if self.__isolation_backend is not None:
+                raise ValueError(f"Host Isolation Type does not support an isolation backend. Must be Null / Omitted. You supplied: {self.__isolation_backend}")
+            self.__isolation_executor = [Path(GMT_ROOT_DIR, 'tools', 'host-executor').resolve(strict=True).as_posix()]
+
+        elif self.__isolation_type == 'container' and self.__isolation_backend == 'docker':
+            self.__isolation_executor = ['docker']
+
+            # Disable Docker CLI hints (e.g. "What's Next? ...")
+            os.environ['DOCKER_CLI_HINTS'] = 'false'
+
+        elif self.__isolation_type == 'vm':
+            kata_manager_path = '/opt/bin/kata-containers/kata-manager.sh'
+            path = Path(kata_manager_path).resolve()
+            if not path.exists():
+                raise RuntimeError(f"Could not find {kata_manager_path}. VM isolation mode expects kata-containers and the manager manager to be installed.")
+
+            if self.__isolation_backend == 'kata-qemu':
+                self.__isolation_executor = [*self.__isolation_executor, '--runtime io.containerd.kata.v2']
+                backend_shortcode = 'qemu'
+            elif self.__isolation_backend == 'kata-cloud-hypervisor':
+                self.__isolation_executor = [*self.__isolation_executor, '--runtime io.containerd.kata.v2']
+                backend_shortcode = 'clh'
+            else:
+                raise ValueError(f"Unknown backend selected for Isolation Type VM: {self.__isolation_backend}")
+
+            ps = subprocess.run(['sudo', path, '-h', backend_shortcode], capture_output=True, encoding='UTF-8', errors='replace', check=False)
+            if ps.returncode != 0:
+                raise RuntimeError(f"Could not switch kata-containers backend to {backend_shortcode}.\n \
+                    Error: ========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+
+        elif self.__isolation_type == 'container' and self.__isolation_backend == 'podman':
+            raise NotImplementedError('Podman Host Isolation Backend is not yet implemented')
+
+        else:
+            raise ValueError(f"Unknown combination of Isolation Type and Isolation Backend: {self.__isolation_type} - {self.__isolation_backend}")
+
 
     def _check_running_containers_before_start(self):
-        result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
+
+        result = subprocess.run([*self.__isolation_executor, 'ps' ,'--format', '{{.Names}}'],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
                                 check=True, encoding='UTF-8', errors='replace')
@@ -768,21 +808,21 @@ class ScenarioRunner:
                         raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
 
     def _check_container_is_running(self, container_name: str, step_description: str, image_name: str | None = None):
-        check_ps = subprocess.run(['docker', 'ps', '-q', '-f', f'name={container_name}'],
+        check_ps = subprocess.run([*self.__isolation_executor, 'ps', '-q', '-f', f'name={container_name}'],
                                   stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE,
                                   check=False, encoding='UTF-8', errors='replace')
         if not check_ps.stdout.strip():
             # Container not running - this is an error condition that requires raising an exception
             logs_ps = subprocess.run(
-                ['docker', 'logs', container_name],
+                [*self.__isolation_executor, 'logs', container_name],
                 check=False,
                 capture_output=True,
                 encoding='UTF-8',
                 errors='replace',
             )
             inspect_ps = subprocess.run(
-                ['docker', 'inspect', '--format={{.State.ExitCode}}', container_name],
+                [*self.__isolation_executor, 'inspect', '--format={{.State.ExitCode}}', container_name],
                 check=False,
                 capture_output=True,
                 encoding='UTF-8',
@@ -799,7 +839,7 @@ class ScenarioRunner:
                 # Container failed with non-zero or unknown exit code
                 if not image_name:
                     image_ps = subprocess.run(
-                        ['docker', 'inspect', '--format={{.Config.Image}}', container_name],
+                        [*self.__isolation_executor, 'inspect', '--format={{.Config.Image}}', container_name],
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False
                         )
                     if image_ps.returncode != 0:
@@ -899,10 +939,10 @@ class ScenarioRunner:
             host_platform.stop_all_docker_containers()
             host_platform.remove_docker_images_except(config['measurement']['full_docker_prune_whitelist'])
 
-            subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
+            subprocess.run([*self.__isolation_executor, 'system', 'prune' ,'--force', '--volumes'], check=True)
         elif self._docker_prune:
             print(TerminalColors.HEADER, '\nRemoving all unassociated build caches, networks volumes and stopped containers on the system', TerminalColors.ENDC)
-            subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
+            subprocess.run([*self.__isolation_executor, 'system', 'prune' ,'--force', '--volumes'], check=True)
         else:
             print(TerminalColors.WARNING, arrows('Warning: GMT is not instructed to prune docker images and build caches. \nWe recommend to set --docker-prune to remove build caches and anonymous volumes, because otherwise your disk will get full very quickly. If you want to measure also network I/O delay for pulling images and have a dedicated measurement machine please set --full-docker-prune'), TerminalColors.ENDC)
 
@@ -991,6 +1031,8 @@ class ScenarioRunner:
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['custom_metrics'] = self.__custom_metrics
         measurement_config['phase_padding'] = self._phase_padding_ms
+        measurement_config['isolation_type'] = self.__isolation_type
+        measurement_config['isolation_backend'] = self.__isolation_backend
 
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
@@ -1076,7 +1118,7 @@ class ScenarioRunner:
             print('Skipping downloading dependencies due to --skip-download-dependencies')
             return
 
-        subprocess.run(['docker', 'pull', 'martizih/kaniko:v1.27.5-slim'], check=True)
+        subprocess.run([*self.__isolation_executor, 'pull', 'martizih/kaniko:v1.27.5-slim'], check=True)
 
     def _get_build_info(self, service):
         if isinstance(service['build'], str):
@@ -1114,7 +1156,7 @@ class ScenarioRunner:
 
             # If we are in developer repeat runs check if the docker image has already been built
             try:
-                subprocess.run(['docker', 'inspect', '--type=image', tmp_img_name],
+                subprocess.run([*self.__isolation_executor, 'inspect', '--type=image', tmp_img_name],
                                          stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE,
                                          encoding='UTF-8',
@@ -1139,7 +1181,7 @@ class ScenarioRunner:
                 if ',' in repo_mount_path: # when supplying a comma a user can repeat the ,src= directive effectively altering the source to be mounted
                     raise ValueError(f"Repo mount path may not contain commas (,) in the name: {repo_mount_path}")
 
-                docker_build_command = ['docker', 'run', '--rm']
+                docker_build_command = [*self.__isolation_executor, 'run', '--rm']
 
                 docker_build_command.extend(
                     ['--mount', 'type=volume,dst=/workspace',
@@ -1175,7 +1217,7 @@ class ScenarioRunner:
                 # docker agent might be configured to pull from a different, maybe even insecure registry
                 # We want to mirror that behaviour in GMT as we see it used in specially configured environments
                 # where custom docker registries are used
-                docker_info = subprocess.check_output(['docker', 'info', '--format', '{{ json .RegistryConfig.Mirrors }}'], encoding='UTF-8', errors='replace')
+                docker_info = subprocess.check_output([*self.__isolation_executor, 'info', '--format', '{{ json .RegistryConfig.Mirrors }}'], encoding='UTF-8', errors='replace')
                 if docker_info and (mirrors := json.loads(docker_info)):
                     for mirror in mirrors:
                         if 'http://' in mirror:
@@ -1210,7 +1252,7 @@ class ScenarioRunner:
                     raise subprocess.CalledProcessError(ps.returncode, 'Docker build failed', output=ps.stdout, stderr=ps.stderr)
 
                 # import the docker image locally
-                image_import_command = ['docker', 'load', '-q', '-i', self._build_dir.joinpath(f"{tmp_img_name}.tar").as_posix()]
+                image_import_command = [*self.__isolation_executor, 'load', '-q', '-i', self._build_dir.joinpath(f"{tmp_img_name}.tar").as_posix()]
                 print(' '.join(image_import_command))
                 ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
@@ -1225,7 +1267,7 @@ class ScenarioRunner:
                 # bc the docker pull command does not stream the interactive progress bar. Only the lines when a layer finished with downloading
                 # Since this information does not provide info how long the image download still will take we opted for keeping this pull call less complex
                 # So you have to stare at the "Pulling XYZ" command until it is finished :)
-                ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
+                ps_pull = subprocess.run([*self.__isolation_executor, 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
 
                 if ps_pull.returncode != 0:
                     print(f"Error: {ps_pull.stderr} \n {ps_pull.stdout}")
@@ -1253,7 +1295,7 @@ class ScenarioRunner:
                             output=ps_pull.stdout,
                             stderr=ps_pull.stderr
                         )
-                    ps_inpsect = subprocess.run(['docker', 'inspect', '--type=image', service['image']],
+                    ps_inpsect = subprocess.run([*self.__isolation_executor, 'inspect', '--type=image', service['image']],
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE,
                          encoding='UTF-8',
@@ -1271,7 +1313,7 @@ class ScenarioRunner:
 
 
                 # tagging must be done in pull and local case, so we can get the correct container later
-                subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
+                subprocess.run([*self.__isolation_executor, 'tag', service['image'], tmp_img_name], check=True)
 
 
         # Delete the directory /tmp/gmt_docker_images as we do not want to keep the tar and the loaded image
@@ -1289,7 +1331,7 @@ class ScenarioRunner:
 
             # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
             output = subprocess.check_output(
-                ['docker', 'image', 'inspect', tmp_img_name, '--format={{.Size}}'],
+                [*self.__isolation_executor, 'image', 'inspect', tmp_img_name, '--format={{.Size}}'],
                 encoding='UTF-8',
                 errors='replace',
             )
@@ -1303,7 +1345,7 @@ class ScenarioRunner:
                 # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
                 try:
                     output = subprocess.check_output(
-                        ['docker', 'volume', 'inspect', volume, '--format={{.Mountpoint}}'],
+                        [*self.__isolation_executor, 'volume', 'inspect', volume, '--format={{.Mountpoint}}'],
                         encoding='UTF-8', errors='replace'
                     )
                     output = subprocess.check_output(
@@ -1336,12 +1378,12 @@ class ScenarioRunner:
                     raise ValueError('Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined.')
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
-                subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
+                subprocess.run([*self.__isolation_executor, 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
 
                 if self.__usage_scenario['networks'][network] and self.__usage_scenario['networks'][network].get('internal', False):
-                    subprocess.check_output(['docker', 'network', 'create', '--internal', network], encoding='UTF-8', errors='replace')
+                    subprocess.check_output([*self.__isolation_executor, 'network', 'create', '--internal', network], encoding='UTF-8', errors='replace')
                 else:
-                    subprocess.check_output(['docker', 'network', 'create', network], encoding='UTF-8', errors='replace')
+                    subprocess.check_output([*self.__isolation_executor, 'network', 'create', network], encoding='UTF-8', errors='replace')
 
                 self.__networks.append(network)
         else:
@@ -1349,8 +1391,8 @@ class ScenarioRunner:
             network = f"GMT_default_tmp_network_{random.randint(500000,10000000)}"
             print('Creating network: ', network)
             # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
-            subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
-            subprocess.run(['docker', 'network', 'create', network], check=True)
+            subprocess.run([*self.__isolation_executor, 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
+            subprocess.run([*self.__isolation_executor, 'network', 'create', network], check=True)
             self.__networks.append(network)
             self.__join_default_network = True
 
@@ -1411,7 +1453,7 @@ class ScenarioRunner:
             # By using the -f we return with 0 if no container is found
             # we always reset container without checking if something is running, as we expect that a user understands
             # this mechanic when using docker based tools. A container with the same name may not run twice
-            subprocess.run(['docker', 'rm', '-f', container_name], stderr=subprocess.DEVNULL, check=True)
+            subprocess.run([*self.__isolation_executor, 'rm', '-f', container_name], stderr=subprocess.DEVNULL, check=True)
 
             print('Creating container')
             # We are attaching the -it option here to keep STDIN open and a terminal attached.
@@ -1421,7 +1463,7 @@ class ScenarioRunner:
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
             # injection of unwawnted params
-            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
+            docker_run_string = [*self.__isolation_executor, 'run', '-it', '-d', '--name', container_name]
 
 
             repo_mount_path = service.get('folder-destination', '/tmp/repo')
@@ -1810,7 +1852,7 @@ class ScenarioRunner:
                                 if ps.returncode != 0 or health == '<nil>':
                                     raise RuntimeError(f"Health check for service '{dependent_service}' was requested by '{service_name}', but service has no healthcheck implemented! (Output was: {health})")
                                 if health == 'unhealthy':
-                                    healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8', errors='replace')
+                                    healthcheck_errors = subprocess.check_output([*self.__isolation_executor, 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8', errors='replace')
                                     raise RuntimeError(f'Health check of container "{dependent_container_name}" failed terminally with status "unhealthy" after {time_waited}s. Health check errors: {healthcheck_errors}')
                             elif condition == 'service_started':
                                 pass
@@ -1826,7 +1868,7 @@ class ScenarioRunner:
                     if state != 'running':
                         raise RuntimeError(f"State check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not running but '{state}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
                     if health != 'healthy':
-                        healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8', errors='replace')
+                        healthcheck_errors = subprocess.check_output([*self.__isolation_executor, 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8', errors='replace')
                         raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec!\nHealth check errors: {healthcheck_errors}")
 
 
@@ -1875,9 +1917,9 @@ class ScenarioRunner:
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
                 if shell := cmd_obj.get('shell', False):
-                    d_command = ['docker', 'exec', container_name, shell, '-ec', cmd_obj['command']] # This must be a list!
+                    d_command = [*self.__isolation_executor, 'exec', container_name, shell, '-ec', cmd_obj['command']] # This must be a list!
                 else:
-                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'], posix=False)] # This must be a list!
+                    d_command = [*self.__isolation_executor, 'exec', container_name, *shlex.split(cmd_obj['command'], posix=False)] # This must be a list!
 
                 print('Running command: ', ' '.join(d_command))
 
@@ -2168,7 +2210,7 @@ class ScenarioRunner:
                 print(info_text)
                 self.__notes_helper.add_note( note= info_text, detail_name='[NOTES]', timestamp=phase_time)
 
-                subprocess.run(['docker', 'pause', container_to_pause], check=True, stdout=subprocess.DEVNULL)
+                subprocess.run([*self.__isolation_executor, 'pause', container_to_pause], check=True, stdout=subprocess.DEVNULL)
 
         self.__phases[phase]['end'] = phase_time
 
@@ -2202,7 +2244,7 @@ class ScenarioRunner:
                     print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', flow['container'], TerminalColors.ENDC)
                     print(cmd_obj['command'])
 
-                    docker_exec_command = ['docker', 'exec']
+                    docker_exec_command = [*self.__isolation_executor, 'exec']
                     docker_exec_command.append(flow['container'])
 
                     stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
@@ -2290,7 +2332,7 @@ class ScenarioRunner:
                         print("Awaiting Playwright function return")
                         try:
                             ps = subprocess.run(
-                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
+                                [*self.__isolation_executor, 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
                                 check=True,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
@@ -2300,7 +2342,7 @@ class ScenarioRunner:
                             )
                         except subprocess.TimeoutExpired as exc:
                             error_message = subprocess.check_output(
-                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-error'],
+                                [*self.__isolation_executor, 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-error'],
                                 encoding='UTF-8',
                                 errors='replace',
                             )
@@ -2625,7 +2667,7 @@ class ScenarioRunner:
                 stderr_behaviour = subprocess.PIPE
 
             log = subprocess.run(
-                ['docker', 'logs', container_id],
+                [*self.__isolation_executor, 'logs', container_id],
                 check=True,
                 encoding='UTF-8',
                 errors='replace',
@@ -2775,13 +2817,13 @@ class ScenarioRunner:
 
         print('Stopping containers')
         for container_id in self.__containers:
-            subprocess.run(['docker', 'rm', '-f', container_id], check=True, stderr=subprocess.DEVNULL)
+            subprocess.run([*self.__isolation_executor, 'rm', '-f', container_id], check=True, stderr=subprocess.DEVNULL)
         self.__containers.clear()
 
         print('Removing network')
         for network_name in self.__networks:
             # no check=True, as the network might already be gone. We do not want to fail here
-            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
+            subprocess.run([*self.__isolation_executor, 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
         self.__networks.clear()
 
         self._remove_docker_images()
@@ -2817,6 +2859,9 @@ class ScenarioRunner:
         self.__relations.clear()
         self.__custom_metrics.clear()
         self.__sci_metrics.clear()
+        self.__isolation_type = None
+        self.__isolation_backend = None
+        self.__isolation_executor = None
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
@@ -2845,6 +2890,7 @@ class ScenarioRunner:
             self._checkout_repository()
             self._load_yml_file()
             self._initial_parse()
+            self._prepare_and_validate_isolation()
             self._checkout_relations()
             self._register_machine_id()
             if self._carbon_simulation:
@@ -2853,7 +2899,6 @@ class ScenarioRunner:
             self._import_metric_providers()
             self._populate_image_names()
             self._populate_cpu_and_memory_limits()
-            self._prepare_docker()
             self._check_running_containers_before_start()
             self._remove_docker_images()
             self._download_dependencies()
