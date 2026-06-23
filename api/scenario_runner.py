@@ -892,8 +892,8 @@ async def get_watchlist(user: User = Depends(authenticate)):
     return CustomORJSONResponse({'success': True, 'data': data})
 
 
-@router.post('/v1/run/add')
-async def software_add(software: Software, user: User = Depends(authenticate)):
+@router.post('/v1/runs/add')
+async def runs_add(software: Software, user: User = Depends(authenticate)):
 
     if software.name is None or software.name.strip() == '':
         raise HTTPException(status_code=422, detail='Name is empty')

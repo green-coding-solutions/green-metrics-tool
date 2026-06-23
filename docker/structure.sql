@@ -98,7 +98,7 @@ VALUES (
                 "/v1/ci/stats",
                 "/v2/ci/measurement/add",
                 "/v3/ci/measurement/add",
-                "/v1/run/add",
+                "/v1/runs/add",
                 "/v1/user/settings",
                 "/v1/user/setting",
                 "/v1/cluster/changelog",

@@ -42,3 +42,22 @@ CREATE TRIGGER software_tasks_moddatetime
     BEFORE UPDATE ON software_tasks
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
+
+
+UPDATE users
+SET capabilities = jsonb_set(
+    capabilities,
+    '{api,routes}',
+    (capabilities->'api'->'routes') || '"\/v1\/runs\/add"'::jsonb
+)
+WHERE
+    capabilities->'api'->'routes' ? '/v1/software/add'
+    AND NOT (capabilities->'api'->'routes' ? '/v1/runs/add');
+
+UPDATE users
+SET capabilities = jsonb_set(
+    capabilities,
+    '{api,routes}',
+    (capabilities->'api'->'routes') - '/v1/software/add'
+)
+WHERE capabilities->'api'->'routes' ? '/v1/software/add';
