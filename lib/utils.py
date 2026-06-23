@@ -8,6 +8,7 @@ from functools import cache
 from pathlib import Path
 
 from lib import error_helpers
+from lib import host_platform
 from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -31,7 +32,7 @@ def get_git_api(parsed_url):
     # Alternative:
 
     # assume gitlab private hosted
-    return [f"https://{parsed_url.netloc}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab-custom']
+    return [f"https://{parsed_url.netloc}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'custom']
 
 
 def check_repo(repo_url, branch='main'):
@@ -39,7 +40,7 @@ def check_repo(repo_url, branch='main'):
     [url, git_api] = get_git_api(parsed_url)
     if git_api == 'github':
         url = f"{url}/commits?per_page=1&sha={branch}"
-    elif git_api in ('gitlab', 'gitlab-custom'):
+    elif git_api in ('gitlab', 'custom'):
         url = f"{url}/commits?per_page=1"
     else:
         error_helpers.log_error('Unknown git repo type detected. Skipping further validation for now.',repo_url=repo_url)
@@ -51,13 +52,40 @@ def check_repo(repo_url, branch='main'):
         error_helpers.log_error(f"Request to {git_api} API failed",url=url,exception=str(exc))
         raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?") from exc
 
-    # We do not fail here, but only do a warning, bc often times the SSH or token which might be supplied in the URL is too restrictive then and cannot be used to query the commits also
-    # However we do check the commits endpoint bc this tells us if the repo is non empty or not
-    if response.status_code != 200:
-        if git_api in ('gitlab', 'github'):
-            raise RuntimeError(f"Repository returned bad status code ({response.status_code}). Is the repo ({repo_url}) publicly accessible, not empty and does the branch {branch} exist?")
-        else:
-            error_helpers.log_error(f"Connect to {git_api} API was possible, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
+    if response.status_code == 200:
+        return
+
+    message = _extract_api_message(response)
+
+    # ---- Rate limit detection (works even on 403) ----
+    if response.status_code == 403 and isinstance(message, str) and message.startswith("API rate limit exceeded"):
+        error_helpers.log_error(f"{git_api} rate limit exceeded while accessing {repo_url}. Skipping repo validation - Consider authenticating future requests.")
+        return
+
+    # We early return here in case of custom API and only do a warning,
+    # bc often times the SSH or token which might be supplied in the URL is too restrictive then and cannot be used to query the commits also
+    # However we must check the commits endpoint bc this tells us if the repo is non empty or not
+    if git_api == 'custom':
+        error_helpers.log_error(f"Connect to {git_api} API was possible, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
+        return
+
+    if response.status_code == 403:
+        raise PermissionError(
+            f"Access denied (403) for repository {repo_url}. "
+            f"Repo may be private or credentials are insufficient."
+        )
+
+    if response.status_code == 404:
+        raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?")
+
+    raise RuntimeError(f"Repository returned bad status code ({response.status_code}). Is the repo ({repo_url}) publicly accessible, not empty and does the branch {branch} exist?")
+
+def _extract_api_message(response):
+    try:
+        data = response.json()
+        return data.get("message", "") if isinstance(data, dict) else ""
+    except Exception: # pylint: disable=broad-exception-caught
+        return response.text or ""
 
 def get_repo_last_marker(repo_url, marker, branch=None):
 
@@ -75,7 +103,7 @@ def get_repo_last_marker(repo_url, marker, branch=None):
     if branch:
         if git_api == 'github':
             url += f"&sha={branch}"
-        elif git_api in ('gitlab', 'gitlab-custom'):
+        elif git_api in ('gitlab', 'custom'):
             url += f"&ref_name={branch}"
 
     try:
@@ -113,6 +141,9 @@ def df_fill_mean(group):
 
 
 def get_network_interfaces(mode='all'):
+    if host_platform.is_windows():
+        raise RuntimeError('get_network_interfaces is not supported on Windows hosts')
+
     # Path to network interfaces in sysfs
     sysfs_net_path = '/sys/class/net'
 
@@ -159,6 +190,27 @@ def get_run_data(run_name):
 def get_pascal_case(in_string):
     return ''.join([s.capitalize() for s in in_string.split('_')])
 
+SENSITIVE_CONFIG_KEYS = frozenset({
+    'token',
+    'electricity_maps_token',
+    'password',
+    'secret',
+    'api_key',
+    'auth_token',
+})
+
+def sanitize_config(value, _redacted='__REDACTED__'):
+    if isinstance(value, dict):
+        return {
+            k: _redacted if isinstance(k, str) and k.lower() in SENSITIVE_CONFIG_KEYS else sanitize_config(v, _redacted)
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [sanitize_config(item, _redacted) for item in value]
+    if isinstance(value, tuple):
+        return tuple(sanitize_config(item, _redacted) for item in value)
+    return value
+
 def get_metric_providers(config, disabled_metric_providers=None):
     architecture = get_architecture()
 
@@ -189,12 +241,7 @@ def get_metric_providers_names(config):
     return [(m.split('.')[-1]) for m in metric_providers_keys]
 
 def get_architecture():
-    ps = subprocess.run(['uname', '-s'], check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8', errors='replace')
-    output = ps.stdout.strip().lower()
-
-    if output == 'darwin':
-        return 'macos'
-    return output
+    return host_platform.get_architecture_name()
 
 
 def is_rapl_energy_filtering_deactivated():
@@ -206,8 +253,24 @@ def is_rapl_energy_filtering_deactivated():
                             check=True, encoding='UTF-8', errors='replace')
     return '1' != result.stdout.strip()
 
+def normalize_timestamp(time_str):
+    # we use microsecond timestamps internally
+    # some outputs give us second, millisecond or nanosecond ... so we normalize those
+    length = len(time_str)
+
+    # Important: Before we had here a 10,19 timestamp and where upgrading it from second to
+    # microsecond precision. This lead to errors in correct phase attribution by ghosting into previous phases
+    # Timing must be at least microsecond precision
+    if length < 16 or length > 19:
+        raise ValueError(f"Invalid time string length: {length} for time string: {time_str}. Must be between 16 and 19 characters.")
+
+    return time_str.ljust(16,'0')[:16] # Pad with spaces on the right and Truncate to 16 characters. no ifs and counting ... just do.
+
 @cache
 def find_own_cgroup_name():
+    if host_platform.is_windows():
+        raise RuntimeError('Cgroup detection is not supported on Windows hosts')
+
     current_pid = os.getpid()
     with open(f"/proc/{current_pid}/cgroup", 'r', encoding='utf-8', errors='replace') as file:
         lines = file.readlines()
@@ -218,6 +281,9 @@ def find_own_cgroup_name():
 
 
 def runtime_dir():
+    if host_platform.is_windows():
+        return os.environ.get("TEMP") or os.environ.get("TMP") or str(host_platform.get_tmp_root())
+
     uid = os.getuid()
 
     xdg = os.environ.get("XDG_RUNTIME_DIR")

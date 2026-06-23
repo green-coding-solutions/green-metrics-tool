@@ -9,7 +9,7 @@ services:
     build:
       context: ../entrypoint-application
     volumes:
-      - ../entrypoint-application/entrypoint-overwrite.sh:/tmp/entrypoint-overwrite.sh
+      - ../entrypoint-application/entrypoint-overwrite.sh:/tmp/entrypoint-overwrite.sh:ro
     entrypoint: /tmp/entrypoint-overwrite.sh # overwrite entrypoint
 
 flow:

@@ -26,7 +26,7 @@ docker rmi -f nginx
 docker rmi -f green-metrics-tool-test-test-green-coding-gunicorn
 docker rmi -f green-metrics-tool-green-coding-gunicorn
 docker rmi -f redis:alpine
-docker rmi -f gcr.io/kaniko-project/executor:latest
+docker rmi -f martizih/kaniko:slim
 docker rmi -f postgres:18
 docker volume rm green-metrics-tool_green-coding-redis-data
 docker volume rm green-metrics-tool_green-coding-shared-sockets

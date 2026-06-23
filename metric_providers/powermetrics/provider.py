@@ -214,9 +214,6 @@ class PowermetricsProvider(BaseMetricProvider):
 
         df = pandas.DataFrame.from_records(dfs, columns=['time', 'value', 'metric', 'detail_name', 'unit'])
 
-        if df.empty:
-            raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
-
         return df
 
 

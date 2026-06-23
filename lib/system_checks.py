@@ -19,6 +19,7 @@ from psycopg import OperationalError as psycopg_OperationalError
 
 from lib import utils
 from lib import error_helpers
+from lib import host_platform
 from lib import resource_limits
 from lib.db import DB
 from lib.global_config import GlobalConfig
@@ -43,18 +44,22 @@ def check_db(*_, **__):
     return True
 
 def check_docker_host_env(*_, **__):
+    if host_platform.is_windows():
+        return True
     return 'rootless' not in subprocess.check_output(['docker', 'info'], encoding='UTF-8', errors='replace') or os.getenv('DOCKER_HOST', '') != ''
 
 def check_one_energy_and_scope_machine_provider(*_, **__):
     metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
-    energy_machine_providers = [provider for provider in metric_providers if ".energy" in provider and ".machine" in provider]
+    energy_machine_providers = [provider for provider in metric_providers if "_energy_" in provider and "_machine" in provider]
     return len(energy_machine_providers) <= 1
 
 def check_tmpfs_mount(*_, **__):
+    if host_platform.is_windows():
+        return True
     return not any(partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs' for partition in psutil.disk_partitions())
 
 def check_ntp(*_, **__):
-    if platform.system() == 'Darwin': # no NTP for darwin, as this is linux cluster only functionality
+    if platform.system() in ('Darwin', 'Windows'): # no NTP for darwin/windows, as this is linux cluster only functionality
         return True
 
     ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8', errors='replace')
@@ -84,8 +89,8 @@ def check_available_cpus(*_, **__): # GMT min system requirement
     return os.cpu_count() >= GMT_RESOURCES['min_cpus']
 
 def check_docker_cpu_availability(*_, **__):
-    if platform.system() == 'Darwin':
-        return True # no checks on macOS as docker runs in VM here with custom CPU configuration
+    if platform.system() in ('Darwin', 'Windows'):
+        return True # no checks as Docker runs in a VM here with custom CPU configuration
     return os.cpu_count() == resource_limits.get_docker_available_cpus()
 
 def check_assignable_cpus(*_, **__):
@@ -117,31 +122,53 @@ def check_docker_daemon(*_, **__):
     return result.returncode == 0
 
 def check_utf_encoding(*_, **__):
+    if host_platform.is_windows():
+        return True
     return locale.getpreferredencoding().lower() == sys.getdefaultencoding().lower() == 'utf-8'
 
 def check_tty_attached(*_, **__):
     return not sys.stdin.isatty()
 
 
-# This text we compare with indicates that no swap is used
-#pylint: disable=no-else-return
 def check_swap_disabled(*_, **__):
-    if platform.system() == 'Darwin':
+    
+    if host_platform.is_windows():
+        result = subprocess.check_output(
+            ['powershell', '-NonInteractive', '-NoProfile', '-Command',
+             'Get-WmiObject Win32_PageFileUsage | Measure-Object | Select-Object -ExpandProperty Count'],
+            encoding='utf-8', errors='replace'
+        )
+        return result.strip() == '0'
+    
+    if host_platform.is_macos():
         result = subprocess.check_output(['sysctl', 'vm.swapusage'], encoding='utf-8', errors='replace')
         return result.strip() == 'vm.swapusage: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)'
-    else:
-        result = subprocess.check_output(['free'], encoding='utf-8', errors='replace')
-        for line in result.splitlines():
-            # we want this output: Swap:              0           0           0
-            # and condense it to Swap:000
-            if line.startswith('Swap') and line.replace(' ', '') != 'Swap:000':
-                return False
-        return True
+    
+    result = subprocess.check_output(['free'], encoding='utf-8', errors='replace')
+    for line in result.splitlines():
+        # we want this output: Swap:              0           0           0
+        # and condense it to Swap:000
+        if line.startswith('Swap') and line.replace(' ', '') != 'Swap:000':
+            return False
+    return True
+
 
 def check_suspend(*, run_duration):
     run_duration = math.ceil(run_duration/1e6)
 
-    if platform.system() == 'Darwin': # no NTP for darwin, as this is linux cluster only functionality
+    if host_platform.is_windows():
+        # Event ID 42 (Kernel-Power) is logged when the system enters sleep/suspend
+        command = [
+            'powershell', '-NoProfile', '-Command',
+            f"Get-WinEvent -FilterHashtable @{{LogName='System'; Id=42; StartTime=(Get-Date).AddSeconds(-{run_duration})}} -ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count"
+        ]
+        ps = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, encoding='UTF-8', errors='replace')
+        if ps.stderr:
+            raise RuntimeError(f"Could not check for system suspend state: {ps.stderr}")
+        return ps.stdout.strip() == '0'
+
+
+    if host_platform.is_macos(): # no NTP for darwin, as this is linux cluster only functionality
         command = [f"log show --style syslog --predicate 'eventMessage contains[c] \"Entering sleep\" OR eventMessage contains[c] \"Entering Sleep\"' --last {run_duration}s --info --debug | tail -n+1 | grep -v 'log run noninteractively'"]
     else:
         command = [f"journalctl --grep='suspend' --output=short-iso --since '{run_duration} seconds ago' -q"]
@@ -161,6 +188,8 @@ def check_suspend(*, run_duration):
     return 'Entering' not in ps.stdout and 'suspend' not in ps.stdout
 
 def check_steal_time(*_, **__):
+    if host_platform.is_windows():
+        return True
     return math.isclose(getattr(psutil.cpu_times(), 'steal', 0.0), 0.0, abs_tol=1e-6) # safe check for float == 0.0
 
 

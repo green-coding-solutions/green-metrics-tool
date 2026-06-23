@@ -8,10 +8,10 @@ import typing
 import uuid
 import math
 import time
+import orjson
 
 from starlette.background import BackgroundTask
-from fastapi.responses import ORJSONResponse
-from fastapi import Depends, Request, HTTPException
+from fastapi import Depends, Request, HTTPException, Response
 from fastapi.security import APIKeyHeader
 import numpy as np
 import scipy.stats
@@ -166,7 +166,7 @@ def get_run_info(user, run_id):
     return run
 
 
-def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=None, end_date=None, detail_name=None, sorting='run', v2=False):
+def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=None, end_date=None, detail_name=None, sorting='run', show_archived=None, include_usage_scenario_variables=False):
 
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
@@ -221,17 +221,21 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
     if sorting is not None and sorting.strip() == 'run':
         sorting_condition = 'r.created_at ASC, r.commit_timestamp ASC'
 
-    if v2:
-        include_usage_scenario_variables = 'r.usage_scenario_variables, '
+    archived_condition = ''
+    if show_archived is not True:
+        archived_condition = 'AND r.archived = FALSE'
+
+    if include_usage_scenario_variables:
+        usage_scenario_variables_selector = 'r.usage_scenario_variables, '
     else:
-        include_usage_scenario_variables = ''
+        usage_scenario_variables_selector = ''
 
     query = f"""
             SELECT
                 r.id, r.name,
-                {include_usage_scenario_variables}
+                {usage_scenario_variables_selector}
                 r.created_at, p.metric, p.detail_name, p.phase,
-                p.value, p.unit, r.commit_hash, r.commit_timestamp, r.gmt_hash,
+                p.value, p.unit, r.commit_hash, r.commit_timestamp, r.gmt_hash, r.archived,
                 row_number() OVER () AS row_num
             FROM runs as r
             LEFT JOIN phase_stats as p ON
@@ -250,7 +254,7 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
                 {detail_name_condition}
                 {machine_id_condition}
                 {usage_scenario_variables_condition}
-                AND r.archived = FALSE
+                {archived_condition}
                 AND r.commit_timestamp IS NOT NULL
                 AND r.failed IS FALSE
             ORDER BY
@@ -337,7 +341,7 @@ def determine_comparison_case(user, ids, force_mode=None):
     # case = 'Usage Scenario' # Case C_2 : SoftwareDeveloper Case
     # case = 'Machine' # Case C_1 : DataCenter Case
     # case = 'Commit' # Case B: DevOps Case
-    # case = 'Repeated Run' # Case A: Blue Angel
+    # case = 'Repeated Run on same Commit Hash' # Case A: Blue Angel
     # case = 'Usage Scenario Variables' # Case E - Quick Development Case
 
     if force_mode:
@@ -442,8 +446,15 @@ def determine_comparison_case(user, ids, force_mode=None):
         if usage_scenario_variables > 3:
             raise RuntimeError('Multiple usage scenario variables comparison not supported.')
 
+        # important to check this case before checking repeated runs
+        # reason being is that two runs will shown with rel stddev of the population
+        # which is not what we want.
+        # we want actual difference in A vs. B
+        if len(ids) == 2:
+            return ('Repeated Run (Two only) on same Commit Hash', 'id')
+
         if usage_scenario_variables == 1:
-            return ('Repeated Run', 'commit_hash')  # Case A - Everything is identical and just repeating runs
+            return ('Repeated Run on same Commit Hash', 'commit_hash')  # Case A - Everything is identical and just repeating runs
 
     except RuntimeError as exc:
         if len(ids) == 2:
@@ -616,7 +627,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
             key = filename # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
             key = str(machine_id) # Case C_1 : DataCenter Case
-        elif case in ('Commit', 'Repeated Run'):
+        elif case in ('Commit', 'Repeated Run on same Commit Hash'):
             key = commit_hash # Repeated Run
         elif case == 'Usage Scenario Variables':
             key = str(usage_scenario_variables) # Case E: Quick Development Case
@@ -804,9 +815,18 @@ def get_t_stat(length):
     t_crit = np.abs(scipy.stats.t.ppf((.05)/2,dof)) # for two sided!
     return t_crit/np.sqrt(length)
 
+# since FastAPI deprecates the normal JSONResponse we need to create a custom class to mitigate the deprecation error
+# We do not want to move to pydantic as this cannot natively serialize datetime from the DB.
+# We would then have to call jsonable_encoder everytime ... this solution here seems cleaner and likely faster
+class CustomORJSONResponse(Response):
+    media_type = "application/json"
+
+    def render(self, content) -> bytes:
+        return orjson.dumps(content) # pylint: disable=no-member
+
 # As the ORJSONResponse renders the object on init we need to keep the original around as otherwise we need to reparse
 # it when we use these functions in our code. The header is a copy from starlette/responses.py JSONResponse
-class ORJSONResponseObjKeep(ORJSONResponse):
+class ORJSONResponseObjKeep(CustomORJSONResponse):
     def __init__(
         self,
         content: typing.Any,

@@ -3,9 +3,9 @@
 import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
+from datetime import date
 
 from fastapi import FastAPI, Request, Response, Depends, HTTPException
-from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +14,7 @@ from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.datastructures import Headers as StarletteHeaders
 
-from api.api_helpers import authenticate
+from api.api_helpers import authenticate, CustomORJSONResponse
 
 from lib.global_config import GlobalConfig
 from lib import error_helpers
@@ -42,7 +42,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         exception=exc,
         previous_exception=exc.__context__
     )
-    return ORJSONResponse(
+    return CustomORJSONResponse(
         status_code=422, # HTTP_422_UNPROCESSABLE_ENTITY
         content=jsonable_encoder({'success': False, 'err': exc.errors(), 'body': exc.body}),
     )
@@ -61,7 +61,7 @@ async def http_exception_handler(request, exc):
         exception=exc,
         previous_exception=exc.__context__
     )
-    return ORJSONResponse(
+    return CustomORJSONResponse(
         status_code=exc.status_code,
         content=jsonable_encoder({'success': False, 'err': exc.detail}),
     )
@@ -84,7 +84,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
             exception=exc,
             previous_exception=exc.__context__
         )
-        return ORJSONResponse(
+        return CustomORJSONResponse(
             content={
                 'success': False,
                 'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.io',
@@ -106,24 +106,22 @@ app.add_middleware(
 
 def obfuscate_authentication_token(headers: StarletteHeaders):
     headers_mut = headers.mutablecopy()
-    if 'X-Authentication' in headers_mut:
+    if 'x-authentication' in headers_mut:
         try:
-            authentication_token = headers_mut['X-Authentication']
+            authentication_token = headers_mut['x-authentication']
             if not authentication_token or authentication_token.strip() == '': # Note that if no token is supplied this will authenticate as the DEFAULT user, which in FOSS systems has full capabilities
                 authentication_token = 'DEFAULT'
 
             user = User.authenticate(SecureVariable(authentication_token))
-            headers_mut['X-Authentication'] = f"****TOKEN REMOVED FOR USER {user._name} ({user._id})****"
+            headers_mut['x-authentication'] = f"****TOKEN REMOVED FOR USER {user._name} ({user._id})****"
         except Exception as exc: # pylint: disable=broad-exception-caught
             error_helpers.log_error(
                 'Could not resolve user name for authentication token',
                 headers=headers,
-                token=headers['X-Authentication'],
+                token=headers['x-authentication'],
                 exception=exc,
                 previous_exception=exc.__context__
             )
-
-            headers_mut['X-Authentication'] = '****TOKEN REMOVED FOR USER __UNKNOWN__ ****'
 
     return headers_mut
 
@@ -154,12 +152,12 @@ async def robots_txt():
 # async def get_authentication_token(name: str = None):
 #     if name is not None and name.strip() == '':
 #         name = None
-#     return ORJSONResponse({'success': True, 'data': User.get_new(name)})
+#     return CustomORJSONResponse({'success': True, 'data': User.get_new(name)})
 
 # Read your own authentication token. Used by AJAX requests to test if token is valid and save it in local storage
 @app.get('/v1/user/settings')
 async def get_user_settings(user: User = Depends(authenticate)):
-    return ORJSONResponse({'success': True, 'data': user.to_dict()})
+    return CustomORJSONResponse({'success': True, 'data': user.to_dict()})
 
 @app.put('/v1/user/setting')
 async def update_user_setting(setting: UserSetting, user: User = Depends(authenticate)):
@@ -187,7 +185,7 @@ async def get_cluster_status(
     if data is None or data == []:
         return Response(status_code=204)  # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 
 @app.get('/v1/cluster/status/history')
@@ -205,20 +203,38 @@ async def get_cluster_status_history(
     if data is None or data == []:
         return Response(status_code=204)  # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 @app.get('/v1/cluster/changelog')
 async def get_cluster_changelog(
     machine_id: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    show_package_updates: bool | None = None,
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
 
     params = []
     machine_id_condition = ''
+    start_date_condition = ''
+    end_date_condition = ''
+    package_updates_condition = ''
 
+    # if no machine is listed in the entry it means it is valid for ALL machines. Thus we include NULL
     if machine_id is not None:
-        machine_id_condition = 'AND machine_id = %s'
+        machine_id_condition = 'AND (machine_id = %s OR machine_id IS NULL)'
         params.append(machine_id)
+
+    if start_date is not None:
+        start_date_condition = 'AND created_at >= %s'
+        params.append(start_date)
+
+    if end_date is not None:
+        end_date_condition = 'AND DATE(created_at) <= %s'
+        params.append(end_date)
+
+    if show_package_updates is False:
+        package_updates_condition = " AND message NOT LIKE '{\"[%%' "
 
     query = f"""
         SELECT id, message, machine_id, created_at
@@ -226,6 +242,9 @@ async def get_cluster_changelog(
         WHERE
             1=1
             {machine_id_condition}
+            {start_date_condition}
+            {end_date_condition}
+            {package_updates_condition}
         ORDER BY created_at DESC
     """
 
@@ -234,7 +253,7 @@ async def get_cluster_changelog(
     if data is None or data == []:
         return Response(status_code=204)  # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 
 if GlobalConfig().config.get('activate_scenario_runner', False):

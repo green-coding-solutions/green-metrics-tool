@@ -2,17 +2,17 @@
 
 const compareButton = () => {
     const checkedBoxes = document.querySelectorAll('input[type=checkbox]:checked');
-
-    let link = '/compare.html?ids='
-
-    checkedBoxes.forEach(checkbox => {
-        link = `${link}${checkbox.value},`;
-    });
-    link = link.slice(0,link.length-1);
+    const ids = Array.from(checkedBoxes).map(cb => cb.value).join(',');
 
     const value = document.querySelector('#compare-force-mode').value;
-    link = `${link}&force_mode=${value}`
     localStorage.setItem('compare_mode_last_value', value);
+
+    let link;
+    if (value === 'simple_table') {
+        link = `/compare-simple.html?ids=${ids}`;
+    } else {
+        link = `/compare.html?ids=${ids}&force_mode=${value}`;
+    }
 
     window.open(link, '_blank');
 }
@@ -28,12 +28,11 @@ const updateCompareCount = () => {
     const checkedCount = document.querySelectorAll('input[type=checkbox]:checked').length;
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
     if (checkedCount === 0) {
-        document.querySelector('.ui.accordion.compare-force-mode').style.display = 'none';
-        document.querySelector('#unselect-button').style.display = 'none';
-
+        document.querySelector('#compare-force-mode-dropdown').style.visibility = 'hidden';
+        document.querySelector('#unselect-button').classList.add('hidden');
     } else {
-        document.querySelector('#unselect-button').style.display = 'block';
-        document.querySelector('.ui.accordion.compare-force-mode').style.display = 'block';
+        document.querySelector('#compare-force-mode-dropdown').style.visibility = 'visible';
+        document.querySelector('#unselect-button').classList.remove('hidden');
     }
 }
 
@@ -248,6 +247,9 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         runs = await makeAPICall(url)
     } catch (err) {
         showNotification('Could not get run data from API', err);
+        const dt = el.DataTable();
+        dt.clear();
+        dt.draw();
         return
     }
 

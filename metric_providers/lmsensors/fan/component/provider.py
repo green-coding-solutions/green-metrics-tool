@@ -2,7 +2,7 @@ from metric_providers.lmsensors.abstract_provider import LmsensorsProvider
 
 class LmsensorsFanComponentProvider(LmsensorsProvider):
     def __init__(self, sampling_rate, folder, *, skip_check=False, **_):
-        self._provider_config_path = 'lmsensors.fan.component.provider.LmsensorsFanComponentProvider'
+        self._provider_config_path = 'lmsensors_fan_component'
         super().__init__(
             metric_name='lmsensors_fan_component',
             sampling_rate=sampling_rate,

@@ -25,6 +25,9 @@ const populateFieldsFromURL = () => {
     if (urlParams.has('machine_id')) {
         document.querySelector('select[name="machine_id"]').value = escapeString(urlParams.get('machine_id'));
     }
+    if (urlParams.has('carbon_simulation')) {
+        document.querySelector('input[name="carbon_simulation"]').value = escapeString(urlParams.get('carbon_simulation'));
+    }
     if (urlParams.has('schedule_mode')) {
         document.querySelector('select[name="schedule_mode"]').value = escapeString(urlParams.get('schedule_mode'));
     }
@@ -154,6 +157,9 @@ const updateRemoveButtonsVisibility = () => {
             if (typeof values[key] === 'string') {
                 values[key] = values[key].trim();
             }
+        }
+        if (values.carbon_simulation === '') {
+            delete values.carbon_simulation;
         }
 
         try {

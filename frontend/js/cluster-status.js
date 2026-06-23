@@ -68,10 +68,19 @@ $(document).ready(function () {
 
                 }},
                 { data: 13, title: 'Details', render: function(el, type, row) {
-                    return `<button class="ui icon button show-machine-configuration">
-                              <i class="ui info icon"></i>
-                              <span class="machine-configuration-details" style="display:none; ">${escapeString(JSON.stringify(el, undefined, 2))}</span>
-                            </button>`;
+                    let timeline_link = '';
+                    if (el?.cluster?.client?.control_workload != null) {
+                        const cw = el.cluster.client.control_workload;
+                        const params = new URLSearchParams();
+                        params.set('uri', cw.uri ?? '');
+                        params.set('branch', cw.branch ?? '');
+                        params.set('machine_id', row[0]);
+                        params.set('filename', cw.filename ?? '');
+                        params.set('usage_scenario_variables', 'false');
+                        const href = `/timeline.html?${params.toString().replace(/&/g, '&amp;')}`;
+                        timeline_link = `<a title="Timeline Analysis" href="${href}" class="ui icon button no-wrap teal" target="_blank"><i class="ui icon clock"></i></a>`;
+                    }
+                    return `<div class="no-wrap"><button class="ui icon button show-machine-configuration"><i class="ui info icon"></i><span class="machine-configuration-details" style="display:none; ">${escapeString(JSON.stringify(el, undefined, 2))}</span></button>${timeline_link}</div>`;
                 }},
                 { data: 8, title: 'Base temp (°)'},
                 { data: 9, title: 'Current temp (°)', render: (el) => el == null ? '-' : el},
@@ -94,7 +103,7 @@ $(document).ready(function () {
                         $('#machine-configuration').modal('show');
                     })
             },
-            order: [] // empty means enforce no ordering. Use API ordering
+            order: [[2, 'asc']], // API also orders, but we need to indicate order for the user
         });
 
         $('#jobs-table').DataTable({

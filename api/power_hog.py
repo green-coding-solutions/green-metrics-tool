@@ -7,19 +7,18 @@ from datetime import date, timedelta, datetime
 from pydantic import ValidationError
 
 from fastapi import APIRouter, Response, Depends, Request, HTTPException
-from fastapi.responses import ORJSONResponse
 
-from api.api_helpers import authenticate, get_connecting_ip
+from api.api_helpers import authenticate, get_connecting_ip, replace_nan_with_zero, CustomORJSONResponse
+from api.object_specifications import HogMeasurement, SimplifiedMeasurement
+
 from lib.user import User
 from lib.db import DB
-from api.object_specifications import HogMeasurement, SimplifiedMeasurement
-from api.api_helpers import replace_nan_with_zero
 
 router = APIRouter()
 
 @router.post('/v1/hog/add', deprecated=True)
 def old_v1_hog_add_endpoint():
-    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/hog/add'}, status_code=410)
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/hog/add'}, status_code=410)
 
 @router.post('/v2/hog/add')
 async def add_hog(
@@ -147,7 +146,7 @@ async def hog_get_top_processes():
 
     machine_count = DB().fetch_one(query)[0]
 
-    return ORJSONResponse({'success': True, 'process_data': data, 'machine_count': machine_count})
+    return CustomORJSONResponse({'success': True, 'process_data': data, 'machine_count': machine_count})
 
 
 @router.get('/v2/hog/details')
@@ -212,7 +211,7 @@ async def user_detail(
     if process_data is None:
         process_data = []
 
-    return ORJSONResponse({
+    return CustomORJSONResponse({
         'success': True,
         'process_data': process_data,
         **sums_dict,
@@ -262,7 +261,7 @@ async def user_detail(
 
 #     machine_count = DB().fetch_one(query)[0]
 
-#     return ORJSONResponse({'success': True, 'process_data': data, 'machine_count': machine_count})
+#     return CustomORJSONResponse({'success': True, 'process_data': data, 'machine_count': machine_count})
 
 
 @router.get('/v1/hog/insights')
@@ -280,4 +279,4 @@ async def get_insights(user: User = Depends(authenticate)):
     if data is None:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})

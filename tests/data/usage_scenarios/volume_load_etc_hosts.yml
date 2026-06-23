@@ -10,7 +10,7 @@ services:
     image: gcb_stress
     container_name: test-container
     volumes:
-      - /etc/hosts:/tmp/hosts
+      - /etc/hosts:/tmp/hosts:ro
 
 flow:
   - name: Stress

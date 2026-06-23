@@ -4,10 +4,10 @@
 
 import sys
 import faulthandler
+
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
-import shutil
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -43,7 +43,8 @@ class RunJob(Job):
             filename=self._filename,
             branch=self._branch,
             commit_hash=self._commit_hash,
-            allow_unsafe=user._capabilities['measurement']['allow_unsafe'],
+            ssh_private_key=user.get_ssh_private_key(),
+            allow_unsafe=False, # cluster runs should never allow this. All should go through individual user permissions,
             skip_unsafe=user._capabilities['measurement']['skip_unsafe'],
             dev_no_system_checks=user._capabilities['measurement']['dev_no_system_checks'],
             skip_volume_inspect=user._capabilities['measurement']['skip_volume_inspect'],
@@ -54,6 +55,7 @@ class RunJob(Job):
             user_id=self._user_id,
             usage_scenario_variables=self._usage_scenario_variables,
             category_ids=self._category_ids,
+            carbon_simulation=self._carbon_simulation,
             measurement_flow_process_duration=user._capabilities['measurement']['flow_process_duration'],
             measurement_total_duration=user._capabilities['measurement']['total_duration'],
             measurement_system_check_threshold=user._capabilities['measurement']['system_check_threshold'],
@@ -66,6 +68,7 @@ class RunJob(Job):
             dev_no_sleeps=user._capabilities['measurement']['dev_no_sleeps'],
             disabled_metric_providers=user._capabilities['measurement']['disabled_metric_providers'],
             allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'], # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
+            allowed_volume_mounts=user._capabilities['measurement']['allowed_volume_mounts'],
 
 
         )
@@ -90,6 +93,11 @@ class RunJob(Job):
                 )
 
         finally:
-            shutil.rmtree(runner._tmp_folder) # we see no sane reason for keeping tmp files on the cluster after a run
+            # we see no sane reason for keeping tmp files on the cluster after a run.
+            # We empty the folder in place rather than removing it (see
+            # ScenarioRunner._initialize_folder) so the directory inode stays stable
+            # for Docker Desktop's virtiofs cache on macOS.
+            runner._initialize_folder(runner._tmp_folder)
+
             self._run_id = runner._run_id # might not be set yet due to error
             user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds

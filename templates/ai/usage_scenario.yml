@@ -5,7 +5,7 @@ description: Run an inference with a small AI model on the CPU
 
 services:
   gcb-ai-model:
-    image: ollama/ollama
+    image: ollama/ollama:latest
     docker-run-args:
       - -v ollama:/root/.ollama
 

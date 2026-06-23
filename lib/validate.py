@@ -24,8 +24,6 @@ faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to st
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.terminal_colors import TerminalColors
-from lib import error_helpers
-
 from lib.scenario_runner import ScenarioRunner
 
 class ValidationWorkloadStddevError(RuntimeError):
@@ -133,12 +131,6 @@ def is_validation_needed(machine_id, duration):
     '''
     data = DB().fetch_one(query=query, params=(duration, machine_id))
     return data is None or data == []
-
-def handle_validate_exception(exc):
-    config = GlobalConfig().config
-    control_workload = config['cluster']['client']['control_workload']
-
-    error_helpers.log_error('handle_validate_exception: ', exception=exc, details=f"Please check under {config['cluster']['metrics_url']}/timeline.html?uri={control_workload['uri']}&branch={control_workload['branch']}&filename={control_workload['filename']}&machine_id={config['machine']['id']}", name='Measurement control Workload (on boot)', machine=config['machine']['description'])
 
 if __name__ == '__main__':
     import argparse

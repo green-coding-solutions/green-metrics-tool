@@ -10,7 +10,7 @@ services:
     image: gcb_stress
     container_name: test-container
     volumes: &test-volume
-      - ../mounts/test-file:/tmp/test-file
+      - ../mounts/test-file:/tmp/test-file:ro
 
   test-container-2:
     build:

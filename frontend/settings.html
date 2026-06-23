@@ -103,8 +103,8 @@
                                     <td>
                                         <select id="measurement-disabled-metric-providers" multiple="" class="ui multiple search selection dropdown" data-setting="measurement.disabled_metric_providers">
                                             <option value="">Select Metrics Provider</option>
-                                            <option value="NetworkConnectionsProxyContainerProvider">NetworkConnectionsProxyContainerProvider</option>
-                                            <option value="NetworkConnectionsTcpdumpSystemProvider">NetworkConnectionsTcpdumpSystemProvider</option>
+                                            <option value="network_connections_proxy_container">network_connections_proxy_container</option>
+                                            <option value="network_connections_tcpdump_system">network_connections_tcpdump_system</option>
                                         </select>
                                     </td>
                                     <td><button id="save-measurement-disabled-metric-providers" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
@@ -171,6 +171,19 @@
                                     </td>
                                     <td><input type="text" placeholder="Input a value" id="measurement-wait-time-dependencies" name="measurement-wait-time-dependencies" data-setting="measurement.wait_time_dependencies" required=""></td>
                                     <td><button id="save-measurement-wait-time-dependencies" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Git SSH private key<br>
+                                        <span><small><i class="question circle icon"></i>Used for git clone, submodules and relations when jobs access private repositories. Saving replaces the currently stored key.</small></span>
+                                    </td>
+                                    <td>
+                                        <textarea id="ssh-private-key" name="ssh-private-key" data-setting="ssh_private_key" rows="8" placeholder="Paste an OpenSSH private key here to enable private repository clones."></textarea>
+                                        <div style="margin-top: 8px;"><small id="ssh-private-key-status"></small></div>
+                                    </td>
+                                    <td>
+                                        <button id="save-ssh-private-key" class="ui positive small button" onclick="updateSetting(this);">Save</button>
+                                        <button id="clear-ssh-private-key" class="ui button" onclick="clearSshPrivateKey();">Clear</button>
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td>Skip optimizations after run<br><span><small><i class="question circle icon"></i>If you do not want the cluster to process optimizations you can turn it of. Will speed up runs slightly.</small></span></td>

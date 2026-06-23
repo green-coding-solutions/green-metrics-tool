@@ -10,7 +10,7 @@ services:
     image: volume_bind_mount_rel_to_context
     container_name: test-container
     volumes:
-      - ./testfile2:/tmp/testfile2-correctly-mounted
+      - ./testfile2:/tmp/testfile2-correctly-mounted:ro
 
 flow:
   - name: Cat Subdir2 Mount
