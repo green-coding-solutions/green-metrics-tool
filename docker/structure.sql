@@ -66,6 +66,9 @@ VALUES (
             "quotas": {},
             "routes": [
                 "/v1/software",
+                "/v1/software/{software_id}/tasks",
+                "/v1/software/categories",
+                "/v1/software/similar",
                 "/v1/warnings/{run_id}",
                 "/v1/insights",
                 "/v1/ci/insights",
@@ -95,7 +98,7 @@ VALUES (
                 "/v1/ci/stats",
                 "/v2/ci/measurement/add",
                 "/v3/ci/measurement/add",
-                "/v1/software/add",
+                "/v1/run/add",
                 "/v1/user/settings",
                 "/v1/user/setting",
                 "/v1/cluster/changelog",

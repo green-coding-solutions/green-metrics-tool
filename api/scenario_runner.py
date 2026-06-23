@@ -892,7 +892,7 @@ async def get_watchlist(user: User = Depends(authenticate)):
     return CustomORJSONResponse({'success': True, 'data': data})
 
 
-@router.post('/v1/software/add')
+@router.post('/v1/run/add')
 async def software_add(software: Software, user: User = Depends(authenticate)):
 
     if software.name is None or software.name.strip() == '':

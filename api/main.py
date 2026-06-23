@@ -276,9 +276,9 @@ if GlobalConfig().config.get('activate_ai_optimisations', False):
     from ee.api import ai_optimisations
     app.include_router(ai_optimisations.router)
 
-if GlobalConfig().config.get('activate_energy_id', False):
-    from api import energy_id
-    app.include_router(energy_id.router)
+if GlobalConfig().config.get('activate_software_view', False):
+    from api import software
+    app.include_router(software.router)
 
 
 if __name__ == '__main__':
