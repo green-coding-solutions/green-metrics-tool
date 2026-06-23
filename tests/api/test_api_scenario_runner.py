@@ -2,14 +2,22 @@ import os
 import requests
 import json
 
+import pandas
+import pytest
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.db import DB
 from lib import utils
+from lib import metric_importer
 from lib.global_config import GlobalConfig
+from lib.phase_stats import build_and_store_phase_stats
+from lib.post_metric_providers.calculate_co2_intensity import calculate_co2_intensity
 from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
+
+MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
 
 RUN_1 = 'a416057b-235f-41d8-9fb8-9bcc70a308e7'
 RUN_3 = 'f4ed967e-7c27-4055-815f-ea437fc11d25'
@@ -225,3 +233,45 @@ def test_get_badge_with_phase():
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert 'Machine Energy {[BOOT]}' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
     assert '1.85 mWh' in response.text, Tests.assertion_info('success', response.text)
+
+
+def _import_static_carbon_intensity(run_id, value):
+    measurements = []
+    for phase in Tests.TEST_MEASUREMENT_PHASES:
+        # phase_stats selects with strict time > start AND time < end, so offset slightly
+        measurements.append((phase['start'] + 1, value))
+        measurements.append((phase['end'] - 1, value))
+    df = pandas.DataFrame(measurements, columns=['time', 'value'])
+    df['metric'] = 'carbon_intensity_static_machine'
+    df['detail_name'] = 'static'
+    df['unit'] = 'gCO2e/kWh'
+    metric_importer.import_measurements(df, 'carbon_intensity_static_machine', run_id)
+
+
+def test_phase_stats_single_returns_component_carbon():
+    # Regression test: the carbon metric generated for an energy component (e.g. CPU) must
+    # actually be retrievable through the /v1/phase_stats/single API, not only the machine carbon.
+    run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
+    df = Tests.import_cpu_energy(run_id)
+
+    carbon_intensity_value = 436
+    _import_static_carbon_intensity(run_id, carbon_intensity_value)
+
+    calculate_co2_intensity(run_id)
+    build_and_store_phase_stats(run_id, sci={})
+
+    response = requests.get(f"{API_URL}/v1/phase_stats/single/{run_id}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+
+    runtime_metrics = response.json()['data']['data']['[RUNTIME]']['data']
+    assert 'cpu_carbon_rapl_msr_component' in runtime_metrics, 'CPU component carbon metric must be returned through the API'
+
+    cpu_carbon = runtime_metrics['cpu_carbon_rapl_msr_component']
+    assert cpu_carbon['unit'] == 'ugCO2e'
+    assert cpu_carbon['type'] == 'TOTAL'
+
+    detail = cpu_carbon['data']['Package_0_carbon_intensity_static_machine_static']['data'][str(run_id)]
+
+    cpu_energy = Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
+    operational_carbon_expected = int(cpu_energy * MICROJOULES_TO_KWH * carbon_intensity_value * 1_000_000)
+    assert detail['mean'] == pytest.approx(operational_carbon_expected, abs=10)
