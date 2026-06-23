@@ -734,7 +734,6 @@ CREATE TRIGGER softwares_moddatetime
     EXECUTE PROCEDURE moddatetime (updated_at);
 
 
-
 CREATE TABLE software_tasks (
     id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     software_id integer REFERENCES softwares(id) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -747,6 +746,15 @@ CREATE TABLE software_tasks (
     created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
+
+CREATE INDEX software_tasks_software_id_idx ON software_tasks(software_id);
+CREATE INDEX software_tasks_name_idx ON software_tasks(name);
+CREATE INDEX software_tasks_machine_id_idx ON software_tasks(machine_id);
+
+CREATE UNIQUE INDEX software_tasks_unique_task ON software_tasks(
+    software_id, name, uri, branch, filename, machine_id, phase
+);
+
 
 CREATE TRIGGER software_tasks_moddatetime
     BEFORE UPDATE ON software_tasks
@@ -779,16 +787,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger before insert or update
-CREATE TRIGGER trg_validate_category_ids
+CREATE TRIGGER trg_validate_category_ids_runs
 BEFORE INSERT OR UPDATE ON runs
 FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
 
--- Trigger before insert or update
-CREATE TRIGGER trg_validate_category_ids
+CREATE TRIGGER trg_validate_category_ids_jobs
 BEFORE INSERT OR UPDATE ON jobs
 FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
--- Trigger before insert or update
-CREATE TRIGGER trg_validate_category_ids
+
+CREATE TRIGGER trg_validate_category_ids_watchlist
 BEFORE INSERT OR UPDATE ON watchlist
+FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
+
+CREATE TRIGGER trg_validate_category_ids_softwares
+BEFORE INSERT OR UPDATE ON softwares
 FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
