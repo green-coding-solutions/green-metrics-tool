@@ -81,27 +81,15 @@ async def get_softwares(
     '''
     params = (cat_count, cat_list, cat_count)
 
-    rows = DB().fetch_all(query, params=params) or []
+    rows = DB().fetch_all(query, params=params, fetch_mode='dict') or []
     if not rows:
         return Response(status_code=204)
-
-    full_result = [
-        {
-            'id': row[0],
-            'name': row[1],
-            'image_src': row[2],
-            'created_at': row[3].isoformat() if row[3] else None,
-            'updated_at': row[4].isoformat() if row[4] else None,
-            'categories': row[5],
-        }
-        for row in rows
-    ]
 
     offset = (page - 1) * 50
     return CustomORJSONResponse({
         'success': True,
-        'data': full_result[offset:offset + 50],
-        'pagination': {'page': page, 'page_size': 50, 'total_count': len(full_result)},
+        'data': rows[offset:offset + 50],
+        'pagination': {'page': page, 'page_size': 50, 'total_count': len(rows)},
     })
 
 
@@ -160,10 +148,10 @@ async def get_software_tasks(
             AND regexp_replace(p.phase, '^[0-9]+_', '') = tr.phase
             AND p.hidden = false
             AND (
-                p.metric ILIKE '%%power%%'
-                OR p.metric ILIKE '%%energy%%'
-                OR p.metric ILIKE '%%carbon%%'
-                OR p.metric ILIKE 'network_%%'
+                p.metric LIKE '%%power%%'
+                OR p.metric LIKE '%%energy%%'
+                OR p.metric LIKE '%%carbon%%'
+                OR p.metric LIKE 'network_%%'
                 OR p.metric = 'phase_time_syscall_system'
             )
         GROUP BY
@@ -295,10 +283,10 @@ async def get_similar_software(
             AND regexp_replace(p.phase, '^[0-9]+_', '') = tr.phase
             AND p.hidden = false
             AND (
-                p.metric ILIKE '%%power%%'
-                OR p.metric ILIKE '%%energy%%'
-                OR p.metric ILIKE '%%carbon%%'
-                OR p.metric ILIKE 'network_%%'
+                p.metric LIKE '%%power%%'
+                OR p.metric LIKE '%%energy%%'
+                OR p.metric LIKE '%%carbon%%'
+                OR p.metric LIKE 'network_%%'
                 OR p.metric = 'phase_time_syscall_system'
             )
         GROUP BY
