@@ -14,8 +14,10 @@ router = APIRouter()
 
 @router.get('/v1/software/categories')
 async def get_software_categories(
+    # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate), # pylint: disable=unused-argument
-):
+    ):
+
     query = '''
         SELECT
             c.name,
@@ -44,8 +46,10 @@ async def get_software_categories(
 async def get_softwares(
     category: str | None = None,
     page: int = 1,
+    # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate), # pylint: disable=unused-argument
-):
+    ):
+
     page = max(page, 1) # disallow negative pages
 
     # category may be comma-separated ("Web,JavaScript") → AND-filter: software must match ALL
@@ -105,7 +109,8 @@ async def get_softwares(
 async def get_software_tasks(
     software_id: int,
     user: User = Depends(authenticate),
-):
+    ):
+
     cache_key = f"{user._id}_software_tasks_{software_id}"
     if artifact := get_artifact(ArtifactType.SOFTWARE, cache_key):
         return CustomORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
@@ -209,7 +214,8 @@ async def get_similar_software(
     categories: str | None = None,
     limit: int = 3,
     user: User = Depends(authenticate),
-):
+    ):
+
     if not name or not name.strip():
         raise HTTPException(status_code=422, detail='name is required')
     if limit < 1 or limit > 50:
