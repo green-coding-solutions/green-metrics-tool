@@ -136,6 +136,60 @@ def insert_demo_run_with_custom_sci_phase_stats():
 
     return run_id
 
+def insert_demo_run_with_component_carbon_phase_stats():
+    # Mirrors a run where the carbon post-processing has created operational carbon values
+    # not only for the machine, but for all energy components (CPU, DRAM, ...) as well.
+    run_id = str(uuid.uuid4())
+    phases = [
+        {"start": 1735933199000000, "name": "[BASELINE]", "hidden": False, "end": 1735933200000000},
+        {"start": 1735933200000000, "name": "[RUNTIME]", "hidden": False, "end": 1735933205000000},
+        {"start": 1735933200000100, "name": "Hit Generator", "hidden": False, "end": 1735933205000000},
+    ]
+    usage_scenario = {
+        "name": "Component Carbon Demo",
+        "author": "Tests",
+        "description": "demo",
+    }
+
+    DB().query(
+        """
+        INSERT INTO runs ("id","name","uri","branch","commit_hash","usage_scenario","usage_scenario_variables","filename","machine_id","user_id","failed","logs","phases","created_at","updated_at")
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),NOW())
+        """,
+        params=(
+            run_id,
+            'Component Carbon Demo Run',
+            '/demo/component-carbon',
+            'main',
+            'deadbeef123456789abcdef',
+            json.dumps(usage_scenario),
+            json.dumps({}),
+            'tests/data/usage_scenarios/stress_application.yml',
+            1,
+            1,
+            False,
+            json.dumps({}),
+            json.dumps(phases),
+        ),
+    )
+
+    DB().query(
+        """
+        INSERT INTO phase_stats ("run_id","metric","detail_name","phase","value","type","max_value","min_value","sampling_rate_avg","sampling_rate_max","sampling_rate_95p","unit","hidden","created_at","updated_at")
+        VALUES
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',1000000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',FALSE,NOW(),NULL),
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_Hit Generator',5000000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',FALSE,NOW(),NULL),
+        (%s,E'cpu_carbon_rapl_msr_component',E'Package_0',E'001_Hit Generator',2500000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ugCO2e',FALSE,NOW(),NULL),
+        (%s,E'memory_carbon_rapl_msr_component',E'Package_0',E'001_Hit Generator',1500000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ugCO2e',FALSE,NOW(),NULL),
+        (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'002_[RUNTIME]',5000000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',FALSE,NOW(),NULL),
+        (%s,E'cpu_carbon_rapl_msr_component',E'Package_0',E'002_[RUNTIME]',2500000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ugCO2e',FALSE,NOW(),NULL),
+        (%s,E'memory_carbon_rapl_msr_component',E'Package_0',E'002_[RUNTIME]',1500000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ugCO2e',FALSE,NOW(),NULL)
+        """,
+        params=(run_id, run_id, run_id, run_id, run_id, run_id, run_id),
+    )
+
+    return run_id
+
 @pytest.mark.usefixtures('use_demo_data')
 class TestFrontendFunctionality:
     """Functional frontend tests"""
@@ -489,6 +543,45 @@ class TestFrontendFunctionality:
         sci_table_row = page.locator('table.compare-metrics-table tbody tr', has_text='Hits (SCI)').first
         assert sci_table_row.locator('td:nth-child(6)').text_content().strip() == '0.12'
         assert sci_table_row.locator('td:nth-child(7)').text_content().strip() == 'gCO2e/Hits'
+
+    def test_stats_component_carbon(self):
+        # Verifies that operational carbon values are shown in the frontend not only for the
+        # machine, but for the individual energy components (CPU, DRAM, ...) as well.
+        run_id = insert_demo_run_with_component_carbon_phase_stats()
+
+        stats_url = f"{GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={run_id}"
+        page.goto(stats_url)
+        page.wait_for_load_state("networkidle")
+
+        page.locator('a.step[data-tab="[RUNTIME]"]').click()
+        page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
+
+        # active runtime sub-phase ("Hit Generator") segment
+        runtime_segment = '#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics'
+
+        # CO₂ key-metric cards
+        cpu_co2_card = page.locator(f'{runtime_segment} div.ui.tab[data-tab="co2"] div.ui.black.card.cpu-co2')
+        assert cpu_co2_card.locator('.metric-name').text_content().strip() == 'CPU Package CO₂ (operational)'
+        assert cpu_co2_card.locator('.value.bold').text_content().strip() == '2.50'
+        assert cpu_co2_card.locator('.si-unit').text_content().strip() == 'gCO2e'
+        assert cpu_co2_card.locator('.source').text_content().strip() == 'via Formula (RAPL)'
+
+        dram_co2_card = page.locator(f'{runtime_segment} div.ui.tab[data-tab="co2"] div.ui.black.card.dram-co2')
+        assert dram_co2_card.locator('.metric-name').text_content().strip() == 'DRAM CO₂ (operational)'
+        assert dram_co2_card.locator('.value.bold').text_content().strip() == '1.50'
+        assert dram_co2_card.locator('.si-unit').text_content().strip() == 'gCO2e'
+        assert dram_co2_card.locator('.source').text_content().strip() == 'via RAPL'
+
+        # detailed metrics table rows
+        table = page.locator(f'{runtime_segment} table.compare-metrics-table')
+
+        cpu_row = table.locator('tbody tr', has_text='CPU Package CO₂ (operational)').first
+        assert cpu_row.locator('td:nth-child(6)').text_content().strip() == '2.50'
+        assert cpu_row.locator('td:nth-child(7)').text_content().strip() == 'gCO2e'
+
+        dram_row = table.locator('tbody tr', has_text='DRAM CO₂ (operational)').first
+        assert dram_row.locator('td:nth-child(6)').text_content().strip() == '1.50'
+        assert dram_row.locator('td:nth-child(7)').text_content().strip() == 'gCO2e'
 
 
     def test_repositories_and_compare_with_diff(self):

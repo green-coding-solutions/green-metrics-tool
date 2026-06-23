@@ -302,6 +302,35 @@ def test_phase_embodied_and_operational_carbon():
     assert embodied_carbon_share_machine['sampling_rate_95p'] is None, '95p sampling rate not in expected range'
 
 
+def test_phase_operational_carbon_generated_for_cpu_component():
+    # Regression test: carbon must be generated for energy components (e.g. CPU), not only for the machine.
+    run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
+    df = Tests.import_cpu_energy(run_id)
+
+    carbon_intensity_value = 436
+    import_static_carbon_intensity(run_id, carbon_intensity_value)
+
+    calculate_co2_intensity(run_id)
+
+    build_and_store_phase_stats(run_id, sci={})
+
+    data = DB().fetch_all(
+        'SELECT metric, detail_name, unit, value, type FROM phase_stats WHERE phase = %s AND metric = %s',
+        params=('004_[RUNTIME]', 'cpu_carbon_rapl_msr_component'), fetch_mode='dict'
+    )
+
+    assert len(data) == 1, 'CPU component carbon metric must be generated in phase_stats'
+    cpu_carbon = data[0]
+    assert cpu_carbon['metric'] == 'cpu_carbon_rapl_msr_component'
+    assert cpu_carbon['detail_name'] == 'Package_0_carbon_intensity_static_machine_static'
+    assert cpu_carbon['unit'] == 'ugCO2e'
+    assert cpu_carbon['type'] == 'TOTAL'
+
+    cpu_energy = Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
+    operational_carbon_expected = int(cpu_energy * MICROJOULES_TO_KWH * carbon_intensity_value * 1_000_000)
+    assert cpu_carbon['value'] == pytest.approx(operational_carbon_expected, abs=10)
+
+
 def test_phase_operational_carbon_uses_dynamic_intensity_without_sci_i():
     run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
     energy_df = Tests.import_machine_energy(run_id)

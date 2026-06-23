@@ -22,7 +22,7 @@ def calculate_co2_intensity(run_id):
     machine_energy_metrics = DB().fetch_all('''
         SELECT id, metric, detail_name
         FROM measurement_metrics
-        WHERE run_id = %s AND metric LIKE '%%_energy_%%_machine' AND unit = 'uJ'
+        WHERE run_id = %s AND metric LIKE '%%_energy_%%' AND unit = 'uJ'
         ORDER BY metric ASC, detail_name ASC
     ''', params=(run_id, ))
 
