@@ -1,5 +1,9 @@
-from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
 from typing import List, Optional, Dict, Literal, Union
+
+from enum import Enum
+from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
+
+ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE', 'SOFTWARE'])
 
 ### Run
 class RunChange(BaseModel):

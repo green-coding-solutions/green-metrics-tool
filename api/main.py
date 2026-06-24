@@ -24,9 +24,6 @@ from lib.secure_variable import SecureVariable
 
 from api.object_specifications import UserSetting
 
-from enum import Enum
-ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
-
 app = FastAPI()
 
 @app.exception_handler(RequestValidationError)
@@ -171,6 +168,7 @@ async def update_user_setting(setting: UserSetting, user: User = Depends(authent
 
 @app.get('/v1/cluster/status')
 async def get_cluster_status(
+    # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
     query = '''
@@ -190,6 +188,7 @@ async def get_cluster_status(
 
 @app.get('/v1/cluster/status/history')
 async def get_cluster_status_history(
+    # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
     query = '''
@@ -211,6 +210,7 @@ async def get_cluster_changelog(
     start_date: date | None = None,
     end_date: date | None = None,
     show_package_updates: bool | None = None,
+    # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
 
@@ -275,6 +275,10 @@ if GlobalConfig().config.get('activate_carbon_db', False):
 if GlobalConfig().config.get('activate_ai_optimisations', False):
     from ee.api import ai_optimisations
     app.include_router(ai_optimisations.router)
+
+if GlobalConfig().config.get('activate_software_view', False):
+    from api import software
+    app.include_router(software.router)
 
 
 if __name__ == '__main__':

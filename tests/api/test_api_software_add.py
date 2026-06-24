@@ -18,7 +18,7 @@ from api.scenario_runner import Software
 def test_post_run_add_github_one_off():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
-    response = requests.post(f"{API_URL}/v1/software/add?no_url_check=true", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add?no_url_check=true", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
     data = response.json()
     assert isinstance(data['data'], list)
@@ -32,7 +32,7 @@ def test_post_run_add_github_with_carbon_simulation():
     run_name = 'test_' + utils.randomword(12)
     carbon_simulation = [100, 200]
     run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='daily', carbon_simulation=carbon_simulation)
-    response = requests.post(f"{API_URL}/v1/software/add?no_url_check=true", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add?no_url_check=true", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     job_ids = get_job_ids(run_name)
@@ -45,7 +45,7 @@ def test_post_run_add_github_with_carbon_simulation():
 def test_post_run_add_github_tags():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, image_url="test-image", repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='tag')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
     data = response.json()
     assert isinstance(data['data'], list)
@@ -63,7 +63,7 @@ def test_post_run_add_github_tags():
 def test_post_run_add_github_commit():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='commit-variance')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = response.json()
@@ -92,7 +92,7 @@ def test_post_run_add_github_commit_with_variables():
     run_name = 'test_' + utils.randomword(12)
     GMT_VARIABLES = {"__GMT_VAR_COMMAND__": "300"}
     run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='commit-variance', usage_scenario_variables=GMT_VARIABLES)
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = response.json()
@@ -121,7 +121,7 @@ def test_post_run_add_github_commit_with_variables():
 def test_post_run_add_gitlab_commit():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://gitlab.com/green-coding-solutions/ci-carbon-testing', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='commit')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     watchlist_item = utils.get_watchlist_item('https://gitlab.com/green-coding-solutions/ci-carbon-testing')
@@ -131,7 +131,7 @@ def test_post_run_add_gitlab_commit():
 def test_post_run_add_gitlab_tag_none_tag():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://gitlab.com/green-coding-solutions/system-info', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='tag')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     watchlist_item = utils.get_watchlist_item('https://gitlab.com/green-coding-solutions/system-info')
@@ -141,7 +141,7 @@ def test_post_run_add_gitlab_tag_none_tag():
 def test_post_run_add_gitlab_tag():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://gitlab.com/green-coding-solutions/ci-carbon-testing', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='tag')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     watchlist_item = utils.get_watchlist_item('https://gitlab.com/green-coding-solutions/ci-carbon-testing')
@@ -151,7 +151,7 @@ def test_post_run_add_gitlab_tag():
 def test_post_run_add_gitlab_custom_api_base():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://gitlab.rlp.net/green-software-engineering/oscar', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='commit')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     watchlist_item = utils.get_watchlist_item('https://gitlab.rlp.net/green-software-engineering/oscar')
@@ -166,14 +166,14 @@ def test_post_run_add_no_permissions():
 
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='eisen')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
     assert json.loads(response.text)['err'] == 'Your user does not have the permissions to use that machine.'
 
 def test_post_run_add_machine_does_not_exist():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=30, schedule_mode='eisen')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
     assert json.loads(response.text)['err'] == 'Machine does not exist'
 
@@ -181,21 +181,21 @@ def test_post_run_add_machine_does_not_exist():
 def test_post_run_add_unknown_measurement_interval():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://github.com/no-company-here/and-no-repo/', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='eisen')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
     assert json.loads(response.text)['err'] == 'Please select a valid measurement interval. (eisen) is unknown.'
 
 def test_post_run_add_broken_repo_url():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='h8gw4hruihuf', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
     assert json.loads(response.text)['err'] == 'Could not find repository h8gw4hruihuf and branch main. Is the repo publicly accessible, not empty and does the branch main exist?'
 
 def test_post_run_add_non_existent_repo():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://github.com/no-company-here/and-no-repo/', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
 
     assert json.loads(response.text)['err'] == 'Could not find repository https://github.com/no-company-here/and-no-repo/ and branch main. Is the repo publicly accessible, not empty and does the branch main exist?'
@@ -203,14 +203,14 @@ def test_post_run_add_non_existent_repo():
 def test_post_repo_with_auth():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://arne:password@green-coding.io/green-coding-solutions/green-metrics-tool/', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
-    response = requests.post(f"{API_URL}/v1/software/add?no_url_check=true", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add?no_url_check=true", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
 
 def test_post_repo_ssh():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='git@github.com:green-coding-solutions/green-metrics-tool.git', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
 def test_category_insertion():
@@ -223,7 +223,7 @@ def test_category_insertion():
     for category_ids in categories_list:
         run_name = 'test_' + utils.randomword(12)
         run = Software(name=run_name, repo_url='git@github.com:green-coding-solutions/green-metrics-tool.git', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='daily', category_ids=category_ids)
-        response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+        response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
         assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
         # also retrieve from API
@@ -240,7 +240,7 @@ def test_category_insertion_missing():
 
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='git@github.com:green-coding-solutions/green-metrics-tool.git', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='daily', category_ids=[30000])
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 422, Tests.assertion_info('error', response.text)
     assert response.json()['err'] == 'Categories not known: [30000]'
 

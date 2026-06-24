@@ -163,7 +163,7 @@ const updateRemoveButtonsVisibility = () => {
         }
 
         try {
-            await makeAPICall('/v1/software/add', values);
+            await makeAPICall('/v1/runs/add', values);
             form.reset()
             document.getElementById('variables-container').innerHTML = '';
             showNotification('Success', 'Save successful. Check your mail in 10-15 minutes', 'success');

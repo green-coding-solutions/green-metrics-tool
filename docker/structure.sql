@@ -65,6 +65,10 @@ VALUES (
         "api": {
             "quotas": {},
             "routes": [
+                "/v1/software",
+                "/v1/software/{software_id}/tasks",
+                "/v1/software/categories",
+                "/v1/software/similar",
                 "/v1/warnings/{run_id}",
                 "/v1/insights",
                 "/v1/ci/insights",
@@ -94,7 +98,7 @@ VALUES (
                 "/v1/ci/stats",
                 "/v2/ci/measurement/add",
                 "/v3/ci/measurement/add",
-                "/v1/software/add",
+                "/v1/runs/add",
                 "/v1/user/settings",
                 "/v1/user/setting",
                 "/v1/cluster/changelog",
@@ -714,6 +718,50 @@ CREATE TABLE hog_top_processes (
     cputime_ms BIGINT NOT NULL
 );
 
+
+CREATE TABLE softwares (
+    id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name text NOT NULL,
+    image_src text,
+    category_ids integer[],
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    updated_at timestamp with time zone
+);
+
+CREATE TRIGGER softwares_moddatetime
+    BEFORE UPDATE ON softwares
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+
+CREATE TABLE software_tasks (
+    id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    software_id integer REFERENCES softwares(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    name text NOT NULL,
+    uri text NOT NULL,
+    branch text NOT NULL,
+    filename text NOT NULL,
+    machine_id integer NOT NULL REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    phase text NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    updated_at timestamp with time zone
+);
+
+CREATE INDEX software_tasks_software_id_idx ON software_tasks(software_id);
+CREATE INDEX software_tasks_name_idx ON software_tasks(name);
+CREATE INDEX software_tasks_machine_id_idx ON software_tasks(machine_id);
+
+CREATE UNIQUE INDEX software_tasks_unique_task ON software_tasks(
+    software_id, name, uri, branch, filename, machine_id, phase
+);
+
+
+CREATE TRIGGER software_tasks_moddatetime
+    BEFORE UPDATE ON software_tasks
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+
 -- --------------------------------------------------
 
 -- Trigger function to validate category array elements are present in reference table
@@ -739,16 +787,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger before insert or update
-CREATE TRIGGER trg_validate_category_ids
+CREATE TRIGGER trg_validate_category_ids_runs
 BEFORE INSERT OR UPDATE ON runs
 FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
 
--- Trigger before insert or update
-CREATE TRIGGER trg_validate_category_ids
+CREATE TRIGGER trg_validate_category_ids_jobs
 BEFORE INSERT OR UPDATE ON jobs
 FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
--- Trigger before insert or update
-CREATE TRIGGER trg_validate_category_ids
+
+CREATE TRIGGER trg_validate_category_ids_watchlist
 BEFORE INSERT OR UPDATE ON watchlist
+FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
+
+CREATE TRIGGER trg_validate_category_ids_softwares
+BEFORE INSERT OR UPDATE ON softwares
 FOR EACH ROW EXECUTE FUNCTION validate_category_ids();
