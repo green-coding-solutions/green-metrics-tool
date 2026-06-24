@@ -164,7 +164,7 @@ class Job(ABC):
         query = '''
             DELETE FROM jobs
             WHERE
-                (state IN ('FINISHED', 'CANCELLED', 'FAILED') 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS')
+                (state IN ('FINISHED', 'CANCELLED', 'FAILED') AND updated_at < NOW() - INTERVAL '14 DAYS')
                 OR
                 (state = 'RUNNING' AND type LIKE 'email-%' AND updated_at < NOW() - INTERVAL '5 MINUTES')
             '''
