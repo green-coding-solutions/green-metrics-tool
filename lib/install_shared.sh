@@ -15,6 +15,8 @@ ask_eco_ci=true
 activate_eco_ci=false
 ask_power_hog=true
 activate_power_hog=false
+ask_software_view=true
+activate_software_view=false
 ask_carbon_db=true
 activate_carbon_db=false
 ask_ai_optimisations=true
@@ -266,6 +268,15 @@ function prepare_config() {
     else
         eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
     fi
+
+    if [[ $activate_software_view == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_SOFTWARE_VIEW__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_software_view:.*$|activate_software_view: True|\" config.yml"
+    else
+        eval "${sed_command} -e \"s|__ACTIVATE_SOFTWARE_VIEW__|false|\" frontend/js/helpers/config.js"
+    fi
+
+
     # Activating AI Optimisations makes actually only sense in enterprise mode
     # but must run still, as we need to set the variables and replacements
     if [[ $activate_ai_optimisations == true ]]; then
@@ -631,6 +642,16 @@ while [[ $# -gt 0 ]]; do
             ask_power_hog=false
             shift
             ;;
+        --no-software-view)
+            activate_software_view=false
+            ask_software_view=false
+            shift
+            ;;
+        --software-view)
+            activate_software_view=true
+            ask_software_view=false
+            shift
+            ;;
         -f)
             activate_scenario_runner=true
             ask_scenario_runner=false
@@ -693,6 +714,8 @@ while [[ $# -gt 0 ]]; do
             echo -e '  -F:\t\t\tDeactivate ScenarioRunner'
             echo -e '  -j:\t\t\tActivate Eco CI'
             echo -e '  -J:\t\t\tDeactivate Eco CI'
+            echo -e '  --software-view:\t\t\tActivate Software Category and Task View'
+            echo -e '  --no-software-view:\t\t\tDeactivate Software Category and Task View'
 
             exit 0
             ;;
@@ -834,6 +857,17 @@ if [[ $ask_power_hog == true ]]; then
         activate_power_hog=false
     fi
 fi
+
+if [[ $ask_software_view == true ]]; then
+    echo ""
+    read -p "Do you want to activate the software category and tasks view? (y/N) : " activate_software_view
+    if [[  "$activate_software_view" == "Y" || "$activate_software_view" == "y" ]] ; then
+        activate_software_view=true
+    else
+        activate_software_view=false
+    fi
+fi
+
 
 if [[ $enterprise == true && $ask_ai_optimisations == true ]]; then
     echo ""
