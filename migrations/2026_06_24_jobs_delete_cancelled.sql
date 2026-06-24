@@ -1,0 +1,5 @@
+CREATE TYPE job_state AS ENUM ('WAITING', 'PAUSED', 'CANCELLED', 'FINISHED', 'FAILED', 'RUNNING');
+
+ALTER TABLE "jobs"
+  ALTER COLUMN "state" TYPE jobs_state USING state::job_state,
+  ALTER COLUMN "state" SET DEFAULT 'WAITING';
