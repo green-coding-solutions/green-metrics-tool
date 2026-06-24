@@ -1,21 +1,7 @@
 import math
-import shutil
-import pytest
-import tempfile
-from pathlib import Path
 
 from tests import test_functions as Tests
 from lib.db import DB
-
-GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-metrics-'))
-
-## Create a tmp folder only for this run
-@pytest.fixture(autouse=True, scope='module')
-def setup_test_metrics_tmp_folder():
-
-    GMT_METRICS_DIR.mkdir(parents=True, exist_ok=True) # might be deleted depending on which tests run before
-    yield
-    shutil.rmtree(GMT_METRICS_DIR)
 
 def test_import_cpu_utilization_container():
 
