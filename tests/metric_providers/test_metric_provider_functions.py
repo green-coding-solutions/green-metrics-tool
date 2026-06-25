@@ -134,6 +134,15 @@ def test_tcpdump_linux():
     1900/UDP: 8 packets, 2759 bytes''' in stats
 
 
+def test_tcpdump_linux_vlan():
+    obj = NetworkConnectionsTcpdumpSystemProvider(folder=GMT_METRICS_DIR, skip_check=True)
+    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/network_connections_tcpdump_system_linux_vlan.log')
+
+    data = obj.read_metrics()
+
+
+    stats = generate_stats_string(data)
+
 def test_tcpdump_macos():
     obj = NetworkConnectionsTcpdumpSystemProvider(folder=GMT_METRICS_DIR, skip_check=True)
     obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/network_connections_tcpdump_system_macos.log')
