@@ -1,4 +1,17 @@
 
+async function deleteSystemLog(e){
+    e.preventDefault()
+    const log_id = this.getAttribute('data-log-id');
+    try {
+        await makeAPICall('/v1/system-log', {log_id: parseInt(log_id), action: 'delete'}, null, true)
+        this.closest('tr').remove();
+        showNotification('Log deleted', 'System log entry deleted successfully', 'success');
+    } catch (err) {
+        showNotification('Could not delete log', err);
+    }
+    return false;
+};
+
 async function cancelJob(e){
     e.preventDefault()
     const job_id = this.getAttribute('data-job-id');
@@ -32,6 +45,16 @@ $(document).ready(function () {
             jobs_data = await makeAPICall('/v2/jobs')
         } catch (err) {
             showNotification('Could not get jobs data from API', err); // we do not return here, as empty data is an OK response
+        }
+
+        let system_logs_data = null;
+        try {
+            system_logs_data = await makeAPICall('/v1/system-logs')
+        } catch (err) {
+            if (!(err instanceof APIEmptyResponse204)) {
+                document.getElementById('system-logs-section').style.display = 'none';
+                document.getElementById('system-logs-no-access').style.display = '';
+            }
         }
 
         $('#machines-table').DataTable({
@@ -138,6 +161,28 @@ $(document).ready(function () {
                 document.querySelectorAll('.cancel-job').forEach(el => {
                     el.removeEventListener('click', cancelJob)
                     el.addEventListener('click', cancelJob)
+                })
+            },
+        });
+
+        $('#system-logs-table').DataTable({
+            data: system_logs_data?.data,
+            columns: [
+                { data: 0, title: 'ID'},
+                { data: 1, title: 'Title', render: (el) => escapeString(el)},
+                { data: 2, title: 'Message', render: (el) => `<pre style="white-space:pre-wrap;max-height:150px;overflow:auto;margin:0">${escapeString(el)}</pre>`},
+                { data: 3, title: 'Level', render: (el) => escapeString(el)},
+                { data: 4, title: 'Created at', render: (el) => el == null ? '-' : dateToYMD(new Date(el))},
+                { data: 0, title: '-', class: 'log-action', render: (el) =>
+                    `<a class="delete-log" data-log-id="${el}"><i class="ui large icon red times circle"></i></a>`
+                },
+            ],
+            deferRender: true,
+            order: [[4, 'desc']],
+            drawCallback: function() {
+                document.querySelectorAll('.delete-log').forEach(el => {
+                    el.removeEventListener('click', deleteSystemLog)
+                    el.addEventListener('click', deleteSystemLog)
                 })
             },
         });

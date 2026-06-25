@@ -29,6 +29,14 @@ class WatchlistChange(BaseModel):
 
     model_config = ConfigDict(extra='forbid')
 
+### System Logs
+
+class SystemLogDelete(BaseModel):
+    log_id: int
+    action: Literal['delete']
+
+    model_config = ConfigDict(extra='forbid')
+
 ### Software Add
 
 class Software(BaseModel):
