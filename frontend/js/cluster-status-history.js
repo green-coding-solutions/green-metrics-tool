@@ -6,7 +6,7 @@ $(document).ready(function () {
         try {
             cluster_status_data = await makeAPICall('/v1/cluster/status/history')
         } catch (err) {
-            if (err instanceof APIEmptyResponse204) { // empty data is an OK response
+            if (err instanceof APIHTTPError && err.status === 204) { // empty data is an OK response
                 return
             } else {
                 showNotification('Could not get cluster status history data from API', err);

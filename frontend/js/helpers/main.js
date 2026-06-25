@@ -23,7 +23,12 @@ const toHttpsUri = (uri) => {
     return uri;
 };
 
-class APIEmptyResponse204 extends Error {}
+class APIHTTPError extends Error {
+    constructor(status, message) {
+        super(message);
+        this.status = status;
+    }
+}
 
 const date_options = {
   year: 'numeric',
@@ -163,7 +168,7 @@ const getClusterStatus = async (status_ok_selector, status_warning_selector) => 
         document.querySelector('.cluster-health-message.yellow').style.display = 'flex'; // show
 
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             document.querySelector('.cluster-health-message.success').style.display = 'flex'; // show
         } else {
             showNotification('Could not get cluster health status data from API', err); // no return as we want other calls to happen
@@ -279,7 +284,7 @@ const createExternalIconLink = (url) => {
 const showNotification = (message_title, message_text, type='error') => {
     if (typeof message_text === 'object') console.log(message_text); // this is most likey an error. We need it in the console
 
-    const message = (typeof message_text === 'string' || typeof message_text === 'object') ? message_text : JSON.stringify(message_text);
+    const message = typeof message_text === 'string' ? message_text : (message_text instanceof Error ? message_text.message : JSON.stringify(message_text));
     $('body')
       .toast({
         class: type,
@@ -349,13 +354,15 @@ async function makeAPICall(path, values=null, force_authentication_token=null, f
     }
 
     let json_response = null;
+    let _http_status = null;
     if(localStorage.getItem('remove_idle') === 'true') path += (path.includes('?') ? '&' : '?') + 'remove_idle=true'
 
     await fetch(API_URL + path, options)
     .then(response => {
+        _http_status = response.status;
         if (response.status == 204) {
             // 204 responses use no body, so json() call would fail
-            throw new APIEmptyResponse204('No data to display. API returned empty response (HTTP 204)')
+            throw new APIHTTPError(204, 'No data to display. API returned empty response (HTTP 204)')
         }
         if (response.status == 202) {
             return
@@ -366,9 +373,9 @@ async function makeAPICall(path, values=null, force_authentication_token=null, f
     .then(my_json => {
         if (my_json != null && my_json.success != true) {
             if (Array.isArray(my_json.err) && my_json.err.length !== 0)
-                throw my_json.err[0]?.msg
+                throw new APIHTTPError(_http_status, my_json.err[0]?.msg)
             else
-                throw my_json.err
+                throw new APIHTTPError(_http_status, my_json.err)
         }
         json_response = my_json
     })

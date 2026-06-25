@@ -62,7 +62,7 @@ const fetchWarningsForRuns = async (run_ids) => {
             const data = await makeAPICall('/v1/warnings/' + run_id);
             if (data?.data) warnings.push(...data.data);
         } catch (err) {
-            if (err instanceof APIEmptyResponse204) {
+            if (err instanceof APIHTTPError && err.status === 204) {
                 console.log('No warnings where present in API response. Skipping error as this is allowed case.')
             } else {
                 showNotification('Could not get warnings data from API', err);
