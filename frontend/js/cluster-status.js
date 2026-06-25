@@ -4,7 +4,7 @@ async function deleteSystemLog(e){
     const log_id = this.getAttribute('data-log-id');
     try {
         await makeAPICall('/v1/system-log', {log_id: parseInt(log_id), action: 'delete'}, null, true)
-        this.closest('tr').remove();
+        $('#system-logs-table').DataTable().row(this.closest('tr')).remove().draw();
         showNotification('Log deleted', 'System log entry deleted successfully', 'success');
     } catch (err) {
         showNotification('Could not delete log', err);
