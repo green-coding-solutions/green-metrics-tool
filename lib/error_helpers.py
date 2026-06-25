@@ -56,6 +56,8 @@ def log_error(*messages, **kwargs):
     timestamp = datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %Z%z')
     final_message += f"\n\nOriginal date and time: {timestamp}"
 
+    # No need to catch exception here as the original exception was written to stderr in line 53
+    # and if DB insert fails it will also be logged to stderr
     DB().query(
         "INSERT INTO system_logs (title, message, level) VALUES (%s, %s, 'error')",
         params=('Green Metrics Tool Error', final_message)
