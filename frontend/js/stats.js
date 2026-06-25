@@ -843,7 +843,7 @@ const fetchAndFillNetworkIntercepts = async (run_id) => {
     try {
         network = await makeAPICall('/v1/network/' + run_id)
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             console.log('No network intercepts present in API response. Skipping error as this is allowed case.')
         } else {
             showNotification('Could not get network intercepts data from API', err);
@@ -1048,7 +1048,7 @@ const fetchAndFillWarnings = async (run_id) => {
     try {
         warnings = await makeAPICall('/v1/warnings/' + run_id)
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             console.log('No warnings where present in API response. Skipping error as this is allowed case.')
         } else {
             showNotification('Could not get warnings data from API', err);

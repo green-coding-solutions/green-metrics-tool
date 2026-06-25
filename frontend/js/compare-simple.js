@@ -52,7 +52,7 @@ const fetchSinglePhaseStats = async (run_id) => {
         const response = await makeAPICall(`/v1/phase_stats/single/${encodeURIComponent(run_id)}`);
         return response?.data || null;
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) return null;
+        if (err instanceof APIHTTPError && err.status === 204) return null;
         showNotification(`Could not load phase stats for run ${run_id}`, err);
         return null;
     }

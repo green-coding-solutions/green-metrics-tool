@@ -399,7 +399,7 @@ const loadCharts = async () => {
         document.querySelector('#message-no-data').style.display = 'none';
 
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             document.querySelectorAll('.container-no-data').forEach(el => el.style.display = 'none')
             document.querySelector('#message-no-data').style.display = '';
             document.querySelector('a.item[data-tab=two]').click()
@@ -463,7 +463,7 @@ const loadCharts = async () => {
             cluster_changelog_data = (await makeAPICall(`/v1/cluster/changelog?${changelogParams.toString()}`)).data ?? [];
         }
     } catch (err) {
-        if (!(err instanceof APIEmptyResponse204)) {
+        if (!(err instanceof APIHTTPError && err.status === 204)) {
             showNotification('Could not get cluster changelog data from API', err);
         }
     }

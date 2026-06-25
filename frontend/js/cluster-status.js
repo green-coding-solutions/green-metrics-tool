@@ -51,9 +51,11 @@ $(document).ready(function () {
         try {
             system_logs_data = await makeAPICall('/v1/system-logs')
         } catch (err) {
-            if (!(err instanceof APIEmptyResponse204)) {
+            if (err instanceof APIHTTPError && err.status === 401) {
                 document.getElementById('system-logs-section').style.display = 'none';
                 document.getElementById('system-logs-no-access').style.display = '';
+            } else if (!(err instanceof APIHTTPError && err.status === 204)) {
+                showNotification('Could not get system logs from API', err);
             }
         }
 

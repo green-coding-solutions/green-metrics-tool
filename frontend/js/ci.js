@@ -322,7 +322,7 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
         document.querySelector('#message-no-data').style.display = 'none';
 
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             document.querySelectorAll('.container-no-data').forEach(el => el.style.display = 'none')
             document.querySelector('#message-no-data').style.display = '';
             return
