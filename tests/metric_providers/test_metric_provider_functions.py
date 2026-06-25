@@ -20,6 +20,8 @@ from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtiliz
 
 from unittest.mock import patch
 
+from lib.db import DB
+
 GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-metrics-'))
 
 ## Create a tmp folder only for this run
@@ -133,6 +135,8 @@ def test_tcpdump_linux():
   Ports:
     1900/UDP: 8 packets, 2759 bytes''' in stats
 
+    assert DB().fetch_one('SELECT COUNT(*) FROM system_logs')[0] == 0, 'system_logs must be empty - tcpdump parser emitted unexpected errors'
+
 
 def test_tcpdump_linux_vlan():
     obj = NetworkConnectionsTcpdumpSystemProvider(folder=GMT_METRICS_DIR, skip_check=True)
@@ -140,8 +144,26 @@ def test_tcpdump_linux_vlan():
 
     data = obj.read_metrics()
 
-
     stats = generate_stats_string(data)
+
+    assert DB().fetch_one('SELECT COUNT(*) FROM system_logs')[0] == 0, 'system_logs must be empty - tcpdump parser emitted unexpected errors'
+
+
+    # IPv4 match
+    assert '''IP: 192.168.30.17 (as sender or receiver. aggregated)
+  Total transmitted data: 3005 bytes
+  Ports:
+    56722/TCP: 9 packets, 2585 bytes
+    43387/UDP: 2 packets, 144 bytes
+    40932/UDP: 2 packets, 138 bytes
+    49483/UDP: 2 packets, 138 bytes''' in stats
+
+
+    # IPv6 match
+    assert '''IP: fe80::d2ea:11ff:fe0d:f2ae (as sender or receiver. aggregated)
+  Total transmitted data: 181 bytes
+  Ports:
+    5678/UDP: 1 packets, 181 bytes''' in stats
 
 def test_tcpdump_macos():
     obj = NetworkConnectionsTcpdumpSystemProvider(folder=GMT_METRICS_DIR, skip_check=True)
@@ -186,6 +208,8 @@ def test_tcpdump_macos():
   Total transmitted data: 320 bytes
   Ports:
     443/UDP: 4 packets, 320 bytes''' in stats
+
+    assert DB().fetch_one('SELECT COUNT(*) FROM system_logs')[0] == 0, 'system_logs must be empty - tcpdump parser emitted unexpected errors'
 
 def test_powermetrics():
     obj = PowermetricsProvider(499, folder=GMT_METRICS_DIR, skip_check=True)
