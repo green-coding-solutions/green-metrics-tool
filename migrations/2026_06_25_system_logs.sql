@@ -12,6 +12,9 @@ CREATE TRIGGER system_logs_moddatetime
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 
+CREATE INDEX system_logs_created_at_idx
+    ON system_logs (created_at DESC, id DESC);
+
 UPDATE users
 SET capabilities = jsonb_set(
     capabilities,

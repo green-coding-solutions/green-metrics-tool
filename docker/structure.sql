@@ -283,6 +283,9 @@ CREATE TABLE system_logs (
     updated_at timestamp with time zone
 );
 
+CREATE INDEX system_logs_created_at_idx
+    ON system_logs (created_at DESC, id DESC);
+
 CREATE TRIGGER system_logs_moddatetime
     BEFORE UPDATE ON system_logs
     FOR EACH ROW
