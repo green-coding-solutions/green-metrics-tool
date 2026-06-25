@@ -262,7 +262,7 @@ async def get_system_logs(
     ):
 
     data = DB().fetch_all(
-        'SELECT id, title, message, level, created_at FROM system_logs ORDER BY created_at DESC',
+        'SELECT id, title, message, level, created_at FROM system_logs ORDER BY created_at DESC LIMIT 20',
         []
     )
     if data is None or data == []:
