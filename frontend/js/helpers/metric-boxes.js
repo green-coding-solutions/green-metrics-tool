@@ -335,44 +335,43 @@ const updateKeyMetric = (
         return // no selector found, which means this is no currently configured key metric
     }
 
-    const cards = document.querySelectorAll(`div.tab[data-tab='${phase}'] ${selector}`);
+    const card = document.querySelector(`div.tab[data-tab='${phase}'] ${selector}`);
 
-    if (cards.length === 0) {
+    console.log(card, `div.tab[data-tab='${phase}'] ${selector}`);
+
+    if (card == null) {
         console.warn(`No card found for selector "${selector}" in phase "${phase}"`);
         return;
     }
 
-    cards.forEach(card => {
-        const valueNode = card.querySelector('.value');
-        valueNode.innerText = `${value} ${std_dev_text}`;
-        if (raw_value != null && raw_unit != null){
-            // this check can be improved in the future once we see missing tooltips to only skip
-            // if a "repeated run" comparison is done, as this is the only case where we want no tooltips
-            valueNode.setAttribute('title', `${raw_value} [${raw_unit}]`);
+    const valueNode = card.querySelector('.value');
+    valueNode.innerText = `${value} ${std_dev_text}`;
+    if (raw_value != null && raw_unit != null){
+        // this check can be improved in the future once we see missing tooltips to only skip
+        // if a "repeated run" comparison is done, as this is the only case where we want no tooltips
+        valueNode.setAttribute('title', `${raw_value} [${raw_unit}]`);
+    }
+
+    const unitNode = card.querySelector('.si-unit');
+    if (unitNode) unitNode.innerText = unit;
+
+    const typeNode = card.querySelector('.metric-type');
+
+    if(std_dev_text != ''){
+        if (typeNode) typeNode.innerText = `(AVG + STD.DEV)`;
+    } else {
+        if(String(value).indexOf('%') !== -1) {
+            if (typeNode) typeNode.innerText = `(Diff. in %)`;
         }
+    }
 
-        const unitNode = card.querySelector('.si-unit');
-        if (unitNode) unitNode.innerText = unit;
+    const helpNode = card.querySelector('.help');
+    if (helpNode) helpNode.setAttribute('data-tooltip', explanation || 'No data available');
 
-        const typeNode = card.querySelector('.metric-type');
+    const metricNameNode = card.querySelector('.metric-name');
+    if (metricNameNode) metricNameNode.innerText = clean_name || '';
 
-        if(std_dev_text != ''){
-            if (typeNode) typeNode.innerText = `(AVG + STD.DEV)`;
-        } else {
-            if(String(value).indexOf('%') !== -1) {
-                if (typeNode) typeNode.innerText = `(Diff. in %)`;
-            }
-        }
-
-        const helpNode = card.querySelector('.help');
-        if (helpNode) helpNode.setAttribute('data-tooltip', explanation || 'No data available');
-
-        const metricNameNode = card.querySelector('.metric-name');
-        if (metricNameNode) metricNameNode.innerText = clean_name || '';
-
-        const sourceNode = card.querySelector('.source');
-        if (sourceNode) sourceNode.innerText = `via ${source}` || '';
-    });
-
+    const sourceNode = card.querySelector('.source');
+    if (sourceNode) sourceNode.innerText = `via ${source}` || '';
 
 };
