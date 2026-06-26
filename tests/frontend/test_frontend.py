@@ -496,7 +496,7 @@ class TestFrontendFunctionality:
         network_traffic_node = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.teal.card.network-traffic > div.extra.content span.value.bold')
         network_data_node = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.teal.card.network-data > div.extra.content span.value.bold')
 
-        assert network_traffic_node.inner_html().strip() == '0.35'
+        assert network_traffic_node.inner_html().strip() == '0.37'
         assert network_data_node.inner_html().strip() == '0.07'
 
         table = new_page.locator(
@@ -667,43 +667,70 @@ class TestFrontendFunctionality:
         assert phase_duration.strip() == '+ 4.80 %'
         assert cpu_package_power.strip() == '+ 4.99 %'
         assert embodied_carbon.strip() == '+ 4.80 %'
-        assert network_traffic.strip() == '+ 8.94 %'
-        assert network_data.strip() == '+ 4.87 %'
+        assert network_traffic.strip() == 'Not compareable ()'
+        assert network_data.strip() == 'Not compareable ()'
 
-        # compare detailed metrics table
-        first_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(1)")
-        assert first_metric.text_content().strip() == 'Phase Duration'
+        table = new_page.locator(
+            "#runtime-steps > div.ui.bottom.attached.active.tab.segment "
+            "> div.ui.segment.secondary > phase-metrics "
+            "> div.ui.accordion > div.content.active > table > tbody"
+        )
+
+
+        # --- Phase Duration (row 1) ---
+        first_metric = cell(table, 1, 1)
+        assert first_metric.text_content().strip() == "Phase Duration"
         assert first_metric.inner_html().strip() == '<i class="question circle icon"></i>Phase Duration'
 
-        first_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(6)")
-        assert first_value.text_content().strip() == '5.06'
+        first_value = cell(table, 1, 6)
+        assert first_value.text_content().strip() == "5.06"
         assert first_value.inner_html().strip() == '<span title="5064843 us">5.06</span>'
 
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(8)").inner_html().strip() == 's'
+        assert cell(table, 1, 8).inner_html().strip() == "s"
+        assert cell(table, 1, 9).inner_html().strip() == "+ 4.80 %"
 
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(9)").inner_html().strip() == '+ 4.80 %'
-
-
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(9) > td:nth-child(1)").text_content().strip() == 'Machine Energy'
-
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(9) > td:nth-child(6)").text_content().strip() == '20.16'
-
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(9) > td:nth-child(7)").text_content().strip() == '21.81'
-
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(9) > td:nth-child(8)").text_content().strip() == 'mWh'
-
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(9) > td:nth-child(9)").text_content().strip() == '+ 8.19 %'
+        # --- Network Traffic (row 9) ---
+        assert cell(table, 9, 1).text_content().strip() == "Network Traffic"
+        assert cell(table, 9, 4).text_content().strip() == "gcb-alpine-stress"
+        assert cell(table, 9, 6).text_content().strip() == "0.35"
+        assert cell(table, 9, 7).text_content().strip() == "0.39"
+        assert cell(table, 9, 8).text_content().strip() == "MB"
+        assert cell(table, 9, 9).text_content().strip() == "+ 8.94 %"
 
 
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(1)").text_content().strip() == 'Network Transmission CO₂'
+        # --- Network Traffic (row 10) ---
+        assert cell(table, 10, 1).text_content().strip() == "Network Traffic"
+        assert cell(table, 10, 4).text_content().strip() == "gcb-inserted-test"
+        assert cell(table, 10, 6).text_content().strip() == "0.04"
+        assert cell(table, 10, 7).text_content().strip() == "undefined"
+        assert cell(table, 10, 8).text_content().strip() == "MB"
+        assert cell(table, 10, 9).text_content().strip() == "not comparable %"
 
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(6)").inner_html() == '<span title="409 ug">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 409 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
+        # --- Machine Energy (row 11) ---
+        assert cell(table, 11, 1).text_content().strip() == "Machine Energy"
+        assert cell(table, 11, 6).text_content().strip() == "20.16"
+        assert cell(table, 11, 7).text_content().strip() == "21.81"
+        assert cell(table, 11, 8).text_content().strip() == "mWh"
+        assert cell(table, 11, 9).text_content().strip() == "+ 8.19 %"
 
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(7)").inner_html().strip() == '<span title="446 ug">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 446 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
 
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(8)").inner_html().strip() == 'g'
+        # --- Network Transmission CO₂ (row 15) ---
+        assert cell(table, 15, 1).text_content().strip() == "Network Transmission CO₂"
 
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(9)").inner_html().strip() == '+ 9.05 %'
+        assert cell(table, 15, 6).inner_html().strip() == (
+            '<span title="409 ug">0.00</span> '
+            '<span data-tooltip="Value is lower than rounding. Unrounded value is 409 ug" '
+            'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
+        )
+
+        assert cell(table, 15, 7).inner_html().strip() == (
+            '<span title="446 ug">0.00</span> '
+            '<span data-tooltip="Value is lower than rounding. Unrounded value is 446 ug" '
+            'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
+        )
+
+        assert cell(table, 15, 8).inner_html().strip() == "g"
+        assert cell(table, 15, 9).inner_html().strip() == "+ 9.05 %"
 
     def test_repositories_compare_not_compareable_on_aggregate(self):
 
