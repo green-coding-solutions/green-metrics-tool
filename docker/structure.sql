@@ -143,7 +143,6 @@ VALUES (
             "skip_optimizations": false,
             "dev_no_container_dependency_collection": false,
             "allowed_volume_mounts": [],
-            "skip_unsafe": true,
             "dev_no_system_checks": false,
             "skip_volume_inspect": false,
             "total_duration": 86400,
