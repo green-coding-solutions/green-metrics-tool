@@ -131,7 +131,7 @@ $(document).ready(function () {
             order: [[2, 'asc']], // API also orders, but we need to indicate order for the user
         });
 
-        $('#jobs-table').DataTable({
+        const jobs_table = $('#jobs-table').DataTable({
             data: jobs_data?.data,
             columns: [
                 { data: 0, title: 'ID'},
@@ -165,6 +165,22 @@ $(document).ready(function () {
                     el.addEventListener('click', cancelJob)
                 })
             },
+        });
+
+        // Populate the state filter dropdown with the unique states present in the jobs queue
+        const jobs_state_filter = document.getElementById('jobs-state-filter');
+        const states = jobs_table.column(6).data().unique().sort().toArray();
+        states.forEach(state => {
+            if (state == null || state === '') return;
+            const option = document.createElement('option');
+            option.value = state;
+            option.textContent = state;
+            jobs_state_filter.appendChild(option);
+        });
+        jobs_state_filter.addEventListener('change', function() {
+            // Exact-match search on the State column (anchored regex, no smart search)
+            const value = this.value ? `^${this.value}$` : '';
+            jobs_table.column(6).search(value, true, false).draw();
         });
 
         $('#system-logs-table').DataTable({
