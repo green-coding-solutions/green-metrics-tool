@@ -44,6 +44,7 @@ class RunJob(Job):
             branch=self._branch,
             commit_hash=self._commit_hash,
             ssh_private_key=user.get_ssh_private_key(),
+            docker_credentials=user.get_docker_credentials(),
             allow_unsafe=False, # cluster runs should never allow this. All should go through individual user permissions,
             skip_unsafe=True, # Always True in cluster as no way to use unsafe rules anyway since we do not expose allow_unsafe atm
             dev_no_system_checks=user._capabilities['measurement']['dev_no_system_checks'],

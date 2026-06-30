@@ -73,6 +73,7 @@ class ScenarioRunner:
         verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
         commit_hash=None,
         ssh_private_key=None,
+        docker_credentials=None,
         docker_prune=False, job_id=None, user_id=1,
         disabled_metric_providers=None, allowed_run_args=None, allowed_volume_mounts=None,
         phase_padding=True, usage_scenario_variables=None, carbon_simulation=None,
@@ -150,11 +151,22 @@ class ScenarioRunner:
         else:
             raise ValueError('ssh_private_key must be of type SecureVariable')
 
+        if docker_credentials is None:
+            self._docker_credentials = None
+        elif isinstance(docker_credentials, list):
+            for cred in docker_credentials:
+                if not isinstance(cred.get('password'), SecureVariable):
+                    raise ValueError('docker_credentials passwords must be of type SecureVariable')
+            self._docker_credentials = docker_credentials
+        else:
+            raise ValueError('docker_credentials must be a list or None')
+
         self._relations_folder = self._tmp_folder.joinpath('relations')
         self._repo_folder = self._tmp_folder.joinpath('repo') # default if not changed in checkout_repository
         self._metrics_folder = self._tmp_folder.joinpath('metrics')
         self._build_dir = self._tmp_folder.joinpath('docker_images')
         self._ssh_private_key_file = self._tmp_folder.joinpath('user_ssh_key')
+        self._docker_config_dir = self._tmp_folder.joinpath('docker_client_config')
 
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
@@ -197,6 +209,9 @@ class ScenarioRunner:
 
         if 'ssh_private_key' in self._arguments:
             del self._arguments['ssh_private_key']
+
+        if 'docker_credentials' in self._arguments:
+            del self._arguments['docker_credentials']
 
         self._safe_post_processing_steps = (
                 ('_end_measurement',  {'skip_on_already_ended': True}),
@@ -312,6 +327,26 @@ class ScenarioRunner:
     def _delete_ssh_private_key_file(self):
         if self._ssh_private_key_file.exists():
             self._ssh_private_key_file.unlink()
+
+    def _prepare_docker_credentials(self):
+        if not self._docker_credentials:
+            return
+        import base64 as _base64
+        self._docker_config_dir.mkdir(exist_ok=True)
+        auths = {}
+        for cred in self._docker_credentials:
+            token = _base64.b64encode(
+                f"{cred['username']}:{cred['password'].get_value()}".encode()
+            ).decode()
+            auths[cred['registry']] = {'auth': token}
+        config_file = self._docker_config_dir / 'config.json'
+        config_file.write_text('', encoding='utf-8')
+        os.chmod(config_file, 0o600)
+        config_file.write_text(json.dumps({'auths': auths}, separators=(',', ':')), encoding='utf-8')
+
+    def _delete_docker_config_dir(self):
+        if self._docker_config_dir.exists():
+            shutil.rmtree(self._docker_config_dir, ignore_errors=True)
 
     def _get_git_environment(self):
         env = os.environ.copy()
@@ -1148,6 +1183,12 @@ class ScenarioRunner:
                     '--mount', f"type=bind,source={self._build_dir.as_posix()},target=/output"]
                 )
 
+                if self._docker_credentials:
+                    docker_build_command.extend([
+                        '--mount',
+                        f"type=bind,source={self._docker_config_dir.joinpath('config.json').as_posix()},target=/kaniko/.docker/config.json,readonly",
+                    ])
+
                 for relation_key, relation in self.__relations.items():
                     # still check for , although checked in schema checker to not de-sync when we ever allow commas
                     if ',' in relation['mount_path']:
@@ -1225,7 +1266,10 @@ class ScenarioRunner:
                 # bc the docker pull command does not stream the interactive progress bar. Only the lines when a layer finished with downloading
                 # Since this information does not provide info how long the image download still will take we opted for keeping this pull call less complex
                 # So you have to stare at the "Pulling XYZ" command until it is finished :)
-                ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
+                pull_env = os.environ.copy()
+                if self._docker_credentials and self._docker_config_dir.exists():
+                    pull_env['DOCKER_CONFIG'] = self._docker_config_dir.as_posix()
+                ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False, env=pull_env)
 
                 if ps_pull.returncode != 0:
                     print(f"Error: {ps_pull.stderr} \n {ps_pull.stdout}")
@@ -2764,6 +2808,7 @@ class ScenarioRunner:
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
         self._delete_ssh_private_key_file()
+        self._delete_docker_config_dir()
 
         print('Stopping metric providers')
         for metric_provider in self.__metric_providers:
@@ -2838,6 +2883,7 @@ class ScenarioRunner:
         '''
         try:
             self._run_id = None  # Reset run ID for new run
+            self._delete_docker_config_dir()  # Remove any stale config left by a previously crashed run
             self._create_folders()
             self._start_measurement() # we start as early as possible to include initialization overhead
             self._clear_caches()
@@ -2856,6 +2902,7 @@ class ScenarioRunner:
             self._prepare_docker()
             self._check_running_containers_before_start()
             self._remove_docker_images()
+            self._prepare_docker_credentials()
             self._download_dependencies()
             self._initialize_run() # have this as close to the start of measurement
             if self._debugger.active:

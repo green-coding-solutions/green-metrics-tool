@@ -40,6 +40,7 @@ if __name__ == '__main__':
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
     parser.add_argument('--user-id', type=int, default=1, help='A user-ID the run shall be mapped to. Defaults to 1 (the default user)')
     parser.add_argument('--ssh-private-key', type=str, help='A filename path on your system that holds an SSH private key')
+    parser.add_argument('--docker-credentials', type=str, help='Path to a JSON file with docker registry credentials: [{"registry":"...","username":"...","password":"..."}]')
     parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
     parser.add_argument('--file-cleanup', action='store_true', help='Delete all temporary files that the runner produced')
     parser.add_argument('--debug', action='store_true', help='Activate steppable debug mode')
@@ -183,12 +184,26 @@ if __name__ == '__main__':
     else:
         ssh_private_key_contents = None
 
+    if args.docker_credentials:
+        with open(args.docker_credentials, 'r', encoding='UTF-8') as f:
+            raw_creds = json.load(f)
+        if not isinstance(raw_creds, list):
+            error_helpers.log_error('--docker-credentials file must contain a JSON array of credential objects')
+            sys.exit(1)
+        docker_credentials_to_pass = [
+            {'registry': c['registry'], 'username': c['username'], 'password': SecureVariable(c['password'])}
+            for c in raw_creds
+        ]
+    else:
+        docker_credentials_to_pass = None
+
     # Create ScenarioRunner once and reuse it for all files
     runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filenames[0],
                     branch=args.branch, commit_hash=args.commit_hash, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     full_docker_prune=args.full_docker_prune, docker_prune=args.docker_prune,
                     verbose_provider_boot=args.verbose_provider_boot,
                     user_id=args.user_id, ssh_private_key=ssh_private_key_contents,
+                    docker_credentials=docker_credentials_to_pass,
                     commit_hash_folder=args.commit_hash_folder,
                     usage_scenario_variables=variables_dict, category_ids=args.category,
                     phase_padding=not args.no_phase_padding, carbon_simulation=carbon_simulation_to_pass,

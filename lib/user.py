@@ -19,7 +19,7 @@ class User():
             raise UserAuthenticationError('User 0 is system user and cannot log in')
 
         user = DB().fetch_one("""
-                SELECT id, name, capabilities, ssh_private_key
+                SELECT id, name, capabilities, ssh_private_key, docker_credentials
                 FROM users
                 WHERE id = %s
                 """, params=(user_id, ))
@@ -34,6 +34,8 @@ class User():
         # the server sometimes only has the public key to encrypt and would fail if the
         # private key is missing
         self.__decrypted_ssh_private_key = None
+        self.__encrypted_docker_credentials = user[4]
+        self.__decrypted_docker_credentials = None
 
     def to_dict(self):
         values = self.__dict__.copy()
@@ -41,6 +43,9 @@ class User():
         values.pop('_User__encrypted_ssh_private_key', None)
         values.pop('_User__decrypted_ssh_private_key', None)
         values['_has_ssh_private_key'] = bool(self.__encrypted_ssh_private_key)
+        values.pop('_User__encrypted_docker_credentials', None)
+        values.pop('_User__decrypted_docker_credentials', None)
+        values['_has_docker_credentials'] = bool(self.__encrypted_docker_credentials)
         return values
 
     def __repr__(self):
@@ -58,6 +63,13 @@ class User():
         DB().query("""
             UPDATE users
             SET ssh_private_key = %s
+            WHERE id = %s
+            """, params=(encrypted_value, self._id, ))
+
+    def _save_docker_credentials_to_db(self, encrypted_value):
+        DB().query("""
+            UPDATE users
+            SET docker_credentials = %s
             WHERE id = %s
             """, params=(encrypted_value, self._id, ))
 
@@ -104,6 +116,9 @@ class User():
                 value = int(value)
             case 'ssh_private_key':
                 self.update_ssh_private_key(value)
+                return
+            case 'docker_credentials':
+                self.update_docker_credentials(value)
                 return
             case _:
                 raise ValueError(f'The setting {name} is unknown')
@@ -154,6 +169,55 @@ class User():
         self._save_key_to_db(encrypted_value)
         self.__encrypted_ssh_private_key = encrypted_value
         self.__decrypted_ssh_private_key = SecureVariable(normalized_value) if normalized_value else None
+
+    def has_docker_credentials(self):
+        return bool(self.__encrypted_docker_credentials)
+
+    def get_docker_credentials(self):
+        if self.__decrypted_docker_credentials is None and self.has_docker_credentials():
+            decrypted = decrypt_data(self.__encrypted_docker_credentials)
+            creds_list = json.loads(decrypted)
+            self.__decrypted_docker_credentials = [
+                {'registry': c['registry'], 'username': c['username'], 'password': SecureVariable(c['password'])}
+                for c in creds_list
+            ]
+        return self.__decrypted_docker_credentials
+
+    def update_docker_credentials(self, creds):
+        if creds is None or (isinstance(creds, str) and creds.strip() == '') or creds == []:
+            self._save_docker_credentials_to_db(None)
+            self.__encrypted_docker_credentials = self.__decrypted_docker_credentials = None
+            return
+
+        if not isinstance(creds, list):
+            raise ValueError('The setting docker_credentials must be a list of credential objects')
+
+        normalized = []
+        for cred in creds:
+            if not isinstance(cred, dict):
+                raise ValueError('Each docker credential must be an object with registry, username, and password fields')
+            for field in ('registry', 'username', 'password'):
+                if field not in cred or not isinstance(cred[field], str) or not cred[field].strip():
+                    raise ValueError(f"Each docker credential must have a non-empty '{field}' string field")
+            normalized.append({
+                'registry': cred['registry'].strip(),
+                'username': cred['username'].strip(),
+                'password': cred['password'],
+            })
+
+        serialized = json.dumps(normalized, separators=(',', ':'))
+
+        try:
+            encrypted_value = encrypt_data(serialized)
+        except EncryptionConfigurationError as e:
+            raise ValueError('Cannot store docker credentials: encryption is not configured on this server') from e
+
+        self._save_docker_credentials_to_db(encrypted_value)
+        self.__encrypted_docker_credentials = encrypted_value
+        self.__decrypted_docker_credentials = [
+            {'registry': c['registry'], 'username': c['username'], 'password': SecureVariable(c['password'])}
+            for c in normalized
+        ]
 
     def can_change_setting(self, name):
         return name in self._capabilities['user']['updateable_settings']
