@@ -76,7 +76,7 @@ def check_repo(repo_url, branch='main'):
         )
 
     if response.status_code == 404:
-        raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?")
+        raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist? - If you are trying to supply a private repository with SSH Key please use SSH URI syntax.")
 
     raise RuntimeError(f"Repository returned bad status code ({response.status_code}). Is the repo ({repo_url}) publicly accessible, not empty and does the branch {branch} exist?")
 
