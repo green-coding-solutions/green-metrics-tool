@@ -76,7 +76,10 @@ def check_repo(repo_url, branch='main'):
         )
 
     if response.status_code == 404:
-        raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist? - If you are trying to supply a private repository with SSH Key please use SSH URI syntax.")
+        ssh_hint = ''
+        if parsed_url.scheme in ('http', 'https'):
+            ssh_hint = ' If this is a private repository, use the SSH URL (e.g. git@github.com:owner/repo.git) instead of the HTTPS URL, and configure an SSH key in your account settings.'
+        raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?{ssh_hint}")
 
     raise RuntimeError(f"Repository returned bad status code ({response.status_code}). Is the repo ({repo_url}) publicly accessible, not empty and does the branch {branch} exist?")
 
