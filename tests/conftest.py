@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 import pytest
 import os
@@ -59,6 +60,10 @@ def pytest_runtest_makereport(item, call):  # pylint: disable=unused-argument
                 report.sections.append((f'Docker logs ({container})', logs))
             except subprocess.CalledProcessError:
                 pass
+
+
+def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argument
+    shutil.rmtree(Tests.GMT_METRICS_DIR, ignore_errors=True)
 
 
 def pytest_sessionstart(session):  # pylint: disable=unused-argument
