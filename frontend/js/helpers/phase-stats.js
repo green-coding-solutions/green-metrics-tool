@@ -127,8 +127,28 @@ const createPhaseTab = (phase, hidden) => {
     }
 }
 
+const syncDefaultPhaseTabVisibility = (phase_stats_object) => {
+    const availablePhases = new Set(Object.keys(phase_stats_object?.data || {}));
+    const defaultPhases = ['[BASELINE]', '[INSTALLATION]', '[BOOT]', '[IDLE]', '[RUNTIME]', '[REMOVE]'];
+
+    defaultPhases.forEach((phase) => {
+        const keepVisible = phase === '[RUNTIME]' || availablePhases.has(phase);
+
+        const stepNode = document.querySelector(`.ui.steps.phases > a.step[data-tab='${phase}']`);
+        if (stepNode) {
+            stepNode.classList.toggle('hidden', !keepVisible);
+        }
+
+        const tabNode = document.querySelector(`.ui.tab.attached.segment.secondary[data-tab='${phase}']`);
+        if (tabNode) {
+            tabNode.classList.toggle('hidden', !keepVisible);
+        }
+    });
+}
+
 
 const buildPhaseTabs = (phase_stats_object) => {
+    syncDefaultPhaseTabVisibility(phase_stats_object);
 
     for (const phase in phase_stats_object['data']) {
         createPhaseTab(phase, phase_stats_object['data'][phase].hidden); // will not create already existing phase tabs
