@@ -76,7 +76,7 @@ def test_compare_valid():
     with open(f"{CURRENT_DIR}/../data/json/compare-{RUN_3},{RUN_1}.json", 'r', encoding='utf-8') as file:
         data = json.load(file)
 
-    assert res_json['data'] == data
+    Tests.assert_deep_almost_equal(data, res_json['data'])
 
 def test_compare_fails():
     Tests.import_demo_data()
@@ -105,7 +105,7 @@ def test_compare_force_mode_same_style():
     data['comparison_details'][0][0]['commit_hash'] = 'test' # we need to overload the test data to make it flexible
 
     assert data['comparison_case'] == 'Usage Scenario'
-    assert res_json['data'] == data
+    Tests.assert_deep_almost_equal(data, res_json['data'])
 
 # Will force machine_id comparison, which is repeated_run style
 def test_compare_force_mode_different_style():
@@ -124,7 +124,7 @@ def test_compare_force_mode_different_style():
     data['comparison_details'][0][0]['commit_hash'] = 'test'
 
     assert data['comparison_case'] == 'Machine'
-    assert res_json['data'] == data
+    Tests.assert_deep_almost_equal(data, res_json['data'])
 
 
 def test_compare_ids_mode():
@@ -151,7 +151,7 @@ def test_compare_mode_usage_scenario_variables():
         data = json.load(file)
 
     assert data['comparison_case'] == 'Usage Scenario Variables'
-    assert res_json['data'] == data
+    Tests.assert_deep_almost_equal(data, res_json['data'])
 
 def test_compare_force_mode_not_writing_to_cache():
     Tests.import_demo_data()
@@ -163,7 +163,7 @@ def test_compare_force_mode_not_writing_to_cache():
     with open(f"{CURRENT_DIR}/../data/json/compare-{RUN_3},{RUN_2}.json", 'r', encoding='utf-8') as file:
         data = json.load(file)
 
-    assert res_json['data'] == data
+    Tests.assert_deep_almost_equal(data, res_json['data'])
 
     response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_2}&force_mode=machine_ids", timeout=15)
     res_json = response.json()
@@ -174,7 +174,7 @@ def test_compare_force_mode_not_writing_to_cache():
     response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_2}", timeout=15)
     res_json = response.json()
     assert response.status_code == 200
-    assert res_json['data'] == data
+    Tests.assert_deep_almost_equal(data, res_json['data'])
 
 
 def test_compare_force_unknown_mode():
