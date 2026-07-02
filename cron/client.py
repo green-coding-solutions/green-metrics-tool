@@ -16,10 +16,9 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.repo_info import get_repo_info
 from lib import validate
-from lib.temperature import get_temperature
 from lib import error_helpers
 from lib import utils
-from lib.configuration_check_error import ConfigurationCheckError, Status
+from lib.configuration_check_error import ConfigurationCheckError, Status, TemperatureException
 
 STATUS_LIST = (
     'cooldown',
@@ -140,53 +139,6 @@ def do_maintenance():
 
     return None
 
-def validate_temperature():
-    config = GlobalConfig().config # pylint: disable=redefined-outer-name
-
-    if not hasattr(validate_temperature, "temperature_errors") or not hasattr(validate_temperature, "cooldown_time"):
-        validate_temperature.temperature_errors = 0  # initialize static variable
-        validate_temperature.cooldown_time = 0  # initialize static variable
-
-    current_temperature = get_temperature(
-        config['machine']['base_temperature_chip'],
-        config['machine']['base_temperature_feature']
-    )
-
-    DB().query('UPDATE machines SET current_temperature=%s WHERE id = %s', params=(current_temperature, config['machine']['id']))
-
-    if current_temperature > config['machine']['base_temperature_value']:
-        if validate_temperature.temperature_errors >= 10:
-            raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {config['machine']['base_temperature_value']}. Pleae check logs ...")
-
-        print(f"Machine is still too hot: {current_temperature}°. Sleeping for 1 minute")
-        set_status('cooldown')
-        validate_temperature.cooldown_time += 60
-        validate_temperature.temperature_errors += 1
-        time.sleep(60)
-        return False
-
-    if current_temperature <= (config['machine']['base_temperature_value'] - 10):
-        if validate_temperature.temperature_errors >= 10:
-            raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {config['machine']['base_temperature_value']}. Pleae check logs ...")
-
-        print(f"Machine is too cool: {current_temperature}°. Warming up and retrying")
-        set_status('warmup')
-        validate_temperature.temperature_errors += 1
-
-        # stress all cores with constant yes operation
-        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
-        time.sleep(300)
-        subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
-
-        return False
-
-    DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(validate_temperature.cooldown_time, config['machine']['id']))
-
-    validate_temperature.temperature_errors = 0 # reset
-    validate_temperature.cooldown_time = 0 # reset
-
-    return True
-
 def do_measurement_control():
     config = GlobalConfig().config # pylint: disable=redefined-outer-name
     cwl = config['cluster']['client']['control_workload']
@@ -249,6 +201,8 @@ if __name__ == '__main__':
 
         needs_revalidation = False
         last_24h_maintenance = 0
+        temperature_errors = 0
+        temperature_cooldown_time = 0
 
         result = DB().fetch_one('SELECT needs_revalidation FROM machines WHERE id = %s', params=(config['machine']['id'],), fetch_mode='dict')
         if result and result['needs_revalidation']:
@@ -270,12 +224,6 @@ if __name__ == '__main__':
                     time.sleep(config['cluster']['client']['sleep_time_no_job'])
                 continue
 
-            if not args.testing:
-                if validate_temperature():
-                    print('Machine is temperature is good. Continuing ...')
-                else:
-                    continue # retry all checks
-
             if not args.testing and (needs_revalidation or validate.is_validation_needed(config['machine']['id'], config['cluster']['client']['time_between_control_workload_validations'])):
                 do_measurement_control()
                 DB().query('UPDATE machines SET needs_revalidation = false WHERE id = %s', params=(config['machine']['id'],))
@@ -286,7 +234,27 @@ if __name__ == '__main__':
                 set_status('job_start', run_id=job._run_id)
                 try:
                     job.process(docker_prune=config['cluster']['client']['docker_prune'], full_docker_prune=config['cluster']['client']['full_docker_prune'])
+                    if temperature_cooldown_time > 0:
+                        DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(temperature_cooldown_time, config['machine']['id']))
+                    temperature_errors = 0
+                    temperature_cooldown_time = 0
                     set_status('job_end', run_id=job._run_id)
+                except TemperatureException as exc:
+                    if temperature_errors >= 10:
+                        raise RuntimeError(f"Temperature could not be stabilized in time. Was {exc.temperature} but should be {config['machine']['base_temperature_value']}. Please check logs ...") from exc
+                    if exc.direction == 'hot':
+                        print(f"Machine is still too hot: {exc.temperature}°. Sleeping for 1 minute")
+                        set_status('cooldown', data=str(exc), run_id=job._run_id)
+                        temperature_cooldown_time += 60
+                        temperature_errors += 1
+                        time.sleep(60)
+                    else:
+                        print(f"Machine is too cool: {exc.temperature}°. Warming up and retrying")
+                        set_status('warmup', data=str(exc), run_id=job._run_id)
+                        temperature_errors += 1
+                        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
+                        time.sleep(300)
+                        subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
                     set_status('job_error', data=str(exc), run_id=job._run_id)
                     if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
