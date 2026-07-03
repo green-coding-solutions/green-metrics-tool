@@ -1,37 +1,35 @@
 #!/usr/bin/env python3
 
-import shlex
 import sys
 import faulthandler
-import uuid
-
-import requests
-
-from metric_providers.base import MetricProviderConfigurationError
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.secure_variable import SecureVariable
 from lib.venv_checker import check_venv
 check_venv() # this check must even run before __main__ as imports might not get resolved
 
+import uuid
+import shlex
+import requests
+import base64
 import subprocess
 import json
 import os
 import time
 import importlib
 import re
-from pathlib import Path
 import random
 import pandas
 import shutil
 import math
 import yaml
+import platform
+
+from pathlib import Path
 from copy import deepcopy
 from collections import OrderedDict
 from datetime import datetime
-import platform
 from concurrent.futures import ThreadPoolExecutor
-from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 GMT_ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -42,6 +40,11 @@ from lib import host_platform
 from lib import hardware_info
 from lib import hardware_info_root_original as hardware_info_root
 from lib import error_helpers
+from lib import resource_limits
+from lib import system_checks
+from lib import metric_importer
+from lib import container_compatibility
+
 from lib.repo_info import get_repo_info
 from lib.debug_helper import DebugHelper
 from lib.terminal_colors import TerminalColors
@@ -49,13 +52,12 @@ from lib.schema_checker import SchemaChecker
 from lib.db import DB
 from lib.global_config import GlobalConfig, freeze_dict, FrozenDict
 from lib.notes import Notes
-from lib import system_checks
 from lib.machine import Machine
-from lib import metric_importer
-from lib import container_compatibility
 from lib.container_compatibility import CompatibilityStatus
 from lib.log_types import LogType
-from lib import resource_limits
+from metric_providers.base import MetricProviderConfigurationError
+
+from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -331,11 +333,11 @@ class ScenarioRunner:
     def _prepare_docker_credentials(self):
         if not self._docker_credentials:
             return
-        import base64 as _base64
+
         self._docker_config_dir.mkdir(exist_ok=True)
         auths = {}
         for cred in self._docker_credentials:
-            token = _base64.b64encode(
+            token = base64.b64encode(
                 f"{cred['username']}:{cred['password'].get_value()}".encode()
             ).decode()
             auths[cred['registry']] = {'auth': token}
