@@ -268,7 +268,7 @@ const replaceRepoIcon = (uri) => {
     default:
       return escapeString(uri);
   }
-  return `<i class="icon ${iconClass}"></i>` + escapeString(uri.substring(url.origin.length));
+  return `<i class="icon ${iconClass}"></i>` + escapeString(url.pathname + url.search + url.hash);
 };
 
 const createExternalIconLink = (url) => {

@@ -23,16 +23,21 @@ def get_git_api(parsed_url):
     if parsed_url.netloc == '' and '@' in parsed_url.path: # this could be an SSH git shorthand, we allow this but cannot determine API
         return [None, None]
 
-    if parsed_url.netloc in ['github.com', 'www.github.com']:
+    hostname = parsed_url.hostname or ''
+
+    if hostname in ['github.com', 'www.github.com']:
         return [f"https://api.github.com/repos/{remove_git_suffix(parsed_url.path.strip(' /'))}", 'github']
 
-    if parsed_url.netloc in ['gitlab.com', 'www.gitlab.com']:
+    if hostname in ['gitlab.com', 'www.gitlab.com']:
         return [f"https://gitlab.com/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab']
 
     # Alternative:
 
     # assume gitlab private hosted
-    return [f"https://{parsed_url.netloc}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'custom']
+    api_host = hostname
+    if parsed_url.port:
+        api_host += f":{parsed_url.port}"
+    return [f"https://{api_host}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'custom']
 
 
 def check_repo(repo_url, branch='main'):

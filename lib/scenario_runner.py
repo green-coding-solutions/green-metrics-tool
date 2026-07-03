@@ -30,6 +30,7 @@ from copy import deepcopy
 from collections import OrderedDict
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse, urlunparse
 
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 GMT_ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -47,6 +48,7 @@ from lib import container_compatibility
 
 from lib.repo_info import get_repo_info
 from lib.debug_helper import DebugHelper
+from lib.encryption import decrypt_data, ENCRYPTED_VALUE_PREFIX
 from lib.terminal_colors import TerminalColors
 from lib.schema_checker import SchemaChecker
 from lib.db import DB
@@ -212,6 +214,18 @@ class ScenarioRunner:
         # security related keys we never want to log
         del self._arguments['ssh_private_key']
         del self._arguments['docker_credentials']
+
+        # Strip HTTP basic auth credentials from URI; keep clean version for logging and DB storage
+        _parsed_uri = urlparse(self._uri)
+        if _parsed_uri.username:
+            self._uri_userinfo = f"{_parsed_uri.username}:{_parsed_uri.password}" if _parsed_uri.password else _parsed_uri.username
+            _clean_host = _parsed_uri.hostname or ''
+            if _parsed_uri.port:
+                _clean_host += f":{_parsed_uri.port}"
+            self._uri = urlunparse((_parsed_uri.scheme, _clean_host, _parsed_uri.path, _parsed_uri.params, _parsed_uri.query, _parsed_uri.fragment))
+            self._arguments['uri'] = self._uri
+        else:
+            self._uri_userinfo = None
 
         self._safe_post_processing_steps = (
                 ('_end_measurement',  {'skip_on_already_ended': True}),
@@ -451,7 +465,17 @@ class ScenarioRunner:
                 command.append('--single-branch')
                 command.append('--recurse-submodules')
                 command.append('--shallow-submodules')
-                command.append(self._uri)
+
+                clone_uri = self._uri
+                if self._uri_userinfo:
+                    userinfo = decrypt_data(self._uri_userinfo) if self._uri_userinfo.startswith(ENCRYPTED_VALUE_PREFIX) else self._uri_userinfo
+                    _p = urlparse(self._uri)
+                    _host = _p.hostname or ''
+                    if _p.port:
+                        _host += f":{_p.port}"
+                    clone_uri = urlunparse((_p.scheme, f"{userinfo}@{_host}", _p.path, _p.params, _p.query, _p.fragment))
+
+                command.append(clone_uri)
                 command.append(self._repo_folder.as_posix())
 
                 print('Cloning ', self._uri)
