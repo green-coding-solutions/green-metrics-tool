@@ -663,6 +663,53 @@ def test_docker_pull_nonexistent_image_non_interactive_fails():
     assert "NONEXISTENT_IMAGE" in str(e.value)
 
 
+def test_docker_pull_private_image_without_credentials_fails():
+    """False-negative control: a private image must be unreachable when no docker credentials are configured."""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_private_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with pytest.raises(subprocess.CalledProcessError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert "Docker pull failed. Is your image name correct and are you connected to the internet" in str(e.value)
+    assert "greencoding/simple-test" in str(e.value)
+
+
+def test_docker_pull_private_image_with_credentials_succeeds():
+    """Pulling a private Docker Hub image must succeed when docker credentials are stored on the runner."""
+
+    if not os.getenv('GMT_TESTING_DOCKER_USER') or not os.getenv('GMT_TESTING_DOCKER_PAT'):
+        raise RuntimeError('To run this test you need to set ENV vars GMT_TESTING_DOCKER_USER and GMT_TESTING_DOCKER_PAT - Can be ignored if you are submitting a PR as external developer as only the repo owners know these credentials.')
+
+    runner = ScenarioRunner(
+        uri=GMT_DIR,
+        uri_type='folder',
+        filename='tests/data/usage_scenarios/docker_pull_private_image.yml',
+        dev_no_container_dependency_collection=True,
+        skip_download_dependencies=True,
+        skip_optimizations=True,
+        dev_no_system_checks=True,
+        dev_no_metrics=True,
+        dev_no_sleeps=True,
+        dev_no_save=True,
+        docker_credentials=[{
+            'registry': 'https://index.docker.io/v1/',
+            'username': os.getenv('GMT_TESTING_DOCKER_USER'),
+            'password': SecureVariable(os.getenv('GMT_TESTING_DOCKER_PAT')),
+        }],
+    )
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err), Tests.RunUntilManager(runner) as context:
+        context.run_until('save_image_and_volume_sizes')
+
+    assert 'Pulling greencoding/simple-test' in out.getvalue() # step in question
+    assert 'Saving image and volume sizes' in out.getvalue() # step after
+
+
+
+
 ## Docker run architecture mismatch tests
 def can_emulate_amd64_images():
     """Check if this host can run AMD64 Docker images via emulation."""
