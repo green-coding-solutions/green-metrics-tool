@@ -228,6 +228,8 @@ def test_post_repo_with_auth_credentials_are_encrypted_in_db():
     stored_watchlist_url = stored_watchlist_url[0]
     assert plain_password not in stored_watchlist_url, 'Plain-text password must not appear in watchlist.repo_url'
     assert 'gmt-encrypted:v1:' in stored_watchlist_url, 'watchlist.repo_url must contain the encrypted credential prefix'
+    assert 'arne' not in stored_watchlist_url, 'Plain-text username must not appear in watchlist.repo_url'
+    assert 'green-coding.io' in stored_watchlist_url, 'Host must still be present in watchlist.repo_url'
 
 
 def test_post_repo_ssh():
