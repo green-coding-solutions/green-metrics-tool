@@ -45,6 +45,8 @@ jobs:
         uses: ./.github/actions/gmt-pytest
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
+         docker-user: ${{ secrets.GMT_TESTING_DOCKER_USER }}
+         docker-pat: ${{ secrets.GMT_TESTING_DOCKER_PAT }}
          enable-ssh: ${{ inputs.enable-ssh }}
          test-path: ${{ inputs.test-path }}
 
