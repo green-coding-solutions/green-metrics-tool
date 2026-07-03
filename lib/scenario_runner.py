@@ -209,11 +209,9 @@ class ScenarioRunner:
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
-        if 'ssh_private_key' in self._arguments:
-            del self._arguments['ssh_private_key']
-
-        if 'docker_credentials' in self._arguments:
-            del self._arguments['docker_credentials']
+        # security related keys we never want to log
+        del self._arguments['ssh_private_key']
+        del self._arguments['docker_credentials']
 
         self._safe_post_processing_steps = (
                 ('_end_measurement',  {'skip_on_already_ended': True}),
