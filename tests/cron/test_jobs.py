@@ -42,7 +42,7 @@ def test_no_run_job():
             stdout=subprocess.PIPE,
             encoding='UTF-8'
         )
-    print(ps.stderr)
+
     assert 'No job to process. Exiting' in ps.stdout,\
         Tests.assertion_info('No job to process. Exiting', ps.stdout)
 
@@ -252,6 +252,8 @@ def todo_test_simple_email_job():
 def test_docker_pull_private_image_via_db_credentials():
     if not os.getenv('GMT_TESTING_DOCKER_USER') or not os.getenv('GMT_TESTING_DOCKER_PAT'):
         raise RuntimeError('To run this test you need to set ENV vars GMT_TESTING_DOCKER_USER and GMT_TESTING_DOCKER_PAT - Can be ignored if you are submitting a PR as external developer as only the repo owners know these credentials.')
+
+    Tests.shorten_sleep_times(1)
 
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-solutions/green-metrics-tool'
