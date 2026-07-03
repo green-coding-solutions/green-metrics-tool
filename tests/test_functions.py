@@ -350,6 +350,8 @@ class RunUntilManager:
             raise RuntimeError("run_steps must be used within the context")
 
         try:
+            self.__runner._delete_docker_config_dir()
+            self.__runner._delete_ssh_private_key_file()
             self.__runner._create_folders()
             self.__runner._start_measurement()
             self.__runner._clear_caches()
@@ -371,6 +373,7 @@ class RunUntilManager:
             self.__runner._prepare_docker()
             self.__runner._check_running_containers_before_start()
             self.__runner._remove_docker_images()
+            self.__runner._prepare_docker_credentials()
             self.__runner._download_dependencies()
             self.__runner._initialize_run()
             yield 'initialize_run'

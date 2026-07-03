@@ -2883,7 +2883,10 @@ class ScenarioRunner:
         '''
         try:
             self._run_id = None  # Reset run ID for new run
-            self._delete_docker_config_dir()  # Remove any stale config left by a previously crashed run
+            # Remove any stale config left by a previously crashed run
+            self._delete_docker_config_dir()
+            self._delete_ssh_private_key_file()
+
             self._create_folders()
             self._start_measurement() # we start as early as possible to include initialization overhead
             self._clear_caches()
