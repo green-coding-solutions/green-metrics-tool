@@ -1,10 +1,12 @@
 import os
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 import pytest
 import psycopg
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+GMT_DIR = Path(CURRENT_DIR).parent.parent.as_posix()
 
 from lib.db import DB
 from lib import utils
@@ -245,3 +247,41 @@ def todo_test_simple_email_job():
     job_success_message = 'Successfully processed jobs queue item.'
     assert job_success_message in ps.stdout,\
        Tests.assertion_info('Successfully processed jobs queue item.', f"STDOUT:\n{ps.stdout}\nSTDERR:\n{ps.stderr}")
+
+
+def test_docker_pull_private_image_via_db_credentials():
+    if not os.getenv('GMT_TESTING_DOCKER_USER') or not os.getenv('GMT_TESTING_DOCKER_PAT'):
+        raise RuntimeError('To run this test you need to set ENV vars GMT_TESTING_DOCKER_USER and GMT_TESTING_DOCKER_PAT - Can be ignored if you are submitting a PR as external developer as only the repo owners know these credentials.')
+
+    name = utils.randomword(12)
+    url = 'https://github.com/green-coding-solutions/green-metrics-tool'
+    filename = 'tests/data/usage_scenarios/docker_pull_private_image.yml'
+    branch = 'main'
+    machine_id = 1
+
+    job_id = Job.insert('run', user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
+
+    try:
+        # Store credentials encrypted in the DB — this is what the API endpoint does
+        User(1).update_docker_credentials([{
+            'registry': 'https://index.docker.io/v1/',
+            'username': os.getenv('GMT_TESTING_DOCKER_USER'),
+            'password': "asd",
+        }])
+
+        ps = subprocess.run(
+            ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+
+        assert 'Pulling greencoding/simple-test' in ps.stdout # step in question
+        assert 'Saving image and volume sizes' in ps.stdout # step after
+        # error after
+        assert "'docker', 'run', '-it', '-d', '--name', 'test_service'" in ps.stdout
+        assert 'returned non-zero exit status 125.' in ps.stdout
+
+    finally:
+        User(1).update_docker_credentials(None)
