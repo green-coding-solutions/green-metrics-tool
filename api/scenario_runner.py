@@ -956,6 +956,7 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
         except Exception as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    unencrypted_repo_url = software.repo_url
     _parsed_repo = urlparse(software.repo_url)
     if _parsed_repo.username:
         try:
@@ -974,10 +975,10 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
         if not no_url_check:
             try:
                 if 'tag' in software.schedule_mode:
-                    last_marker = utils.get_repo_last_marker(software.repo_url, 'tags')
+                    last_marker = utils.get_repo_last_marker(unencrypted_repo_url, 'tags')
 
                 if 'commit' in software.schedule_mode:
-                    last_marker = utils.get_repo_last_marker(software.repo_url, 'commits')
+                    last_marker = utils.get_repo_last_marker(unencrypted_repo_url, 'commits')
             except RuntimeError as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
 
