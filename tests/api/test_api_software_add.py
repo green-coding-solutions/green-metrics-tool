@@ -206,6 +206,29 @@ def test_post_repo_with_auth():
     response = requests.post(f"{API_URL}/v1/runs/add?no_url_check=true", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
+def test_post_repo_with_auth_credentials_are_encrypted_in_db():
+    plain_password = 'supersecret123'
+    run_name = 'test_' + utils.randomword(12)
+    credentialed_url = f'https://arne:{plain_password}@green-coding.io/green-coding-solutions/green-metrics-tool/'
+    run = Software(name=run_name, repo_url=credentialed_url, email='testEmail', branch='', filename='', machine_id=1, schedule_mode='daily')
+    response = requests.post(f"{API_URL}/v1/runs/add?no_url_check=true", json=run.model_dump(), timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    job_ids = get_job_ids(run_name)
+    assert job_ids, 'Expected at least one job to be created'
+
+    stored_job_url = DB().fetch_one('SELECT url FROM jobs WHERE id = %s', (job_ids[0],))[0]
+    assert plain_password not in stored_job_url, 'Plain-text password must not appear in jobs.url'
+    assert 'gmt-encrypted:v1:' in stored_job_url, 'jobs.url must contain the encrypted credential prefix'
+    assert 'arne' not in stored_job_url, 'Plain-text username must not appear in jobs.url'
+    assert 'green-coding.io' in stored_job_url, 'Host must still be present in jobs.url'
+
+    stored_watchlist_url = DB().fetch_one('SELECT repo_url FROM watchlist WHERE name = %s', (run_name,))
+    assert stored_watchlist_url is not None, 'Expected a watchlist entry to be created'
+    stored_watchlist_url = stored_watchlist_url[0]
+    assert plain_password not in stored_watchlist_url, 'Plain-text password must not appear in watchlist.repo_url'
+    assert 'gmt-encrypted:v1:' in stored_watchlist_url, 'watchlist.repo_url must contain the encrypted credential prefix'
+
 
 def test_post_repo_ssh():
     run_name = 'test_' + utils.randomword(12)
