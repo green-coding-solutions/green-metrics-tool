@@ -226,6 +226,9 @@ measurement:
         # domains:
         #   cpu_gpu: False
         #   dram: False
+#--- CPU Utilization - System-wide CPU load via GetSystemTimes()
+      cpu_utilization_windows_system:
+        sampling_rate: 99
     #--- Architecture - Common
     common:
 #      network_connections_proxy_container:
