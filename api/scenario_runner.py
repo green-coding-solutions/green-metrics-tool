@@ -23,7 +23,8 @@ from api.api_helpers import (CustomORJSONResponse, ORJSONResponseObjKeep, add_ph
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.diff import get_diffable_rows, diff_rows
-from lib.job.base import Job
+from lib.job.run import RunJob
+from lib.job.email_simple import EmailSimpleJob
 from lib.user import User
 from lib.watchlist import Watchlist
 from lib import utils
@@ -978,11 +979,11 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
         amount = 1
 
     for _ in range(0,amount):
-        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, commit_hash=software.commit_hash, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation))
+        job_ids_inserted.append(RunJob.insert(user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, commit_hash=software.commit_hash, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation))
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:
-        Job.insert('email-simple', user_id=user._id, name='New run added from Web Interface', message=pprint.pformat(software.model_dump(), width=60, indent=2), email=notification_email)
+        EmailSimpleJob.insert(user_id=user._id, name='New run added from Web Interface', message=pprint.pformat(software.model_dump(), width=60, indent=2), email=notification_email)
 
     return CustomORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
 

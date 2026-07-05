@@ -6,6 +6,8 @@ from datetime import datetime
 from lib.terminal_colors import TerminalColors
 from lib.global_config import GlobalConfig
 from lib.db import DB
+from lib.utils import filter_sensitive_data
+
 
 def end_error(*messages, **kwargs):
     log_error(*messages, **kwargs)
@@ -37,6 +39,7 @@ Error: {err}
     """
 
     error_string = error_string.replace('\x00', '0x00') # If we store to DB: Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+    error_string = filter_sensitive_data(error_string)
     return error_string
 
 
