@@ -223,7 +223,6 @@ class ScenarioRunner:
             if _parsed_uri.port:
                 _clean_host += f":{_parsed_uri.port}"
             self._uri = urlunparse((_parsed_uri.scheme, _clean_host, _parsed_uri.path, _parsed_uri.params, _parsed_uri.query, _parsed_uri.fragment))
-            self._arguments['uri'] = self._uri
         else:
             self._uri_userinfo = None
 
