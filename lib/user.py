@@ -30,11 +30,11 @@ class User():
         self._name = user[1]
         self._capabilities = user[2]
         self.__encrypted_ssh_private_key = user[3]
+        self.__encrypted_docker_credentials = user[4]
         # value is not populated here directly as due to the security setup of GMT
         # the server sometimes only has the public key to encrypt and would fail if the
         # private key is missing
         self.__decrypted_ssh_private_key = None
-        self.__encrypted_docker_credentials = user[4]
         self.__decrypted_docker_credentials = None
 
     def to_dict(self):
