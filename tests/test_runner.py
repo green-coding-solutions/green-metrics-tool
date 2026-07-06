@@ -268,6 +268,56 @@ def test_relations_checkout_specific_commit_hash():
         assert checked_out_commit_hash == relation_commit_hash, Tests.assertion_info(f"commit_hash: {relation_commit_hash}", checked_out_commit_hash)
         assert commit_message == expected_message, Tests.assertion_info(f"commit_message: {expected_message}", commit_message)
 
+def test_relations_checkout_redacts_credentials_in_db():
+    run_name = 'test_' + utils.randomword(12)
+    relation_key = 'helpers'
+    real_repo_url = 'https://github.com/green-coding-solutions/gmt-helpers'
+
+    runner = ScenarioRunner(
+        name=run_name,
+        uri=GMT_DIR,
+        uri_type='folder',
+        filename='tests/data/usage_scenarios/relations_checkout_credentials_test.yml',
+        dev_cache_repos=True,
+        dev_no_container_dependency_collection=True,
+        skip_download_dependencies=True,
+        skip_optimizations=True,
+        dev_no_sleeps=True,
+        dev_no_system_checks=True,
+    )
+    runner._create_folders()
+
+    relation_path = runner._relations_folder.joinpath(relation_key)
+    # Pre-seed the relation folder with a real, credential-free clone so --dev-cache-repos skips
+    # the actual git clone below. The fake credentials in the fixture's relation URL are therefore
+    # never used for a real network/auth call - only their redaction on DB storage is under test.
+    if not (relation_path.exists() and any(relation_path.iterdir())):
+        subprocess.run(
+            ['git', 'clone', '--depth', '1', real_repo_url, relation_path.as_posix()],
+            check=True,
+            capture_output=True,
+            encoding='UTF-8',
+            errors='replace',
+        )
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('initialize_run')
+
+    run_data = utils.get_run_data(run_name)
+    assert run_data is not None, Tests.assertion_info('a runs row', 'none found')
+
+    relation_data = run_data['relations'][relation_key]
+    assert 'admin' not in relation_data['url']
+    assert 's3cr3t' not in relation_data['url']
+    assert '*****GMT-REDACTED*****' in relation_data['url']
+    assert relation_data['commit_hash'] == 'b8c6c7575e493c9808ceeea2a5e7311c61b16419'
+
+    usage_scenario_data = str(run_data['usage_scenario'])
+    assert 'admin' not in usage_scenario_data
+    assert 's3cr3t' not in usage_scenario_data
+    assert '*****GMT-REDACTED*****' in usage_scenario_data
+
+
 # #   --name NAME
 # #    A name which will be stored to the database to discern this run from others
 def test_name_is_in_db():

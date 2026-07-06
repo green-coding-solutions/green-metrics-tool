@@ -153,6 +153,10 @@ async def get_jobs(
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
+    # jobs.url is kept unredacted in the DB as the cluster worker needs the real
+    # credentials to clone the repo. Redact it here as it is never needed by the client.
+    data = [(*row[:3], utils.filter_sensitive_data(row[3]), *row[4:]) for row in data]
+
     return CustomORJSONResponse({'success': True, 'data': data})
 
 @router.put('/v1/job')

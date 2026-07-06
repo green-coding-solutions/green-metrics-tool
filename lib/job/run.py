@@ -17,7 +17,6 @@ from lib.db import DB
 from lib.user import User
 from lib.terminal_colors import TerminalColors
 from lib.scenario_runner import ScenarioRunner
-import optimization_providers.base
 
 
 class RunJob(Job):
@@ -98,7 +97,9 @@ class RunJob(Job):
             # Start main code. Only URL is allowed for cron jobs
             self._run_id = runner.run()
 
-            # We need to import this here as we need the correct config file
+            # We need to import this here as we need the correct config file, and to avoid a circular
+            # import (optimization_providers.base imports api.scenario_runner, which imports RunJob)
+            import optimization_providers.base #pylint: disable=import-outside-toplevel
             print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
             optimization_providers.base.import_reporters()
             print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)

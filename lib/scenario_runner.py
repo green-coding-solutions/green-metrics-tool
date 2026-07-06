@@ -419,7 +419,7 @@ class ScenarioRunner:
                 command.append(self._uri)
                 command.append(self._repo_folder.as_posix())
 
-                print('Cloning ', self._uri)
+                print('Cloning ', utils.filter_sensitive_data(self._uri))
                 subprocess.run(
                     command,
                     check=True,
@@ -495,9 +495,9 @@ class ScenarioRunner:
 
             # only skip checkout if switch active and files in dir present
             if self._dev_cache_repos and relation_path.exists() and relation_path.is_dir() and any(relation_path.iterdir()):
-                print('Skipping clone of ', relation['url'], 'as it was already present on disk and --dev-cache-repos was set')
+                print('Skipping clone of ', utils.filter_sensitive_data(relation['url']), 'as it was already present on disk and --dev-cache-repos was set')
             else:
-                print('Cloning ', relation['url'])
+                print('Cloning ', utils.filter_sensitive_data(relation['url']))
                 subprocess.run(
                     command,
                     check=True,
@@ -992,6 +992,20 @@ class ScenarioRunner:
         measurement_config['custom_metrics'] = self.__custom_metrics
         measurement_config['phase_padding'] = self._phase_padding_ms
 
+        params=(self._job_id, self._name, self._uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
+                self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
+                json.dumps(machine_specs), json.dumps(measurement_config),
+                json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
+                gmt_hash,
+                GlobalConfig().config['machine']['id'], self._user_id,
+        )
+
+        # general approach as it is better to maintain when we add new items
+        params = [
+            utils.filter_sensitive_data(item) if isinstance(item, str) else item
+            for item in params
+        ]
+
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
                 INSERT INTO runs (
@@ -1009,14 +1023,7 @@ class ScenarioRunner:
                     %s, %s, NOW()
                 )
                 RETURNING id
-                """, params=(
-                    self._job_id, self._name, self._uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
-                    self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
-                    json.dumps(machine_specs), json.dumps(measurement_config),
-                    json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
-                    gmt_hash,
-                    GlobalConfig().config['machine']['id'], self._user_id,
-                ))[0]
+                """, params=params)[0]
         return self._run_id
 
     def _import_metric_providers(self):

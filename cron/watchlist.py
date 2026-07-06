@@ -31,7 +31,7 @@ def schedule_watchlist_item():
     data = DB().fetch_all(query)
 
     for [item_id, name, repo_url, branch, filename, usage_scenario_variables, category_ids, carbon_simulation, machine_id, user_id, schedule_mode, last_marker, scheduled_today, scheduled_last_week] in data:
-        print(f"Watchlist item is on {schedule_mode} schedule", repo_url, branch, filename, machine_id)
+        print(f"Watchlist item is on {schedule_mode} schedule", utils.filter_sensitive_data(repo_url), branch, filename, machine_id)
 
         if schedule_mode == 'one-off':
             raise ValueError('Watchlist item with "one-off" schedule mode should never be in table!')
@@ -90,6 +90,8 @@ if __name__ == '__main__':
                 ORDER BY w.repo_url ASC
             """
             show_data = DB().fetch_all(show_query, fetch_mode='dict')
+            for row in show_data:
+                row['repo_url'] = utils.filter_sensitive_data(row['repo_url'])
             pp = pprint.PrettyPrinter(indent=4)
             pp.pprint(show_data)
 
