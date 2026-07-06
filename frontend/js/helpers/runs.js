@@ -211,7 +211,7 @@ async function getRepositories(sort_by = 'date') {
         const last_run = el[1];
         let uri_link = replaceRepoIcon(uri);
 
-        uri_link = `${uri_link} ${createExternalIconLink(uri)}`;
+        uri_link = `<span class="left-side-ellipsis long-ellipsis" title="${escapeString(uri)}">${uri_link}</span> ${createExternalIconLink(uri)}`;
 
         let row = table_body.insertRow()
         row.innerHTML = `
@@ -292,8 +292,9 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 title: '(<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.) Repo',
                 render: function(el, type, row) {
                     let uri_link = replaceRepoIcon(el);
+                    const ext_link = createExternalIconLink(el);
 
-                    uri_link = `${uri_link} ${createExternalIconLink(el)}`;
+                    uri_link = `<span class="left-side-ellipsis long-ellipsis" title="${escapeString(el)}">${uri_link}</span> ${ext_link}`;
                     const relations = parseRelations(row[13]);
                     const relationLinks = Object.values(relations)
                         .map((relation) => relation?.url)

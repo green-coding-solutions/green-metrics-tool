@@ -42,6 +42,7 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
                 AND machine_id = %s
                 AND end_measurement IS NOT NULL
                 AND failed != TRUE
+                AND archived != TRUE
             ORDER BY created_at DESC
             LIMIT %s
         ) SELECT

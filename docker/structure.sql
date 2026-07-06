@@ -143,7 +143,6 @@ VALUES (
             "skip_optimizations": false,
             "dev_no_container_dependency_collection": false,
             "allowed_volume_mounts": [],
-            "skip_unsafe": true,
             "dev_no_system_checks": false,
             "skip_volume_inspect": false,
             "total_duration": 86400,
@@ -244,11 +243,13 @@ VALUES
 (E'Development machine for testing', true);
 
 
+CREATE TYPE job_state AS ENUM ('WAITING', 'PAUSED', 'CANCELLED', 'FINISHED', 'FAILED', 'RUNNING');
+
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
     run_id uuid,
     type text,
-    state text,
+    state job_state NOT NULL DEFAULT 'WAITING',
     name text,
     email text,
     url text,

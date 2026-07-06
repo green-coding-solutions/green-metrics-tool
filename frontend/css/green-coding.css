@@ -682,7 +682,7 @@ a {
 }
 
 /* Detail names can get quite long. */
-.detail-name-ellipsis {
+.left-side-ellipsis {
   max-width: 150px;
   white-space: nowrap;
   overflow: hidden;
@@ -690,6 +690,11 @@ a {
   direction: rtl;
   display: block;
 }
+
+.left-side-ellipsis.long-ellipsis {
+  max-width: 400px;
+}
+
 /* Compare Mode Buttons */
 #compare-button {
     margin-right: 0px;

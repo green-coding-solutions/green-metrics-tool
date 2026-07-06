@@ -1,0 +1,15 @@
+name: Test Private Image Pull
+author: Test
+description: Tests that a private Docker Hub image can be pulled with stored credentials
+
+services:
+  test_service:
+    image: greencoding/simple-test
+
+flow:
+  - name: test
+    container: test_service
+    commands:
+      - type: console
+        command: echo "test"
+        note: test command

@@ -198,7 +198,7 @@ def test_post_run_add_non_existent_repo():
     response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
 
-    assert json.loads(response.text)['err'] == 'Could not find repository https://github.com/no-company-here/and-no-repo/ and branch main. Is the repo publicly accessible, not empty and does the branch main exist?'
+    assert json.loads(response.text)['err'] == 'Could not find repository https://github.com/no-company-here/and-no-repo/ and branch main. Is the repo publicly accessible, not empty and does the branch main exist? If this is a private repository, use the SSH URL (e.g. git@github.com:owner/repo.git) instead of the HTTPS URL, and configure an SSH key in your account settings.'
 
 def test_post_repo_with_auth():
     run_name = 'test_' + utils.randomword(12)
