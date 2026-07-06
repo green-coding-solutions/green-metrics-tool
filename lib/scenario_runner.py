@@ -11,8 +11,6 @@ from metric_providers.base import MetricProviderConfigurationError
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.secure_variable import SecureVariable
-from lib.venv_checker import check_venv
-check_venv() # this check must even run before __main__ as imports might not get resolved
 
 import subprocess
 import json
@@ -400,7 +398,7 @@ class ScenarioRunner:
 
         if self._uri_type == 'URL':
             if self._dev_cache_repos and self._repo_folder.exists() and self._repo_folder.is_dir() and any(self._repo_folder.iterdir()):
-                print('Skipping clone of ', self._uri, 'as it was already present on disk and --dev-cache-repos was set')
+                print('Skipping clone of ', utils.filter_sensitive_data(self._uri), 'as it was already present on disk and --dev-cache-repos was set')
             else:
                 self._initialize_folder(self._repo_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
 
@@ -419,7 +417,7 @@ class ScenarioRunner:
                 command.append(self._uri)
                 command.append(self._repo_folder.as_posix())
 
-                print('Cloning ', self._uri)
+                print('Cloning ', utils.filter_sensitive_data(self._uri))
                 subprocess.run(
                     command,
                     check=True,
@@ -495,9 +493,9 @@ class ScenarioRunner:
 
             # only skip checkout if switch active and files in dir present
             if self._dev_cache_repos and relation_path.exists() and relation_path.is_dir() and any(relation_path.iterdir()):
-                print('Skipping clone of ', relation['url'], 'as it was already present on disk and --dev-cache-repos was set')
+                print('Skipping clone of ', utils.filter_sensitive_data(relation['url']), 'as it was already present on disk and --dev-cache-repos was set')
             else:
-                print('Cloning ', relation['url'])
+                print('Cloning ', utils.filter_sensitive_data(relation['url']))
                 subprocess.run(
                     command,
                     check=True,
@@ -992,6 +990,20 @@ class ScenarioRunner:
         measurement_config['custom_metrics'] = self.__custom_metrics
         measurement_config['phase_padding'] = self._phase_padding_ms
 
+        params=(self._job_id, self._name, self._uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
+                self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
+                json.dumps(machine_specs), json.dumps(measurement_config),
+                json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
+                gmt_hash,
+                GlobalConfig().config['machine']['id'], self._user_id,
+        )
+
+        # general approach as it is better to maintain when we add new items
+        params = [
+            utils.filter_sensitive_data(item) if isinstance(item, str) else item
+            for item in params
+        ]
+
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
                 INSERT INTO runs (
@@ -1009,14 +1021,7 @@ class ScenarioRunner:
                     %s, %s, NOW()
                 )
                 RETURNING id
-                """, params=(
-                    self._job_id, self._name, self._uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
-                    self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
-                    json.dumps(machine_specs), json.dumps(measurement_config),
-                    json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
-                    gmt_hash,
-                    GlobalConfig().config['machine']['id'], self._user_id,
-                ))[0]
+                """, params=params)[0]
         return self._run_id
 
     def _import_metric_providers(self):
@@ -1942,7 +1947,7 @@ class ScenarioRunner:
         log_entry = {
             'type': log_type.value,
             'id': str(log_id),
-            'cmd': command_string,
+            'cmd': utils.filter_sensitive_data(command_string),
             'phase': phase
         }
 
@@ -1953,6 +1958,7 @@ class ScenarioRunner:
                 log_entry['stdout'] = stdout.decode('UTF-8', errors='replace').replace('\x00', '0x00')
             else:
                 log_entry['stdout'] = str(stdout).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
+            log_entry['stdout'] = utils.filter_sensitive_data(log_entry['stdout'])
         if stderr is not None:
             if isinstance(stderr, str):
                 log_entry['stderr'] = stderr.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
@@ -1960,6 +1966,7 @@ class ScenarioRunner:
                 log_entry['stderr'] = stderr.decode('UTF-8', errors='replace').replace('\x00', '0x00')
             else:
                 log_entry['stderr'] = str(stderr).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
+            log_entry['stderr'] = utils.filter_sensitive_data(log_entry['stderr'])
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:
