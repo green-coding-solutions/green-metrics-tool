@@ -52,7 +52,7 @@ const fetchSinglePhaseStats = async (run_id) => {
         const response = await makeAPICall(`/v1/phase_stats/single/${encodeURIComponent(run_id)}`);
         return response?.data || null;
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) return null;
+        if (err instanceof APIHTTPError && err.status === 204) return null;
         showNotification(`Could not load phase stats for run ${run_id}`, err);
         return null;
     }
@@ -331,10 +331,10 @@ const renderRunsOnY = (metricKeys, lookup) => {
             : escapeString(m.clean_name);
         const parts = [`<div>${nameLine}</div>`];
         if (compareSimpleState.showSource) {
-            parts.push(`<small class="detail-name-ellipsis" title="${escapeString(m.source)}">${escapeString(m.source)}</small>`);
+            parts.push(`<small class="left-side-ellipsis" title="${escapeString(m.source)}">${escapeString(m.source)}</small>`);
         }
         if (compareSimpleState.showDetail) {
-            parts.push(`<small class="detail-name-ellipsis" title="${escapeString(m.detail_name)}">${escapeString(m.detail_name)}</small>`);
+            parts.push(`<small class="left-side-ellipsis" title="${escapeString(m.detail_name)}">${escapeString(m.detail_name)}</small>`);
         }
         const header = parts.join('');
         columns.push({

@@ -4,7 +4,9 @@ import hashlib
 import json
 import pytest
 import random
+import tempfile
 import pandas
+from pathlib import Path
 
 from lib.db import DB
 from lib.global_config import GlobalConfig
@@ -18,6 +20,9 @@ from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSy
 from metric_providers.network.io.cgroup.container.provider import NetworkIoCgroupContainerProvider
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Dedicated, isolated folder for the metric providers built by the import_* helpers below.
+GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-test-functions-'))
 
 TEST_MEASUREMENT_CONTAINERS = {'bb0ea912f295ab0d8b671caf061929de9bb8b106128c071d6a196f9b6c05cd98': {'name': 'Arne'}, 'f78f0ca43069836d975f2bd4c45724227bbc71fc4788e60b33a77f1494cd2e0c': {'name': 'Not-Arne'}}
 
@@ -119,7 +124,7 @@ def insert_run(phases, *, uri='test-uri', branch='test-branch', filename='test-f
 
 def import_cpu_utilization_container(run_id):
 
-    obj = CpuUtilizationCgroupContainerProvider(99, folder='/tmp/green-metrics-tool', skip_check=True)
+    obj = CpuUtilizationCgroupContainerProvider(99, folder=GMT_METRICS_DIR, skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_utilization_cgroup_container.log')
 
@@ -133,7 +138,7 @@ def import_cpu_utilization_container(run_id):
 
 def import_cpu_utilization_system(run_id):
 
-    obj = CpuUtilizationCgroupSystemProvider(99, folder='/tmp/green-metrics-tool', skip_check=True)
+    obj = CpuUtilizationCgroupSystemProvider(99, folder=GMT_METRICS_DIR, skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_utilization_cgroup_system.log')
     df = obj.read_metrics()
@@ -145,7 +150,7 @@ def import_cpu_utilization_system(run_id):
 
 def import_machine_energy(run_id):
 
-    obj = PsuEnergyAcMcpMachineProvider(99, folder='/tmp/green-metrics-tool', skip_check=True)
+    obj = PsuEnergyAcMcpMachineProvider(99, folder=GMT_METRICS_DIR, skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/psu_energy_ac_mcp_machine.log')
     df = obj.read_metrics()
@@ -156,7 +161,7 @@ def import_machine_energy(run_id):
 
 def import_network_io_procfs(run_id, filename='network_io_procfs_system.log'):
 
-    obj = NetworkIoProcfsSystemProvider(99, folder='/tmp/green-metrics-tool', skip_check=True, remove_virtual_interfaces=False)
+    obj = NetworkIoProcfsSystemProvider(99, folder=GMT_METRICS_DIR, skip_check=True, remove_virtual_interfaces=False)
 
     obj._filename = os.path.join(CURRENT_DIR, f'data/metrics/{filename}')
     df = obj.read_metrics()
@@ -167,7 +172,7 @@ def import_network_io_procfs(run_id, filename='network_io_procfs_system.log'):
 
 def import_network_io_cgroup_container(run_id):
 
-    obj = NetworkIoCgroupContainerProvider(99, folder='/tmp/green-metrics-tool', skip_check=True)
+    obj = NetworkIoCgroupContainerProvider(99, folder=GMT_METRICS_DIR, skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_cgroup_container.log')
     df = obj.read_metrics()
@@ -178,7 +183,7 @@ def import_network_io_cgroup_container(run_id):
 
 def import_cpu_energy(run_id, filename='cpu_energy_rapl_msr_component.log'):
 
-    obj = CpuEnergyRaplMsrComponentProvider(99, folder='/tmp/green-metrics-tool', skip_check=True)
+    obj = CpuEnergyRaplMsrComponentProvider(99, folder=GMT_METRICS_DIR, skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, f"data/metrics/{filename}")
     df = obj.read_metrics()

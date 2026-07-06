@@ -542,7 +542,7 @@ const fetchMeasurements = async (runId) => {
         const measurements = await makeAPICall(`/v1/measurements/single/${safeRunId}`);
         return measurements?.data || [];
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             return [];
         }
         throw err;

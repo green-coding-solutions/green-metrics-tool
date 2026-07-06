@@ -225,7 +225,7 @@ async def update_watchlist(
     if not deleted:
         raise HTTPException(status_code=404, detail='Watchlist entry not found or not owned by user')
 
-    return CustomORJSONResponse({'success': True, 'deleted_id': deleted['id']}, status_code=202)
+    return CustomORJSONResponse({'success': True, 'deleted_id': deleted[0]}, status_code=202)
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v1/notes/{run_id}')

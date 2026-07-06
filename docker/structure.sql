@@ -112,7 +112,9 @@ VALUES (
                 "/v2/hog/add",
                 "/v2/hog/top_processes",
                 "/v2/hog/details",
-                "/v1/run/{run_id}"
+                "/v1/run/{run_id}",
+                "/v1/system-logs",
+                "/v1/system-log"
             ]
         },
         "data": {
@@ -141,7 +143,6 @@ VALUES (
             "skip_optimizations": false,
             "dev_no_container_dependency_collection": false,
             "allowed_volume_mounts": [],
-            "skip_unsafe": true,
             "dev_no_system_checks": false,
             "skip_volume_inspect": false,
             "total_duration": 86400,
@@ -273,6 +274,23 @@ CREATE TRIGGER jobs_moddatetime
 INSERT INTO "jobs"("type","state","name","email","url","branch","filename","usage_scenario_variables","category_ids","machine_id","message","user_id","created_at","updated_at")
 	VALUES
 	(E'run',E'FINISHED',E'This is a demo job - Please delete when you run in cluster mode',NULL,E'demo-url',E'demo-branch',E'demo-filename',E'{}',NULL,1,NULL,1,E'2025-10-03 07:57:29.829712+00',NULL);
+
+CREATE TABLE system_logs (
+    id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    title text NOT NULL,
+    message text NOT NULL,
+    level text NOT NULL DEFAULT 'error',
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    updated_at timestamp with time zone
+);
+
+CREATE INDEX system_logs_created_at_idx
+    ON system_logs (created_at DESC, id DESC);
+
+CREATE TRIGGER system_logs_moddatetime
+    BEFORE UPDATE ON system_logs
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
 
 CREATE TABLE runs (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
