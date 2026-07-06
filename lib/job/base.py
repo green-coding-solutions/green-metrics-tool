@@ -51,7 +51,7 @@ class Job(ABC):
 
     @abstractmethod
     def check_job_running(self):
-        pass
+        raise NotImplementedError
 
     def update_state(self, state):
         query_update = "UPDATE jobs SET state = %s WHERE id=%s"
@@ -81,14 +81,14 @@ class Job(ABC):
 
     @abstractmethod
     def _process(self, **kwargs):
-        pass
+        raise NotImplementedError
 
     # Concrete subclasses must implement this with whatever explicit, type-specific
     # parameters they need and delegate to _insert_row() with their own JOB_TYPE.
     @classmethod
     @abstractmethod
     def insert(cls, **kwargs):
-        pass
+        raise NotImplementedError
 
     @classmethod
     def _insert_row(cls, *, run_id=None, name=None, url=None, email=None, branch=None, commit_hash=None, filename=None, machine_id=None, usage_scenario_variables=None, category_ids=None, carbon_simulation=None, message=None, user_id):
