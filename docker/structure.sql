@@ -243,11 +243,13 @@ VALUES
 (E'Development machine for testing', true);
 
 
+CREATE TYPE job_state AS ENUM ('WAITING', 'PAUSED', 'CANCELLED', 'FINISHED', 'FAILED', 'RUNNING');
+
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
     run_id uuid,
     type text,
-    state text,
+    state job_state NOT NULL DEFAULT 'WAITING',
     name text,
     email text,
     url text,
