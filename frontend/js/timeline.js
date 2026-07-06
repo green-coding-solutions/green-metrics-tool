@@ -4,6 +4,9 @@ let repository_uri = null; // Store unescaped URI for URL construction
 window.onresize = function() { // set callback when ever the user changes the viewport
     chart_instances.forEach(chart_instance => {
         chart_instance.resize();
+        // graphic elements (changelog markers) are positioned in pixels, so they need
+        // to be redrawn whenever the chart's layout changes
+        renderChangelogChangeLines(chart_instance, chart_instance._changelogTotalDataPoints, chart_instance._changelogSegments);
     })
 }
 
@@ -300,7 +303,11 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     return api_url;
 }
 
-const buildClusterChangelogMarkLines = (clusterChangelog, timestamps) => {
+// Builds one segment per pair of neighbouring datapoints that a changelog entry falls between.
+// Positioning is resolved later against actual pixel coordinates (see renderChangelogChangeLines),
+// since a category axis always rounds fractional index/coord values onto a tick and can't place a
+// markLine "between" two points on its own.
+const buildClusterChangelogSegments = (clusterChangelog, timestamps) => {
     if (clusterChangelog == null || clusterChangelog.length === 0 || timestamps.length === 0) return [];
 
     const labelTimestamps = timestamps.map((timestamp, index) => ({
@@ -308,7 +315,7 @@ const buildClusterChangelogMarkLines = (clusterChangelog, timestamps) => {
         timestamp: new Date(timestamp).getTime(),
     })).filter((entry) => !Number.isNaN(entry.timestamp));
 
-    if (labelTimestamps.length === 0) return [];
+    if (labelTimestamps.length < 2) return [];
 
     const firstTimestamp = labelTimestamps[0].timestamp;
     const lastTimestamp = labelTimestamps[labelTimestamps.length - 1].timestamp;
@@ -320,31 +327,23 @@ const buildClusterChangelogMarkLines = (clusterChangelog, timestamps) => {
         if (Number.isNaN(changelogCreatedAt)) return;
         if (changelogCreatedAt < firstTimestamp || changelogCreatedAt > lastTimestamp) return;
 
-        let nearestLabel = labelTimestamps[labelTimestamps.length - 1];
-        labelTimestamps.some((label, index) => {
-            if (changelogCreatedAt < label.timestamp) {
-                nearestLabel = label;
-                return true;
-            }
-            return false;
-        });
+        // find the datapoint right before the change (leftLabel) and right after it (rightLabel)
+        // so the line can be placed between them instead of snapping onto the right one
+        let leftIndex = 0;
+        while (leftIndex < labelTimestamps.length - 2 && labelTimestamps[leftIndex + 1].timestamp <= changelogCreatedAt) {
+            leftIndex++;
+        }
+        const rightIndex = leftIndex + 1;
 
-        if (aggregatedEntries[nearestLabel.index] == undefined) {
-            aggregatedEntries[nearestLabel.index] = {
-                xAxis: nearestLabel.index,
+        if (aggregatedEntries[leftIndex] == undefined) {
+            aggregatedEntries[leftIndex] = {
+                leftIndex: labelTimestamps[leftIndex].index,
+                rightIndex: labelTimestamps[rightIndex].index,
                 messages: [],
-                lineStyle: {
-                    color: '#d17a22',
-                    type: 'dashed',
-                    width: 2
-                },
-                label: {
-                    show: false
-                }
             };
         }
 
-        aggregatedEntries[nearestLabel.index].messages.push(`${entry[1]} (${dateToYMD(new Date(entry[3]), false, true)})`);
+        aggregatedEntries[leftIndex].messages.push(`${entry[1]} (${dateToYMD(new Date(entry[3]), false, true)})`);
 
     });
 
@@ -367,6 +366,63 @@ const wrapTooltipText = (text, maxLength = 40) => {
 
     if (currentLine.length > 0) lines.push(currentLine);
     return lines.join('<br>');
+}
+
+// Draws the changelog markers as pixel-positioned graphic elements rather than a markLine,
+// since a category axis rounds any fractional xAxis/coord value onto the nearest tick and
+// can therefore never place a markLine visually between two datapoints.
+// Must be re-run whenever the chart's pixel layout changes (resize, dataZoom).
+const renderChangelogChangeLines = (chart_instance, totalDataPoints, segments) => {
+    if (segments == null || segments.length === 0) {
+        chart_instance.setOption({graphic: {elements: []}}, {replaceMerge: ['graphic']});
+        return;
+    }
+
+    const dataZoomOption = chart_instance.getOption().dataZoom?.[0];
+    const startIndex = dataZoomOption ? Math.floor(dataZoomOption.start / 100 * totalDataPoints) : 0;
+    const endIndex = dataZoomOption ? Math.ceil(dataZoomOption.end / 100 * totalDataPoints) - 1 : totalDataPoints - 1;
+
+    const gridRect = chart_instance.getModel().getComponent('grid').coordinateSystem.getRect();
+
+    const elements = [];
+    segments.forEach((segment, segmentIndex) => {
+        if (segment.rightIndex < startIndex || segment.leftIndex > endIndex) return; // fully outside the zoomed view
+
+        const leftPixel = chart_instance.convertToPixel({xAxisIndex: 0}, segment.leftIndex);
+        const rightPixel = chart_instance.convertToPixel({xAxisIndex: 0}, segment.rightIndex);
+        if (leftPixel == null || rightPixel == null) return;
+
+        const midX = (leftPixel + rightPixel) / 2;
+        const mergedMessages = segment.messages.map((message) => wrapTooltipText(escapeString(message))).join('</li><li>');
+
+        elements.push({
+            id: `changelog-marker-${segmentIndex}`,
+            type: 'group',
+            children: [
+                {
+                    type: 'line',
+                    silent: true,
+                    shape: {x1: midX, y1: gridRect.y, x2: midX, y2: gridRect.y + gridRect.height},
+                    style: {stroke: '#d17a22', lineWidth: 2, lineDash: [4, 4]},
+                },
+                {
+                    type: 'rect',
+                    cursor: 'pointer',
+                    shape: {x: midX - 5, y: gridRect.y, width: 10, height: gridRect.height},
+                    style: {fill: 'transparent'},
+                    tooltip: {
+                        formatter: () => `<strong>Cluster Change</strong><br>
+                            <ul style="margin-left: -20px">
+                            <li>${mergedMessages}</li>
+                            </ul>
+                        `
+                    },
+                }
+            ]
+        });
+    });
+
+    chart_instance.setOption({graphic: {elements}}, {replaceMerge: ['graphic']});
 }
 
 
@@ -505,34 +561,13 @@ const loadCharts = async () => {
             }
         }];
 
-        const clusterChangelogMarkLines = isMeasurementSorting ? buildClusterChangelogMarkLines(cluster_changelog_data, series[my_series].timestamps) : [];
-        if (clusterChangelogMarkLines.length > 0) {
-            data_series.push({
-                name: 'Cluster Changelog',
-                type: 'line',
-                smooth: false,
-                symbol: 'none',
-                data: [],
-                markLine: {
-                    symbol: ['none', 'none'],
-                    data: clusterChangelogMarkLines
-                }
-            });
-        }
+        const clusterChangelogSegments = isMeasurementSorting ? buildClusterChangelogSegments(cluster_changelog_data, series[my_series].timestamps) : [];
 
         let options = getLineBarChartOptions([], series[my_series].labels, data_series, 'Time', series[my_series].unit,  'category', null, false, null, true, false, true);
 
         options.tooltip = {
             triggerOn: 'click',
             formatter: function (params, ticket, callback) {
-                if (params.componentType === 'markLine' && params.seriesName === 'Cluster Changelog') {
-                    const mergedMessages = params.data.messages.map((message) => wrapTooltipText(escapeString(message))).join('</li><li>');
-                    return `<strong>Cluster Change</strong><br>
-                        <ul  style="margin-left: -20px">
-                        <li>${mergedMessages}</li>
-                        </ul>
-                    `;
-                }
                 if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
                 const repository_uri_encoded = repository_uri.split('/').map(encodeURIComponent).join('/');
                 const html_content = `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong> ${series[params.seriesName].notes[params.dataIndex].archived ? '<span class="ui orange label">Archived</span>' : ''}<br>
@@ -569,6 +604,13 @@ const loadCharts = async () => {
 
         chart_instance.setOption(options);
         chart_instances.push(chart_instance);
+
+        // stored on the instance so the resize handler (top of file) can redraw the changelog
+        // markers whenever the chart's pixel layout changes
+        chart_instance._changelogSegments = clusterChangelogSegments;
+        chart_instance._changelogTotalDataPoints = my_values.length;
+        renderChangelogChangeLines(chart_instance, my_values.length, clusterChangelogSegments);
+
         chart_instance.on('datazoom', function(e, f) {
             const data = chart_instance.getOption().series[0].data
             const dataZoomOption = chart_instance.getOption().dataZoom[0];
@@ -587,6 +629,8 @@ const loadCharts = async () => {
                 stddevSeries.markArea.data[0][1].yAxis = mean - stddev;
             }
             chart_instance.setOption(options)
+
+            renderChangelogChangeLines(chart_instance, chart_instance._changelogTotalDataPoints, chart_instance._changelogSegments);
         });
 
     }
