@@ -10,7 +10,8 @@ GMT_DIR = Path(CURRENT_DIR).parent.parent.as_posix()
 
 from lib.db import DB
 from lib import utils
-from lib.job.base import Job
+from lib.job.run import RunJob
+from lib.job.email_simple import EmailSimpleJob
 from lib.user import User
 from tests import test_functions as Tests
 
@@ -64,9 +65,9 @@ def test_insert_job():
     branch = 'main'
     machine_id = 1
 
-    job_id = Job.insert('run', user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
+    job_id = RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
     assert job_id is not None
-    job = Job.get_job('run')
+    job = RunJob.get_job()
     assert job._state == 'WAITING'
 
 def test_simple_run_job_no_quota():
@@ -78,7 +79,7 @@ def test_simple_run_job_no_quota():
     branch = 'main'
     machine_id = 1
 
-    Job.insert('run', user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
+    RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
 
     ps = subprocess.run(
             ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
@@ -103,7 +104,7 @@ def test_simple_run_job_quota_gets_deducted():
     branch = 'main'
     machine_id = 1
 
-    Job.insert('run', user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
+    RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
 
     user = User(1)
     user._capabilities['measurement']['quotas'] = {'1': 10_000 * 60} # typical quota is 10.000 minutes
@@ -134,7 +135,7 @@ def test_simple_run_job_with_variables():
     machine_id = 1
     usage_scenario_variables = {'__GMT_VAR_COMMAND__': 'stress-ng'}
 
-    Job.insert('run', user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id, usage_scenario_variables=usage_scenario_variables)
+    RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id, usage_scenario_variables=usage_scenario_variables)
 
     ps = subprocess.run(
             ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
@@ -150,15 +151,6 @@ def test_simple_run_job_with_variables():
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
-def test_simple_run_job_missing_filename_branch():
-    name = utils.randomword(12)
-    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
-    machine_id = 1
-
-    with pytest.raises(RuntimeError):
-        Job.insert('run', user_id=1, name=name, url=url, machine_id=machine_id)
-
-
 def test_simple_run_job_wrong_machine_id():
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
@@ -167,7 +159,7 @@ def test_simple_run_job_wrong_machine_id():
     machine_id = 100
 
     with pytest.raises(psycopg.errors.ForeignKeyViolation):
-        Job.insert('run', user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
+        RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
 
 def test_measurement_quota_exhausted():
     name = utils.randomword(12)
@@ -176,7 +168,7 @@ def test_measurement_quota_exhausted():
     branch = 'main'
     machine_id = 1
 
-    Job.insert('run', user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
+    RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
 
     user = User(1)
     user._capabilities['measurement']['quotas'] = {'1': 2678400}
@@ -199,7 +191,7 @@ def test_machine_not_allowed():
     filename = 'usage_scenario.yml'
     branch = 'main'
     machine_id = 1
-    Job.insert('run', user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
+    RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
 
     user = User(1)
     user._capabilities['machines'] = []
@@ -225,8 +217,7 @@ def todo_test_simple_email_job():
     email = 'fakeemailaddress'
     message = 'simple job'
 
-    Job.insert(
-        'email-simple',
+    EmailSimpleJob.insert(
         user_id=1,
         email=email,
         name=subject,

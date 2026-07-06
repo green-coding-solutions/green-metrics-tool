@@ -1,4 +1,5 @@
 import random
+import re
 import string
 import subprocess
 import os
@@ -7,6 +8,22 @@ from urllib.parse import urlparse
 from functools import cache
 from pathlib import Path
 
+# Matches the userinfo part of a URI that uses HTTP-AUTH, e.g. https://user:pass@host/path
+URI_CREDENTIALS_RE = re.compile(r'([a-zA-Z][a-zA-Z0-9+.\-]*://)[^\s/@:]+(?::[^\s/@]*)?@')
+
+# Matches PEM encoded private key blocks (RSA, EC, OPENSSH, DSA, generic, encrypted, ...)
+PRIVATE_KEY_RE = re.compile(r'-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----', re.DOTALL)
+
+REDACTED = '*****GMT-REDACTED*****'
+
+def filter_sensitive_data(text):
+    if not text:
+        return text
+    text = URI_CREDENTIALS_RE.sub(rf'\1{REDACTED}@', text)
+    text = PRIVATE_KEY_RE.sub(REDACTED, text)
+    return text
+
+# The above are defined before this import as lib.error_helpers imports them back from here (circular import)
 from lib import error_helpers
 from lib import host_platform
 from lib.db import DB

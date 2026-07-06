@@ -12,18 +12,38 @@ import os
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.job.base import Job
+from lib.job.email_report import EmailReportJob
 from lib.db import DB
 from lib.user import User
 from lib.terminal_colors import TerminalColors
 from lib.scenario_runner import ScenarioRunner
-import optimization_providers.base
-
 
 class RunJob(Job):
+    JOB_TYPE = 'run'
 
     def check_job_running(self):
-        query = "SELECT id FROM jobs WHERE type = 'run' AND state = 'RUNNING' AND machine_id = %s"
-        return DB().fetch_one(query, params=(self._machine_id, ))
+        query = "SELECT id FROM jobs WHERE type = %s AND state = 'RUNNING' AND machine_id = %s"
+        return DB().fetch_one(query, params=(self.JOB_TYPE, self._machine_id, ))
+
+    #pylint: disable=arguments-differ
+    @classmethod
+    def insert(cls, *, user_id, name, url, branch, filename, machine_id, email=None, commit_hash=None, usage_scenario_variables=None, category_ids=None, carbon_simulation=None):
+        if not branch or not url or not filename or not machine_id:
+            raise RuntimeError('For adding runs branch, url, filename and machine_id must be set')
+
+        return cls._insert_row(
+            user_id=user_id,
+            name=name,
+            url=url,
+            email=email,
+            commit_hash=commit_hash,
+            branch=branch,
+            filename=filename,
+            machine_id=machine_id,
+            usage_scenario_variables=usage_scenario_variables,
+            category_ids=category_ids,
+            carbon_simulation=carbon_simulation,
+        )
 
     #pylint: disable=arguments-differ
     def _process(self, docker_prune=False, full_docker_prune=False):
@@ -77,7 +97,9 @@ class RunJob(Job):
             # Start main code. Only URL is allowed for cron jobs
             self._run_id = runner.run()
 
-            # We need to import this here as we need the correct config file
+            # We need to import this here as we need the correct config file, and to avoid a circular
+            # import (optimization_providers.base imports api.scenario_runner, which imports RunJob)
+            import optimization_providers.base #pylint: disable=import-outside-toplevel
             print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
             optimization_providers.base.import_reporters()
             print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
@@ -85,8 +107,7 @@ class RunJob(Job):
 
 
             if self._email:
-                Job.insert(
-                    'email-report',
+                EmailReportJob.insert(
                     user_id=self._user_id,
                     email=self._email,
                     name=f"Measurement Job '{self._name}' successfully processed on Green Metrics Tool Cluster",
