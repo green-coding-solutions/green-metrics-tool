@@ -2,6 +2,7 @@ import os
 import subprocess
 import hashlib
 import json
+import math
 import pytest
 import random
 import tempfile
@@ -259,6 +260,31 @@ def import_demo_data_ee():
 
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"
+
+# Recursive, float-tolerant deep comparison.
+# Some values (e.g. the confidence interval `ci`) are derived from scipy.stats.t.ppf, whose
+# internal numerics drift in the last few significant digits between scipy releases. Comparing
+# the full nested compare-API payloads against the stored JSON fixtures with `==` therefore breaks
+# on harmless float rounding. This compares floats with a relative tolerance instead.
+def assert_deep_almost_equal(expected, actual, *, rel_tol=1e-9, abs_tol=1e-6, path=''):
+    if isinstance(expected, dict):
+        assert isinstance(actual, dict), f"{path or '<root>'}: expected dict, got {type(actual).__name__}"
+        assert expected.keys() == actual.keys(), f"{path or '<root>'}: keys differ: {set(expected) ^ set(actual)}"
+        for key in expected:
+            assert_deep_almost_equal(expected[key], actual[key], rel_tol=rel_tol, abs_tol=abs_tol, path=f"{path}.{key}")
+    elif isinstance(expected, (list, tuple)):
+        assert isinstance(actual, (list, tuple)), f"{path or '<root>'}: expected list, got {type(actual).__name__}"
+        assert len(expected) == len(actual), f"{path or '<root>'}: length {len(expected)} != {len(actual)}"
+        for idx, (exp_item, act_item) in enumerate(zip(expected, actual)):
+            assert_deep_almost_equal(exp_item, act_item, rel_tol=rel_tol, abs_tol=abs_tol, path=f"{path}[{idx}]")
+    # bools must match exactly and never be compared as numbers (False == 0.0 would otherwise pass)
+    elif isinstance(expected, bool) or isinstance(actual, bool):
+        assert type(expected) is type(actual) and expected == actual, f"{path}: {expected!r} != {actual!r}"
+    elif isinstance(expected, float) or isinstance(actual, float):
+        assert isinstance(expected, (int, float)) and isinstance(actual, (int, float)), f"{path}: {expected!r} != {actual!r}"
+        assert math.isclose(expected, actual, rel_tol=rel_tol, abs_tol=abs_tol), f"{path}: {expected} != {actual}"
+    else:
+        assert expected == actual, f"{path}: {expected!r} != {actual!r}"
 
 def check_if_container_running(container_name):
     ps = subprocess.run(
