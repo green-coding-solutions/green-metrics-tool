@@ -359,12 +359,12 @@ const wrapTooltipText = (text, maxLength = 40) => {
     for (const char of text) {
         currentLine += char;
         if (currentLine.length >= maxLength) {
-            lines.push(currentLine.substring(0, maxLength));
+            lines.push(escapeString(currentLine.substring(0, maxLength)));
             currentLine = currentLine.substring(maxLength);
         }
     }
 
-    if (currentLine.length > 0) lines.push(currentLine);
+    if (currentLine.length > 0) escapeString(lines.push(currentLine));
     return lines.join('<br>');
 }
 
@@ -393,7 +393,7 @@ const renderChangelogChangeLines = (chart_instance, totalDataPoints, segments) =
         if (leftPixel == null || rightPixel == null) return;
 
         const midX = (leftPixel + rightPixel) / 2;
-        const mergedMessages = segment.messages.map((message) => wrapTooltipText(escapeString(message))).join('</li><li>');
+        const mergedMessages = segment.messages.map((message) => wrapTooltipText(message)).join('</li><li>');
 
         elements.push({
             id: `changelog-marker-${segmentIndex}`,
