@@ -9,6 +9,7 @@ PyYAML==6.0.3
 anybadge==1.16.0
 orjson==3.11.9
 scipy==1.16.3
+psutil==7.2.2
 schema==0.7.8
 deepdiff==9.1.0
 redis==8.0.1
