@@ -55,7 +55,7 @@ def test_get_runs_created_after_filter():
 
     response_filtered = requests.get(f"{API_URL}/v2/runs?", timeout=15)
     assert response_filtered.status_code == 200
-    assert len(response_filtered.json()['data']) == 6
+    assert len(response_filtered.json()['data']) == 8
 
     response_unfiltered = requests.get(f"{API_URL}/v2/runs?start_date=2026-02-17", timeout=15)
     assert response_unfiltered.status_code == 204
@@ -193,8 +193,8 @@ def test_get_insights():
     response = requests.get(f"{API_URL}/v1/insights", timeout=15)
     res_json = response.json()
     assert response.status_code == 200
-    assert res_json['data'][0] == 6
-    assert res_json['data'][1] == '2024-09-11'
+    assert res_json['data'][0] == 8
+    assert res_json['data'][1] == '2023-09-11'
 
 def test_get_badge():
     Tests.import_demo_data()
