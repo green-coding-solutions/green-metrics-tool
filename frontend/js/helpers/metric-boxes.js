@@ -358,7 +358,7 @@ const updateKeyMetric = (
         // otherwise we just show an info of the aggregate and stddev has no meaning anymore so we just drop it
 
         if (display_mode != 'plain') {
-            valueNode.innerHTML = `Not compareable (<i class="window restore outline icon" title="This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)`;
+            valueNode.innerHTML = `Not comparable (<i class="window restore outline icon" title="This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)`;
             unitNode.innerHTML = '';
             typeNode.innerHTML = '';
             return;

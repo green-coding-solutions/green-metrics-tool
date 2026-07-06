@@ -667,8 +667,8 @@ class TestFrontendFunctionality:
         assert phase_duration.strip() == '+ 4.80 %'
         assert cpu_package_power.strip() == '+ 4.99 %'
         assert embodied_carbon.strip() == '+ 4.80 %'
-        assert network_traffic.strip() == 'Not compareable ()'
-        assert network_data.strip() == 'Not compareable ()'
+        assert network_traffic.strip() == 'Not comparable ()'
+        assert network_data.strip() == 'Not comparable ()'
 
         table = new_page.locator(
             "#runtime-steps > div.ui.bottom.attached.active.tab.segment "
@@ -732,7 +732,7 @@ class TestFrontendFunctionality:
         assert cell(table, 15, 8).inner_html().strip() == "g"
         assert cell(table, 15, 9).inner_html().strip() == "+ 9.05 %"
 
-    def test_repositories_compare_not_compareable_on_aggregate(self):
+    def test_repositories_compare_not_comparable_on_aggregate(self):
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
@@ -757,8 +757,8 @@ class TestFrontendFunctionality:
         network_data = new_page.locator('#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.segment div.ui.teal.card.network-data > div.extra.content span.value.bold').inner_html()
 
         assert machine_energy_value.strip() == '-4.62 %'
-        assert network_traffic == 'Not compareable (<i class="window restore outline icon" title="This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)'
-        assert network_data == 'Not compareable (<i class="window restore outline icon" title="This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)'
+        assert network_traffic == 'Not comparable (<i class="window restore outline icon" title="This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)'
+        assert network_data == 'Not comparable (<i class="window restore outline icon" title="This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)'
 
 
     def test_repositories_and_compare_repeated_run(self):
