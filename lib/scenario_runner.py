@@ -1949,7 +1949,7 @@ class ScenarioRunner:
         log_entry = {
             'type': log_type.value,
             'id': str(log_id),
-            'cmd': command_string,
+            'cmd': utils.filter_sensitive_data(command_string),
             'phase': phase
         }
 
@@ -1960,6 +1960,7 @@ class ScenarioRunner:
                 log_entry['stdout'] = stdout.decode('UTF-8', errors='replace').replace('\x00', '0x00')
             else:
                 log_entry['stdout'] = str(stdout).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
+            log_entry['stdout'] = utils.filter_sensitive_data(log_entry['stdout'])
         if stderr is not None:
             if isinstance(stderr, str):
                 log_entry['stderr'] = stderr.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
@@ -1967,6 +1968,7 @@ class ScenarioRunner:
                 log_entry['stderr'] = stderr.decode('UTF-8', errors='replace').replace('\x00', '0x00')
             else:
                 log_entry['stderr'] = str(stderr).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
+            log_entry['stderr'] = utils.filter_sensitive_data(log_entry['stderr'])
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:

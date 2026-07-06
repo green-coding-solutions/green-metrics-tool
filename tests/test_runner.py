@@ -1032,6 +1032,73 @@ def test_logs_null_byte_handling():
             if key in ('stdout', 'stderr'):
                 assert '\x00' not in value, f"Null bytes should be automatically cleaned: {repr(value)}"
 
+def test_checkout_failure_redacts_credentials_in_run_logs():
+    """A failed git clone/checkout stringifies CalledProcessError with the full argv (including
+    any credentialed URI), and that string is what run()'s exception handler feeds into
+    _add_to_current_run_log() as stderr. Verify the credentials are redacted before the entry
+    is persisted to runs.logs."""
+    run_name = 'test_' + utils.randomword(12)
+    credentialed_url = 'https://admin:s3cr3t@github.com/green-coding-solutions/this-repo-definitely-does-not-exist-ab12cd34'
+
+    runner = ScenarioRunner(
+        name=run_name,
+        uri=GMT_DIR,
+        uri_type='folder',
+        filename='tests/data/usage_scenarios/basic_stress.yml',
+        dev_no_container_dependency_collection=True,
+        skip_download_dependencies=True,
+        skip_optimizations=True,
+        dev_no_system_checks=True,
+        dev_cache_build=True,
+        dev_no_sleeps=True,
+        dev_no_metrics=True,
+        dev_no_phase_stats=True,
+        dev_no_save=False,
+    )
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('initialize_run')
+
+    assert runner._run_id is not None, 'run must be initialized in DB for this test to be meaningful'
+
+    # Reproduce exactly what a failed _checkout_repository()/_checkout_relations() produces:
+    # a subprocess.CalledProcessError whose str() embeds the full argv, credentials included.
+    try:
+        subprocess.run(
+            ['git', 'clone', '--depth', '1', '--single-branch', credentialed_url, '/tmp/this-should-not-be-created'],
+            check=True,
+            capture_output=True,
+            encoding='UTF-8',
+            errors='replace',
+            env=runner._get_git_environment(),
+        )
+        assert False, 'expected clone of a non-existent repository to fail'
+    except subprocess.CalledProcessError as exc:
+        # sanity check that the raw exception does in fact carry the credentials
+        assert 'admin' in str(exc) and 's3cr3t' in str(exc), Tests.assertion_info('credentials in str(exc)', str(exc))
+
+        runner._add_to_current_run_log(
+            container_name='[SYSTEM]',
+            log_type=LogType.EXCEPTION,
+            log_id=id(exc),
+            cmd='run_scenario',
+            phase='[RUNTIME]',
+            stderr=f"{str(exc)}\n\n{exc.stderr}",
+            stdout=exc.stdout,
+            exception_class=exc.__class__.__name__,
+        )
+
+    runner._save_run_logs()
+
+    logs = DB().fetch_one('SELECT logs FROM runs WHERE id = %s', params=(runner._run_id,))[0]
+    entry = logs['[SYSTEM]'][0]
+
+    assert 'admin' not in entry['cmd']
+    assert 'admin' not in entry['stderr']
+    assert 's3cr3t' not in entry['cmd']
+    assert 's3cr3t' not in entry['stderr']
+    assert '*****GMT-REDACTED*****' in entry['stderr']
+
 def test_logs_invalid_character_handling():
     """Test that invalid UTF-8 character in logs are automatically replaced"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs_with_invalid_character.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
