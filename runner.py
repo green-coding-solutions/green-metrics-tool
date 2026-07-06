@@ -19,6 +19,7 @@ GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.scenario_runner import ScenarioRunner
 from lib import error_helpers
+from lib import utils
 from lib.terminal_colors import TerminalColors
 from lib.db import DB
 from lib.global_config import GlobalConfig
@@ -96,7 +97,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://' or args.uri[0:6] == 'ssh://' or args.uri[0:4] == 'git@':
-        print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', args.uri, TerminalColors.ENDC)
+        print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', utils.filter_sensitive_data(args.uri), TerminalColors.ENDC)
         run_type = 'URL'
     elif Path(args.uri).is_dir():
         print(TerminalColors.OKBLUE, '\nDetected supplied folder: ', args.uri, TerminalColors.ENDC)

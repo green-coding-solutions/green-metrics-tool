@@ -127,6 +127,24 @@ def test_run_schedule_watchlist_item_update_commit():
     assert watchlist_item_db['last_marker'] == GMT_LAST_COMMIT_HASH
 
 
+def test_run_schedule_daily_redacts_credentials_in_stdout(capsys):
+    watchlist_item_modified = WATCHLIST_ITEM.copy()
+    watchlist_item_modified['repo_url'] = 'https://admin:s3cr3t@github.com/green-coding-solutions/green-metrics-tool'
+
+    Watchlist.insert(**watchlist_item_modified)
+    schedule_watchlist_item()
+
+    captured = capsys.readouterr()
+    assert 'admin' not in captured.out
+    assert 's3cr3t' not in captured.out
+    assert '*****GMT-REDACTED*****' in captured.out
+
+    # the DB copy must stay usable so the cluster worker can actually clone the repo later
+    jobs = get_jobs()
+    assert len(jobs) == 1
+    assert jobs[0]['url'] == watchlist_item_modified['repo_url']
+
+
 def test_run_schedule_watchlist_item_non_existing_branch():
     watchlist_item_modified = WATCHLIST_ITEM.copy()
     watchlist_item_modified['branch'] = 'non-existing-branch-for-testing'

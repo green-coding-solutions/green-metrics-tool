@@ -9,6 +9,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.db import DB
 from lib import utils
+from lib.job.run import RunJob
 from lib import metric_importer
 from lib.global_config import GlobalConfig
 from lib.phase_stats import build_and_store_phase_stats
@@ -65,6 +66,24 @@ def test_get_runs_created_after_filter():
     assert response_filtered.status_code == 200
     assert len(response_filtered.json()['data']) == 1
 
+
+def test_get_jobs_redacts_url_credentials():
+    run_name = 'test_' + utils.randomword(12)
+    credentialed_url = 'https://admin:s3cr3t@github.com/green-coding-solutions/green-metrics-tool'
+
+    job_id = RunJob.insert(user_id=1, name=run_name, url=credentialed_url, branch='main', filename='usage_scenario.yml', machine_id=1)
+
+    response = requests.get(f"{API_URL}/v2/jobs?job_id={job_id}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    data = response.json()['data']
+    assert data[0][0] == job_id
+    assert 'admin' not in data[0][3]
+    assert 's3cr3t' not in data[0][3]
+    assert '*****GMT-REDACTED*****' in data[0][3]
+
+    # the DB copy must stay usable so the cluster worker can actually clone the repo later
+    raw_url = DB().fetch_one('SELECT url FROM jobs WHERE id = %s', params=(job_id,))[0]
+    assert raw_url == credentialed_url
 
 def test_compare_valid():
     Tests.import_demo_data()

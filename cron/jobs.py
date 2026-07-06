@@ -12,7 +12,9 @@ import argparse
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib import error_helpers
-from lib.job.base import Job
+from lib.job.run import RunJob
+from lib.job.email import EmailJob
+from lib.job.email_simple import EmailSimpleJob
 from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
 from lib.system_checks import ConfigurationCheckError
@@ -25,6 +27,11 @@ from lib.db import DB
 
     After 14 days all FAILED and NOTIFIED jobs will be deleted.
 """
+
+JOB_TYPE_CLASSES = {
+    'run': RunJob,
+    'email': EmailJob, # abstract family covering email-simple, email-report, ...
+}
 
 
 if __name__ == '__main__':
@@ -49,7 +56,7 @@ if __name__ == '__main__':
                 sys.exit(1)
             GlobalConfig(config_location=args.config_override)
 
-        job_main = Job.get_job(args.type)
+        job_main = JOB_TYPE_CLASSES[args.type].get_job()
         if not job_main:
             print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'No job to process. Exiting')
             sys.exit(0)
@@ -65,8 +72,7 @@ if __name__ == '__main__':
 
             # reduced error message to client, but only if no ConfigurationCheckError
             if job_main._email and not isinstance(exc, ConfigurationCheckError):
-                Job.insert(
-                    'email-simple',
+                EmailSimpleJob.insert(
                     user_id=job_main._user_id,
                     email=job_main._email,
                     name='Measurement Job on Green Metrics Tool Cluster failed',
