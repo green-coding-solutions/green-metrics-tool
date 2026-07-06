@@ -11,8 +11,6 @@ from metric_providers.base import MetricProviderConfigurationError
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.secure_variable import SecureVariable
-from lib.venv_checker import check_venv
-check_venv() # this check must even run before __main__ as imports might not get resolved
 
 import subprocess
 import json

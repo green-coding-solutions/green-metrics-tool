@@ -18,7 +18,6 @@ from lib.user import User
 from lib.terminal_colors import TerminalColors
 from lib.scenario_runner import ScenarioRunner
 
-
 class RunJob(Job):
     JOB_TYPE = 'run'
 
