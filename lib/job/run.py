@@ -23,8 +23,8 @@ class RunJob(Job):
     JOB_TYPE = 'run'
 
     def check_job_running(self):
-        query = "SELECT id FROM jobs WHERE type = 'run' AND state = 'RUNNING' AND machine_id = %s"
-        return DB().fetch_one(query, params=(self._machine_id, ))
+        query = "SELECT id FROM jobs WHERE type = %s AND state = 'RUNNING' AND machine_id = %s"
+        return DB().fetch_one(query, params=(self.JOB_TYPE, self._machine_id, ))
 
     #pylint: disable=arguments-differ
     @classmethod
