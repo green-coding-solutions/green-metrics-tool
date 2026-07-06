@@ -477,7 +477,7 @@ class TestFrontendFunctionality:
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
         with context.expect_page() as new_page_info:
-            page.get_by_role("link", name="Stress Test #4").click()
+            page.get_by_role("link", name="Stress Test #2").click()
 
         # Get the new page (tab)
         new_page = new_page_info.value
@@ -510,15 +510,15 @@ class TestFrontendFunctionality:
         # Network I/O
         assert cell(table, 7, 1).text_content().strip() == "Network I/O"
         assert cell(table, 7, 6).text_content().strip() == "0.07"
-        assert cell(table, 7, 6).inner_html().strip() == '<span title="69667 Bytes/s">0.07</span>'
+        assert cell(table, 7, 6).inner_html().strip() == '<span title="72252 Bytes/s">0.07</span>'
         assert cell(table, 7, 7).text_content().strip() == "MB/s"
         assert cell(table, 7, 4).text_content().strip() == "gcb-alpine-stress"
 
         # Network Traffic
         assert cell(table, 8, 1).text_content().strip() == "Network Traffic"
         assert cell(table, 8, 4).text_content().strip() == "gcb-alpine-stress"
-        assert cell(table, 8, 6).text_content().strip() == "0.35"
-        assert cell(table, 8, 6).inner_html().strip() == '<span title="353798 Bytes">0.35</span>'
+        assert cell(table, 8, 6).text_content().strip() == "0.37"
+        assert cell(table, 8, 6).inner_html().strip() == '<span title="367256 Bytes">0.37</span>'
 
     def test_stats_hidden_run(self):
 
