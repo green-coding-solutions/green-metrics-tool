@@ -131,10 +131,31 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
         machine_energy_current_phase = None
 
         select_query = """
-            WITH lag_table as (
-                SELECT time, value, (time - LAG(time) OVER (ORDER BY time ASC)) AS diff
+            WITH in_range AS (
+                SELECT time, value
                 FROM measurement_values
-                WHERE measurement_metric_id = %s AND time > %s and time < %s
+                WHERE measurement_metric_id = %s
+                  AND time > %s
+                  AND time < %s
+            ),
+            next_one AS (
+                SELECT time, value
+                FROM measurement_values
+                WHERE measurement_metric_id = %s
+                  AND time >= %s          -- same upper bound as above
+                ORDER BY time ASC
+                LIMIT 1
+            ),
+            lag_table as (
+                SELECT
+                    time,
+                    value,
+                    (time - LAG(time) OVER (ORDER BY time ASC)) AS diff
+                FROM (
+                    SELECT time, value FROM in_range
+                    UNION ALL
+                    SELECT time, value FROM next_one
+                )
                 ORDER BY time ASC
             )
             SELECT
@@ -161,7 +182,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
 
         for measurement_metric_id, metric, unit, detail_name in metrics:
-            params = (measurement_metric_id, phase['start'], phase['end'])
+            params = (measurement_metric_id, phase['start'], phase['end'], measurement_metric_id, phase['end'])
             results = DB().fetch_one(select_query, params=params)
 
             if metric not in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', 'carbon_intensity_static_machine'):
@@ -184,7 +205,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
         # now we go through all metrics in the run and aggregate them
         for measurement_metric_id, metric, unit, detail_name in metrics: # unpack
-            params = (measurement_metric_id, phase['start'], phase['end'])
+            params = (measurement_metric_id, phase['start'], phase['end'], measurement_metric_id, phase['end'])
             results = DB().fetch_one(select_query, params=params)
 
             value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p = results
