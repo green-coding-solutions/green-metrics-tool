@@ -252,7 +252,7 @@ def test_docker_pull_private_image_via_db_credentials():
     branch = 'main'
     machine_id = 1
 
-    job_id = Job.insert('run', user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
+    job_id = RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
 
     # Store credentials encrypted in the DB — this is what the API endpoint does
     User(1).update_docker_credentials([{
