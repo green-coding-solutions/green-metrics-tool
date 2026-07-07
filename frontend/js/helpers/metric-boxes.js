@@ -91,6 +91,7 @@ customElements.define('phase-metrics', PhaseMetrics);
     TODO: Include one sided T-test?
 */
 const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, detail_data, comparison_case)  => {
+    let display_mode = 'plain';
     let max_value = '-'
     if (detail_data.max != null) {
         const [max,max_unit] = convertValue(detail_data.max, metric_data.unit);
@@ -120,6 +121,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
     if(detail_data.stddev == 0) std_dev_text = std_dev_text_table = `± 0.00%`;
     else if(detail_data.stddev != null) {
         std_dev_text = std_dev_text_table = `± ${((detail_data.stddev/detail_data.mean)*100).toFixed(2)}%`
+        display_mode = 'std_dev';
     }
 
     let scope = metric_name.split('_')
@@ -168,7 +170,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
 
 
     updateKeyMetric(
-        phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
+        display_mode, phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
         transformed_value.toFixed(2) , std_dev_text, transformed_unit, detail_data.mean, metric_data.unit,
         getPretty(metric_name, 'explanation'), getPretty(metric_name, 'source')
     );
@@ -180,6 +182,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
 */
 const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, detail_data_array, is_significant)  => {
 
+    const display_mode = 'compare';
     // no max, we use significant rather
     const extra_label = (is_significant == true) ? 'Significant' : 'not significant / no-test';
 
@@ -224,7 +227,7 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
         <td>${extra_label}</td>`;
 
     updateKeyMetric(
-        phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
+        display_mode, phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
         relative_difference, '', transformed_unit, null, null,
         getPretty(metric_name, 'explanation'), getPretty(metric_name, 'source')
     );
@@ -268,7 +271,7 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
 }
 
 const updateKeyMetric = (
-    phase, metric_name, clean_name, detail_name,
+    display_mode, phase, metric_name, clean_name, detail_name,
     value, std_dev_text, unit, raw_value, raw_unit,
     explanation, source
 ) => {
@@ -310,7 +313,7 @@ const updateKeyMetric = (
     } else if (gpu_power_metric_condition(metric_name)) {
         selector = '.gpu-power';
     } else if (disk_carbon_metric_condition(metric_name)) {
-        selector = '.disk-power';
+        selector = '.disk-carbon';
     } else if (disk_energy_metric_condition(metric_name)) {
         selector = '.disk-energy';
     } else if (disk_power_metric_condition(metric_name)) {
@@ -337,41 +340,81 @@ const updateKeyMetric = (
 
     const card = document.querySelector(`div.tab[data-tab='${phase}'] ${selector}`);
 
-    console.log(card, `div.tab[data-tab='${phase}'] ${selector}`);
-
     if (card == null) {
         console.warn(`No card found for selector "${selector}" in phase "${phase}"`);
         return;
     }
 
     const valueNode = card.querySelector('.value');
-    valueNode.innerText = `${value} ${std_dev_text}`;
-    if (raw_value != null && raw_unit != null){
-        // this check can be improved in the future once we see missing tooltips to only skip
-        // if a "repeated run" comparison is done, as this is the only case where we want no tooltips
-        valueNode.setAttribute('title', `${raw_value} [${raw_unit}]`);
-    }
-
     const unitNode = card.querySelector('.si-unit');
-    if (unitNode) unitNode.innerText = unit;
-
     const typeNode = card.querySelector('.metric-type');
-
-    if(std_dev_text != ''){
-        if (typeNode) typeNode.innerText = `(AVG + STD.DEV)`;
-    } else {
-        if(String(value).indexOf('%') !== -1) {
-            if (typeNode) typeNode.innerText = `(Diff. in %)`;
-        }
-    }
-
-    const helpNode = card.querySelector('.help');
-    if (helpNode) helpNode.setAttribute('data-tooltip', explanation || 'No data available');
-
     const metricNameNode = card.querySelector('.metric-name');
-    if (metricNameNode) metricNameNode.innerText = clean_name || '';
-
     const sourceNode = card.querySelector('.source');
-    if (sourceNode) sourceNode.innerText = `via ${source}` || '';
+    const helpNode = card.querySelector('.help');
 
+    if (valueNode.innerText != 'N/A') {
+        // we found this card before, this means we need to add up the values
+        // if we encounter a mis-match in units etc. we fail with a warning
+        // otherwise we just show an info of the aggregate and stddev has no meaning anymore so we just drop it
+
+        if (display_mode != 'plain') {
+            valueNode.innerHTML = `Not comparable (<i class="window restore outline icon" title="This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)`;
+            unitNode.innerHTML = '';
+            typeNode.innerHTML = '';
+            return;
+        }
+
+        if (
+            unitNode.innerText !== unit
+        ) {
+            valueNode.innerHTML = `Aggregate failure (<i class="window restore outline icon" title="The unit of the aggregate has changed. This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)`
+            unitNode.innerHTML = '';
+            typeNode.innerHTML = '';
+            return;
+        }
+
+        const cleanedValue = valueNode.innerText.replace(/[^0-9.]/g, '');
+        let total = (parseFloat(cleanedValue) + parseFloat(value))
+
+        if (Number.isNaN(total)) { // can happen when "not comparable" as we are in compare mode and a certain network provider does not exist
+            total = "Not comparable";
+        } else {
+            total = total.toFixed(2);
+        }
+
+        valueNode.innerHTML = `${total} (<i class="window restore outline icon" title="This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)`
+
+        if (display_mode != 'std_dev') {
+            const cleanedRawValue = valueNode.getAttribute('title').replace(/[^0-9.]/g, '');
+            const rawTotal = (parseFloat(cleanedRawValue) + parseFloat(raw_value))
+            valueNode.setAttribute('title', `${rawTotal} [${raw_unit}]`);
+        }
+
+
+    } else {
+        // this is the first time we encounter this card for this phase, so we need to fill the auxillary
+        // fields like unit etc.
+
+        valueNode.innerText = `${value} ${std_dev_text}`;
+
+        if (display_mode != 'std_dev') {
+            valueNode.setAttribute('title', `${raw_value} [${raw_unit}]`);
+        }
+
+        if (unitNode) unitNode.innerText = unit;
+
+        if(std_dev_text != ''){
+            if (typeNode) typeNode.innerText = `(AVG + STD.DEV)`;
+        } else {
+            if(String(value).indexOf('%') !== -1) {
+                if (typeNode) typeNode.innerText = `(Diff. in %)`;
+            }
+        }
+
+        if (helpNode) helpNode.setAttribute('data-tooltip', explanation || 'No data available');
+
+        if (metricNameNode) metricNameNode.innerText = clean_name || '';
+
+        if (sourceNode) sourceNode.innerText = `via ${source}` || '';
+    }
 };

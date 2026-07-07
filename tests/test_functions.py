@@ -305,6 +305,7 @@ def reset_db():
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+    DB().shutdown()
 
 class RunUntilManager:
     def __init__(self, runner):
