@@ -2,7 +2,7 @@ UPDATE users
 SET capabilities = jsonb_set(
     capabilities,
     '{user,updateable_settings}',
-    (SELECT jsonb_agg(elem)
+    (SELECT jsonb_agg(COALESCE(elem, '[]'::jsonb))
      FROM jsonb_array_elements(capabilities->'user'->'updateable_settings') elem
      WHERE elem != '"measurement.phase_padding"'::jsonb)
 )
