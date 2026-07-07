@@ -140,7 +140,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             SELECT
                 SUM(value), MAX(value), MIN(value),
                 AVG(value), -- This would be the normal average. we only use that when there is less than three values available and we cannot build a weighted average
-                (SUM(value*diff))::DOUBLE PRECISION/(SUM(diff)), -- weighted average -- we are missing the first row, which is NULL by concept. We could estimate it with an AVG, but this would increase complexity of this query as well as create fake values in case of network, where we cannot assume that the value before the first measurement is linearly extraploateable. thus we do skip it
+                (SUM(value*diff::DOUBLE PRECISION))/(SUM(diff)), -- weighted average -- we are missing the first row, which is NULL by concept. We could estimate it with an AVG, but this would increase complexity of this query as well as create fake values in case of network, where we cannot assume that the value before the first measurement is linearly extraploateable. thus we do skip it
 
                 -- these are only a true derivate if value is already a difference, which is the case for energy values and for _io_ providers or any other that outputs increments instead of totals
                 -- using the derivative for other providers makes no sense atm
