@@ -91,68 +91,70 @@ def test_provider_disabling_working():
     # or check bc in linux / macos there is a different result set of configured providers
     assert providers == ['psu_energy_ac_sdia_machine', 'cpu_utilization_mach_system', 'psu_energy_ac_xgboost_machine', 'carbon_intensity_static_machine'] or providers == ['disk_used_statvfs_system', 'network_io_procfs_system', 'memory_used_procfs_system', 'psu_energy_ac_sdia_machine', 'cpu_utilization_procfs_system', 'psu_energy_ac_xgboost_machine', 'carbon_intensity_static_machine'], 'Network Connections provider still in configured_metric_providers' #pylint: disable=consider-using-in
 
-def test_phase_padding_inactive():
+def test_phase_padding():
     out = io.StringIO()
     err = io.StringIO()
 
-    filtered_options = {k: v for k, v in QUICK_OPTIONS.items() if k not in ('dev_no_save', ) }
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/noop.yml', phase_padding=False, **filtered_options)
+    EXPECTED_PHASE_NUMBER = 5
+
+    filtered_options = {k: v for k, v in QUICK_OPTIONS.items() if k not in ('dev_no_save', 'dev_no_metrics', 'dev_no_phase_stats') }
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/noop.yml', **filtered_options)
 
     with redirect_stdout(out), redirect_stderr(err):
         run_id = runner.run()
 
     assert '>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<' in out.getvalue()
+
+    query = 'SELECT phases from runs WHERE id = %s '
+    phases = DB().fetch_one(query, (run_id,), fetch_mode='dict')
+
+    assert phases['phases'][EXPECTED_PHASE_NUMBER]['name'] == 'Testing Noop'
+    phase = phases['phases'][EXPECTED_PHASE_NUMBER]
+
     query = """
-            SELECT
-                time, note
-            FROM
-                notes
+            SELECT mv.value from measurement_metrics as mm
+            LEFT JOIN measurement_values mv on mv.measurement_metric_id = mm.id
             WHERE
-                run_id = %s
-            ORDER BY
-                time
+                mm.run_id = %s
+                AND mm.metric = 'psu_energy_ac_xgboost_machine'
+                AND mm.detail_name = '[MACHINE]'
+                AND mv.time > %s
+                AND mv.time < %s
+            ORDER BY mv.time ASC
             """
 
-    notes = DB().fetch_all(query, (run_id,))
+    metrics = DB().fetch_all(query, (run_id, phase['start'], phase['end']))
 
-    # we count the array from the end as depending on if the test is executed alone or in conjunction with other tests 'alpine' will get pulled and produce a note at the beginning that extends the notes
-    assert notes[-6][1] == 'Starting phase Testing Noop'
-    assert notes[-5][1] == 'Ending phase Testing Noop [UNPADDED]'
-    assert notes[-4][1] == 'Ending phase [RUNTIME] [UNPADDED]' # this implictely means we have no PADDED entries
-    assert notes[-4][0] > notes[-5][0] - 300 # end times of reconstructed runtime and last sub-runtime are very close, but not exact, bc we only reconstruct phase_stats but not measurements table. 300 microseconds is a good cutoff
-
-def test_phase_padding_active():
-    out = io.StringIO()
-    err = io.StringIO()
-
-    filtered_options = {k: v for k, v in QUICK_OPTIONS.items() if k not in ('dev_no_save', ) }
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/noop.yml', phase_padding=True, **filtered_options)
-
-    with redirect_stdout(out), redirect_stderr(err):
-        run_id = runner.run()
-
-    assert '>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<' in out.getvalue()
     query = """
-            SELECT
-                time, note
-            FROM
-                notes
+            SELECT mv.value from measurement_metrics as mm
+            LEFT JOIN measurement_values mv on mv.measurement_metric_id = mm.id
             WHERE
-                run_id = %s
-            ORDER BY
-                time
+                mm.run_id = %s
+                AND mm.metric = 'psu_energy_ac_xgboost_machine'
+                AND mm.detail_name = '[MACHINE]'
+                AND mv.time >= %s
+            ORDER BY mv.time ASC
+            LIMIT 1
             """
 
-    notes = DB().fetch_all(query, (run_id,))
+    value_next_tick = DB().fetch_one(query, (run_id, phase['end']))[0]
 
-    # we count the array from the end as depending on if the test is executed alone or in conjunction with other tests 'alpine' will get pulled and produce a note at the beginning that extends the notes
-    assert notes[-9][1] == 'Starting phase Testing Noop'
-    assert notes[-8][1] == 'Ending phase Testing Noop [UNPADDED]'
-    assert notes[-7][1] == 'Ending phase Testing Noop [PADDED]'
-    FROM_MS_TO_US = 1000
-    assert notes[-7][0] - notes[-8][0] == runner._phase_padding_ms*FROM_MS_TO_US
+    metrics_sum_no_padding = 0
+    for el in metrics:
+        metrics_sum_no_padding += el[0]
 
-    assert notes[-6][1] == 'Ending phase [RUNTIME] [UNPADDED]'
+    query = """
+            SELECT value FROM phase_stats
+            WHERE run_id = %s
+            AND metric = 'psu_energy_ac_xgboost_machine'
+            AND detail_name = '[MACHINE]'
+            AND phase = %s
+            """
+
+    phase_stats = DB().fetch_all(query, (run_id, f"00{EXPECTED_PHASE_NUMBER}_{phase['name']}"))
+    assert len(phase_stats) == 1
+
+    assert phase_stats[0][0] == metrics_sum_no_padding + value_next_tick
 
 
 def test_invalid_category():
