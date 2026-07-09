@@ -29,6 +29,7 @@ from lib.user import User
 from lib.watchlist import Watchlist
 from lib import utils
 from lib import error_helpers
+from lib.encryption import EncryptionConfigurationError
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -956,7 +957,13 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
         try:
             utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
         except Exception as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(status_code=422, detail=utils.filter_sensitive_data(str(exc))) from exc
+
+    unencrypted_repo_url = software.repo_url
+    try:
+        software.repo_url = utils.encrypt_uri_credentials(software.repo_url)
+    except EncryptionConfigurationError as exc:
+        raise HTTPException(status_code=422, detail='Cannot store URL credentials: encryption is not configured on this server') from exc
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 
@@ -964,12 +971,12 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
         if not no_url_check:
             try:
                 if 'tag' in software.schedule_mode:
-                    last_marker = utils.get_repo_last_marker(software.repo_url, 'tags')
+                    last_marker = utils.get_repo_last_marker(unencrypted_repo_url, 'tags')
 
                 if 'commit' in software.schedule_mode:
-                    last_marker = utils.get_repo_last_marker(software.repo_url, 'commits')
+                    last_marker = utils.get_repo_last_marker(unencrypted_repo_url, 'commits')
             except RuntimeError as exc:
-                raise HTTPException(status_code=422, detail=str(exc)) from exc
+                raise HTTPException(status_code=422, detail=utils.filter_sensitive_data(str(exc))) from exc
 
         Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 

@@ -136,7 +136,7 @@ $(document).ready(function () {
             columns: [
                 { data: 0, title: 'ID'},
                 { data: 2, title: 'Name', render: (name, type, row) => row[1] == null ? escapeString(name) : `<a href="/stats.html?id=${row[1]}">${escapeString(name)}</a>`  },
-                { data: 3, title: 'Url', render: (el) => escapeString(el)},
+                { data: 3, title: 'Url', render: (el) => `<span class="left-side-ellipsis long-ellipsis" title="${escapeString(el)}">${escapeString(el)}</span>`},
                 {
                     data: 4,
                     title: 'Filename',

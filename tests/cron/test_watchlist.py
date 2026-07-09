@@ -145,16 +145,26 @@ def test_run_schedule_daily_redacts_credentials_in_stdout(capsys):
     assert jobs[0]['url'] == watchlist_item_modified['repo_url']
 
 
-def test_run_schedule_watchlist_item_non_existing_branch():
+def test_run_schedule_watchlist_item_non_existing_branch(capsys):
     watchlist_item_modified = WATCHLIST_ITEM.copy()
     watchlist_item_modified['branch'] = 'non-existing-branch-for-testing'
     watchlist_item_modified['schedule_mode'] = 'commit'
     watchlist_item_modified['last_marker'] = 'dummy'
 
-
     Watchlist.insert(**watchlist_item_modified)
-    with pytest.raises(RuntimeError):
-        schedule_watchlist_item()
+
+    # A single unresolvable watchlist item (e.g. a deleted branch) must be logged and skipped,
+    # not raise and abort the scheduling pass for every other watchlist item.
+    schedule_watchlist_item()
+
+    jobs = get_jobs()
+    assert len(jobs) == 0 # no job may be scheduled off an unresolvable branch
+
+    watchlist_item_db = utils.get_watchlist_item(watchlist_item_modified['repo_url'])
+    assert watchlist_item_db['last_marker'] == 'dummy' # must remain untouched, not advanced
+
+    captured = capsys.readouterr()
+    assert 'Could not determine last commit marker for watchlist item. Skipping.' in captured.err
 
 ## helpers
 

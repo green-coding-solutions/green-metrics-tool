@@ -49,7 +49,11 @@ def schedule_watchlist_item():
                 RunJob.insert(user_id=user_id, name=name, url=repo_url, branch=branch, filename=filename, usage_scenario_variables=usage_scenario_variables, category_ids=category_ids, carbon_simulation=carbon_simulation, machine_id=machine_id)
                 print('\tInserted')
         elif schedule_mode in ['tag', 'tag-variance']:
-            last_marker_new = utils.get_repo_last_marker(repo_url, 'tags')
+            try:
+                last_marker_new = utils.get_repo_last_marker(repo_url, 'tags')
+            except RuntimeError as exc:
+                error_helpers.log_error('Could not determine last tag marker for watchlist item. Skipping.', item_id=item_id, name=name, repo_url=repo_url, exception=str(exc))
+                continue
             print('Last marker is', last_marker, ' - Current maker is', last_marker_new)
             if last_marker == last_marker_new:
                 continue
@@ -60,7 +64,11 @@ def schedule_watchlist_item():
                 DB().query('UPDATE watchlist SET last_marker = %s WHERE id = %s', params=(last_marker_new, item_id, ))
 
         elif schedule_mode in ['commit', 'commit-variance']:
-            last_marker_new = utils.get_repo_last_marker(repo_url, 'commits', branch=branch)
+            try:
+                last_marker_new = utils.get_repo_last_marker(repo_url, 'commits', branch=branch)
+            except RuntimeError as exc:
+                error_helpers.log_error('Could not determine last commit marker for watchlist item. Skipping.', item_id=item_id, name=name, repo_url=repo_url, exception=str(exc))
+                continue
             print('Last marker is', last_marker, ' - Current maker is', last_marker_new)
             if last_marker == last_marker_new:
                 continue

@@ -20,6 +20,12 @@ inputs:
   github-token:
     description: 'pass in your secrets.GITHUB_TOKEN'
     required: true
+  docker-user:
+    description: 'pass in your secret for the Docker User to use for private repo clone tests'
+    required: false
+  docker-pat:
+    description: 'pass in your secret for the Docker PAT to use for private repo clone tests'
+    required: false
   ee:
     description: 'enable enterprise tests'
     required: false
@@ -136,6 +142,9 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}/tests
       env:
         DEFAULT_TEST_PATH: ${{ inputs.test-path }}
+        GMT_TESTING_DOCKER_USER: ${{ inputs.docker-user }}
+        GMT_TESTING_DOCKER_PAT: ${{ inputs.docker-pat }}
+
       run: |
         source ../venv/bin/activate
         COMMIT_MSG="$(git log -1 --pretty=%B)"

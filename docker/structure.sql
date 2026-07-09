@@ -11,6 +11,7 @@ CREATE TABLE users (
     name text NOT NULL,
     token text NOT NULL,
     ssh_private_key text,
+    docker_credentials text,
     capabilities JSONB NOT NULL,
     created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
@@ -59,7 +60,8 @@ VALUES (
                 "measurement.phase_transition_time",
                 "measurement.wait_time_dependencies",
                 "measurement.skip_volume_inspect",
-				"ssh_private_key"
+				"ssh_private_key",
+                "docker_credentials"
             ]
         },
         "api": {
