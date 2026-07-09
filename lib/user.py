@@ -3,7 +3,7 @@ import hashlib
 
 from lib.secure_variable import SecureVariable
 from lib.db import DB
-from lib.encryption import EncryptionConfigurationError, decrypt_data, encrypt_data, is_valid_openssh_private_key
+from lib.encryption import EncryptionConfigurationError, ENCRYPTED_VALUE_PREFIX, decrypt_data, encrypt_data, is_valid_openssh_private_key
 
 def get_nested_value(dictionary, path):
     keys = path.split('.', 1)
@@ -67,6 +67,9 @@ class User():
             """, params=(encrypted_value, self._id, ))
 
     def _save_docker_credentials_to_db(self, encrypted_value):
+        if encrypted_value is not None and not (isinstance(encrypted_value, str) and encrypted_value.startswith(ENCRYPTED_VALUE_PREFIX)):
+            raise ValueError('docker_credentials must be encrypted before being stored')
+
         DB().query("""
             UPDATE users
             SET docker_credentials = %s
