@@ -166,6 +166,7 @@ class ScenarioRunner:
         self._metrics_folder = self._tmp_folder.joinpath('metrics')
         self._build_dir = self._tmp_folder.joinpath('docker_images')
         self._ssh_private_key_file = self._tmp_folder.joinpath('user_ssh_key')
+        self._git_askpass_file = self._tmp_folder.joinpath('git_askpass.sh')
         self._docker_config_dir = self._tmp_folder.joinpath('docker_client_config')
 
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
@@ -326,6 +327,23 @@ class ScenarioRunner:
         if self._ssh_private_key_file.exists():
             self._ssh_private_key_file.unlink()
 
+    # Relays HTTP basic-auth credentials to git via env vars instead of embedding them in the
+    # clone URL argv, where they would be readable by any local user via `ps` / /proc/<pid>/cmdline.
+    # Contains no secret itself - credentials are passed through GMT_GIT_USERNAME/GMT_GIT_PASSWORD.
+    _GIT_ASKPASS_SCRIPT = (
+        '#!/bin/sh\n'
+        'case "$1" in\n'
+        '    *sername*) printf %s "$GMT_GIT_USERNAME" ;;\n'
+        '    *) printf %s "$GMT_GIT_PASSWORD" ;;\n'
+        'esac\n'
+    )
+
+    def _ensure_git_askpass_file(self):
+        if not self._git_askpass_file.exists():
+            self._git_askpass_file.write_text(self._GIT_ASKPASS_SCRIPT, encoding='utf-8')
+            os.chmod(self._git_askpass_file, 0o700)
+        return self._git_askpass_file
+
     def _prepare_docker_credentials(self):
         if not self._docker_credentials:
             return
@@ -346,9 +364,15 @@ class ScenarioRunner:
         if self._docker_config_dir.exists():
             shutil.rmtree(self._docker_config_dir, ignore_errors=True)
 
-    def _get_git_environment(self):
+    def _get_git_environment(self, uri_userinfo=None):
         env = os.environ.copy()
         env['GIT_TERMINAL_PROMPT'] = '0'
+
+        if uri_userinfo:
+            username, password = utils.split_userinfo(utils.decrypt_userinfo(uri_userinfo))
+            env['GIT_ASKPASS'] = self._ensure_git_askpass_file().as_posix()
+            env['GMT_GIT_USERNAME'] = username
+            env['GMT_GIT_PASSWORD'] = password
 
         ssh_private_key_file = self._ensure_ssh_private_key_file()
         if ssh_private_key_file is None:
@@ -453,9 +477,11 @@ class ScenarioRunner:
                 command.append('--recurse-submodules')
                 command.append('--shallow-submodules')
 
-                clone_uri = utils.decrypt_uri_credentials(self.__clean_uri, self.__uri_userinfo)
-
-                command.append(clone_uri)
+                # Credentials are passed via GIT_ASKPASS (see _get_git_environment), not embedded
+                # in the URL: an inline user:pass@ URL would land in this process's argv, which is
+                # readable by any local user via `ps` / /proc/<pid>/cmdline - undoing the at-rest
+                # encryption of these credentials.
+                command.append(self.__clean_uri)
                 command.append(self._repo_folder.as_posix())
 
                 print('Cloning ', self.__clean_uri)
@@ -465,11 +491,11 @@ class ScenarioRunner:
                     capture_output=True,
                     encoding='UTF-8',
                     errors='replace',
-                    env=self._get_git_environment(),
+                    env=self._get_git_environment(self.__uri_userinfo),
                 )
 
             if self._requested_commit_hash:
-                self._checkout_commit_hash(self._repo_folder, self._requested_commit_hash, context='repository')
+                self._checkout_commit_hash(self._repo_folder, self._requested_commit_hash, context='repository', uri_userinfo=self.__uri_userinfo)
 
             if problematic_symlink := self._find_outside_symlinks(self._repo_folder):
                 raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
@@ -558,7 +584,7 @@ class ScenarioRunner:
             self.__relations[relation_key]['commit_hash'], self.__relations[relation_key]['commit_timestamp'] = get_repo_info(relation_path)
             self.__relations[relation_key]['commit_timestamp'] = str(self.__relations[relation_key]['commit_timestamp'])
 
-    def _checkout_commit_hash(self, repo_path: Path, commit_hash: str, *, context='repository'):
+    def _checkout_commit_hash(self, repo_path: Path, commit_hash: str, *, context='repository', uri_userinfo=None):
         print(f"Checking out commit {commit_hash} for {context}")
 
         # Branch, tag, or remote branch (e.g., main, feature/login, origin/main)
@@ -574,7 +600,7 @@ class ScenarioRunner:
             'encoding': 'UTF-8',
             'errors': 'replace',
             'cwd': repo_path,
-            'env': self._get_git_environment(),
+            'env': self._get_git_environment(uri_userinfo),
         }
 
         try:

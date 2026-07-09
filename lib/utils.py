@@ -87,17 +87,34 @@ def encrypt_uri_credentials(uri):
         return uri
     return inject_uri_userinfo(clean_uri, encrypt_data(userinfo))
 
-def decrypt_uri_credentials(uri, userinfo):
+def decrypt_userinfo(userinfo):
     """
-    Re-embed a userinfo string (as previously returned by strip_uri_userinfo, possibly encrypted
-    via encrypt_uri_credentials) into a credential-free URI, decrypting it first if needed.
-    Returns the URI unchanged if userinfo is falsy.
+    Decrypt a userinfo string (as previously returned by strip_uri_userinfo, possibly encrypted
+    via encrypt_uri_credentials) if it carries the encrypted-value prefix; otherwise return it
+    unchanged. Returns None if userinfo is falsy.
+
+    Deliberately does NOT re-embed the result into a URI: putting credentials back into a URI
+    that is then passed as a subprocess argument (e.g. to git) leaks them to any local user via
+    `ps` or `/proc/<pid>/cmdline`. Callers needing to authenticate a subprocess should instead
+    split the result with split_userinfo() and pass the parts via environment variables or a
+    credential helper (see ScenarioRunner._get_git_environment).
     """
     if not userinfo:
-        return uri
+        return None
     if userinfo.startswith(ENCRYPTED_VALUE_PREFIX):
-        userinfo = decrypt_data(userinfo)
-    return inject_uri_userinfo(uri, userinfo)
+        return decrypt_data(userinfo)
+    return userinfo
+
+def split_userinfo(userinfo):
+    """
+    Split a raw 'user:pass' or 'user' userinfo string (as returned by strip_uri_userinfo or
+    decrypt_userinfo) into (username, password). Both are '' if userinfo is falsy; password is
+    '' if userinfo has no ':'.
+    """
+    if not userinfo:
+        return '', ''
+    username, _, password = userinfo.partition(':')
+    return username, password
 
 def get_git_api(parsed_url):
 
