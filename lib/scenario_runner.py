@@ -315,17 +315,17 @@ class ScenarioRunner:
     # file is created and chmod'd atomically by os.open() itself, instead of create-then-chmod,
     # which leaves a window where another local user can hold a read fd on the file, or swap the
     # path for a symlink, before the secret is written.
-    def _write_secret_file(self, path, content):
+    def _write_secret_file(self, path, content, mode=0o600):
         flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
         if hasattr(os, 'O_NOFOLLOW'):
             flags |= os.O_NOFOLLOW
-        fd = os.open(path, flags, 0o600)
+        fd = os.open(path, flags, mode)
         if hasattr(os, 'fchmod'):
             # O_CREAT's mode argument is only applied when the file is newly created; if a file
             # already sat at this predictable path (e.g. pre-planted by another local user) its
             # existing permissions would otherwise survive. fchmod acts on the fd we already hold
             # open, so - unlike os.chmod(path, ...) - it can't be raced onto a different file.
-            os.fchmod(fd, 0o600)
+            os.fchmod(fd, mode)
         with os.fdopen(fd, 'w', encoding='utf-8') as f:
             f.write(content)
 
@@ -356,9 +356,11 @@ class ScenarioRunner:
     )
 
     def _ensure_git_askpass_file(self):
-        if not self._git_askpass_file.exists():
-            self._git_askpass_file.write_text(self._GIT_ASKPASS_SCRIPT, encoding='utf-8')
-            os.chmod(self._git_askpass_file, 0o700)
+        # Always (re)written, not just created if missing: git will exec this path with the
+        # actual credentials in its environment, so a stale or pre-planted file at this
+        # predictable path must never be trusted/reused as-is - only content we just wrote
+        # ourselves, atomically, is safe to execute.
+        self._write_secret_file(self._git_askpass_file, self._GIT_ASKPASS_SCRIPT, mode=0o700)
         return self._git_askpass_file
 
     def _prepare_docker_credentials(self):
