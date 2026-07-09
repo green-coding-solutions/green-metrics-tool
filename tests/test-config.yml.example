@@ -57,7 +57,7 @@ cluster:
 machine:
   id: 1
   description: Development machine for testing
-  base_temperature_value: 10
+  base_temperature_value: null
   base_temperature_chip: "asd"
   base_temperature_feature: "asd"
 
