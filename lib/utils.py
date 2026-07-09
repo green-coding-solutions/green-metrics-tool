@@ -38,6 +38,15 @@ def remove_git_suffix(url):
         return url[:-4]
     return url
 
+def _get_uri_userinfo(parsed_uri):
+    """
+    Rebuild the raw 'user:pass' (or 'user') userinfo string of an already-parsed URI.
+    Returns None if the URI carried no credentials.
+    """
+    if not (parsed_uri.username or parsed_uri.password):
+        return None
+    return f"{parsed_uri.username or ''}:{parsed_uri.password}" if parsed_uri.password else (parsed_uri.username or '')
+
 def _set_uri_userinfo(parsed_uri, userinfo):
     host = parsed_uri.hostname or ''
     if parsed_uri.port:
@@ -51,10 +60,10 @@ def strip_uri_userinfo(uri):
     Returns (clean_uri, userinfo), where userinfo is None if the URI carried no credentials.
     """
     parsed_uri = urlparse(uri)
-    if not (parsed_uri.username or parsed_uri.password):
+    userinfo = _get_uri_userinfo(parsed_uri)
+    if userinfo is None:
         return uri, None
 
-    userinfo = f"{parsed_uri.username or ''}:{parsed_uri.password}" if parsed_uri.password else (parsed_uri.username or '')
     return _set_uri_userinfo(parsed_uri, None), userinfo
 
 def inject_uri_userinfo(uri, userinfo):
@@ -109,6 +118,8 @@ def get_git_api(parsed_url):
     api_host = hostname
     if parsed_url.port:
         api_host += f":{parsed_url.port}"
+    if (userinfo := _get_uri_userinfo(parsed_url)) is not None:
+        api_host = f"{userinfo}@{api_host}"
     return [f"https://{api_host}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'custom']
 
 
