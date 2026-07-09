@@ -75,7 +75,12 @@ class Job(ABC):
             self.update_state('WAITING') # set back to waiting, as not the run itself has failed
             raise exc
 
-        except Exception as exc:
+        except BaseException as exc: # pylint: disable=broad-except
+            # Must catch BaseException, not just Exception: things like KeyboardInterrupt
+            # (e.g. raised on manual abort in scenario_runner.py) are BaseException subclasses
+            # that do not derive from Exception. If we only caught Exception here, the job would
+            # be left stuck in state 'RUNNING' forever, which then blocks all subsequent jobs via
+            # check_job_running().
             self.update_state('FAILED')
             raise exc
 
