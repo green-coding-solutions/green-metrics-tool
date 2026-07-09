@@ -10,6 +10,7 @@ GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
 from lib.global_config import GlobalConfig
 from lib.user import User
 from lib.db import DB
+from lib.encryption import ENCRYPTED_VALUE_PREFIX
 
 from tests import test_functions as Tests
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
@@ -1174,6 +1175,91 @@ class TestFrontendFunctionality:
         page.locator('#clear-ssh-private-key').click()
         time.sleep(1)
         assert User(1).has_ssh_private_key() is False
+
+    def test_settings_docker_credentials(self):
+        try:
+            User(1).update_docker_credentials(None)
+
+            page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+            page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
+            page.wait_for_load_state("load") # ALL JS should be done
+            page.locator("a#settings-tab-measurement").click()
+            page.wait_for_load_state("load") # ALL JS should be done
+
+            value = page.locator('#docker-credentials-status').text_content()
+            assert value.strip() == 'No Docker registry credentials stored for this user.'
+
+            rows = page.locator('#docker-credentials-rows .docker-credential-row')
+            assert rows.count() == 1
+
+            rows.nth(0).locator('.docker-cred-registry').fill('ghcr.io')
+            rows.nth(0).locator('.docker-cred-username').fill('myuser')
+            rows.nth(0).locator('.docker-cred-password').fill('mypassword')
+
+            page.locator('#add-docker-credential-row').click()
+            rows = page.locator('#docker-credentials-rows .docker-credential-row')
+            assert rows.count() == 2
+
+            rows.nth(1).locator('.docker-cred-registry').fill('docker.io')
+            rows.nth(1).locator('.docker-cred-username').fill('anotheruser')
+            rows.nth(1).locator('.docker-cred-password').fill('anotherpassword')
+
+            with page.expect_response(lambda response: '/v1/user/setting' in response.url and response.request.method == 'PUT') as response_info:
+                page.locator('#save-docker-credentials').click(timeout=15000)
+            assert response_info.value.status == 202
+
+            # The stored value must decrypt back to exactly what was submitted through the UI ...
+            user = User(1)
+            assert user.has_docker_credentials() is True
+            creds = user.get_docker_credentials()
+            assert len(creds) == 2
+            assert creds[0]['registry'] == 'ghcr.io'
+            assert creds[0]['username'] == 'myuser'
+            assert creds[0]['password'].get_value() == 'mypassword'
+            assert creds[1]['registry'] == 'docker.io'
+            assert creds[1]['username'] == 'anotheruser'
+            assert creds[1]['password'].get_value() == 'anotherpassword'
+
+            # ... but on disk it must only ever exist as an encrypted blob, never in plaintext
+            raw_value = DB().fetch_one('SELECT docker_credentials FROM users WHERE id = %s', params=(1,))[0]
+            assert raw_value.startswith(ENCRYPTED_VALUE_PREFIX)
+            assert 'mypassword' not in raw_value
+            assert 'myuser' not in raw_value
+            assert 'anotherpassword' not in raw_value
+            assert 'anotheruser' not in raw_value
+
+            # Reloading the page must not re-expose the stored secrets either
+            page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+            with page.expect_response(lambda response: '/v1/user/settings' in response.url and response.status == 200) as response_info:
+                page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
+
+            settings_response = response_info.value.json()
+            assert settings_response['data']['_has_docker_credentials'] is True
+            assert 'mypassword' not in json.dumps(settings_response)
+            assert 'myuser' not in json.dumps(settings_response)
+            assert ENCRYPTED_VALUE_PREFIX not in json.dumps(settings_response)
+
+            page.wait_for_load_state("load") # ALL JS should be done
+            page.locator("a#settings-tab-measurement").click()
+            page.wait_for_load_state("load") # ALL JS should be done
+
+            value = page.locator('#docker-credentials-status').text_content()
+            assert value.strip() == 'Docker registry credentials are stored for this user.'
+            rows = page.locator('#docker-credentials-rows .docker-credential-row')
+            assert rows.count() == 1
+            assert rows.nth(0).locator('.docker-cred-registry').input_value() == ''
+            assert rows.nth(0).locator('.docker-cred-username').input_value() == ''
+            assert rows.nth(0).locator('.docker-cred-password').input_value() == ''
+
+            with page.expect_response(lambda response: '/v1/user/setting' in response.url and response.request.method == 'PUT') as response_info:
+                page.locator('#clear-docker-credentials').click()
+            assert response_info.value.status == 202
+
+            assert User(1).has_docker_credentials() is False
+            raw_value = DB().fetch_one('SELECT docker_credentials FROM users WHERE id = %s', params=(1,))[0]
+            assert raw_value is None
+        finally:
+            User(1).update_docker_credentials(None)
 
 
 class TestXssSecurity:

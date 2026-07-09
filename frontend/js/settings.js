@@ -54,6 +54,106 @@ const clearSshPrivateKey = async () => {
     }
 }
 
+const addDockerCredentialRow = () => {
+    const container = document.querySelector('#docker-credentials-rows');
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'fields docker-credential-row';
+
+    const registryField = document.createElement('div');
+    registryField.className = 'five wide field';
+    const registryInput = document.createElement('input');
+    registryInput.type = 'text';
+    registryInput.className = 'docker-cred-registry';
+    registryInput.placeholder = 'Registry (e.g. registry.example.com)';
+    registryField.appendChild(registryInput);
+
+    const usernameField = document.createElement('div');
+    usernameField.className = 'four wide field';
+    const usernameInput = document.createElement('input');
+    usernameInput.type = 'text';
+    usernameInput.className = 'docker-cred-username';
+    usernameInput.placeholder = 'Username';
+    usernameField.appendChild(usernameInput);
+
+    const passwordField = document.createElement('div');
+    passwordField.className = 'five wide field';
+    const passwordInput = document.createElement('input');
+    passwordInput.type = 'password';
+    passwordInput.className = 'docker-cred-password';
+    passwordInput.placeholder = 'Password / token';
+    passwordField.appendChild(passwordInput);
+
+    const removeField = document.createElement('div');
+    removeField.className = 'two wide field';
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.className = 'ui small icon button';
+    removeButton.innerHTML = '<i class="trash icon"></i>';
+    removeButton.onclick = () => row.remove();
+    removeField.appendChild(removeButton);
+
+    row.append(registryField, usernameField, passwordField, removeField);
+    container.appendChild(row);
+}
+
+const renderDockerCredentialsState = (hasDockerCredentials) => {
+    const container = document.querySelector('#docker-credentials-rows');
+    const status = document.querySelector('#docker-credentials-status');
+    const clearButton = document.querySelector('#clear-docker-credentials');
+
+    if (!container || !status || !clearButton) {
+        return;
+    }
+
+    container.innerHTML = '';
+    addDockerCredentialRow();
+
+    status.textContent = hasDockerCredentials
+        ? 'Docker registry credentials are stored for this user.'
+        : 'No Docker registry credentials stored for this user.';
+    clearButton.style.display = hasDockerCredentials ? 'inline-block' : 'none';
+}
+
+const saveDockerCredentials = async () => {
+    const rows = document.querySelectorAll('#docker-credentials-rows .docker-credential-row');
+    const creds = [];
+
+    for (const row of rows) {
+        const registry = row.querySelector('.docker-cred-registry').value.trim();
+        const username = row.querySelector('.docker-cred-username').value.trim();
+        const password = row.querySelector('.docker-cred-password').value;
+
+        if (!registry && !username && !password) continue; // skip empty rows
+
+        if (!registry || !username || !password) {
+            showNotification('Could not save setting', 'Each docker credential row needs a registry, username and password');
+            return;
+        }
+
+        creds.push({registry: registry, username: username, password: password});
+    }
+
+    try {
+        await makeAPICall('/v1/user/setting', {name: 'docker_credentials', value: creds}, null, true)
+        showNotification('Save success!', 'docker_credentials updated', 'success')
+        renderDockerCredentialsState(creds.length > 0);
+    } catch (err) {
+        showNotification('Could not save setting', err);
+    }
+}
+
+const clearDockerCredentials = async () => {
+    try {
+        await makeAPICall('/v1/user/setting', {name: 'docker_credentials', value: []}, null, true)
+        renderDockerCredentialsState(false);
+        showNotification('Save success!', 'docker_credentials cleared', 'success')
+    } catch (err) {
+        showNotification('Could not save setting', err);
+    }
+}
+
 const getSettings = async () => {
     try {
         const data = await makeAPICall('/v1/user/settings');
@@ -76,6 +176,7 @@ const getSettings = async () => {
         document.querySelector('#measurement-phase-transition-time').value = data?.data?._capabilities?.measurement?.phase_transition_time;
         document.querySelector('#measurement-wait-time-dependencies').value = data?.data?._capabilities?.measurement?.wait_time_dependencies;
         renderSshPrivateKeyState(data?.data?._has_ssh_private_key === true);
+        renderDockerCredentialsState(data?.data?._has_docker_credentials === true);
     } catch (err) {
         showNotification('Could not load settings', err);
     }
