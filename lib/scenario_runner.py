@@ -211,9 +211,6 @@ class ScenarioRunner:
         del self._arguments['ssh_private_key']
         del self._arguments['docker_credentials']
 
-        # Strip HTTP basic auth credentials from URI; keep clean version for logging and DB storage
-        self._uri, self.__uri_userinfo = utils.strip_uri_userinfo(self._uri)
-
         self._safe_post_processing_steps = (
                 ('_end_measurement',  {'skip_on_already_ended': True}),
                 ('_patch_phases', {}),
@@ -260,8 +257,8 @@ class ScenarioRunner:
         self.__carbon_simulation_uuid = None
         self.__custom_metrics = {}
         self.__sci_metrics = []
-
-
+        self.__uri_userinfo = None
+        self.__clean_uri = None
 
         self._check_all_durations()
 
@@ -435,8 +432,11 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nChecking out repository', TerminalColors.ENDC)
 
         if self._uri_type == 'URL':
+            # Strip HTTP basic auth credentials from URI; keep clean version for logging and DB storage
+            self.__clean_uri, self.__uri_userinfo = utils.strip_uri_userinfo(self._uri)
+
             if self._dev_cache_repos and self._repo_folder.exists() and self._repo_folder.is_dir() and any(self._repo_folder.iterdir()):
-                print('Skipping clone of ', utils.filter_sensitive_data(self._uri), 'as it was already present on disk and --dev-cache-repos was set')
+                print('Skipping clone of ', self.__clean_uri, 'as it was already present on disk and --dev-cache-repos was set')
             else:
                 self._initialize_folder(self._repo_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
 
@@ -453,12 +453,12 @@ class ScenarioRunner:
                 command.append('--recurse-submodules')
                 command.append('--shallow-submodules')
 
-                clone_uri = utils.decrypt_uri_credentials(self._uri, self.__uri_userinfo)
+                clone_uri = utils.decrypt_uri_credentials(self.__clean_uri, self.__uri_userinfo)
 
                 command.append(clone_uri)
                 command.append(self._repo_folder.as_posix())
 
-                print('Cloning ', utils.filter_sensitive_data(self._uri))
+                print('Cloning ', self.__clean_uri)
                 subprocess.run(
                     command,
                     check=True,
@@ -474,6 +474,8 @@ class ScenarioRunner:
             if problematic_symlink := self._find_outside_symlinks(self._repo_folder):
                 raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
         else:
+            self.__clean_uri = self._uri
+
             if self._original_branch is not None:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
@@ -1031,7 +1033,7 @@ class ScenarioRunner:
         measurement_config['custom_metrics'] = self.__custom_metrics
         measurement_config['phase_padding'] = self._phase_padding_ms
 
-        params=(self._job_id, self._name, self._uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
+        params=(self._job_id, self._name, self.__clean_uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
                 self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                 json.dumps(machine_specs), json.dumps(measurement_config),
                 json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
@@ -2876,6 +2878,7 @@ class ScenarioRunner:
         self.__custom_metrics.clear()
         self.__sci_metrics.clear()
         self.__uri_userinfo = None
+        self.__clean_uri = None
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
