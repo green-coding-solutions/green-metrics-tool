@@ -276,8 +276,12 @@ def _check_rapl_domain(domain_key):
     '''Shared logic for per-domain RAPL power capping checks.
 
     domain_key must be one of 'package', 'dram', or 'psys'.
-    Returns True (all limits OK), False (at least one domain exceeds configured cap),
-    or None (check skipped — not configured, sudo unavailable, or RAPL not present).
+    Checks that both the long_term and short_term power limits (whichever are present on
+    the domain) are exactly equal to the configured value — this also transitively catches
+    long_term/short_term disagreeing with each other, without needing a separate check.
+    Returns True (all limits match), False (at least one domain's limit is missing or does
+    not match the configured cap), or None (check skipped — not configured, sudo
+    unavailable, or RAPL not present).
     '''
     if platform.system() in ('Darwin', 'Windows'):
         return True
@@ -298,7 +302,14 @@ def _check_rapl_domain(domain_key):
     if not domain_entries:
         return False  # configured in config but no matching RAPL domain found on machine
     expected_uw = int(expected_watts) * 1_000_000
-    return all(int(e['power_limit_uw']) <= expected_uw for e in domain_entries if str(e.get('power_limit_uw', '')).isdigit())
+    for entry in domain_entries:
+        for limit_key in ('long_term_uw', 'short_term_uw'):
+            value = entry.get(limit_key)
+            if value is None:
+                continue  # this constraint type not exposed on this domain — skip it
+            if not str(value).isdigit() or int(value) != expected_uw:
+                return False
+    return True
 
 
 def check_rapl_power_capping_package(*_, **__):

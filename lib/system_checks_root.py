@@ -74,16 +74,22 @@ def check_cron_files():
 
 
 def read_rapl_power_limits():
-    '''Read long-term (constraint_0) power limits for RAPL domains, classified by type.
+    '''Read long-term and short-term (constraint_0/constraint_1) power limits for RAPL domains,
+    classified by type.
 
     Walks the full powercap sysfs tree and uses each domain's "name" file to classify it
-    as package, dram, or psys. Other domains (core, uncore, …) are ignored.
+    as package, dram, or psys. Other domains (core, uncore, …) are ignored. Each domain's
+    constraint_N_name files are read to identify which constraint_N_power_limit_uw is the
+    long_term vs short_term limit (not all domains expose both — e.g. dram/psys typically
+    only have long_term). Both values are returned as-is; it is intentionally left to the
+    caller to decide whether long_term and short_term must agree with each other or with a
+    configured value.
 
     Returns:
         {
-          "package": [{"domain": "intel-rapl:0", "power_limit_uw": "35000000"}, ...],
-          "dram":    [{"domain": "intel-rapl:0:1", "power_limit_uw": "10000000"}, ...],
-          "psys":    [{"domain": "intel-rapl:1", "power_limit_uw": "65000000"}],
+          "package": [{"domain": "intel-rapl:0", "long_term_uw": "35000000", "short_term_uw": "56000000"}, ...],
+          "dram":    [{"domain": "intel-rapl:0:1", "long_term_uw": "10000000"}, ...],
+          "psys":    [{"domain": "intel-rapl:1", "long_term_uw": "65000000"}],
         }
     '''
     rapl_dir = '/sys/devices/virtual/powercap/intel-rapl'
@@ -93,7 +99,7 @@ def read_rapl_power_limits():
         return result
 
     try:
-        for (dir_path, _, _files) in os.walk(rapl_dir):
+        for (dir_path, _, files) in os.walk(rapl_dir):
             domain = os.path.basename(dir_path)
             if not domain.startswith('intel-rapl:'):
                 continue  # skip the root intel-rapl directory itself
@@ -105,14 +111,25 @@ def read_rapl_power_limits():
             except (FileNotFoundError, PermissionError, OSError):
                 continue
 
-            constraint_path = os.path.join(dir_path, 'constraint_0_power_limit_uw')
-            try:
-                with open(constraint_path, 'r', encoding='utf8') as f:
-                    power_limit_uw = f.read().strip()
-            except (FileNotFoundError, PermissionError, OSError):
+            constraints = {}
+            for constraint_name_file in sorted(f for f in files if re.fullmatch(r'constraint_\d+_name', f)):
+                idx = constraint_name_file.split('_')[1]
+                try:
+                    with open(os.path.join(dir_path, constraint_name_file), 'r', encoding='utf8') as f:
+                        constraint_type = f.read().strip()
+                    with open(os.path.join(dir_path, f'constraint_{idx}_power_limit_uw'), 'r', encoding='utf8') as f:
+                        constraints[constraint_type] = f.read().strip()
+                except (FileNotFoundError, PermissionError, OSError):
+                    continue
+
+            if not constraints:
                 continue
 
-            entry = {'domain': domain, 'power_limit_uw': power_limit_uw}
+            entry = {'domain': domain}
+            if 'long_term' in constraints:
+                entry['long_term_uw'] = constraints['long_term']
+            if 'short_term' in constraints:
+                entry['short_term_uw'] = constraints['short_term']
 
             if domain_name.startswith('package'):
                 result['package'].append(entry)
