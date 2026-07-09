@@ -310,6 +310,25 @@ class ScenarioRunner:
                 shutil.rmtree(child, ignore_errors=False)
 
 
+    # Writes a secret to a predictable path under the (world-traversable) tmp dir without ever
+    # exposing it at default (world-readable) permissions or through a pre-planted symlink: the
+    # file is created and chmod'd atomically by os.open() itself, instead of create-then-chmod,
+    # which leaves a window where another local user can hold a read fd on the file, or swap the
+    # path for a symlink, before the secret is written.
+    def _write_secret_file(self, path, content):
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        if hasattr(os, 'O_NOFOLLOW'):
+            flags |= os.O_NOFOLLOW
+        fd = os.open(path, flags, 0o600)
+        if hasattr(os, 'fchmod'):
+            # O_CREAT's mode argument is only applied when the file is newly created; if a file
+            # already sat at this predictable path (e.g. pre-planted by another local user) its
+            # existing permissions would otherwise survive. fchmod acts on the fd we already hold
+            # open, so - unlike os.chmod(path, ...) - it can't be raced onto a different file.
+            os.fchmod(fd, 0o600)
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(content)
+
     def _ensure_ssh_private_key_file(self):
         if self._ssh_private_key is None:
             return None
@@ -317,9 +336,7 @@ class ScenarioRunner:
         if not ssh_private_key:
             return None
 
-        self._ssh_private_key_file.write_text('', encoding='utf-8')
-        os.chmod(self._ssh_private_key_file, 0o600)
-        self._ssh_private_key_file.write_text(ssh_private_key, encoding='utf-8')
+        self._write_secret_file(self._ssh_private_key_file, ssh_private_key)
 
         return self._ssh_private_key_file
 
@@ -356,9 +373,7 @@ class ScenarioRunner:
             ).decode()
             auths[cred['registry']] = {'auth': token}
         config_file = self._docker_config_dir / 'config.json'
-        config_file.write_text('', encoding='utf-8')
-        os.chmod(config_file, 0o600)
-        config_file.write_text(json.dumps({'auths': auths}, separators=(',', ':')), encoding='utf-8')
+        self._write_secret_file(config_file, json.dumps({'auths': auths}, separators=(',', ':')))
 
     def _delete_docker_config_dir(self):
         if self._docker_config_dir.exists():
