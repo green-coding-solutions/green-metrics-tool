@@ -353,12 +353,11 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 network_io_power_in_mW = network_io_in_kWh * Decimal(3_600) / duration_in_s
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_power_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_power_in_mW, 'TOTAL', None, None, None, None, None, 'mW'))
 
-                # co2 calculations
+                # co2 calculations. Only possible if a carbon_intensity_*_machine provider is configured
                 if carbon_intensity is not None:
                     network_io_carbon_in_ug = network_io_in_kWh * Decimal(carbon_intensity) * 1_000_000
                     csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
                 else:
-                    error_helpers.log_error('Cannot calculate the total network carbon consumption. No carbon intensity provider data was found. Configure a carbon_intensity_*_machine provider (e.g. carbon_intensity_static_machine) in the config.', run_id=run_id)
                     network_io_carbon_in_ug = 0
             else:
                 error_helpers.log_error('Cannot calculate the total network energy consumption. SCI value N is missing in the config.', run_id=run_id)
