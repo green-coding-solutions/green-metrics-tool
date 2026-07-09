@@ -360,6 +360,15 @@ function setup_python() {
     # remove old file name
     sudo rm -f /etc/sudoers.d/green_coding_hardware_info
 
+    print_message "Making system_checks_root.py to be owned by root"
+    sudo cp -f "${PWD}/lib/system_checks_root.py" "${gmt_root_bin_dir}/system_checks_root.py"
+    sudo chown 0:0 "${gmt_root_bin_dir}/system_checks_root.py"
+    sudo chmod 755 "${gmt_root_bin_dir}/system_checks_root.py"
+
+    print_message "Setting system_checks_root.py sudoers entry"
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} -I -B -S ${gmt_root_bin_dir}/system_checks_root.py" | sudo tee /etc/sudoers.d/green-coding-system-checks
+    sudo chmod 500 /etc/sudoers.d/green-coding-system-checks
+
     if [[ $install_python_packages == true ]] ; then
         print_message "Updating python requirements"
         python3 -m pip install --timeout 100 --retries 10 --upgrade pip
