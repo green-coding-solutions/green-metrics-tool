@@ -4,9 +4,11 @@ import string
 import subprocess
 import os
 import requests
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 from functools import cache
 from pathlib import Path
+
+from lib.encryption import encrypt_data, decrypt_data, ENCRYPTED_VALUE_PREFIX
 
 # Matches the userinfo part of a URI that uses HTTP-AUTH, e.g. https://user:pass@host/path
 # Username is optional to also catch forms like https://:token@host/path
@@ -35,6 +37,58 @@ def remove_git_suffix(url):
     if url.endswith('.git'):
         return url[:-4]
     return url
+
+def _set_uri_userinfo(parsed_uri, userinfo):
+    host = parsed_uri.hostname or ''
+    if parsed_uri.port:
+        host += f":{parsed_uri.port}"
+    netloc = f"{userinfo}@{host}" if userinfo else host
+    return urlunparse((parsed_uri.scheme, netloc, parsed_uri.path, parsed_uri.params, parsed_uri.query, parsed_uri.fragment))
+
+def strip_uri_userinfo(uri):
+    """
+    Split a URI into a credential-free URI and its raw userinfo ('user:pass' or 'user').
+    Returns (clean_uri, userinfo), where userinfo is None if the URI carried no credentials.
+    """
+    parsed_uri = urlparse(uri)
+    if not (parsed_uri.username or parsed_uri.password):
+        return uri, None
+
+    userinfo = f"{parsed_uri.username or ''}:{parsed_uri.password}" if parsed_uri.password else (parsed_uri.username or '')
+    return _set_uri_userinfo(parsed_uri, None), userinfo
+
+def inject_uri_userinfo(uri, userinfo):
+    """
+    Embed a raw 'user:pass' (or 'user') userinfo string into a URI, replacing any userinfo already present.
+    Returns the URI unchanged if userinfo is falsy.
+    """
+    if not userinfo:
+        return uri
+    return _set_uri_userinfo(urlparse(uri), userinfo)
+
+def encrypt_uri_credentials(uri):
+    """
+    Strip credentials off a URI and re-embed them encrypted, for safe storage in the DB.
+    Returns the URI unchanged if it carries no credentials.
+    Raises EncryptionConfigurationError (from lib.encryption) if credentials are present but no
+    encryption key is configured.
+    """
+    clean_uri, userinfo = strip_uri_userinfo(uri)
+    if userinfo is None:
+        return uri
+    return inject_uri_userinfo(clean_uri, encrypt_data(userinfo))
+
+def decrypt_uri_credentials(uri, userinfo):
+    """
+    Re-embed a userinfo string (as previously returned by strip_uri_userinfo, possibly encrypted
+    via encrypt_uri_credentials) into a credential-free URI, decrypting it first if needed.
+    Returns the URI unchanged if userinfo is falsy.
+    """
+    if not userinfo:
+        return uri
+    if userinfo.startswith(ENCRYPTED_VALUE_PREFIX):
+        userinfo = decrypt_data(userinfo)
+    return inject_uri_userinfo(uri, userinfo)
 
 def get_git_api(parsed_url):
 

@@ -20,8 +20,6 @@ from api.api_helpers import (CustomORJSONResponse, ORJSONResponseObjKeep, add_ph
                          get_run_info, get_machine_list, get_artifact, store_artifact,
                          authenticate, check_int_field_api)
 
-from urllib.parse import urlparse, urlunparse
-
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.diff import get_diffable_rows, diff_rows
@@ -31,7 +29,7 @@ from lib.user import User
 from lib.watchlist import Watchlist
 from lib import utils
 from lib import error_helpers
-from lib.encryption import encrypt_data, EncryptionConfigurationError
+from lib.encryption import EncryptionConfigurationError
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -962,17 +960,10 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     unencrypted_repo_url = software.repo_url
-    _parsed_repo = urlparse(software.repo_url)
-    if _parsed_repo.username or _parsed_repo.password:
-        try:
-            _userinfo = f"{_parsed_repo.username or ''}:{_parsed_repo.password}" if _parsed_repo.password else (_parsed_repo.username or '')
-            _encrypted_userinfo = encrypt_data(_userinfo)
-        except EncryptionConfigurationError as exc:
-            raise HTTPException(status_code=422, detail='Cannot store URL credentials: encryption is not configured on this server') from exc
-        _host = _parsed_repo.hostname or ''
-        if _parsed_repo.port:
-            _host += f":{_parsed_repo.port}"
-        software.repo_url = urlunparse((_parsed_repo.scheme, f"{_encrypted_userinfo}@{_host}", _parsed_repo.path, _parsed_repo.params, _parsed_repo.query, _parsed_repo.fragment))
+    try:
+        software.repo_url = utils.encrypt_uri_credentials(software.repo_url)
+    except EncryptionConfigurationError as exc:
+        raise HTTPException(status_code=422, detail='Cannot store URL credentials: encryption is not configured on this server') from exc
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 
