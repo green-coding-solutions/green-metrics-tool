@@ -8,7 +8,7 @@ from urllib.parse import urlparse, urlunparse
 from functools import cache
 from pathlib import Path
 
-from lib.encryption import encrypt_data, decrypt_data, ENCRYPTED_VALUE_PREFIX
+from lib.encryption import encrypt_data, decrypt_data, EncryptionConfigurationError, ENCRYPTED_VALUE_PREFIX
 
 # Matches the userinfo part of a URI that uses HTTP-AUTH, e.g. https://user:pass@host/path
 # Username is optional to also catch forms like https://:token@host/path
@@ -135,7 +135,16 @@ def get_git_api(parsed_url):
     api_host = hostname
     if parsed_url.port:
         api_host += f":{parsed_url.port}"
-    if (userinfo := _get_uri_userinfo(parsed_url)) is not None:
+
+    # repo_url can come from watchlist rows, where it is stored with its userinfo encrypted
+    # (see encrypt_uri_credentials) - decrypt it back to real credentials before using it as
+    # Basic auth, otherwise the ciphertext itself would be sent to the git host and rejected.
+    try:
+        userinfo = decrypt_userinfo(_get_uri_userinfo(parsed_url))
+    except EncryptionConfigurationError as exc:
+        raise RuntimeError(f"Cannot authenticate against {hostname}: stored credentials are encrypted but no decryption key is configured on this server") from exc
+
+    if userinfo is not None:
         api_host = f"{userinfo}@{api_host}"
     return [f"https://{api_host}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'custom']
 
