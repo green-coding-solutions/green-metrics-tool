@@ -11,7 +11,8 @@ import json
 import argparse
 from pathlib import Path
 
-from lib.job.base import Job
+from lib.job.run import RunJob
+from lib.job.email_simple import EmailSimpleJob
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.repo_info import get_repo_info
@@ -153,8 +154,7 @@ def do_measurement_control():
     try:
         message = validate.validate_workload_stddev(stddev_data, cwl['metrics'])
         if config['cluster']['client']['send_control_workload_status_mail'] and config['admin']['notification_email']:
-            Job.insert(
-                'email-simple',
+            EmailSimpleJob.insert(
                 user_id=0, # User 0 is the [GMT-SYSTEM] user
                 email=config['admin']['notification_email'],
                 name=f"{config['machine']['description']} is operating normally. All STDDEV fine.",
@@ -217,7 +217,7 @@ if __name__ == '__main__':
                     reboot()
                 last_24h_maintenance = time.time()
 
-            job = Job.get_job('run')
+            job = RunJob.get_job()
             if job and job.check_job_running():
                 error_helpers.log_error('Job is still running. This is usually an error case! Continuing for now ...', machine=config['machine']['description'])
                 if not args.testing:
@@ -313,8 +313,7 @@ if __name__ == '__main__':
 
                     # reduced error message to client, but only if no ConfigurationCheckError
                     if job._email:
-                        Job.insert(
-                            'email-simple',
+                        EmailSimpleJob.insert(
                             user_id=job._user_id,
                             email=job._email,
                             name='Measurement Job on Green Metrics Tool Cluster failed',
