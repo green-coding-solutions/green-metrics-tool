@@ -963,9 +963,9 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
 
     unencrypted_repo_url = software.repo_url
     _parsed_repo = urlparse(software.repo_url)
-    if _parsed_repo.username:
+    if _parsed_repo.username or _parsed_repo.password:
         try:
-            _userinfo = f"{_parsed_repo.username}:{_parsed_repo.password}" if _parsed_repo.password else _parsed_repo.username
+            _userinfo = f"{_parsed_repo.username or ''}:{_parsed_repo.password}" if _parsed_repo.password else (_parsed_repo.username or '')
             _encrypted_userinfo = encrypt_data(_userinfo)
         except EncryptionConfigurationError as exc:
             raise HTTPException(status_code=422, detail='Cannot store URL credentials: encryption is not configured on this server') from exc

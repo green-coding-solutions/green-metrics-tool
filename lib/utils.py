@@ -9,7 +9,8 @@ from functools import cache
 from pathlib import Path
 
 # Matches the userinfo part of a URI that uses HTTP-AUTH, e.g. https://user:pass@host/path
-URI_CREDENTIALS_RE = re.compile(r'([a-zA-Z][a-zA-Z0-9+.\-]*://)[^\s/@:]+(?::[^\s/@]*)?@')
+# Username is optional to also catch forms like https://:token@host/path
+URI_CREDENTIALS_RE = re.compile(r'([a-zA-Z][a-zA-Z0-9+.\-]*://)[^\s/@:]*(?::[^\s/@]*)?@')
 
 # Matches PEM encoded private key blocks (RSA, EC, OPENSSH, DSA, generic, encrypted, ...)
 PRIVATE_KEY_RE = re.compile(r'-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----', re.DOTALL)

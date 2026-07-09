@@ -215,8 +215,8 @@ class ScenarioRunner:
 
         # Strip HTTP basic auth credentials from URI; keep clean version for logging and DB storage
         _parsed_uri = urlparse(self._uri)
-        if _parsed_uri.username:
-            self.__uri_userinfo = f"{_parsed_uri.username}:{_parsed_uri.password}" if _parsed_uri.password else _parsed_uri.username
+        if _parsed_uri.username or _parsed_uri.password:
+            self.__uri_userinfo = f"{_parsed_uri.username or ''}:{_parsed_uri.password}" if _parsed_uri.password else (_parsed_uri.username or '')
             _clean_host = _parsed_uri.hostname or ''
             if _parsed_uri.port:
                 _clean_host += f":{_parsed_uri.port}"
