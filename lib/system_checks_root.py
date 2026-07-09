@@ -57,6 +57,22 @@ def check_systemd_timers():
     return {'system_timers': _parse_timers(result.stdout)}
 
 
+def check_cron_files():
+    '''Check for active cron files under /var/spool/cron and /etc/cron* (root required).
+
+    Returns list of any cron files found (empty = OK).
+    '''
+    found = []
+    for cmd in ('find /var/spool/cron -type f', 'find /etc/cron* -type f'):
+        result = subprocess.run(
+            cmd, shell=True,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            encoding='UTF-8', errors='replace', check=False)
+        if result.returncode == 0:
+            found += [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return {'files_found': found}
+
+
 def read_rapl_power_limits():
     '''Read long-term (constraint_0) power limits for RAPL domains, classified by type.
 
@@ -116,6 +132,8 @@ def read_rapl_power_limits():
 root_checks = (
     ('systemd_timers', check_systemd_timers, Status.WARN, 'systemd timers',
      'Unexpected system timers found. Disable them for reliable cluster benchmarks.'),
+    ('cron_files', check_cron_files, Status.WARN, 'cron files',
+     'Active cron files found. Disable them for reliable cluster benchmarks.'),
     ('rapl_power_limits', read_rapl_power_limits, Status.WARN, 'rapl power limits',
      'Failed to read RAPL power limits.'),
 )

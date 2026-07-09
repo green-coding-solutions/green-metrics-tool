@@ -259,6 +259,19 @@ def check_systemd_timers(*_, **__):
     return not _parse_timers(result.stdout)
 
 
+def check_cron_files(*_, **__):
+    if platform.system() in ('Darwin', 'Windows'):
+        return True
+
+    data = _get_sudo_check_results()
+    if not data:
+        return None  # sudo script not installed or failed — skip
+    cron = data.get('cron_files', {})
+    if 'error' in cron and not cron.get('files_found'):
+        return None  # find unavailable — skip
+    return not cron.get('files_found')
+
+
 def _check_rapl_domain(domain_key):
     '''Shared logic for per-domain RAPL power capping checks.
 
@@ -526,6 +539,7 @@ start_checks = (
     (check_docker_host_env, Status.ERROR, 'docker host env', 'You seem to be running a rootless docker and in this case you must set the DOCKER_HOST environment variable so that the docker library we use can find the docker agent. Typically this should be DOCKER_HOST=unix:///$XDG_RUNTIME_DIR/docker.sock'),
     (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
     (check_systemd_timers, Status.WARN, 'systemd timers', 'Unexpected systemd timers are active. These can create interference during measurements. Disable or remove them for reliable cluster benchmarks.'),
+    (check_cron_files, Status.WARN, 'cron files', 'Active cron files found in /var/spool/cron or /etc/cron*. These can create interference during measurements. Disable or remove them for reliable cluster benchmarks.'),
     (check_rapl_power_capping_package, Status.WARN, 'rapl power capping (package)', 'RAPL package domain power limit exceeds the value configured in machine.rapl_power_capping.package. Verify that the system power cap is set correctly.'),
     (check_rapl_power_capping_dram, Status.WARN, 'rapl power capping (dram)', 'RAPL DRAM domain power limit exceeds the value configured in machine.rapl_power_capping.dram. Verify that the system power cap is set correctly.'),
     (check_rapl_power_capping_psys, Status.WARN, 'rapl power capping (psys)', 'RAPL psys domain power limit exceeds the value configured in machine.rapl_power_capping.psys. Verify that the system power cap is set correctly.'),
