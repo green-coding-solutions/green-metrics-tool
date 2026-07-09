@@ -51,7 +51,6 @@ VALUES (
                 "measurement.disabled_metric_providers",
                 "measurement.flow_process_duration",
                 "measurement.total_duration",
-                "measurement.phase_padding",
                 "measurement.system_check_threshold",
                 "measurement.pre_test_sleep",
                 "measurement.idle_duration",
@@ -139,7 +138,6 @@ VALUES (
         },
         "machines": [1],
         "measurement": {
-            "phase_padding": true,
             "quotas": {},
             "dev_no_sleeps": false,
             "skip_optimizations": false,

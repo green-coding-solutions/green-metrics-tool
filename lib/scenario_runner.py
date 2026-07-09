@@ -76,7 +76,7 @@ class ScenarioRunner:
         docker_credentials=None,
         docker_prune=False, job_id=None, user_id=1,
         disabled_metric_providers=None, allowed_run_args=None, allowed_volume_mounts=None,
-        phase_padding=True, usage_scenario_variables=None, carbon_simulation=None,
+        usage_scenario_variables=None, carbon_simulation=None,
         category_ids=None,
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
@@ -197,7 +197,7 @@ class ScenarioRunner:
         self._measurement_phase_transition_time = measurement_phase_transition_time
         self._measurement_wait_time_dependencies = measurement_wait_time_dependencies
         self._last_measurement_duration = 0
-        self._phase_padding = phase_padding
+
         configured_metric_providers = utils.get_metric_providers(config, self._disabled_metric_providers)
         self._phase_padding_ms = 0
         if configured_metric_providers:
@@ -2253,11 +2253,7 @@ class ScenarioRunner:
         self._check_total_runtime_exceeded()
 
         phase_time = int(time.time_ns() / 1_000)
-
-        if self._phase_padding:
-            self.__notes_helper.add_note( note=f"Ending phase {phase} [UNPADDED]", detail_name='[NOTES]', timestamp=phase_time)
-            phase_time += self._phase_padding_ms*1000 # value is in ms and we need to get to us
-            time.sleep(self._phase_padding_ms/1000) # no custom sleep here as even with dev_no_sleeps we must ensure phases don't overlap
+        time.sleep(self._phase_padding_ms/1000) # no custom sleep here as even with dev_no_sleeps we must ensure phases don't overlap
 
         if phase not in self.__phases:
             raise RuntimeError(f'Phase "{phase}" not found in known phases: "{list(self.__phases.keys())}". '
@@ -2274,10 +2270,7 @@ class ScenarioRunner:
 
         self.__phases[phase]['end'] = phase_time
 
-        if self._phase_padding:
-            self.__notes_helper.add_note( note=f"Ending phase {phase} [PADDED]", detail_name='[NOTES]', timestamp=phase_time)
-        else:
-            self.__notes_helper.add_note( note=f"Ending phase {phase} [UNPADDED]", detail_name='[NOTES]', timestamp=phase_time)
+        self.__notes_helper.add_note( note=f"Ending phase {phase} [includes next tick]", detail_name='[NOTES]', timestamp=phase_time)
 
     def _run_flows(self):
         ps_to_kill_tmp = []

@@ -88,17 +88,32 @@ TEST_MEASUREMENT_DURATION_RAW_H = TEST_MEASUREMENT_DURATION_RAW_S/60/60
 
 def filter_df_runtime_subphase(df, *, hidden=False, phase_name=None):
     df_list = []
-    for phase in TEST_MEASUREMENT_PHASES:
+    for idx, phase in enumerate(TEST_MEASUREMENT_PHASES):
+        next_phase_start = TEST_MEASUREMENT_PHASES[idx+1]['start'] if idx+1 < len(TEST_MEASUREMENT_PHASES) else None
         if phase_name:
             if phase['name'] == phase_name:
-                df_list.append(apply_mask(df, phase))
+                df_list.append(apply_mask(df, phase, next_phase_start))
         elif ']' not in phase['name'] and phase['hidden'] is hidden:
-            df_list.append(apply_mask(df, phase))
+            df_list.append(apply_mask(df, phase, next_phase_start))
     return pandas.concat(df_list).sort_index()
 
-def apply_mask(df, phase):
+def apply_mask(df, phase, next_phase_start=None):
     mask = df['time'].between(phase['start'], phase['end'], inclusive="neither")
     df_temp = df[mask].copy()
+
+    # mimic the 'next_one' CTE in lib/phase_stats.py, which pads the phase with
+    # the first value at or after the phase end, so sums/diffs match production.
+    # That value is only borrowed if it does not already belong to the next
+    # phase (time < next_phase_start), otherwise it would get double-counted
+    # once here and once as the next phase's own in-range value.
+    next_row_mask = df['time'] >= phase['end']
+    if next_phase_start is not None:
+        next_row_mask &= df['time'] < next_phase_start
+    next_row = df[next_row_mask].sort_values('time').head(1)
+    if not next_row.empty:
+        df_temp = pandas.concat([df_temp, next_row])
+
+    df_temp = df_temp.sort_values('time')
     df_temp['time_diff'] = df_temp['time'].diff()
     return df_temp
 

@@ -49,7 +49,6 @@ if __name__ == '__main__':
     parser.add_argument('--verbose-provider-boot', action='store_true', help='Boot metric providers gradually')
     parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
     parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
-    parser.add_argument('--no-phase-padding', action='store_true', help='Do not add paddings to phase end to capture incomplete last sampling interval.')
     parser.add_argument('--iterations', type=int, default=1, help='Specify how many times each scenario should be run. Default is 1. With multiple files, all files are processed sequentially, then the entire sequence is repeated N times. Example: with files A.yml, B.yml and --iterations 2, the execution order is A, B, A, B.')
 
     # These switches do not alter proper measurements, but might result in data not being generated
@@ -207,7 +206,7 @@ if __name__ == '__main__':
                     docker_credentials=docker_credentials_to_pass,
                     commit_hash_folder=args.commit_hash_folder,
                     usage_scenario_variables=variables_dict, category_ids=args.category,
-                    phase_padding=not args.no_phase_padding, carbon_simulation=carbon_simulation_to_pass,
+                    carbon_simulation=carbon_simulation_to_pass,
 
                     measurement_system_check_threshold=args.measurement_system_check_threshold,
                     measurement_pre_test_sleep=args.measurement_pre_test_sleep,

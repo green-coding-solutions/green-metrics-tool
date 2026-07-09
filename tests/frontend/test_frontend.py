@@ -1060,7 +1060,6 @@ class TestFrontendFunctionality:
         assert user._capabilities['measurement']['disabled_metric_providers'] == []
         assert user._capabilities['measurement']['flow_process_duration'] == 86400
         assert user._capabilities['measurement']['total_duration'] == 86400
-        assert user._capabilities['measurement']['phase_padding'] is True
         assert user._capabilities['measurement']['dev_no_sleeps'] is False
         assert user._capabilities['measurement']['skip_optimizations'] is False
         assert user._capabilities['measurement']['system_check_threshold'] == 3
@@ -1082,9 +1081,6 @@ class TestFrontendFunctionality:
 
         value = page.locator('#measurement-total-duration').input_value()
         assert int(value.strip()) == user._capabilities['measurement']['total_duration']
-
-        value = page.locator('#measurement-phase-padding').is_checked()
-        assert value is user._capabilities['measurement']['phase_padding']
 
         value = page.locator('#measurement-dev-no-sleeps').is_checked()
         assert value is user._capabilities['measurement']['dev_no_sleeps']
@@ -1124,7 +1120,6 @@ class TestFrontendFunctionality:
         page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "network_connections_proxy_container");')
         page.locator('#measurement-flow-process-duration').fill('456')
         page.locator('#measurement-total-duration').fill('123')
-        page.locator('#measurement-phase-padding').click()
         page.locator('#measurement-pre-test-sleep').fill('100')
         page.locator('#measurement-idle-duration').fill('200')
         page.locator('#measurement-baseline-duration').fill('100')
@@ -1139,7 +1134,6 @@ class TestFrontendFunctionality:
         page.locator('#save-measurement-disabled-metric-providers').click()
         page.locator('#save-measurement-flow-process-duration').click()
         page.locator('#save-measurement-total-duration').click()
-        page.locator('#save-measurement-phase-padding').click()
         page.locator('#save-measurement-pre-test-sleep').click()
         page.locator('#save-measurement-idle-duration').click()
         page.locator('#save-measurement-baseline-duration').click()
@@ -1159,7 +1153,6 @@ class TestFrontendFunctionality:
         assert user._capabilities['measurement']['disabled_metric_providers'] == ['network_connections_proxy_container']
         assert user._capabilities['measurement']['flow_process_duration'] == 456
         assert user._capabilities['measurement']['total_duration'] == 123
-        assert user._capabilities['measurement']['phase_padding'] is False
         assert user._capabilities['measurement']['dev_no_sleeps'] is True
         assert user._capabilities['measurement']['skip_optimizations'] is True
         assert user._capabilities['measurement']['system_check_threshold'] == 2
