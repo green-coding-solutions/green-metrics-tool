@@ -10,6 +10,10 @@ const updateSetting = async (el) => {
             await makeAPICall('/v1/user/setting', {name: name, value: left_el.checked}, null, true)
             showNotification('Save success!', `${name} = ${left_el.checked}`, 'success')
         } else {
+            if (name === 'ssh_private_key' && left_el.value === '') {
+                showNotification('Nothing saved', 'Saving an empty field would delete the stored key. Use the Clear button instead if that is what you want.');
+                return;
+            }
             await makeAPICall('/v1/user/setting', {name: name, value: left_el.value}, null, true)
             if (name === 'ssh_private_key') {
                 showNotification('Save success!', 'ssh_private_key updated', 'success')
@@ -135,10 +139,15 @@ const saveDockerCredentials = async () => {
         creds.push({registry: registry, username: username, password: password});
     }
 
+    if (creds.length === 0) {
+        showNotification('Nothing saved', 'Saving with no registries filled in would delete all stored credentials. Use the Clear button instead if that is what you want.');
+        return;
+    }
+
     try {
         await makeAPICall('/v1/user/setting', {name: 'docker_credentials', value: creds}, null, true)
         showNotification('Save success!', 'docker_credentials updated', 'success')
-        renderDockerCredentialsState(creds.length > 0);
+        renderDockerCredentialsState(true);
     } catch (err) {
         showNotification('Could not save setting', err);
     }
