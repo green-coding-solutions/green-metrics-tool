@@ -17,6 +17,7 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.repo_info import get_repo_info
 from lib import validate
+from lib.temperature import get_temperature
 from lib import error_helpers
 from lib import utils
 from lib.configuration_check_error import ConfigurationCheckError, Status, TemperatureException
@@ -76,6 +77,17 @@ def set_status(status_code, data=None, run_id=None):
 
     )
     DB().query(query=query, params=params)
+
+def update_current_temperature():
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
+
+    chip = config['machine'].get('base_temperature_chip')
+    feature = config['machine'].get('base_temperature_feature')
+    if not chip or not feature:
+        return # temperature monitoring not configured for this machine — skip
+
+    current_temperature = get_temperature(chip, feature)
+    DB().query('UPDATE machines SET current_temperature=%s WHERE id = %s', params=(current_temperature, config['machine']['id']))
 
 def reboot_if_uptime_exceeded(reboot_after_s):
     config = GlobalConfig().config # pylint: disable=redefined-outer-name
@@ -209,6 +221,9 @@ if __name__ == '__main__':
             needs_revalidation = True
 
         while True:
+
+            if not args.testing:
+                update_current_temperature()
 
             # run forced maintenance with maintenance every 24 hours
             if not args.testing and last_24h_maintenance < (time.time() - 43200): # every 12 hours
