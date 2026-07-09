@@ -103,8 +103,8 @@ machine:
   host_reserved_cpus: 1
   host_reserved_memory: 0
 
-  # Optional: if set, system_checks verifies that the named RAPL domain power limits are at or
-  # below the configured values (in Watts). Omit any sub-key to skip that domain check.
+  # Optional: if set, system_checks verifies that the named RAPL domain power limits are
+  # exactly equal to the configured values (in Watts). Omit any sub-key to skip that domain check.
   # Useful to confirm consistent power capping across cluster nodes.
   # rapl_power_capping:
   #   package: null  # per-socket package power limit in Watts (name starts with "package-")
