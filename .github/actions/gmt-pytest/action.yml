@@ -43,6 +43,20 @@ inputs:
 runs:
   using: 'composite'
   steps:
+
+    - name: Debug
+      shell: bash
+      working-directory: ${{ inputs.gmt-directory }}/tests
+      env:
+        DEFAULT_TEST_PATH: ${{ inputs.test-path }}
+        GMT_TESTING_DOCKER_USER: ${{ inputs.docker-user }}
+        GMT_TESTING_DOCKER_PAT: ${{ inputs.docker-pat }}
+      run: |
+        COMMIT_MSG="$(git log -1 --pretty=%B 2>&1)"
+        echo "Commit message:"
+        echo "$COMMIT_MSG"
+
+
     - name: setup_python
       uses: actions/setup-python@v6
       with:
