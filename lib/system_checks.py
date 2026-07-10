@@ -257,10 +257,9 @@ def check_systemd_timers(*_, **__):
     result = subprocess.run(
         ['systemctl', '--user', '--all', 'list-timers'],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        encoding='UTF-8', errors='replace', check=False,
+        encoding='UTF-8', errors='replace', check=True,
     )
-    if result.returncode != 0:
-        return None  # user session unavailable — skip
+
     return not _parse_timers(result.stdout)
 
 
@@ -272,8 +271,7 @@ def check_cron_files(*_, **__):
     if not data:
         return None  # sudo script not installed or failed — skip
     cron = data.get('cron_files', {})
-    if 'error' in cron and not cron.get('files_found'):
-        return None  # find unavailable — skip
+
     return not cron.get('files_found')
 
 
@@ -298,20 +296,17 @@ def _check_rapl_domain(domain_key):
     if not expected_watts:
         return NOT_CONFIGURED  # this specific domain not configured — skip
     data = _get_sudo_check_results()
-    if not data:
-        return None  # sudo script not installed or failed — skip
+
     rapl_limits = data.get('rapl_power_limits', {})
-    if isinstance(rapl_limits, dict) and 'error' in rapl_limits:
-        return None  # RAPL read failed — skip
+
     domain_entries = rapl_limits.get(domain_key, [])
-    if not domain_entries:
-        return False  # configured in config but no matching RAPL domain found on machine
+
     expected_uw = int(expected_watts) * 1_000_000
     for entry in domain_entries:
         for limit_key in ('long_term_uw', 'short_term_uw'):
             value = entry.get(limit_key)
             if value is None:
-                continue  # this constraint type not exposed on this domain — skip it
+                return False  # this constraint type not exposed on this domain — skip it
             if not str(value).isdigit() or int(value) != expected_uw:
                 return False
     return True
@@ -363,24 +358,21 @@ def check_dram(*_, **__):
     result = subprocess.run(
         ['lsmem', '--summary=only'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        encoding='UTF-8', errors='replace', check=False,
+        encoding='UTF-8', errors='replace', check=True,
     )
-    if result.returncode != 0:
-        return None  # lsmem unavailable — skip
 
     # installed memory = online + offline blocks, so hot-removed/offline DIMMs are still counted
-    total_bytes = 0
+    actual_gb = 0
     found = False
     for line in result.stdout.splitlines():
-        match = re.match(r'Total (online|offline) memory:\s*([\d+\.]G)', line.strip())
+        match = re.match(r'Total online memory:\s*([\d\.]+)G', line.strip())
         if match:
-            total_bytes += round(match.group(2))
+            actual_gb += math.ceil(float(match.group(1)))
             found = True
     if not found:
-        return None  # unexpected lsmem output — skip
+        return False  # unexpected lsmem output — This is an error
 
-    actual_gb = round(total_bytes / (1024 ** 3))
-    return actual_gb == int(expected_gb)
+    return actual_gb == math.ceil(float(expected_gb))
 
 
 def check_usb_devices(*_, **__):
@@ -392,10 +384,9 @@ def check_usb_devices(*_, **__):
     result = subprocess.run(
         ['lsusb'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        encoding='UTF-8', errors='replace', check=False,
+        encoding='UTF-8', errors='replace', check=True,
     )
-    if result.returncode != 0:
-        return None  # lsusb not available — skip
+
     for line in result.stdout.splitlines():
         if not line.strip():
             continue
@@ -413,10 +404,9 @@ def check_pci_devices(*_, **__):
     result = subprocess.run(
         ['lspci'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        encoding='UTF-8', errors='replace', check=False,
+        encoding='UTF-8', errors='replace', check=True,
     )
-    if result.returncode != 0:
-        return None  # lspci not available — skip
+
     for line in result.stdout.splitlines():
         if not line.strip():
             continue
@@ -465,8 +455,8 @@ def check_cpu_smt(*_, **__):
         with open(smt_path, 'r', encoding='utf-8') as f:
             active = f.read().strip() == '1'
     except OSError:
-        return None  # SMT not supported on this CPU — skip
-    return active == bool(config_val)
+        return False is bool(config_val)  # SMT not supported on this CPU — must be set to False then
+    return active is bool(config_val)
 
 
 def check_cpu_turbo_boost(*_, **__):
@@ -480,7 +470,7 @@ def check_cpu_turbo_boost(*_, **__):
     try:
         with open(intel_path, 'r', encoding='utf-8') as f:
             boost_on = f.read().strip() == '0'
-        return boost_on == bool(config_val)
+        return boost_on is bool(config_val)
     except OSError:
         pass
     # Generic cpufreq boost: boost=1 means boost is ON
@@ -488,10 +478,10 @@ def check_cpu_turbo_boost(*_, **__):
     try:
         with open(generic_path, 'r', encoding='utf-8') as f:
             boost_on = f.read().strip() == '1'
-        return boost_on == bool(config_val)
+        return boost_on is bool(config_val)
     except OSError:
         pass
-    return None  # no turbo boost interface found — skip
+    return bool(config_val) is False  # no turbo boost interface found - Must match expectation
 
 
 def check_cpu_frequency(*_, **__):
