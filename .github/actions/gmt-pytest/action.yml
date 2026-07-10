@@ -53,7 +53,7 @@ runs:
         GMT_TESTING_DOCKER_PAT: ${{ inputs.docker-pat }}
       run: |
         COMMIT_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
-        COMMIT_MSG="$(git log -1 --pretty=%B "$COMMIT_SHA" 2>&1)"
+        COMMIT_MSG="$(git log -1 --pretty=%B "$COMMIT_SHA")"
         echo "Commit message:"
         echo "$COMMIT_MSG"
 
