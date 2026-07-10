@@ -151,7 +151,7 @@ runs:
         echo "Commit message:"
         echo "$COMMIT_MSG"
 
-        if [[ "$COMMIT_MSG" =~ \[test-path:\ ([^]]+)\] ]]; then
+        if [[ $COMMIT_MSG =~ \[test-path:[[:space:]]*([^][]+)\] ]]; then
           TEST_PATH="${BASH_REMATCH[1]}"
           echo "Detected test-path keyword: $TEST_PATH"
         else
