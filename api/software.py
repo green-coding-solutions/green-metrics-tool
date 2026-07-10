@@ -11,6 +11,7 @@ from lib.db import DB
 
 router = APIRouter()
 
+HOURS_STORAGE_12=43200
 
 @router.get('/v1/software/categories')
 async def get_software_categories(
@@ -191,7 +192,7 @@ async def get_software_tasks(
             tasks[task_id]['phase_metrics'][metric] = {'value': value, 'unit': unit, 'type': type_}
 
     result = [tasks[tid] for tid in task_order]
-    store_artifact(ArtifactType.SOFTWARE, cache_key, orjson.dumps(result)) # pylint: disable=no-member
+    store_artifact(ArtifactType.SOFTWARE, cache_key, orjson.dumps(result), ex=HOURS_STORAGE_12) # pylint: disable=no-member
     return CustomORJSONResponse({'success': True, 'data': result})
 
 
@@ -331,7 +332,7 @@ async def get_similar_software(
             tasks_map[task_id]['phase_metrics'][metric] = {'value': value, 'unit': unit, 'type': type_}
 
     result = [tasks_map[tid] for tid in task_order]
-    store_artifact(ArtifactType.SOFTWARE, cache_key, orjson.dumps(result)) # pylint: disable=no-member
+    store_artifact(ArtifactType.SOFTWARE, cache_key, orjson.dumps(result), ex=HOURS_STORAGE_12) # pylint: disable=no-member
 
     result = _prepare(result)
     if not result:
