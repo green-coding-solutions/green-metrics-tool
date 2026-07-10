@@ -159,7 +159,7 @@ runs:
           TEST_PATH="${DEFAULT_TEST_PATH}"
         fi
 
-        python3 -m ${{ inputs.tests-command }} "${TEST_PATH}" -rA | tee /tmp/test-results.txt
+        python3 -m ${{ inputs.tests-command }} ${TEST_PATH} -rA | tee /tmp/test-results.txt
 
     - name: Display Results
       shell: bash
