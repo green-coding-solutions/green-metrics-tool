@@ -43,22 +43,6 @@ inputs:
 runs:
   using: 'composite'
   steps:
-
-    - name: Debug
-      shell: bash
-      working-directory: ${{ inputs.gmt-directory }}/tests
-      env:
-        DEFAULT_TEST_PATH: ${{ inputs.test-path }}
-        GMT_TESTING_DOCKER_USER: ${{ inputs.docker-user }}
-        GMT_TESTING_DOCKER_PAT: ${{ inputs.docker-pat }}
-      run: |
-        COMMIT_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
-        git fetch origin "$COMMIT_SHA"
-        COMMIT_MSG="$(git log -1 --pretty=%B "$COMMIT_SHA")"
-        echo "Commit message:"
-        echo "$COMMIT_MSG"
-
-
     - name: setup_python
       uses: actions/setup-python@v6
       with:
@@ -162,8 +146,9 @@ runs:
         GMT_TESTING_DOCKER_PAT: ${{ inputs.docker-pat }}
 
       run: |
-        source ../venv/bin/activate
-        COMMIT_MSG="$(git log -1 --pretty=%B 2>&1)"
+        COMMIT_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+        git fetch origin "$COMMIT_SHA"
+        COMMIT_MSG="$(git log -1 --pretty=%B "$COMMIT_SHA")"
         echo "Commit message:"
         echo "$COMMIT_MSG"
 
@@ -175,6 +160,7 @@ runs:
           TEST_PATH="${DEFAULT_TEST_PATH}"
         fi
 
+        source ../venv/bin/activate
         python3 -m ${{ inputs.tests-command }} ${TEST_PATH} -rA | tee /tmp/test-results.txt
 
     - name: Display Results
