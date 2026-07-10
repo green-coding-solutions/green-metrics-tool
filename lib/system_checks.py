@@ -361,7 +361,7 @@ def check_dram(*_, **__):
     if not expected_gb:
         return NOT_CONFIGURED
     result = subprocess.run(
-        ['lsmem', '--bytes', '--summary=only'],
+        ['lsmem', '--summary=only'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         encoding='UTF-8', errors='replace', check=False,
     )
@@ -372,9 +372,9 @@ def check_dram(*_, **__):
     total_bytes = 0
     found = False
     for line in result.stdout.splitlines():
-        match = re.match(r'Total (online|offline) memory:\s*(\d+)', line.strip())
+        match = re.match(r'Total (online|offline) memory:\s*([\d+\.]G)', line.strip())
         if match:
-            total_bytes += int(match.group(2))
+            total_bytes += round(match.group(2))
             found = True
     if not found:
         return None  # unexpected lsmem output — skip
