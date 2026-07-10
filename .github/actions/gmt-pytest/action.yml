@@ -52,8 +52,139 @@ runs:
         GMT_TESTING_DOCKER_USER: ${{ inputs.docker-user }}
         GMT_TESTING_DOCKER_PAT: ${{ inputs.docker-pat }}
       run: |
+        COMMIT_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+        COMMIT_MSG="$(git log -1 --pretty=%B "$COMMIT_SHA" 2>&1)"
+        echo "Commit message:"
+        echo "$COMMIT_MSG"
+
+
+    - name: setup_python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.13'
+
+    - id: python_cache
+      uses: actions/cache@v6
+      with:
+        path: venv
+        key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('docker/requirements.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
+
+    - name: install script and packages
+      shell: bash
+      working-directory: ${{ inputs.gmt-directory }}
+      run: |
+        if ${{inputs.ee}}; then
+          if [[ "${{inputs.ee-branch}}" != '' ]]; then
+            echo "Using ee-branch ${{inputs.ee-branch}}"
+            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --ee-branch ${{inputs.ee-branch}} --nvidia-gpu --ai --tz GMT --disable-path-security --no-elephant --no-software-view
+          else
+            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --nvidia-gpu --ai --tz GMT --disable-path-security --no-elephant --no-software-view
+          fi
+        else
+          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g --nvidia-gpu --tz GMT --disable-path-security --no-elephant --no-software-view
+        fi
+        source venv/bin/activate
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+
+    - name: Install dev requirements and run test setup script
+      shell: bash
+      working-directory: ${{ inputs.gmt-directory }}
+      run: |
+        source venv/bin/activate
+        python3 -m pip install -r requirements-dev.txt
+        playwright install --with-deps firefox
+        if ${{inputs.ee}}; then
+          cd tests && python3 setup-test-env.py --no-docker-build --ee
+        else
+          cd tests && python3 setup-test-env.py --no-docker-build
+        fi
+
+      # We skipped the build step earlier to now build with a cache.
+      # Sadly docker compose uses a different driver in GitHub Actions and cannot directly
+      # use the cache-from and cache-to directives in the compose.yml as it cannot connect to a remote cache.
+      # Thus, to save cache to packages we use buildx
+      # https://github.com/green-coding-solutions/green-metrics-tool/pkgs/container/gunicorn-container-cache/versions
+
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v4
+
+    - name: Login to Docker Registry
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.github-token }}
+
+    - name: Build docker-compose
+      id: build-docker-compose
+      shell: bash
+      working-directory: ${{ inputs.gmt-directory }}/docker
+      run: |
+        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --set test-green-coding-gunicorn.cache-from=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.cache-to=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.tags='green-metrics-tool-test-test-green-coding-gunicorn:latest' --load 2>&1); DOCKER_EXIT_CODE=$?; } || true
+        if [ "$DOCKER_EXIT_CODE" -ne 0 ]; then
+          echo "Docker build failed with exit code $DOCKER_EXIT_CODE"
+          echo "buildx output:"
+          echo "$DOCKER_OUTPUT"
+          if echo "$DOCKER_OUTPUT" | grep -q "403 Forbidden"; then
+            echo "Docker build failed due to permissions issue. Continuing..."
+          else
+              exit 1
+          fi
+        fi
+
+    - name: Start Test container
+      shell: bash
+      working-directory: ${{ inputs.gmt-directory }}/tests
+      run: |
+        source ../venv/bin/activate && ./start-test-containers.sh -d
+
+    # for debugging purposes you can setup a ssh connection by setting 'inputs.enable-ssh' to true
+    - name: Setup upterm session
+      if: ${{ inputs.enable-ssh == 'true' }}
+      uses: owenthereal/action-upterm@47652056242288ccbebd30f836e9885d09a75365
+      with:
+        limit-access-to-actor: true # Restrict to the user who triggered the workflow
+
+    - name: Disable swap
+      shell: bash
+      run: |
+        sudo swapoff -a
+
+    - name: Run Tests
+      shell: bash
+      working-directory: ${{ inputs.gmt-directory }}/tests
+      env:
+        DEFAULT_TEST_PATH: ${{ inputs.test-path }}
+        GMT_TESTING_DOCKER_USER: ${{ inputs.docker-user }}
+        GMT_TESTING_DOCKER_PAT: ${{ inputs.docker-pat }}
+
+      run: |
+        source ../venv/bin/activate
         COMMIT_MSG="$(git log -1 --pretty=%B 2>&1)"
         echo "Commit message:"
         echo "$COMMIT_MSG"
-        echo "$PWD"
-        git rev-parse --show-toplevel
+
+        if [[ $COMMIT_MSG =~ \[test-path:[[:space:]]*([^][]+)\] ]]; then
+          TEST_PATH="${BASH_REMATCH[1]}"
+          echo "Detected test-path keyword: $TEST_PATH"
+        else
+          echo "No test keyword detected. Using default: ${{ inputs.test-path }}"
+          TEST_PATH="${DEFAULT_TEST_PATH}"
+        fi
+
+        python3 -m ${{ inputs.tests-command }} ${TEST_PATH} -rA | tee /tmp/test-results.txt
+
+    - name: Display Results
+      shell: bash
+      if: always()
+      run: |
+        cat /tmp/test-results.txt | grep -oPz '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
+
+    - name: Stop Containers
+      shell: bash
+      if: always()
+      working-directory: ${{ inputs.gmt-directory }}/tests
+      run: |
+        ./stop-test-containers.sh
