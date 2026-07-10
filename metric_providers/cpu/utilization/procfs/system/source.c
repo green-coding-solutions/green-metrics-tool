@@ -85,8 +85,7 @@ static void output_stats() {
     // printf("%ld%06ld %f\n", now.tv_sec, now.tv_usec, (double)compute_time_reading / (double)(compute_time_reading+idle_reading));
 
     // main output to Stdout
-    double utilization_reading = ((double)compute_time_reading * 10000.0) / (double)(compute_time_reading+non_compute_reading);
-    printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (long)utilization_reading ); // Deliberate integer conversion. Precision with 0.01% is good enough
+    printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (compute_time_reading*10000) / (compute_time_reading+non_compute_reading) ); // Deliberate integer conversion. Precision with 0.01% is good enough
 }
 
 int main(int argc, char **argv) {
