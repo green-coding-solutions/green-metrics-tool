@@ -39,6 +39,11 @@ GMT_RESOURCES = {
     'free_memory': 2 * 1024**3, # 2 GB in Bytes
 }
 
+# Sentinel returned by a check when it is skipped because the relevant machine.* option
+# is not set in config.yml at all. Distinct from None, which checks return when they are
+# skipped for environment reasons (unsupported platform, tool unavailable, etc).
+NOT_CONFIGURED = 'not_configured'
+
 ######## CHECK FUNCTIONS ########
 def check_db(*_, **__):
     try:
@@ -288,10 +293,10 @@ def _check_rapl_domain(domain_key):
     config = GlobalConfig().config
     rapl_cfg = config.get('machine', {}).get('rapl_power_capping')
     if not rapl_cfg or not isinstance(rapl_cfg, dict):
-        return None  # rapl_power_capping not configured at all — skip
+        return NOT_CONFIGURED  # rapl_power_capping not configured at all — skip
     expected_watts = rapl_cfg.get(domain_key)
     if not expected_watts:
-        return None  # this specific domain not configured — skip
+        return NOT_CONFIGURED  # this specific domain not configured — skip
     data = _get_sudo_check_results()
     if not data:
         return None  # sudo script not installed or failed — skip
@@ -327,8 +332,8 @@ def check_rapl_power_capping_psys(*_, **__):
 def check_docker_registry_url(*_, **__):
     config = GlobalConfig().config
     expected_url = config.get('machine', {}).get('docker_registry_url')
-    if not expected_url:
-        return None  # not configured — skip
+    if expected_url is None:
+        return NOT_CONFIGURED
     result = subprocess.run(
         ['docker', 'info'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -336,6 +341,8 @@ def check_docker_registry_url(*_, **__):
     )
     if result.returncode != 0:
         return None  # docker not reachable — let check_docker_daemon report that
+    if expected_url is False:
+        return 'Registry Mirrors:' not in result.stdout  # confirmed no registry mirror is configured
     normalized = expected_url.rstrip('/')
     return normalized in result.stdout or (normalized + '/') in result.stdout
 
@@ -343,15 +350,36 @@ def check_docker_registry_url(*_, **__):
 def check_cpu_cores(*_, **__):
     expected = GlobalConfig().config.get('machine', {}).get('cpu_cores')
     if not expected:
-        return None
+        return NOT_CONFIGURED
     return psutil.cpu_count(logical=True) == int(expected)
 
 
 def check_dram(*_, **__):
+    if platform.system() in ('Darwin', 'Windows'):
+        return None  # lsmem is a Linux (util-linux) only tool
     expected_gb = GlobalConfig().config.get('machine', {}).get('dram_gb')
     if not expected_gb:
-        return None
-    actual_gb = round(psutil.virtual_memory().total / (1024 ** 3))
+        return NOT_CONFIGURED
+    result = subprocess.run(
+        ['lsmem', '--bytes', '--summary=only'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        encoding='UTF-8', errors='replace', check=False,
+    )
+    if result.returncode != 0:
+        return None  # lsmem unavailable — skip
+
+    # installed memory = online + offline blocks, so hot-removed/offline DIMMs are still counted
+    total_bytes = 0
+    found = False
+    for line in result.stdout.splitlines():
+        match = re.match(r'Total (online|offline) memory:\s*(\d+)', line.strip())
+        if match:
+            total_bytes += int(match.group(2))
+            found = True
+    if not found:
+        return None  # unexpected lsmem output — skip
+
+    actual_gb = round(total_bytes / (1024 ** 3))
     return actual_gb == int(expected_gb)
 
 
@@ -360,7 +388,7 @@ def check_usb_devices(*_, **__):
         return None
     allowlist = GlobalConfig().config.get('machine', {}).get('usb_devices')
     if not allowlist:
-        return None
+        return NOT_CONFIGURED
     result = subprocess.run(
         ['lsusb'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -381,7 +409,7 @@ def check_pci_devices(*_, **__):
         return None
     allowlist = GlobalConfig().config.get('machine', {}).get('pci_devices')
     if not allowlist:
-        return None
+        return NOT_CONFIGURED
     result = subprocess.run(
         ['lspci'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -401,8 +429,8 @@ def check_cpu_governor(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
         return None
     expected = GlobalConfig().config.get('machine', {}).get('cpu_governor')
-    if not expected:
-        return None
+    if expected is None:
+        return NOT_CONFIGURED
     gov_dir = '/sys/devices/system/cpu'
     found_any = False
     try:
@@ -411,6 +439,8 @@ def check_cpu_governor(*_, **__):
             if not os.path.isfile(gov_path):
                 continue
             found_any = True
+            if expected is False:
+                return False  # a scaling governor is active, but none was expected
             try:
                 with open(gov_path, 'r', encoding='utf-8') as f:
                     if f.read().strip() != expected:
@@ -419,6 +449,8 @@ def check_cpu_governor(*_, **__):
                 continue
     except OSError:
         return None
+    if expected is False:
+        return True  # confirmed no scaling governor is active on any core
     return True if found_any else None
 
 
@@ -427,7 +459,7 @@ def check_cpu_smt(*_, **__):
         return None
     config_val = GlobalConfig().config.get('machine', {}).get('cpu_smt')
     if config_val is None:
-        return None
+        return NOT_CONFIGURED
     smt_path = '/sys/devices/system/cpu/smt/active'
     try:
         with open(smt_path, 'r', encoding='utf-8') as f:
@@ -442,7 +474,7 @@ def check_cpu_turbo_boost(*_, **__):
         return None
     config_val = GlobalConfig().config.get('machine', {}).get('cpu_turbo_boost')
     if config_val is None:
-        return None
+        return NOT_CONFIGURED
     # Intel pstate: no_turbo=0 means boost is ON
     intel_path = '/sys/devices/system/cpu/intel_pstate/no_turbo'
     try:
@@ -465,7 +497,7 @@ def check_cpu_turbo_boost(*_, **__):
 def check_cpu_frequency(*_, **__):
     expected_mhz = GlobalConfig().config.get('machine', {}).get('cpu_frequency_mhz')
     if not expected_mhz:
-        return None
+        return NOT_CONFIGURED
     freqs = psutil.cpu_freq(percpu=True)
     if not freqs:
         return None  # not available on this platform or kernel
@@ -477,8 +509,8 @@ def check_cpu_scaling_driver(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
         return None
     expected = GlobalConfig().config.get('machine', {}).get('cpu_scaling_driver')
-    if not expected:
-        return None
+    if expected is None:
+        return NOT_CONFIGURED
     cpu_dir = '/sys/devices/system/cpu'
     found_any = False
     try:
@@ -487,6 +519,8 @@ def check_cpu_scaling_driver(*_, **__):
             if not os.path.isfile(driver_path):
                 continue
             found_any = True
+            if expected is False:
+                return False  # a scaling driver is active, but none was expected
             try:
                 with open(driver_path, 'r', encoding='utf-8') as f:
                     if f.read().strip() != expected:
@@ -495,6 +529,8 @@ def check_cpu_scaling_driver(*_, **__):
                 continue
     except OSError:
         return None
+    if expected is False:
+        return True  # confirmed no scaling driver is active on any core
     return True if found_any else None
 
 
@@ -505,7 +541,7 @@ def check_temperature(*_, **__):
     base_value = config.get('machine', {}).get('base_temperature_value')
 
     if not chip or not feature or not base_value:
-        return None
+        return NOT_CONFIGURED
 
     current_temp = get_temperature(chip, feature)
     DB().query('UPDATE machines SET current_temperature=%s WHERE id = %s',
@@ -554,16 +590,16 @@ start_checks = (
     (check_rapl_power_capping_package, Status.WARN, 'rapl power capping (package)', 'RAPL package domain power limit does not match the value configured in machine.rapl_power_capping.package. Verify that the system power cap is set correctly.'),
     (check_rapl_power_capping_dram, Status.WARN, 'rapl power capping (dram)', 'RAPL DRAM domain power limit does not match the value configured in machine.rapl_power_capping.dram. Verify that the system power cap is set correctly.'),
     (check_rapl_power_capping_psys, Status.WARN, 'rapl power capping (psys)', 'RAPL psys domain power limit does not match the value configured in machine.rapl_power_capping.psys. Verify that the system power cap is set correctly.'),
-    (check_docker_registry_url, Status.WARN, 'docker registry url', 'Docker is not configured to use the registry mirror set in machine.docker_registry_url. Verify the Docker daemon registry-mirrors configuration.'),
+    (check_docker_registry_url, Status.WARN, 'docker registry url', 'Docker registry mirror configuration does not match machine.docker_registry_url (set to false to require that no mirror is configured). Verify the Docker daemon registry-mirrors configuration.'),
     (check_cpu_cores, Status.WARN, 'cpu core count', 'CPU core count does not match machine.cpu_cores. Check for hot-plug events or unexpected SMT/HT state changes.'),
     (check_dram, Status.WARN, 'dram size', 'Total RAM does not match machine.dram_gb. A DIMM may have failed or been removed/added.'),
     (check_usb_devices, Status.WARN, 'usb devices', 'An unexpected USB device is connected. Review the machine.usb_devices allowlist and remove or account for the new device.'),
     (check_pci_devices, Status.WARN, 'pci devices', 'An unexpected PCI device is present. Review the machine.pci_devices allowlist and remove or account for the new card.'),
-    (check_cpu_governor, Status.WARN, 'cpu governor', 'At least one CPU core is not using the expected scaling governor set in machine.cpu_governor. This can cause significant measurement variance.'),
+    (check_cpu_governor, Status.WARN, 'cpu governor', 'At least one CPU core is not using the expected scaling governor set in machine.cpu_governor (set to false to require that no scaling governor is active). This can cause significant measurement variance.'),
     (check_cpu_smt, Status.WARN, 'cpu smt', 'Hyper-Threading / SMT state does not match machine.cpu_smt. This affects core count and benchmark reproducibility.'),
     (check_cpu_turbo_boost, Status.WARN, 'cpu turbo boost', 'CPU turbo boost state does not match machine.cpu_turbo_boost. Unexpected boost can cause power and timing variance in measurements.'),
     (check_cpu_frequency, Status.WARN, 'cpu frequency', 'At least one CPU core is running outside ±10 MHz of the frequency set in machine.cpu_frequency_mhz. Verify that CPU frequency scaling is locked correctly.'),
-    (check_cpu_scaling_driver, Status.WARN, 'cpu scaling driver', 'CPU scaling driver does not match machine.cpu_scaling_driver. A different driver may apply different power and frequency policies.'),
+    (check_cpu_scaling_driver, Status.WARN, 'cpu scaling driver', 'CPU scaling driver does not match machine.cpu_scaling_driver (set to false to require that no scaling driver is active). A different driver may apply different power and frequency policies.'),
     (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
     (check_swap_disabled, Status.WARN, 'swap disabled', 'Your system uses a swap filesystem. This can lead to very instable measurements. Please disable swap.'),
     (check_tty_attached, Status.WARN, 'tty attached', 'GMT runs with a TTY attached. This will create relevant overhead. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
@@ -596,7 +632,9 @@ def system_check(mode='start', system_check_threshold=3, run_duration=None):
             raise exp
         finally:
             formatted_key = check[2].ljust(max_key_length)
-            if retval or retval is None:
+            if retval is NOT_CONFIGURED:
+                output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} (Skipped: not configured in config.yml)"
+            elif retval or retval is None:
                 output = f"{TerminalColors.OKGREEN}OK{TerminalColors.ENDC}"
             else:
                 if check[1] == Status.WARN:
