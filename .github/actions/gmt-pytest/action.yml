@@ -147,7 +147,7 @@ runs:
 
       run: |
         source ../venv/bin/activate
-        COMMIT_MSG="$(git log -1 --pretty=%B)"
+        COMMIT_MSG="$(git log -1 --pretty=%B 2>&1)"
         echo "Commit message:"
         echo "$COMMIT_MSG"
 
