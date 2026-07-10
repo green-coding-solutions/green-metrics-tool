@@ -146,12 +146,13 @@ runs:
         GMT_TESTING_DOCKER_PAT: ${{ inputs.docker-pat }}
 
       run: |
-        source ../venv/bin/activate
-        COMMIT_MSG="$(git log -1 --pretty=%B)"
+        COMMIT_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+        git fetch origin "$COMMIT_SHA"
+        COMMIT_MSG="$(git log -1 --pretty=%B "$COMMIT_SHA")"
         echo "Commit message:"
         echo "$COMMIT_MSG"
 
-        if [[ "$COMMIT_MSG" =~ \[test-path:\ ([^]]+)\] ]]; then
+        if [[ $COMMIT_MSG =~ \[test-path:[[:space:]]*([^][]+)\] ]]; then
           TEST_PATH="${BASH_REMATCH[1]}"
           echo "Detected test-path keyword: $TEST_PATH"
         else
@@ -159,7 +160,8 @@ runs:
           TEST_PATH="${DEFAULT_TEST_PATH}"
         fi
 
-        python3 -m ${{ inputs.tests-command }} "${TEST_PATH}" -rA | tee /tmp/test-results.txt
+        source ../venv/bin/activate
+        python3 -m ${{ inputs.tests-command }} ${TEST_PATH} -rA | tee /tmp/test-results.txt
 
     - name: Display Results
       shell: bash
