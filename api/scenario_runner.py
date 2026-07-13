@@ -23,11 +23,13 @@ from api.api_helpers import (CustomORJSONResponse, ORJSONResponseObjKeep, add_ph
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.diff import get_diffable_rows, diff_rows
-from lib.job.base import Job
+from lib.job.run import RunJob
+from lib.job.email_simple import EmailSimpleJob
 from lib.user import User
 from lib.watchlist import Watchlist
 from lib import utils
 from lib import error_helpers
+from lib.encryption import EncryptionConfigurationError
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -151,6 +153,10 @@ async def get_jobs(
     data = DB().fetch_all(query, params)
     if data is None or data == []:
         return Response(status_code=204) # No-Content
+
+    # jobs.url is kept unredacted in the DB as the cluster worker needs the real
+    # credentials to clone the repo. Redact it here as it is never needed by the client.
+    data = [(*row[:3], utils.filter_sensitive_data(row[3]), *row[4:]) for row in data]
 
     return CustomORJSONResponse({'success': True, 'data': data})
 
@@ -951,7 +957,13 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
         try:
             utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
         except Exception as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(status_code=422, detail=utils.filter_sensitive_data(str(exc))) from exc
+
+    unencrypted_repo_url = software.repo_url
+    try:
+        software.repo_url = utils.encrypt_uri_credentials(software.repo_url)
+    except EncryptionConfigurationError as exc:
+        raise HTTPException(status_code=422, detail='Cannot store URL credentials: encryption is not configured on this server') from exc
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 
@@ -959,12 +971,12 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
         if not no_url_check:
             try:
                 if 'tag' in software.schedule_mode:
-                    last_marker = utils.get_repo_last_marker(software.repo_url, 'tags')
+                    last_marker = utils.get_repo_last_marker(unencrypted_repo_url, 'tags')
 
                 if 'commit' in software.schedule_mode:
-                    last_marker = utils.get_repo_last_marker(software.repo_url, 'commits')
+                    last_marker = utils.get_repo_last_marker(unencrypted_repo_url, 'commits')
             except RuntimeError as exc:
-                raise HTTPException(status_code=422, detail=str(exc)) from exc
+                raise HTTPException(status_code=422, detail=utils.filter_sensitive_data(str(exc))) from exc
 
         Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
@@ -978,11 +990,11 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
         amount = 1
 
     for _ in range(0,amount):
-        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, commit_hash=software.commit_hash, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation))
+        job_ids_inserted.append(RunJob.insert(user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, commit_hash=software.commit_hash, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation))
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:
-        Job.insert('email-simple', user_id=user._id, name='New run added from Web Interface', message=pprint.pformat(software.model_dump(), width=60, indent=2), email=notification_email)
+        EmailSimpleJob.insert(user_id=user._id, name='New run added from Web Interface', message=pprint.pformat(software.model_dump(), width=60, indent=2), email=notification_email)
 
     return CustomORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
 

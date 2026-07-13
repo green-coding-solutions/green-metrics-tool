@@ -1,12 +1,32 @@
 import random
+import re
 import string
 import subprocess
 import os
 import requests
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 from functools import cache
 from pathlib import Path
 
+from lib.encryption import encrypt_data, decrypt_data, EncryptionConfigurationError, ENCRYPTED_VALUE_PREFIX
+
+# Matches the userinfo part of a URI that uses HTTP-AUTH, e.g. https://user:pass@host/path
+# Username is optional to also catch forms like https://:token@host/path
+URI_CREDENTIALS_RE = re.compile(r'([a-zA-Z][a-zA-Z0-9+.\-]*://)[^\s/@:]*(?::[^\s/@]*)?@')
+
+# Matches PEM encoded private key blocks (RSA, EC, OPENSSH, DSA, generic, encrypted, ...)
+PRIVATE_KEY_RE = re.compile(r'-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----', re.DOTALL)
+
+REDACTED = '*****GMT-REDACTED*****'
+
+def filter_sensitive_data(text):
+    if not text:
+        return text
+    text = URI_CREDENTIALS_RE.sub(rf'\1{REDACTED}@', text)
+    text = PRIVATE_KEY_RE.sub(REDACTED, text)
+    return text
+
+# The above are defined before this import as lib.error_helpers imports them back from here (circular import)
 from lib import error_helpers
 from lib import host_platform
 from lib.db import DB
@@ -18,21 +38,115 @@ def remove_git_suffix(url):
         return url[:-4]
     return url
 
+def _get_uri_userinfo(parsed_uri):
+    """
+    Rebuild the raw 'user:pass' (or 'user') userinfo string of an already-parsed URI.
+    Returns None if the URI carried no credentials.
+    """
+    if not (parsed_uri.username or parsed_uri.password):
+        return None
+    return f"{parsed_uri.username or ''}:{parsed_uri.password}" if parsed_uri.password else (parsed_uri.username or '')
+
+def _set_uri_userinfo(parsed_uri, userinfo):
+    host = parsed_uri.hostname or ''
+    if parsed_uri.port:
+        host += f":{parsed_uri.port}"
+    netloc = f"{userinfo}@{host}" if userinfo else host
+    return urlunparse((parsed_uri.scheme, netloc, parsed_uri.path, parsed_uri.params, parsed_uri.query, parsed_uri.fragment))
+
+def strip_uri_userinfo(uri):
+    """
+    Split a URI into a credential-free URI and its raw userinfo ('user:pass' or 'user').
+    Returns (clean_uri, userinfo), where userinfo is None if the URI carried no credentials.
+    """
+    parsed_uri = urlparse(uri)
+    userinfo = _get_uri_userinfo(parsed_uri)
+    if userinfo is None:
+        return uri, None
+
+    return _set_uri_userinfo(parsed_uri, None), userinfo
+
+def inject_uri_userinfo(uri, userinfo):
+    """
+    Embed a raw 'user:pass' (or 'user') userinfo string into a URI, replacing any userinfo already present.
+    Returns the URI unchanged if userinfo is falsy.
+    """
+    if not userinfo:
+        return uri
+    return _set_uri_userinfo(urlparse(uri), userinfo)
+
+def encrypt_uri_credentials(uri):
+    """
+    Strip credentials off a URI and re-embed them encrypted, for safe storage in the DB.
+    Returns the URI unchanged if it carries no credentials.
+    Raises EncryptionConfigurationError (from lib.encryption) if credentials are present but no
+    encryption key is configured.
+    """
+    clean_uri, userinfo = strip_uri_userinfo(uri)
+    if userinfo is None:
+        return uri
+    return inject_uri_userinfo(clean_uri, encrypt_data(userinfo))
+
+def decrypt_userinfo(userinfo):
+    """
+    Decrypt a userinfo string (as previously returned by strip_uri_userinfo, possibly encrypted
+    via encrypt_uri_credentials) if it carries the encrypted-value prefix; otherwise return it
+    unchanged. Returns None if userinfo is falsy.
+
+    Deliberately does NOT re-embed the result into a URI: putting credentials back into a URI
+    that is then passed as a subprocess argument (e.g. to git) leaks them to any local user via
+    `ps` or `/proc/<pid>/cmdline`. Callers needing to authenticate a subprocess should instead
+    split the result with split_userinfo() and pass the parts via environment variables or a
+    credential helper (see ScenarioRunner._get_git_environment).
+    """
+    if not userinfo:
+        return None
+    if userinfo.startswith(ENCRYPTED_VALUE_PREFIX):
+        return decrypt_data(userinfo)
+    return userinfo
+
+def split_userinfo(userinfo):
+    """
+    Split a raw 'user:pass' or 'user' userinfo string (as returned by strip_uri_userinfo or
+    decrypt_userinfo) into (username, password). Both are '' if userinfo is falsy; password is
+    '' if userinfo has no ':'.
+    """
+    if not userinfo:
+        return '', ''
+    username, _, password = userinfo.partition(':')
+    return username, password
+
 def get_git_api(parsed_url):
 
     if parsed_url.netloc == '' and '@' in parsed_url.path: # this could be an SSH git shorthand, we allow this but cannot determine API
         return [None, None]
 
-    if parsed_url.netloc in ['github.com', 'www.github.com']:
+    hostname = parsed_url.hostname or ''
+
+    if hostname in ['github.com', 'www.github.com']:
         return [f"https://api.github.com/repos/{remove_git_suffix(parsed_url.path.strip(' /'))}", 'github']
 
-    if parsed_url.netloc in ['gitlab.com', 'www.gitlab.com']:
+    if hostname in ['gitlab.com', 'www.gitlab.com']:
         return [f"https://gitlab.com/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab']
 
     # Alternative:
 
     # assume gitlab private hosted
-    return [f"https://{parsed_url.netloc}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'custom']
+    api_host = hostname
+    if parsed_url.port:
+        api_host += f":{parsed_url.port}"
+
+    # repo_url can come from watchlist rows, where it is stored with its userinfo encrypted
+    # (see encrypt_uri_credentials) - decrypt it back to real credentials before using it as
+    # Basic auth, otherwise the ciphertext itself would be sent to the git host and rejected.
+    try:
+        userinfo = decrypt_userinfo(_get_uri_userinfo(parsed_url))
+    except EncryptionConfigurationError as exc:
+        raise RuntimeError(f"Cannot authenticate against {hostname}: stored credentials are encrypted but no decryption key is configured on this server") from exc
+
+    if userinfo is not None:
+        api_host = f"{userinfo}@{api_host}"
+    return [f"https://{api_host}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'custom']
 
 
 def check_repo(repo_url, branch='main'):

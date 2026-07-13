@@ -19,6 +19,7 @@ GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.scenario_runner import ScenarioRunner
 from lib import error_helpers
+from lib import utils
 from lib.terminal_colors import TerminalColors
 from lib.db import DB
 from lib.global_config import GlobalConfig
@@ -40,6 +41,7 @@ if __name__ == '__main__':
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
     parser.add_argument('--user-id', type=int, default=1, help='A user-ID the run shall be mapped to. Defaults to 1 (the default user)')
     parser.add_argument('--ssh-private-key', type=str, help='A filename path on your system that holds an SSH private key')
+    parser.add_argument('--docker-credentials', type=str, help='Path to a JSON file with docker registry credentials: [{"registry":"...","username":"...","password":"..."}]')
     parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
     parser.add_argument('--file-cleanup', action='store_true', help='Delete all temporary files that the runner produced')
     parser.add_argument('--debug', action='store_true', help='Activate steppable debug mode')
@@ -47,7 +49,6 @@ if __name__ == '__main__':
     parser.add_argument('--verbose-provider-boot', action='store_true', help='Boot metric providers gradually')
     parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
     parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
-    parser.add_argument('--no-phase-padding', action='store_true', help='Do not add paddings to phase end to capture incomplete last sampling interval.')
     parser.add_argument('--iterations', type=int, default=1, help='Specify how many times each scenario should be run. Default is 1. With multiple files, all files are processed sequentially, then the entire sequence is repeated N times. Example: with files A.yml, B.yml and --iterations 2, the execution order is A, B, A, B.')
 
     # These switches do not alter proper measurements, but might result in data not being generated
@@ -96,7 +97,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://' or args.uri[0:6] == 'ssh://' or args.uri[0:4] == 'git@':
-        print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', args.uri, TerminalColors.ENDC)
+        print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', utils.filter_sensitive_data(args.uri), TerminalColors.ENDC)
         run_type = 'URL'
     elif Path(args.uri).is_dir():
         print(TerminalColors.OKBLUE, '\nDetected supplied folder: ', args.uri, TerminalColors.ENDC)
@@ -183,15 +184,29 @@ if __name__ == '__main__':
     else:
         ssh_private_key_contents = None
 
+    if args.docker_credentials:
+        with open(args.docker_credentials, 'r', encoding='UTF-8') as f:
+            raw_creds = json.load(f)
+        if not isinstance(raw_creds, list):
+            error_helpers.log_error('--docker-credentials file must contain a JSON array of credential objects')
+            sys.exit(1)
+        docker_credentials_to_pass = [
+            {'registry': c['registry'], 'username': c['username'], 'password': SecureVariable(c['password'])}
+            for c in raw_creds
+        ]
+    else:
+        docker_credentials_to_pass = None
+
     # Create ScenarioRunner once and reuse it for all files
     runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filenames[0],
                     branch=args.branch, commit_hash=args.commit_hash, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     full_docker_prune=args.full_docker_prune, docker_prune=args.docker_prune,
                     verbose_provider_boot=args.verbose_provider_boot,
                     user_id=args.user_id, ssh_private_key=ssh_private_key_contents,
+                    docker_credentials=docker_credentials_to_pass,
                     commit_hash_folder=args.commit_hash_folder,
                     usage_scenario_variables=variables_dict, category_ids=args.category,
-                    phase_padding=not args.no_phase_padding, carbon_simulation=carbon_simulation_to_pass,
+                    carbon_simulation=carbon_simulation_to_pass,
 
                     measurement_system_check_threshold=args.measurement_system_check_threshold,
                     measurement_pre_test_sleep=args.measurement_pre_test_sleep,

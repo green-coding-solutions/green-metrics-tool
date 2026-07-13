@@ -11,6 +11,7 @@ CREATE TABLE users (
     name text NOT NULL,
     token text NOT NULL,
     ssh_private_key text,
+    docker_credentials text,
     capabilities JSONB NOT NULL,
     created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
@@ -50,7 +51,6 @@ VALUES (
                 "measurement.disabled_metric_providers",
                 "measurement.flow_process_duration",
                 "measurement.total_duration",
-                "measurement.phase_padding",
                 "measurement.system_check_threshold",
                 "measurement.pre_test_sleep",
                 "measurement.idle_duration",
@@ -59,7 +59,8 @@ VALUES (
                 "measurement.phase_transition_time",
                 "measurement.wait_time_dependencies",
                 "measurement.skip_volume_inspect",
-				"ssh_private_key"
+				"ssh_private_key",
+                "docker_credentials"
             ]
         },
         "api": {
@@ -137,7 +138,6 @@ VALUES (
         },
         "machines": [1],
         "measurement": {
-            "phase_padding": true,
             "quotas": {},
             "dev_no_sleeps": false,
             "skip_optimizations": false,
@@ -243,11 +243,13 @@ VALUES
 (E'Development machine for testing', true);
 
 
+CREATE TYPE job_state AS ENUM ('WAITING', 'PAUSED', 'CANCELLED', 'FINISHED', 'FAILED', 'RUNNING');
+
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
     run_id uuid,
     type text,
-    state text,
+    state job_state NOT NULL DEFAULT 'WAITING',
     name text,
     email text,
     url text,
