@@ -52,3 +52,5 @@ gha-creds-*.json
 # Window executables
 *.exe
 *.obj
+
+automated_test/
