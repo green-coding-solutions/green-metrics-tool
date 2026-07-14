@@ -8,7 +8,7 @@ from lib.db import DB
 from lib import error_helpers
 
 
-def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then we allow old data to arrive
+def copy_over_power_hog(interval=60): # 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days
     params = []
     query = '''
         INSERT INTO carbondb_data_raw
@@ -38,7 +38,7 @@ def copy_over_power_hog(interval=30): # 30 days is the merge window. Until then 
     DB().query(query, params=params)
 
 
-def copy_over_eco_ci(interval=30): # 30 days is the merge window. Until then we allow old data to arrive
+def copy_over_eco_ci(interval=60): # 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days
     params = []
     query = '''
         INSERT INTO carbondb_data_raw
@@ -67,7 +67,7 @@ def copy_over_eco_ci(interval=30): # 30 days is the merge window. Until then we 
 
     DB().query(query, params=params)
 
-def copy_over_scenario_runner(interval=30): # 30 days is the merge window. Until then we allow old data to arrive
+def copy_over_scenario_runner(interval=60): # 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days
     params = []
     query = '''
         INSERT INTO carbondb_data_raw
@@ -118,7 +118,7 @@ def validate_table_constraints():
             OR machine IS NULL
             OR source IS NULL
             OR tags IS NULL)
-            AND created_at > NOW() - INTERVAL '31 DAYS' -- interval + 1 day to avoid race condition
+            AND created_at > NOW() - INTERVAL '60 DAYS' -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions
             AND created_at < NOW() - INTERVAL '30 MINUTES' -- data just arrived can be null, before it is backfilled
      ''')
 
@@ -141,8 +141,8 @@ def remove_duplicates():
             AND a.energy_kwh = b.energy_kwh
             AND a.carbon_kg = b.carbon_kg
             AND a.user_id = b.user_id
-            AND a.created_at > NOW() - INTERVAL '31 DAYS' -- interval + 1 day to avoid race condition
-            AND b.created_at > NOW() - INTERVAL '31 DAYS' -- interval + 1 day to avoid race condition
+            AND a.created_at > NOW() - INTERVAL '60 DAYS' -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions
+            AND b.created_at > NOW() - INTERVAL '60 DAYS' -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions
     ''')
 
 

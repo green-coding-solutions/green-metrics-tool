@@ -478,7 +478,12 @@ CREATE TABLE ci_measurements (
     updated_at timestamp with time zone
 );
 CREATE INDEX "ci_measurements_subselect" ON ci_measurements(repo, branch, workflow_id, created_at);
-CREATE INDEX "ci_measurements_backfill_geo" ON "ci_measurements"("latitude","longitude","carbon_intensity_g","created_at");
+
+CREATE INDEX ci_measurements_missing_lon ON ci_measurements (created_at)
+    WHERE longitude IS NULL AND carbon_intensity_g IS NULL; -- partial index only for backfill geo
+
+CREATE INDEX ci_measurements_missing_lat ON ci_measurements (created_at)
+    WHERE latitude IS NULL AND carbon_intensity_g IS NULL; -- partial index only for backfill geo
 
 CREATE TRIGGER ci_measurements_moddatetime
     BEFORE UPDATE ON ci_measurements
@@ -727,7 +732,11 @@ CREATE TABLE hog_simplified_measurements (
 CREATE INDEX idx_measurements_user_id ON hog_simplified_measurements(user_id);
 CREATE INDEX idx_measurements_timestamp ON hog_simplified_measurements(timestamp);
 CREATE INDEX idx_measurements_machine_uuid ON hog_simplified_measurements(machine_uuid);
-CREATE INDEX "hog_simplified_measurements_backfill_geo" ON "hog_simplified_measurements"("latitude","longitude","carbon_intensity_g","created_at");
+CREATE INDEX hog_simplified_measurements_missing_lon ON hog_simplified_measurements (created_at)
+    WHERE longitude IS NULL AND carbon_intensity_g IS NULL; -- partial index only for backfill geo
+
+CREATE INDEX hog_simplified_measurements_missing_lat ON hog_simplified_measurements (created_at)
+    WHERE latitude IS NULL AND carbon_intensity_g IS NULL; -- partial index only for backfill geo
 
 
 CREATE TABLE hog_top_processes (

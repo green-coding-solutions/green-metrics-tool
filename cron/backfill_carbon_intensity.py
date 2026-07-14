@@ -9,8 +9,6 @@ import os
 import json
 import fcntl
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-
 import requests
 from cachetools import cached
 
@@ -26,20 +24,27 @@ from lib.cache_definitions import NoNoneOrNegativeValuesCache
 
 def process(table):
 
-    print(f"Current rows in DB where {table}.carbon_intensity_g is missing in last 30 Minutes", fetch_carbon_intensity_missing(table, count_only=True))
+    data = fetch_carbon_intensity_missing(table)
+    print(f"Rows in DB where {table}.carbon_intensity_g is missing in last 30 Minutes:", len(data))
 
-    updated_rows = update_carbon_intensity_from_db_cache(table)
+    if not data:
+        return
 
+    ids = [row[0] for row in data]
+
+    updated_rows = update_carbon_intensity_from_db_cache(table, ids)
     print('Updated rows', updated_rows)
 
-    print(f"Rows after db cached update where {table}.carbon_intensity_g is missing in last 30 Minutes", fetch_carbon_intensity_missing(table, count_only=True))
+    updated_ids = {row[0] for row in updated_rows}
+    remaining_data = [row for row in data if row[0] not in updated_ids]
 
-    data = fetch_carbon_intensity_missing(table)
-    backfill_carbon_intensity_missing(table, data)
+    print(f"Rows left after db cached update where {table}.carbon_intensity_g is missing in last 30 Minutes:", len(remaining_data))
 
-    print(f"Rows left after manual row-level update where {table}.carbon_intensity_g is missing in last 30 Minutes", fetch_carbon_intensity_missing(table, count_only=True))
+    backfill_carbon_intensity_missing(table, remaining_data)
 
-def update_carbon_intensity_from_db_cache(table):
+    print(f"Rows manually backfilled where {table}.carbon_intensity_g was missing in last 30 Minutes:", len(remaining_data))
+
+def update_carbon_intensity_from_db_cache(table, ids):
     # Backfilled carbon intensity data should only be 30 minutes apart
     query = f"""
         WITH carbon_missing AS (
@@ -51,11 +56,10 @@ def update_carbon_intensity_from_db_cache(table):
               ON ci.latitude = from_table.latitude
              AND ci.longitude = from_table.longitude
              AND ABS(EXTRACT(EPOCH FROM (from_table.created_at - ci.created_at::timestamp))) < EXTRACT(EPOCH FROM INTERVAL '30 MINUTES')
-            WHERE from_table.carbon_intensity_g IS NULL
+            WHERE from_table.id = ANY(%s)
             ORDER BY
                 from_table.id,
                 ABS(EXTRACT(EPOCH FROM (from_table.created_at - ci.created_at::timestamp))) ASC
-            LIMIT 1
         )
         UPDATE {table} from_table
         SET carbon_intensity_g = cm.carbon_intensity_g
@@ -65,16 +69,11 @@ def update_carbon_intensity_from_db_cache(table):
             AND cm.carbon_intensity_g IS NOT NULL
         RETURNING from_table.id, from_table.carbon_intensity_g;
     """
-    return DB().fetch_all(query)
+    return DB().fetch_all(query, params=(ids,))
 
-def fetch_carbon_intensity_missing(table, count_only=False):
-    if count_only:
-        selection = 'COUNT(*)'
-    else:
-        selection = 'id, latitude, longitude'
-
+def fetch_carbon_intensity_missing(table):
     query = f"""
-        SELECT {selection}
+        SELECT id, latitude, longitude
         FROM {table}
         WHERE
             carbon_intensity_g is NULL
