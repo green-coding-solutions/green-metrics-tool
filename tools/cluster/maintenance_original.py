@@ -5,18 +5,8 @@ faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to st
 import os
 os.environ.clear() # we do not want any of these values to ever be accessed or influence our scripts
 
-import re
 import time
 import subprocess
-
-def _parse_timers(data):
-    if not re.search(r'^0 timers listed.$', data, re.MULTILINE):
-        for el in data.splitlines():
-            el = el.strip()
-            if el == '' or el.startswith('NEXT') or el.startswith('-') or el.endswith('timers listed.'):
-                pass
-            else:
-                raise RuntimeError('Found timer', el, '\n', 'Stdout dump:', data)
 
 def cleanup():
     # We can NEVER include non system packages here, as we rely on them all being writeable by root only.
@@ -62,30 +52,6 @@ def sync_ntp():
 
     if 'NTP service: inactive' not in ntp_status:
         raise RuntimeError('System clock synchronization could not be turned off', ntp_status)
-
-def check_systemd_timers():
-    # this value will be overwritten install_linux.sh
-    GMT_USER = '__GMT_USER__'
-
-    # List all timers and services to validate we have nothing left
-
-    result = subprocess.run(
-        ['/usr/bin/sudo', '/usr/bin/systemctl', '--all', 'list-timers'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT, # put both in one stream
-        encoding='UTF-8', errors='replace', check=True)
-
-    _parse_timers(result.stdout)
-
-    print('Checking user timers for', GMT_USER)
-
-    result = subprocess.run(
-        ['/usr/bin/sudo', '/usr/bin/systemctl', f"--machine={GMT_USER}@", '--user', '--all', 'list-timers'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT, # put both in one stream
-        encoding='UTF-8', errors='replace', check=True)
-
-    _parse_timers(result.stdout)
 
 def update_os_packages():
     ## Do APT last, as we want to insert the Changelog
@@ -136,7 +102,6 @@ def update_os_packages():
 if __name__ == '__main__':
     cleanup()
     sync_ntp()
-    check_systemd_timers()
 
     # not using argparse, which needs os.environ
     if len(sys.argv) > 1 and sys.argv[1] == '--update-os-packages':

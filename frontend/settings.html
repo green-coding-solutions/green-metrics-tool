@@ -124,13 +124,6 @@
                                     <td><button id="save-measurement-total-duration" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
                                 </tr>
                                 <tr>
-                                    <td>Phase padding<br>
-                                        <span><small><i class="question circle icon"></i>Determines if phases shall be padded to account for possible undersampling. Only turn off when you need nanosecond exact cut-offs from measurements and favor undersampling instead of capturing partial samples.</small></span>
-                                    </td>
-                                    <td><input type="checkbox" id="measurement-phase-padding" name="measurement-phase-padding" data-setting="measurement.phase_padding"></td>
-                                    <td><button id="save-measurement-phase-padding" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
-                                </tr>
-                                <tr>
                                     <td>Pre-test sleep<br>
                                         <span><small><i class="question circle icon"></i>Value is in seconds.</small></span>
                                     </td>
@@ -183,6 +176,20 @@
                                     <td>
                                         <button id="save-ssh-private-key" class="ui positive small button" onclick="updateSetting(this);">Save</button>
                                         <button id="clear-ssh-private-key" class="ui button" onclick="clearSshPrivateKey();">Clear</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Docker registry credentials<br>
+                                        <span><small><i class="question circle icon"></i>Used to pull private Docker images during runs. Saving replaces all currently stored credentials.</small></span>
+                                    </td>
+                                    <td>
+                                        <div id="docker-credentials-rows" class="ui form"></div>
+                                        <button id="add-docker-credential-row" type="button" class="ui small button" onclick="addDockerCredentialRow();"><i class="plus icon"></i>Add registry</button>
+                                        <div style="margin-top: 8px;"><small id="docker-credentials-status"></small></div>
+                                    </td>
+                                    <td>
+                                        <button id="save-docker-credentials" class="ui positive small button" onclick="saveDockerCredentials();">Save</button>
+                                        <button id="clear-docker-credentials" class="ui button" onclick="clearDockerCredentials();">Clear</button>
                                     </td>
                                 </tr>
                                 <tr>

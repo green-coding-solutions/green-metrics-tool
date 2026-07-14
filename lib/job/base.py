@@ -25,6 +25,11 @@ from lib.configuration_check_error import ConfigurationCheckError
 """
 
 class Job(ABC):
+    # Concrete subclasses must set this to the exact value stored in jobs.type (e.g. 'run', 'email-simple'),
+    # or to a SQL LIKE pattern ending in '%' to match a family of types (e.g. 'email-%').
+    # get_job() and insert() rely on it to know which rows they are responsible for.
+    JOB_TYPE = None
+
     def __init__(self, *, job_id, run_id, state, name, email, url,  branch, commit_hash, filename, usage_scenario_variables, category_ids, carbon_simulation, machine_id, user_id, machine_description, message, created_at):
         self._id = job_id
         self._state = state
@@ -46,7 +51,7 @@ class Job(ABC):
 
     @abstractmethod
     def check_job_running(self):
-        pass
+        raise NotImplementedError
 
     def update_state(self, state):
         query_update = "UPDATE jobs SET state = %s WHERE id=%s"
@@ -70,20 +75,28 @@ class Job(ABC):
             self.update_state('WAITING') # set back to waiting, as not the run itself has failed
             raise exc
 
-        except Exception as exc:
+        except BaseException as exc: # pylint: disable=broad-except
+            # Must catch BaseException, not just Exception: things like KeyboardInterrupt
+            # (e.g. raised on manual abort in scenario_runner.py) are BaseException subclasses
+            # that do not derive from Exception. If we only caught Exception here, the job would
+            # be left stuck in state 'RUNNING' forever, which then blocks all subsequent jobs via
+            # check_job_running().
             self.update_state('FAILED')
             raise exc
 
     @abstractmethod
     def _process(self, **kwargs):
-        pass
+        raise NotImplementedError
+
+    # Concrete subclasses must implement this with whatever explicit, type-specific
+    # parameters they need and delegate to _insert_row() with their own JOB_TYPE.
+    @classmethod
+    @abstractmethod
+    def insert(cls, **kwargs):
+        raise NotImplementedError
 
     @classmethod
-    def insert(cls, job_type, *, user_id, run_id=None, name=None, url=None, email=None, branch=None, commit_hash=None, filename=None, machine_id=None, usage_scenario_variables=None, category_ids=None, carbon_simulation=None, message=None):
-
-        if job_type == 'run' and (not branch or not url or not filename or not machine_id):
-            raise RuntimeError('For adding runs branch, url, filename and machine_id must be set')
-
+    def _insert_row(cls, *, run_id=None, name=None, url=None, email=None, branch=None, commit_hash=None, filename=None, machine_id=None, usage_scenario_variables=None, category_ids=None, carbon_simulation=None, message=None, user_id):
         if usage_scenario_variables is None:
             usage_scenario_variables = {}
 
@@ -93,13 +106,17 @@ class Job(ABC):
                 VALUES
                     (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
                 """
-        params = (run_id, job_type, name, url, email, branch, commit_hash, filename, json.dumps(usage_scenario_variables), category_ids, json.dumps(carbon_simulation), machine_id, user_id, message)
+        params = (run_id, cls.JOB_TYPE, name, url, email, branch, commit_hash, filename, json.dumps(usage_scenario_variables), category_ids, json.dumps(carbon_simulation), machine_id, user_id, message)
 
         return DB().fetch_one(query, params=params)[0]
 
-    # A static method to get a job object
+    # Fetches the next WAITING job for the type (or type family) the calling class is responsible for.
+    # e.g. RunJob.get_job() only ever returns 'run' jobs, EmailJob.get_job() any 'email-*' job.
     @classmethod
-    def get_job(cls, job_type):
+    def get_job(cls):
+        if not cls.JOB_TYPE:
+            raise NotImplementedError(f"{cls.__name__} must define JOB_TYPE to be used with get_job()")
+
         cls.clear_old_jobs()
 
         query = '''
@@ -114,15 +131,15 @@ class Job(ABC):
         params = []
         config = GlobalConfig().config
 
-        if job_type == 'run':
-            query = f"{query} j.type = 'run' AND j.state = 'WAITING' AND j.machine_id = %s "
-            params.append(config['machine']['id'])
-        elif job_type == 'email':
+        if cls.JOB_TYPE.endswith('%'):
             query = f"{query} j.type LIKE %s AND j.state = 'WAITING'"
-            params.append(f"{job_type}-%")
         else:
             query = f"{query} j.type = %s AND j.state = 'WAITING'"
-            params.append(job_type)
+        params.append(cls.JOB_TYPE)
+
+        if cls.JOB_TYPE == 'run':
+            query = f"{query} AND j.machine_id = %s"
+            params.append(config['machine']['id'])
 
         if config['cluster']['client']['jobs_processing'] == 'random':
             query = f"{query} ORDER BY RANDOM()"
@@ -164,9 +181,7 @@ class Job(ABC):
         query = '''
             DELETE FROM jobs
             WHERE
-                (state = 'FAILED' AND updated_at < NOW() - INTERVAL '14 DAYS')
-                OR
-                (state = 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS')
+                (state IN ('FINISHED', 'CANCELLED', 'FAILED') AND updated_at < NOW() - INTERVAL '14 DAYS')
                 OR
                 (state = 'RUNNING' AND type LIKE 'email-%' AND updated_at < NOW() - INTERVAL '5 MINUTES')
             '''

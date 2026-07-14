@@ -1,37 +1,33 @@
 #!/usr/bin/env python3
 
-import shlex
 import sys
 import faulthandler
-import uuid
-
-import requests
-
-from metric_providers.base import MetricProviderConfigurationError
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.secure_variable import SecureVariable
-from lib.venv_checker import check_venv
-check_venv() # this check must even run before __main__ as imports might not get resolved
 
+import uuid
+import shlex
+import requests
+import base64
 import subprocess
 import json
 import os
 import time
 import importlib
 import re
-from pathlib import Path
 import random
 import pandas
 import shutil
 import math
 import yaml
+import platform
+
+from pathlib import Path
 from copy import deepcopy
 from collections import OrderedDict
 from datetime import datetime
-import platform
 from concurrent.futures import ThreadPoolExecutor
-from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 GMT_ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -42,6 +38,11 @@ from lib import host_platform
 from lib import hardware_info
 from lib import hardware_info_root_original as hardware_info_root
 from lib import error_helpers
+from lib import resource_limits
+from lib import system_checks
+from lib import metric_importer
+from lib import container_compatibility
+
 from lib.repo_info import get_repo_info
 from lib.debug_helper import DebugHelper
 from lib.terminal_colors import TerminalColors
@@ -49,13 +50,12 @@ from lib.schema_checker import SchemaChecker
 from lib.db import DB
 from lib.global_config import GlobalConfig, freeze_dict, FrozenDict
 from lib.notes import Notes
-from lib import system_checks
 from lib.machine import Machine
-from lib import metric_importer
-from lib import container_compatibility
 from lib.container_compatibility import CompatibilityStatus
 from lib.log_types import LogType
-from lib import resource_limits
+from metric_providers.base import MetricProviderConfigurationError
+
+from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -73,9 +73,10 @@ class ScenarioRunner:
         verbose_provider_boot=False, full_docker_prune=False, commit_hash_folder=None,
         commit_hash=None,
         ssh_private_key=None,
+        docker_credentials=None,
         docker_prune=False, job_id=None, user_id=1,
         disabled_metric_providers=None, allowed_run_args=None, allowed_volume_mounts=None,
-        phase_padding=True, usage_scenario_variables=None, carbon_simulation=None,
+        usage_scenario_variables=None, carbon_simulation=None,
         category_ids=None,
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
@@ -150,11 +151,23 @@ class ScenarioRunner:
         else:
             raise ValueError('ssh_private_key must be of type SecureVariable')
 
+        if docker_credentials is None:
+            self._docker_credentials = None
+        elif isinstance(docker_credentials, list):
+            for cred in docker_credentials:
+                if not isinstance(cred.get('password'), SecureVariable):
+                    raise ValueError('docker_credentials passwords must be of type SecureVariable')
+            self._docker_credentials = docker_credentials
+        else:
+            raise ValueError('docker_credentials must be a list or None')
+
         self._relations_folder = self._tmp_folder.joinpath('relations')
         self._repo_folder = self._tmp_folder.joinpath('repo') # default if not changed in checkout_repository
         self._metrics_folder = self._tmp_folder.joinpath('metrics')
         self._build_dir = self._tmp_folder.joinpath('docker_images')
         self._ssh_private_key_file = self._tmp_folder.joinpath('user_ssh_key')
+        self._git_askpass_file = self._tmp_folder.joinpath('git_askpass.sh')
+        self._docker_config_dir = self._tmp_folder.joinpath('docker_client_config')
 
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
         self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
@@ -184,7 +197,7 @@ class ScenarioRunner:
         self._measurement_phase_transition_time = measurement_phase_transition_time
         self._measurement_wait_time_dependencies = measurement_wait_time_dependencies
         self._last_measurement_duration = 0
-        self._phase_padding = phase_padding
+
         configured_metric_providers = utils.get_metric_providers(config, self._disabled_metric_providers)
         self._phase_padding_ms = 0
         if configured_metric_providers:
@@ -195,8 +208,9 @@ class ScenarioRunner:
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
-        if 'ssh_private_key' in self._arguments:
-            del self._arguments['ssh_private_key']
+        # security related keys we never want to log
+        del self._arguments['ssh_private_key']
+        del self._arguments['docker_credentials']
 
         self._safe_post_processing_steps = (
                 ('_end_measurement',  {'skip_on_already_ended': True}),
@@ -244,8 +258,8 @@ class ScenarioRunner:
         self.__carbon_simulation_uuid = None
         self.__custom_metrics = {}
         self.__sci_metrics = []
-
-
+        self.__uri_userinfo = None
+        self.__clean_uri = None
 
         self._check_all_durations()
 
@@ -296,6 +310,25 @@ class ScenarioRunner:
                 shutil.rmtree(child, ignore_errors=False)
 
 
+    # Writes a secret to a predictable path under the (world-traversable) tmp dir without ever
+    # exposing it at default (world-readable) permissions or through a pre-planted symlink: the
+    # file is created and chmod'd atomically by os.open() itself, instead of create-then-chmod,
+    # which leaves a window where another local user can hold a read fd on the file, or swap the
+    # path for a symlink, before the secret is written.
+    def _write_secret_file(self, path, content, mode=0o600):
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        if hasattr(os, 'O_NOFOLLOW'):
+            flags |= os.O_NOFOLLOW
+        fd = os.open(path, flags, mode)
+        if hasattr(os, 'fchmod'):
+            # O_CREAT's mode argument is only applied when the file is newly created; if a file
+            # already sat at this predictable path (e.g. pre-planted by another local user) its
+            # existing permissions would otherwise survive. fchmod acts on the fd we already hold
+            # open, so - unlike os.chmod(path, ...) - it can't be raced onto a different file.
+            os.fchmod(fd, mode)
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(content)
+
     def _ensure_ssh_private_key_file(self):
         if self._ssh_private_key is None:
             return None
@@ -303,9 +336,7 @@ class ScenarioRunner:
         if not ssh_private_key:
             return None
 
-        self._ssh_private_key_file.write_text('', encoding='utf-8')
-        os.chmod(self._ssh_private_key_file, 0o600)
-        self._ssh_private_key_file.write_text(ssh_private_key, encoding='utf-8')
+        self._write_secret_file(self._ssh_private_key_file, ssh_private_key)
 
         return self._ssh_private_key_file
 
@@ -313,9 +344,52 @@ class ScenarioRunner:
         if self._ssh_private_key_file.exists():
             self._ssh_private_key_file.unlink()
 
-    def _get_git_environment(self):
+    # Relays HTTP basic-auth credentials to git via env vars instead of embedding them in the
+    # clone URL argv, where they would be readable by any local user via `ps` / /proc/<pid>/cmdline.
+    # Contains no secret itself - credentials are passed through GMT_GIT_USERNAME/GMT_GIT_PASSWORD.
+    _GIT_ASKPASS_SCRIPT = (
+        '#!/bin/sh\n'
+        'case "$1" in\n'
+        '    *sername*) printf %s "$GMT_GIT_USERNAME" ;;\n'
+        '    *) printf %s "$GMT_GIT_PASSWORD" ;;\n'
+        'esac\n'
+    )
+
+    def _ensure_git_askpass_file(self):
+        # Always (re)written, not just created if missing: git will exec this path with the
+        # actual credentials in its environment, so a stale or pre-planted file at this
+        # predictable path must never be trusted/reused as-is - only content we just wrote
+        # ourselves, atomically, is safe to execute.
+        self._write_secret_file(self._git_askpass_file, self._GIT_ASKPASS_SCRIPT, mode=0o700)
+        return self._git_askpass_file
+
+    def _prepare_docker_credentials(self):
+        if not self._docker_credentials:
+            return
+
+        self._docker_config_dir.mkdir(exist_ok=True)
+        auths = {}
+        for cred in self._docker_credentials:
+            token = base64.b64encode(
+                f"{cred['username']}:{cred['password'].get_value()}".encode()
+            ).decode()
+            auths[cred['registry']] = {'auth': token}
+        config_file = self._docker_config_dir / 'config.json'
+        self._write_secret_file(config_file, json.dumps({'auths': auths}, separators=(',', ':')))
+
+    def _delete_docker_config_dir(self):
+        if self._docker_config_dir.exists():
+            shutil.rmtree(self._docker_config_dir, ignore_errors=True)
+
+    def _get_git_environment(self, uri_userinfo=None):
         env = os.environ.copy()
         env['GIT_TERMINAL_PROMPT'] = '0'
+
+        if uri_userinfo:
+            username, password = utils.split_userinfo(utils.decrypt_userinfo(uri_userinfo))
+            env['GIT_ASKPASS'] = self._ensure_git_askpass_file().as_posix()
+            env['GMT_GIT_USERNAME'] = username
+            env['GMT_GIT_PASSWORD'] = password
 
         ssh_private_key_file = self._ensure_ssh_private_key_file()
         if ssh_private_key_file is None:
@@ -399,8 +473,11 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nChecking out repository', TerminalColors.ENDC)
 
         if self._uri_type == 'URL':
+            # Strip HTTP basic auth credentials from URI; keep clean version for logging and DB storage
+            self.__clean_uri, self.__uri_userinfo = utils.strip_uri_userinfo(self._uri)
+
             if self._dev_cache_repos and self._repo_folder.exists() and self._repo_folder.is_dir() and any(self._repo_folder.iterdir()):
-                print('Skipping clone of ', self._uri, 'as it was already present on disk and --dev-cache-repos was set')
+                print('Skipping clone of ', self.__clean_uri, 'as it was already present on disk and --dev-cache-repos was set')
             else:
                 self._initialize_folder(self._repo_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
 
@@ -416,25 +493,32 @@ class ScenarioRunner:
                 command.append('--single-branch')
                 command.append('--recurse-submodules')
                 command.append('--shallow-submodules')
-                command.append(self._uri)
+
+                # Credentials are passed via GIT_ASKPASS (see _get_git_environment), not embedded
+                # in the URL: an inline user:pass@ URL would land in this process's argv, which is
+                # readable by any local user via `ps` / /proc/<pid>/cmdline - undoing the at-rest
+                # encryption of these credentials.
+                command.append(self.__clean_uri)
                 command.append(self._repo_folder.as_posix())
 
-                print('Cloning ', self._uri)
+                print('Cloning ', self.__clean_uri)
                 subprocess.run(
                     command,
                     check=True,
                     capture_output=True,
                     encoding='UTF-8',
                     errors='replace',
-                    env=self._get_git_environment(),
+                    env=self._get_git_environment(self.__uri_userinfo),
                 )
 
             if self._requested_commit_hash:
-                self._checkout_commit_hash(self._repo_folder, self._requested_commit_hash, context='repository')
+                self._checkout_commit_hash(self._repo_folder, self._requested_commit_hash, context='repository', uri_userinfo=self.__uri_userinfo)
 
             if problematic_symlink := self._find_outside_symlinks(self._repo_folder):
                 raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
         else:
+            self.__clean_uri = self._uri
+
             if self._original_branch is not None:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
@@ -495,9 +579,9 @@ class ScenarioRunner:
 
             # only skip checkout if switch active and files in dir present
             if self._dev_cache_repos and relation_path.exists() and relation_path.is_dir() and any(relation_path.iterdir()):
-                print('Skipping clone of ', relation['url'], 'as it was already present on disk and --dev-cache-repos was set')
+                print('Skipping clone of ', utils.filter_sensitive_data(relation['url']), 'as it was already present on disk and --dev-cache-repos was set')
             else:
-                print('Cloning ', relation['url'])
+                print('Cloning ', utils.filter_sensitive_data(relation['url']))
                 subprocess.run(
                     command,
                     check=True,
@@ -517,7 +601,7 @@ class ScenarioRunner:
             self.__relations[relation_key]['commit_hash'], self.__relations[relation_key]['commit_timestamp'] = get_repo_info(relation_path)
             self.__relations[relation_key]['commit_timestamp'] = str(self.__relations[relation_key]['commit_timestamp'])
 
-    def _checkout_commit_hash(self, repo_path: Path, commit_hash: str, *, context='repository'):
+    def _checkout_commit_hash(self, repo_path: Path, commit_hash: str, *, context='repository', uri_userinfo=None):
         print(f"Checking out commit {commit_hash} for {context}")
 
         # Branch, tag, or remote branch (e.g., main, feature/login, origin/main)
@@ -533,7 +617,7 @@ class ScenarioRunner:
             'encoding': 'UTF-8',
             'errors': 'replace',
             'cwd': repo_path,
-            'env': self._get_git_environment(),
+            'env': self._get_git_environment(uri_userinfo),
         }
 
         try:
@@ -992,6 +1076,20 @@ class ScenarioRunner:
         measurement_config['custom_metrics'] = self.__custom_metrics
         measurement_config['phase_padding'] = self._phase_padding_ms
 
+        params=(self._job_id, self._name, self.__clean_uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
+                self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
+                json.dumps(machine_specs), json.dumps(measurement_config),
+                json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
+                gmt_hash,
+                GlobalConfig().config['machine']['id'], self._user_id,
+        )
+
+        # general approach as it is better to maintain when we add new items
+        params = [
+            utils.filter_sensitive_data(item) if isinstance(item, str) else item
+            for item in params
+        ]
+
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
                 INSERT INTO runs (
@@ -1009,14 +1107,7 @@ class ScenarioRunner:
                     %s, %s, NOW()
                 )
                 RETURNING id
-                """, params=(
-                    self._job_id, self._name, self._uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
-                    self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
-                    json.dumps(machine_specs), json.dumps(measurement_config),
-                    json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
-                    gmt_hash,
-                    GlobalConfig().config['machine']['id'], self._user_id,
-                ))[0]
+                """, params=params)[0]
         return self._run_id
 
     def _import_metric_providers(self):
@@ -1076,7 +1167,7 @@ class ScenarioRunner:
             print('Skipping downloading dependencies due to --skip-download-dependencies')
             return
 
-        subprocess.run(['docker', 'pull', 'martizih/kaniko:v1.27.5-slim'], check=True)
+        subprocess.run(['docker', 'pull', 'martizih/kaniko:slim'], check=True)
 
     def _get_build_info(self, service):
         if isinstance(service['build'], str):
@@ -1148,6 +1239,12 @@ class ScenarioRunner:
                     '--mount', f"type=bind,source={self._build_dir.as_posix()},target=/output"]
                 )
 
+                if self._docker_credentials:
+                    docker_build_command.extend([
+                        '--mount',
+                        f"type=bind,source={self._docker_config_dir.joinpath('config.json').as_posix()},target=/kaniko/.docker/config.json,readonly",
+                    ])
+
                 for relation_key, relation in self.__relations.items():
                     # still check for , although checked in schema checker to not de-sync when we ever allow commas
                     if ',' in relation['mount_path']:
@@ -1155,7 +1252,7 @@ class ScenarioRunner:
                     docker_build_command.append('--mount')
                     docker_build_command.append(f"type=bind,source={relation['mount_path']},target=/tmp/relations/{relation_key},readonly") # relation_key already checked in schema_checker
 
-                docker_build_command.append('martizih/kaniko:v1.27.5-slim')
+                docker_build_command.append('martizih/kaniko:slim')
 
                 # from here args for kaniko directly
                 docker_build_command.extend(
@@ -1225,7 +1322,10 @@ class ScenarioRunner:
                 # bc the docker pull command does not stream the interactive progress bar. Only the lines when a layer finished with downloading
                 # Since this information does not provide info how long the image download still will take we opted for keeping this pull call less complex
                 # So you have to stare at the "Pulling XYZ" command until it is finished :)
-                ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False)
+                pull_env = os.environ.copy()
+                if self._docker_credentials and self._docker_config_dir.exists():
+                    pull_env['DOCKER_CONFIG'] = self._docker_config_dir.as_posix()
+                ps_pull = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False, env=pull_env)
 
                 if ps_pull.returncode != 0:
                     print(f"Error: {ps_pull.stderr} \n {ps_pull.stdout}")
@@ -1942,7 +2042,7 @@ class ScenarioRunner:
         log_entry = {
             'type': log_type.value,
             'id': str(log_id),
-            'cmd': command_string,
+            'cmd': utils.filter_sensitive_data(command_string),
             'phase': phase
         }
 
@@ -1953,6 +2053,7 @@ class ScenarioRunner:
                 log_entry['stdout'] = stdout.decode('UTF-8', errors='replace').replace('\x00', '0x00')
             else:
                 log_entry['stdout'] = str(stdout).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
+            log_entry['stdout'] = utils.filter_sensitive_data(log_entry['stdout'])
         if stderr is not None:
             if isinstance(stderr, str):
                 log_entry['stderr'] = stderr.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
@@ -1960,6 +2061,7 @@ class ScenarioRunner:
                 log_entry['stderr'] = stderr.decode('UTF-8', errors='replace').replace('\x00', '0x00')
             else:
                 log_entry['stderr'] = str(stderr).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
+            log_entry['stderr'] = utils.filter_sensitive_data(log_entry['stderr'])
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:
@@ -2151,11 +2253,7 @@ class ScenarioRunner:
         self._check_total_runtime_exceeded()
 
         phase_time = int(time.time_ns() / 1_000)
-
-        if self._phase_padding:
-            self.__notes_helper.add_note( note=f"Ending phase {phase} [UNPADDED]", detail_name='[NOTES]', timestamp=phase_time)
-            phase_time += self._phase_padding_ms*1000 # value is in ms and we need to get to us
-            time.sleep(self._phase_padding_ms/1000) # no custom sleep here as even with dev_no_sleeps we must ensure phases don't overlap
+        time.sleep(self._phase_padding_ms/1000) # no custom sleep here as even with dev_no_sleeps we must ensure phases don't overlap
 
         if phase not in self.__phases:
             raise RuntimeError(f'Phase "{phase}" not found in known phases: "{list(self.__phases.keys())}". '
@@ -2172,10 +2270,7 @@ class ScenarioRunner:
 
         self.__phases[phase]['end'] = phase_time
 
-        if self._phase_padding:
-            self.__notes_helper.add_note( note=f"Ending phase {phase} [PADDED]", detail_name='[NOTES]', timestamp=phase_time)
-        else:
-            self.__notes_helper.add_note( note=f"Ending phase {phase} [UNPADDED]", detail_name='[NOTES]', timestamp=phase_time)
+        self.__notes_helper.add_note( note=f"Ending phase {phase} [includes next tick]", detail_name='[NOTES]', timestamp=phase_time)
 
     def _run_flows(self):
         ps_to_kill_tmp = []
@@ -2764,6 +2859,7 @@ class ScenarioRunner:
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
         self._delete_ssh_private_key_file()
+        self._delete_docker_config_dir()
 
         print('Stopping metric providers')
         for metric_provider in self.__metric_providers:
@@ -2817,6 +2913,8 @@ class ScenarioRunner:
         self.__relations.clear()
         self.__custom_metrics.clear()
         self.__sci_metrics.clear()
+        self.__uri_userinfo = None
+        self.__clean_uri = None
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
@@ -2838,6 +2936,10 @@ class ScenarioRunner:
         '''
         try:
             self._run_id = None  # Reset run ID for new run
+            # Remove any stale config left by a previously crashed run
+            self._delete_docker_config_dir()
+            self._delete_ssh_private_key_file()
+
             self._create_folders()
             self._start_measurement() # we start as early as possible to include initialization overhead
             self._clear_caches()
@@ -2856,6 +2958,7 @@ class ScenarioRunner:
             self._prepare_docker()
             self._check_running_containers_before_start()
             self._remove_docker_images()
+            self._prepare_docker_credentials()
             self._download_dependencies()
             self._initialize_run() # have this as close to the start of measurement
             if self._debugger.active:

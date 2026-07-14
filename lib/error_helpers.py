@@ -1,11 +1,11 @@
 import sys
 import traceback
 
-from datetime import datetime
-
 from lib.terminal_colors import TerminalColors
 from lib.global_config import GlobalConfig
 from lib.db import DB
+from lib.utils import filter_sensitive_data
+
 
 def end_error(*messages, **kwargs):
     log_error(*messages, **kwargs)
@@ -37,6 +37,7 @@ Error: {err}
     """
 
     error_string = error_string.replace('\x00', '0x00') # If we store to DB: Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+    error_string = filter_sensitive_data(error_string)
     return error_string
 
 
@@ -52,13 +53,11 @@ def log_error(*messages, **kwargs):
 
     print(TerminalColors.FAIL, err, TerminalColors.ENDC, file=sys.stderr)
 
-    final_message = format_error(*messages, **kwargs, traceback_first=False)
-    timestamp = datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %Z%z')
-    final_message += f"\n\nOriginal date and time: {timestamp}"
+    err_traceback_last = format_error(*messages, **kwargs, traceback_first=False)
 
     # No need to catch exception here as the original exception was written to stderr in line 53
     # and if DB insert fails it will also be logged to stderr
     DB().query(
         "INSERT INTO system_logs (title, message, level) VALUES (%s, %s, 'error')",
-        params=('Green Metrics Tool Error', final_message)
+        params=('Green Metrics Tool Error', err_traceback_last)
     )

@@ -172,3 +172,108 @@ def test_user_error_without_key(tmp_path):
         assert user._User__decrypted_ssh_private_key is None
     finally:
         _restore_test_config()
+
+EXAMPLE_DOCKER_CREDENTIALS = [
+    {'registry': 'ghcr.io', 'username': 'myuser', 'password': 'mypassword'},
+    {'registry': 'docker.io', 'username': 'anotheruser', 'password': 'anotherpassword'},
+]
+
+def test_user_dict_does_not_expose_docker_credentials():
+    user = User(1)
+    try:
+        user.update_docker_credentials(EXAMPLE_DOCKER_CREDENTIALS)
+
+        user_dict = user.to_dict()
+        assert '_docker_credentials' not in user_dict
+        assert '_has_docker_credentials' in user_dict
+        assert user_dict['_has_docker_credentials'] is True
+        assert 'mypassword' not in str(user_dict)
+        assert ENCRYPTED_VALUE_PREFIX not in str(user_dict)
+    finally:
+        user.update_docker_credentials(None)
+
+def test_user_can_clear_docker_credentials():
+    user = User(1)
+    try:
+        user.update_docker_credentials(EXAMPLE_DOCKER_CREDENTIALS)
+        assert user.has_docker_credentials() is True
+
+        user.update_docker_credentials(None)
+
+        assert user.has_docker_credentials() is False
+        assert user.get_docker_credentials() is None
+        assert user._User__encrypted_docker_credentials is None
+        assert user._User__decrypted_docker_credentials is None
+    finally:
+        user.update_docker_credentials(None)
+
+def test_user_can_clear_docker_credentials_with_empty_list():
+    user = User(1)
+    try:
+        user.update_docker_credentials(EXAMPLE_DOCKER_CREDENTIALS)
+        assert user.has_docker_credentials() is True
+
+        user.update_docker_credentials([])
+
+        assert user.has_docker_credentials() is False
+        assert user.get_docker_credentials() is None
+    finally:
+        user.update_docker_credentials(None)
+
+def test_user_stores_docker_credentials_encrypted():
+    user = User(1)
+    try:
+        user.update_docker_credentials(EXAMPLE_DOCKER_CREDENTIALS)
+
+        raw_value = DB().fetch_one('SELECT docker_credentials FROM users WHERE id = %s', params=(1,))[0]
+
+        assert raw_value.startswith(ENCRYPTED_VALUE_PREFIX)
+        assert 'mypassword' not in raw_value
+
+        creds = User(1).get_docker_credentials()
+        assert isinstance(creds, list)
+        assert len(creds) == 2
+        assert creds[0]['registry'] == 'ghcr.io'
+        assert creds[0]['username'] == 'myuser'
+        assert isinstance(creds[0]['password'], SecureVariable)
+        assert creds[0]['password'].get_value() == 'mypassword'
+    finally:
+        User(1).update_docker_credentials(None)
+
+def test_user_docker_credentials_repr_does_not_leak_password():
+    user = User(1)
+    try:
+        user.update_docker_credentials(EXAMPLE_DOCKER_CREDENTIALS)
+        assert 'mypassword' not in f"{user}"
+        assert ENCRYPTED_VALUE_PREFIX not in f"{user}"
+    finally:
+        user.update_docker_credentials(None)
+
+def test_invalid_docker_credentials_not_a_list():
+    user = User(1)
+    with pytest.raises(ValueError, match='must be a list'):
+        user.update_docker_credentials('not-a-list')
+
+def test_invalid_docker_credentials_missing_fields():
+    user = User(1)
+    with pytest.raises(ValueError, match="non-empty 'password'"):
+        user.update_docker_credentials([{'registry': 'ghcr.io', 'username': 'user'}])
+
+def test_invalid_docker_credentials_empty_registry():
+    user = User(1)
+    with pytest.raises(ValueError, match="non-empty 'registry'"):
+        user.update_docker_credentials([{'registry': '  ', 'username': 'user', 'password': 'pass'}])
+
+def test_docker_credentials_error_without_encryption_key(tmp_path):
+    user = User(1)
+    try:
+        _override_security_config(tmp_path, 'security: {}\n')
+
+        with pytest.raises(ValueError, match='encryption is not configured'):
+            user.update_docker_credentials(EXAMPLE_DOCKER_CREDENTIALS)
+
+        assert user.has_docker_credentials() is False
+        assert user._User__encrypted_docker_credentials is None
+        assert user._User__decrypted_docker_credentials is None
+    finally:
+        _restore_test_config()

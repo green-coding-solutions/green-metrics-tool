@@ -103,10 +103,61 @@ machine:
   host_reserved_cpus: 1
   host_reserved_memory: 0
 
+  # Optional: if set, system_checks verifies that the named RAPL domain power limits are
+  # exactly equal to the configured values (in Watts). Omit any sub-key to skip that domain check.
+  # Useful to confirm consistent power capping across cluster nodes.
+  # rapl_power_capping:
+  #   package: null  # per-socket package power limit in Watts (name starts with "package-")
+  #   dram: null     # DRAM domain power limit in Watts
+  #   psys: null     # platform-wide (psys) power limit in Watts
+
+  # Optional: if set, system_checks verifies that Docker is configured to use this URL as a
+  # registry mirror. Useful to confirm a private or local registry mirror is active on the machine.
+  # docker_registry_url: null
+
+  # Optional: if set, system_checks verifies the total logical CPU count (including SMT/HT threads).
+  # Useful to detect hot-plug events or unexpected HT state changes.
+  # cpu_cores: null
+
+  # Optional: if set, system_checks verifies total installed RAM matches this value (whole GB).
+  # Useful to detect failed or removed DIMMs.
+  # dram_gb: null
+
+  # Optional: if set, system_checks warns when any connected USB device is not in this allowlist.
+  # Each entry is matched as a substring against lsusb output lines (ID or name).
+  # Useful to detect unexpected USB peripherals on cluster nodes.
+  # usb_devices:
+  #   - "8087:0026"          # Intel USB hub (example)
+  #   - "046d:c52b"          # Logitech Unifying Receiver (example)
+
+  # Optional: if set, system_checks warns when any connected PCI device is not in this allowlist.
+  # Each entry is matched as a substring against lspci output lines.
+  # Useful to detect unexpected cards added to the machine.
+  # pci_devices:
+  #   - "Network controller"  # (example substring)
+  #   - "SATA controller"     # (example substring)
+
+  # Optional: expected CPU scaling governor for all cores (e.g. "performance").
+  # Warns if any core deviates. Common silent drift after reboots.
+  # cpu_governor: null
+
+  # Optional: expected current CPU frequency in MHz. Warns if any core deviates by more than ±10 MHz.
+  # Reads scaling_cur_freq; useful to confirm frequency is locked (e.g. via intel_pstate min=max).
+  # cpu_frequency_mhz: null
+
+  # Optional: expected cpufreq scaling driver (e.g. "intel_pstate", "acpi-cpufreq").
+  # A different driver may apply different power and frequency policies.
+  # cpu_scaling_driver: null
+
+  # Optional: expected SMT/Hyper-Threading state. true = enabled, false = disabled.
+  # cpu_smt: null
+
+  # Optional: expected CPU turbo boost state. true = enabled, false = disabled.
+  # cpu_turbo_boost: null
+
 measurement:
   full_docker_prune_whitelist:
     - martizih/kaniko:slim
-    - martizih/kaniko:v1.27.5-slim
   metric_providers:
   # Please select the needed providers according to the working ones on your system
   # More info https://docs.green-coding.io/docs/measuring/metric-providers
