@@ -2,8 +2,9 @@
  * cpu_utilization_windows_core - source.c
  *
  * Per-core CPU utilization on Windows via NtQuerySystemInformation
- * (SystemProcessorPerformanceInformation). Outputs busy%, interrupt%,
- * and DPC% per logical core, in GMT's TIMESTAMP VALUE DETAIL_NAME format.
+ * (SystemProcessorPerformanceInformation). Outputs busy%, and optionally
+ * interrupt%/DPC% per logical core, in GMT's TIMESTAMP VALUE DETAIL_NAME
+ * format.
  *
  * NtQuerySystemInformation is an undocumented NT API; the struct layout
  * used here is the publicly known, ABI-stable layout (unchanged since
@@ -21,7 +22,6 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
-
 /* ---- NtQuerySystemInformation: undocumented, loaded dynamically ---- */
 typedef LONG NTSTATUS;
 #define STATUS_SUCCESS 0x00000000L
@@ -157,6 +157,7 @@ int main(int argc, char **argv)
     unsigned int interval_ms = 1000;
     int c;
     int check_system_flag = 0;
+    int include_interrupt_dpc = 0; /* schlanker Default: aus */
     unsigned int ncpus;
     unsigned int i;
 
@@ -164,15 +165,18 @@ int main(int argc, char **argv)
 
     for (c = 1; c < argc; c++) {
         if (strcmp(argv[c], "-h") == 0) {
-            printf("Usage: %s [-i interval_ms] [-h] [-c]\n\n", argv[0]);
+            printf("Usage: %s [-i interval_ms] [-h] [-c] [--with-interrupt-dpc]\n\n", argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : milliseconds between measurements\n");
             printf("\t-c      : check system and exit\n");
+            printf("\t--with-interrupt-dpc : also output per-core interrupt/DPC time (off by default)\n");
             return 0;
         } else if (strcmp(argv[c], "-i") == 0 && c + 1 < argc) {
             interval_ms = parse_int(argv[++c]);
         } else if (strcmp(argv[c], "-c") == 0) {
             check_system_flag = 1;
+        } else if (strcmp(argv[c], "--with-interrupt-dpc") == 0) {
+            include_interrupt_dpc = 1;
         }
     }
 
@@ -226,12 +230,16 @@ int main(int argc, char **argv)
             uint64_t total_d = user_d + kernel_d;
 
             long busy_value = (total_d > 0) ? (long)((busy_d  * 10000ULL) / total_d) : 0;
-            long dpc_value  = (total_d > 0) ? (long)((dpc_d   * 10000ULL) / total_d) : 0;
-            long intr_value = (total_d > 0) ? (long)((intr_d  * 10000ULL) / total_d) : 0;
 
-            printf("%llu %ld core_%u\n",          (unsigned long long)ts_us, busy_value, i);
-            printf("%llu %ld core_%u_dpc\n",      (unsigned long long)ts_us, dpc_value,  i);
-            printf("%llu %ld core_%u_interrupt\n",(unsigned long long)ts_us, intr_value, i);
+            printf("%llu %ld core_%u\n", (unsigned long long)ts_us, busy_value, i);
+
+            if (include_interrupt_dpc) {
+                long dpc_value  = (total_d > 0) ? (long)((dpc_d  * 10000ULL) / total_d) : 0;
+                long intr_value = (total_d > 0) ? (long)((intr_d * 10000ULL) / total_d) : 0;
+
+                printf("%llu %ld core_%u_dpc\n",       (unsigned long long)ts_us, dpc_value,  i);
+                printf("%llu %ld core_%u_interrupt\n", (unsigned long long)ts_us, intr_value, i);
+            }
         }
 
         SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION *tmp = prev;

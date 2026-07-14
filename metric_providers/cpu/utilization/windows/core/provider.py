@@ -5,7 +5,8 @@ from metric_providers.base import BaseMetricProvider
 
 
 class CpuUtilizationWindowsCoreProvider(BaseMetricProvider):
-    def __init__(self, sampling_rate, folder, skip_check=False):
+    def __init__(self, sampling_rate, folder, skip_check=False, include_interrupt_dpc=False):
+        self._include_interrupt_dpc = include_interrupt_dpc
         self._stdout_file = None
         super().__init__(
             metric_name='cpu_utilization_windows_core',
@@ -31,6 +32,8 @@ class CpuUtilizationWindowsCoreProvider(BaseMetricProvider):
     def start_profiling(self):
         call_string = os.path.join(self._current_dir, self._metric_provider_executable)
         cmd = [call_string, '-i', str(self._sampling_rate)]
+        if self._include_interrupt_dpc:
+            cmd.append('--with-interrupt-dpc')
         print(' '.join(cmd))
         self._stdout_file = open(self._filename, 'w', encoding='utf-8')  # pylint: disable=consider-using-with
         self._ps = subprocess.Popen(
@@ -47,5 +50,6 @@ class CpuUtilizationWindowsCoreProvider(BaseMetricProvider):
         if self._stdout_file is not None:
             self._stdout_file.close()
             self._stdout_file = None
+
     def _parse_metrics(self, df):
         return df
