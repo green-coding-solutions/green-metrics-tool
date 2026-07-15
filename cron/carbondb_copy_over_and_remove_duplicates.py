@@ -141,8 +141,7 @@ def remove_duplicates():
             AND a.energy_kwh = b.energy_kwh
             AND a.carbon_kg = b.carbon_kg
             AND a.user_id = b.user_id
-            AND a.created_at > NOW() - INTERVAL '60 DAYS' -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions
-            AND b.created_at > NOW() - INTERVAL '60 DAYS' -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions
+            AND a.time > EXTRACT(EPOCH FROM ((NOW() - INTERVAL '60 days')::date::timestamp))*1e6 -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions - Time filter must be starting from midnight and not include elapsed minutes in the day to work with copy over which cuts off time info
     ''')
 
 

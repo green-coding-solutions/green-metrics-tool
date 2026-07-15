@@ -83,7 +83,7 @@ def compress_carbondb_raw():
         DROP TABLE IF EXISTS carbondb_data_raw_tmp;
 
         CREATE TEMPORARY TABLE carbondb_data_raw_tmp AS
-        SELECT * FROM carbondb_data_raw WHERE time > EXTRACT(EPOCH FROM NOW() - INTERVAL '60 days');;
+        SELECT * FROM carbondb_data_raw WHERE time > EXTRACT(EPOCH FROM ((NOW() - INTERVAL '60 days')::date::timestamp))*1e6; -- Time filter must be starting from midnight and not include elapsed minutes in the day to work with select later which cuts off time info
 
         UPDATE carbondb_data_raw_tmp AS cdrt
         SET "type" = s.id

@@ -671,6 +671,7 @@ CREATE TABLE carbondb_data_raw (
     updated_at timestamp with time zone
 );
 
+CREATE INDEX carbondb_data_raw_time_type_user_idx ON carbondb_data_raw (time, type, user_id);
 CREATE INDEX "carbondb_data_raw_backfill_geo" ON "carbondb_data_raw"("latitude","longitude","carbon_intensity_g","created_at");
 
 CREATE TRIGGER carbondb_data_raw_moddatetime
