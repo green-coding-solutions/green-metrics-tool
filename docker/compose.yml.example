@@ -29,7 +29,7 @@ services:
       -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
       -c timezone=__TZ__
       -c shared_buffers=1.2GB
-      -c work_mem=256MB
+      -c work_mem=32MB
       -c maintenance_work_mem=1GB
       -p 9573
 # This option can potentially speed up big queries: https://www.twilio.com/blog/sqlite-postgresql-complicated
