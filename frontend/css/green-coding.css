@@ -688,7 +688,7 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
   direction: rtl;
-  display: block;
+  display: inline-block;
 }
 
 .left-side-ellipsis.long-ellipsis {
