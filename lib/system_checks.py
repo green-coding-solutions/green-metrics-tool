@@ -163,6 +163,29 @@ def check_swap_disabled(*_, **__):
     return True
 
 
+def check_kernel_watchdog(*_, **__):
+    if platform.system() in ('Darwin', 'Windows'):
+        return None
+    # kernel.watchdog is the master switch; nmi_watchdog / soft_watchdog are the individual
+    # hard/soft lockup detectors it toggles. All three periodically fire NMIs/interrupts which
+    # can create noise in measurements, so we want to confirm they are all disabled.
+    watchdog_paths = (
+        '/proc/sys/kernel/watchdog',
+        '/proc/sys/kernel/nmi_watchdog',
+        '/proc/sys/kernel/soft_watchdog',
+    )
+    found_any = False
+    for path in watchdog_paths:
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                found_any = True
+                if f.read().strip() != '0':
+                    return False
+        except OSError:
+            continue  # this particular watchdog sysctl not exposed on this kernel — skip it
+    return True if found_any else None
+
+
 def check_suspend(*, run_duration):
     run_duration = math.ceil(run_duration/1e6)
 
@@ -592,6 +615,7 @@ start_checks = (
     (check_cpu_scaling_driver, Status.WARN, 'cpu scaling driver', 'CPU scaling driver does not match machine.cpu_scaling_driver (set to false to require that no scaling driver is active). A different driver may apply different power and frequency policies.'),
     (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
     (check_swap_disabled, Status.WARN, 'swap disabled', 'Your system uses a swap filesystem. This can lead to very instable measurements. Please disable swap.'),
+    (check_kernel_watchdog, Status.WARN, 'kernel watchdog disabled', 'A kernel lockup watchdog (kernel.watchdog / nmi_watchdog / soft_watchdog) is active. These periodically fire NMIs/interrupts and can create noise in measurements. Disable via sysctl for reliable benchmarking.'),
     (check_tty_attached, Status.WARN, 'tty attached', 'GMT runs with a TTY attached. This will create relevant overhead. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
 )
 
