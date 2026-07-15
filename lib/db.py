@@ -94,12 +94,13 @@ class DB:
         # pylint: disable=consider-using-f-string
 
         self._pool = ConnectionPool(
-            "user=%s password=%s host=%s port=%s dbname=%s sslmode=require" % (
+            "user=%s password=%s host=%s port=%s dbname=%s sslmode=require options='%s'" % (
                 config['postgresql']['user'],
                 config['postgresql']['password'],
                 config['postgresql']['host'],
                 config['postgresql']['port'],
                 config['postgresql']['dbname'],
+                ' '.join(config['postgresql'].get('options', []))
             ),
             min_size=1,
             max_size=2,
