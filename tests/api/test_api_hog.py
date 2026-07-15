@@ -62,3 +62,34 @@ def test_hogDB_add():
     assert obj['total_energy_impact'] == hog_string['energy_impact']
     assert obj['total_operational_carbon_ug'] == hog_string['operational_carbon_g'] * 1_000_000
     assert obj['total_embodied_carbon_ug'] == hog_string['embodied_carbon_g'] * 1_000_000
+
+
+def make_hog_payload(measurement_timestamp):
+    hog_obj = dict(hog_string)
+    hog_obj['timestamp'] = measurement_timestamp
+    compressed = zlib.compress(str(json.dumps(hog_obj)).encode())
+    compressed_str = base64.b64encode(compressed).decode()
+    return [{
+        "time": int(time.time() * 1000),
+        "data": compressed_str,
+        "settings": json.dumps({"powermetrics": 5000, "upload_delta": 3, "upload_data": True, "resolve_coalitions": ["com.googlecode.iterm2", "com.apple.terminal", "com.vix.cron"], "client_version": "0.5"}),
+        "machine_uuid": "371ee758-d4e6-11ee-a082-7e27a1187d3d",
+        "row_id": 1,
+    }]
+
+def test_hog_add_outdated():
+    outdated_timestamp = int(time.time() * 1000) - (31*24*60*60*1000)
+    response = requests.post(f"{API_URL}/v2/hog/add", json=make_hog_payload(outdated_timestamp), timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    assert response.status_code == 422, Tests.assertion_info('success', response.text)
+    assert json.loads(response.text)['err'] == f"Power Hog is configured to not accept values older than 30 days. Your timestamp was: {outdated_timestamp}"
+
+def test_hog_add_at_border():
+    border_timestamp = int(time.time() * 1000) - ((30*24*60*60-5)*1000) # ~ 5 seconds before cut-off depending on API request processing time
+    response = requests.post(f"{API_URL}/v2/hog/add", json=make_hog_payload(border_timestamp), timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+def test_hog_add_future():
+    future_timestamp = int(time.time() * 1000) + 5000 # ~ 5 seconds in the future depending on API request processing time
+    response = requests.post(f"{API_URL}/v2/hog/add", json=make_hog_payload(future_timestamp), timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    assert response.status_code == 422, Tests.assertion_info('success', response.text)
+    assert json.loads(response.text)['err'] == f"Power Hog does not accept timestamps in the future. Your timestamp was: {future_timestamp}"
