@@ -135,14 +135,20 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
         select_query = """
             WITH in_range AS (
-                SELECT time, value
+                SELECT
+                    time,
+                    value,
+                    1 as in_phase -- a dummy marker to tell us if the later joined samples are from inside our outside the phase boundary
                 FROM measurement_values
                 WHERE measurement_metric_id = %s
                   AND time > %s
                   AND time < %s
             ),
             next_one AS (
-                SELECT time, value
+                SELECT
+                    time,
+                    value,
+                    0 as in_phase  -- a dummy marker to tell us if the later joined samples are from inside our outside the phase boundary
                 FROM measurement_values
                 WHERE measurement_metric_id = %s
                   AND time >= %s          -- same upper bound as above
@@ -154,11 +160,12 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 SELECT
                     time,
                     value,
-                    (time - LAG(time) OVER (ORDER BY time ASC)) AS diff
+                    (time - LAG(time) OVER (ORDER BY time ASC)) AS diff,
+                    in_phase
                 FROM (
-                    SELECT time, value FROM in_range
+                    SELECT time, value, in_phase FROM in_range
                     UNION ALL
-                    SELECT time, value FROM next_one
+                    SELECT time, value, in_phase FROM next_one
                 )
                 ORDER BY time ASC
             )
@@ -176,7 +183,8 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 COUNT(value),
                 AVG(diff) as sampling_rate_avg,
                 MAX(diff) as sampling_rate_max,
-                percentile_cont(0.95) WITHIN GROUP (ORDER BY diff) AS sampling_rate_95p
+                percentile_cont(0.95) WITHIN GROUP (ORDER BY diff) AS sampling_rate_95p,
+                SUM(in_phase) as in_phase  -- a dummy marker to tell us if the later joined samples are from inside our outside the phase boundary
             FROM lag_table
         """
 
@@ -193,9 +201,9 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             if metric not in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', 'carbon_intensity_static_machine'):
                 continue
 
-            value_sum, _, _, classic_value_avg, weighted_value_avg, _, _, _, value_count, _, _, _ = results
+            value_sum, _, _, classic_value_avg, weighted_value_avg, _, _, _, value_count, _, _, _, in_phase = results
 
-            if value_count == 0:
+            if value_count == 0 or not in_phase:
                 continue
 
             if value_count <= 2:
@@ -213,11 +221,11 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             params = (measurement_metric_id, phase['start'], phase['end'], measurement_metric_id, phase['end'], next_phase_start)
             results = DB().fetch_one(select_query, params=params)
 
-            value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p = results
+            value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase = results
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
-            if value_count == 0: continue
+            if value_count == 0 or not in_phase: continue
 
             # Since we need to LAG the table the first value will be NULL. So it means we need at least 3 rows to make a useful weighted average.
             # In case we cannot do that we use the classic average
@@ -245,7 +253,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                     # value_count == 1: no LAG diff available, cannot estimate rate — always undersampled
                     is_undersampled = True
                 if is_undersampled:
-                    phase_warnings.add(f"Very few samples (< 50% of observed duration or < 2) encountered in phase '{phase['name']}', MEAN values might be inaccurate")
+                    phase_warnings.add(f"Very few samples (< 50% of observed duration or < 2) encountered in phase '{phase['name']}' and metric '{metric}', MEAN values might be inaccurate")
 
             # we make everything Decimal so in subsequent divisions these values stay Decimal
             value_sum = Decimal(value_sum)
