@@ -225,7 +225,8 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
-            if value_count == 0 or not in_phase: continue
+            if value_count == 0 or not in_phase:
+                continue
 
             # Since we need to LAG the table the first value will be NULL. So it means we need at least 3 rows to make a useful weighted average.
             # In case we cannot do that we use the classic average
