@@ -84,6 +84,15 @@
 
         <h3>System Logs</h3>
         <div id="system-logs-section">
+            <div class="ui form" style="margin-bottom: 1em;">
+                <div class="inline field">
+                    <div class="ui toggle checkbox">
+                        <input type="checkbox" id="system-logs-group-toggle">
+                        <label for="system-logs-group-toggle">Group similar messages</label>
+                    </div>
+                    <span data-inverted data-tooltip="Collapses entries whose message differs only in run specific data like Run-ID, name or filename. Click the counter to expand a group."><i class="ui question circle icon fluid"></i></span>
+                </div>
+            </div>
             <table id="system-logs-table" class="ui celled striped table"></table>
         </div>
         <div id="system-logs-no-access" class="ui info message" style="display: none;">

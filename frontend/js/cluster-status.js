@@ -1,13 +1,94 @@
 
+let system_logs_rows = []; // raw [id, title, message, level, created_at] rows as returned by the API
+
+// Values that are unique per occurrence and must not separate two otherwise identical errors
+const SYSTEM_LOG_SCRUBBERS = [
+    [/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<uuid>'],
+    [/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?/g, '<timestamp>'],
+    [/0x[0-9a-f]+/gi, '<hex>'],
+    [/\d+/g, '<num>'],
+];
+
+// lib/error_helpers.py::format_error renders every kwarg as "Key (Type): value". Key and type
+// (the exception class for Last_exception) identify the error, the value is per-run data.
+const SYSTEM_LOG_KEY_VALUE_LINE = /^([A-Za-z][\w-]*) \(([\w.]+)\): /;
+
+const systemLogSignature = (row) => {
+    let signature = String(row[2] ?? '').split('\n').map((line) => {
+        const match = line.match(SYSTEM_LOG_KEY_VALUE_LINE);
+        return match ? `${match[1]} (${match[2]}):` : line;
+    }).join('\n');
+
+    for (const [pattern, placeholder] of SYSTEM_LOG_SCRUBBERS) signature = signature.replace(pattern, placeholder);
+
+    return `${row[1]}\n${row[3]}\n${signature.replace(/\s+/g, ' ').trim()}`;
+};
+
+// Every table row carries its group members in index 5, so grouped and ungrouped rows render alike
+const systemLogTableRows = (rows, grouped) => {
+    if (!grouped) return rows.map((row) => [...row, [row]]);
+
+    const groups = new Map();
+    rows.forEach((row) => {
+        const signature = systemLogSignature(row);
+        if (!groups.has(signature)) groups.set(signature, []);
+        groups.get(signature).push(row);
+    });
+
+    return Array.from(groups.values()).map((members) => {
+        members.sort((a, b) => new Date(b[4]) - new Date(a[4]));
+        return [...members[0], members]; // newest member represents the group
+    });
+};
+
+const renderSystemLogs = () => {
+    const grouped = document.getElementById('system-logs-group-toggle').checked;
+    $('#system-logs-table').DataTable().clear().rows.add(systemLogTableRows(system_logs_rows, grouped)).draw();
+};
+
+const renderSystemLogGroupMembers = (members) => members.map((member) => `
+    <div class="ui segment">
+        <div style="margin-bottom: 0.5em;">
+            <b>#${member[0]}</b> - ${member[4] == null ? '-' : dateToYMD(new Date(member[4]))}
+            <a class="delete-log" data-log-ids="${member[0]}" title="Delete this entry"><i class="ui icon red times circle"></i></a>
+        </div>
+        <pre style="white-space:pre-wrap;max-height:500px; max-width:80vw;overflow:auto;margin:0">${escapeString(member[2])}</pre>
+    </div>`).join('');
+
+function toggleSystemLogGroup(e) {
+    e.preventDefault()
+    const row = $('#system-logs-table').DataTable().row($(this).closest('tr'));
+    const caret = this.querySelector('i');
+
+    if (row.child.isShown()) {
+        row.child.hide();
+        caret.classList.replace('down', 'right');
+    } else {
+        row.child(`<div class="ui segments">${renderSystemLogGroupMembers(row.data()[5])}</div>`).show();
+        caret.classList.replace('right', 'down');
+    }
+    return false;
+};
+
 async function deleteSystemLog(e){
     e.preventDefault()
-    const log_id = this.getAttribute('data-log-id');
+    const log_ids = this.getAttribute('data-log-ids').split(',').map((log_id) => parseInt(log_id, 10));
+
+    if (log_ids.length > 1 && !confirm(`Delete all ${log_ids.length} log entries in this group?`)) return false;
+
+    const deleted = [];
     try {
-        await makeAPICall('/v1/system-log', {log_id: parseInt(log_id), action: 'delete'}, null, true)
-        $('#system-logs-table').DataTable().row(this.closest('tr')).remove().draw();
-        showNotification('Log deleted', 'System log entry deleted successfully', 'success');
+        for (const log_id of log_ids) {
+            await makeAPICall('/v1/system-log', {log_id: log_id, action: 'delete'}, null, true)
+            deleted.push(log_id);
+        }
+        showNotification('Log deleted', `${deleted.length} system log ${deleted.length == 1 ? 'entry' : 'entries'} deleted successfully`, 'success');
     } catch (err) {
         showNotification('Could not delete log', err);
+    } finally {
+        // rebuild from source so a partial failure still leaves the table consistent with the DB
+        system_logs_rows = system_logs_rows.filter((row) => !deleted.includes(row[0]));
+        renderSystemLogs();
     }
     return false;
 };
@@ -183,27 +264,44 @@ $(document).ready(function () {
             jobs_table.column(6).search(value, true, false).draw();
         });
 
+        system_logs_rows = system_logs_data?.data ?? [];
+
         $('#system-logs-table').DataTable({
-            data: system_logs_data?.data,
+            data: systemLogTableRows(system_logs_rows, false),
             columns: [
                 { data: 0, title: 'ID'},
-                { data: 1, title: 'Title', render: (el) => escapeString(el)},
+                { data: 1, title: 'Title', render: function(el, type, row) {
+                    if (row[5].length <= 1) return escapeString(el);
+                    return `${escapeString(el)} <a class="ui small blue label toggle-log-group" title="Show all ${row[5].length} entries"><i class="ui caret right icon"></i>${row[5].length}&times;</a>`;
+                }},
                 { data: 2, title: 'Message', render: (el) => `<pre style="white-space:pre-wrap;max-height:500px; max-width:80vw;overflow:auto;margin:0">${escapeString(el)}</pre>`},
                 { data: 3, title: 'Level', render: (el) => escapeString(el)},
-                { data: 4, title: 'Created at', render: (el) => el == null ? '-' : dateToYMD(new Date(el))},
-                { data: 0, title: '-', class: 'log-action', render: (el) =>
-                    `<a class="delete-log" data-log-id="${el}"><i class="ui large icon red times circle"></i></a>`
-                },
+                { data: 4, title: 'Created at', render: function(el, type, row) {
+                    if (el == null) return '-';
+                    if (row[5].length <= 1) return dateToYMD(new Date(el));
+                    return `${dateToYMD(new Date(el))}<br><small>oldest: ${dateToYMD(new Date(row[5][row[5].length - 1][4]))}</small>`;
+                }},
+                { data: 0, title: '-', class: 'log-action', render: function(el, type, row) {
+                    const log_ids = row[5].map((member) => member[0]);
+                    const title = log_ids.length > 1 ? `Delete all ${log_ids.length} entries in this group` : 'Delete this entry';
+                    return `<a class="delete-log" data-log-ids="${log_ids.join(',')}" title="${title}"><i class="ui large icon red times circle"></i></a>`;
+                }},
             ],
             deferRender: true,
             order: [[4, 'desc']],
             drawCallback: function() {
-                document.querySelectorAll('.delete-log').forEach(el => {
-                    el.removeEventListener('click', deleteSystemLog)
-                    el.addEventListener('click', deleteSystemLog)
-                })
+                // a redraw re-renders the title cell, so point the caret back at the child row's actual state
+                this.api().rows().every(function() {
+                    const shown = this.child.isShown();
+                    $(this.node()).find('.toggle-log-group i').toggleClass('down', shown).toggleClass('right', !shown);
+                });
             },
         });
+
+        // delegated, as group members are rendered into child rows that no drawCallback sees
+        $('#system-logs-table').on('click', '.delete-log', deleteSystemLog);
+        $('#system-logs-table').on('click', '.toggle-log-group', toggleSystemLogGroup);
+        document.getElementById('system-logs-group-toggle').addEventListener('change', renderSystemLogs);
 
     })();
 });
