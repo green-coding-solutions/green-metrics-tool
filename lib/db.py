@@ -3,6 +3,7 @@ import os
 import time
 import random
 from functools import wraps
+from contextlib import contextmanager
 from psycopg_pool import ConnectionPool
 import psycopg.rows
 import psycopg
@@ -116,18 +117,6 @@ class DB:
             del self._pool
 
 
-    # Query list only supports SELECT queries
-    # If we ever need complex queries in the future where we have a transaction that mixes SELECTs and INSERTS
-    # then this class needs a refactoring. Until then we can KISS it
-    def __query_multi(self, query, params=None):
-        with self._pool.connection() as conn:
-            conn.autocommit = False # should be default, but we are explicit
-            cur = conn.cursor(row_factory=None) # None is actually the default cursor factory
-            for i in range(len(query)):
-                # In error case the context manager will ROLLBACK the whole transaction
-                cur.execute(query[i], params[i])
-            conn.commit()
-
     @with_db_retry
     def __query_single(self, query, params=None, return_type=None, fetch_mode=None):
         ret = False
@@ -152,8 +141,22 @@ class DB:
     def query(self, query, params=None, fetch_mode=None):
         return self.__query_single(query, params=params, return_type=None, fetch_mode=fetch_mode)
 
-    def query_multi(self, query, params=None):
-        return self.__query_multi(query, params=params)
+    # For callers that need several dependent statements (eg. an INSERT ... RETURNING id
+    # followed by inserts using that id) to succeed or fail together. Caller is responsible
+    # for raising on error, which triggers the pool connection's context manager to ROLLBACK;
+    # committing only happens once the whole `with` block exits normally. Deliberately not
+    # wrapped in @with_db_retry: a retry would replay every statement since the last commit,
+    # which is not safe here as we cannot tell whether a dropped connection failed before or
+    # after the server-side commit actually landed (in-doubt commit), so a blind replay of a
+    # multi-insert transaction could silently duplicate rows.
+    @contextmanager
+    def transaction_cursor(self, fetch_mode=None):
+        row_factory = psycopg.rows.dict_row if fetch_mode == 'dict' else None
+        with self._pool.connection() as conn:
+            conn.autocommit = False # should be default, but we are explicit
+            cur = conn.cursor(row_factory=row_factory)
+            yield cur
+            conn.commit()
 
     def fetch_one(self, query, params=None, fetch_mode=None):
         return self.__query_single(query, params=params, return_type='one', fetch_mode=fetch_mode)
