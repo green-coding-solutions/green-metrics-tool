@@ -8,8 +8,10 @@ import tempfile
 import pandas
 from pathlib import Path
 
-from lib.db import DB
+from lib.db import DB, get_test_schema
 from lib.global_config import GlobalConfig
+from lib import host_platform
+from lib.utils import get_test_worker_id, container_name
 from lib.log_types import LogType
 from lib import metric_importer
 from lib.user import User
@@ -21,6 +23,14 @@ from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSy
 from metric_providers.network.io.cgroup.container.provider import NetworkIoCgroupContainerProvider
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def get_tmp_folder():
+    # Mirrors ScenarioRunner's own tmp-folder naming (lib/scenario_runner.py) so tests that
+    # invoke runner.py as a subprocess can locate the same worker-suffixed directory the
+    # runner process itself computed independently.
+    worker_id = get_test_worker_id()
+    name = f'green-metrics-tool-{worker_id}' if worker_id else 'green-metrics-tool'
+    return host_platform.get_tmp_root().joinpath(name)
 
 # Dedicated, isolated folder for the metric providers built by the import_* helpers below.
 GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-test-functions-'))
@@ -219,7 +229,7 @@ def insert_user(user_id, token, make_super_user=False):
     sha256_hash.update(token.encode('UTF-8'))
 
     DB().query("""
-        INSERT INTO "public"."users"("id", "name","token","capabilities","created_at")
+        INSERT INTO "users"("id", "name","token","capabilities","created_at")
         VALUES
         (%s, %s, %s, (SELECT capabilities FROM users WHERE id = 1), E'2024-08-22 11:28:24.937262+00')
     """, params=(user_id, token, sha256_hash.hexdigest()))
@@ -301,17 +311,20 @@ def reset_db():
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
     redis_port = config['redis']['port']
+    # One schema per pytest-xdist worker (falls back to 'public' outside of -n runs) so that
+    # concurrent workers can each reset their own tables without touching each other's.
+    schema = get_test_schema()
     subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} -c \'DROP SCHEMA IF EXISTS "public" CASCADE\' '],
+        [
+            'docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container',
+            'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
+            '-c', f'DROP SCHEMA IF EXISTS "{schema}" CASCADE',
+            '-c', f'CREATE SCHEMA IF NOT EXISTS "{schema}"',
+            '-c', f'SET search_path TO "{schema}",public',
+            '-f', './docker-entrypoint-initdb.d/01-structure.sql',
+        ],
         check=True,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} < ./docker-entrypoint-initdb.d/01-structure.sql'],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
     )
 
     subprocess.run(

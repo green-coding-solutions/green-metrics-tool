@@ -52,10 +52,10 @@ The canonical local stack definition is `docker/compose.yml`.
 
 ### Schema changes
 
-1. Update `docker/structure.sql` first.
+1. Update `docker/tables.sql` first (schema/extensions/tables/seed data; `docker/structure.sql` only bootstraps the database itself and should rarely need touching).
 2. Add a forward-only migration in `migrations/` for existing deployments.
-3. Check whether seeded user capabilities or route allowlists in `docker/structure.sql` also need updates.
-4. Run or update tests that rely on `tests/setup-test-env.py`, which copies schema state into `tests/structure.sql`.
+3. Check whether seeded user capabilities or route allowlists in `docker/tables.sql` also need updates.
+4. Run or update tests that rely on `tests/setup-test-env.py`, which copies schema state into `tests/tables.sql` (and `tests/structure.sql`).
 
 ### User-facing request field changes
 

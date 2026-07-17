@@ -32,7 +32,7 @@ GMT_DIR = Path(__file__).parent.parent.as_posix()
 #     / or a remote git repository starting with http(s)://
 def test_uri_local_dir():
 
-    tmp_folder = Path('/tmp/green-metrics-tool').resolve()
+    tmp_folder = Tests.get_tmp_folder().resolve()
     tmp_folder.mkdir(exist_ok=True)
 
     run_name = 'test_' + utils.randomword(12)
@@ -123,7 +123,7 @@ def test_non_git_root_supplied():
 def test_uri_github_repo_and_using_default_filename():
 
     # we use this test also to test file cleanup ... not best practice, but it saves some test time
-    tmp_folder = Path('/tmp/green-metrics-tool').resolve()
+    tmp_folder = Tests.get_tmp_folder().resolve()
     tmp_folder.mkdir(exist_ok=True)
 
     uri = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
@@ -194,7 +194,7 @@ def test_uri_github_repo_branch_missing():
     runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/pytest-dummy-repo', uri_type='URL', branch='missing-branch', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     with pytest.raises(subprocess.CalledProcessError) as e:
         runner.run()
-    expected_exception = f"Command '['git', 'clone', '--depth', '1', '-b', 'missing-branch', '--single-branch', '--recurse-submodules', '--shallow-submodules', 'https://github.com/green-coding-solutions/pytest-dummy-repo', '{os.path.realpath('/tmp/green-metrics-tool/repo')}']' returned non-zero exit status 128."
+    expected_exception = f"Command '['git', 'clone', '--depth', '1', '-b', 'missing-branch', '--single-branch', '--recurse-submodules', '--shallow-submodules', 'https://github.com/green-coding-solutions/pytest-dummy-repo', '{os.path.realpath(runner._repo_folder)}']' returned non-zero exit status 128."
     assert expected_exception == str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
@@ -481,8 +481,8 @@ def test_no_file_cleanup():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     runner.run()
 
-    assert os.path.exists('/tmp/green-metrics-tool'), \
-        Tests.assertion_info('tmp directory exists', os.path.exists('/tmp/green-metrics-tool'))
+    assert runner._tmp_folder.exists(), \
+        Tests.assertion_info('tmp directory exists', runner._tmp_folder.exists())
 
 #   Check that the temp dir is deleted when using --file-cleanup
 #   This option exists only in CLI mode
@@ -497,7 +497,7 @@ def test_file_cleanup():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-    tmp_folder = Path('/tmp/green-metrics-tool')
+    tmp_folder = Tests.get_tmp_folder()
     assert tmp_folder.exists() and not any(tmp_folder.iterdir()), \
         Tests.assertion_info('tmp directory emptied', f"exists={tmp_folder.exists()}, contents={list(tmp_folder.iterdir()) if tmp_folder.exists() else None}")
 

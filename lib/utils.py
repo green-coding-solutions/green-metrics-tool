@@ -33,6 +33,20 @@ from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+def get_test_worker_id():
+    # pytest-xdist sets this to 'gw0', 'gw1', ... in each worker process, and leaves it
+    # unset when pytest is run without -n (or when not running under pytest at all).
+    worker = os.environ.get('PYTEST_XDIST_WORKER')
+    return worker if worker else None
+
+def container_name(base_name):
+    # Suffixed with the pytest-xdist worker id (when running under -n) so that parallel test
+    # workers never fight over the same container/network name. Empty outside of pytest-xdist.
+    # Single source of truth shared by ScenarioRunner (production naming, lib/scenario_runner.py)
+    # and the test suite's own assertions (tests/test_functions.py), so both sides always agree.
+    worker_id = get_test_worker_id()
+    return f"{base_name}-{worker_id}" if worker_id else base_name
+
 def remove_git_suffix(url):
     if url.endswith('.git'):
         return url[:-4]

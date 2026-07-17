@@ -1,3 +1,4 @@
+import os
 import pytest
 
 from lib.global_config import GlobalConfig
@@ -19,6 +20,13 @@ API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with 
 def setup_and_cleanup_module():
     # before
 
+    # This file drives the one shared gunicorn container over HTTP, which always reads/writes
+    # the 'public' schema (see tests/frontend/conftest.py). This fixture defines its own
+    # module-scoped setup_and_cleanup_module though, so it must force the schema itself for the
+    # whole module's duration rather than relying on that conftest fixture (which only covers
+    # the function-scoped setup_and_cleanup_test name).
+    old_worker_id = os.environ.pop('PYTEST_XDIST_WORKER', None)
+
     global playwright #pylint: disable=global-statement
     # start only one browser for whole file
     playwright = sync_playwright().start()
@@ -30,6 +38,9 @@ def setup_and_cleanup_module():
     playwright.stop()
 
     Tests.reset_db()
+
+    if old_worker_id is not None:
+        os.environ['PYTEST_XDIST_WORKER'] = old_worker_id
 
 # will run after every test.
 # We must close the browser to clear localStorage

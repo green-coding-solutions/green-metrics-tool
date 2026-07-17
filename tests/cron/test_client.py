@@ -1,6 +1,5 @@
 import os
 import subprocess
-from pathlib import Path
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -10,7 +9,7 @@ from tests import test_functions as Tests
 
 def test_simple_cluster_run():
 
-    tmp_folder = Path('/tmp/green-metrics-tool').resolve()
+    tmp_folder = Tests.get_tmp_folder().resolve()
     tmp_folder.mkdir(exist_ok=True)
 
     name = utils.randomword(12)
