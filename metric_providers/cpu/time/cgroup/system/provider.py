@@ -1,9 +1,9 @@
 import os
 
-from metric_providers.cgroup import CgroupMetricProvider
+from metric_providers.base import BaseMetricProvider
 
-class CpuTimeCgroupSystemProvider(CgroupMetricProvider):
-    def __init__(self, sampling_rate, folder, skip_check=False, cgroups: dict = None):
+class CpuTimeCgroupSystemProvider(BaseMetricProvider):
+    def __init__(self, sampling_rate, folder, skip_check=False):
         super().__init__(
             metric_name='cpu_time_cgroup_system',
             metrics={'time': int, 'value': int},
@@ -12,5 +12,4 @@ class CpuTimeCgroupSystemProvider(CgroupMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
             folder=folder,
-            cgroups=cgroups,
         )
