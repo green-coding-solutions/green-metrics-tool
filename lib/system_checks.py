@@ -326,12 +326,16 @@ def _check_rapl_domain(domain_key):
 
     expected_uw = int(expected_watts) * 1_000_000
     for entry in domain_entries:
+        checked_any = False
         for limit_key in ('long_term_uw', 'short_term_uw'):
             value = entry.get(limit_key)
             if value is None:
-                return False  # this constraint type not exposed on this domain — skip it
+                continue  # this constraint type not exposed on this domain — skip it
             if not str(value).isdigit() or int(value) != expected_uw:
                 return False
+            checked_any = True
+        if not checked_any:
+            return False  # domain exposes no limit we can verify the configured cap against
     return True
 
 
