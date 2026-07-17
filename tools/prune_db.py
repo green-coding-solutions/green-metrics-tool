@@ -11,7 +11,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=['all', 'failed-runs'], default=False, help='Will also remove successful runs if all is used')
+    parser.add_argument('mode', choices=['all', 'failed-runs', 'retention-expired'], default=False, help='Will also remove successful runs if all is used')
 
     args = parser.parse_args()  # script will exit if arguments not present
 
@@ -38,3 +38,5 @@ if __name__ == '__main__':
         if answer.strip().lower() == 'y':
             DB().query('DELETE FROM runs WHERE failed = TRUE OR end_measurement IS NULL')
             print("Done")
+    elif args.mode == 'retention-expired':
+        raise NotImplementedError()
