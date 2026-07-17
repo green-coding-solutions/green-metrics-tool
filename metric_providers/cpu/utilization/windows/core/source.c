@@ -157,7 +157,7 @@ int main(int argc, char **argv)
     unsigned int interval_ms = 1000;
     int c;
     int check_system_flag = 0;
-    int include_interrupt_dpc = 0; /* schlanker Default: aus */
+    int include_interrupt_dpc = 0; /* lean default: off */
     unsigned int ncpus;
     unsigned int i;
 
@@ -212,6 +212,7 @@ int main(int argc, char **argv)
     }
 
     read_per_core_times(prev, ncpus);
+    Sleep(interval_ms); /* wait one interval before the loop starts so the first emitted value already reflects a real interval, not a cold-start zero */
 
     while (1) {
         LONGLONG deadline = now_qpc() + (LONGLONG)(interval_ms * qpc_ticks_per_ms);

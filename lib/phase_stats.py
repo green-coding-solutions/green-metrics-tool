@@ -259,7 +259,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 'cpu_utilization_procfs_system',
                 'cpu_utilization_mach_system',
                 'cpu_utilization_windows_system',
-		'cpu_utilization_windows_core',
+                'cpu_utilization_windows_core',
                 'cpu_utilization_cgroup_container',
                 'cpu_utilization_cgroup_system',
                 'memory_used_cgroup_container',

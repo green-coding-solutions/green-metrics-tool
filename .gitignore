@@ -53,4 +53,3 @@ gha-creds-*.json
 *.exe
 *.obj
 
-automated_test/

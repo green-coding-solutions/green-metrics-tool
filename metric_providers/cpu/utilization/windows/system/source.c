@@ -140,6 +140,7 @@ int main(int argc, char **argv)
 
     cpu_time_t prev;
     read_cpu_times(&prev);
+    Sleep(interval_ms); /* wait one interval before the first snapshot so the first emitted value is meaningful, not a cold-start zero */
 
     while (1) {
         LONGLONG deadline = now_qpc() + (LONGLONG)(interval_ms * qpc_ticks_per_ms);
