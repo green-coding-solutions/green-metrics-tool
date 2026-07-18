@@ -16,15 +16,23 @@ def is_pytest_session():
 
 def get_test_schema():
     # One Postgres schema per xdist worker so tests can run against the same DB
-    # container concurrently. Falls back to 'public' for non-parallel/local runs so
+    # container concurrently. Falls back to 'gmt_test' for non-parallel/local runs so
     # behavior is unchanged when not running under pytest-xdist.
     from lib.utils import get_test_worker_id # pylint: disable=import-outside-toplevel
     # local import: lib.utils imports DB from this module at module scope, so importing
     # it back at module scope here would create an import cycle.
+
+    # Whether we're pointed at the test database is the signal here, not is_pytest_session():
+    # tests/frontend and tests/api drive the one shared gunicorn+nginx container over HTTP, and
+    # that container's own process is never itself a pytest session, even when it's the test
+    # build serving test traffic. It loads the same test-config.yml as the tests do though, so
+    # dbname reliably tells the two apart.
+    if GlobalConfig().config['postgresql']['dbname'] == 'green-coding':
+        return "production"
+
     worker_id = get_test_worker_id()
-    if not worker_id:
-        return 'public'
-    return f"gmt_test_{worker_id}"
+    return f"gmt_test_{worker_id}" if worker_id else "gmt_test"
+
 
 def with_db_retry(func):
     @wraps(func)

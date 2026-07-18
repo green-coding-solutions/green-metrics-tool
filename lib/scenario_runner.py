@@ -2288,6 +2288,15 @@ class ScenarioRunner:
             ps_to_kill_tmp.clear()
             ps_to_read_tmp.clear()
 
+            # flow['container'] is the service key from the usage_scenario, not the actual docker
+            # container name - _setup_services() created the real container via
+            # _resolve_container_name(), which both respects a service's own 'container_name'
+            # override and appends this worker's xdist suffix. Every docker command below must
+            # target that same resolved name, or it 404s the moment a worker suffix is in play.
+            resolved_flow_container, _ = self._resolve_container_name(
+                flow['container'], self.__usage_scenario['services'][flow['container']]
+            )
+
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
@@ -2297,13 +2306,13 @@ class ScenarioRunner:
                     self._check_total_runtime_exceeded()
 
                     if 'note' in cmd_obj:
-                        self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=flow['container'], timestamp=int(time.time_ns() / 1_000))
+                        self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=resolved_flow_container, timestamp=int(time.time_ns() / 1_000))
 
-                    print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', flow['container'], TerminalColors.ENDC)
+                    print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', resolved_flow_container, TerminalColors.ENDC)
                     print(cmd_obj['command'])
 
                     docker_exec_command = ['docker', 'exec']
-                    docker_exec_command.append(flow['container'])
+                    docker_exec_command.append(resolved_flow_container)
 
                     stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
 
@@ -2376,10 +2385,10 @@ class ScenarioRunner:
                     ps_to_read_tmp.append({
                         'cmd': docker_exec_command,
                         'ps': ps,
-                        'container_name': flow['container'],
+                        'container_name': resolved_flow_container,
                         'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
                         'ignore-errors': cmd_obj.get('ignore-errors', False),
-                        'detail_name': flow['container'],
+                        'detail_name': resolved_flow_container,
                         'detach': cmd_obj.get('detach', False),
                         'flow_name': flow['name'],
                     })
@@ -2390,7 +2399,7 @@ class ScenarioRunner:
                         print("Awaiting Playwright function return")
                         try:
                             ps = subprocess.run(
-                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
+                                ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-ready'],
                                 check=True,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
@@ -2400,7 +2409,7 @@ class ScenarioRunner:
                             )
                         except subprocess.TimeoutExpired as exc:
                             error_message = subprocess.check_output(
-                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-error'],
+                                ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-error'],
                                 encoding='UTF-8',
                                 errors='replace',
                             )

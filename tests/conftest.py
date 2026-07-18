@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 from tests import test_functions as Tests
+from lib.utils import get_test_worker_id
 
 ## VERY IMPORTANT to override the config file here
 ## otherwise it will automatically connect to non-test DB and delete all your real data
@@ -18,6 +19,43 @@ def pytest_collection_modifyitems(items):
     for item in items:
         if item.fspath.basename == 'test_functions.py':
             item.add_marker(pytest.mark.skip(reason='Skipping this file'))
+
+
+# Scenario-runner test containers are suffixed with this worker's xdist id (see
+# lib/utils.py::container_name()), precisely so concurrent workers never collide on a name - but
+# that same determinism means a container left running by an earlier crashed/interrupted run on
+# this exact worker id (gw6, say) will collide with a brand new, unrelated run that happens to
+# land on worker gw6 again: lib/scenario_runner.py::_check_running_containers_before_start()
+# then refuses to proceed with "... is already running on system". Force-removing anything still
+# running under this worker's suffix before the session's first test runs means every session
+# starts from a clean slate regardless of how the previous one on this worker id ended.
+@pytest.fixture(scope='session', autouse=True)
+def _initial_container_cleanup():
+    worker_id = get_test_worker_id()
+    if not worker_id:
+        return
+
+    suffix = f'-{worker_id}'
+    result = subprocess.run(
+        ['docker', 'ps', '-a', '--format', '{{.Names}}'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, encoding='UTF-8',
+    )
+    for name in result.stdout.splitlines():
+        if name.endswith(suffix):
+            subprocess.run(['docker', 'rm', '-f', name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+
+
+# Under pytest-xdist each worker gets its own private schema (gmt_test_gw0, gmt_test_gw1, ...),
+# created empty by tests/structure-tests.sql at container boot - only the boot-time default
+# ('gmt_test', with no worker suffix) is actually populated with tables at that point. Without
+# this, a worker's first test would run before setup_and_cleanup_test's own reset_db() ever
+# fires (that one only runs at teardown), hitting an empty schema and failing with
+# 'relation "users" does not exist'; every test after the first would then pass, since teardown
+# had populated it by then. session scope + autouse makes this run exactly once per worker,
+# before that worker's first test.
+@pytest.fixture(scope='session', autouse=True)
+def _initial_db_reset():
+    Tests.reset_db()
 
 
 # Note: This fixture runs always

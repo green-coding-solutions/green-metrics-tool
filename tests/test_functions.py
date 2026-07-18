@@ -11,7 +11,7 @@ from pathlib import Path
 from lib.db import DB, get_test_schema
 from lib.global_config import GlobalConfig
 from lib import host_platform
-from lib.utils import get_test_worker_id, container_name
+from lib.utils import get_test_worker_id
 from lib.log_types import LogType
 from lib import metric_importer
 from lib.user import User
@@ -244,46 +244,47 @@ def insert_user(user_id, token, make_super_user=False):
         """, params=('false', user_id))
 
 
-def import_demo_data():
+def _import_demo_data_file(sql_path):
     config = GlobalConfig().config
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
-    ps = subprocess.run(
-        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../data/demo_data.sql",
-        check=True,
-        shell=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
+    # Without this, the import falls back to whatever PGOPTIONS the postgres container itself
+    # was started with, ignoring the caller's own worker schema (see get_test_schema()) -
+    # currently harmless only because every caller happens to be a tests/frontend or tests/api
+    # test, which already targets that same fallback schema.
+    schema = get_test_schema()
+
+    with open(sql_path, encoding='utf-8') as sql_file:
+        ps = subprocess.run(
+            [
+                'docker', 'exec', '-i', '--user', 'postgres',
+                '-e', f'PGOPTIONS=-c search_path={schema},public',
+                'test-green-coding-postgres-container',
+                'psql', '-d', pg_dbname, '-p', str(pg_port),
+            ],
+            stdin=sql_file,
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8',
+        )
 
     if ps.stderr != '':
         reset_db()
         raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
+
+def import_demo_data():
+    _import_demo_data_file(f'{CURRENT_DIR}/../data/demo_data.sql')
 
 def import_demo_data_ee():
-    config = GlobalConfig().config
-    pg_port = config['postgresql']['port']
-    pg_dbname = config['postgresql']['dbname']
-    ps = subprocess.run(
-        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../ee/data/demo_data_ee.sql",
-        check=True,
-        shell=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
-
-    if ps.stderr != '':
-        reset_db()
-        raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
+    _import_demo_data_file(f'{CURRENT_DIR}/../ee/data/demo_data_ee.sql')
 
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"
 
-def check_if_container_running(container_name):
+def check_if_container_running(name):
     ps = subprocess.run(
-            ['docker', 'container', 'inspect', '-f', '{{.State.Running}}', container_name],
+            ['docker', 'container', 'inspect', '-f', '{{.State.Running}}', name],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
             encoding='UTF-8',
@@ -314,25 +315,49 @@ def reset_db():
     # One schema per pytest-xdist worker (falls back to 'public' outside of -n runs) so that
     # concurrent workers can each reset their own tables without touching each other's.
     schema = get_test_schema()
-    subprocess.run(
+
+    ps = subprocess.run(
         [
-            'docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container',
+            'docker', 'exec', '--user', 'postgres',
+            '-e', f'PGOPTIONS=-c search_path={schema},public',
+            'test-green-coding-postgres-container',
             'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
+            # --single-transaction wraps the drop/recreate/repopulate below into one commit, so
+            # any other session querying this schema concurrently (the gunicorn container
+            # serving a tests/frontend or tests/api request, most likely) either sees the
+            # complete old schema or the complete new one - never a dropped-but-not-yet-
+            # repopulated one, which is what was intermittently producing spurious
+            # "relation ... does not exist" errors (including from error_helpers.log_error()
+            # itself trying to write to system_logs) when a request landed mid-reset. Requires
+            # that nothing in the files below does its own '\c' (see structure.sql/compose.yml.example
+            # for how the database itself is selected instead), since that would silently end
+            # the transaction partway through.
+            '--single-transaction',
             '-c', f'DROP SCHEMA IF EXISTS "{schema}" CASCADE',
             '-c', f'CREATE SCHEMA IF NOT EXISTS "{schema}"',
-            '-c', f'SET search_path TO "{schema}",public',
-            '-f', './docker-entrypoint-initdb.d/01-structure.sql',
+            # 01-structure.sql and 02-structure-tests.sql only bootstrap schemas/extensions once,
+            # at first container boot (CREATE SCHEMA/EXTENSION IF NOT EXISTS would be harmless to
+            # re-run, but there is no need to); 03-tables.sql is the idempotent table/trigger/seed
+            # part, safe and necessary to re-run every time.
+            '-f', './docker-entrypoint-initdb.d/03-tables.sql',
         ],
-        check=True,
-        stdout=subprocess.DEVNULL,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
+    if ps.returncode != 0:
+        raise RuntimeError('Dropping and recreating database failed with ', ps.stdout, ps.stderr)
 
-    subprocess.run(
+
+    ps = subprocess.run(
         ['docker', 'exec', 'test-green-coding-redis-container', 'redis-cli', '-p', f"{redis_port}", 'FLUSHALL'],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
+    if ps.returncode != 0:
+        raise RuntimeError('Flushing redis failed with ', ps.stdout, ps.stderr)
+
     DB().shutdown()
 
 class RunUntilManager:

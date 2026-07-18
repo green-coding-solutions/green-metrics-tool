@@ -21,6 +21,7 @@ from lib.db import DB
 from lib import utils
 from lib.system_checks import ConfigurationCheckError
 from lib import container_compatibility
+from lib.utils import container_name
 from tests import test_functions as Tests
 
 GMT_DIR = Path(__file__).parent.parent.as_posix()
@@ -915,9 +916,9 @@ def test_container_running_verification_after_boot_phase():
             for step in context.run_steps():
                 if step == 'setup_services':
                     # Simulate container failure by stopping it manually
-                    subprocess.run(['docker', 'stop', 'test-container'], check=False)
+                    subprocess.run(['docker', 'stop', container_name('test-container')], check=False)
 
-    assert str(e.value).startswith("Container 'test-container' failed during [BOOT] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
+    assert str(e.value).startswith(f"Container '{container_name('test-container')}' failed during [BOOT] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
 
 def test_container_running_verification_after_runtime_phase():
     """Test that container verification catches containers that exit during runtime phase"""
@@ -928,9 +929,9 @@ def test_container_running_verification_after_runtime_phase():
             for step in context.run_steps():
                 if step == 'runtime_complete':
                     # Simulate container failure by stopping it manually
-                    subprocess.run(['docker', 'stop', 'test-container'], check=False)
+                    subprocess.run(['docker', 'stop', container_name('test-container')], check=False)
 
-    assert str(e.value).startswith("Container 'test-container' failed during [RUNTIME] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
+    assert str(e.value).startswith(f"Container '{container_name('test-container')}' failed during [RUNTIME] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
 
 
     ## rethink this one
@@ -991,9 +992,9 @@ def test_logs_structure():
     logs = logs_result[0]
 
     assert isinstance(logs, dict), "Logs should be in dictionary format"
-    assert "test-container" in logs, "Should have logs for test-container"
+    assert container_name('test-container') in logs, "Should have logs for test-container"
 
-    container_logs = logs["test-container"]
+    container_logs = logs[container_name('test-container')]
     assert isinstance(container_logs, list), "Container logs should be a list"
     assert len(container_logs) == 3, f"Should have exactly 3 log entries (container stdout, setup stdout, flow stdout+stderr), found {len(container_logs)}"
 
@@ -1072,7 +1073,7 @@ def test_logs_null_byte_handling():
 
     # Verify no null bytes remain in stored logs
     logs = logs_result[0]
-    container_logs = logs["test-container"]
+    container_logs = logs[container_name('test-container')]
 
     for log_entry in container_logs:
         for key, value in log_entry.items():
@@ -1159,7 +1160,7 @@ def test_logs_invalid_character_handling():
 
     # Verify no invalid characters remain in stored logs
     logs = logs_result[0]
-    container_logs = logs["test-container"]
+    container_logs = logs[container_name('test-container')]
 
     for log_entry in container_logs:
         for key, value in log_entry.items():
@@ -1190,8 +1191,8 @@ def test_all_run_logs_comprehensive():
 
     # Test container logs structure
     containers = run_entry["containers"]
-    assert "test-container" in containers, "Should have logs for test-container"
-    container_logs = containers["test-container"]
+    assert container_name('test-container') in containers, "Should have logs for test-container"
+    container_logs = containers[container_name('test-container')]
     assert isinstance(container_logs, list), "Container logs should be a list"
     assert len(container_logs) > 0, "Should have at least one log entry"
 
@@ -1210,8 +1211,8 @@ def test_all_run_logs_comprehensive():
     assert run1["iteration"] == 1, "First run should be iteration 1"
     assert run2["iteration"] == 2, "Second run should be iteration 2"
     assert run1["filename"] == run2["filename"], "Both runs should have same filename"
-    assert "test-container" in run1["containers"], "First run should have container logs"
-    assert "test-container" in run2["containers"], "Second run should have container logs"
+    assert container_name('test-container') in run1["containers"], "First run should have container logs"
+    assert container_name('test-container') in run2["containers"], "Second run should have container logs"
 
     # Test 3: Different filename (reset iteration count)
     runner.set_filename('tests/data/usage_scenarios/basic_stress.yml')

@@ -18,6 +18,7 @@ import pytest
 from tests import test_functions as Tests
 from lib.scenario_runner import ScenarioRunner
 from lib.schema_checker import SchemaError
+from lib.utils import container_name
 
 ## Note:
 # Always do asserts after try:finally: blocks
@@ -33,7 +34,7 @@ from lib.schema_checker import SchemaError
 
 def get_env_vars():
     ps = subprocess.run(
-        ['docker', 'exec', 'test-container', '/bin/sh',
+        ['docker', 'exec', container_name('test-container'), '/bin/sh',
         '-c', 'env'],
         check=True,
         stderr=subprocess.PIPE,
@@ -94,7 +95,7 @@ def test_env_variable_allow_unsafe_true():
 
 def get_labels():
     ps = subprocess.run(
-        ['docker', 'inspect', 'test-container'],
+        ['docker', 'inspect', container_name('test-container')],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -146,7 +147,7 @@ def test_labels_allow_unsafe_true():
 
 def get_port_bindings():
     ps = subprocess.run(
-            ['docker', 'port', 'test-container', '9018'],
+            ['docker', 'port', container_name('test-container'), '9018'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -177,7 +178,7 @@ def test_port_bindings_skip_unsafe_true():
             context.run_until('setup_services')
             _, docker_port_err = get_port_bindings()
 
-            expected_container_error = 'Error: No public port \'9018/tcp\' published for test-container\n'
+            expected_container_error = f"Error: No public port '9018/tcp' published for {container_name('test-container')}\n"
             assert docker_port_err == expected_container_error, \
                 Tests.assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
     expected_warning = 'Found ports entry but not running in unsafe mode. Skipping'
@@ -191,7 +192,7 @@ def test_port_bindings_no_skip_or_allow():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
             _, docker_port_err = get_port_bindings()
-            expected_container_error = 'Error: No public port \'9018/tcp\' published for test-container\n'
+            expected_container_error = f"Error: No public port '9018/tcp' published for {container_name('test-container')}\n"
             assert docker_port_err == expected_container_error, \
                 Tests.assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
     expected_error = 'Found "ports" but neither --skip-unsafe nor --allow-unsafe is set'
@@ -279,7 +280,7 @@ def test_setup_commands_one_command():
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    assert 'Running command:  docker exec test-container sh -ec ps -a' in out.getvalue()
+    assert f"Running command:  docker exec {container_name('test-container')} sh -ec ps -a" in out.getvalue()
     assert '1 root      0:00 /bin/sh' in out.getvalue(), 'Expected container stdout showing /bin/sh as process 1'
 
 def test_setup_commands_multiple_commands():
@@ -290,7 +291,7 @@ def test_setup_commands_multiple_commands():
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
 
-    assert 'Running command:  docker exec test-container ps -a' in out.getvalue()
+    assert f"Running command:  docker exec {container_name('test-container')} ps -a" in out.getvalue()
     assert 'hello world' in out.getvalue()
     assert 'goodbye world' in out.getvalue()
 
@@ -317,9 +318,9 @@ def test_depends_on_order():
             context.run_until('setup_services')
 
     # Expected order: test-container-2, test-container-4, test-container-3, test-container-1
-    assert_order(out.getvalue(), 'test-container-2', 'test-container-4')
-    assert_order(out.getvalue(), 'test-container-4', 'test-container-3')
-    assert_order(out.getvalue(), 'test-container-3', 'test-container-1')
+    assert_order(out.getvalue(), container_name('test-container-2'), container_name('test-container-4'))
+    assert_order(out.getvalue(), container_name('test-container-4'), container_name('test-container-3'))
+    assert_order(out.getvalue(), container_name('test-container-3'), container_name('test-container-1'))
 
 
 def test_depends_on_huge():
@@ -332,67 +333,67 @@ def test_depends_on_huge():
             context.run_until('setup_services')
 
     # For test-container-20
-    assert_order(out.getvalue(), 'test-container-16', 'test-container-20')
-    assert_order(out.getvalue(), 'test-container-15', 'test-container-20')
+    assert_order(out.getvalue(), container_name('test-container-16'), container_name('test-container-20'))
+    assert_order(out.getvalue(), container_name('test-container-15'), container_name('test-container-20'))
 
     # For test-container-19
-    assert_order(out.getvalue(), 'test-container-14', 'test-container-19')
-    assert_order(out.getvalue(), 'test-container-13', 'test-container-19')
+    assert_order(out.getvalue(), container_name('test-container-14'), container_name('test-container-19'))
+    assert_order(out.getvalue(), container_name('test-container-13'), container_name('test-container-19'))
 
     # For test-container-18
-    assert_order(out.getvalue(), 'test-container-12', 'test-container-18')
-    assert_order(out.getvalue(), 'test-container-11', 'test-container-18')
+    assert_order(out.getvalue(), container_name('test-container-12'), container_name('test-container-18'))
+    assert_order(out.getvalue(), container_name('test-container-11'), container_name('test-container-18'))
 
     # For test-container-17
-    assert_order(out.getvalue(), 'test-container-10', 'test-container-17')
-    assert_order(out.getvalue(), 'test-container-9', 'test-container-17')
+    assert_order(out.getvalue(), container_name('test-container-10'), container_name('test-container-17'))
+    assert_order(out.getvalue(), container_name('test-container-9'), container_name('test-container-17'))
 
     # For test-container-16
-    assert_order(out.getvalue(), 'test-container-8', 'test-container-16')
-    assert_order(out.getvalue(), 'test-container-7', 'test-container-16')
+    assert_order(out.getvalue(), container_name('test-container-8'), container_name('test-container-16'))
+    assert_order(out.getvalue(), container_name('test-container-7'), container_name('test-container-16'))
 
     # For test-container-15
-    assert_order(out.getvalue(), 'test-container-6', 'test-container-15')
-    assert_order(out.getvalue(), 'test-container-5', 'test-container-15')
+    assert_order(out.getvalue(), container_name('test-container-6'), container_name('test-container-15'))
+    assert_order(out.getvalue(), container_name('test-container-5'), container_name('test-container-15'))
 
     # For test-container-14
-    assert_order(out.getvalue(), 'test-container-4', 'test-container-14')
+    assert_order(out.getvalue(), container_name('test-container-4'), container_name('test-container-14'))
 
     # For test-container-13
-    assert_order(out.getvalue(), 'test-container-3', 'test-container-13')
+    assert_order(out.getvalue(), container_name('test-container-3'), container_name('test-container-13'))
 
     # For test-container-12
-    assert_order(out.getvalue(), 'test-container-2', 'test-container-12')
+    assert_order(out.getvalue(), container_name('test-container-2'), container_name('test-container-12'))
 
     # For test-container-11
-    assert_order(out.getvalue(), 'test-container-1', 'test-container-11')
+    assert_order(out.getvalue(), container_name('test-container-1'), container_name('test-container-11'))
 
     # For test-container-10
-    assert_order(out.getvalue(), 'test-container-4', 'test-container-10')
+    assert_order(out.getvalue(), container_name('test-container-4'), container_name('test-container-10'))
 
     # For test-container-9
-    assert_order(out.getvalue(), 'test-container-3', 'test-container-9')
+    assert_order(out.getvalue(), container_name('test-container-3'), container_name('test-container-9'))
 
     # For test-container-8
-    assert_order(out.getvalue(), 'test-container-2', 'test-container-8')
+    assert_order(out.getvalue(), container_name('test-container-2'), container_name('test-container-8'))
 
     # For test-container-7
-    assert_order(out.getvalue(), 'test-container-1', 'test-container-7')
+    assert_order(out.getvalue(), container_name('test-container-1'), container_name('test-container-7'))
 
     # For test-container-6
-    assert_order(out.getvalue(), 'test-container-4', 'test-container-6')
+    assert_order(out.getvalue(), container_name('test-container-4'), container_name('test-container-6'))
 
     # For test-container-5
-    assert_order(out.getvalue(), 'test-container-3', 'test-container-5')
+    assert_order(out.getvalue(), container_name('test-container-3'), container_name('test-container-5'))
 
     # For test-container-4
-    assert_order(out.getvalue(), 'test-container-2', 'test-container-4')
+    assert_order(out.getvalue(), container_name('test-container-2'), container_name('test-container-4'))
 
     # For test-container-3
-    assert_order(out.getvalue(), 'test-container-1', 'test-container-3')
+    assert_order(out.getvalue(), container_name('test-container-1'), container_name('test-container-3'))
 
     # For test-container-2
-    assert_order(out.getvalue(), 'test-container-1', 'test-container-2')
+    assert_order(out.getvalue(), container_name('test-container-1'), container_name('test-container-2'))
 
 def test_depends_on_error_not_running():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_not_running.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=10, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
@@ -401,7 +402,7 @@ def test_depends_on_error_not_running():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert re.match(r"State check of dependent services of 'test-container-\d+' failed! Container 'test-container-3' is not running but 'exited' after waiting for 10 sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.", str(e.value))
+    assert re.match(r"State check of dependent services of 'test-container-\d+' failed! Container '" + re.escape(container_name('test-container-3')) + r"' is not running but 'exited' after waiting for 10 sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.", str(e.value))
 
 def test_depends_on_error_cyclic_dependency():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_cycle.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
@@ -493,7 +494,7 @@ def test_depends_on_healthcheck_missing_start_period():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exception = "Health check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not healthy but 'starting' after waiting for 5 sec"
+    expected_exception = f"Health check of dependent services of 'test-container-1' failed! Container '{container_name('test-container-2')}' is not healthy but 'starting' after waiting for 5 sec"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
@@ -516,7 +517,7 @@ def test_depends_on_healthcheck_error_container_unhealthy():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exception = 'Health check of container "test-container-2" failed terminally with status "unhealthy" after'
+    expected_exception = f'Health check of container "{container_name("test-container-2")}" failed terminally with status "unhealthy" after'
 
     assert str(e.value).startswith(expected_exception) or str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception} or {expected_exception}", str(e.value))
@@ -530,7 +531,7 @@ def test_depends_on_healthcheck_error_max_waiting_time():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exception = "Health check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not healthy but 'starting' after waiting for 10 sec"
+    expected_exception = f"Health check of dependent services of 'test-container-1' failed! Container '{container_name('test-container-2')}' is not healthy but 'starting' after waiting for 10 sec"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
@@ -553,7 +554,7 @@ def test_container_is_in_network():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps = subprocess.run(
-            ['docker', 'network', 'inspect', 'gmt-test-network'],
+            ['docker', 'network', 'inspect', container_name('gmt-test-network')],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -641,7 +642,7 @@ def test_cmd_ran():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps = subprocess.run(
-            ['docker', 'exec', 'test-container', 'ps', '-a'],
+            ['docker', 'exec', container_name('test-container'), 'ps', '-a'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -659,7 +660,7 @@ def test_entrypoint_ran_with_script():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps = subprocess.run(
-            ['docker', 'exec', 'test-container', 'ps', '-a'],
+            ['docker', 'exec', container_name('test-container'), 'ps', '-a'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -675,7 +676,7 @@ def test_entrypoint_ran_in_conjunction_with_command():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps = subprocess.run(
-            ['docker', 'exec', 'test-container', 'ps', '-a'],
+            ['docker', 'exec', container_name('test-container'), 'ps', '-a'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -693,7 +694,7 @@ def test_entrypoint_empty():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
             ps = subprocess.run(
-                ['docker', 'exec', 'test-container', 'ps', '-a'],
+                ['docker', 'exec', container_name('test-container'), 'ps', '-a'],
                 check=True,
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -735,8 +736,9 @@ def test_read_detached_process_failure():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
     # TODO: Move this again to "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 127. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further." once GitHub Actions has updated docker. See https://github.com/green-coding-solutions/green-metrics-tool/issues/1128      # pylint: disable=fixme
-    assert "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 12" in str(e.value), \
-        Tests.assertion_info("Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 12", str(e.value))
+    expected_process_error = f"Process '['docker', 'exec', '{container_name('test-container')}', 'g4jiorejf']' had bad returncode: 12"
+    assert expected_process_error in str(e.value), \
+        Tests.assertion_info(expected_process_error, str(e.value))
 
 def test_invalid_container_name():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
@@ -747,10 +749,10 @@ def test_invalid_container_name():
         runner.run()
 
     exc_str = str(e.value)
-    assert exc_str.startswith("Command '['docker', 'run', '-it', '-d', '--name', 'highload-api-:cont'")
+    assert exc_str.startswith(f"Command '['docker', 'run', '-it', '-d', '--name', '{container_name('highload-api-:cont')}'")
     assert exc_str.endswith('returned non-zero exit status 125.')
 
-    assert e.value.stderr.startswith("docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed")
+    assert e.value.stderr.startswith(f"docker: Error response from daemon: Invalid container name ({container_name('highload-api-:cont')}), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed")
 
 def test_invalid_container_name_2():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name_2.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
@@ -761,10 +763,10 @@ def test_invalid_container_name_2():
         runner.run()
 
     exc_str = str(e.value)
-    assert exc_str.startswith("Command '['docker', 'run', '-it', '-d', '--name', '8zhfiuw:-3tjfuehuis'")
+    assert exc_str.startswith(f"Command '['docker', 'run', '-it', '-d', '--name', '{container_name('8zhfiuw:-3tjfuehuis')}'")
     assert exc_str.endswith('returned non-zero exit status 125.')
 
-    assert e.value.stderr.startswith("docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed")
+    assert e.value.stderr.startswith(f"docker: Error response from daemon: Invalid container name ({container_name('8zhfiuw:-3tjfuehuis')}), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed")
 
 def test_duplicate_container_name():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/duplicate_container_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
@@ -866,7 +868,7 @@ def test_internal_network():
     with pytest.raises(RuntimeError) as e:
         runner.run()
 
-    assert str(e.value) == "Process '['docker', 'exec', 'test-container', 'curl', '-s', '--fail', 'https://www.google.de']' had bad returncode: 6. Stderr: ; Detached process: False. Please also check the stdout in the logs and / or enable stdout logging to debug further."
+    assert str(e.value) == f"Process '['docker', 'exec', '{container_name('test-container')}', 'curl', '-s', '--fail', 'https://www.google.de']' had bad returncode: 6. Stderr: ; Detached process: False. Please also check the stdout in the logs and / or enable stdout logging to debug further."
 
 def test_bad_arg():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_bad.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
@@ -986,4 +988,4 @@ def test_provider_early_exit():
         runner.run()
 
     assert 'Could not open path /sys/fs/cgroup' in str(e.value)
-    assert '(test-container-2) for reading' in str(e.value)
+    assert f"({container_name('test-container-2')}) for reading" in str(e.value)

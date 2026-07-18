@@ -55,25 +55,35 @@ def check_sudo():
 def copy_sql_structure(ee=False):
     print('Copying SQL structure...')
     shutil.copyfile('../docker/structure.sql', './structure.sql')
+    shutil.copyfile('../docker/tables.sql', './tables.sql')
 
-    with open('./structure.sql', 'r', encoding='utf-8') as f:
+    # The seed users' "capabilities" JSON (and any EE table/data definitions) live in tables.sql,
+    # not structure.sql (which only bootstraps the database itself - see docker/structure.sql).
+    with open('./tables.sql', 'r', encoding='utf-8') as f:
         sql = f.read()
     sql = sql.replace(
         '"measurement.skip_volume_inspect"',
         '"measurement.skip_volume_inspect",\n                "ssh_private_key"'
     )
-    with open('./structure.sql', 'w', encoding='utf-8') as f:
+    with open('./tables.sql', 'w', encoding='utf-8') as f:
         f.write(sql)
 
     if ee:
-        with open('../ee/docker/structure_ee.sql', 'r', encoding='utf-8') as source, open('./structure.sql', 'a', encoding='utf-8') as target:
+        with open('../ee/docker/structure_ee.sql', 'r', encoding='utf-8') as source, open('./tables.sql', 'a', encoding='utf-8') as target:
             target.write(source.read())
-            print("Enterprise DB definitions of '../ee/docker/structure.sql' appended to './structure.sql' successfully.")
+            print("Enterprise DB definitions of '../ee/docker/structure.sql' appended to './tables.sql' successfully.")
 
+    # structure.sql is the only file that references the "green-coding" database name;
+    # tables.sql is a no-op match, but rename both uniformly in case EE content adds any.
+    # structure-tests.sql is NOT included here: unlike the two files above it isn't copied from
+    # docker/ first, it lives directly in tests/ and is tracked in git - sed'ing it in place would
+    # rewrite the checked-in file itself, and since 'test-green-coding' still contains the
+    # substring 'green-coding', every re-run would prepend another 'test-' prefix. It already
+    # hardcodes the test database name for that reason.
     if utils.get_architecture() == 'macos':
-        command = ['sed', '-i', "", 's/green-coding/test-green-coding/g', './structure.sql']
+        command = ['sed', '-i', "", 's/green-coding/test-green-coding/g', './structure.sql', './tables.sql']
     else:
-        command = ['sed', '-i', 's/green-coding/test-green-coding/g', './structure.sql']
+        command = ['sed', '-i', 's/green-coding/test-green-coding/g', './structure.sql', './tables.sql']
 
     subprocess.check_output(command)
 
@@ -81,8 +91,11 @@ def copy_sql_structure(ee=False):
 def edit_compose_file():
     print('Creating test-compose.yml...')
     compose = None
-    with open(base_compose_path, encoding='utf8') as base_compose_file:
-        compose = yaml.load(base_compose_file, Loader=yaml.FullLoader)
+    with open(base_compose_path, encoding='utf8') as f:
+        base_compose = f.read()
+
+    base_compose = base_compose.replace('#TEST-ONLY#', '')
+    compose = yaml.load(base_compose, Loader=yaml.FullLoader)
 
     # Edit stack name
     compose['name'] = 'green-metrics-tool-test'
@@ -109,6 +122,7 @@ def edit_compose_file():
             volume = volume.replace('PATH_TO_GREEN_METRICS_TOOL_REPO',
                           f'{current_dir}/../')
             volume = volume.replace('./structure.sql', '../tests/structure.sql')
+            volume = volume.replace('./tables.sql', '../tests/tables.sql')
             new_vol_list.append(volume)
 
         # Change the depends on: in services as well
@@ -149,6 +163,8 @@ def edit_compose_file():
             new_env = []
             for env in compose['services'][service]['environment']:
                 env = env.replace('PLEASE_CHANGE_THIS', DB_PW)
+                env = env.replace('PGOPTIONS=-c search_path=production,public', 'PGOPTIONS=-c search_path=gmt_test,public')
+                env = env.replace('POSTGRES_DB=green-coding', 'POSTGRES_DB=test-green-coding')
                 new_env.append(env)
             compose['services'][service]['environment'] = new_env
 

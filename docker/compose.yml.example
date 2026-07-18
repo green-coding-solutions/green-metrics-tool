@@ -12,10 +12,20 @@ services:
     environment:
       - POSTGRES_PASSWORD=PLEASE_CHANGE_THIS
       - TZ=__TZ__
+      - PGOPTIONS=-c search_path=production,public
+      # Every docker-entrypoint-initdb.d/*.sql file is run as its own psql invocation, defaulting
+      # to this database - without it, only 01-structure.sql would land on the right database
+      # (it does its own CREATE DATABASE + \c), while 02/03 would silently run against the
+      # default "postgres" database instead. Explicit here so none of the init files need a \c of
+      # their own: reset_db() re-runs 03-tables.sql wrapped in a single transaction (so a
+      # concurrent request never sees the schema mid-drop/rebuild), and a \c would silently end
+      # that transaction partway through.
+      - POSTGRES_DB=green-coding
     volumes:
       - green-coding-postgres-data:/var/lib/postgresql
       - ./structure.sql:/docker-entrypoint-initdb.d/01-structure.sql:ro
-      - ./tables.sql:/docker-entrypoint-initdb.d/02-tables.sql:ro
+#TEST-ONLY#      - ../tests/structure-tests.sql:/docker-entrypoint-initdb.d/02-structure-tests.sql:ro
+      - ./tables.sql:/docker-entrypoint-initdb.d/03-tables.sql:ro
 #EE-ONLY#      - ./../ee/docker/structure_ee.sql:/docker-entrypoint-initdb.d/03-structure_ee.sql:ro
   # If you want to use a shared socket between postgres and gunicorn please add
   #   - ./postgres/socket:/var/run/postgresql
