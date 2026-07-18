@@ -12,7 +12,7 @@ inputs:
   tests-command:
     description: 'The command to run the tests'
     required: false
-    default: 'pytest -vv --durations=0'
+    default: 'pytest -n auto --dist=loadgroup -vv --durations=0'
   test-path:
     description: 'Specific test path to run'
     required: false
