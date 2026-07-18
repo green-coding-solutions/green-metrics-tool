@@ -313,11 +313,11 @@ measurement:
 #        region: 'DE'
 #        token: 'XXXX'
 #        sampling_rate: 99 # Remove if you don't want value padding
-     carbon_intensity_static_machine:
-       # Static carbon intensity in gCO2e/kWh. Replaces the former SCI 'I' value.
-       # The number 445 is global 2024 (https://www.iea.org/reports/electricity-2025/emissions)
-       value: 445
-       sampling_rate: 99
+      carbon_intensity_static_machine:
+        # Static carbon intensity in gCO2e/kWh. Replaces the former SCI 'I' value.
+        # The number 445 is global 2024 (https://www.iea.org/reports/electricity-2025/emissions)
+        value: 445
+        sampling_rate: 99
 #      carbon_intensity_level_electricitymaps_machine:
 #        region: 'DE'
 #        token: 'XXXX'
