@@ -120,7 +120,7 @@ if [[ $activate_scenario_runner == true ]] ; then
         print_message ""
         if cat /etc/os-release | grep -q "Fedora"; then
             if ! sudo dnf -y install msr-tools; then
-                print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-r'" >&2
+                print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-R'" >&2
                 exit 1
             fi
         elif cat /etc/os-release | grep -q "openSUSE"; then
@@ -129,7 +129,7 @@ if [[ $activate_scenario_runner == true ]] ; then
             fi
         else
             if ! sudo apt-get install -y msr-tools; then
-                print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-r'" >&2
+                print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-R'" >&2
                 exit 1
             fi
         fi

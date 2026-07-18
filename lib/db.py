@@ -114,7 +114,7 @@ class DB:
             sslmode='require',
             # search_path is only ever non-default under pytest-xdist (see get_test_schema());
             # every connection in the pool gets it set at startup so callers never need to care.
-            options=f"-c search_path={get_test_schema()},public",
+            options=f"-c search_path={get_test_schema()},public {' '.join(config['postgresql'].get('options', []))}",
         )
 
         self._pool = ConnectionPool(
