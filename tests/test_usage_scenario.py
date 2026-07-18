@@ -978,6 +978,10 @@ def test_folder_destination_with_build():
 
 
 @pytest.mark.skipif(platform.system() == "Darwin", reason="Skipped on macOS")
+# Starts real metric providers (dev_no_metrics=False), so it must never overlap with any other
+# test that also starts real metric providers - see the comment on pytestmark in
+# tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_provider_early_exit():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/container_early_exit.yml', dev_no_system_checks=True, dev_no_metrics=False, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 

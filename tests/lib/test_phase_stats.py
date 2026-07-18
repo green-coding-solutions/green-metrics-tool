@@ -763,6 +763,11 @@ def test_phase_stats_process_user_custom_metrics():
     assert runtime_data['value'] == 42
     assert runtime_data['type'] == 'TOTAL'
 
+# Starts the full default set of real metric providers from test-config.yml (dev_no_metrics=False)
+# for real, so it must never overlap with any other test that also starts real metric providers -
+# see the comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually
+# prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_custom_metric_sci_run():
     runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_custom_metrics.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 

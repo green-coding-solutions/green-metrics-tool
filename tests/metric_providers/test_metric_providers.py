@@ -17,6 +17,14 @@ from lib import resource_limits
 from lib.scenario_runner import ScenarioRunner
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
 
+# setup_module below starts the full default set of real metric providers from test-config.yml
+# (dev_no_metrics=False) for real - even though dev_no_system_checks=True means this file never
+# checks for a collision itself, another test elsewhere that DOES check (dev_no_system_checks=False,
+# e.g. tests/smoke_test.py) would still trip on these providers if it ran concurrently on a
+# different xdist worker. See the comment on pytestmark in tests/smoke_test.py for why xdist_group
+# is what actually prevents that under -n.
+pytestmark = pytest.mark.xdist_group(name="real-metric-providers")
+
 #pylint: disable=unused-argument
 @pytest.fixture(autouse=True, scope='module') # override by setting scope to module only
 def setup_and_cleanup_test():

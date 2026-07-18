@@ -5,6 +5,7 @@ import json
 import pytest
 import random
 import tempfile
+import time
 import pandas
 from pathlib import Path
 
@@ -316,36 +317,50 @@ def reset_db():
     # concurrent workers can each reset their own tables without touching each other's.
     schema = get_test_schema()
 
-    ps = subprocess.run(
-        [
-            'docker', 'exec', '--user', 'postgres',
-            '-e', f'PGOPTIONS=-c search_path={schema},public',
-            'test-green-coding-postgres-container',
-            'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
-            # --single-transaction wraps the drop/recreate/repopulate below into one commit, so
-            # any other session querying this schema concurrently (the gunicorn container
-            # serving a tests/frontend or tests/api request, most likely) either sees the
-            # complete old schema or the complete new one - never a dropped-but-not-yet-
-            # repopulated one, which is what was intermittently producing spurious
-            # "relation ... does not exist" errors (including from error_helpers.log_error()
-            # itself trying to write to system_logs) when a request landed mid-reset. Requires
-            # that nothing in the files below does its own '\c' (see structure.sql/compose.yml.example
-            # for how the database itself is selected instead), since that would silently end
-            # the transaction partway through.
-            '--single-transaction',
-            '-c', f'DROP SCHEMA IF EXISTS "{schema}" CASCADE',
-            '-c', f'CREATE SCHEMA IF NOT EXISTS "{schema}"',
-            # 01-structure.sql and 02-structure-tests.sql only bootstrap schemas/extensions once,
-            # at first container boot (CREATE SCHEMA/EXTENSION IF NOT EXISTS would be harmless to
-            # re-run, but there is no need to); 03-tables.sql is the idempotent table/trigger/seed
-            # part, safe and necessary to re-run every time.
-            '-f', './docker-entrypoint-initdb.d/03-tables.sql',
-        ],
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if ps.returncode != 0:
+    docker_exec_args = [
+        'docker', 'exec', '--user', 'postgres',
+        '-e', f'PGOPTIONS=-c search_path={schema},public',
+        'test-green-coding-postgres-container',
+        'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
+        # --single-transaction wraps the drop/recreate/repopulate below into one commit, so
+        # any other session querying this schema concurrently (the gunicorn container
+        # serving a tests/frontend or tests/api request, most likely) either sees the
+        # complete old schema or the complete new one - never a dropped-but-not-yet-
+        # repopulated one, which is what was intermittently producing spurious
+        # "relation ... does not exist" errors (including from error_helpers.log_error()
+        # itself trying to write to system_logs) when a request landed mid-reset. Requires
+        # that nothing in the files below does its own '\c' (see structure.sql/compose.yml.example
+        # for how the database itself is selected instead), since that would silently end
+        # the transaction partway through.
+        '--single-transaction',
+        '-c', f'DROP SCHEMA IF EXISTS "{schema}" CASCADE',
+        '-c', f'CREATE SCHEMA IF NOT EXISTS "{schema}"',
+        # 01-structure.sql and 02-structure-tests.sql only bootstrap schemas/extensions once,
+        # at first container boot (CREATE SCHEMA/EXTENSION IF NOT EXISTS would be harmless to
+        # re-run, but there is no need to); 03-tables.sql is the idempotent table/trigger/seed
+        # part, safe and necessary to re-run every time.
+        '-f', './docker-entrypoint-initdb.d/03-tables.sql',
+    ]
+
+    # Postgres can still be finishing its own startup sequence (initdb, running
+    # docker-entrypoint-initdb.d/*) when the very first reset_db() of a session fires - especially
+    # with several xdist workers starting at once and all racing to reset as soon as they're up.
+    # psql then fails immediately with "the database system is starting up" rather than this being
+    # a real error, so retry that specific transient condition with backoff instead of failing the
+    # whole session over a race that resolves itself within a few seconds.
+    max_attempts = 10
+    for attempt in range(1, max_attempts + 1):
+        ps = subprocess.run(
+            docker_exec_args,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if ps.returncode == 0:
+            break
+        if attempt < max_attempts and b'the database system is starting up' in ps.stderr:
+            time.sleep(2)
+            continue
         raise RuntimeError('Dropping and recreating database failed with ', ps.stdout, ps.stderr)
 
 

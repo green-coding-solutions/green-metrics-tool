@@ -391,6 +391,11 @@ def test_different_filename_missing():
     expected_exception = f"I_do_not_exist.yml in {GMT_DIR} not found"
     assert expected_exception == str(e.value)
 
+# Runs a real, unchecked runner.py subprocess without --dev-no-metrics, so real metric-provider
+# processes are actually spawned - must never overlap with another test doing the same. See the
+# comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that
+# under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_runner_with_glob_pattern_filename():
     """Test that runner works with glob pattern filenames like folder/*.yml"""
     ps = subprocess.run(
@@ -411,6 +416,11 @@ def test_runner_with_glob_pattern_filename():
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
     # Using relative path as filename with relative path as URI
+# Runs a real, unchecked runner.py subprocess without --dev-no-metrics, so real metric-provider
+# processes are actually spawned - must never overlap with another test doing the same. See the
+# comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that
+# under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_runner_filename_relative_to_local_uri():
     """Test that runner works with filename relative to a local URI directory"""
     # Note: The provided folder is not the root of a git repository. Normally that would fail, however we use the `--dev-no-save` flag so this check is skipped.
@@ -451,6 +461,11 @@ def test_runner_with_iterations_and_save_to_database():
     assert ps.stdout.count('Running:  tests/data/usage_scenarios/basic_stress.yml') == 2
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
+# Runs a real, unchecked runner.py subprocess without --dev-no-metrics, so real metric-provider
+# processes are actually spawned - must never overlap with another test doing the same. See the
+# comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that
+# under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_runner_with_iterations_and_multiple_files():
     """Test that runner processes files in correct order with --iterations and allows duplicates"""
     ps = subprocess.run(
@@ -579,6 +594,10 @@ def test_usage_scenario_variable_replacement_done_correctly():
     assert runner._usage_scenario_original['flow'][0]['commands'][0]['command'] == 'stress-ng -c 1 -t 1 -q'
 
 ## Check if metrics provider are already running
+# Starts real metric providers with dev_no_system_checks=False, so it must never overlap with any
+# other test that also starts real metric providers - see the comment on pytestmark in
+# tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_reporters_still_running():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     runner2 = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)

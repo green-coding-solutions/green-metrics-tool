@@ -20,6 +20,19 @@ run_stdout = None
 
 RUN_NAME = 'test_' + utils.randomword(12)
 
+# This whole file runs a real measurement with dev_no_system_checks=False, so every real metric
+# provider process it starts is checked (and later left running for the duration of the module)
+# against the actual system-wide "is another instance of this provider already running" guard in
+# metric_providers.base - a check that is intentionally NOT worker-scoped, since its whole point is
+# to catch a real second instance anywhere on the machine. Under xdist that guard would otherwise
+# also fire against any other test elsewhere in the suite that happens to start real metric
+# providers concurrently on a different worker. xdist_group pins every test carrying the same group
+# name onto one worker, which - since a single worker runs its tests one at a time - is what
+# actually keeps them from overlapping; test_reporters_still_running (tests/test_runner.py) and
+# test_provider_early_exit (tests/test_usage_scenario.py) also start real metric providers for real
+# and carry the same group for that reason.
+pytestmark = pytest.mark.xdist_group(name="real-metric-providers")
+
 #pylint: disable=unused-argument
 @pytest.fixture(autouse=True, scope='module') # override by setting scope to module only
 def setup_and_cleanup_test():
