@@ -18,3 +18,4 @@ CREATE SCHEMA IF NOT EXISTS "production"; -- This is where the production databa
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA public; -- pin to always present schema
 CREATE EXTENSION IF NOT EXISTS "moddatetime" SCHEMA public; -- pin to always present schema
 
+ALTER DATABASE "green-coding" SET search_path = production, public;
