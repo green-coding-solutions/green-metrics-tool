@@ -5,6 +5,7 @@ import pytest
 from lib.scenario_runner import ScenarioRunner
 from tests import test_functions as Tests
 from lib.db import DB
+from lib.utils import gmt_tmp_image_name
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
@@ -426,11 +427,12 @@ class TestDependencyCollection:
             else:
                 print(f"✓ Pre-built container {container_name} has container info")
 
-        # Verify GMT-transformed images (GMT changes postgres:13 to postgres13_gmt_run_tmp:latest)
+        # Verify GMT-transformed images (GMT changes a built service's image to <name>_gmt_run_tmp:latest,
+        # worker-suffixed under -n - see utils.gmt_tmp_image_name())
         images = [data['source']['image'] for data in dependencies.values()]
 
         assert 'postgres:13' in images
-        assert 'web_gmt_run_tmp:latest' in images
+        assert f'{gmt_tmp_image_name("web")}:latest' in images
         assert 'curlimages/curl:8.10.1' in images
 
         # Verify dependencies were stored in database

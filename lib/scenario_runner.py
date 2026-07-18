@@ -1193,8 +1193,10 @@ class ScenarioRunner:
         name = re.sub(r'[^A-Za-z0-9_]', '_', name)
         # only lowercase letters are allowed for tags
         name = name.lower()
-        name = f"{name}_gmt_run_tmp"
-        return name
+        # utils.gmt_tmp_image_name() appends the pytest-xdist worker suffix (see its own docstring
+        # for why this machine-wide, cross-run cache tag needs one) - the same helper is used by
+        # host_platform.remove_gmt_tmp_images() and by test assertions, so all three stay in sync.
+        return utils.gmt_tmp_image_name(name)
 
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)

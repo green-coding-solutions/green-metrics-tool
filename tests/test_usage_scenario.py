@@ -18,7 +18,7 @@ import pytest
 from tests import test_functions as Tests
 from lib.scenario_runner import ScenarioRunner
 from lib.schema_checker import SchemaError
-from lib.utils import container_name
+from lib.utils import container_name, gmt_tmp_image_name
 
 ## Note:
 # Always do asserts after try:finally: blocks
@@ -591,6 +591,10 @@ def test_network_host_creation_blocked():
     assert "Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined." in str(e.value)
 
 
+# Full unstopped run() without dev_no_metrics=True, so real metric-provider processes are actually
+# spawned - must never overlap with another test doing the same. See the comment on pytestmark in
+# tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_cmd_entrypoint():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
@@ -600,19 +604,26 @@ def test_cmd_entrypoint():
         runner.run()
 
     o = out.getvalue()
-    assert re.search(r"--entrypoint[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*alpine_gmt_run_tmp[\s,\[\]\"']*-c[\s,\[\]\"']*echo \'Hello from command\'", str(o))
-    assert re.search(r"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*alpine_gmt_run_tmp[\s,\[\]\"']*infinity", str(o))
-    assert re.search(r"--entrypoint[\s,\[\]\"']*tail[\s,\[\]\"']*alpine_gmt_run_tmp[\s,\[\]\"']*-f[\s,\[\]\"']*/dev/null", str(o))
-    assert re.search(r"alpine_gmt_run_tmp[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*-c", str(o))
-    assert re.search(r"alpine_gmt_run_tmp[\s,\[\]\"']*sleep[\s,\[\]\"']*infinity", str(o))
-    assert re.search(r"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*alpine_gmt_run_tmp[\s,\[\]\"']*infinity", str(o))
-    assert re.search(r"--entrypoint[\s,\[\]\"']*cat[\s,\[\]\"']*alpine_gmt_run_tmp", str(o))
-    assert re.search(r"--entrypoint[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*alpine_gmt_run_tmp[\s,\[\]\"']*-c[\s,\[\]\"']*echo \'A \$0\' && echo \'B \$0\'", str(o))
-    assert re.search(r"alpine_gmt_run_tmp[\s,\[\]\"']*ash[\s,\[\]\"']*-c[\s,\[\]\"']*echo[\s,\[\]\"']*\'Using Alpine ash shell\'", str(o))
-    assert re.search(r"alpine_gmt_run_tmp[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*-c[\s,\[\]\"']*echo[\s,\[\]\"']*\'Variable test: \$\$0\'", str(o))
+    # The actual built image tag is worker-suffixed under -n (see utils.gmt_tmp_image_name()) -
+    # re.escape it since a worker id could in principle contain regex-special characters.
+    alpine_tag = re.escape(gmt_tmp_image_name('alpine'))
+    assert re.search(rf"--entrypoint[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*-c[\s,\[\]\"']*echo \'Hello from command\'", str(o))
+    assert re.search(rf"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*infinity", str(o))
+    assert re.search(rf"--entrypoint[\s,\[\]\"']*tail[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*-f[\s,\[\]\"']*/dev/null", str(o))
+    assert re.search(rf"{alpine_tag}[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*-c", str(o))
+    assert re.search(rf"{alpine_tag}[\s,\[\]\"']*sleep[\s,\[\]\"']*infinity", str(o))
+    assert re.search(rf"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*infinity", str(o))
+    assert re.search(rf"--entrypoint[\s,\[\]\"']*cat[\s,\[\]\"']*{alpine_tag}", str(o))
+    assert re.search(rf"--entrypoint[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*-c[\s,\[\]\"']*echo \'A \$0\' && echo \'B \$0\'", str(o))
+    assert re.search(rf"{alpine_tag}[\s,\[\]\"']*ash[\s,\[\]\"']*-c[\s,\[\]\"']*echo[\s,\[\]\"']*\'Using Alpine ash shell\'", str(o))
+    assert re.search(rf"{alpine_tag}[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*-c[\s,\[\]\"']*echo[\s,\[\]\"']*\'Variable test: \$\$0\'", str(o))
 
     assert err.getvalue() == '', Tests.assertion_info('stderr should be empty', err.getvalue())
 
+# Full unstopped run_steps() without dev_no_metrics=True, so real metric-provider processes are
+# actually spawned - must never overlap with another test doing the same. See the comment on
+# pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_container_immediate_exit_with_error():
     """Test that containers exiting immediately with non-zero exit codes raise RuntimeError"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/container_immediate_exit_with_error.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
@@ -948,6 +959,10 @@ def test_outside_symlink_not_allowed_missing_inside():
 # folder-destination: [str] (optional)
 # Custom mount path for the repository folder inside the container.
 # Should mount the repository at the specified path instead of default /tmp/repo
+# Full unstopped run() without dev_no_metrics=True, so real metric-provider processes are actually
+# spawned - must never overlap with another test doing the same. See the comment on pytestmark in
+# tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_folder_destination_basic():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_basic.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
@@ -962,6 +977,10 @@ def test_folder_destination_basic():
     assert 'Test file found at custom path' in build_output, \
         Tests.assertion_info('Repository should be mounted at folder-destination path', build_output)
 
+# Full unstopped run() without dev_no_metrics=True, so real metric-provider processes are actually
+# spawned - must never overlap with another test doing the same. See the comment on pytestmark in
+# tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_folder_destination_with_build():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_with_build.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 

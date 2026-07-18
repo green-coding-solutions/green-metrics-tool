@@ -342,12 +342,16 @@ def reset_db():
         '-f', './docker-entrypoint-initdb.d/03-tables.sql',
     ]
 
-    # Postgres can still be finishing its own startup sequence (initdb, running
+    # Postgres can still be finishing its own startup sequence (initdb, WAL/crash recovery, running
     # docker-entrypoint-initdb.d/*) when the very first reset_db() of a session fires - especially
     # with several xdist workers starting at once and all racing to reset as soon as they're up.
-    # psql then fails immediately with "the database system is starting up" rather than this being
-    # a real error, so retry that specific transient condition with backoff instead of failing the
-    # whole session over a race that resolves itself within a few seconds.
+    # psql then fails immediately with one of these transient messages rather than this being a
+    # real error, so retry those specific conditions with backoff instead of failing the whole
+    # session over a race that resolves itself within a few seconds.
+    transient_startup_errors = (
+        b'the database system is starting up',
+        b'the database system is not yet accepting connections',
+    )
     max_attempts = 10
     for attempt in range(1, max_attempts + 1):
         ps = subprocess.run(
@@ -358,7 +362,7 @@ def reset_db():
         )
         if ps.returncode == 0:
             break
-        if attempt < max_attempts and b'the database system is starting up' in ps.stderr:
+        if attempt < max_attempts and any(msg in ps.stderr for msg in transient_startup_errors):
             time.sleep(2)
             continue
         raise RuntimeError('Dropping and recreating database failed with ', ps.stdout, ps.stderr)

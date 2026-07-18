@@ -3,10 +3,17 @@ import subprocess
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+import pytest
+
 from lib import utils
 from lib.job.run import RunJob
 from tests import test_functions as Tests
 
+## Check if metrics provider are already running
+# Starts real metric providers with dev_no_system_checks=False, so it must never overlap with any
+# other test that also starts real metric providers - see the comment on pytestmark in
+# tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_simple_cluster_run():
 
     tmp_folder = Tests.get_tmp_folder().resolve()
