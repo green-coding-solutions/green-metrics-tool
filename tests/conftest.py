@@ -15,10 +15,28 @@ GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpa
 os.environ['NO_PROXY'] = f"{os.environ.get('NO_PROXY','')},api.green-coding.internal,metrics.green-coding.internal"
 os.environ['no_proxy'] = f"{os.environ.get('no_proxy','')},api.green-coding.internal,metrics.green-coding.internal"
 
+@pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(items):
     for item in items:
         if item.fspath.basename == 'test_functions.py':
             item.add_marker(pytest.mark.skip(reason='Skipping this file'))
+
+    # Every test carrying the 'real-metric-providers' xdist_group is forced onto a single worker
+    # (see the comment on pytestmark in tests/smoke_test.py) and, combined, they're one of the
+    # longest-running chunks in the whole suite. pytest-xdist's loadgroup scheduler dispatches work
+    # in roughly collection order, so if this group's tests are scattered late in that order, the
+    # worker they land on doesn't start on them until well into the run - and since every other
+    # worker finishes its own (shorter, ungrouped) tests long before that one worker gets through
+    # its serialized group, that worker becomes the straggler the whole session waits on at the
+    # end. Sorting the group to the very front means that worker starts on it immediately and runs
+    # for the same duration everyone else does, instead of after. Stable sort preserves the
+    # relative order within the group and among everything else.
+    # trylast=True so this runs after tests/api/, tests/frontend/, tests/cron/'s own
+    # pytest_collection_modifyitems hooks have already attached their own xdist_group markers.
+    items.sort(key=lambda item: 0 if any(
+        marker.name == 'xdist_group' and marker.kwargs.get('name') == 'real-metric-providers'
+        for marker in item.iter_markers()
+    ) else 1)
 
 
 # Scenario-runner test containers are suffixed with this worker's xdist id (see
