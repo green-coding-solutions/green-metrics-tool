@@ -587,7 +587,9 @@ const loadCharts = async () => {
                         const container = document.createElement('div');
                         container.innerHTML = html_content;
                         // adding as href will not trigger any XSS problems which might come from user input here
-                        container.querySelector('.commit-hash-link').href = `${toHttpsUri(repository_uri)}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}`
+                        const repo_uri = toHttpsUri(repository_uri);
+                        const commit_path = repo_uri.includes('gitlab') ? '/-/commit/' : '/commit/';
+                        container.querySelector('.commit-hash-link').href = `${repo_uri}${commit_path}${series[params.seriesName].notes[params.dataIndex].commit_hash}`
                         return container;
 
 
