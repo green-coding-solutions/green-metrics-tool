@@ -951,6 +951,83 @@ class TestFrontendFunctionality:
 
         new_page.close()
 
+    def test_stats_commit_hash_display(self):
+        """Verify commit_hash renders as link for HTTPS/SSH URIs, plain text for local paths."""
+        github_run_id = str(uuid.uuid4())
+        github_ssh_run_id = str(uuid.uuid4())
+        github_dotgit_run_id = str(uuid.uuid4())
+        gitlab_run_id = str(uuid.uuid4())
+        gitlab_ssh_run_id = str(uuid.uuid4())
+        bitbucket_run_id = str(uuid.uuid4())
+        local_run_id = str(uuid.uuid4())
+
+        base_insert = """
+        INSERT INTO runs (id, name, uri, branch, commit_hash, usage_scenario, filename, machine_id, user_id, failed, logs, created_at, updated_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        """
+        empty_scenario = json.dumps({"name": "test", "flow": []})
+        commit_hash = 'aabbccddee0011223344'
+
+        DB().query(base_insert, params=(
+            github_run_id, 'GitHub HTTPS',
+            'https://github.com/org/demo-repo', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            github_ssh_run_id, 'GitHub SSH',
+            'git@github.com:org/demo-repo.git', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            github_dotgit_run_id, 'GitHub HTTPS .git',
+            'https://github.com/org/demo-repo.git', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            gitlab_run_id, 'GitLab HTTPS',
+            'https://gitlab.com/org/demo-repo', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            gitlab_ssh_run_id, 'GitLab SSH',
+            'git@gitlab.com:org/demo-repo.git', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            bitbucket_run_id, 'Bitbucket HTTPS',
+            'https://bitbucket.org/org/demo-repo', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            local_run_id, 'Local',
+            '/home/user/local-project', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+
+        cases = [
+            (github_run_id, 'https://github.com/org/demo-repo/tree/', 'GitHub HTTPS'),
+            (github_ssh_run_id, 'https://github.com/org/demo-repo/tree/', 'GitHub SSH'),
+            (github_dotgit_run_id, 'https://github.com/org/demo-repo/tree/', 'GitHub HTTPS .git'),
+            (gitlab_run_id, 'https://gitlab.com/org/demo-repo/-/tree/', 'GitLab HTTPS'),
+            (gitlab_ssh_run_id, 'https://gitlab.com/org/demo-repo/-/tree/', 'GitLab SSH'),
+            (bitbucket_run_id, 'https://bitbucket.org/org/demo-repo/src/', 'Bitbucket HTTPS'),
+        ]
+
+        for run_id, expected_base, label in cases:
+            page.goto(GlobalConfig().config['cluster']['metrics_url'] + f'/stats.html?id={run_id}')
+            page.wait_for_load_state("networkidle")
+            link = page.locator('#run-data-top tr:has(td:has-text("commit_hash")) td:last-child a')
+            assert link.count() == 1, f"{label}: expected a link"
+            assert link.get_attribute('href') == f'{expected_base}{commit_hash}', f"{label}: href mismatch"
+            assert link.text_content() == commit_hash, f"{label}: text mismatch"
+
+        # Local path → plain text, no link
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + f'/stats.html?id={local_run_id}')
+        page.wait_for_load_state("networkidle")
+        cell = page.locator('#run-data-top tr:has(td:has-text("commit_hash")) td:last-child')
+        assert cell.locator('a').count() == 0, "Local: expected no link"
+        assert cell.text_content().strip() == commit_hash
+
     def test_watchlist(self):
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
