@@ -204,12 +204,20 @@ const fetchAndFillRunData = async (run_id) => {
         }  else if(item == 'relations') {
             if (run_data[item] == null) continue; // can be empty
             for (relation in run_data[item]) {
-                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td><a href="${run_data[item][relation]['url']}" target="_blank">${escapeString(run_data[item][relation]['url'])} (${escapeString(run_data[item][relation]['commit_hash'])})</a></td></tr>`)
+                const url = run_data[item][relation]['url'];
+                const httpsUrl = toHttpsUri(url);
+                const display = httpsUrl.startsWith('http')
+                    ? `<a href="${httpsUrl}" target="_blank">${escapeString(url)} (${escapeString(run_data[item][relation]['commit_hash'])})</a>`
+                    : `${escapeString(url)} (${escapeString(run_data[item][relation]['commit_hash'])})`;
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td>${display}</td></tr>`)
             }
         }  else if(item == 'commit_hash') {
             if (run_data[item] == null) continue; // some old runs did not save it
-            let commit_link = buildCommitLink(run_data);
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data[item])}</a></td></tr>`)
+            const commit_link = buildCommitLink(run_data);
+            const display = commit_link
+                ? `<a href="${commit_link}" target="_blank">${escapeString(run_data[item])}</a>`
+                : escapeString(run_data[item]);
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${display}</td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
         } else if(item == 'failed' && run_data[item] == true) {
@@ -353,13 +361,15 @@ const fetchAndFillRunData = async (run_id) => {
 }
 
 const buildCommitLink = (run_data) => {
-    let commit_link;
-    commit_link = run_data['uri'].endsWith('.git') ? run_data['uri'].slice(0, -4) : run_data['uri']
-    if (run_data['uri'].includes('github')) {
-        commit_link = commit_link + '/tree/' + run_data['commit_hash']
+    let uri = toHttpsUri(run_data['uri']);
+    if (!uri.startsWith('http')) {
+        return null;
     }
-    else if (run_data['uri'].includes('gitlab')) {
-        commit_link = commit_link + '/-/tree/' + run_data ['commit_hash']
+    let commit_link = uri.endsWith('.git') ? uri.slice(0, -4) : uri;
+    if (uri.includes('github')) {
+        commit_link += '/tree/' + run_data['commit_hash'];
+    } else if (uri.includes('gitlab')) {
+        commit_link += '/-/tree/' + run_data['commit_hash'];
     }
     return commit_link;
 }
