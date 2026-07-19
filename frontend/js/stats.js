@@ -207,16 +207,16 @@ const fetchAndFillRunData = async (run_id) => {
                 const url = run_data[item][relation]['url'];
                 const httpsUrl = toHttpsUri(url);
                 const display = httpsUrl.startsWith('http')
-                    ? `<a href="${httpsUrl}" target="_blank">${escapeString(url)} (${escapeString(run_data[item][relation]['commit_hash'])})</a>`
-                    : `${escapeString(url)} (${escapeString(run_data[item][relation]['commit_hash'])})`;
+                    ? `<a href="${escapeString(httpsUrl)}" target="_blank">${escapeString(url)} (${run_data[item][relation]['commit_hash']})</a>`
+                    : `${escapeString(url)} (${run_data[item][relation]['commit_hash']})`;
                 document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td>${display}</td></tr>`)
             }
         }  else if(item == 'commit_hash') {
             if (run_data[item] == null) continue; // some old runs did not save it
             const commit_link = getRepoRefUrl(run_data['uri'], 'tree');
             const display = commit_link
-                ? `<a href="${commit_link}${run_data['commit_hash']}" target="_blank">${escapeString(run_data[item])}</a>`
-                : escapeString(run_data[item]);
+                ? `<a href="${escapeString(commit_link + run_data['commit_hash'])}" target="_blank">${run_data[item]}</a>`
+                : run_data[item];
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${display}</td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
@@ -233,9 +233,10 @@ const fetchAndFillRunData = async (run_id) => {
         } else if(item == 'uri') {
             const uri = run_data[item];
             const httpsUri = toHttpsUri(uri);
-            // URI is safe for href: toHttpsUri normalises SSH/git@ to https://, absolute paths stay as text
+            // toHttpsUri only rewrites SSH/git@ prefixes; it does not strip HTML-attribute-breaking chars,
+            // so the href value still needs escapeString. Absolute paths stay as plain text.
             const uriDisplay = httpsUri.startsWith('http')
-                ? `<a href="${httpsUri}">${escapeString(uri)}</a>`
+                ? `<a href="${escapeString(httpsUri)}">${escapeString(uri)}</a>`
                 : escapeString(uri);
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
         } else if(item == 'note') {

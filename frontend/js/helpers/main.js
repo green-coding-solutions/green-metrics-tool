@@ -290,11 +290,12 @@ const replaceRepoIcon = (uri) => {
 };
 
 const createExternalIconLink = (url) => {
-    // Creates a safe external icon link with protocol validation to prevent XSS attacks
-    // Only allows http/https protocols, returns empty string for non-HTTP URLs
+    // Build a safe external icon link. toHttpsUri only normalises SSH/git@ prefixes; it does NOT strip
+    // HTML-attribute-breaking chars like ", so the href value still requires escapeString.
+    // The startsWith('http') check restricts the protocol but does not on its own prevent attribute breakout.
     const httpsUrl = url ? toHttpsUri(url) : url;
     if (httpsUrl && httpsUrl.startsWith('http')) {
-        return `<a href="${httpsUrl}" target="_blank"><i class="icon external alternate"></i></a>`;
+        return `<a href="${escapeString(httpsUrl)}" target="_blank"><i class="icon external alternate"></i></a>`;
     }
     return '';
 }

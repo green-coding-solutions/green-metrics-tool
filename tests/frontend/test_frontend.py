@@ -1341,11 +1341,19 @@ class TestXssSecurity:
         Tests run name, branch, filename, URI, usage_scenario, usage_scenario_variables, and logs for XSS vulnerabilities
         on runs, stats (including logs view), watchlist, and compare pages.
         This test should FAIL when vulnerabilities exist and PASS when they're fixed.
+
+        The payload is prefixed with `">` so it breaks out of BOTH HTML text context AND a double-quoted
+        attribute value (e.g. href="..."). Without the `">` prefix, a payload interpolated into a href
+        attribute value cannot close the surrounding start tag, so the onerror handler never fires and
+        href-attribute XSS goes undetected. The `">` prefix ensures the same payload exercises every
+        context the value may be interpolated into.
         """
         base_url = GlobalConfig().config['cluster']['metrics_url']
 
-        # Create malicious payloads using IMG_XSS_EXECUTED approach for all user-provided fields
-        xss_payload = '<img src=x onerror="window.IMG_XSS_EXECUTED=true">'
+        # Create malicious payloads using IMG_XSS_EXECUTED approach for all user-provided fields.
+        # The leading `">` closes any double-quoted attribute value and the surrounding start tag,
+        # so the same payload fires in text context AND inside href="...".
+        xss_payload = '"><img src=x onerror="window.IMG_XSS_EXECUTED=true">'
         malicious_name = f'{xss_payload}Safe Name'
         malicious_branch = f'{xss_payload}main'
         malicious_filename = f'{xss_payload}test.yml'
@@ -1389,9 +1397,20 @@ class TestXssSecurity:
 
         # Insert malicious run data
         run_query = """
-        INSERT INTO "runs"("id","name","uri","branch","commit_hash","commit_timestamp","usage_scenario","usage_scenario_variables","filename","machine_id","user_id","failed","logs","created_at","updated_at")
-        VALUES (%s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        INSERT INTO "runs"("id","name","uri","branch","commit_hash","commit_timestamp","usage_scenario","usage_scenario_variables","filename","machine_id","user_id","failed","logs","relations","created_at","updated_at")
+        VALUES (%s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
         """
+
+        malicious_relations = {
+            "helpers": {
+                "url": f'http://evil.com{xss_payload}/helpers.git',
+                "commit_hash": "deadbeef"
+            },
+            "lib": {
+                "url": f'git@github.com:evil{xss_payload}/lib.git',
+                "commit_hash": "cafebabe"
+            }
+        }
 
         DB().query(run_query, params=(
             run_id,
@@ -1405,7 +1424,8 @@ class TestXssSecurity:
             1,
             1,
             False,
-            malicious_logs
+            malicious_logs,
+            json.dumps(malicious_relations)
         ))
 
         # Insert second run for compare functionality (same params except name and usage scenario variables)
@@ -1421,7 +1441,8 @@ class TestXssSecurity:
             1,
             1,
             False,
-            malicious_logs
+            malicious_logs,
+            json.dumps(malicious_relations)
         ))
 
         # Insert phase_stats for the two runs (needed for the compare view)

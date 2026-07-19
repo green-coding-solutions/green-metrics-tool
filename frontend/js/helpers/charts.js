@@ -29,9 +29,10 @@ const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time'
                 }
 
                 const commit_link = getRepoRefUrl(comparison_details[params.seriesIndex][params.dataIndex].repo, 'commit');
+                const commit_hash = comparison_details[params.seriesIndex][params.dataIndex].commit_hash;
                 const commit_hash_link = commit_link
-                    ? `<a href="${commit_link}${comparison_details[params.seriesIndex][params.dataIndex].commit_hash}" target="_blank">${comparison_details[params.seriesIndex][params.dataIndex].commit_hash}</a>`
-                    : comparison_details[params.seriesIndex][params.dataIndex].commit_hash;
+                    ? `<a href="${escapeString(commit_link + commit_hash)}" target="_blank">${commit_hash}</a>`
+                    : commit_hash;
                 return `<strong>${comparison_details[params.seriesIndex][params.dataIndex].name}</strong><br>
                         run_id: <a href="/stats.html?id=${comparison_details[params.seriesIndex][params.dataIndex].run_id}"  target="_blank">${comparison_details[params.seriesIndex][params.dataIndex].run_id}</a><br>
                         date: ${comparison_details[params.seriesIndex][params.dataIndex].created_at}<br>
