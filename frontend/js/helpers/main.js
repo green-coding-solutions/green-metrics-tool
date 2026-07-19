@@ -23,6 +23,24 @@ const toHttpsUri = (uri) => {
     return uri;
 };
 
+// Platform path conventions:
+//   type='commit': /commit/ (GitHub), /-/commit/ (GitLab), /commits/ (Bitbucket)
+//   type='tree':   /tree/   (GitHub), /-/tree/   (GitLab), /src/     (Bitbucket)
+// Returns null for non-HTTP URIs (e.g. local paths).
+const getRepoRefUrl = (uri, type) => {
+    const cleanUri = toHttpsUri(uri);
+    if (!cleanUri.startsWith('http')) return null;
+    if (type !== 'commit' && type !== 'tree') {
+        throw new Error(`getRepoRefUrl: unknown type '${type}', expected 'commit' or 'tree'`);
+    }
+    const base = cleanUri.endsWith('.git') ? cleanUri.slice(0, -4) : cleanUri;
+    if (base.includes('bitbucket')) {
+        return base + (type === 'commit' ? '/commits/' : '/src/');
+    }
+    const pathSep = base.includes('gitlab') ? '/-/' : '/';
+    return base + (type === 'commit' ? pathSep + 'commit/' : pathSep + 'tree/');
+};
+
 class APIHTTPError extends Error {
     constructor(status, message) {
         super(message);

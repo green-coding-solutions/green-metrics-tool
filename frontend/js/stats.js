@@ -213,9 +213,9 @@ const fetchAndFillRunData = async (run_id) => {
             }
         }  else if(item == 'commit_hash') {
             if (run_data[item] == null) continue; // some old runs did not save it
-            const commit_link = buildCommitLink(run_data);
+            const commit_link = getRepoRefUrl(run_data['uri'], 'tree');
             const display = commit_link
-                ? `<a href="${commit_link}" target="_blank">${escapeString(run_data[item])}</a>`
+                ? `<a href="${commit_link}${run_data['commit_hash']}" target="_blank">${escapeString(run_data[item])}</a>`
                 : escapeString(run_data[item]);
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${display}</td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
@@ -358,20 +358,6 @@ const fetchAndFillRunData = async (run_id) => {
 
     // warnings will be fetched separately
 
-}
-
-const buildCommitLink = (run_data) => {
-    let uri = toHttpsUri(run_data['uri']);
-    if (!uri.startsWith('http')) {
-        return null;
-    }
-    let commit_link = uri.endsWith('.git') ? uri.slice(0, -4) : uri;
-    if (uri.includes('github')) {
-        commit_link += '/tree/' + run_data['commit_hash'];
-    } else if (uri.includes('gitlab')) {
-        commit_link += '/-/tree/' + run_data['commit_hash'];
-    }
-    return commit_link;
 }
 
 const fillRunTab = async (selector, data, parent = '') => {
