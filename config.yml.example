@@ -10,6 +10,13 @@ redis:
   host: green-coding-redis-container
   port: 6379
 
+security:
+  # Used to encrypt secrets before storing them in the database. Keep this stable;
+  # changing it makes previously encrypted DB values unreadable. If these are empty
+  # no encryption is used.
+  encryption_public_key_file: null
+  encryption_private_key_file: null
+
 smtp:
   server: SMTP_SERVER
   sender: SMTP_SENDER
@@ -39,6 +46,10 @@ cluster:
     jobs_processing: "random"
     update_os_packages: True
     shutdown_on_job_no: suspend
+    # Force a reboot after the machine has been running for this many seconds. Only triggers when no
+    # measurement is active. If the job queue is never empty the reboot will be deferred indefinitely.
+    # Set to False or 0 to disable. Example: 86400 = 24 hours.
+    reboot_after_seconds: False
     # These two parameters have only effect in cluster mode. When using CLI they will be set via flags --docker-prune and --full-docker-prune only
     docker_prune: False
     full_docker_prune: True
@@ -71,6 +82,9 @@ cluster:
         network_total_cgroup_container:
           threshold: 10000 # 10 kB
           type: stddev
+        custom_sysbench_events_sci_global:
+          threshold: 0.01
+          type: stddev_rel
         phase_time_syscall_system:
           threshold: 0.01 # 1%
           type: stddev_rel
@@ -89,9 +103,61 @@ machine:
   host_reserved_cpus: 1
   host_reserved_memory: 0
 
+  # Optional: if set, system_checks verifies that the named RAPL domain power limits are
+  # exactly equal to the configured values (in Watts). Omit any sub-key to skip that domain check.
+  # Useful to confirm consistent power capping across cluster nodes.
+  # rapl_power_capping:
+  #   package: null  # per-socket package power limit in Watts (name starts with "package-")
+  #   dram: null     # DRAM domain power limit in Watts
+  #   psys: null     # platform-wide (psys) power limit in Watts
+
+  # Optional: if set, system_checks verifies that Docker is configured to use this URL as a
+  # registry mirror. Useful to confirm a private or local registry mirror is active on the machine.
+  # docker_registry_url: null
+
+  # Optional: if set, system_checks verifies the total logical CPU count (including SMT/HT threads).
+  # Useful to detect hot-plug events or unexpected HT state changes.
+  # cpu_cores: null
+
+  # Optional: if set, system_checks verifies total installed RAM matches this value (whole GB).
+  # Useful to detect failed or removed DIMMs.
+  # dram_gb: null
+
+  # Optional: if set, system_checks warns when any connected USB device is not in this allowlist.
+  # Each entry is matched as a substring against lsusb output lines (ID or name).
+  # Useful to detect unexpected USB peripherals on cluster nodes.
+  # usb_devices:
+  #   - "8087:0026"          # Intel USB hub (example)
+  #   - "046d:c52b"          # Logitech Unifying Receiver (example)
+
+  # Optional: if set, system_checks warns when any connected PCI device is not in this allowlist.
+  # Each entry is matched as a substring against lspci output lines.
+  # Useful to detect unexpected cards added to the machine.
+  # pci_devices:
+  #   - "Network controller"  # (example substring)
+  #   - "SATA controller"     # (example substring)
+
+  # Optional: expected CPU scaling governor for all cores (e.g. "performance").
+  # Warns if any core deviates. Common silent drift after reboots.
+  # cpu_governor: null
+
+  # Optional: expected current CPU frequency in MHz. Warns if any core deviates by more than ±10 MHz.
+  # Reads scaling_cur_freq; useful to confirm frequency is locked (e.g. via intel_pstate min=max).
+  # cpu_frequency_mhz: null
+
+  # Optional: expected cpufreq scaling driver (e.g. "intel_pstate", "acpi-cpufreq").
+  # A different driver may apply different power and frequency policies.
+  # cpu_scaling_driver: null
+
+  # Optional: expected SMT/Hyper-Threading state. true = enabled, false = disabled.
+  # cpu_smt: null
+
+  # Optional: expected CPU turbo boost state. true = enabled, false = disabled.
+  # cpu_turbo_boost: null
+
 measurement:
   full_docker_prune_whitelist:
-    - gcr.io/kaniko-project/executor
+    - martizih/kaniko:slim
   metric_providers:
   # Please select the needed providers according to the working ones on your system
   # More info https://docs.green-coding.io/docs/measuring/metric-providers
@@ -102,90 +168,91 @@ measurement:
     #--- Architecture - Linux Only
     linux:
     #--- Always-On - We recommend these providers to be always enabled
-      cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
+      cpu_utilization_procfs_system:
         sampling_rate: 99
     #--- CGroupV2 - Turn these on if you have CGroupsV2 working on your machine
-      cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
+      cpu_utilization_cgroup_container:
         sampling_rate: 99
-      memory.used.cgroup.container.provider.MemoryUsedCgroupContainerProvider:
+      memory_used_cgroup_container:
         sampling_rate: 99
-      network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
+      network_io_cgroup_container:
         sampling_rate: 99
-      disk.io.cgroup.container.provider.DiskIoCgroupContainerProvider:
+      disk_io_cgroup_container:
         sampling_rate: 99
     #--- RAPL - Only enable these if you have RAPL enabled on your machine
-#      cpu.energy.rapl.msr.component.provider.CpuEnergyRaplMsrComponentProvider:
+#      cpu_energy_rapl_msr_component:
 #        sampling_rate: 99
-#      memory.energy.rapl.msr.component.provider.MemoryEnergyRaplMsrComponentProvider:
+#      memory_energy_rapl_msr_component:
 #        sampling_rate: 99
     #--- Machine Energy - These providers need special hardware / lab equipment to work
-#      psu.energy.ac.gude.machine.provider.PsuEnergyAcGudeMachineProvider:
+#      psu_energy_ac_gude_machine:
 #        sampling_rate: 99
-#      psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
+#      psu_energy_ac_powerspy2_machine:
 #        sampling_rate: 250
-#      psu.energy.ac.mcp.machine.provider.PsuEnergyAcMcpMachineProvider:
+#      psu_energy_ac_mcp_machine:
 #        sampling_rate: 99
-#      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
+#      psu_energy_ac_ipmi_machine:
 #        sampling_rate: 99
-#      psu.energy.dc.rapl.msr.machine.provider.PsuEnergyDcRaplMsrMachineProvider:
+#      psu_energy_dc_rapl_msr_machine:
 #        sampling_rate: 99
     #--- GPU - Only enable these if you have GPUs with power measurement enabled in your machine
-#      gpu.energy.nvidia.nvml.component.provider.GpuEnergyNvidiaNvmlComponentProvider:
+#      gpu_energy_nvidia_nvml_component:
 #        sampling_rate: 99
     #--- Sensors - these providers need the lm-sensors package installed
-#      lmsensors.temperature.component.provider.LmsensorsTemperatureComponentProvider:
+#      lmsensors_temperature_component:
 #        sampling_rate: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
 #        features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
-#      lmsensors.fan.component.provider.LmsensorsFanComponentProvider:
+#      lmsensors_fan_component:
 #        sampling_rate: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000']
 #        features: ['fan1', 'fan2']
     #--- Debug - These providers should only be needed for debugging and introspection purposes
-#      cpu.throttling.msr.component.provider.CpuThrottlingMsrComponentProvider:
+#      cpu_throttling_msr_component:
 #        sampling_rate: 99
-#      cpu.frequency.sysfs.core.provider.CpuFrequencySysfsCoreProvider:
+#      cpu_frequency_msr_core:
 #        sampling_rate: 99
-#      cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
+#        base_ghz: 2.4  # Set to the nominal (non-turbo) base clock of your x86 (Intel or AMD) CPU in GHz
+#      cpu_time_cgroup_container:
 #        sampling_rate: 99
-#      cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider:
+#      cpu_time_cgroup_system:
 #        sampling_rate: 99
-#      cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider:
+#      cpu_time_procfs_system:
 #        sampling_rate: 99
-#      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
+#      disk_io_procfs_system:
 #        sampling_rate: 99
-#      network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
+#      network_io_procfs_system:
 #        sampling_rate: 99
 #        remove_virtual_interfaces: True
-#      disk.used.statvfs.system.provider.DiskUsedStatvfsSystemProvider:
+#      disk_used_statvfs_system:
 #        sampling_rate: 99
-#      memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
+#      memory_used_procfs_system:
 #        sampling_rate: 99
     #--- Cgroup system monitoring - These providers can be used to monitor background processes
-#      cpu.utilization.cgroup.system.provider.CpuUtilizationCgroupSystemProvider:
+#      cpu_utilization_cgroup_system:
 #        sampling_rate: 99
 #        cgroups:
 #            "org.gnome.Shell@wayland.service":
 #                name: "Window Manager incl. X11"
 #            "session-2.scope":
 #                name: "GNOME Desktop"
-#      memory.used.cgroup.system.provider.MemoryUsedCgroupSystemProvider:
+#      memory_used_cgroup_system:
 #        sampling_rate: 99
 #        cgroups:
 #            "org.gnome.Shell@wayland.service":
 #                name: "Window Manager incl. X11"
 #            "session-2.scope":
 #                name: "GNOME Desktop"
-#      disk.io.cgroup.system.provider.DiskIoCgroupSystemProvider:
+#      disk_io_cgroup_system:
 #        sampling_rate: 99
 #        cgroups:
 #            "org.gnome.Shell@wayland.service":
 #                name: "Window Manager incl. X11"
 #            "session-2.scope":
 #                name: "GNOME Desktop"
-#      network.io.cgroup.system.provider.NetworkIoCgroupSystemProvider:
+#      network_io_cgroup_system:
 #        sampling_rate: 99
 #        cgroups:
 #            "org.gnome.Shell@wayland.service":
@@ -196,20 +263,31 @@ measurement:
     #--- Architecture - MacOS
     macos:
     #--- MacOS: On Mac you only need this provider. Please remove all others!
-      powermetrics.provider.PowermetricsProvider:
+      powermetrics:
         sampling_rate: 499 # If you set this value too low powermetrics will not be able to accommodate the timing. We recommend no lower than 199 ms
-      cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
+      cpu_utilization_mach_system:
         sampling_rate: 99
+    #--- Architecture - Windows
+    #--- Windows: Python runs natively, Docker Desktop runs Linux containers.
+    windows:
+    #--- RAPL - Requires the ScaphandreDrv kernel driver to be installed and running.
+      cpu_energy_rapl_scaphandre_component:
+        sampling_rate: 99
+        # Optionally disable individual RAPL domains (cpu_package, cpu_cores, cpu_gpu, dram, psys)
+        # domains:
+        #   cpu_gpu: False
+        #   dram: False
     #--- Architecture - Common
     common:
-#      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
+#      network_connections_proxy_container:
 ##        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
+
     #--- Model based - These providers estimate rather than measure. Helpful where measuring is not possible, like in VMs
-#      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
+#      psu_energy_ac_sdia_machine:
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        TDP: 65
-#      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
+#      psu_energy_ac_xgboost_machine:
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        HW_CPUFreq: 3200
@@ -222,8 +300,30 @@ measurement:
 ######### vhost_ratio is the virtualization degree of the machine. For Bare Metal this is 1. For 1 out of 4 VMs this would be 0.25 etc.
 #        VHost_Ratio: 1
 #
+#--- Carbon intensity
+#      carbon_intensity_elephant_machine:
+#        region: 'DE'
+#        sampling_rate: 99 # Remove if you don't want value padding
+#        provider: 'bundesnetzagentur'
+#        elephant:
+#          host: localhost
+#          port: 8085
+#          protocol: http
+#      carbon_intensity_electricitymaps_machine:
+#        region: 'DE'
+#        token: 'XXXX'
+#        sampling_rate: 99 # Remove if you don't want value padding
+      carbon_intensity_static_machine:
+        # Static carbon intensity in gCO2e/kWh. Replaces the former SCI 'I' value.
+        # The number 445 is global 2024 (https://www.iea.org/reports/electricity-2025/emissions)
+        value: 445
+        sampling_rate: 99
+#      carbon_intensity_level_electricitymaps_machine:
+#        region: 'DE'
+#        token: 'XXXX'
+#        sampling_rate: 99 # Remove if you don't want value padding
 ###### DEBUG
-#      network.connections.tcpdump.system.provider.NetworkConnectionsTcpdumpSystemProvider:
+#      network_connections_tcpdump_system:
 #        split_ports: True
 #--- END
 
@@ -248,13 +348,8 @@ sci:
     # https://www.delltechnologies.com/asset/en-us/products/servers/technical-support/Full_LCA_Dell_R740.pdf
     # The default is the value for a developer machine (Pro Laptop - https://dataviz.boavizta.org/terminalimpact)
     TE: 181000
-    # I is the Carbon Intensity at the location of this machine
-    # The value can either be a number in gCO2e/kWh or a carbon intensity provider that fetches this number dynamically
-    # https://docs.green-coding.io/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/ (TODO)
-    # For fixed world-wide values get the number from https://ember-climate.org/insights/research/global-electricity-review-2025/
-    # The number worldwide for 2024 is 473
-    # The number 334 that comes as default is for Germany from 2024 and comes from https://app.electricitymaps.com/zone/DE/all/yearly
-    I: 334
+    # Carbon Intensity (SCI 'I') is now provided by a metric provider — see the
+    # carbon_intensity_*_machine entries under metric_providers above (e.g. carbon_intensity_static_machine).
     # N is not technically part of the SCI, but we keep the value here for better clustering.
     # N is the network energy intensity per transferred data. It transforms values like GB to kWh
     # See https://www.green-coding.io/co2-formulas/ for details
@@ -276,7 +371,8 @@ activate_scenario_runner: False
 activate_eco_ci: False
 activate_power_hog: False
 activate_carbon_db: False
-activate_ai: False
+activate_ai_optimisations: False
+activate_software_view: False
 
 # GMT can activate additional enterprise only functionality
 # If you have a subscription insert your token here

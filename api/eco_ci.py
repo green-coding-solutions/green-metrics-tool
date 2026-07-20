@@ -2,9 +2,8 @@ from datetime import date
 
 from fastapi import APIRouter
 from fastapi import Request, Response, Depends, HTTPException
-from fastapi.responses import ORJSONResponse
 
-from api.api_helpers import authenticate, get_connecting_ip, convert_value
+from api.api_helpers import authenticate, get_connecting_ip, convert_value, CustomORJSONResponse
 from api.object_specifications import CI_Measurement, CI_MeasurementV3
 
 import anybadge
@@ -110,7 +109,7 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
 
 @router.post('/v1/ci/measurement/add', deprecated=True)
 def old_v1_measurement_add_endpoint():
-    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/ci/measurement/add'}, status_code=410)
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/ci/measurement/add'}, status_code=410)
 
 
 @router.post('/v2/ci/measurement/add')
@@ -171,7 +170,7 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
     if data is None or data == []:
         return Response(status_code=204)  # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 @router.get('/v1/ci/stats')
 async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, end_date: date, user: User = Depends(authenticate)):
@@ -231,7 +230,7 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
     if per_label_data is None or per_label_data[0] is None:
         return Response(status_code=204)  # No-Content
 
-    return ORJSONResponse({'success': True, 'data': {'totals': totals_data, 'per_label': per_label_data}})
+    return CustomORJSONResponse({'success': True, 'data': {'totals': totals_data, 'per_label': per_label_data}})
 
 
 @router.get('/v1/ci/repositories')
@@ -260,7 +259,7 @@ async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name', us
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
+    return CustomORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
 
 @router.get('/v1/ci/runs')
 async def get_ci_runs(repo: str, user: User = Depends(authenticate)):
@@ -288,7 +287,7 @@ async def get_ci_runs(repo: str, user: User = Depends(authenticate)):
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
+    return CustomORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
 
 # Route to display a badge for a CI run
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
@@ -387,4 +386,4 @@ async def get_insights(user: User = Depends(authenticate)):
     if data is None:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})

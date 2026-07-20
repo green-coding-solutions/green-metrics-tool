@@ -2,6 +2,7 @@ import os
 import math
 import pytest
 import shutil
+import tempfile
 
 from pathlib import Path
 
@@ -19,7 +20,9 @@ from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtiliz
 
 from unittest.mock import patch
 
-GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
+from lib.db import DB
+
+GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-metrics-'))
 
 ## Create a tmp folder only for this run
 @pytest.fixture(autouse=True, scope='module')
@@ -132,6 +135,35 @@ def test_tcpdump_linux():
   Ports:
     1900/UDP: 8 packets, 2759 bytes''' in stats
 
+    assert DB().fetch_one('SELECT COUNT(*) FROM system_logs')[0] == 0, 'system_logs must be empty - tcpdump parser emitted unexpected errors'
+
+
+def test_tcpdump_linux_vlan():
+    obj = NetworkConnectionsTcpdumpSystemProvider(folder=GMT_METRICS_DIR, skip_check=True)
+    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/network_connections_tcpdump_system_linux_vlan.log')
+
+    data = obj.read_metrics()
+
+    stats = generate_stats_string(data)
+
+    assert DB().fetch_one('SELECT COUNT(*) FROM system_logs')[0] == 0, 'system_logs must be empty - tcpdump parser emitted unexpected errors'
+
+
+    # IPv4 match
+    assert '''IP: 192.168.30.17 (as sender or receiver. aggregated)
+  Total transmitted data: 3005 bytes
+  Ports:
+    56722/TCP: 9 packets, 2585 bytes
+    43387/UDP: 2 packets, 144 bytes
+    40932/UDP: 2 packets, 138 bytes
+    49483/UDP: 2 packets, 138 bytes''' in stats
+
+
+    # IPv6 match
+    assert '''IP: fe80::d2ea:11ff:fe0d:f2ae (as sender or receiver. aggregated)
+  Total transmitted data: 181 bytes
+  Ports:
+    5678/UDP: 1 packets, 181 bytes''' in stats
 
 def test_tcpdump_macos():
     obj = NetworkConnectionsTcpdumpSystemProvider(folder=GMT_METRICS_DIR, skip_check=True)
@@ -177,6 +209,8 @@ def test_tcpdump_macos():
   Ports:
     443/UDP: 4 packets, 320 bytes''' in stats
 
+    assert DB().fetch_one('SELECT COUNT(*) FROM system_logs')[0] == 0, 'system_logs must be empty - tcpdump parser emitted unexpected errors'
+
 def test_powermetrics():
     obj = PowermetricsProvider(499, folder=GMT_METRICS_DIR, skip_check=True)
     obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/powermetrics.log')
@@ -185,7 +219,7 @@ def test_powermetrics():
 
     assert list(df.metric.unique()) == ['cpu_time_powermetrics_vm', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm', 'energy_impact_powermetrics_vm', 'cores_energy_powermetrics_component', 'gpu_energy_powermetrics_component', 'ane_energy_powermetrics_component']
 
-    assert math.isclose(df[df.metric == 'energy_impact_powermetrics_vm'].value.mean(), 430.823529, rel_tol=1e-5)
+    assert math.isclose(df[df.metric == 'energy_impact_powermetrics_vm'].value.mean(), 430.823529, abs_tol=1e-3)
 
 def test_cloud_energy():
     filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_mach_system.log')
@@ -196,7 +230,7 @@ def test_cloud_energy():
 
     assert df.metric.unique() == ['psu_energy_ac_xgboost_machine']
 
-    assert math.isclose(df[df.metric == 'psu_energy_ac_xgboost_machine'].value.mean(), 7076857.12, rel_tol=1e-5)
+    assert math.isclose(df[df.metric == 'psu_energy_ac_xgboost_machine'].value.mean(), 7076857.12, abs_tol=1e-3)
 
 def test_cgroup_system():
     with patch('lib.utils.find_own_cgroup_name') as find_own_cgroup_name:
@@ -209,7 +243,7 @@ def test_cgroup_system():
 
     assert df.metric.unique() == ['cpu_utilization_cgroup_system']
     assert df.detail_name.unique() == 'GMT Overhead'
-    assert math.isclose(df.value.mean(), 539.3809, rel_tol=1e-5)
+    assert math.isclose(df.value.mean(), 539.3809, abs_tol=1e-3)
 
 def test_cgroup_container():
     obj = CpuUtilizationCgroupContainerProvider(100, folder=GMT_METRICS_DIR, skip_check=True)
@@ -222,4 +256,4 @@ def test_cgroup_container():
     assert df.metric.unique() == ['cpu_utilization_cgroup_container']
     assert list(df.detail_name.unique()) == ['38d1e484f336c40a6e60e4518915a4e385f62fdddd47994d6adcb4fb294b2ec8', '939f410a21730a2275e91b8a949884f7f426b89e50e8b2ffceca271b6a4573b6']
 
-    assert math.isclose(df.value.mean(), 289.595, rel_tol=1e-5)
+    assert math.isclose(df.value.mean(), 289.595, abs_tol=1e-3)

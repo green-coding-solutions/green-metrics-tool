@@ -1,7 +1,9 @@
-from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
 from typing import List, Optional, Dict, Literal, Union
 
-from fastapi import HTTPException
+from enum import Enum
+from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
+
+ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE', 'SOFTWARE'])
 
 ### Run
 class RunChange(BaseModel):
@@ -27,6 +29,14 @@ class WatchlistChange(BaseModel):
 
     model_config = ConfigDict(extra='forbid')
 
+### System Logs
+
+class SystemLogDelete(BaseModel):
+    log_id: int
+    action: Literal['delete']
+
+    model_config = ConfigDict(extra='forbid')
+
 ### Software Add
 
 class Software(BaseModel):
@@ -41,6 +51,7 @@ class Software(BaseModel):
     schedule_mode: str
     usage_scenario_variables: Optional[Dict[str, str]] = None
     category_ids: Optional[List[int]] = None
+    carbon_simulation: Optional[Union[int, str, List[int]]] = None
 
     model_config = ConfigDict(extra='forbid')
 
@@ -79,30 +90,27 @@ class CI_MeasurementBase(BaseModel):
     ip: Optional[str] = None
     note: Optional[constr(max_length=1024)] = None
 
-
     # Empty string will not trigger error on their own
-    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
+    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label', 'filter_type', 'filter_project', 'filter_machine')
     @classmethod
-    def check_not_empty(cls, values, data):
-        if not values or values == '':
-            raise HTTPException(status_code=422, detail=f"{data.field_name} must be set and not empty")
-        return values
+    def check_not_empty(cls, value, data):
+        if not value or value == '':
+            raise ValueError(f"{data.field_name} must be set an non-empty")
+        return value
 
     @field_validator('filter_type', 'filter_project', 'filter_machine', 'ip')
     @classmethod
-    def empty_str_to_none(cls, values, _):
-        if not values or values.strip() == '':
+    def empty_str_to_none(cls, value, _):
+        if not value or value.strip() == '':
             return None
-        return values
+        return value
 
     @field_validator('filter_tags')
     @classmethod
-    def check_empty_elements(cls, value):
+    def check_empty_elements(cls, value, data):
         if any(not item or item.strip() == '' for item in value):
-            raise ValueError("The list contains empty elements.")
+            raise ValueError(f"{data.field_name} contains empty elements")
         return value
-
-
 
 class CI_Measurement(CI_MeasurementBase):
     """

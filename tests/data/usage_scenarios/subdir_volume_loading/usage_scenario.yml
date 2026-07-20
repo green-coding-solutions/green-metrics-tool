@@ -10,8 +10,8 @@ services:
     image: volume_bind_mount_rel_to_context_root
     container_name: test-container-root
     volumes:
-      - ./subdir/testfile:/tmp/testfile-correctly-mounted
-      - ./subdir/subdir2/testfile2:/tmp/testfile2-correctly-mounted
+      - ./subdir/testfile:/tmp/testfile-correctly-mounted:ro
+      - ./subdir/subdir2/testfile2:/tmp/testfile2-correctly-mounted:ro
 
   test-container:
     build:
@@ -20,9 +20,9 @@ services:
     image: volume_bind_mount_rel_to_context
     container_name: test-container
     volumes:
-      - ./subdir/testfile:/tmp/testfile-correctly-mounted
-      - ./subdir/subdir2/testfile2:/tmp/testfile2-correctly-mounted
-      - ./subdir/subdir2/subdir3/testfile3:/tmp/testfile3-correctly-mounted
+      - ./subdir/testfile:/tmp/testfile-correctly-mounted:ro
+      - ./subdir/subdir2/testfile2:/tmp/testfile2-correctly-mounted:ro
+      - ./subdir/subdir2/subdir3/testfile3:/tmp/testfile3-correctly-mounted:ro
 
 
 flow:

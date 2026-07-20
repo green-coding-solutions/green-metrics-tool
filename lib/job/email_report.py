@@ -17,6 +17,7 @@ from lib.job.email import EmailJob
 
 
 class EmailReportJob(EmailJob):
+    JOB_TYPE = 'email-report'
 
     #pylint: disable=arguments-differ
     def _process(self):

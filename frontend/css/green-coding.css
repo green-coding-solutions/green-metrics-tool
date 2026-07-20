@@ -587,10 +587,6 @@ a,
     font-family: monospace;
 }
 
-#unselect-button, #compare-force-mode {
-    display: none;
-    margin-top: 10px;
-}
 
 .wide.card {
     width: 400px !important;
@@ -683,4 +679,42 @@ a {
         margin-top: 1em !important;
         margin-bottom: 1em !important;
     }
+}
+
+/* Detail names can get quite long. */
+.left-side-ellipsis {
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  display: inline-block;
+}
+
+.left-side-ellipsis.long-ellipsis {
+  max-width: 400px;
+}
+
+/* Compare Mode Buttons */
+#compare-button {
+    margin-right: 0px;
+    margin-bottom: 5px;
+    font-size:15px;
+}
+
+#compare-force-mode-dropdown {
+  visibility: hidden;
+}
+
+#compare-force-mode-dropdown label {
+    font-size: 1em;
+    color: rgba(0,0,0,0.5);
+    white-space: nowrap;
+}
+
+#compare-force-mode {
+    font-size: 1em;
+    padding: 1px 4px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
 }

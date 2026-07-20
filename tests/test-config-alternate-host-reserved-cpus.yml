@@ -13,7 +13,7 @@ redis:
 machine:
   id: 1
   description: Development machine for testing
-  base_temperature_value: 10
+  base_temperature_value: null
   base_temperature_chip: "asd"
   base_temperature_feature: "asd"
 
@@ -25,7 +25,7 @@ machine:
 measurement:
   metric_providers:
     common:
-      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
+      psu_energy_ac_xgboost_machine:
         CPUChips: 1
         HW_CPUFreq: 3200
         CPUCores: 4
@@ -33,10 +33,12 @@ measurement:
         TDP: 65
         HW_MemAmountGB: 16
         Hardware_Availability_Year: 2011
+      carbon_intensity_static_machine:
+        value: 436
+        sampling_rate: 99
 
 sci:
   EL: 4
   RS: 1
   TE: 181000
-  I: 436
   N: 0.001875

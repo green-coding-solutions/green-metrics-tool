@@ -7,4 +7,4 @@ ARG http_proxy
 ARG https_proxy
 ARG no_proxy
 
-RUN apk add stress-ng
+RUN apk add stress-ng coreutils

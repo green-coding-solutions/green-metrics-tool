@@ -1,3 +1,4 @@
+import subprocess
 import pytest
 import os
 from pathlib import Path
@@ -35,6 +36,29 @@ def setup_and_cleanup_test():
 # @pytest.fixture(autouse=False)  # Set autouse to False to override the fixture
 # def setup_and_cleanup_test():
 #     pass
+
+
+TEST_CONTAINERS = (
+    'test-green-coding-gunicorn-container',
+#    'test-green-coding-postgres-container', # not for now - too verbose
+#    'test-green-coding-redis-container', # not for now - too verbose
+)
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):  # pylint: disable=unused-argument
+    outcome = yield
+    report = outcome.get_result()
+    if report.when == 'call' and report.failed:
+        for container in TEST_CONTAINERS:
+            try:
+                logs = subprocess.check_output(
+                    ['docker', 'logs', container, '--tail', '50'],
+                    stderr=subprocess.STDOUT,
+                    encoding='UTF-8',
+                )
+                report.sections.append((f'Docker logs ({container})', logs))
+            except subprocess.CalledProcessError:
+                pass
 
 
 def pytest_sessionstart(session):  # pylint: disable=unused-argument

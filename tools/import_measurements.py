@@ -15,8 +15,8 @@ config = GlobalConfig().config
 
 def import_metric_provider(metric_provider):
 
-    module_path, class_name = metric_provider.rsplit('.', 1)
-    module_path = f"metric_providers.{module_path}"
+    module_path = f"metric_providers.{metric_provider.replace('_', '.')}.provider"
+    class_name = "".join([token.capitalize() for token in metric_provider.split('_')]) + "Provider"
 
     print(f"Importing {class_name} from {module_path}")
 
@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('run_id', type=str, help='Run-ID (UUID)')
-    parser.add_argument('metric_provider', type=str, help='Metric Provider (ex. cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider)')
+    parser.add_argument('metric_provider', type=str, help='Metric Provider (ex. cpu_utilization_mach_system)')
     parser.add_argument('filename', type=str, help='Filename')
 
 

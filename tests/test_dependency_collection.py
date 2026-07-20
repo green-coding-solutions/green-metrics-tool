@@ -428,8 +428,10 @@ class TestDependencyCollection:
 
         # Verify GMT-transformed images (GMT changes postgres:13 to postgres13_gmt_run_tmp:latest)
         images = [data['source']['image'] for data in dependencies.values()]
-        assert any('postgres13_gmt_run_tmp' in image for image in images), f"postgres13_gmt_run_tmp not found in images: {images}"
-        assert any('web_gmt_run_tmp' in image for image in images), f"web_gmt_run_tmp not found in images: {images}"
+
+        assert 'postgres:13' in images
+        assert 'web_gmt_run_tmp:latest' in images
+        assert 'curlimages/curl:8.10.1' in images
 
         # Verify dependencies were stored in database
         result = DB().fetch_one(

@@ -1,54 +1,55 @@
+const createCard = ({ key, name, icon, variable, detail_name }, suffix, colour) => {
+    const cardClass = variable ? `${key}-${suffix}` : key;
+    return `
+        <div class="ui ${colour} card ${cardClass}">
+            <div class="content">
+                <i class="${icon} icon"></i><span class="metric-name">${name}</span>
+                <div class="right floated meta source"></div>
+
+            </div>
+            <div class="extra content">
+                <div class="description">
+                    <span class="value bold">N/A</span> <span class="si-unit"></span>
+                    <div class="right floated meta help" data-tooltip="No data available" data-position="bottom right" data-inverted>
+                        <span class="metric-type"></span><i class="question circle outline icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+};
+
 class PhaseMetrics extends HTMLElement {
    connectedCallback() {
-
-        const createCard = ({ key, name, icon, variable }, suffix = '', colour) => {
-            const cardClass = variable ? `${key}-${suffix}` : key;
-            const colourClass = variable ? colour : 'teal';
-            return `
-                <div class="ui ${colourClass} card ${cardClass}">
-                    <div class="content">
-                        <i class="${icon} icon"></i><span class="metric-name">${name}</span>
-                        <div class="right floated meta source"></div>
-
-                    </div>
-                    <div class="extra content">
-                        <div class="description">
-                            <span class="value bold">N/A</span> <span class="si-unit"></span>
-                            <div class="right floated meta help" data-tooltip="No data available" data-position="bottom right" data-inverted>
-                                <span class="metric-type"></span><i class="question circle outline icon"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-        };
-
         const buildTab = (tab, active = false, colour='teal') => `
             <div class="ui tab ${active ? 'active' : ''}" data-tab="${tab}">
                 <div class="ui five cards stackable">
                     ${HARDWARECARDS.map(card => createCard(card, tab, colour)).join('')}
                 </div>
-                <h4 class="ui horizontal left aligned divider header">Impact</h4>
-                <div class="ui five cards stackable">
-                    ${EXTRACARDS.map(card => createCard(card, tab, colour)).join('')}
-                </div>
-
             </div>`;
 
 
         this.innerHTML = `
-            <div class="ui segments">
-                <div class="ui segment">
-                    <div class="ui pointing menu">
-                        <a class="active item" data-tab="power">Power</a>
-                        <a class="item" data-tab="energy">Energy</a>
-                        <a class="item" data-tab="co2">CO<sub>2</sub></a>
-                    </div>
-                    <h4 class="ui horizontal left aligned divider header">Hardware</h4>
-                    ${buildTab('power', true, 'orange')}
-                    ${buildTab('energy', false, 'blue')}
-                    ${buildTab('co2', false, 'black')}
+            <div class="ui segment">
+                <h4 class="ui horizontal left aligned divider header">Hardware</h4>
+                <div class="ui pointing menu">
+                    <a class="active item" data-tab="power">Power</a>
+                    <a class="item" data-tab="energy">Energy</a>
+                    <a class="item" data-tab="co2">CO<sub>2</sub></a>
+                </div>
+                ${buildTab('power', true, 'orange')}
+                ${buildTab('energy', false, 'blue')}
+                ${buildTab('co2', false, 'black')}
+            </div>
+
+            <div class="ui segment">
+                <h4 class="ui horizontal left aligned divider header">Impact</h4>
+                <div class="ui five cards stackable">
+                    ${EXTRACARDS.map(card => createCard(card, '', 'teal')).join('')}
+                </div>
+                <div class="ui five cards stackable custom-metrics">
                 </div>
             </div>
+
             <br>
             <div class="ui accordion">
                <div class="title ui header">
@@ -86,31 +87,31 @@ class PhaseMetrics extends HTMLElement {
 
 customElements.define('phase-metrics', PhaseMetrics);
 
-
 /*
     TODO: Include one sided T-test?
 */
 const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, detail_data, comparison_case)  => {
+    let display_mode = 'plain';
     let max_value = '-'
     if (detail_data.max != null) {
         const [max,max_unit] = convertValue(detail_data.max, metric_data.unit);
-        max_value = `${max?.toFixed(2)} ${max_unit}`;
+        max_value = max?.toFixed(2);
     }
     let min_value = '-'
     if (detail_data.min != null) {
         const [min,min_unit] = convertValue(detail_data.min, metric_data.unit);
-        min_value = `${min?.toFixed(2)} ${min_unit}`;
+        min_value = min?.toFixed(2);
     }
 
     let max_mean_value = '-'
     if (detail_data.max_mean != null) {
         const [max_mean,max_unit] = convertValue(detail_data.max_mean, metric_data.unit);
-        max_mean_value = `${max_mean?.toFixed(2)} ${max_unit}`;
+        max_mean_value = max_mean?.toFixed(2);
     }
     let min_mean_value = '-'
     if (detail_data.min_mean != null) {
         const [min_mean,min_unit] = convertValue(detail_data.min_mean, metric_data.unit);
-        min_mean_value = `${min_mean?.toFixed(2)} ${min_unit}`;
+        min_mean_value = min_mean?.toFixed(2);
     }
 
 
@@ -120,6 +121,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
     if(detail_data.stddev == 0) std_dev_text = std_dev_text_table = `± 0.00%`;
     else if(detail_data.stddev != null) {
         std_dev_text = std_dev_text_table = `± ${((detail_data.stddev/detail_data.mean)*100).toFixed(2)}%`
+        display_mode = 'std_dev';
     }
 
     let scope = metric_name.split('_')
@@ -133,10 +135,10 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td data-position="bottom left" data-inverted="" data-tooltip="${getPretty(metric_name, 'explanation')}"><i class="question circle icon"></i>${getPretty(metric_name, 'clean_name')}</td>
             <td>${getPretty(metric_name, 'source')}</td>
             <td>${scope}</td>
-            <td>${detail_name}</td>
+            <td><span class="left-side-ellipsis" title="${escapeString(detail_name)}">${escapeString(detail_name)}</span></td>
             <td>${metric_data.type}</td>
-            <td><span title="${detail_data.mean}">${transformed_value?.toFixed(2)}</span> ${ transformed_value?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data.mean} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
-            <td>${transformed_unit}</td>
+            <td><span title="${detail_data.mean} ${escapeString(metric_data.unit)}">${transformed_value?.toFixed(2)}</span> ${ transformed_value?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data.mean} ${escapeString(metric_data.unit)}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
+            <td>${escapeString(transformed_unit)}</td>
             <td>${std_dev_text_table}</td>
             <td>${max_value}</td>
             <td>${min_value}</td>
@@ -153,10 +155,10 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td data-position="bottom left" data-inverted="" data-tooltip="${getPretty(metric_name, 'explanation')}"><i class="question circle icon"></i>${getPretty(metric_name, 'clean_name')}</td>
             <td>${getPretty(metric_name, 'source')}</td>
             <td>${scope}</td>
-            <td>${detail_name}</td>
+            <td><span class="left-side-ellipsis" title="${escapeString(detail_name)}">${escapeString(detail_name)}</span></td>
             <td>${metric_data.type}</td>
-            <td><span title="${detail_data.mean}">${transformed_value?.toFixed(2)}</span> ${ transformed_value?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data.mean} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
-            <td>${transformed_unit}</td>
+            <td><span title="${detail_data.mean} ${escapeString(metric_data.unit)}">${transformed_value?.toFixed(2)}</span> ${ transformed_value?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data.mean} ${escapeString(metric_data.unit)}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
+            <td>${escapeString(transformed_unit)}</td>
             <td>${max_value}</td>
             <td>${min_value}</td>
             <td>
@@ -168,7 +170,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
 
 
     updateKeyMetric(
-        phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
+        display_mode, phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
         transformed_value.toFixed(2) , std_dev_text, transformed_unit, detail_data.mean, metric_data.unit,
         getPretty(metric_name, 'explanation'), getPretty(metric_name, 'source')
     );
@@ -180,6 +182,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
 */
 const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, detail_data_array, is_significant)  => {
 
+    const display_mode = 'compare';
     // no max, we use significant rather
     const extra_label = (is_significant == true) ? 'Significant' : 'not significant / no-test';
 
@@ -215,16 +218,16 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
         <td data-position="bottom left" data-inverted="" data-tooltip="${getPretty(metric_name, 'explanation')}"><i class="question circle icon"></i>${getPretty(metric_name, 'clean_name')}</td>
         <td>${getPretty(metric_name, 'source')}</td>
         <td>${scope}</td>
-        <td>${detail_name}</td>
+        <td><span class="left-side-ellipsis" title="${escapeString(detail_name)}">${escapeString(detail_name)}</span></td>
         <td>${metric_data.type}</td>
-        <td><span title="${detail_data_array[0]}">${transformed_value_1?.toFixed(2)}</span> ${ transformed_value_1?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[0]} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
-        <td><span title="${detail_data_array[1]}">${transformed_value_2?.toFixed(2)}</span> ${ transformed_value_2?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[1]} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
-        <td>${transformed_unit}</td>
+        <td><span title="${detail_data_array[0]} ${escapeString(metric_data.unit)}">${transformed_value_1?.toFixed(2)}</span> ${ transformed_value_1?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[0]} ${escapeString(metric_data.unit)}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
+        <td><span title="${detail_data_array[1]} ${escapeString(metric_data.unit)}">${transformed_value_2?.toFixed(2)}</span> ${ transformed_value_2?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[1]} ${escapeString(metric_data.unit)}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
+        <td>${escapeString(transformed_unit)}</td>
         <td class="${icon_color}">${relative_difference}</td>
         <td>${extra_label}</td>`;
 
     updateKeyMetric(
-        phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
+        display_mode, phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
         relative_difference, '', transformed_unit, null, null,
         getPretty(metric_name, 'explanation'), getPretty(metric_name, 'source')
     );
@@ -268,14 +271,12 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
 }
 
 const updateKeyMetric = (
-    phase, metric_name, clean_name, detail_name,
+    display_mode, phase, metric_name, clean_name, detail_name,
     value, std_dev_text, unit, raw_value, raw_unit,
     explanation, source
 ) => {
 
     let selector = null;
-
-
 
     if (phase_time_metric_condition(metric_name)) {
         selector = '.runtime';
@@ -283,6 +284,8 @@ const updateKeyMetric = (
         selector = '.network-data';
     } else if (network_total_metric_condition(metric_name)) {
         selector = '.network-traffic';
+    } else if (carbon_grid_intensity_condition(metric_name)) {
+        selector = '.grid-intensity';
     }
     /*else if (network_carbon_metric_condition(metric_name)) {
         selector = '.network-carbon';
@@ -310,7 +313,7 @@ const updateKeyMetric = (
     } else if (gpu_power_metric_condition(metric_name)) {
         selector = '.gpu-power';
     } else if (disk_carbon_metric_condition(metric_name)) {
-        selector = '.disk-power';
+        selector = '.disk-carbon';
     } else if (disk_energy_metric_condition(metric_name)) {
         selector = '.disk-energy';
     } else if (disk_power_metric_condition(metric_name)) {
@@ -321,32 +324,84 @@ const updateKeyMetric = (
         selector = '.dram-energy';
     } else if (dram_power_metric_condition(metric_name)) {
         selector = '.dram-power';
-    } else if (sci_metric_condition(metric_name)) {
-        selector = '.sci';
+    } else if (metric_name.startsWith('custom_')) {
+        selector = `.custom-metric-${metric_name}`;
+        const node = document.querySelector(`div.tab[data-tab='${phase}'] .custom-metrics`);
+        let icon = 'robot';
+        let colour = 'grey';
+        if (metric_name.endsWith('_sci_global')) {
+            icon = 'leaf';
+            colour = 'green';
+        }
+        node.insertAdjacentHTML('beforeend', createCard({ key: selector.slice(1), name: null, icon: icon, variable:false, detail_name: detail_name }, '', colour));
     } else {
         return // no selector found, which means this is no currently configured key metric
     }
 
-    const cards = document.querySelectorAll(`div.tab[data-tab='${phase}'] ${selector}`);
+    const card = document.querySelector(`div.tab[data-tab='${phase}'] ${selector}`);
 
-    if (cards.length === 0) {
+    if (card == null) {
         console.warn(`No card found for selector "${selector}" in phase "${phase}"`);
         return;
     }
 
-    cards.forEach(card => {
-        const valueNode = card.querySelector('.value');
+    const valueNode = card.querySelector('.value');
+    const unitNode = card.querySelector('.si-unit');
+    const typeNode = card.querySelector('.metric-type');
+    const metricNameNode = card.querySelector('.metric-name');
+    const sourceNode = card.querySelector('.source');
+    const helpNode = card.querySelector('.help');
+
+    if (valueNode.innerText != 'N/A') {
+        // we found this card before, this means we need to add up the values
+        // if we encounter a mis-match in units etc. we fail with a warning
+        // otherwise we just show an info of the aggregate and stddev has no meaning anymore so we just drop it
+
+        if (display_mode != 'plain') {
+            valueNode.innerHTML = `Not comparable (<i class="window restore outline icon" title="This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)`;
+            unitNode.innerHTML = '';
+            typeNode.innerHTML = '';
+            return;
+        }
+
+        if (
+            unitNode.innerText !== unit
+        ) {
+            valueNode.innerHTML = `Aggregate failure (<i class="window restore outline icon" title="The unit of the aggregate has changed. This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)`
+            unitNode.innerHTML = '';
+            typeNode.innerHTML = '';
+            return;
+        }
+
+        const cleanedValue = valueNode.innerText.replace(/[^0-9.]/g, '');
+        let total = (parseFloat(cleanedValue) + parseFloat(value))
+
+        if (Number.isNaN(total)) { // can happen when "not comparable" as we are in compare mode and a certain network provider does not exist
+            total = "Not comparable";
+        } else {
+            total = total.toFixed(2);
+        }
+
+        valueNode.innerHTML = `${total} (<i class="window restore outline icon" title="This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)`
+
+        if (display_mode != 'std_dev') {
+            const cleanedRawValue = valueNode.getAttribute('title').replace(/[^0-9.]/g, '');
+            const rawTotal = (parseFloat(cleanedRawValue) + parseFloat(raw_value))
+            valueNode.setAttribute('title', `${rawTotal} [${raw_unit}]`);
+        }
+
+
+    } else {
+        // this is the first time we encounter this card for this phase, so we need to fill the auxillary
+        // fields like unit etc.
+
         valueNode.innerText = `${value} ${std_dev_text}`;
-        if (raw_value != null && raw_unit != null){
-            // this check can be improved in the future once we see missing tooltips to only skip
-            // if a "repeated run" comparison is done, as this is the only case where we want no tooltips
+
+        if (display_mode != 'std_dev') {
             valueNode.setAttribute('title', `${raw_value} [${raw_unit}]`);
         }
 
-        const unitNode = card.querySelector('.si-unit');
         if (unitNode) unitNode.innerText = unit;
-
-        const typeNode = card.querySelector('.metric-type');
 
         if(std_dev_text != ''){
             if (typeNode) typeNode.innerText = `(AVG + STD.DEV)`;
@@ -356,15 +411,10 @@ const updateKeyMetric = (
             }
         }
 
-        const helpNode = card.querySelector('.help');
         if (helpNode) helpNode.setAttribute('data-tooltip', explanation || 'No data available');
 
-        const metricNameNode = card.querySelector('.metric-name');
         if (metricNameNode) metricNameNode.innerText = clean_name || '';
 
-        const sourceNode = card.querySelector('.source');
         if (sourceNode) sourceNode.innerText = `via ${source}` || '';
-    });
-
-
+    }
 };

@@ -10,6 +10,8 @@ from io import StringIO
 from lib.db import DB
 from lib import error_helpers
 
+MAX_POSTGRES_BIGINT = 2**63 - 1
+
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
     # First we create averages for all types. This includes means and totals
     DB().query('''
@@ -74,11 +76,13 @@ def generate_csv_line(hidden, run_id, metric, detail_name, phase_name, value, va
     # else '' resolves to NULL
     return f"{hidden},{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{round(sampling_rate_avg) if sampling_rate_avg is not None else ''},{round(sampling_rate_max) if sampling_rate_max is not None else ''},{round(sampling_rate_95p) if sampling_rate_95p is not None else ''},{unit},NOW()\n"
 
-def build_and_store_phase_stats(run_id, sci=None):
+
+
+def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
     if not sci:
         sci = {}
-
-    software_carbon_intensity_global = {}
+    if not sci_metrics:
+        sci_metrics = []
 
     query = """
             SELECT id, metric, unit, detail_name
@@ -98,43 +102,77 @@ def build_and_store_phase_stats(run_id, sci=None):
         FROM runs
         WHERE id = %s
         """
-    phases = DB().fetch_one(query, (run_id, ))
+    phase_data = DB().fetch_one(query, (run_id, ))
 
-    if not phases or not phases[0]:
+    if not phase_data or not phase_data[0]:
         error_helpers.log_error('Phases object was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
         return
+
+    phases = phase_data[0]
 
     csv_buffer = StringIO()
 
     machine_power_baseline = None
-    machine_power_current_phase = None
-    machine_energy_current_phase = None
-
     runtime_phase_idx = None
 
-    for idx, phase in enumerate(phases[0]):
+    for idx, phase in enumerate(phases):
         if phase['name'] == '[RUNTIME]': # do not process runtime like this, but rather reconstruct it later. Still advance the idx counter though as we want to use the number later
             runtime_phase_idx = idx
             continue
 
+        # reset all phase specific values
         phase_warnings = set()
-        network_bytes_total = [] # reset; # we use array here and sum later, because checking for 0 alone not enough
-
-        cpu_utilization_containers = {} # reset
+        network_bytes_total = [] # we use array here and sum later, because checking for 0 alone not enough
+        cpu_utilization_containers = {}
         cpu_utilization_machine = None
         network_io_carbon_in_ug = None
+        carbon_intensity = None
+        chosen_carbon_metric_name = None
+        sci_phase_data = {}
+        sci_phase_data_custom = {}
+        machine_power_current_phase = None
+        machine_energy_current_phase = None
 
         select_query = """
-            WITH lag_table as (
-                SELECT time, value, (time - LAG(time) OVER (ORDER BY time ASC)) AS diff
+            WITH in_range AS (
+                SELECT
+                    time,
+                    value,
+                    1 as in_phase -- a dummy marker to tell us if the later joined samples are from inside our outside the phase boundary
                 FROM measurement_values
-                WHERE measurement_metric_id = %s AND time > %s and time < %s
+                WHERE measurement_metric_id = %s
+                  AND time > %s
+                  AND time < %s
+            ),
+            next_one AS (
+                SELECT
+                    time,
+                    value,
+                    0 as in_phase  -- a dummy marker to tell us if the later joined samples are from inside our outside the phase boundary
+                FROM measurement_values
+                WHERE measurement_metric_id = %s
+                  AND time >= %s          -- same upper bound as above
+                  AND time < %s
+                ORDER BY time ASC
+                LIMIT 1
+            ),
+            lag_table as (
+                SELECT
+                    time,
+                    value,
+                    (time - LAG(time) OVER (ORDER BY time ASC)) AS diff,
+                    in_phase
+                FROM (
+                    SELECT time, value, in_phase FROM in_range
+                    UNION ALL
+                    SELECT time, value, in_phase FROM next_one
+                )
                 ORDER BY time ASC
             )
             SELECT
                 SUM(value), MAX(value), MIN(value),
                 AVG(value), -- This would be the normal average. we only use that when there is less than three values available and we cannot build a weighted average
-                (SUM(value*diff))::DOUBLE PRECISION/(SUM(diff)), -- weighted average -- we are missing the first row, which is NULL by concept. We could estimate it with an AVG, but this would increase complexity of this query as well as create fake values in case of network, where we cannot assume that the value before the first measurement is linearly extraploateable. thus we do skip it
+                (SUM(value*diff::DOUBLE PRECISION))/(SUM(diff)), -- weighted average -- we are missing the first row, which is NULL by concept. We could estimate it with an AVG, but this would increase complexity of this query as well as create fake values in case of network, where we cannot assume that the value before the first measurement is linearly extraploateable. thus we do skip it
 
                 -- these are only a true derivate if value is already a difference, which is the case for energy values and for _io_ providers or any other that outputs increments instead of totals
                 -- using the derivative for other providers makes no sense atm
@@ -145,24 +183,50 @@ def build_and_store_phase_stats(run_id, sci=None):
                 COUNT(value),
                 AVG(diff) as sampling_rate_avg,
                 MAX(diff) as sampling_rate_max,
-                percentile_cont(0.95) WITHIN GROUP (ORDER BY diff) AS sampling_rate_95p
+                percentile_cont(0.95) WITHIN GROUP (ORDER BY diff) AS sampling_rate_95p,
+                SUM(in_phase) as in_phase  -- a dummy marker to tell us if the later joined samples are from inside our outside the phase boundary
             FROM lag_table
         """
 
         duration = Decimal(phase['end']-phase['start'])
+        next_phase_start = phases[idx+1]['start'] if idx+1 < len(phases) else MAX_POSTGRES_BIGINT
         duration_in_s = Decimal(duration / 1_000_000)
         csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, None, None, None, 'us'))
 
-        # now we go through all metrics in the run and aggregate them
-        for measurement_metric_id, metric, unit, detail_name in metrics: # unpack
-            params = (measurement_metric_id, phase['start'], phase['end'])
+
+        for measurement_metric_id, metric, unit, detail_name in metrics:
+            params = (measurement_metric_id, phase['start'], phase['end'], measurement_metric_id, phase['end'], next_phase_start)
             results = DB().fetch_one(select_query, params=params)
 
-            value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p = results
+            if metric not in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', 'carbon_intensity_static_machine'):
+                continue
+
+            value_sum, _, _, classic_value_avg, weighted_value_avg, _, _, _, value_count, _, _, _, in_phase = results
+
+            if value_count == 0 or not in_phase:
+                continue
+
+            if value_count <= 2:
+                resolved_value_avg = Decimal(classic_value_avg)
+            else:
+                resolved_value_avg = Decimal(weighted_value_avg)
+
+            if carbon_intensity is not None:
+                phase_warnings.add(f"More than one carbon intensity provider is configured. Now using {metric}")
+            carbon_intensity = resolved_value_avg
+            chosen_carbon_metric_name = metric
+
+        # now we go through all metrics in the run and aggregate them
+        for measurement_metric_id, metric, unit, detail_name in metrics: # unpack
+            params = (measurement_metric_id, phase['start'], phase['end'], measurement_metric_id, phase['end'], next_phase_start)
+            results = DB().fetch_one(select_query, params=params)
+
+            value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase = results
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
-            if value_count == 0: continue
+            if value_count == 0 or not in_phase:
+                continue
 
             # Since we need to LAG the table the first value will be NULL. So it means we need at least 3 rows to make a useful weighted average.
             # In case we cannot do that we use the classic average
@@ -172,19 +236,31 @@ def build_and_store_phase_stats(run_id, sci=None):
                 derivative_avg = Decimal(classic_value_avg / (duration/value_count))
                 derivative_max = Decimal(max_value / (duration/value_count))
                 derivative_min = Decimal(min_value / (duration/value_count))
-                phase_warnings.add(f"Very few samples encountered in phase '{phase['name']}', MEAN values might be inaccurate")
             else:
                 value_avg = Decimal(weighted_value_avg)
                 derivative_avg = Decimal(derivative_avg)
                 derivative_max = Decimal(derivative_max)
                 derivative_min = Decimal(derivative_min)
 
+            # Dynamic undersampling warning: flag when actual samples < 50% of what the observed
+            # sampling rate implies we should have received over the phase duration.
+            # Some metrics should not be flagged as they are custom.
+            if not metric.startswith('custom_'):
+                if sampling_rate_avg is not None and sampling_rate_avg > 0:
+                    # sampling_rate_avg and duration are both in microseconds
+                    expected_samples = duration / Decimal(sampling_rate_avg)
+                    is_undersampled = Decimal(value_count) < expected_samples * Decimal('0.5')
+                else:
+                    # value_count == 1: no LAG diff available, cannot estimate rate — always undersampled
+                    is_undersampled = True
+                if is_undersampled:
+                    phase_warnings.add(f"Very few samples (< 50% of observed duration or < 2) encountered in phase '{phase['name']}' and metric '{metric}', MEAN values might be inaccurate")
+
             # we make everything Decimal so in subsequent divisions these values stay Decimal
             value_sum = Decimal(value_sum)
             max_value = Decimal(max_value)
             min_value = Decimal(min_value)
             value_count = Decimal(value_count)
-
 
             if metric in (
                 'lmsensors_temperature_component',
@@ -198,9 +274,13 @@ def build_and_store_phase_stats(run_id, sci=None):
                 'memory_used_procfs_system',
                 'energy_impact_powermetrics_vm',
                 'disk_used_statvfs_system',
-                'cpu_frequency_sysfs_core',
+                'cpu_frequency_msr_core',
                 'cpu_throttling_thermal_msr_component',
                 'cpu_throttling_power_msr_component',
+                'carbon_intensity_elephant_machine',
+                'carbon_intensity_electricity_maps_machine',
+                'carbon_intensity_static_machine',
+                'carbon_intensity_level_electricitymaps_machine',
             ):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_avg, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
@@ -235,6 +315,9 @@ def build_and_store_phase_stats(run_id, sci=None):
                 if metric == 'network_io_cgroup_container': # save to calculate CO2 later. We do this only for the cgroups. Not for the system to not double count
                     network_bytes_total.append(value_sum)
 
+            elif metric in ('cpu_time_powermetrics_vm', ):
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+
             elif "_energy_" in metric and unit == 'uJ':
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
@@ -244,16 +327,6 @@ def build_and_store_phase_stats(run_id, sci=None):
 
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg_mW, 'MEAN', power_max_mW, power_min_mW, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
 
-                if sci.get('I', None) is not None:
-                    value_carbon_ug = (value_sum / 3_600_000) * Decimal(sci['I'])
-
-                    csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", value_carbon_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
-
-                    # TODO: Refactor how this is calculated. Very flaky as it needs to respect phase['hidden'] # pylint: disable=fixme
-                    if '[' not in phase['name'] and metric.endswith('_machine') and not phase['hidden']: # only for runtime sub phases to not double count ... needs refactor ... see comment at beginning of file
-                        software_carbon_intensity_global['machine_carbon_ug'] = software_carbon_intensity_global.get('machine_carbon_ug', 0) + value_carbon_ug
-
-
                 if metric.endswith('_machine'):
                     if phase['name'] == '[BASELINE]':
                         machine_power_baseline = power_avg_mW
@@ -261,18 +334,24 @@ def build_and_store_phase_stats(run_id, sci=None):
                         machine_energy_current_phase = value_sum
                         machine_power_current_phase = power_avg_mW
 
+            elif '_carbon_' in metric and unit in ('ug', 'ugCO2e'):
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+
+                if metric.endswith('_machine') and chosen_carbon_metric_name is not None and chosen_carbon_metric_name in detail_name:
+                    sci_phase_data['machine_carbon_ug'] = sci_phase_data.get('machine_carbon_ug', 0) + Decimal(value_sum)
+
             else: # Default
-                if metric not in ('cpu_time_powermetrics_vm', ):
+                if metric.startswith('custom_'):
+                    sci_phase_data_custom.setdefault(metric, {})[detail_name] = {'value': value_sum, 'unit': unit}
+                else:
                     error_helpers.log_error('Unmapped phase_stat found, using default', metric=metric, detail_name=detail_name, run_id=run_id)
+
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
 
-        for phase_warning in phase_warnings:
-            DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (run_id, phase_warning))
-
         # after going through detail metrics, create cumulated ones
         if network_bytes_total:
-            if sci.get('N', None) is not None and sci.get('I', None) is not None:
+            if sci.get('N', None) is not None:
                 # build the network energy by using a formula: https://www.green-coding.io/co2-formulas/
                 # pylint: disable=invalid-name
                 network_io_in_kWh = Decimal(sum(network_bytes_total)) / 1_000_000_000 * Decimal(sci['N'])
@@ -284,10 +363,14 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_power_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_power_in_mW, 'TOTAL', None, None, None, None, None, 'mW'))
 
                 # co2 calculations
-                network_io_carbon_in_ug = network_io_in_kWh * Decimal(sci['I']) * 1_000_000
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
+                if carbon_intensity is not None:
+                    network_io_carbon_in_ug = network_io_in_kWh * Decimal(carbon_intensity) * 1_000_000
+                    csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
+                else:
+                    error_helpers.log_error('Cannot calculate the total network carbon consumption. No carbon intensity provider data was found. Configure a carbon_intensity_*_machine provider (e.g. carbon_intensity_static_machine) in the config.', run_id=run_id)
+                    network_io_carbon_in_ug = 0
             else:
-                error_helpers.log_error('Cannot calculate the total network energy consumption. SCI values I and N are missing in the config.', run_id=run_id)
+                error_helpers.log_error('Cannot calculate the total network energy consumption. SCI value N is missing in the config.', run_id=run_id)
                 network_io_carbon_in_ug = 0
         else:
             network_io_carbon_in_ug = 0
@@ -296,8 +379,7 @@ def build_and_store_phase_stats(run_id, sci=None):
             duration_in_years = duration_in_s / (60 * 60 * 24 * 365)
             embodied_carbon_share_g = (duration_in_years / Decimal(sci['EL']) ) * Decimal(sci['TE']) * Decimal(sci['RS'])
             embodied_carbon_share_ug = Decimal(embodied_carbon_share_g * 1_000_000)
-            if '[' not in phase['name'] and not phase['hidden'] : # only for runtime sub phases
-                software_carbon_intensity_global['embodied_carbon_share_ug'] = software_carbon_intensity_global.get('embodied_carbon_share_ug', 0) + embodied_carbon_share_ug
+            sci_phase_data['embodied_carbon_share_ug'] = sci_phase_data.get('embodied_carbon_share_ug', 0) + embodied_carbon_share_ug
             csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, None, None, None, 'ug'))
 
 
@@ -318,14 +400,22 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'uJ'))
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'mW'))
 
-    # TODO: refactor to be a metric provider. Than it can also be per phase # pylint: disable=fixme
-    if software_carbon_intensity_global.get('machine_carbon_ug', None) is not None \
-        and software_carbon_intensity_global.get('embodied_carbon_share_ug', None) is not None \
-        and sci.get('R', 0) != 0 \
-        and sci.get('R_d', None) is not None:
+        if sci_metrics and sci_phase_data_custom \
+            and sci_phase_data.get('machine_carbon_ug', None) is not None \
+            and sci_phase_data.get('embodied_carbon_share_ug', None) is not None:
 
-        csv_buffer.write(generate_csv_line(False, run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{runtime_phase_idx:03}_[RUNTIME]", (software_carbon_intensity_global['machine_carbon_ug'] + software_carbon_intensity_global['embodied_carbon_share_ug']) / Decimal(sci['R']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci['R_d']}"))
-    # TODO End # pylint: disable=fixme
+            for sci_metric in sci_metrics:
+                if sci_phase_data_custom.get(sci_metric):
+                    for detail_name, metric_data in sci_phase_data_custom[sci_metric].items():
+                        if metric_data['value']:
+                            csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{sci_metric}_sci_global", detail_name, f"{idx:03}_{phase['name']}", (sci_phase_data['machine_carbon_ug'] + sci_phase_data['embodied_carbon_share_ug']) / Decimal(metric_data['value']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{metric_data['unit']}"))
+                        else:
+                            phase_warnings.add(f"Custom metric '{sci_metric} [{detail_name}]'  had a total value of 0 and thus SCI could not be calculated (Division by zero error)")
+
+
+        for phase_warning in phase_warnings:
+            DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (run_id, phase_warning))
+
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
     DB().copy_from(
@@ -336,5 +426,5 @@ def build_and_store_phase_stats(run_id, sci=None):
     )
     csv_buffer.close()  # Close the buffer
 
-    if runtime_phase_idx:
+    if runtime_phase_idx is not None:
         reconstruct_runtime_phase(run_id, runtime_phase_idx)

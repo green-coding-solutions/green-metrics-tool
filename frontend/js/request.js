@@ -25,6 +25,9 @@ const populateFieldsFromURL = () => {
     if (urlParams.has('machine_id')) {
         document.querySelector('select[name="machine_id"]').value = escapeString(urlParams.get('machine_id'));
     }
+    if (urlParams.has('carbon_simulation')) {
+        document.querySelector('input[name="carbon_simulation"]').value = escapeString(urlParams.get('carbon_simulation'));
+    }
     if (urlParams.has('schedule_mode')) {
         document.querySelector('select[name="schedule_mode"]').value = escapeString(urlParams.get('schedule_mode'));
     }
@@ -155,11 +158,16 @@ const updateRemoveButtonsVisibility = () => {
                 values[key] = values[key].trim();
             }
         }
+        if (values.carbon_simulation === '') {
+            delete values.carbon_simulation;
+        }
 
         try {
-            await makeAPICall('/v1/software/add', values);
-            form.reset()
-            document.getElementById('variables-container').innerHTML = '';
+            await makeAPICall('/v1/runs/add', values);
+            if (event.submitter?.id !== 'submit-keep-values') {
+                form.reset()
+                document.getElementById('variables-container').innerHTML = '';
+            }
             showNotification('Success', 'Save successful. Check your mail in 10-15 minutes', 'success');
         } catch (err) {
             showNotification('Could not get data from API', err);

@@ -83,6 +83,10 @@ const setAndShowAnalyticsLinks = (run_id, run_data) => {
         if (simulationLink) {
             simulationLink.href = `simulation.html?id=${encodeURIComponent(run_id)}`;
         }
+        const simulationYearlyLink = document.querySelector('#analytics-simulation-yearly-link');
+        if (simulationYearlyLink) {
+            simulationYearlyLink.href = `simulation-yearly.html?id=${encodeURIComponent(run_id)}`;
+        }
     } else {
         document.querySelector('a[data-tab="analytics-simulation"]').classList.add('hidden');
     }
@@ -98,7 +102,6 @@ const setAndShowAnalyticsLinks = (run_id, run_data) => {
     if (run_data?.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
         timelineParams.set('usage_scenario_variables', JSON.stringify(run_data.usage_scenario_variables));
     }
-    timelineParams.set('metrics', 'key');
 
     if (timelineParams.get('uri')) {
         timelineLink.href = `timeline.html?${timelineParams.toString()}`;
@@ -221,14 +224,11 @@ const fetchAndFillRunData = async (run_id) => {
             run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data[item]}">${escapeString(run_data[item])}</a></td></tr>`);
         } else if(item == 'uri') {
             const uri = run_data[item];
-            let uriDisplay;
-            if(uri.startsWith('http')) {
-                // URI is safe for href attribute: validated to have http/https protocol prevents XSS
-                // HTML escaping not needed here and would break URLs (e.g., & would become &amp;)
-                uriDisplay = `<a href="${uri}">${escapeString(uri)}</a>`;
-            } else {
-                uriDisplay = escapeString(uri);
-            }
+            const httpsUri = toHttpsUri(uri);
+            // URI is safe for href: toHttpsUri normalises SSH/git@ to https://, absolute paths stay as text
+            const uriDisplay = httpsUri.startsWith('http')
+                ? `<a href="${httpsUri}">${escapeString(uri)}</a>`
+                : escapeString(uri);
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
         } else if(item == 'note') {
             const note = run_data[item].trim();
@@ -843,7 +843,7 @@ const fetchAndFillNetworkIntercepts = async (run_id) => {
     try {
         network = await makeAPICall('/v1/network/' + run_id)
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             console.log('No network intercepts present in API response. Skipping error as this is allowed case.')
         } else {
             showNotification('Could not get network intercepts data from API', err);
@@ -856,7 +856,7 @@ const fetchAndFillNetworkIntercepts = async (run_id) => {
     } else {
         const node = document.querySelector("#network-intercepts");
         for (const item of network.data) {
-            const date = (new Date(Number(item[2]))).toLocaleString();
+            const date = dateToYMD(new Date(Number(item[2])), false, true);
             node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(date)}</strong></td><td>${escapeString(item[3])}</td><td>${escapeString(item[4])}</td></tr>`)
         }
     }
@@ -1048,7 +1048,7 @@ const fetchAndFillWarnings = async (run_id) => {
     try {
         warnings = await makeAPICall('/v1/warnings/' + run_id)
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             console.log('No warnings where present in API response. Skipping error as this is allowed case.')
         } else {
             showNotification('Could not get warnings data from API', err);
@@ -1145,7 +1145,7 @@ function renderUsageScenarioDependencies(container_name, dependency_data) {
 
 }
 
-function buildSingleAccordionItem(packageManager, displayName, data) {
+function buildSingleAccordionItem(packageManager, displayName, data, parentData) {
     const dependencies = data.dependencies || {};
     const dependenciesArray = Object.entries(dependencies).map(([name, pkgData]) => ({
         name: name,
@@ -1162,6 +1162,15 @@ function buildSingleAccordionItem(packageManager, displayName, data) {
     }
     if (data.location) {
         metadataContent += `<strong>Location:</strong> ${escapeString(data.location)}<br>`;
+    }
+    if (parentData.php_version) {
+        metadataContent += `<strong>PHP Version:</strong> ${escapeString(parentData.php_version)}<br>`;
+    }
+    if (parentData.node_version) {
+        metadataContent += `<strong>NodeJS Version:</strong> ${escapeString(parentData.node_version)}<br>`;
+    }
+    if (parentData.python_version) {
+        metadataContent += `<strong>Python Version:</strong> ${escapeString(parentData.python_version)}<br>`;
     }
     if (data.hash) {
         metadataContent += `<strong>Hash:</strong> <code>${escapeString(data.hash)}</code><br>`;
@@ -1198,11 +1207,11 @@ function buildPackageManagerAccordionItems(package_managers, container_dependenc
                 const scope = locationData.scope || 'unknown';
                 const displayName = `${packageManager} (${scope})`;
                 const dataWithLocation = { ...locationData, location: location };
-                accordion_items += buildSingleAccordionItem(packageManager, displayName, dataWithLocation);
+                accordion_items += buildSingleAccordionItem(packageManager, displayName, dataWithLocation, packageManagerData);
             }
         } else {
             // Handle system or project scope with direct dependencies
-            accordion_items += buildSingleAccordionItem(packageManager, packageManager, packageManagerData);
+            accordion_items += buildSingleAccordionItem(packageManager, packageManager, packageManagerData, packageManagerData);
         }
     });
 

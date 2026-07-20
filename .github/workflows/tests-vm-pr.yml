@@ -35,7 +35,7 @@ jobs:
           co2-grid-intensity-constant: 231
 
       - name: 'Checkout repository'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
           submodules: 'false'
@@ -45,6 +45,8 @@ jobs:
         uses: ./.github/actions/gmt-pytest
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
+         docker-user: ${{ secrets.GMT_TESTING_DOCKER_USER }}
+         docker-pat: ${{ secrets.GMT_TESTING_DOCKER_PAT }}
          enable-ssh: ${{ inputs.enable-ssh }}
          test-path: ${{ inputs.test-path }}
 

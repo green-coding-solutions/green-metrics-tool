@@ -27,6 +27,11 @@ const convertValue = (value, unit) => {
                 return [transformIfNotNull(value, 1_000_000), unit.slice(1)];
             else
                 return [transformIfNotNull(value, 1_000 * 3_600), `mWh${unit.slice(2)}`];
+        case 'J':
+            if (display_in_joules)
+                return [value, unit];
+            else
+                return [transformIfNotNull(value, 3_600_000), `kWh${unit.slice(1)}`];
         case 'mW':
             return [transformIfNotNull(value, 1_000), unit.slice(1)];
         case 'Ratio':
@@ -43,6 +48,14 @@ const convertValue = (value, unit) => {
             return [transformIfNotNull(value, 1_000_000), unit.slice(1)]
         case 'Bytes':
             return [transformIfNotNull(value, 1_000_000), `MB${unit.slice(5)}`];
+        case 'Wh':
+            return [transformIfNotNull(value, 1_000), `kWh${unit.slice(2)}`];
+        case 'mWh':
+            return [transformIfNotNull(value, 1_000_000), `kWh${unit.slice(3)}`];
+        case 'uWh':
+            return [transformIfNotNull(value, 1_000_000_000), `kWh${unit.slice(3)}`];
+        case 'kWh':
+            return [value, unit];
         default:
             return [value, unit];        // no conversion in default case
     }
@@ -54,4 +67,3 @@ const rescaleCO2Value = (value,unit) => {
     else if(value > 1_000) return [(value/(10**3)).toFixed(2), 'mg'];
     return [value.toFixed(2) , unit];
 }
-

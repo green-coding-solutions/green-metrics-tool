@@ -15,12 +15,15 @@ ask_eco_ci=true
 activate_eco_ci=false
 ask_power_hog=true
 activate_power_hog=false
+ask_software_view=true
+activate_software_view=false
 ask_carbon_db=true
 activate_carbon_db=false
 ask_ai_optimisations=true
 activate_ai_optimisations=false
 build_docker_containers=true
 install_python_packages=true
+install_tinyproxy=true
 modify_hosts=true
 ask_tmpfs=true
 install_ipmi=true
@@ -143,9 +146,35 @@ function check_file_permissions() {
     return 0
 }
 
+function rotate_backup() {
+    local file="$1"
+    local max_backups=10
+
+    print_message "Rotating backups for ${file}"
+
+    # Delete oldest
+    if [ -f "${file}.backup.${max_backups}" ]; then
+        echo "Removing file that exceeds max_backup of ${max_backups} ..."
+        rm -f "${file}.backup.${max_backups}"
+    fi
+
+    # Shift existing backups (9 -> 10, 8 -> 9, ..., 1 -> 2)
+    for ((i=max_backups-1; i>=1; i--)); do
+        if [ -f "${file}.backup.${i}" ]; then
+            mv "${file}.backup.${i}" "${file}.backup.$((i+1))"
+        fi
+    done
+
+    # Move current backup (if exists) to .1
+    if [ -f "${file}.backup" ]; then
+        mv "${file}.backup" "${file}.backup.1"
+    fi
+}
+
 
 function copy_backup() {
-    local file=$1
+    local file="$1"
+    rotate_backup "$file"
     local example_file="${file}.example"
 
     if [[ ! -f "$example_file" ]]; then
@@ -239,6 +268,15 @@ function prepare_config() {
     else
         eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
     fi
+
+    if [[ $activate_software_view == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_SOFTWARE_VIEW__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_software_view:.*$|activate_software_view: True|\" config.yml"
+    else
+        eval "${sed_command} -e \"s|__ACTIVATE_SOFTWARE_VIEW__|false|\" frontend/js/helpers/config.js"
+    fi
+
+
     # Activating AI Optimisations makes actually only sense in enterprise mode
     # but must run still, as we need to set the variables and replacements
     if [[ $activate_ai_optimisations == true ]]; then
@@ -321,6 +359,15 @@ function setup_python() {
     sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
     # remove old file name
     sudo rm -f /etc/sudoers.d/green_coding_hardware_info
+
+    print_message "Making system_checks_root.py to be owned by root"
+    sudo cp -f "${PWD}/lib/system_checks_root.py" "${gmt_root_bin_dir}/system_checks_root.py"
+    sudo chown 0:0 "${gmt_root_bin_dir}/system_checks_root.py"
+    sudo chmod 755 "${gmt_root_bin_dir}/system_checks_root.py"
+
+    print_message "Setting system_checks_root.py sudoers entry"
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} -I -B -S ${gmt_root_bin_dir}/system_checks_root.py" | sudo tee /etc/sudoers.d/green-coding-system-checks
+    sudo chmod 500 /etc/sudoers.d/green-coding-system-checks
 
     if [[ $install_python_packages == true ]] ; then
         print_message "Updating python requirements"
@@ -471,6 +518,10 @@ while [[ $# -gt 0 ]]; do
             install_nvidia_toolkit_headers=true
             shift
             ;;
+        --disable-tinyproxy)
+            install_tinyproxy=false
+            shift
+            ;;
         --disable-path-security)
             disable_path_security_checks=true
             shift
@@ -600,6 +651,16 @@ while [[ $# -gt 0 ]]; do
             ask_power_hog=false
             shift
             ;;
+        --no-software-view)
+            activate_software_view=false
+            ask_software_view=false
+            shift
+            ;;
+        --software-view)
+            activate_software_view=true
+            ask_software_view=false
+            shift
+            ;;
         -f)
             activate_scenario_runner=true
             ask_scenario_runner=false
@@ -621,35 +682,49 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h)
-            echo 'usage: ./install_XXX [p:] [a:] [m:] [N] [h] [T] [B] [I] [S] [u] [R] [L] [c:] [k:] [e:] [z] [Z] [d] [D] [g] [G] [f] [F] [j] [J]'
+            echo 'usage: ./install_XXX [options]'
             echo ''
             echo 'options:'
-            echo -e '  -p DB_PW:\t\tSupply DB password'
+            echo -e '  --tz TZ:\t\t\tSet timezone'
+            echo -e '  --nvidia-gpu:\t\tInstall NVIDIA container toolkit headers'
+            echo -e '  --disable-tinyproxy:\tDo not install tinyproxy'
+            echo -e '  --disable-path-security:\tDisable path security checks'
+            echo -e '  --elephant-url URL:\tSupply Elephant URL'
+            echo -e '  --no-elephant:\t\tDo not configure Elephant'
+
+            echo -e '  -p DB_PW:\t\t\tSupply DB password'
             echo -e '  -a API_URL:\t\tSupply API URL'
             echo -e '  -m METRICS_URL:\tSupply Dashboard URL'
+
             echo -e '  -B:\t\t\tDo not build docker containers'
-            echo -e '  -W:\t\t\tDo not Modify hosts'
+            echo -e '  -W:\t\t\tDo not modify hosts file'
             echo -e '  -N:\t\t\tDo not install Python packages'
             echo -e '  -T:\t\t\tDo not ask for tmpfs remounting'
             echo -e '  -I:\t\t\tDo not install IPMI drivers'
             echo -e '  -S:\t\t\tDo not install lm-sensors package'
             echo -e '  -R:\t\t\tDo not install MSR tools'
-            echo -e '  -u:\t\t\tUse Python system packages'
+
+            echo -e '  -u:\t\t\tUse Python system site packages'
             echo -e '  -L:\t\t\tDisable SSL'
             echo -e '  -X:\t\t\tDo not build SGX checking binaries'
-            echo -e '  -c:\t\t\tSupply SSL .crt file'
-            echo -e '  -k:\t\t\tSupply SSL .key file'
-            echo -e '  -e: EE_TOKEN\t\tActivate enterprise features and store token'
+
+            echo -e '  -c FILE:\t\tSupply SSL .crt file'
+            echo -e '  -k FILE:\t\tSupply SSL .key file'
+            echo -e '  -e TOKEN:\t\tActivate enterprise features and store token'
+
             echo -e '  -z:\t\t\tDo not ask to send install telemetry ping'
-            echo -e '  -Z:\t\t\tForce to send install telemetry ping'
+            echo -e '  -Z:\t\t\tForce sending install telemetry ping'
+
             echo -e '  -d:\t\t\tActivate CarbonDB'
-            echo -e '  -D:\t\t\tDe-activate CarbonDB'
+            echo -e '  -D:\t\t\tDeactivate CarbonDB'
             echo -e '  -g:\t\t\tActivate PowerHOG'
-            echo -e '  -G:\t\t\tDe-activate PowerHOG'
+            echo -e '  -G:\t\t\tDeactivate PowerHOG'
             echo -e '  -f:\t\t\tActivate ScenarioRunner'
-            echo -e '  -F:\t\t\tDe-activate ScenarioRunner'
+            echo -e '  -F:\t\t\tDeactivate ScenarioRunner'
             echo -e '  -j:\t\t\tActivate Eco CI'
-            echo -e '  -J:\t\t\tDe-activate Eco CI'
+            echo -e '  -J:\t\t\tDeactivate Eco CI'
+            echo -e '  --software-view:\t\t\tActivate Software Category and Task View'
+            echo -e '  --no-software-view:\t\t\tDeactivate Software Category and Task View'
 
             exit 0
             ;;
@@ -791,6 +866,17 @@ if [[ $ask_power_hog == true ]]; then
         activate_power_hog=false
     fi
 fi
+
+if [[ $ask_software_view == true ]]; then
+    echo ""
+    read -p "Do you want to activate the software category and tasks view? (y/N) : " activate_software_view
+    if [[  "$activate_software_view" == "Y" || "$activate_software_view" == "y" ]] ; then
+        activate_software_view=true
+    else
+        activate_software_view=false
+    fi
+fi
+
 
 if [[ $enterprise == true && $ask_ai_optimisations == true ]]; then
     echo ""

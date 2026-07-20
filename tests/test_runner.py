@@ -1,10 +1,12 @@
 from contextlib import nullcontext as does_not_raise
 
 import io
+import json
 import pytest
 import re
 import os
 import platform
+import stat
 import subprocess
 import yaml
 
@@ -13,6 +15,7 @@ from pathlib import Path
 
 from lib.log_types import LogType
 from lib.scenario_runner import ScenarioRunner
+from lib.secure_variable import SecureVariable, SecureVariableEncoder
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import utils
@@ -66,6 +69,47 @@ def test_uri_local_dir_missing():
     assert expected_exception == str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
+def test_git_environment_without_ssh_private_key():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner._create_folders()
+
+    env = runner._get_git_environment()
+
+    assert env['GIT_TERMINAL_PROMPT'] == '0'
+    assert 'GIT_SSH_COMMAND' not in env
+
+def test_git_environment_with_ssh_private_key():
+    key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner._create_folders()
+
+    env = runner._get_git_environment()
+
+    assert env['GIT_TERMINAL_PROMPT'] == '0'
+    assert 'GIT_SSH_COMMAND' in env
+    assert 'IdentitiesOnly=yes' in env['GIT_SSH_COMMAND']
+    assert 'StrictHostKeyChecking=accept-new' in env['GIT_SSH_COMMAND']
+    assert runner._ssh_private_key_file.read_text(encoding='utf-8') == key
+    assert stat.S_IMODE(runner._ssh_private_key_file.stat().st_mode) == 0o600
+
+def test_git_environment_with_secure_variable_ssh_private_key():
+    key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner._create_folders()
+
+    env = runner._get_git_environment()
+
+    assert isinstance(runner._ssh_private_key, SecureVariable)
+    assert 'GIT_SSH_COMMAND' in env
+    assert runner._ssh_private_key_file.read_text(encoding='utf-8') == key
+
+def test_runner_arguments_obfuscate_ssh_private_key():
+    key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    runner_arguments = json.dumps(runner._arguments, cls=SecureVariableEncoder)
+    assert key not in runner_arguments
+
 def test_non_git_root_supplied():
     runner = ScenarioRunner(uri=f"{GMT_DIR}/tests/data/usage_scenarios/", uri_type='folder', filename='invalid_image.yml', dev_no_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
@@ -103,8 +147,8 @@ def test_uri_github_repo_and_using_default_filename():
     assert uri_in_db == uri, Tests.assertion_info(f"uri: {uri}", uri_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
-    # also check that the tmp folder was deleted locally
-    assert not tmp_folder.exists(), '/tmp/green-metrics-tool was not deleted after run although --file-cleanup was set'
+    # also check that the tmp folder was emptied locally
+    assert tmp_folder.exists() and not any(tmp_folder.iterdir()), '/tmp/green-metrics-tool was not emptied after run although --file-cleanup was set'
 
 ## --branch BRANCH
 #    Optionally specify the git branch when targeting a git repository
@@ -223,6 +267,56 @@ def test_relations_checkout_specific_commit_hash():
 
         assert checked_out_commit_hash == relation_commit_hash, Tests.assertion_info(f"commit_hash: {relation_commit_hash}", checked_out_commit_hash)
         assert commit_message == expected_message, Tests.assertion_info(f"commit_message: {expected_message}", commit_message)
+
+def test_relations_checkout_redacts_credentials_in_db():
+    run_name = 'test_' + utils.randomword(12)
+    relation_key = 'helpers'
+    real_repo_url = 'https://github.com/green-coding-solutions/gmt-helpers'
+
+    runner = ScenarioRunner(
+        name=run_name,
+        uri=GMT_DIR,
+        uri_type='folder',
+        filename='tests/data/usage_scenarios/relations_checkout_credentials_test.yml',
+        dev_cache_repos=True,
+        dev_no_container_dependency_collection=True,
+        skip_download_dependencies=True,
+        skip_optimizations=True,
+        dev_no_sleeps=True,
+        dev_no_system_checks=True,
+    )
+    runner._create_folders()
+
+    relation_path = runner._relations_folder.joinpath(relation_key)
+    # Pre-seed the relation folder with a real, credential-free clone so --dev-cache-repos skips
+    # the actual git clone below. The fake credentials in the fixture's relation URL are therefore
+    # never used for a real network/auth call - only their redaction on DB storage is under test.
+    if not (relation_path.exists() and any(relation_path.iterdir())):
+        subprocess.run(
+            ['git', 'clone', '--depth', '1', real_repo_url, relation_path.as_posix()],
+            check=True,
+            capture_output=True,
+            encoding='UTF-8',
+            errors='replace',
+        )
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('initialize_run')
+
+    run_data = utils.get_run_data(run_name)
+    assert run_data is not None, Tests.assertion_info('a runs row', 'none found')
+
+    relation_data = run_data['relations'][relation_key]
+    assert 'admin' not in relation_data['url']
+    assert 's3cr3t' not in relation_data['url']
+    assert '*****GMT-REDACTED*****' in relation_data['url']
+    assert relation_data['commit_hash'] == 'b8c6c7575e493c9808ceeea2a5e7311c61b16419'
+
+    usage_scenario_data = str(run_data['usage_scenario'])
+    assert 'admin' not in usage_scenario_data
+    assert 's3cr3t' not in usage_scenario_data
+    assert '*****GMT-REDACTED*****' in usage_scenario_data
+
 
 # #   --name NAME
 # #    A name which will be stored to the database to discern this run from others
@@ -403,8 +497,9 @@ def test_file_cleanup():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-    assert not os.path.exists('/tmp/green-metrics-tool'), \
-        Tests.assertion_info('tmp directory exists', not os.path.exists('/tmp/green-metrics-tool'))
+    tmp_folder = Path('/tmp/green-metrics-tool')
+    assert tmp_folder.exists() and not any(tmp_folder.iterdir()), \
+        Tests.assertion_info('tmp directory emptied', f"exists={tmp_folder.exists()}, contents={list(tmp_folder.iterdir()) if tmp_folder.exists() else None}")
 
 ## --skip-unsafe and --allow-unsafe
 #pylint: disable=unused-variable
@@ -564,10 +659,10 @@ def test_runner_run_invalidated():
 
     messages = [d[0] for d in data]
 
-    assert 'Development switches (--dev-*) were active for this run. This will likely produce skewed measurement data and should only be used in local development.\n' in messages
+    assert 'Development switches (--dev-*) were active for this run. This will likely produce skewed measurement data and should only be used in local development.' in messages
 
     if platform.system() == 'Darwin':
-        assert 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\n' in messages
+        assert 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.' in messages
 
 
 ## Docker pull logic tests
@@ -616,6 +711,53 @@ def test_docker_pull_nonexistent_image_non_interactive_fails():
 
     assert "Docker pull failed. Is your image name correct and are you connected to the internet" in str(e.value)
     assert "NONEXISTENT_IMAGE" in str(e.value)
+
+
+def test_docker_pull_private_image_without_credentials_fails():
+    """False-negative control: a private image must be unreachable when no docker credentials are configured."""
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_private_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
+
+    with pytest.raises(subprocess.CalledProcessError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert "Docker pull failed. Is your image name correct and are you connected to the internet" in str(e.value)
+    assert "greencoding/simple-test" in str(e.value)
+
+
+def test_docker_pull_private_image_with_credentials_succeeds():
+    """Pulling a private Docker Hub image must succeed when docker credentials are stored on the runner."""
+
+    if not os.getenv('GMT_TESTING_DOCKER_USER') or not os.getenv('GMT_TESTING_DOCKER_PAT'):
+        raise RuntimeError('To run this test you need to set ENV vars GMT_TESTING_DOCKER_USER and GMT_TESTING_DOCKER_PAT - Can be ignored if you are submitting a PR as external developer as only the repo owners know these credentials.')
+
+    runner = ScenarioRunner(
+        uri=GMT_DIR,
+        uri_type='folder',
+        filename='tests/data/usage_scenarios/docker_pull_private_image.yml',
+        dev_no_container_dependency_collection=True,
+        skip_download_dependencies=True,
+        skip_optimizations=True,
+        dev_no_system_checks=True,
+        dev_no_metrics=True,
+        dev_no_sleeps=True,
+        dev_no_save=True,
+        docker_credentials=[{
+            'registry': 'https://index.docker.io/v1/',
+            'username': os.getenv('GMT_TESTING_DOCKER_USER'),
+            'password': SecureVariable(os.getenv('GMT_TESTING_DOCKER_PAT')),
+        }],
+    )
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err), Tests.RunUntilManager(runner) as context:
+        context.run_until('save_image_and_volume_sizes')
+
+    assert 'Pulling greencoding/simple-test' in out.getvalue() # step in question
+    assert 'Saving image and volume sizes' in out.getvalue() # step after
+
+
 
 
 ## Docker run architecture mismatch tests
@@ -822,12 +964,12 @@ def wip_test_verbose_provider_boot():
     # there is a note added when it starts "Booting {metric_provider}"
     # can check for this note in the DB and the notes are about 2s apart
     notes = DB().fetch_all(query, (run_id,'Booting%',))
-    metric_providers = utils.get_metric_providers_names(GlobalConfig().config)
+    metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
 
     #for each metric provider, assert there is an an entry in notes
-    for provider in metric_providers:
-        assert any(provider in note for _, note in notes), \
-            Tests.assertion_info(f"note: 'Booting {provider}'", f"notes: {notes}")
+    for metric_provider in metric_providers:
+        assert any(metric_provider in note for _, note in notes), \
+            Tests.assertion_info(f"note: 'Booting {metric_provider}'", f"notes: {notes}")
 
     #check that each timestamp in notes roughly 10 seconds apart
     for i in range(len(notes)-1):
@@ -936,6 +1078,73 @@ def test_logs_null_byte_handling():
         for key, value in log_entry.items():
             if key in ('stdout', 'stderr'):
                 assert '\x00' not in value, f"Null bytes should be automatically cleaned: {repr(value)}"
+
+def test_checkout_failure_redacts_credentials_in_run_logs():
+    """A failed git clone/checkout stringifies CalledProcessError with the full argv (including
+    any credentialed URI), and that string is what run()'s exception handler feeds into
+    _add_to_current_run_log() as stderr. Verify the credentials are redacted before the entry
+    is persisted to runs.logs."""
+    run_name = 'test_' + utils.randomword(12)
+    credentialed_url = 'https://admin:s3cr3t@github.com/green-coding-solutions/this-repo-definitely-does-not-exist-ab12cd34'
+
+    runner = ScenarioRunner(
+        name=run_name,
+        uri=GMT_DIR,
+        uri_type='folder',
+        filename='tests/data/usage_scenarios/basic_stress.yml',
+        dev_no_container_dependency_collection=True,
+        skip_download_dependencies=True,
+        skip_optimizations=True,
+        dev_no_system_checks=True,
+        dev_cache_build=True,
+        dev_no_sleeps=True,
+        dev_no_metrics=True,
+        dev_no_phase_stats=True,
+        dev_no_save=False,
+    )
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('initialize_run')
+
+    assert runner._run_id is not None, 'run must be initialized in DB for this test to be meaningful'
+
+    # Reproduce exactly what a failed _checkout_repository()/_checkout_relations() produces:
+    # a subprocess.CalledProcessError whose str() embeds the full argv, credentials included.
+    try:
+        subprocess.run(
+            ['git', 'clone', '--depth', '1', '--single-branch', credentialed_url, '/tmp/this-should-not-be-created'],
+            check=True,
+            capture_output=True,
+            encoding='UTF-8',
+            errors='replace',
+            env=runner._get_git_environment(),
+        )
+        assert False, 'expected clone of a non-existent repository to fail'
+    except subprocess.CalledProcessError as exc:
+        # sanity check that the raw exception does in fact carry the credentials
+        assert 'admin' in str(exc) and 's3cr3t' in str(exc), Tests.assertion_info('credentials in str(exc)', str(exc))
+
+        runner._add_to_current_run_log(
+            container_name='[SYSTEM]',
+            log_type=LogType.EXCEPTION,
+            log_id=id(exc),
+            cmd='run_scenario',
+            phase='[RUNTIME]',
+            stderr=f"{str(exc)}\n\n{exc.stderr}",
+            stdout=exc.stdout,
+            exception_class=exc.__class__.__name__,
+        )
+
+    runner._save_run_logs()
+
+    logs = DB().fetch_one('SELECT logs FROM runs WHERE id = %s', params=(runner._run_id,))[0]
+    entry = logs['[SYSTEM]'][0]
+
+    assert 'admin' not in entry['cmd']
+    assert 'admin' not in entry['stderr']
+    assert 's3cr3t' not in entry['cmd']
+    assert 's3cr3t' not in entry['stderr']
+    assert '*****GMT-REDACTED*****' in entry['stderr']
 
 def test_logs_invalid_character_handling():
     """Test that invalid UTF-8 character in logs are automatically replaced"""

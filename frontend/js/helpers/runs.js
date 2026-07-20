@@ -2,17 +2,17 @@
 
 const compareButton = () => {
     const checkedBoxes = document.querySelectorAll('input[type=checkbox]:checked');
-
-    let link = '/compare.html?ids='
-
-    checkedBoxes.forEach(checkbox => {
-        link = `${link}${checkbox.value},`;
-    });
-    link = link.slice(0,link.length-1);
+    const ids = Array.from(checkedBoxes).map(cb => cb.value).join(',');
 
     const value = document.querySelector('#compare-force-mode').value;
-    link = `${link}&force_mode=${value}`
     localStorage.setItem('compare_mode_last_value', value);
+
+    let link;
+    if (value === 'simple_table') {
+        link = `/compare-simple.html?ids=${ids}`;
+    } else {
+        link = `/compare.html?ids=${ids}&force_mode=${value}`;
+    }
 
     window.open(link, '_blank');
 }
@@ -28,12 +28,11 @@ const updateCompareCount = () => {
     const checkedCount = document.querySelectorAll('input[type=checkbox]:checked').length;
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
     if (checkedCount === 0) {
-        document.querySelector('.ui.accordion.compare-force-mode').style.display = 'none';
-        document.querySelector('#unselect-button').style.display = 'none';
-
+        document.querySelector('#compare-force-mode-dropdown').style.visibility = 'hidden';
+        document.querySelector('#unselect-button').classList.add('hidden');
     } else {
-        document.querySelector('#unselect-button').style.display = 'block';
-        document.querySelector('.ui.accordion.compare-force-mode').style.display = 'block';
+        document.querySelector('#compare-force-mode-dropdown').style.visibility = 'visible';
+        document.querySelector('#unselect-button').classList.remove('hidden');
     }
 }
 
@@ -76,11 +75,12 @@ const removeFilter = (paramName) => {
 }
 
 
-const getFilterQueryStringFromURI = (only_saved_filters=false) => {
+const getFilterQueryStringFromURI = (use_basic_filters=true) => {
     const url_params = getURLParams();
 
     let query_string = '';
-    if (only_saved_filters === true) {
+
+    if (use_basic_filters !== false) {
         if (url_params['name'] != null && url_params['name'].trim() != '') {
             const name = url_params['name'].trim()
             query_string += `&name=${encodeURIComponent(name)}`
@@ -211,7 +211,7 @@ async function getRepositories(sort_by = 'date') {
         const last_run = el[1];
         let uri_link = replaceRepoIcon(uri);
 
-        uri_link = `${uri_link} ${createExternalIconLink(uri)}`;
+        uri_link = `<span class="left-side-ellipsis long-ellipsis" title="${escapeString(uri)}">${uri_link}</span> ${createExternalIconLink(uri)}`;
 
         let row = table_body.insertRow()
         row.innerHTML = `
@@ -233,7 +233,7 @@ async function getRepositories(sort_by = 'date') {
 
             if(!$.fn.DataTable.isDataTable(table)) {
                 const uri = this.getAttribute('data-uri');
-                getRunsTable($(table), `/v2/runs?uri=${uri}&uri_mode=exact&limit=0&${getFilterQueryStringFromURI(true)}`, false, false, true)
+                getRunsTable($(table), `/v2/runs?uri=${uri}&uri_mode=exact&limit=0&${getFilterQueryStringFromURI(false)}`, false, false, true)
             }
     }});
     $('.ui.accordion.filter-dropdown').hide();
@@ -247,6 +247,9 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         runs = await makeAPICall(url)
     } catch (err) {
         showNotification('Could not get run data from API', err);
+        const dt = el.DataTable();
+        dt.clear();
+        dt.draw();
         return
     }
 
@@ -289,8 +292,9 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 title: '(<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.) Repo',
                 render: function(el, type, row) {
                     let uri_link = replaceRepoIcon(el);
+                    const ext_link = createExternalIconLink(el);
 
-                    uri_link = `${uri_link} ${createExternalIconLink(el)}`;
+                    uri_link = `<span class="left-side-ellipsis long-ellipsis" title="${escapeString(el)}">${uri_link}</span> ${ext_link}`;
                     const relations = parseRelations(row[13]);
                     const relationLinks = Object.values(relations)
                         .map((relation) => relation?.url)
@@ -354,7 +358,6 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             params.set('branch', row[3] ?? '');
             params.set('machine_id', row[12]);
             params.set('filename', row[6] ?? '');
-            params.set('metrics', 'key');
 
             const usageScenarioVariables = row[7] ?? {};
             if (Object.keys(usageScenarioVariables).length > 0) {

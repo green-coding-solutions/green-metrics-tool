@@ -1,10 +1,27 @@
 (() => {
+    const token_field = $("#authentication-token");
+
     $(window).on('load', function() {
         const authentication_token = localStorage.getItem('authentication_token');
         if (authentication_token != null) {
-            $("#authentication-token").val(authentication_token);
+            token_field.val(authentication_token);
         }
     })
+
+    $('#togglePassword').on('click', function () {
+
+        if (token_field.attr('type') === 'password') {
+            token_field.attr('type', 'text');
+            $(this)
+                .removeClass('eye slash')
+                .addClass('eye');
+        } else {
+            token_field.attr('type', 'password');
+            $(this)
+                .removeClass('eye')
+                .addClass('eye slash');
+        }
+    });
 
     // $('#create-authentication-token').on('click', async function(){
     //     try {
@@ -31,7 +48,7 @@
 
     $('#save-authentication-token').on('click', async function(){
 
-        const authentication_token = $("#authentication-token").val().trim();
+        const authentication_token = token_field.val().trim();
         if (authentication_token == '') {
             showNotification('Please enter a non-empty authentication token');
             return false;

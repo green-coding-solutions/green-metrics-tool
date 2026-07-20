@@ -103,8 +103,8 @@
                                     <td>
                                         <select id="measurement-disabled-metric-providers" multiple="" class="ui multiple search selection dropdown" data-setting="measurement.disabled_metric_providers">
                                             <option value="">Select Metrics Provider</option>
-                                            <option value="NetworkConnectionsProxyContainerProvider">NetworkConnectionsProxyContainerProvider</option>
-                                            <option value="NetworkConnectionsTcpdumpSystemProvider">NetworkConnectionsTcpdumpSystemProvider</option>
+                                            <option value="network_connections_proxy_container">network_connections_proxy_container</option>
+                                            <option value="network_connections_tcpdump_system">network_connections_tcpdump_system</option>
                                         </select>
                                     </td>
                                     <td><button id="save-measurement-disabled-metric-providers" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
@@ -122,13 +122,6 @@
                                     </td>
                                     <td><input type="text" placeholder="Input a value" id="measurement-total-duration" name="measurement-total-duration" data-setting="measurement.total_duration" required="" ></td>
                                     <td><button id="save-measurement-total-duration" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
-                                </tr>
-                                <tr>
-                                    <td>Phase padding<br>
-                                        <span><small><i class="question circle icon"></i>Determines if phases shall be padded to account for possible undersampling. Only turn off when you need nanosecond exact cut-offs from measurements and favor undersampling instead of capturing partial samples.</small></span>
-                                    </td>
-                                    <td><input type="checkbox" id="measurement-phase-padding" name="measurement-phase-padding" data-setting="measurement.phase_padding"></td>
-                                    <td><button id="save-measurement-phase-padding" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
                                 </tr>
                                 <tr>
                                     <td>Pre-test sleep<br>
@@ -171,6 +164,33 @@
                                     </td>
                                     <td><input type="text" placeholder="Input a value" id="measurement-wait-time-dependencies" name="measurement-wait-time-dependencies" data-setting="measurement.wait_time_dependencies" required=""></td>
                                     <td><button id="save-measurement-wait-time-dependencies" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Git SSH private key<br>
+                                        <span><small><i class="question circle icon"></i>Used for git clone, submodules and relations when jobs access private repositories. Saving replaces the currently stored key.</small></span>
+                                    </td>
+                                    <td>
+                                        <textarea id="ssh-private-key" name="ssh-private-key" data-setting="ssh_private_key" rows="8" placeholder="Paste an OpenSSH private key here to enable private repository clones."></textarea>
+                                        <div style="margin-top: 8px;"><small id="ssh-private-key-status"></small></div>
+                                    </td>
+                                    <td>
+                                        <button id="save-ssh-private-key" class="ui positive small button" onclick="updateSetting(this);">Save</button>
+                                        <button id="clear-ssh-private-key" class="ui button" onclick="clearSshPrivateKey();">Clear</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Docker registry credentials<br>
+                                        <span><small><i class="question circle icon"></i>Used to pull private Docker images during runs. Saving replaces all currently stored credentials.</small></span>
+                                    </td>
+                                    <td>
+                                        <div id="docker-credentials-rows" class="ui form"></div>
+                                        <button id="add-docker-credential-row" type="button" class="ui small button" onclick="addDockerCredentialRow();"><i class="plus icon"></i>Add registry</button>
+                                        <div style="margin-top: 8px;"><small id="docker-credentials-status"></small></div>
+                                    </td>
+                                    <td>
+                                        <button id="save-docker-credentials" class="ui positive small button" onclick="saveDockerCredentials();">Save</button>
+                                        <button id="clear-docker-credentials" class="ui button" onclick="clearDockerCredentials();">Clear</button>
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td>Skip optimizations after run<br><span><small><i class="question circle icon"></i>If you do not want the cluster to process optimizations you can turn it of. Will speed up runs slightly.</small></span></td>

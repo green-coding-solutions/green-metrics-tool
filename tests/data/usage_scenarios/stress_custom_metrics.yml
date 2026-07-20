@@ -1,0 +1,45 @@
+---
+name: Test Stress Custom Metrics
+author: Dan Mateas
+description: test
+
+custom_metrics:
+  my_coolness:
+    unit: gigacools
+    regex: ^(\d+) my_coolness=(\d+)$
+  api_hits:
+    unit: API Hits
+    sci: True
+
+services:
+  test-container:
+    image: gcb_stress
+    build:
+      context: ../stress-application
+
+  test-container-2:
+    image: gcb_stress
+    build:
+      context: ../stress-application
+
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        shell: sh
+        command: TS=$(date +%s%N); echo "$TS my_coolness=42"; echo "$TS api_hits=33"; stress-ng -c 1 -t 1 -q
+      - type: console
+        shell: sh
+        command: TS=$(date +%s%N); echo "$TS my_coolness=42"; echo "$TS api_hits=44"; stress-ng -c 1 -t 1 -q
+
+  - name: Stress 2
+    container: test-container-2
+    commands:
+      - type: console
+        shell: sh
+        command: TS=$(date +%s%N); echo "$TS my_coolness=42"; echo "$TS api_hits=55"; stress-ng -c 1 -t 1 -q
+      - type: console
+        shell: sh
+        command: TS=$(date +%s%N); echo "$TS my_coolness=42"; echo "$TS api_hits=66"; stress-ng -c 1 -t 1 -q

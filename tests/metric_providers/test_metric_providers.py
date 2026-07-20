@@ -28,7 +28,7 @@ run_id = None
 MB = 1000*1000 # Note: GMT uses SI Units!
 MICROSECONDS = 1_000_000
 
-GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
+GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-metrics-'))
 
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned

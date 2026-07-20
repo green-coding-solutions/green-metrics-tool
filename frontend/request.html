@@ -112,6 +112,9 @@
                                 <option value=''>-- Select hardware for testing --</option>
                             </select>
                         </div>
+                        <div class="ui fluid icon input">
+                            <input type="text" placeholder="Carbon simulation (optional - integer, [integers], or UUID)" name="carbon_simulation">
+                        </div>
                         <p style="text-align: right;">Find the specifications of the machines <a href="https://docs.green-coding.io/docs/measuring/measurement-cluster/">in our documentation</a></p>
                         <div class="ui fluid icon input">
                             <select name="schedule_mode" class="ui fluid dropdown" required>
@@ -136,7 +139,8 @@
                             </button>
                         </div>
                         </div>
-                    <button class="positive ui button" style="margin-top: 20px;">Submit software</button>
+                    <button type="submit" id="submit-software" class="positive ui button" style="margin-top: 20px;">Submit software</button>
+                    <button type="submit" id="submit-keep-values" class="grey ui button" style="margin-top: 20px;">Submit & continue</button>
                 </form>
             </div>
         </div>

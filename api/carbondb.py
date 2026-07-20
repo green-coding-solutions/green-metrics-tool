@@ -2,10 +2,8 @@ from datetime import date
 
 from fastapi import APIRouter
 from fastapi import Request, Response, Depends, HTTPException
-from fastapi.responses import ORJSONResponse
 
-from api.api_helpers import authenticate, get_connecting_ip
-from api.api_helpers import carbondb_add
+from api.api_helpers import authenticate, get_connecting_ip, CustomORJSONResponse, carbondb_add
 from api.object_specifications import EnergyData
 
 from lib.user import User
@@ -171,7 +169,7 @@ async def carbondb_get(
     """
     data = DB().fetch_all(query, params)
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 
 @router.get('/v2/carbondb/filters')
@@ -190,7 +188,7 @@ async def carbondb_get_filters(
     visible_users = DB().fetch_one(query, (user.is_super_user(), user.visible_users()))[0]
 
 
-    return ORJSONResponse({'success': True, 'data': {'types': results['types'], 'tags': results['tags'], 'machines': results['machines'], 'projects': results['projects'], 'sources': results['sources'], 'users': visible_users}})
+    return CustomORJSONResponse({'success': True, 'data': {'types': results['types'], 'tags': results['tags'], 'machines': results['machines'], 'projects': results['projects'], 'sources': results['sources'], 'users': visible_users}})
 
 @router.get('/v1/carbondb/insights')
 async def get_insights(user: User = Depends(authenticate)):
@@ -207,4 +205,4 @@ async def get_insights(user: User = Depends(authenticate)):
     if data is None:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})

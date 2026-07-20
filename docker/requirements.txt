@@ -1,20 +1,23 @@
-gunicorn==25.1.0
-psycopg[binary]==3.3.2
-psycopg_pool==3.3.0
-fastapi[standard]==0.129.0
-starlette>=0.35
-uvicorn[standard]==0.41.0
-pandas==3.0.1
+gunicorn==26.0.0
+psycopg[binary]==3.3.4
+psycopg_pool==3.3.1
+uvicorn[standard]==0.51.0
+fastapi[standard]==0.139.0
+starlette>=1.3.1
+pandas==3.0.4
 PyYAML==6.0.3
 anybadge==1.16.0
-orjson==3.11.7
+orjson==3.11.9
 scipy==1.16.3
+psutil==7.2.2
 schema==0.7.8
-deepdiff==8.6.1
-redis==7.2.0
-hiredis==3.3.0
-requests==2.32.5
+deepdiff==9.1.0
+redis==8.0.1
+hiredis==3.4.0
+requests==2.34.2
 uvicorn-worker==0.4.0
-cachetools==7.0.0
+cachetools==7.1.4
+cryptography==49.0.0
+energy-dependency-inspector==0.5.1
 
-pytest==9.0.2 # needed because we need to exit in db.py if tests run with wrong config
+pytest==9.1.1 # needed because we need to exit in db.py if tests run with wrong config

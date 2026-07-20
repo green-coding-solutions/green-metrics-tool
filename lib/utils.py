@@ -1,13 +1,34 @@
 import random
+import re
 import string
 import subprocess
 import os
 import requests
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 from functools import cache
 from pathlib import Path
 
+from lib.encryption import encrypt_data, decrypt_data, EncryptionConfigurationError, ENCRYPTED_VALUE_PREFIX
+
+# Matches the userinfo part of a URI that uses HTTP-AUTH, e.g. https://user:pass@host/path
+# Username is optional to also catch forms like https://:token@host/path
+URI_CREDENTIALS_RE = re.compile(r'([a-zA-Z][a-zA-Z0-9+.\-]*://)[^\s/@:]*(?::[^\s/@]*)?@')
+
+# Matches PEM encoded private key blocks (RSA, EC, OPENSSH, DSA, generic, encrypted, ...)
+PRIVATE_KEY_RE = re.compile(r'-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----', re.DOTALL)
+
+REDACTED = '*****GMT-REDACTED*****'
+
+def filter_sensitive_data(text):
+    if not text:
+        return text
+    text = URI_CREDENTIALS_RE.sub(rf'\1{REDACTED}@', text)
+    text = PRIVATE_KEY_RE.sub(REDACTED, text)
+    return text
+
+# The above are defined before this import as lib.error_helpers imports them back from here (circular import)
 from lib import error_helpers
+from lib import host_platform
 from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -17,21 +38,115 @@ def remove_git_suffix(url):
         return url[:-4]
     return url
 
+def _get_uri_userinfo(parsed_uri):
+    """
+    Rebuild the raw 'user:pass' (or 'user') userinfo string of an already-parsed URI.
+    Returns None if the URI carried no credentials.
+    """
+    if not (parsed_uri.username or parsed_uri.password):
+        return None
+    return f"{parsed_uri.username or ''}:{parsed_uri.password}" if parsed_uri.password else (parsed_uri.username or '')
+
+def _set_uri_userinfo(parsed_uri, userinfo):
+    host = parsed_uri.hostname or ''
+    if parsed_uri.port:
+        host += f":{parsed_uri.port}"
+    netloc = f"{userinfo}@{host}" if userinfo else host
+    return urlunparse((parsed_uri.scheme, netloc, parsed_uri.path, parsed_uri.params, parsed_uri.query, parsed_uri.fragment))
+
+def strip_uri_userinfo(uri):
+    """
+    Split a URI into a credential-free URI and its raw userinfo ('user:pass' or 'user').
+    Returns (clean_uri, userinfo), where userinfo is None if the URI carried no credentials.
+    """
+    parsed_uri = urlparse(uri)
+    userinfo = _get_uri_userinfo(parsed_uri)
+    if userinfo is None:
+        return uri, None
+
+    return _set_uri_userinfo(parsed_uri, None), userinfo
+
+def inject_uri_userinfo(uri, userinfo):
+    """
+    Embed a raw 'user:pass' (or 'user') userinfo string into a URI, replacing any userinfo already present.
+    Returns the URI unchanged if userinfo is falsy.
+    """
+    if not userinfo:
+        return uri
+    return _set_uri_userinfo(urlparse(uri), userinfo)
+
+def encrypt_uri_credentials(uri):
+    """
+    Strip credentials off a URI and re-embed them encrypted, for safe storage in the DB.
+    Returns the URI unchanged if it carries no credentials.
+    Raises EncryptionConfigurationError (from lib.encryption) if credentials are present but no
+    encryption key is configured.
+    """
+    clean_uri, userinfo = strip_uri_userinfo(uri)
+    if userinfo is None:
+        return uri
+    return inject_uri_userinfo(clean_uri, encrypt_data(userinfo))
+
+def decrypt_userinfo(userinfo):
+    """
+    Decrypt a userinfo string (as previously returned by strip_uri_userinfo, possibly encrypted
+    via encrypt_uri_credentials) if it carries the encrypted-value prefix; otherwise return it
+    unchanged. Returns None if userinfo is falsy.
+
+    Deliberately does NOT re-embed the result into a URI: putting credentials back into a URI
+    that is then passed as a subprocess argument (e.g. to git) leaks them to any local user via
+    `ps` or `/proc/<pid>/cmdline`. Callers needing to authenticate a subprocess should instead
+    split the result with split_userinfo() and pass the parts via environment variables or a
+    credential helper (see ScenarioRunner._get_git_environment).
+    """
+    if not userinfo:
+        return None
+    if userinfo.startswith(ENCRYPTED_VALUE_PREFIX):
+        return decrypt_data(userinfo)
+    return userinfo
+
+def split_userinfo(userinfo):
+    """
+    Split a raw 'user:pass' or 'user' userinfo string (as returned by strip_uri_userinfo or
+    decrypt_userinfo) into (username, password). Both are '' if userinfo is falsy; password is
+    '' if userinfo has no ':'.
+    """
+    if not userinfo:
+        return '', ''
+    username, _, password = userinfo.partition(':')
+    return username, password
+
 def get_git_api(parsed_url):
 
     if parsed_url.netloc == '' and '@' in parsed_url.path: # this could be an SSH git shorthand, we allow this but cannot determine API
         return [None, None]
 
-    if parsed_url.netloc in ['github.com', 'www.github.com']:
+    hostname = parsed_url.hostname or ''
+
+    if hostname in ['github.com', 'www.github.com']:
         return [f"https://api.github.com/repos/{remove_git_suffix(parsed_url.path.strip(' /'))}", 'github']
 
-    if parsed_url.netloc in ['gitlab.com', 'www.gitlab.com']:
+    if hostname in ['gitlab.com', 'www.gitlab.com']:
         return [f"https://gitlab.com/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab']
 
     # Alternative:
 
     # assume gitlab private hosted
-    return [f"https://{parsed_url.netloc}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab-custom']
+    api_host = hostname
+    if parsed_url.port:
+        api_host += f":{parsed_url.port}"
+
+    # repo_url can come from watchlist rows, where it is stored with its userinfo encrypted
+    # (see encrypt_uri_credentials) - decrypt it back to real credentials before using it as
+    # Basic auth, otherwise the ciphertext itself would be sent to the git host and rejected.
+    try:
+        userinfo = decrypt_userinfo(_get_uri_userinfo(parsed_url))
+    except EncryptionConfigurationError as exc:
+        raise RuntimeError(f"Cannot authenticate against {hostname}: stored credentials are encrypted but no decryption key is configured on this server") from exc
+
+    if userinfo is not None:
+        api_host = f"{userinfo}@{api_host}"
+    return [f"https://{api_host}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'custom']
 
 
 def check_repo(repo_url, branch='main'):
@@ -39,7 +154,7 @@ def check_repo(repo_url, branch='main'):
     [url, git_api] = get_git_api(parsed_url)
     if git_api == 'github':
         url = f"{url}/commits?per_page=1&sha={branch}"
-    elif git_api in ('gitlab', 'gitlab-custom'):
+    elif git_api in ('gitlab', 'custom'):
         url = f"{url}/commits?per_page=1"
     else:
         error_helpers.log_error('Unknown git repo type detected. Skipping further validation for now.',repo_url=repo_url)
@@ -51,13 +166,43 @@ def check_repo(repo_url, branch='main'):
         error_helpers.log_error(f"Request to {git_api} API failed",url=url,exception=str(exc))
         raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?") from exc
 
-    # We do not fail here, but only do a warning, bc often times the SSH or token which might be supplied in the URL is too restrictive then and cannot be used to query the commits also
-    # However we do check the commits endpoint bc this tells us if the repo is non empty or not
-    if response.status_code != 200:
-        if git_api in ('gitlab', 'github'):
-            raise RuntimeError(f"Repository returned bad status code ({response.status_code}). Is the repo ({repo_url}) publicly accessible, not empty and does the branch {branch} exist?")
-        else:
-            error_helpers.log_error(f"Connect to {git_api} API was possible, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
+    if response.status_code == 200:
+        return
+
+    message = _extract_api_message(response)
+
+    # ---- Rate limit detection (works even on 403) ----
+    if response.status_code == 403 and isinstance(message, str) and message.startswith("API rate limit exceeded"):
+        error_helpers.log_error(f"{git_api} rate limit exceeded while accessing {repo_url}. Skipping repo validation - Consider authenticating future requests.")
+        return
+
+    # We early return here in case of custom API and only do a warning,
+    # bc often times the SSH or token which might be supplied in the URL is too restrictive then and cannot be used to query the commits also
+    # However we must check the commits endpoint bc this tells us if the repo is non empty or not
+    if git_api == 'custom':
+        error_helpers.log_error(f"Connect to {git_api} API was possible, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
+        return
+
+    if response.status_code == 403:
+        raise PermissionError(
+            f"Access denied (403) for repository {repo_url}. "
+            f"Repo may be private or credentials are insufficient."
+        )
+
+    if response.status_code == 404:
+        ssh_hint = ''
+        if parsed_url.scheme in ('http', 'https'):
+            ssh_hint = ' If this is a private repository, use the SSH URL (e.g. git@github.com:owner/repo.git) instead of the HTTPS URL, and configure an SSH key in your account settings.'
+        raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?{ssh_hint}")
+
+    raise RuntimeError(f"Repository returned bad status code ({response.status_code}). Is the repo ({repo_url}) publicly accessible, not empty and does the branch {branch} exist?")
+
+def _extract_api_message(response):
+    try:
+        data = response.json()
+        return data.get("message", "") if isinstance(data, dict) else ""
+    except Exception: # pylint: disable=broad-exception-caught
+        return response.text or ""
 
 def get_repo_last_marker(repo_url, marker, branch=None):
 
@@ -75,7 +220,7 @@ def get_repo_last_marker(repo_url, marker, branch=None):
     if branch:
         if git_api == 'github':
             url += f"&sha={branch}"
-        elif git_api in ('gitlab', 'gitlab-custom'):
+        elif git_api in ('gitlab', 'custom'):
             url += f"&ref_name={branch}"
 
     try:
@@ -113,6 +258,9 @@ def df_fill_mean(group):
 
 
 def get_network_interfaces(mode='all'):
+    if host_platform.is_windows():
+        raise RuntimeError('get_network_interfaces is not supported on Windows hosts')
+
     # Path to network interfaces in sysfs
     sysfs_net_path = '/sys/class/net'
 
@@ -159,6 +307,27 @@ def get_run_data(run_name):
 def get_pascal_case(in_string):
     return ''.join([s.capitalize() for s in in_string.split('_')])
 
+SENSITIVE_CONFIG_KEYS = frozenset({
+    'token',
+    'electricity_maps_token',
+    'password',
+    'secret',
+    'api_key',
+    'auth_token',
+})
+
+def sanitize_config(value, _redacted='__REDACTED__'):
+    if isinstance(value, dict):
+        return {
+            k: _redacted if isinstance(k, str) and k.lower() in SENSITIVE_CONFIG_KEYS else sanitize_config(v, _redacted)
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [sanitize_config(item, _redacted) for item in value]
+    if isinstance(value, tuple):
+        return tuple(sanitize_config(item, _redacted) for item in value)
+    return value
+
 def get_metric_providers(config, disabled_metric_providers=None):
     architecture = get_architecture()
 
@@ -189,12 +358,7 @@ def get_metric_providers_names(config):
     return [(m.split('.')[-1]) for m in metric_providers_keys]
 
 def get_architecture():
-    ps = subprocess.run(['uname', '-s'], check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8', errors='replace')
-    output = ps.stdout.strip().lower()
-
-    if output == 'darwin':
-        return 'macos'
-    return output
+    return host_platform.get_architecture_name()
 
 
 def is_rapl_energy_filtering_deactivated():
@@ -206,8 +370,24 @@ def is_rapl_energy_filtering_deactivated():
                             check=True, encoding='UTF-8', errors='replace')
     return '1' != result.stdout.strip()
 
+def normalize_timestamp(time_str):
+    # we use microsecond timestamps internally
+    # some outputs give us second, millisecond or nanosecond ... so we normalize those
+    length = len(time_str)
+
+    # Important: Before we had here a 10,19 timestamp and where upgrading it from second to
+    # microsecond precision. This lead to errors in correct phase attribution by ghosting into previous phases
+    # Timing must be at least microsecond precision
+    if length < 16 or length > 19:
+        raise ValueError(f"Invalid time string length: {length} for time string: {time_str}. Must be between 16 and 19 characters.")
+
+    return time_str.ljust(16,'0')[:16] # Pad with spaces on the right and Truncate to 16 characters. no ifs and counting ... just do.
+
 @cache
 def find_own_cgroup_name():
+    if host_platform.is_windows():
+        raise RuntimeError('Cgroup detection is not supported on Windows hosts')
+
     current_pid = os.getpid()
     with open(f"/proc/{current_pid}/cgroup", 'r', encoding='utf-8', errors='replace') as file:
         lines = file.readlines()
@@ -218,6 +398,9 @@ def find_own_cgroup_name():
 
 
 def runtime_dir():
+    if host_platform.is_windows():
+        return os.environ.get("TEMP") or os.environ.get("TMP") or str(host_platform.get_tmp_root())
+
     uid = os.getuid()
 
     xdg = os.environ.get("XDG_RUNTIME_DIR")

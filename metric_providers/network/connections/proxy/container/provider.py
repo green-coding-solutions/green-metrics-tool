@@ -4,7 +4,7 @@
 
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 import platform
 import subprocess
 from packaging.version import parse
@@ -91,7 +91,7 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
                 except ValueError:
                     date = datetime.strptime(f"{datetime.now().year} {date_str}", '%Y %b %d %H:%M:%S')
 
-                time =  int(date.replace(tzinfo=timezone.utc).timestamp() * 1000)
+                time =  int(date.timestamp() * 1000)
                 parsed_lines.append([time, connection_type, protocol])
 
         return pandas.DataFrame.from_records(parsed_lines, columns=['time', 'connection_type', 'protocol']) # may be empty as no network traffic can happen

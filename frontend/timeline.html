@@ -61,28 +61,26 @@
                                     <span id="uri">-</span>
                                 </div>
                                 <div class="inline field">
-                                    <label>Filename:</label>
-                                    <span id="filename">-</span>
-                                </div>
-                            </div>
-                            <div class="equal width fields">
-                                <div class="inline field">
                                     <label>Branch:</label>
                                     <span id="branch">-</span>
                                 </div>
-                                <div class="inline field">
-                                    <label>Machine:</label>
-                                    <span id="machine">-</span>
-                                </div>
                             </div>
                             <div class="equal width fields">
+                                <div class="inline field">
+                                    <label>Filename:</label>
+                                    <span id="filename">-</span>
+                                </div>
                                 <div class="inline field">
                                     <label>Usage Scenario Variables:</label>
                                     <span id="usage-scenario-variables">-</span>
                                 </div>
+                            </div>
+                            <div class="equal width fields">
                                 <div class="inline field">
-
+                                    <label>Machine:</label>
+                                    <span id="machine">-</span>
                                 </div>
+                                <div class="inline field"></div>
                             </div>
                         </div>
                         <div class="ui one column stackable grid">
@@ -159,14 +157,14 @@
                                 <label>Metrics to show:</label>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="metrics-key" type="radio" name="metrics" value="key" checked>
-                                        <label for="metrics-key">Key metrics only</label>
+                                        <input id="metric-key" type="radio" name="metric" value="key" checked>
+                                        <label for="metric-key">Key metrics only</label>
                                     </div>
                                 </div>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="metrics-all" type="radio" name="metrics" value="all">
-                                        <label for="metrics-all">All metrics</label>
+                                        <input id="metric-all" type="radio" name="metric" value="all">
+                                        <label for="metric-all">All metrics</label>
                                     </div>
                                 </div>
                             </div>
@@ -225,18 +223,33 @@
                                 <label>Sorting order:</label>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="sorting-commit" type="radio" name="sorting" value="commit" checked>
+                                        <input id="sorting-commit" type="radio" name="sorting" value="commit">
                                         <label for="sorting-commit">Date of commit</label>
                                     </div>
                                 </div>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="sorting-run" type="radio" name="sorting" value="run">
+                                        <input id="sorting-run" type="radio" name="sorting" value="run" checked>
                                         <label for="sorting-run">Date of measurement</label>
                                     </div>
                                 </div>
                                 <div class="field">
                                     <i class="info circle icon"></i> Will not affect badge
+                                </div>
+                            </div>
+                            <div class="inline fields">
+                                <label>Show archived runs:</label>
+                                <div class="field">
+                                    <div class="ui radio checkbox checked">
+                                        <input id="show-archived-no" type="radio" name="show_archived" value="false" checked>
+                                        <label for="show-archived-no">No</label>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="show-archived-yes" type="radio" name="show_archived" value="true">
+                                        <label for="show-archived-yes">Yes</label>
+                                    </div>
                                 </div>
                             </div>
                             <div class="inline fields">
