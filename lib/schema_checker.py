@@ -225,7 +225,8 @@ class SchemaChecker():
 
              'flow': [{
                 'name': And(str, Use(self.not_empty), Regex(r'^[\.\s0-9a-zA-Z_\(\)-]+$')),
-                'container': And(str, Use(self.not_empty), Use(self.contains_no_invalid_chars)),
+                # container: None (YAML null or the literal string 'None') requests host execution, which is permission-gated in the ScenarioRunner
+                'container': Or(None, And(str, Use(self.not_empty), Use(self.contains_no_invalid_chars))),
                 Optional('hidden'): bool,
                 'commands': [{
                     'type': Or('console', 'playwright'),
@@ -297,7 +298,12 @@ class SchemaChecker():
                 raise SchemaError(f"The 'name' field in 'flow' must be unique. '{flow['name']}' was already used.")
             known_flow_names.append(flow['name'])
 
+            flow_runs_on_host = flow['container'] in (None, 'None')
+
             for command in flow['commands']:
+                if flow_runs_on_host and command['type'] != 'console':
+                    raise SchemaError(f"Flow '{flow['name']}' runs directly on the host (container: None) and only supports 'console' commands. Found command type: '{command['type']}'")
+
                 if command.get('read-sci-stdout', False) and not command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
                     raise SchemaError(f"You have specified `read-sci-stdout` in flow {flow['name']} but set `log-stdout` to False, which prevents log capturing.")
 

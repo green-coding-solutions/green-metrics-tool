@@ -277,3 +277,14 @@ def test_docker_credentials_error_without_encryption_key(tmp_path):
         assert user._User__decrypted_docker_credentials is None
     finally:
         _restore_test_config()
+
+def test_user_can_use_orchestrator():
+    user = User(1)
+    assert user.can_use_orchestrator('docker') is True
+    # the DEFAULT user for local usage has host execution (container: None in usage scenario flows) enabled out of the box
+    assert user.can_use_orchestrator('host') is True
+
+    # every other user does not have host execution unless explicitly granted
+    Tests.insert_user(763, 'no-host-orchestrator-user')
+    DB().query("UPDATE users SET capabilities = capabilities #- '{measurement,orchestrators,host}' WHERE id = 763")
+    assert User(763).can_use_orchestrator('host') is False

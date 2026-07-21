@@ -1,0 +1,17 @@
+---
+name: Schema Checker Valid Host Execution
+author: Didi Hoffmann
+description: Host execution flows with container as YAML null and as literal string None
+
+flow:
+  - name: Host flow with YAML null
+    container: null
+    commands:
+      - type: console
+        command: echo 1
+
+  - name: Host flow with literal None
+    container: None
+    commands:
+      - type: console
+        command: echo 2
