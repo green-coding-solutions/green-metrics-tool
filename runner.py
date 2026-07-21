@@ -72,6 +72,7 @@ if __name__ == '__main__':
 
     # Output settings
     parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
+    parser.add_argument('--print-phase-stats-table', type=str, nargs='?', const='[RUNTIME]', help='Same as --print-phase-stats, but renders the stats as an aligned table including max and min values. Defaults to the "[RUNTIME]" phase when supplied without a value. Pass an empty string to print all phases.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
     # Measurement settings
@@ -274,6 +275,12 @@ if __name__ == '__main__':
                     print(f"Data for phase {args.print_phase_stats}")
                     for el in phase_stats:
                         print(el)
+                    print('')
+
+                if args.print_phase_stats_table is not None:
+                    phase_stats = DB().fetch_all('SELECT metric, detail_name, type, value, unit, max_value, min_value FROM phase_stats WHERE run_id = %s and phase LIKE %s ORDER BY metric ASC, detail_name ASC, type ASC', params=(runner._run_id, f"%{args.print_phase_stats_table}"))
+                    print(f"Data for phase {args.print_phase_stats_table}")
+                    utils.print_simple_table(['metric', 'detail', 'type', 'value', 'unit', 'max', 'min'], phase_stats)
                     print('')
             else:
                 print(TerminalColors.OKGREEN,'\n\n####################################################################################')

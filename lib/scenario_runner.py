@@ -46,7 +46,7 @@ from lib import container_compatibility
 from lib.repo_info import get_repo_info
 from lib.debug_helper import DebugHelper
 from lib.terminal_colors import TerminalColors
-from lib.schema_checker import SchemaChecker
+from lib.schema_checker import SchemaChecker, flow_runs_on_host
 from lib.db import DB
 from lib.global_config import GlobalConfig, freeze_dict, FrozenDict
 from lib.notes import Notes
@@ -62,10 +62,6 @@ def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
 HOST_EXECUTION_DETAIL_NAME = '[HOST]'
-
-def flow_runs_on_host(flow):
-    # container: None arrives either as YAML null or as the literal string 'None'
-    return flow.get('container') in (None, 'None')
 
 def validate_usage_scenario_variables(usage_scenario_variables):
     for key, _ in usage_scenario_variables.items():

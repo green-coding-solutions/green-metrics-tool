@@ -28,7 +28,6 @@ def _main_args(**overrides):
         "config_override": None,
         "file_cleanup": False,
         "verbose_provider_boot": False,
-        "no_phase_padding": True,
         "shell_executable": "bash",
         "dev_no_metrics": True,
         "dev_no_phase_stats": True,
@@ -52,13 +51,6 @@ def _make_runner(**overrides):
     }
     values.update(overrides)
     return ShellScenarioRunner(**values)
-
-
-def test_shell_runner_accepts_phase_padding_with_current_scenario_runner():
-    runner = _make_runner(phase_padding=False)
-
-    assert runner._phase_padding_ms == 0
-    assert runner._arguments["phase_padding"] is False
 
 
 def test_shell_runner_builds_host_usage_scenario():
@@ -131,7 +123,6 @@ def test_main_passes_command_and_timeout_to_runner(monkeypatch, tmp_path):
     assert calls["run"] is True
     assert calls["init"]["shell_command"] == "printf shell-wrapper-ok"
     assert calls["init"]["shell_executable"] == "bash"
-    assert calls["init"]["phase_padding"] is False
     assert calls["init"]["measurement_flow_process_duration"] == 1
     assert calls["init"]["dev_no_sleeps"] is False
 

@@ -17,40 +17,13 @@ from pathlib import Path
 
 from lib import error_helpers
 from lib import host_platform
+from lib import utils
 from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib.scenario_runner import ScenarioRunner
 from lib.terminal_colors import TerminalColors
 
 SHELL_FLOW_NAME = 'Shell Command'
-
-
-def _trim_cell(value, width):
-    text = "" if value is None else str(value)
-    if len(text) <= width:
-        return text
-    if width <= 3:
-        return text[:width]
-    return text[: width - 3] + "..."
-
-
-def _print_simple_table(headers, rows):
-    if not rows:
-        print("No rows to display")
-        return
-
-    max_widths = [len(h) for h in headers]
-    for row in rows:
-        for idx, cell in enumerate(row):
-            max_widths[idx] = min(max(max_widths[idx], len("" if cell is None else str(cell))), 60)
-
-    def fmt(row):
-        return " | ".join(_trim_cell(cell, max_widths[idx]).ljust(max_widths[idx]) for idx, cell in enumerate(row))
-
-    print(fmt(headers))
-    print("-+-".join("-" * w for w in max_widths))
-    for row in rows:
-        print(fmt(row))
 
 
 def print_shell_phase_stats_table(run_id):
@@ -70,7 +43,7 @@ def print_shell_phase_stats_table(run_id):
 
     print(TerminalColors.OKGREEN, "\nPhase stats summary:", TerminalColors.ENDC)
 
-    _print_simple_table(
+    utils.print_simple_table(
         ["metric", "detail", "type", "value", "unit", "max", "min"],
         rows,
     )
@@ -85,7 +58,7 @@ class ShellScenarioRunner(ScenarioRunner):
     needs the 'host' orchestrator capability (granted to the DEFAULT local user).
     """
 
-    def __init__(self, *, shell_command, shell_executable, phase_padding=True, **kwargs):
+    def __init__(self, *, shell_command, shell_executable, **kwargs):
         super().__init__(
             uri=os.getcwd(),
             uri_type='folder',
@@ -97,9 +70,6 @@ class ShellScenarioRunner(ScenarioRunner):
         self.__shell_executable = shell_executable
         self._arguments['shell_command'] = shell_command
         self._arguments['shell_executable'] = shell_executable
-        self._arguments['phase_padding'] = phase_padding
-        if not phase_padding:
-            self._phase_padding_ms = 0
 
     def _checkout_repository(self):
         print('Skipping repository checkout in shell mode')
@@ -152,7 +122,6 @@ def parse_args():
     parser.add_argument("--config-override", type=str, help="Override config file with the passed yml file (full path)")
     parser.add_argument("--file-cleanup", action="store_true", help="Delete GMT temporary files after the run")
     parser.add_argument("--verbose-provider-boot", action="store_true", help="Boot metric providers gradually")
-    parser.add_argument("--no-phase-padding", action="store_true", help="Disable phase end padding")
     parser.add_argument("--shell-executable", type=str, default=None, help="Shell used to execute the command (default: bash; powershell on Windows)")
 
     parser.add_argument("--dev-no-metrics", action="store_true", help="Skip loading metric providers")
@@ -213,7 +182,6 @@ def main():
             shell_executable=args.shell_executable,
             verbose_provider_boot=args.verbose_provider_boot,
             user_id=args.user_id,
-            phase_padding=not args.no_phase_padding,
             skip_optimizations=True,
             dev_no_metrics=args.dev_no_metrics,
             dev_no_phase_stats=args.dev_no_phase_stats,

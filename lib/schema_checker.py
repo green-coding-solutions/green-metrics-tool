@@ -11,6 +11,10 @@ VALID_CHARS = set(string.ascii_letters + string.digits + '_' + '-')
 VALID_CHARS_SPACE = VALID_CHARS.copy()
 VALID_CHARS_SPACE.add(' ')
 
+def flow_runs_on_host(flow):
+    # container: None requests host execution and arrives either as YAML null or as the literal string 'None'
+    return flow.get('container') in (None, 'None')
+
 class SchemaChecker():
     def __init__(self, validate_compose_flag):
         self._validate_compose_flag = validate_compose_flag
@@ -298,10 +302,10 @@ class SchemaChecker():
                 raise SchemaError(f"The 'name' field in 'flow' must be unique. '{flow['name']}' was already used.")
             known_flow_names.append(flow['name'])
 
-            flow_runs_on_host = flow['container'] in (None, 'None')
+            runs_on_host = flow_runs_on_host(flow)
 
             for command in flow['commands']:
-                if flow_runs_on_host and command['type'] != 'console':
+                if runs_on_host and command['type'] != 'console':
                     raise SchemaError(f"Flow '{flow['name']}' runs directly on the host (container: None) and only supports 'console' commands. Found command type: '{command['type']}'")
 
                 if command.get('read-sci-stdout', False) and not command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True

@@ -412,3 +412,31 @@ def runtime_dir():
         return run_user
 
     return "/tmp"
+
+
+def _trim_cell(value, width):
+    text = '' if value is None else str(value)
+    if len(text) <= width:
+        return text
+    if width <= 3:
+        return text[:width]
+    return text[:width - 3] + '...'
+
+
+def print_simple_table(headers, rows, max_column_width=60):
+    if not rows:
+        print('No rows to display')
+        return
+
+    widths = [len(header) for header in headers]
+    for row in rows:
+        for idx, cell in enumerate(row):
+            widths[idx] = min(max(widths[idx], len('' if cell is None else str(cell))), max_column_width)
+
+    def fmt(row):
+        return ' | '.join(_trim_cell(cell, widths[idx]).ljust(widths[idx]) for idx, cell in enumerate(row))
+
+    print(fmt(headers))
+    print('-+-'.join('-' * width for width in widths))
+    for row in rows:
+        print(fmt(row))
