@@ -55,7 +55,7 @@ To run the tests you need to issue a `pytest` call.
 
 This can be, and is recommended, to do with parallel testsing enabled:
 
-- `pytest -n auto dist=loadgroup`
+- `pytest -n auto --dist=loadgroup`
 
 The command will automatically take all the CPU cores available for testing. If you want to take less use
 a fixed specified number for *n* like `-n 4` as example for four cores.
