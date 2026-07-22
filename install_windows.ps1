@@ -28,6 +28,8 @@ param(
     [switch]$DeactivatePowerHog,
     [switch]$ActivateCarbonDb,
     [switch]$DeactivateCarbonDb,
+    [switch]$ActivateSoftwareView,
+    [switch]$DeactivateSoftwareView,
     [Alias("z")]
     [switch]$NoTelemetryPing,
     [Alias("ForcePing")]
@@ -435,6 +437,11 @@ if ($ActivatePowerHog) { $activatePowerHogValue = $true }
 elseif ($DeactivatePowerHog) { $activatePowerHogValue = $false }
 else { $activatePowerHogValue = Read-YesNo "Do you want to activate PowerHOG?" $false }
 
+$activateSoftwareViewValue = $false
+if ($ActivateSoftwareView) { $activateSoftwareViewValue = $true }
+elseif ($DeactivateSoftwareView) { $activateSoftwareViewValue = $false }
+else { $activateSoftwareViewValue = Read-YesNo "Do you want to activate the software category and tasks view?" $false }
+
 if ([string]::IsNullOrWhiteSpace($ApiUrl)) {
     $ApiUrl = Read-Default "Please enter the desired API endpoint URL. Use port 9142 for local installs and no port for production to auto-use 80/443" "http://api.green-coding.internal:9142"
 }
@@ -595,7 +602,9 @@ Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_SCENARIO_RUNNER__" $a
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_ECO_CI__" $activateEcoCiValue.ToString().ToLowerInvariant()
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_POWER_HOG__" $activatePowerHogValue.ToString().ToLowerInvariant()
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_CARBON_DB__" $activateCarbonDbValue.ToString().ToLowerInvariant()
+Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_SOFTWARE_VIEW__" $activateSoftwareViewValue.ToString().ToLowerInvariant()
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_AI_OPTIMISATIONS__" "false"
+Replace-RegexInFile "config.yml" "activate_software_view:.*" ("activate_software_view: " + $activateSoftwareViewValue)
 
 if ($enableSsl) {
     Replace-InFile "docker/compose.yml" "9142:9142" "443:443"
