@@ -16,5 +16,5 @@ flow:
     container: curl
     commands:
       - type: console
-        command: curl http://web:8000
+        command: curl http://__GMT_VAR_WEB_HOST__:8000
         note: Hello World

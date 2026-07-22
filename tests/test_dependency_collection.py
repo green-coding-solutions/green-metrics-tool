@@ -5,7 +5,7 @@ import pytest
 from lib.scenario_runner import ScenarioRunner
 from tests import test_functions as Tests
 from lib.db import DB
-from lib.utils import gmt_tmp_image_name
+from lib.utils import gmt_tmp_image_name, container_name
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
@@ -301,21 +301,21 @@ class TestDependencyCollection:
         assert any('test-container' in name for name in container_names), f"No test-container found in: {container_names}"
 
         # Verify each dependency has required fields and correct structure
-        for container_name, container_data in dependencies.items():
-            assert 'source' in container_data, f"Missing 'source' for container {container_name}"
+        for c_name, c_data in dependencies.items():
+            assert 'source' in c_data, f"Missing 'source' for container {c_name}"
 
-            source_info = container_data['source']
-            assert 'image' in source_info, f"Missing 'image' for container {container_name}"
-            assert 'hash' in source_info, f"Missing 'hash' for container {container_name}"
-            assert source_info['image'] is not None, f"Image is None for container {container_name}"
-            assert source_info['hash'] is not None, f"Hash is None for container {container_name}"
-            assert source_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {container_name}"
+            source_info = c_data['source']
+            assert 'image' in source_info, f"Missing 'image' for container {c_name}"
+            assert 'hash' in source_info, f"Missing 'hash' for container {c_name}"
+            assert source_info['image'] is not None, f"Image is None for container {c_name}"
+            assert source_info['hash'] is not None, f"Hash is None for container {c_name}"
+            assert source_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {c_name}"
 
-            assert 'pip' in container_data, f"Missing 'pip' packages for container {container_name}"
-            assert 'dpkg' in container_data, f"Missing 'dpkg' packages for container {container_name}"
+            assert 'pip' in c_data, f"Missing 'pip' packages for container {c_name}"
+            assert 'dpkg' in c_data, f"Missing 'dpkg' packages for container {c_name}"
 
-            pip_data = container_data['pip']
-            dpkg_data = container_data['dpkg']
+            pip_data = c_data['pip']
+            dpkg_data = c_data['dpkg']
 
             # Check for playwright in pip packages (system scope)
             playwright_found = False
@@ -324,7 +324,7 @@ class TestDependencyCollection:
                     if 'playwright' in location_data.get('dependencies', {}):
                         playwright_found = True
                         break
-            assert playwright_found, f"playwright not found in pip packages for {container_name}"
+            assert playwright_found, f"playwright not found in pip packages for {c_name}"
 
             # Check for psutils in pip packages (project scope)
             psutils_found = False
@@ -333,10 +333,10 @@ class TestDependencyCollection:
                     if 'psutils' in location_data.get('dependencies', {}):
                         psutils_found = True
                         break
-            assert psutils_found, f"psutils not found in pip packages for {container_name}"
+            assert psutils_found, f"psutils not found in pip packages for {c_name}"
 
             # Check for apt in dpkg packages
-            assert 'apt' in dpkg_data.get('dependencies', {}), f"apt not found in dpkg packages for {container_name}"
+            assert 'apt' in dpkg_data.get('dependencies', {}), f"apt not found in dpkg packages for {c_name}"
 
         # Verify image name
         images = [data['source']['image'] for data in dependencies.values()]
@@ -355,10 +355,16 @@ class TestDependencyCollection:
 
     def test_integration_dependency_collection_with_real_web_application(self):
         """Integration test using real containers and energy-dependency-inspector (no mocking)"""
+        # docker-compose.yml's 'web' service has no explicit container_name, so ScenarioRunner
+        # names its actual container via utils.container_name('web') - unsuffixed normally, but
+        # worker-suffixed (e.g. 'web-gw002') under -n (see lib/utils.py::container_name()). The
+        # flow's curl command can't hardcode 'web' as the hostname then, since no container/alias
+        # by that literal name exists - inject the real name as a usage_scenario_variable instead.
         runner = ScenarioRunner(
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/web-application/usage_scenario.yml',
+            usage_scenario_variables={'__GMT_VAR_WEB_HOST__': container_name('web')},
             skip_unsafe=True,
             dev_no_system_checks=True,
             dev_cache_build=True,
@@ -384,24 +390,24 @@ class TestDependencyCollection:
         assert any('db' in name for name in container_names), f"No db container found in: {container_names}"
 
         # Verify each dependency has required fields and correct structure
-        for container_name, container_data in dependencies.items():
+        for c_name, c_data in dependencies.items():
             # All containers should have source section
-            assert 'source' in container_data, f"Missing 'source' for container {container_name}"
+            assert 'source' in c_data, f"Missing 'source' for container {c_name}"
 
-            source_info = container_data['source']
-            assert 'image' in source_info, f"Missing 'image' for container {container_name}"
-            assert 'hash' in source_info, f"Missing 'hash' for container {container_name}"
-            assert source_info['image'] is not None, f"Image is None for container {container_name}"
-            assert source_info['hash'] is not None, f"Hash is None for container {container_name}"
-            assert source_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {container_name}"
+            source_info = c_data['source']
+            assert 'image' in source_info, f"Missing 'image' for container {c_name}"
+            assert 'hash' in source_info, f"Missing 'hash' for container {c_name}"
+            assert source_info['image'] is not None, f"Image is None for container {c_name}"
+            assert source_info['hash'] is not None, f"Hash is None for container {c_name}"
+            assert source_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {c_name}"
 
             # Check for full dependency resolution on built containers
-            if 'web' in container_name:
+            if 'web' in c_name:
                 # Built containers should have project and system sections with packages
-                assert 'pip' in container_data, f"Missing 'pip' packages for container {container_name}"
+                assert 'pip' in c_data, f"Missing 'pip' packages for container {c_name}"
 
                 # Count pip packages (handle both direct dependencies and locations)
-                pip_data = container_data.get('pip', {})
+                pip_data = c_data.get('pip', {})
                 if 'dependencies' in pip_data:
                     project_packages_count = len(pip_data['dependencies'])
                 elif 'locations' in pip_data:
@@ -414,7 +420,7 @@ class TestDependencyCollection:
                     project_packages_count = 0
 
                 # Count dpkg packages
-                dpkg_data = container_data.get('dpkg', {})
+                dpkg_data = c_data.get('dpkg', {})
                 if 'dependencies' in dpkg_data:
                     system_packages_count = len(dpkg_data['dependencies'])
                 else:
@@ -422,10 +428,10 @@ class TestDependencyCollection:
 
                 total_packages = project_packages_count + system_packages_count
 
-                assert total_packages > 0, f"Built container {container_name} should have some packages"
-                print(f"✓ Built container {container_name} has {project_packages_count} project packages and {system_packages_count} system packages")
+                assert total_packages > 0, f"Built container {c_name} should have some packages"
+                print(f"✓ Built container {c_name} has {project_packages_count} project packages and {system_packages_count} system packages")
             else:
-                print(f"✓ Pre-built container {container_name} has container info")
+                print(f"✓ Pre-built container {c_name} has container info")
 
         # Verify GMT-transformed images (GMT changes a built service's image to <name>_gmt_run_tmp:latest,
         # worker-suffixed under -n - see utils.gmt_tmp_image_name())
