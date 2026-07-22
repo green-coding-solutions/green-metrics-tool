@@ -233,7 +233,7 @@ function Invoke-ScaphandreProviderBuild {
         try {
             & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
             if ($LASTEXITCODE -ne 0) {
-                Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
             } else {
                 Write-Host "Successfully built metric-provider-binary.exe"
             }
@@ -257,11 +257,11 @@ function Invoke-ScaphandreProviderBuild {
                 Write-Host "Found Visual Studio at: $vsInstallPath"
                 $absSource = Join-Path $providerDir $sourceFile
                 $absOutput = Join-Path $providerDir $outputBinary
-                # Run via cmd.exe so vcvarsall environment is inherited by cl.exe
-                $cmdLine = "`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib"
-                Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow
-                if ($LASTEXITCODE -ne 0) {
-                    Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                # Outer quotes wrap the whole command so cmd.exe handles the inner quoted paths correctly.
+                $cmdLine = "`"`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib`""
+                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow -PassThru
+                if ($proc.ExitCode -ne 0) {
+                    Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
                 } else {
                     Write-Host "Successfully built metric-provider-binary.exe"
                 }
@@ -270,9 +270,7 @@ function Invoke-ScaphandreProviderBuild {
         }
     }
 
-    Write-Warning "MSVC compiler (cl.exe) not found. The scaphandre RAPL energy provider was not built."
-    Write-Warning "To build it manually, open 'x64 Native Tools Command Prompt for VS 2026' and run build.bat in:"
-    Write-Warning "  $providerDir"
+    Write-Error "MSVC compiler (cl.exe) not found. The scaphandre RAPL energy provider was not built.`nTo build it manually, open 'x64 Native Tools Command Prompt for VS 2022' and run build.bat in:`n  $providerDir"
 }
 function Invoke-CpuUtilizationSystemProviderBuild {
     $providerDir = Join-Path $Root "metric_providers\cpu\utilization\windows\system"
@@ -286,7 +284,7 @@ function Invoke-CpuUtilizationSystemProviderBuild {
         try {
             & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
             if ($LASTEXITCODE -ne 0) {
-                Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
             } else {
                 Write-Host "Successfully built metric-provider-binary.exe"
             }
@@ -308,10 +306,10 @@ function Invoke-CpuUtilizationSystemProviderBuild {
                 Write-Host "Found Visual Studio at: $vsInstallPath"
                 $absSource = Join-Path $providerDir $sourceFile
                 $absOutput = Join-Path $providerDir $outputBinary
-                $cmdLine = "`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib"
-                Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow
-                if ($LASTEXITCODE -ne 0) {
-                    Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                $cmdLine = "`"`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib`""
+                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow -PassThru
+                if ($proc.ExitCode -ne 0) {
+                    Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
                 } else {
                     Write-Host "Successfully built metric-provider-binary.exe"
                 }
@@ -320,9 +318,7 @@ function Invoke-CpuUtilizationSystemProviderBuild {
         }
     }
 
-    Write-Warning "MSVC compiler (cl.exe) not found. The CPU utilization (system) provider was not built."
-    Write-Warning "To build it manually, open 'x64 Native Tools Command Prompt for VS 2026' and run build.bat in:"
-    Write-Warning "  $providerDir"
+    Write-Error "MSVC compiler (cl.exe) not found. The CPU utilization (system) provider was not built.`nTo build it manually, open 'x64 Native Tools Command Prompt for VS 2022' and run build.bat in:`n  $providerDir"
 }
 
 function Invoke-CpuUtilizationCoreProviderBuild {
@@ -337,7 +333,7 @@ function Invoke-CpuUtilizationCoreProviderBuild {
         try {
             & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
             if ($LASTEXITCODE -ne 0) {
-                Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
             } else {
                 Write-Host "Successfully built metric-provider-binary.exe"
             }
@@ -359,10 +355,10 @@ function Invoke-CpuUtilizationCoreProviderBuild {
                 Write-Host "Found Visual Studio at: $vsInstallPath"
                 $absSource = Join-Path $providerDir $sourceFile
                 $absOutput = Join-Path $providerDir $outputBinary
-                $cmdLine = "`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib"
-                Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow
-                if ($LASTEXITCODE -ne 0) {
-                    Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                $cmdLine = "`"`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib`""
+                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow -PassThru
+                if ($proc.ExitCode -ne 0) {
+                    Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
                 } else {
                     Write-Host "Successfully built metric-provider-binary.exe"
                 }
@@ -371,9 +367,7 @@ function Invoke-CpuUtilizationCoreProviderBuild {
         }
     }
 
-    Write-Warning "MSVC compiler (cl.exe) not found. The CPU utilization (per-core) provider was not built."
-    Write-Warning "To build it manually, open 'x64 Native Tools Command Prompt for VS 2026' and run build.bat in:"
-    Write-Warning "  $providerDir"
+    Write-Error "MSVC compiler (cl.exe) not found. The CPU utilization (per-core) provider was not built.`nTo build it manually, open 'x64 Native Tools Command Prompt for VS 2022' and run build.bat in:`n  $providerDir"
 }
 
 function Send-TelemetryPing {

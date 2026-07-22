@@ -227,8 +227,8 @@ int main(int argc, char **argv)
             uint64_t dpc_d    = curr[i].DpcTime.QuadPart       - prev[i].DpcTime.QuadPart;
             uint64_t intr_d   = curr[i].InterruptTime.QuadPart - prev[i].InterruptTime.QuadPart;
 
-            uint64_t busy_d  = (user_d + kernel_d) - idle_d; /* kernel includes idle, same as system provider */
             uint64_t total_d = user_d + kernel_d;
+            uint64_t busy_d  = (total_d > idle_d) ? (total_d - idle_d) : 0; /* kernel includes idle */
 
             long busy_value = (total_d > 0) ? (long)((busy_d  * 10000ULL) / total_d) : 0;
 

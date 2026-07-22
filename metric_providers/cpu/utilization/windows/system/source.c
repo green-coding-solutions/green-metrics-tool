@@ -149,8 +149,9 @@ int main(int argc, char **argv)
         read_cpu_times(&curr);
 
         /* same compute/non_compute split logic as procfs, mapped to Windows fields */
-        uint64_t busy_delta  = (curr.user - prev.user) + (curr.kernel - prev.kernel) - (curr.idle - prev.idle);
         uint64_t total_delta = (curr.user - prev.user) + (curr.kernel - prev.kernel);
+        uint64_t idle_delta  = curr.idle - prev.idle;
+        uint64_t busy_delta  = (total_delta > idle_delta) ? (total_delta - idle_delta) : 0;
 
         uint64_t ts_us = now_us(&clock);
         long value = (total_delta > 0) ? (long)((busy_delta * 10000ULL) / total_delta) : 0;
