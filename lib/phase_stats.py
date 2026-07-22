@@ -198,9 +198,9 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
     """
     metric_time_series = {}
     for measurement_metric_id, m_time, m_value in DB().fetch_all(measurement_values_query, (run_id, )):
-        times, values = metric_time_series.setdefault(measurement_metric_id, ([], []))
-        times.append(m_time)
-        values.append(m_value)
+        metric_time_series.setdefault(measurement_metric_id, ([], []))
+        metric_time_series[measurement_metric_id][0].append(m_time)
+        metric_time_series[measurement_metric_id][1].append(m_value)
 
     csv_buffer = StringIO()
 
@@ -233,7 +233,8 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
         # we go through all metrics in the run and aggregate them, using the pre-fetched
         # per-metric time series instead of running a SELECT per (phase, metric) pair
         for measurement_metric_id, metric, unit, detail_name in metrics: # unpack
-            times, values = metric_time_series.get(measurement_metric_id, ([], []))
+            times = metric_time_series[measurement_metric_id][0]
+            values = metric_time_series[measurement_metric_id][1]
 
             results = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start)
 
