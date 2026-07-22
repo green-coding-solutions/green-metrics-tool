@@ -75,11 +75,6 @@ def copy_sql_structure(ee=False):
 
     # structure.sql is the only file that references the "green-coding" database name;
     # tables.sql is a no-op match, but rename both uniformly in case EE content adds any.
-    # structure-tests.sql is NOT included here: unlike the two files above it isn't copied from
-    # docker/ first, it lives directly in tests/ and is tracked in git - sed'ing it in place would
-    # rewrite the checked-in file itself, and since 'test-green-coding' still contains the
-    # substring 'green-coding', every re-run would prepend another 'test-' prefix. It already
-    # hardcodes the test database name for that reason.
     if utils.get_architecture() == 'macos':
         command = ['sed', '-i', "", 's/green-coding/test-green-coding/g', './structure.sql', './tables.sql']
     else:

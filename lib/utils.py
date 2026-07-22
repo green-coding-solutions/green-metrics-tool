@@ -37,7 +37,18 @@ def get_test_worker_id():
     # pytest-xdist sets this to 'gw0', 'gw1', ... in each worker process, and leaves it
     # unset when pytest is run without -n (or when not running under pytest at all).
     worker = os.environ.get('PYTEST_XDIST_WORKER')
-    return worker if worker else None
+    if not worker:
+        return None
+    # Zero-pad the numeric part ('gw1' -> 'gw001') so every worker id this session hands out is
+    # the same fixed width. This is the single source of truth every worker-suffixed name
+    # (containers, networks, schemas, docker image tags, ...) is built from, so padding it here -
+    # once - means none of those downstream consumers can suffer a numeric-prefix collision
+    # (e.g. plain substring/prefix matching 'gw1' against 'gw10'..'gw19') without each of them
+    # needing their own anchoring logic. 3 digits comfortably covers any realistic worker count.
+    match = re.fullmatch(r'gw(\d+)', worker)
+    if not match:
+        return worker
+    return f'gw{int(match.group(1)):03d}'
 
 def container_name(base_name):
     # Suffixed with the pytest-xdist worker id (when running under -n) so that parallel test

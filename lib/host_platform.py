@@ -142,7 +142,9 @@ def remove_gmt_tmp_images():
     # running under -n), precisely so this sweep only ever removes images this worker itself built -
     # matching on the bare 'gmt_run_tmp' substring here would also catch (and force-remove) images
     # another, concurrently-running worker just built or is still using, since that substring is
-    # common to every worker's tags.
+    # common to every worker's tags. get_test_worker_id() zero-pads the worker id itself (e.g.
+    # 'gw1' -> 'gw001'), so a plain substring match here can't drift onto a different worker's
+    # images the way it could with unpadded ids ('gw1' being a prefix of 'gw10'..'gw19').
     worker_id = get_test_worker_id()
     suffix = f'_gmt_run_tmp_{worker_id}' if worker_id else '_gmt_run_tmp'
 

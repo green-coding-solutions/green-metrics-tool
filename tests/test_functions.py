@@ -335,11 +335,11 @@ def reset_db():
         '--single-transaction',
         '-c', f'DROP SCHEMA IF EXISTS "{schema}" CASCADE',
         '-c', f'CREATE SCHEMA IF NOT EXISTS "{schema}"',
-        # 01-structure.sql and 02-structure-tests.sql only bootstrap schemas/extensions once,
-        # at first container boot (CREATE SCHEMA/EXTENSION IF NOT EXISTS would be harmless to
-        # re-run, but there is no need to); 03-tables.sql is the idempotent table/trigger/seed
-        # part, safe and necessary to re-run every time.
-        '-f', './docker-entrypoint-initdb.d/03-tables.sql',
+        # 01-structure.sql only bootstraps schemas/extensions once, at first container boot
+        # (CREATE SCHEMA/EXTENSION IF NOT EXISTS would be harmless to re-run, but there is no need
+        # to); 02-tables.sql is the idempotent table/trigger/seed part, safe and necessary to
+        # re-run every time.
+        '-f', './docker-entrypoint-initdb.d/02-tables.sql',
     ]
 
     # Postgres can still be finishing its own startup sequence (initdb, WAL/crash recovery, running
