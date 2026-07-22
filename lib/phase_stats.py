@@ -96,7 +96,7 @@ def _percentile_cont(sorted_values, p):
     return float(sorted_values[lower] + frac * (sorted_values[upper] - sorted_values[lower]))
 
 
-def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phase_start):
+def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phase_start, duration):
     # Re-implements in Python what used to be a per (metric, phase) SQL query against
     # measurement_values: sum/max/min/avg over the phase, a time-weighted average and
     # a derivative (both based on a LAG-style diff to the previous sample), plus the
@@ -118,36 +118,46 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
 
     value_count = len(combined_values)
     if value_count == 0:
-        return (None, None, None, None, None, None, None, None, 0, None, None, None, None)
+        return (None, None, None, None, None, None, None, 0, None, None, None, None)
 
     value_sum = sum(combined_values)
     max_value = max(combined_values)
     min_value = min(combined_values)
     # kept as Decimal (like postgres' NUMERIC AVG(bigint) would return via psycopg) since
-    # callers divide it against Decimal(duration)/... further down.
+    # it is divided against Decimal(duration)/... below.
     classic_value_avg = Decimal(value_sum) / Decimal(value_count)
 
-    weighted_num = 0.0
-    weighted_den = 0
-    derivative_values = []
-    diff_values = []
-    for i in range(1, value_count):  # index 0 has no predecessor, its diff is NULL by concept
-        diff = combined_times[i] - combined_times[i - 1]
-        weighted_num += combined_values[i] * float(diff)
-        weighted_den += diff
-        derivative_values.append(combined_values[i] / diff) # can flake with division by zero if database is corrupted which should never be. Thus no guard. we simply fail
-        diff_values.append(diff)
+    # Since we need to LAG the table the first value will be NULL. So it means we need at least
+    # 3 rows to make a useful weighted average. In case we cannot do that we use the classic average.
+    if value_count <= 2:
+        value_avg = classic_value_avg
+        # This derivative is only an approximation, but better than delivering no value as it is at least based on one sample
+        derivative_avg = classic_value_avg / (duration / value_count)
+        derivative_max = Decimal(max_value) / (duration / value_count)
+        derivative_min = Decimal(min_value) / (duration / value_count)
+        sampling_rate_avg = sampling_rate_max = sampling_rate_95p = None
+    else:
+        weighted_num = Decimal(0)
+        weighted_den = 0
+        derivative_values = []
+        diff_values = []
+        for i in range(1, value_count):  # index 0 has no predecessor, its diff is NULL by concept
+            diff = combined_times[i] - combined_times[i - 1]
+            weighted_num += Decimal(combined_values[i]) * diff
+            weighted_den += diff
+            derivative_values.append(Decimal(combined_values[i]) / diff) # can flake with division by zero if database is corrupted which should never be. Thus no guard. we simply fail
+            diff_values.append(diff)
 
-    weighted_value_avg = (weighted_num / weighted_den) if weighted_den else None
-    derivative_avg = (sum(derivative_values) / len(derivative_values)) if derivative_values else None
-    derivative_max = max(derivative_values) if derivative_values else None
-    derivative_min = min(derivative_values) if derivative_values else None
-    sampling_rate_avg = (sum(diff_values) / len(diff_values)) if diff_values else None
-    sampling_rate_max = max(diff_values) if diff_values else None
-    sampling_rate_95p = _percentile_cont(sorted(diff_values), 0.95) if diff_values else None
+        value_avg = weighted_num / Decimal(weighted_den)
+        derivative_avg = sum(derivative_values) / len(derivative_values)
+        derivative_max = max(derivative_values)
+        derivative_min = min(derivative_values)
+        sampling_rate_avg = sum(diff_values) / len(diff_values)
+        sampling_rate_max = max(diff_values)
+        sampling_rate_95p = _percentile_cont(sorted(diff_values), 0.95)
 
     return (
-        value_sum, max_value, min_value, classic_value_avg, weighted_value_avg,
+        value_sum, max_value, min_value, value_avg,
         derivative_avg, derivative_max, derivative_min, value_count,
         sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase
     )
@@ -236,26 +246,12 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             times = metric_time_series[measurement_metric_id][0] # can fail if metric does not exist. This should never be. Thus we simply crash
             values = metric_time_series[measurement_metric_id][1] # can fail if metric does not exist. This should never be. Thus we simply crash
 
-            value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start)
+            value_sum, max_value, min_value, value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start, duration)
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
             if value_count == 0 or not in_phase:
                 continue
-
-            # Since we need to LAG the table the first value will be NULL. So it means we need at least 3 rows to make a useful weighted average.
-            # In case we cannot do that we use the classic average
-            if value_count <= 2:
-                value_avg = Decimal(classic_value_avg)
-                # This derivative is only an approximation, but better than delivering no value as it is at least based on one sample
-                derivative_avg = Decimal(classic_value_avg / (duration/value_count))
-                derivative_max = Decimal(max_value / (duration/value_count))
-                derivative_min = Decimal(min_value / (duration/value_count))
-            else:
-                value_avg = Decimal(weighted_value_avg)
-                derivative_avg = Decimal(derivative_avg)
-                derivative_max = Decimal(derivative_max)
-                derivative_min = Decimal(derivative_min)
 
             if metric in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', 'carbon_intensity_static_machine'):
                 if carbon_intensity is not None:
