@@ -236,9 +236,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             times = metric_time_series[measurement_metric_id][0]
             values = metric_time_series[measurement_metric_id][1]
 
-            results = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start)
-
-            value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase = results
+            value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start)
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
