@@ -70,6 +70,7 @@ def test_insert_job():
     job = RunJob.get_job()
     assert job._state == 'WAITING'
 
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_simple_run_job_no_quota():
     Tests.shorten_sleep_times(1)
 
@@ -95,6 +96,7 @@ def test_simple_run_job_no_quota():
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_simple_run_job_quota_gets_deducted():
     Tests.shorten_sleep_times(1)
 
@@ -125,6 +127,7 @@ def test_simple_run_job_quota_gets_deducted():
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
     assert User(1)._capabilities['measurement']['quotas']['1'] < 10_000 * 60
 
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_simple_run_job_with_variables():
     Tests.shorten_sleep_times(1)
 
@@ -262,7 +265,7 @@ def test_docker_pull_private_image_via_db_credentials():
     }])
 
     ps = subprocess.run(
-        ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
+        ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml", '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
