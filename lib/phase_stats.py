@@ -135,7 +135,7 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
         diff = combined_times[i] - combined_times[i - 1]
         weighted_num += combined_values[i] * float(diff)
         weighted_den += diff
-        derivative_values.append(combined_values[i] / diff)
+        derivative_values.append(combined_values[i] / diff) # can flake with division by zero if database is corrupted which should never be. Thus no guard. we simply fail
         diff_values.append(diff)
 
     weighted_value_avg = (weighted_num / weighted_den) if weighted_den else None
@@ -233,8 +233,8 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
         # we go through all metrics in the run and aggregate them, using the pre-fetched
         # per-metric time series instead of running a SELECT per (phase, metric) pair
         for measurement_metric_id, metric, unit, detail_name in metrics: # unpack
-            times = metric_time_series[measurement_metric_id][0]
-            values = metric_time_series[measurement_metric_id][1]
+            times = metric_time_series[measurement_metric_id][0] # can fail if metric does not exist. This should never be. Thus we simply crash
+            values = metric_time_series[measurement_metric_id][1] # can fail if metric does not exist. This should never be. Thus we simply crash
 
             value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start)
 
