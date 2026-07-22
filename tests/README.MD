@@ -60,6 +60,10 @@ This can be, and is recommended, to do with parallel testsing enabled:
 The command will automatically take all the CPU cores available for testing. If you want to take less use
 a fixed specified number for *n* like `-n 4` as example for four cores.
 
+The after you must still execute the *serial* marked tests as they simply cannot run in parallel with other tests.
+
+- `pytest -m serial`
+
 If you experience errors with this you can also fallback to sequential testing by just issueing:
 
 - `pytest`
