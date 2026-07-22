@@ -16,7 +16,7 @@ on:
 
 jobs:
   run-tests:
-    runs-on: blacksmith-8vcpu-ubuntu-2204
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     permissions:
       pull-requests: write
       packages: write
