@@ -1380,6 +1380,14 @@ def test_print_logs_integration():
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 ## automatic database reconnection
+# This restarts the actual shared Postgres container to simulate an outage. Unlike the
+# 'real-metric-providers' xdist_group tests (which only need to avoid overlapping *each other*),
+# restarting shared infra breaks the live DB connection of literally any other test running
+# concurrently on any other worker - and there's no xdist_group/collection-order trick that can
+# guarantee no other worker is mid-query at that exact moment (pytest-xdist has no session-wide
+# barrier primitive). So this is excluded from -n runs entirely via the 'serial' marker (see
+# tests/conftest.py) and must be run in its own separate, non-parallel invocation.
+@pytest.mark.serial
 def test_database_reconnection_during_run():
     """Verify GMT runner handles database reconnection during execution
 

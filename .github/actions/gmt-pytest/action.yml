@@ -12,7 +12,7 @@ inputs:
   tests-command:
     description: 'The command to run the tests'
     required: false
-    default: 'pytest -n auto --dist=loadgroup -vv --durations=0'
+    default: 'pytest -vv --durations=0'
   test-path:
     description: 'Specific test path to run'
     required: false
@@ -162,6 +162,8 @@ runs:
 
         source ../venv/bin/activate
         python3 -m ${{ inputs.tests-command }} ${TEST_PATH} -rA | tee /tmp/test-results.txt
+        # this tests must run sequentially after, as it restarts the DB which will collide with other parallel tests running
+        python3 -m ${{ inputs.tests-command }} -n auto --dist=loadgroup  test_runner.py::test_database_reconnection_during_run -rA | tee /tmp/test-results.txt
 
     - name: Display Results
       shell: bash

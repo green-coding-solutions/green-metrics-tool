@@ -30,11 +30,30 @@ GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpa
 os.environ['NO_PROXY'] = f"{os.environ.get('NO_PROXY','')},api.green-coding.internal,metrics.green-coding.internal"
 os.environ['no_proxy'] = f"{os.environ.get('no_proxy','')},api.green-coding.internal,metrics.green-coding.internal"
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "serial: test cannot safely run concurrently with anything else (e.g. it restarts shared "
+        "infrastructure like the Postgres container) - skipped under pytest-xdist; run it on its "
+        "own, outside of -n, instead."
+    )
+
+
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(items):
     for item in items:
         if item.fspath.basename == 'test_functions.py':
             item.add_marker(pytest.mark.skip(reason='Skipping this file'))
+
+    # 'serial' tests touch shared infrastructure in a way that would break any other test running
+    # concurrently on any other worker (see the comment above test_database_reconnection_during_run
+    # in tests/test_runner.py). No scheduling trick guarantees exclusivity under xdist, since it has
+    # no session-wide barrier - so these are skipped outright under -n rather than merely reordered.
+    if os.environ.get('PYTEST_XDIST_WORKER'):
+        skip_serial = pytest.mark.skip(reason="marked 'serial': run this outside of -n/xdist, on its own")
+        for item in items:
+            if 'serial' in item.keywords:
+                item.add_marker(skip_serial)
 
     # Every test carrying the 'real-metric-providers' xdist_group is forced onto a single worker
     # (see the comment on pytestmark in tests/smoke_test.py) and, combined, they're one of the
