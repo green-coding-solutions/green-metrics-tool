@@ -25,6 +25,4 @@ if __name__ == '__main__':
     '''
     data = DB().fetch_one(query, params=(args.run_id, ), fetch_mode='dict')
 
-    print('Fetched data for ', args.run_id)
-
     build_and_store_phase_stats(args.run_id, data['measurement_config']['sci'])
