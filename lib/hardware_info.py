@@ -51,6 +51,7 @@ linux_info_list = [
     [rpwr, 'Kernel Modules', 'lsmod | sort', r'(?P<o>.*)', re.DOTALL],
     [rpwr, 'Environment Variables', 'printenv | sort', r'(?P<o>.*)', re.DOTALL],
     [rfwr, 'Kernel Boot Parameters', '/proc/cmdline', r'(?P<o>.*)'],
+    [rpwr, 'Sysctl', 'sysctl -a', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL], # Only use non sudo call to not expose for instance net.ipv4.tcp_fastopen_key
     [rpwr, 'Systemd Tmpfiles Rules', 'awk \'FNR==1 {print "== " FILENAME " =="} {print}\' /etc/tmpfiles.d/*', r'(?P<o>.*)', re.DOTALL],
     [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
     [cf, 'Available Memory', psutil.virtual_memory, [], 'available'],
@@ -101,6 +102,7 @@ mac_info_list = [
     [rpwr, 'Build Version', 'sw_vers -buildVersion', r'(?P<o>.*)'],
     [rpwr, 'Kernel Version', 'uname -srv', r'(?P<o>.*)'],
     [rpwr, 'Kernel Modules', 'kextstat', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Sysctl', 'sysctl -a', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL], # Only use non sudo call to not expose senstive information
     [rpwr, 'Environment Variables', 'printenv | sort', r'(?P<o>.*)', re.DOTALL],
     [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
     [cf, 'Available Memory', psutil.virtual_memory, [], 'available'],

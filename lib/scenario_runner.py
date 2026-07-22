@@ -1662,7 +1662,7 @@ class ScenarioRunner:
                     #   - image: "postgres: ${POSTGRES_VERSION}"
                     # will fail as this could expose env vars from the host system.
                     if isinstance(docker_env_var, str) and '=' in docker_env_var:
-                        env_key, env_value = docker_env_var.split('=')
+                        env_key, env_value = docker_env_var.split('=', maxsplit=1)
                     elif isinstance(service['environment'], dict):
                         env_key, env_value = str(docker_env_var), str(service['environment'][docker_env_var])
                     else:
@@ -1698,7 +1698,7 @@ class ScenarioRunner:
                 for docker_label_var in service['labels']:
                     # https://docs.docker.com/reference/compose-file/services/#labels
                     if isinstance(docker_label_var, str) and '=' in docker_label_var:
-                        label_key, label_value = docker_label_var.split('=')
+                        label_key, label_value = docker_label_var.split('=', maxsplit=1)
                     elif isinstance(service['labels'], dict):
                         label_key, label_value = str(docker_label_var), str(service['labels'][docker_label_var])
                     else:

@@ -214,7 +214,7 @@ measurement:
 #        sampling_rate: 99
 #      cpu_frequency_msr_core:
 #        sampling_rate: 99
-#        base_ghz: 2.4  # Set to the nominal (non-turbo) base clock of your Intel CPU in GHz
+#        base_ghz: 2.4  # Set to the nominal (non-turbo) base clock of your x86 (Intel or AMD) CPU in GHz
 #      cpu_time_cgroup_container:
 #        sampling_rate: 99
 #      cpu_time_cgroup_system:
@@ -321,11 +321,11 @@ measurement:
 #        region: 'DE'
 #        token: 'XXXX'
 #        sampling_rate: 99 # Remove if you don't want value padding
-     carbon_intensity_static_machine:
-       # Static carbon intensity in gCO2e/kWh. Replaces the former SCI 'I' value.
-       # The number 445 is global 2024 (https://www.iea.org/reports/electricity-2025/emissions)
-       value: 445
-       sampling_rate: 99
+      carbon_intensity_static_machine:
+        # Static carbon intensity in gCO2e/kWh. Replaces the former SCI 'I' value.
+        # The number 445 is global 2024 (https://www.iea.org/reports/electricity-2025/emissions)
+        value: 445
+        sampling_rate: 99
 #      carbon_intensity_level_electricitymaps_machine:
 #        region: 'DE'
 #        token: 'XXXX'
@@ -379,7 +379,7 @@ activate_scenario_runner: False
 activate_eco_ci: False
 activate_power_hog: False
 activate_carbon_db: False
-activate_ai: False
+activate_ai_optimisations: False
 activate_software_view: False
 
 # GMT can activate additional enterprise only functionality
