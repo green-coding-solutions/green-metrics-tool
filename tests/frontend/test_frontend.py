@@ -951,6 +951,83 @@ class TestFrontendFunctionality:
 
         new_page.close()
 
+    def test_stats_commit_hash_display(self):
+        """Verify commit_hash renders as link for HTTPS/SSH URIs, plain text for local paths."""
+        github_run_id = str(uuid.uuid4())
+        github_ssh_run_id = str(uuid.uuid4())
+        github_dotgit_run_id = str(uuid.uuid4())
+        gitlab_run_id = str(uuid.uuid4())
+        gitlab_ssh_run_id = str(uuid.uuid4())
+        bitbucket_run_id = str(uuid.uuid4())
+        local_run_id = str(uuid.uuid4())
+
+        base_insert = """
+        INSERT INTO runs (id, name, uri, branch, commit_hash, usage_scenario, filename, machine_id, user_id, failed, logs, created_at, updated_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        """
+        empty_scenario = json.dumps({"name": "test", "flow": []})
+        commit_hash = 'aabbccddee0011223344'
+
+        DB().query(base_insert, params=(
+            github_run_id, 'GitHub HTTPS',
+            'https://github.com/org/demo-repo', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            github_ssh_run_id, 'GitHub SSH',
+            'git@github.com:org/demo-repo.git', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            github_dotgit_run_id, 'GitHub HTTPS .git',
+            'https://github.com/org/demo-repo.git', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            gitlab_run_id, 'GitLab HTTPS',
+            'https://gitlab.com/org/demo-repo', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            gitlab_ssh_run_id, 'GitLab SSH',
+            'git@gitlab.com:org/demo-repo.git', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            bitbucket_run_id, 'Bitbucket HTTPS',
+            'https://bitbucket.org/org/demo-repo', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            local_run_id, 'Local',
+            '/home/user/local-project', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+
+        cases = [
+            (github_run_id, 'https://github.com/org/demo-repo/tree/', 'GitHub HTTPS'),
+            (github_ssh_run_id, 'https://github.com/org/demo-repo/tree/', 'GitHub SSH'),
+            (github_dotgit_run_id, 'https://github.com/org/demo-repo/tree/', 'GitHub HTTPS .git'),
+            (gitlab_run_id, 'https://gitlab.com/org/demo-repo/-/tree/', 'GitLab HTTPS'),
+            (gitlab_ssh_run_id, 'https://gitlab.com/org/demo-repo/-/tree/', 'GitLab SSH'),
+            (bitbucket_run_id, 'https://bitbucket.org/org/demo-repo/src/', 'Bitbucket HTTPS'),
+        ]
+
+        for run_id, expected_base, label in cases:
+            page.goto(GlobalConfig().config['cluster']['metrics_url'] + f'/stats.html?id={run_id}')
+            page.wait_for_load_state("networkidle")
+            link = page.locator('#run-data-top tr:has(td:has-text("commit_hash")) td:last-child a')
+            assert link.count() == 1, f"{label}: expected a link"
+            assert link.get_attribute('href') == f'{expected_base}{commit_hash}', f"{label}: href mismatch"
+            assert link.text_content() == commit_hash, f"{label}: text mismatch"
+
+        # Local path → plain text, no link
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + f'/stats.html?id={local_run_id}')
+        page.wait_for_load_state("networkidle")
+        cell = page.locator('#run-data-top tr:has(td:has-text("commit_hash")) td:last-child')
+        assert cell.locator('a').count() == 0, "Local: expected no link"
+        assert cell.text_content().strip() == commit_hash
+
     def test_watchlist(self):
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
@@ -1264,11 +1341,19 @@ class TestXssSecurity:
         Tests run name, branch, filename, URI, usage_scenario, usage_scenario_variables, and logs for XSS vulnerabilities
         on runs, stats (including logs view), watchlist, and compare pages.
         This test should FAIL when vulnerabilities exist and PASS when they're fixed.
+
+        The payload is prefixed with `">` so it breaks out of BOTH HTML text context AND a double-quoted
+        attribute value (e.g. href="..."). Without the `">` prefix, a payload interpolated into a href
+        attribute value cannot close the surrounding start tag, so the onerror handler never fires and
+        href-attribute XSS goes undetected. The `">` prefix ensures the same payload exercises every
+        context the value may be interpolated into.
         """
         base_url = GlobalConfig().config['cluster']['metrics_url']
 
-        # Create malicious payloads using IMG_XSS_EXECUTED approach for all user-provided fields
-        xss_payload = '<img src=x onerror="window.IMG_XSS_EXECUTED=true">'
+        # Create malicious payloads using IMG_XSS_EXECUTED approach for all user-provided fields.
+        # The leading `">` closes any double-quoted attribute value and the surrounding start tag,
+        # so the same payload fires in text context AND inside href="...".
+        xss_payload = '"><img src=x onerror="window.IMG_XSS_EXECUTED=true">'
         malicious_name = f'{xss_payload}Safe Name'
         malicious_branch = f'{xss_payload}main'
         malicious_filename = f'{xss_payload}test.yml'
@@ -1312,9 +1397,20 @@ class TestXssSecurity:
 
         # Insert malicious run data
         run_query = """
-        INSERT INTO "runs"("id","name","uri","branch","commit_hash","commit_timestamp","usage_scenario","usage_scenario_variables","filename","machine_id","user_id","failed","logs","created_at","updated_at")
-        VALUES (%s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        INSERT INTO "runs"("id","name","uri","branch","commit_hash","commit_timestamp","usage_scenario","usage_scenario_variables","filename","machine_id","user_id","failed","logs","relations","created_at","updated_at")
+        VALUES (%s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
         """
+
+        malicious_relations = {
+            "helpers": {
+                "url": f'http://evil.com{xss_payload}/helpers.git',
+                "commit_hash": "deadbeef"
+            },
+            "lib": {
+                "url": f'git@github.com:evil{xss_payload}/lib.git',
+                "commit_hash": "cafebabe"
+            }
+        }
 
         DB().query(run_query, params=(
             run_id,
@@ -1328,7 +1424,8 @@ class TestXssSecurity:
             1,
             1,
             False,
-            malicious_logs
+            malicious_logs,
+            json.dumps(malicious_relations)
         ))
 
         # Insert second run for compare functionality (same params except name and usage scenario variables)
@@ -1344,7 +1441,8 @@ class TestXssSecurity:
             1,
             1,
             False,
-            malicious_logs
+            malicious_logs,
+            json.dumps(malicious_relations)
         ))
 
         # Insert phase_stats for the two runs (needed for the compare view)

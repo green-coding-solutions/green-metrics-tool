@@ -23,6 +23,24 @@ const toHttpsUri = (uri) => {
     return uri;
 };
 
+// Platform path conventions:
+//   type='commit': /commit/ (GitHub), /-/commit/ (GitLab), /commits/ (Bitbucket)
+//   type='tree':   /tree/   (GitHub), /-/tree/   (GitLab), /src/     (Bitbucket)
+// Returns null for non-HTTP URIs (e.g. local paths).
+const getRepoRefUrl = (uri, type) => {
+    const cleanUri = toHttpsUri(uri);
+    if (!cleanUri.startsWith('http')) return null;
+    if (type !== 'commit' && type !== 'tree') {
+        throw new Error(`getRepoRefUrl: unknown type '${type}', expected 'commit' or 'tree'`);
+    }
+    const base = cleanUri.endsWith('.git') ? cleanUri.slice(0, -4) : cleanUri;
+    if (base.includes('bitbucket')) {
+        return base + (type === 'commit' ? '/commits/' : '/src/');
+    }
+    const pathSep = base.includes('gitlab') ? '/-/' : '/';
+    return base + (type === 'commit' ? pathSep + 'commit/' : pathSep + 'tree/');
+};
+
 class APIHTTPError extends Error {
     constructor(status, message) {
         super(message);
@@ -272,11 +290,12 @@ const replaceRepoIcon = (uri) => {
 };
 
 const createExternalIconLink = (url) => {
-    // Creates a safe external icon link with protocol validation to prevent XSS attacks
-    // Only allows http/https protocols, returns empty string for non-HTTP URLs
+    // Build a safe external icon link. toHttpsUri only normalises SSH/git@ prefixes; it does NOT strip
+    // HTML-attribute-breaking chars like ", so the href value still requires escapeString.
+    // The startsWith('http') check restricts the protocol but does not on its own prevent attribute breakout.
     const httpsUrl = url ? toHttpsUri(url) : url;
     if (httpsUrl && httpsUrl.startsWith('http')) {
-        return `<a href="${httpsUrl}" target="_blank"><i class="icon external alternate"></i></a>`;
+        return `<a href="${escapeString(httpsUrl)}" target="_blank"><i class="icon external alternate"></i></a>`;
     }
     return '';
 }

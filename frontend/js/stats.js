@@ -204,12 +204,20 @@ const fetchAndFillRunData = async (run_id) => {
         }  else if(item == 'relations') {
             if (run_data[item] == null) continue; // can be empty
             for (relation in run_data[item]) {
-                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td><a href="${run_data[item][relation]['url']}" target="_blank">${escapeString(run_data[item][relation]['url'])} (${escapeString(run_data[item][relation]['commit_hash'])})</a></td></tr>`)
+                const url = run_data[item][relation]['url'];
+                const httpsUrl = toHttpsUri(url);
+                const display = httpsUrl.startsWith('http')
+                    ? `<a href="${escapeString(httpsUrl)}" target="_blank">${escapeString(url)} (${run_data[item][relation]['commit_hash']})</a>`
+                    : `${escapeString(url)} (${run_data[item][relation]['commit_hash']})`;
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td>${display}</td></tr>`)
             }
         }  else if(item == 'commit_hash') {
             if (run_data[item] == null) continue; // some old runs did not save it
-            let commit_link = buildCommitLink(run_data);
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data[item])}</a></td></tr>`)
+            const commit_link = getRepoRefUrl(run_data['uri'], 'tree');
+            const display = commit_link
+                ? `<a href="${escapeString(commit_link + run_data['commit_hash'])}" target="_blank">${run_data[item]}</a>`
+                : run_data[item];
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${display}</td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
         } else if(item == 'failed' && run_data[item] == true) {
@@ -225,9 +233,10 @@ const fetchAndFillRunData = async (run_id) => {
         } else if(item == 'uri') {
             const uri = run_data[item];
             const httpsUri = toHttpsUri(uri);
-            // URI is safe for href: toHttpsUri normalises SSH/git@ to https://, absolute paths stay as text
+            // toHttpsUri only rewrites SSH/git@ prefixes; it does not strip HTML-attribute-breaking chars,
+            // so the href value still needs escapeString. Absolute paths stay as plain text.
             const uriDisplay = httpsUri.startsWith('http')
-                ? `<a href="${httpsUri}">${escapeString(uri)}</a>`
+                ? `<a href="${escapeString(httpsUri)}">${escapeString(uri)}</a>`
                 : escapeString(uri);
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
         } else if(item == 'note') {
@@ -350,18 +359,6 @@ const fetchAndFillRunData = async (run_id) => {
 
     // warnings will be fetched separately
 
-}
-
-const buildCommitLink = (run_data) => {
-    let commit_link;
-    commit_link = run_data['uri'].endsWith('.git') ? run_data['uri'].slice(0, -4) : run_data['uri']
-    if (run_data['uri'].includes('github')) {
-        commit_link = commit_link + '/tree/' + run_data['commit_hash']
-    }
-    else if (run_data['uri'].includes('gitlab')) {
-        commit_link = commit_link + '/-/tree/' + run_data ['commit_hash']
-    }
-    return commit_link;
 }
 
 const fillRunTab = async (selector, data, parent = '') => {
