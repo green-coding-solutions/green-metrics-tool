@@ -629,7 +629,48 @@ end_checks = (
 
 )
 
-def system_check(mode='start', system_check_threshold=3, run_duration=None):
+
+# Value of --dev-no-system-checks / ScenarioRunner(dev_no_system_checks=...) when the switch is
+# given with no argument (argparse nargs='?' const) - means "disable every check", as opposed to a
+# comma-separated string/collection of individual check names to disable just those.
+ALL_CHECKS_SENTINEL = 'ALL'
+
+
+def normalize_disabled_checks(value):
+    # True / False: disable every check / disable nothing - the switch's original, all-or-nothing
+    # behavior, kept for the CLI's no-argument form and for existing boolean callers (e.g.
+    # lib/job/run.py's user._capabilities['measurement']['dev_no_system_checks']).
+    if value is True or value == ALL_CHECKS_SENTINEL:
+        return True
+    if value is False or value is None:
+        return False
+
+    # Anything else must name specific checks to disable - either a comma-separated string (CLI)
+    # or a list of names (direct ScenarioRunner(...) kwarg) - and must not be empty, since an empty
+    # value here is almost certainly a mistake rather than a deliberate "disable nothing" (that's
+    # what omitting the switch / passing False is for).
+    if isinstance(value, str):
+        if not value.strip():
+            raise ValueError('--dev-no-system-checks was given an empty string. Omit the switch entirely to run every check, or pass a comma-separated list of check names to disable specific ones.')
+        names = {name.strip() for name in value.split(',') if name.strip()}
+    elif isinstance(value, list):
+        if not value:
+            raise ValueError('dev_no_system_checks was given an empty list. Pass False to run every check, or a non-empty list of check names to disable specific ones.')
+        names = set(value)
+    else:
+        raise ValueError(f"dev_no_system_checks must be True, False, a comma-separated string, or a list of check names - got {type(value).__name__}: {value!r}")
+
+    # Validated here, once, rather than in system_check() - that runs twice per measurement (once
+    # for mode='start', once for mode='end'), so checking there would walk the registry twice for
+    # no reason since disabled_checks never changes between those two calls.
+    unknown = names - {check[0].__name__ for check in (start_checks + end_checks)}
+    if unknown:
+        raise ValueError(f"Unknown check name(s) passed to --dev-no-system-checks: {', '.join(sorted(unknown))}")
+
+    return names
+
+
+def system_check(mode='start', system_check_threshold=3, disabled_checks=None, run_duration=None):
     print(TerminalColors.HEADER, f"\nRunning System Checks - Mode: {mode}", TerminalColors.ENDC)
     warnings = []
 
@@ -639,6 +680,14 @@ def system_check(mode='start', system_check_threshold=3, run_duration=None):
         checks = end_checks
     else:
         raise RuntimeError('Unknown mode for system check:', mode)
+
+    if disabled_checks:
+        # Names are already validated against the full check registry by normalize_disabled_checks()
+        # at ScenarioRunner construction time, so nothing here can be unknown.
+        checks = tuple(check for check in checks if check[0].__name__ not in disabled_checks)
+
+    if not checks:
+        return warnings
 
     max_key_length = max(len(key[2]) for key in checks)
 

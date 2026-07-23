@@ -132,7 +132,11 @@ class ScenarioRunner:
         self._dev_no_save = dev_no_save
         self._dev_stream_outputs = dev_stream_outputs
         self._dev_cache_repos = dev_cache_repos
-        self._dev_no_system_checks = dev_no_system_checks
+        # Normalizes True/False (disable all/nothing) as well as a comma-separated string (CLI) or
+        # an iterable of check names (direct kwarg) into True/False/a set of names - see
+        # lib/system_checks.py::normalize_disabled_checks(). self._arguments (above) already
+        # captured the raw, unnormalized value for run-invalidation/logging purposes.
+        self._dev_no_system_checks = system_checks.normalize_disabled_checks(dev_no_system_checks)
         self._dev_no_resource_limits = dev_no_resource_limits
 
         self._uri = uri
@@ -465,11 +469,18 @@ class ScenarioRunner:
 
     def _check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
-        if self._dev_no_system_checks:
-            print('Skipping check system due to --dev-no-system-checks')
+        if self._dev_no_system_checks is True:
+            print('Skipping all system checks due to --dev-no-system-checks')
             return
 
-        warnings = system_checks.system_check(mode, self._measurement_system_check_threshold, run_duration=self._last_measurement_duration)
+        if self._dev_no_system_checks:
+            print(f"Skipping system checks due to --dev-no-system-checks: {', '.join(sorted(self._dev_no_system_checks))}")
+
+        warnings = system_checks.system_check(
+            mode, self._measurement_system_check_threshold,
+            disabled_checks=self._dev_no_system_checks or None,
+            run_duration=self._last_measurement_duration,
+        )
         for warn in warnings:
             self.__warnings.append(warn) # are already printed via system_checks
 
@@ -1146,7 +1157,7 @@ class ScenarioRunner:
                 if metric_provider == 'carbon_intensity_elephant_machine':
                     optional_conf['simulation_uuid'] = str(self.__carbon_simulation_uuid)
 
-            if self._dev_no_system_checks:
+            if self._dev_no_system_checks is True:
                 optional_conf['skip_check'] = True
 
             print(f"Importing {class_name} from {module_path}")

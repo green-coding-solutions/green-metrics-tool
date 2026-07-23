@@ -71,7 +71,7 @@ def test_uri_local_dir_missing():
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_git_environment_without_ssh_private_key():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=['check_steal_time'])
     runner._create_folders()
 
     env = runner._get_git_environment()
@@ -81,7 +81,7 @@ def test_git_environment_without_ssh_private_key():
 
 def test_git_environment_with_ssh_private_key():
     key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=['check_steal_time'])
     runner._create_folders()
 
     env = runner._get_git_environment()
@@ -95,7 +95,7 @@ def test_git_environment_with_ssh_private_key():
 
 def test_git_environment_with_secure_variable_ssh_private_key():
     key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=['check_steal_time'])
     runner._create_folders()
 
     env = runner._get_git_environment()
@@ -106,7 +106,7 @@ def test_git_environment_with_secure_variable_ssh_private_key():
 
 def test_runner_arguments_obfuscate_ssh_private_key():
     key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=['check_steal_time'])
 
     runner_arguments = json.dumps(runner._arguments, cls=SecureVariableEncoder)
     assert key not in runner_arguments
@@ -200,9 +200,10 @@ def test_uri_github_repo_branch_missing():
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 ## --commit-hash COMMIT_HASH
-# dev_no_system_checks defaults to False here and it stops at 'import_metric_providers' - exactly
-# the phase where each provider's real, system-wide check_system() runs - so it must never overlap
-# with another test that has real metric providers running. See the comment on pytestmark in
+# Only check_steal_time (an end-only check) is disabled here, and this stops at
+# 'import_metric_providers' - exactly the phase where each provider's real, system-wide
+# check_system() runs, before 'end' checks are ever reached - so it must never overlap with
+# another test that has real metric providers running. See the comment on pytestmark in
 # tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
 @pytest.mark.xdist_group(name="real-metric-providers")
 def test_uri_github_repo_commit_hash_checkout():
@@ -218,6 +219,7 @@ def test_uri_github_repo_commit_hash_checkout():
         dev_no_container_dependency_collection=True,
         skip_download_dependencies=True,
         skip_optimizations=True,
+        dev_no_system_checks=['check_steal_time'],
     )
 
     with Tests.RunUntilManager(runner) as context:
@@ -239,9 +241,10 @@ def test_uri_github_repo_commit_hash_checkout():
         assert checked_out_commit_hash == commit_hash, Tests.assertion_info(f"commit_hash: {commit_hash}", checked_out_commit_hash)
         assert commit_message == expected_message, Tests.assertion_info(f"commit_message: {expected_message}", commit_message)
 
-# dev_no_system_checks defaults to False here and it stops at 'import_metric_providers' - exactly
-# the phase where each provider's real, system-wide check_system() runs - so it must never overlap
-# with another test that has real metric providers running. See the comment on pytestmark in
+# Only check_steal_time (an end-only check) is disabled here, and this stops at
+# 'import_metric_providers' - exactly the phase where each provider's real, system-wide
+# check_system() runs, before 'end' checks are ever reached - so it must never overlap with
+# another test that has real metric providers running. See the comment on pytestmark in
 # tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
 @pytest.mark.xdist_group(name="real-metric-providers")
 def test_relations_checkout_specific_commit_hash():
@@ -256,6 +259,7 @@ def test_relations_checkout_specific_commit_hash():
         dev_no_container_dependency_collection=True,
         skip_download_dependencies=True,
         skip_optimizations=True,
+        dev_no_system_checks=['check_steal_time'],
     )
 
     with Tests.RunUntilManager(runner) as context:
@@ -1044,7 +1048,7 @@ def wip_test_verbose_provider_boot():
          '--verbose-provider-boot', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--filename', 'tests/data/stress-application/usage_scenario.yml',
          '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-container-dependency-collection',
-         '--skip-optimizations', '--skip-download-dependencies'],
+         '--skip-optimizations', '--skip-download-dependencies', '--dev-no-system-checks', 'check_steal_time'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
