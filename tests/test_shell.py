@@ -200,7 +200,7 @@ def test_shell_cli_end_to_end():
 
     assert ps.returncode == 0, ps.stderr
     assert 'will execute directly on the host system' in ps.stdout
-    assert 'command on host' in ps.stdout
+    assert 'command on [HOST]' in ps.stdout
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout
 
 

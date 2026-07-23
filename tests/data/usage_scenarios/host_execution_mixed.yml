@@ -17,7 +17,7 @@ flow:
         command: stress-ng -c 1 -t 1 -q
 
   - name: Host Echo
-    container: None
+    container: null
     commands:
       - type: console
         command: echo "hello from the host"

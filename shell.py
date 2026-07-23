@@ -53,7 +53,7 @@ class ShellScenarioRunner(ScenarioRunner):
     """Runs a single shell command through the standard GMT measurement lifecycle.
 
     It constructs an in-memory usage scenario whose only flow runs directly on the
-    host (container: None) and skips all Docker orchestration steps, so no Docker
+    host (container: null) and skips all Docker orchestration steps, so no Docker
     daemon is required. Host execution is permission gated - the executing user
     needs the 'host' orchestrator capability (granted to the DEFAULT local user).
     """
@@ -238,8 +238,8 @@ def main():
         try:
             if hasattr(DB, "instance") and hasattr(DB.instance, "_pool"):
                 DB.instance.shutdown()
-        except Exception:  # pylint: disable=broad-exception-caught
-            pass
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            print(TerminalColors.WARNING, f"Could not cleanly shut down DB pool: {exc}", TerminalColors.ENDC, file=sys.stderr)
 
 
 if __name__ == "__main__":

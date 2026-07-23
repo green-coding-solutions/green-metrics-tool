@@ -281,7 +281,7 @@ def test_docker_credentials_error_without_encryption_key(tmp_path):
 def test_user_can_use_orchestrator():
     user = User(1)
     assert user.can_use_orchestrator('docker') is True
-    # the DEFAULT user for local usage has host execution (container: None in usage scenario flows) enabled out of the box
+    # the DEFAULT user for local usage has host execution (container: null in usage scenario flows) enabled out of the box
     assert user.can_use_orchestrator('host') is True
 
     # every other user does not have host execution unless explicitly granted

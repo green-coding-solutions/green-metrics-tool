@@ -1293,7 +1293,7 @@ def test_database_reconnection_during_run():
         "No database retry messages found - test may not have properly simulated database outage"
 
 ## Host execution
-#   Flows with `container: None` run their commands directly on the host. This is
+#   Flows with `container: null` run their commands directly on the host. This is
 #   security sensitive and therefore gated behind the 'host' orchestrator capability
 #   of the user. The DEFAULT user (id 1) has it enabled for local usage.
 def test_host_execution_denied_without_host_capability():
@@ -1319,9 +1319,8 @@ def test_host_execution_allowed_runs_on_host():
         runner.run()
 
     assert 'will execute directly on the host system' in out.getvalue()
-    assert out.getvalue().count('command on host') == 2, \
-        Tests.assertion_info('2x command on host', out.getvalue().count('command on host'))
-    assert 'command on container' not in out.getvalue()
+    assert out.getvalue().count('command on [HOST]') == 2, \
+        Tests.assertion_info('2x command on [HOST]', out.getvalue().count('command on [HOST]'))
 
 def test_host_execution_mixed_container_and_host_flow():
     out = io.StringIO()
@@ -1332,46 +1331,32 @@ def test_host_execution_mixed_container_and_host_flow():
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
 
-    assert 'command on container test-container' in out.getvalue()
-    assert 'command on host' in out.getvalue()
+    assert 'command on test-container' in out.getvalue()
+    assert 'command on [HOST]' in out.getvalue()
 
-class FakeContainerMetricProvider:
-    _metric_name = 'cpu_utilization_cgroup_container'
-
-    def __init__(self):
-        self.started = False
-
-    def has_started(self):
-        return self.started
-
-    def start_profiling(self):
-        self.started = True
-
-    def get_stderr(self):
-        return None
-
-def test_container_metric_providers_skipped_without_containers():
+def test_container_metric_providers_disabled_without_services():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
-
-    fake_provider = FakeContainerMetricProvider()
-    runner._ScenarioRunner__metric_providers.append(fake_provider) #pylint: disable=protected-access
 
     out = io.StringIO()
     with redirect_stdout(out):
-        runner._start_metric_providers(allow_container=True, allow_other=False) #pylint: disable=protected-access
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('import_metric_providers')
+            imported_metric_names = [provider._metric_name for provider in runner._ScenarioRunner__metric_providers] #pylint: disable=protected-access
 
-    assert fake_provider.started is False, Tests.assertion_info('provider not started', fake_provider.started)
-    assert 'Skipping FakeContainerMetricProvider as it needs container IDs' in out.getvalue()
+    assert 'as it needs containers and no containers are part of this run' in out.getvalue()
 
-def test_container_metric_providers_started_with_containers():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    assert imported_metric_names, Tests.assertion_info('metric providers imported', imported_metric_names)
+    assert not any(name.endswith('_container') or name == 'network_connections_tcpdump_system' for name in imported_metric_names), \
+        Tests.assertion_info('no container bound metric providers imported', imported_metric_names)
 
-    fake_provider = FakeContainerMetricProvider()
-    runner._ScenarioRunner__metric_providers.append(fake_provider) #pylint: disable=protected-access
-    runner._ScenarioRunner__containers['fake-container-id'] = {'name': 'fake-container'} #pylint: disable=protected-access
+def test_container_metric_providers_imported_with_services():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution_mixed.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
     out = io.StringIO()
     with redirect_stdout(out):
-        runner._start_metric_providers(allow_container=True, allow_other=False) #pylint: disable=protected-access
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('import_metric_providers')
+            imported_metric_names = [provider._metric_name for provider in runner._ScenarioRunner__metric_providers] #pylint: disable=protected-access
 
-    assert fake_provider.started is True, Tests.assertion_info('provider started', fake_provider.started)
+    assert any(name.endswith('_container') for name in imported_metric_names), \
+        Tests.assertion_info('container bound metric providers imported', imported_metric_names)

@@ -5,7 +5,7 @@ description: Playwright commands are not allowed for flows that run on the host
 
 flow:
   - name: Host flow
-    container: None
+    container: null
     commands:
       - type: playwright
         command: await page.goto('http://example.com')
