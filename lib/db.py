@@ -28,7 +28,7 @@ def get_test_schema():
     # build serving test traffic. It loads the same test-config.yml as the tests do though, so
     # dbname reliably tells the two apart.
     if GlobalConfig().config['postgresql']['dbname'] == 'green-coding':
-        return "production"
+        return "public"
 
     worker_id = get_test_worker_id()
     return f"gmt_test_{worker_id}" if worker_id else "gmt_test"

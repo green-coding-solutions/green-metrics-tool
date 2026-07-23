@@ -29,6 +29,7 @@ static-binary
 /docker/test-compose.yml
 /tests/structure.sql
 /tests/tables.sql
+/tests/seed-data.sql
 tools/sgx_enable
 /tests/test-config.yml
 /tests/.testmondata

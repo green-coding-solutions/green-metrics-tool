@@ -5,7 +5,6 @@ import json
 import pytest
 import random
 import tempfile
-import time
 import pandas
 from pathlib import Path
 
@@ -306,6 +305,36 @@ def build_image_fixture():
         '--build-arg', f'no_proxy={os.environ.get("no_proxy")}',
     ], check=True)
 
+# Called once per pytest-xdist worker (see conftest.py::_initial_db_reset), before that worker's
+# first test - creates this worker's private schema and populates it via tables.sql's
+# CREATE TABLE/TYPE/TRIGGER/... DDL, which isn't written to be safely re-runnable. Every reset_db()
+# call after this one (see below) can then assume the schema/tables already exist and just
+# truncate + reseed the data, with no need to check.
+def create_test_schema():
+    config = GlobalConfig().config
+    pg_port = config['postgresql']['port']
+    pg_dbname = config['postgresql']['dbname']
+    schema = get_test_schema()
+
+    ps = subprocess.run(
+        [
+            'docker', 'exec', '--user', 'postgres',
+            '-e', f'PGOPTIONS=-c search_path={schema},public',
+            'test-green-coding-postgres-container',
+            'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
+            '--single-transaction',
+            '-c', f'CREATE SCHEMA IF NOT EXISTS "{schema}"',
+            '-f', './docker-entrypoint-initdb.d/02-tables.sql',
+            '-f', './docker-entrypoint-initdb.d/04-seed-data.sql',
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if ps.returncode != 0:
+        raise RuntimeError('Creating the test schema failed with ', ps.stdout, ps.stderr)
+
+
 # should be preceded by a yield statement and on autouse
 def reset_db():
     # DB().query('DROP schema "public" CASCADE') # we do not want to call DB commands. Reason being is that because of a misconfiguration we could be sending this to the live DB
@@ -314,59 +343,53 @@ def reset_db():
     pg_dbname = config['postgresql']['dbname']
     redis_port = config['redis']['port']
     # One schema per pytest-xdist worker (falls back to 'public' outside of -n runs) so that
-    # concurrent workers can each reset their own tables without touching each other's.
+    # concurrent workers can each reset their own tables without touching each other's. The schema
+    # and its tables already exist by this point - create_test_schema() (see above) / conftest.py's
+    # _initial_db_reset runs once per worker before its first test - so this only ever needs to
+    # wipe and reseed the *data*, never check for or create the schema itself.
     schema = get_test_schema()
 
-    docker_exec_args = [
-        'docker', 'exec', '--user', 'postgres',
-        '-e', f'PGOPTIONS=-c search_path={schema},public',
-        'test-green-coding-postgres-container',
-        'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
-        # --single-transaction wraps the drop/recreate/repopulate below into one commit, so
-        # any other session querying this schema concurrently (the gunicorn container
-        # serving a tests/frontend or tests/api request, most likely) either sees the
-        # complete old schema or the complete new one - never a dropped-but-not-yet-
-        # repopulated one, which is what was intermittently producing spurious
-        # "relation ... does not exist" errors (including from error_helpers.log_error()
-        # itself trying to write to system_logs) when a request landed mid-reset. Requires
-        # that nothing in the files below does its own '\c' (see structure.sql/compose.yml.example
-        # for how the database itself is selected instead), since that would silently end
-        # the transaction partway through.
-        '--single-transaction',
-        '-c', f'DROP SCHEMA IF EXISTS "{schema}" CASCADE',
-        '-c', f'CREATE SCHEMA IF NOT EXISTS "{schema}"',
-        # 01-structure.sql only bootstraps schemas/extensions once, at first container boot
-        # (CREATE SCHEMA/EXTENSION IF NOT EXISTS would be harmless to re-run, but there is no need
-        # to); 02-tables.sql is the idempotent table/trigger/seed part, safe and necessary to
-        # re-run every time.
-        '-f', './docker-entrypoint-initdb.d/02-tables.sql',
-    ]
-
-    # Postgres can still be finishing its own startup sequence (initdb, WAL/crash recovery, running
-    # docker-entrypoint-initdb.d/*) when the very first reset_db() of a session fires - especially
-    # with several xdist workers starting at once and all racing to reset as soon as they're up.
-    # psql then fails immediately with one of these transient messages rather than this being a
-    # real error, so retry those specific conditions with backoff instead of failing the whole
-    # session over a race that resolves itself within a few seconds.
-    transient_startup_errors = (
-        b'the database system is starting up',
-        b'the database system is not yet accepting connections',
+    ps = subprocess.run(
+        [
+            'docker', 'exec', '--user', 'postgres',
+            '-e', f'PGOPTIONS=-c search_path={schema},public',
+            'test-green-coding-postgres-container',
+            'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
+            # --single-transaction wraps the truncate/reseed below into one commit, so any other
+            # session querying this schema concurrently (the gunicorn container serving a
+            # tests/frontend or tests/api request, most likely) either sees the complete old data
+            # or the complete new data - never a truncated-but-not-yet-reseeded one, which is what
+            # was intermittently producing spurious "relation ... does not exist" / empty-table
+            # errors (including from error_helpers.log_error() itself trying to write to
+            # system_logs) when a request landed mid-reset. Requires that nothing in the files
+            # below does its own '\c' (see structure.sql/compose.yml.example for how the database
+            # itself is selected instead), since that would silently end the transaction partway
+            # through.
+            '--single-transaction',
+            '-c',
+            # Naming every table in one TRUNCATE (rather than looping over pg_tables issuing one
+            # TRUNCATE per table) matters: CASCADE already sweeps every table that transitively
+            # references the one named, so a per-table loop would re-walk and re-lock a
+            # dependency closure that a previous statement in the same loop already emptied -
+            # doing (and paying full lock-acquisition cost for) redundant work several times over.
+            f'''DO $$
+DECLARE
+    tbls text;
+BEGIN
+    SELECT string_agg(format('%I.%I', schemaname, tablename), ', ')
+    INTO tbls FROM pg_tables WHERE schemaname = '{schema}';
+    IF tbls IS NOT NULL THEN
+        EXECUTE format('TRUNCATE TABLE %s RESTART IDENTITY CASCADE', tbls);
+    END IF;
+END $$;''',
+            '-f', './docker-entrypoint-initdb.d/04-seed-data.sql',
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
-    max_attempts = 10
-    for attempt in range(1, max_attempts + 1):
-        ps = subprocess.run(
-            docker_exec_args,
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        if ps.returncode == 0:
-            break
-        if attempt < max_attempts and any(msg in ps.stderr for msg in transient_startup_errors):
-            time.sleep(2)
-            continue
-        raise RuntimeError('Dropping and recreating database failed with ', ps.stdout, ps.stderr)
-
+    if ps.returncode != 0:
+        raise RuntimeError('Resetting the test schema failed with ', ps.stdout, ps.stderr)
 
     ps = subprocess.run(
         ['docker', 'exec', 'test-green-coding-redis-container', 'redis-cli', '-p', f"{redis_port}", 'FLUSHALL'],
