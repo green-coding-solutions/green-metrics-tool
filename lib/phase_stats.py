@@ -105,6 +105,11 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
     # To be able to compute a diff/derivative at the phase boundary, the first sample
     # at or after phase_end (but still before the next phase starts) is folded into the
     # aggregates too - exactly like the previous query's "next_one" CTE did.
+    # Derivative Values
+    # These are only a true derivate if value is already a difference, which is the case for energy values
+    # and for _io_ providers or any other that outputs increments instead of totals
+    # using the derivative for other providers makes no sense atm
+
     left = bisect.bisect_right(times, phase_start)
     right = bisect.bisect_left(times, phase_end)
 
@@ -127,16 +132,11 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
     # it is divided against Decimal(duration)/... below.
     classic_value_avg = Decimal(value_sum) / Decimal(value_count)
 
-    # Since we need to LAG the table the first value will be NULL. So it means we need at least
-    # 3 rows to make a useful weighted average. In case we cannot do that we use the classic average.
-    if value_count <= 2:
-        value_avg = classic_value_avg
-        # This derivative is only an approximation, but better than delivering no value as it is at least based on one sample
-        derivative_avg = classic_value_avg / (duration / value_count)
-        derivative_max = Decimal(max_value) / (duration / value_count)
-        derivative_min = Decimal(min_value) / (duration / value_count)
-        sampling_rate_avg = sampling_rate_max = sampling_rate_95p = None
-    else:
+    # sampling rate is derivable as soon as there is at least one diff between two samples,
+    # independent of whether that diff is trusted enough to build the weighted average from
+    # (see the value_count <= 2 case below) - this matches the original query, where the LAG-based
+    # diff column was never gated on how many rows the phase had.
+    if value_count > 1:
         weighted_num = Decimal(0)
         weighted_den = 0
         derivative_values = []
@@ -150,19 +150,31 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
             weighted_den += diff
             derivative_values.append(Decimal(combined_values[i]) / diff) # can flake with division by zero if database is corrupted which should never be. Thus no guard. we simply fail
             diff_values.append(diff)
-        value_avg = weighted_num / Decimal(weighted_den)
+        weighted_value_avg = weighted_num / Decimal(weighted_den)
 
-
-        # these are only a true derivate if value is already a difference, which is the case for energy values
-        # and for _io_ providers or any other that outputs increments instead of totals
-        # using the derivative for other providers makes no sense atm
-        derivative_avg = sum(derivative_values) / len(derivative_values)
-        derivative_max = max(derivative_values)
-        derivative_min = min(derivative_values)
+        weighted_derivative_avg = sum(derivative_values) / len(derivative_values)
+        weighted_derivative_max = max(derivative_values)
+        weighted_derivative_min = min(derivative_values)
 
         sampling_rate_avg = sum(diff_values) / len(diff_values)
         sampling_rate_max = max(diff_values)
         sampling_rate_95p = _percentile_cont(sorted(diff_values), 0.95)
+    else:
+        sampling_rate_avg = sampling_rate_max = sampling_rate_95p = None
+
+    # Since we need to LAG the table the first value will be NULL. So it means we need at least
+    # 3 rows to make a useful weighted average. In case we cannot do that we use the classic average.
+    if value_count in (1,2):
+        value_avg = classic_value_avg
+        # This derivative is only an approximation, but better than delivering no value as it is at least based on one sample
+        derivative_avg = classic_value_avg / (duration / value_count)
+        derivative_max = Decimal(max_value) / (duration / value_count)
+        derivative_min = Decimal(min_value) / (duration / value_count)
+    else:
+        value_avg = weighted_value_avg # pylint: disable=possibly-used-before-assignment
+        derivative_avg = weighted_derivative_avg # pylint: disable=possibly-used-before-assignment
+        derivative_max = weighted_derivative_max # pylint: disable=possibly-used-before-assignment
+        derivative_min = weighted_derivative_min # pylint: disable=possibly-used-before-assignment
 
     return (
         value_sum, max_value, min_value, value_avg,
