@@ -141,17 +141,25 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
         weighted_den = 0
         derivative_values = []
         diff_values = []
-        for i in range(1, value_count):  # index 0 has no predecessor, its diff is NULL by concept
+        # index 0 has no predecessor, its diff is NULL by concept
+        # We could estimate it with an AVG, but this would increase complexity of this query as well as create fake values in case of network,
+        # where we cannot assume that the value before the first measurement is linearly extraploateable. thus we do skip it
+        for i in range(1, value_count):
             diff = combined_times[i] - combined_times[i - 1]
             weighted_num += Decimal(combined_values[i]) * diff
             weighted_den += diff
             derivative_values.append(Decimal(combined_values[i]) / diff) # can flake with division by zero if database is corrupted which should never be. Thus no guard. we simply fail
             diff_values.append(diff)
-
         value_avg = weighted_num / Decimal(weighted_den)
+
+
+        # these are only a true derivate if value is already a difference, which is the case for energy values
+        # and for _io_ providers or any other that outputs increments instead of totals
+        # using the derivative for other providers makes no sense atm
         derivative_avg = sum(derivative_values) / len(derivative_values)
         derivative_max = max(derivative_values)
         derivative_min = min(derivative_values)
+
         sampling_rate_avg = sum(diff_values) / len(diff_values)
         sampling_rate_max = max(diff_values)
         sampling_rate_95p = _percentile_cont(sorted(diff_values), 0.95)
