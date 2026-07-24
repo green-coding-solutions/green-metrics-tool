@@ -24,6 +24,26 @@ def pytest_collection_modifyitems(items):
         if str(item.fspath).startswith(CURRENT_DIR + os.sep):
             item.add_marker(pytest.mark.xdist_group(name="gunicorn"))
 
+# tests/conftest.py::_initial_db_reset already creates a schema once per worker process - but it
+# does so using *this* worker's real PYTEST_XDIST_WORKER id, before the monkeypatch below ever gets
+# a chance to run. Whichever worker this xdist_group happens to land on, its _initial_db_reset call
+# therefore creates and populates that worker's own suffixed schema (e.g. 'gmt_test_gw3'), not the
+# unsuffixed 'gmt_test' one gunicorn actually reads/writes - so without this, the first test here
+# would TRUNCATE-and-reseed a 'gmt_test' schema that was never created, silently falling through
+# search_path into 'public' instead (already seeded at container boot) and colliding with its
+# existing id=1 user. create_test_schema() is idempotent, so this is safe to call regardless of
+# whether 'gmt_test' happens to already exist (e.g. a non-parallel run with no worker id at all).
+@pytest.fixture(scope='session', autouse=True)
+def _initial_gunicorn_schema_setup():
+    # monkeypatch is function-scoped and can't be used from a session-scoped fixture, so this
+    # saves/restores the env var by hand instead.
+    saved_worker_id = os.environ.pop('PYTEST_XDIST_WORKER', None)
+    try:
+        Tests.create_test_schema()
+    finally:
+        if saved_worker_id is not None:
+            os.environ['PYTEST_XDIST_WORKER'] = saved_worker_id
+
 @pytest.fixture(autouse=True)
 def setup_and_cleanup_test(monkeypatch):
     monkeypatch.delenv('PYTEST_XDIST_WORKER', raising=False)

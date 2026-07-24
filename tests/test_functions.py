@@ -310,18 +310,41 @@ def build_image_fixture():
 # CREATE TABLE/TYPE/TRIGGER/... DDL, which isn't written to be safely re-runnable. Every reset_db()
 # call after this one (see below) can then assume the schema/tables already exist and just
 # truncate + reseed the data, with no need to check.
+#
+# Idempotent by design (safe to call more than once for the same schema): tests/api/conftest.py and
+# tests/frontend/conftest.py also call this directly, for the unsuffixed 'gmt_test' schema the
+# shared gunicorn container reads/writes - which is a *different* schema than the one this worker's
+# own tests/conftest.py::_initial_db_reset already created for its real (suffixed) worker id, so
+# both calls are legitimate and need to coexist without erroring on tables.sql's non-idempotent DDL.
 def create_test_schema():
     config = GlobalConfig().config
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
     schema = get_test_schema()
 
+    docker_exec_prefix = [
+        'docker', 'exec', '--user', 'postgres',
+        '-e', f'PGOPTIONS=-c search_path={schema},public',
+        'test-green-coding-postgres-container',
+        'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
+    ]
+
+    check_ps = subprocess.run(
+        docker_exec_prefix + [
+            '-tAc',
+            f"SELECT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = '{schema}' AND tablename = 'users')",
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if check_ps.returncode != 0:
+        raise RuntimeError('Checking whether the test schema is already set up failed with ', check_ps.stdout, check_ps.stderr)
+    if check_ps.stdout.strip() == b't':
+        return
+
     ps = subprocess.run(
-        [
-            'docker', 'exec', '--user', 'postgres',
-            '-e', f'PGOPTIONS=-c search_path={schema},public',
-            'test-green-coding-postgres-container',
-            'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
+        docker_exec_prefix + [
             '--single-transaction',
             '-c', f'CREATE SCHEMA IF NOT EXISTS "{schema}"',
             '-f', './docker-entrypoint-initdb.d/02-tables.sql',
