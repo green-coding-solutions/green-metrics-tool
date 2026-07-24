@@ -14,7 +14,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 
 from lib.log_types import LogType
-from lib.scenario_runner import ScenarioRunner
+from lib.scenario_runner import ScenarioRunner, _parse_timestamped_log_lines
 from lib.secure_variable import SecureVariable, SecureVariableEncoder
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -1291,3 +1291,102 @@ def test_database_reconnection_during_run():
 
     assert ('Database connection error' in out.getvalue() and 'Retrying in' in out.getvalue()), \
         "No database retry messages found - test may not have properly simulated database outage"
+
+## Tests for issue #1343: time-splitting of container logs
+
+def test_parse_timestamped_log_lines_normal():
+    log_text = (
+        '2025-09-17T06:46:17.013138795Z first log\n'
+        '2025-09-17T06:46:18.123456789Z second log\n'
+        '2025-09-17T06:46:19.000000001+00:00 third log with offset tz'
+    )
+    entries = _parse_timestamped_log_lines(log_text)
+    assert len(entries) == 3
+    assert entries[0] == {'timestamp': '2025-09-17T06:46:17.013138795Z', 'content': 'first log'}
+    assert entries[1] == {'timestamp': '2025-09-17T06:46:18.123456789Z', 'content': 'second log'}
+    assert entries[2] == {'timestamp': '2025-09-17T06:46:19.000000001+00:00', 'content': 'third log with offset tz'}
+
+def test_parse_timestamped_log_lines_fallback_on_no_match():
+    log_text = 'not a timestamped line\n2025-09-17T06:46:17.013138795Z real log'
+    entries = _parse_timestamped_log_lines(log_text)
+    assert len(entries) == 2
+    assert entries[0] == {'timestamp': None, 'content': 'not a timestamped line'}
+    assert entries[1] == {'timestamp': '2025-09-17T06:46:17.013138795Z', 'content': 'real log'}
+
+def test_parse_timestamped_log_lines_empty_input():
+    assert _parse_timestamped_log_lines('') == []
+
+def test_container_execution_log_uses_entries_not_plain_strings():
+    runner = ScenarioRunner(
+        uri=GMT_DIR, uri_type='folder',
+        filename='tests/data/usage_scenarios/basic_stress.yml',
+        dev_no_save=True, dev_no_system_checks=True, dev_no_sleeps=True,
+        dev_no_metrics=True, dev_no_container_dependency_collection=True,
+        skip_download_dependencies=True, skip_optimizations=True,
+    )
+    runner._add_to_current_run_log(
+        container_name='test-container',
+        log_type=LogType.CONTAINER_EXECUTION,
+        log_id=1,
+        cmd=['docker', 'run', 'test-image'],
+        phase='[MULTIPLE]',
+        stdout='2025-09-17T06:46:17.013138795Z hello from container\n',
+        stderr='2025-09-17T06:46:17.500000000Z error output\n',
+    )
+    logs = runner._ScenarioRunner__current_run_logs
+    assert 'test-container' in logs
+    entry = logs['test-container'][0]
+    assert 'stdout_entries' in entry, 'CONTAINER_EXECUTION should use stdout_entries'
+    assert 'stderr_entries' in entry, 'CONTAINER_EXECUTION should use stderr_entries'
+    assert 'stdout' not in entry, 'CONTAINER_EXECUTION must not use plain stdout key'
+    assert 'stderr' not in entry, 'CONTAINER_EXECUTION must not use plain stderr key'
+    assert entry['stdout_entries'][0] == {'timestamp': '2025-09-17T06:46:17.013138795Z', 'content': 'hello from container'}
+    assert entry['stderr_entries'][0] == {'timestamp': '2025-09-17T06:46:17.500000000Z', 'content': 'error output'}
+
+def test_setup_command_log_uses_plain_strings():
+    runner = ScenarioRunner(
+        uri=GMT_DIR, uri_type='folder',
+        filename='tests/data/usage_scenarios/basic_stress.yml',
+        dev_no_save=True, dev_no_system_checks=True, dev_no_sleeps=True,
+        dev_no_metrics=True, dev_no_container_dependency_collection=True,
+        skip_download_dependencies=True, skip_optimizations=True,
+    )
+    runner._add_to_current_run_log(
+        container_name='test-container',
+        log_type=LogType.SETUP_COMMAND,
+        log_id=2,
+        cmd=['docker', 'exec', 'test-container', 'echo', 'hi'],
+        phase='[BOOT]',
+        stdout='plain setup output\n',
+        stderr='plain setup error\n',
+    )
+    logs = runner._ScenarioRunner__current_run_logs
+    entry = logs['test-container'][0]
+    assert 'stdout' in entry, 'SETUP_COMMAND should keep plain stdout key'
+    assert 'stderr' in entry, 'SETUP_COMMAND should keep plain stderr key'
+    assert 'stdout_entries' not in entry, 'SETUP_COMMAND must not use stdout_entries'
+    assert 'stderr_entries' not in entry, 'SETUP_COMMAND must not use stderr_entries'
+    assert entry['stdout'] == 'plain setup output\n'
+    assert entry['stderr'] == 'plain setup error\n'
+
+def test_flow_command_log_uses_plain_strings():
+    runner = ScenarioRunner(
+        uri=GMT_DIR, uri_type='folder',
+        filename='tests/data/usage_scenarios/basic_stress.yml',
+        dev_no_save=True, dev_no_system_checks=True, dev_no_sleeps=True,
+        dev_no_metrics=True, dev_no_container_dependency_collection=True,
+        skip_download_dependencies=True, skip_optimizations=True,
+    )
+    runner._add_to_current_run_log(
+        container_name='test-container',
+        log_type=LogType.FLOW_COMMAND,
+        log_id=3,
+        cmd=['docker', 'exec', 'test-container', 'stress', '--cpu', '1'],
+        phase='[RUNTIME]',
+        stdout='stress output line\n',
+    )
+    logs = runner._ScenarioRunner__current_run_logs
+    entry = logs['test-container'][0]
+    assert 'stdout' in entry, 'FLOW_COMMAND should keep plain stdout key'
+    assert 'stdout_entries' not in entry, 'FLOW_COMMAND must not use stdout_entries'
+    assert entry['stdout'] == 'stress output line\n'

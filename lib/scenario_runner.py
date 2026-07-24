@@ -66,6 +66,20 @@ def validate_usage_scenario_variables(usage_scenario_variables):
             raise ValueError(f"Usage Scenario variable ({key}) has invalid name. Format must be __GMT_VAR_[\\w]+__ - Example: __GMT_VAR_EXAMPLE__")
     return usage_scenario_variables
 
+_DOCKER_LOG_TIMESTAMP_RE = re.compile(
+    r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+(?:Z|[+-]\d{2}:\d{2})) (.*)$'
+)
+
+def _parse_timestamped_log_lines(log_text):
+    entries = []
+    for line in log_text.splitlines():
+        m = _DOCKER_LOG_TIMESTAMP_RE.match(line)
+        if m:
+            entries.append({'timestamp': m.group(1), 'content': m.group(2).replace('\x00', '0x00')})
+        else:
+            entries.append({'timestamp': None, 'content': line.replace('\x00', '0x00')})
+    return entries
+
 class ScenarioRunner:
     def __init__(self,
         *, uri, uri_type, name=None, filename='usage_scenario.yml', branch=None,
@@ -2046,22 +2060,46 @@ class ScenarioRunner:
             'phase': phase
         }
 
-        if stdout is not None:
-            if isinstance(stdout, str):
-                log_entry['stdout'] = stdout.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
-            elif hasattr(stdout, 'decode') and callable(getattr(stdout, 'decode')): # can happen if a timeout error has occured and stdout was thus not converted yet
-                log_entry['stdout'] = stdout.decode('UTF-8', errors='replace').replace('\x00', '0x00')
-            else:
-                log_entry['stdout'] = str(stdout).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
-            log_entry['stdout'] = utils.filter_sensitive_data(log_entry['stdout'])
-        if stderr is not None:
-            if isinstance(stderr, str):
-                log_entry['stderr'] = stderr.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
-            elif hasattr(stderr, 'decode') and callable(getattr(stderr, 'decode')): # can happen if a timeout error has occured and stderr was thus not converted yet
-                log_entry['stderr'] = stderr.decode('UTF-8', errors='replace').replace('\x00', '0x00')
-            else:
-                log_entry['stderr'] = str(stderr).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
-            log_entry['stderr'] = utils.filter_sensitive_data(log_entry['stderr'])
+        if log_type == LogType.CONTAINER_EXECUTION:
+            # Frontend display: prepend each entry timestamp before its content,
+            # similar to `docker logs -t`. No stdout/stderr interleaving for now.
+            # Sensitive data is filtered on the full text before line-splitting, as
+            # filter_sensitive_data's PRIVATE_KEY_RE can match blocks spanning multiple lines.
+            if stdout is not None:
+                if isinstance(stdout, str):
+                    stdout_str = stdout
+                elif hasattr(stdout, 'decode') and callable(getattr(stdout, 'decode')):
+                    stdout_str = stdout.decode('UTF-8', errors='replace')
+                else:
+                    stdout_str = str(stdout)
+                stdout_str = utils.filter_sensitive_data(stdout_str)
+                log_entry['stdout_entries'] = _parse_timestamped_log_lines(stdout_str)
+            if stderr is not None:
+                if isinstance(stderr, str):
+                    stderr_str = stderr
+                elif hasattr(stderr, 'decode') and callable(getattr(stderr, 'decode')):
+                    stderr_str = stderr.decode('UTF-8', errors='replace')
+                else:
+                    stderr_str = str(stderr)
+                stderr_str = utils.filter_sensitive_data(stderr_str)
+                log_entry['stderr_entries'] = _parse_timestamped_log_lines(stderr_str)
+        else:
+            if stdout is not None:
+                if isinstance(stdout, str):
+                    log_entry['stdout'] = stdout.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+                elif hasattr(stdout, 'decode') and callable(getattr(stdout, 'decode')): # can happen if a timeout error has occured and stdout was thus not converted yet
+                    log_entry['stdout'] = stdout.decode('UTF-8', errors='replace').replace('\x00', '0x00')
+                else:
+                    log_entry['stdout'] = str(stdout).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
+                log_entry['stdout'] = utils.filter_sensitive_data(log_entry['stdout'])
+            if stderr is not None:
+                if isinstance(stderr, str):
+                    log_entry['stderr'] = stderr.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+                elif hasattr(stderr, 'decode') and callable(getattr(stderr, 'decode')): # can happen if a timeout error has occured and stderr was thus not converted yet
+                    log_entry['stderr'] = stderr.decode('UTF-8', errors='replace').replace('\x00', '0x00')
+                else:
+                    log_entry['stderr'] = str(stderr).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
+                log_entry['stderr'] = utils.filter_sensitive_data(log_entry['stderr'])
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:
@@ -2720,7 +2758,7 @@ class ScenarioRunner:
                 stderr_behaviour = subprocess.PIPE
 
             log = subprocess.run(
-                ['docker', 'logs', container_id],
+                ['docker', 'logs', '--timestamps', container_id],
                 check=True,
                 encoding='UTF-8',
                 errors='replace',
