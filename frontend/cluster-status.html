@@ -72,7 +72,24 @@
         <table id="machines-table" class="ui celled striped table"></table>
 
         <h3>Jobs queue</h3>
+        <div class="ui form" style="margin-bottom: 1em;">
+            <div class="inline field">
+                <label for="jobs-state-filter">Filter by state:</label>
+                <select id="jobs-state-filter" class="ui dropdown">
+                    <option value="">All</option>
+                </select>
+            </div>
+        </div>
         <table id="jobs-table" class="ui celled striped table"></table>
+
+        <h3>System Logs</h3>
+        <div id="system-logs-section">
+            <table id="system-logs-table" class="ui celled striped table"></table>
+        </div>
+        <div id="system-logs-no-access" class="ui info message" style="display: none;">
+            <i class="info circle icon"></i>
+            System logs are not available for your account. Admin rights are required to view this section.
+        </div>
     </div>
     <div class="ui overlay large modal" id="machine-configuration">
         <div class="header">Details</div>

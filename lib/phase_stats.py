@@ -10,6 +10,7 @@ from io import StringIO
 from lib.db import DB
 from lib import error_helpers
 
+MAX_POSTGRES_BIGINT = 2**63 - 1
 
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
     # First we create averages for all types. This includes means and totals
@@ -101,18 +102,20 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
         FROM runs
         WHERE id = %s
         """
-    phases = DB().fetch_one(query, (run_id, ))
+    phase_data = DB().fetch_one(query, (run_id, ))
 
-    if not phases or not phases[0]:
+    if not phase_data or not phase_data[0]:
         error_helpers.log_error('Phases object was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
         return
+
+    phases = phase_data[0]
 
     csv_buffer = StringIO()
 
     machine_power_baseline = None
     runtime_phase_idx = None
 
-    for idx, phase in enumerate(phases[0]):
+    for idx, phase in enumerate(phases):
         if phase['name'] == '[RUNTIME]': # do not process runtime like this, but rather reconstruct it later. Still advance the idx counter though as we want to use the number later
             runtime_phase_idx = idx
             continue
@@ -131,16 +134,45 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
         machine_energy_current_phase = None
 
         select_query = """
-            WITH lag_table as (
-                SELECT time, value, (time - LAG(time) OVER (ORDER BY time ASC)) AS diff
+            WITH in_range AS (
+                SELECT
+                    time,
+                    value,
+                    1 as in_phase -- a dummy marker to tell us if the later joined samples are from inside our outside the phase boundary
                 FROM measurement_values
-                WHERE measurement_metric_id = %s AND time > %s and time < %s
+                WHERE measurement_metric_id = %s
+                  AND time > %s
+                  AND time < %s
+            ),
+            next_one AS (
+                SELECT
+                    time,
+                    value,
+                    0 as in_phase  -- a dummy marker to tell us if the later joined samples are from inside our outside the phase boundary
+                FROM measurement_values
+                WHERE measurement_metric_id = %s
+                  AND time >= %s          -- same upper bound as above
+                  AND time < %s
+                ORDER BY time ASC
+                LIMIT 1
+            ),
+            lag_table as (
+                SELECT
+                    time,
+                    value,
+                    (time - LAG(time) OVER (ORDER BY time ASC)) AS diff,
+                    in_phase
+                FROM (
+                    SELECT time, value, in_phase FROM in_range
+                    UNION ALL
+                    SELECT time, value, in_phase FROM next_one
+                )
                 ORDER BY time ASC
             )
             SELECT
                 SUM(value), MAX(value), MIN(value),
                 AVG(value), -- This would be the normal average. we only use that when there is less than three values available and we cannot build a weighted average
-                (SUM(value*diff))::DOUBLE PRECISION/(SUM(diff)), -- weighted average -- we are missing the first row, which is NULL by concept. We could estimate it with an AVG, but this would increase complexity of this query as well as create fake values in case of network, where we cannot assume that the value before the first measurement is linearly extraploateable. thus we do skip it
+                (SUM(value*diff::DOUBLE PRECISION))/(SUM(diff)), -- weighted average -- we are missing the first row, which is NULL by concept. We could estimate it with an AVG, but this would increase complexity of this query as well as create fake values in case of network, where we cannot assume that the value before the first measurement is linearly extraploateable. thus we do skip it
 
                 -- these are only a true derivate if value is already a difference, which is the case for energy values and for _io_ providers or any other that outputs increments instead of totals
                 -- using the derivative for other providers makes no sense atm
@@ -151,25 +183,27 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 COUNT(value),
                 AVG(diff) as sampling_rate_avg,
                 MAX(diff) as sampling_rate_max,
-                percentile_cont(0.95) WITHIN GROUP (ORDER BY diff) AS sampling_rate_95p
+                percentile_cont(0.95) WITHIN GROUP (ORDER BY diff) AS sampling_rate_95p,
+                SUM(in_phase) as in_phase  -- a dummy marker to tell us if the later joined samples are from inside our outside the phase boundary
             FROM lag_table
         """
 
         duration = Decimal(phase['end']-phase['start'])
+        next_phase_start = phases[idx+1]['start'] if idx+1 < len(phases) else MAX_POSTGRES_BIGINT
         duration_in_s = Decimal(duration / 1_000_000)
         csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, None, None, None, 'us'))
 
 
         for measurement_metric_id, metric, unit, detail_name in metrics:
-            params = (measurement_metric_id, phase['start'], phase['end'])
+            params = (measurement_metric_id, phase['start'], phase['end'], measurement_metric_id, phase['end'], next_phase_start)
             results = DB().fetch_one(select_query, params=params)
 
             if metric not in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', 'carbon_intensity_static_machine'):
                 continue
 
-            value_sum, _, _, classic_value_avg, weighted_value_avg, _, _, _, value_count, _, _, _ = results
+            value_sum, _, _, classic_value_avg, weighted_value_avg, _, _, _, value_count, _, _, _, in_phase = results
 
-            if value_count == 0:
+            if value_count == 0 or not in_phase:
                 continue
 
             if value_count <= 2:
@@ -184,14 +218,15 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
         # now we go through all metrics in the run and aggregate them
         for measurement_metric_id, metric, unit, detail_name in metrics: # unpack
-            params = (measurement_metric_id, phase['start'], phase['end'])
+            params = (measurement_metric_id, phase['start'], phase['end'], measurement_metric_id, phase['end'], next_phase_start)
             results = DB().fetch_one(select_query, params=params)
 
-            value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p = results
+            value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase = results
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
-            if value_count == 0: continue
+            if value_count == 0 or not in_phase:
+                continue
 
             # Since we need to LAG the table the first value will be NULL. So it means we need at least 3 rows to make a useful weighted average.
             # In case we cannot do that we use the classic average
@@ -219,7 +254,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                     # value_count == 1: no LAG diff available, cannot estimate rate — always undersampled
                     is_undersampled = True
                 if is_undersampled:
-                    phase_warnings.add(f"Very few samples (< 50% of observed duration or < 2) encountered in phase '{phase['name']}', MEAN values might be inaccurate")
+                    phase_warnings.add(f"Very few samples (< 50% of observed duration or < 2) encountered in phase '{phase['name']}' and metric '{metric}', MEAN values might be inaccurate")
 
             # we make everything Decimal so in subsequent divisions these values stay Decimal
             value_sum = Decimal(value_sum)

@@ -126,6 +126,7 @@ def parse_tcpdump(lines, split_ports=False):
     time_and_protocol_pattern = re.compile(r'^\d{10,15}\.\d{6}.* proto (\w+).* length (\d+)')
     only_ip_pattern = re.compile(r'(\S+) > (\S+):')
     lldp_pattern = re.compile(r'^\d{10,15}\.\d{6} (LLDP), length (\d+)\s*$')
+    layer2_control_pattern = re.compile(r'^\d{10,15}\.\d{6} (?:STP |CDPv)')
 
     packet_length = None # running variable
     protocol = None # running variable
@@ -134,6 +135,7 @@ def parse_tcpdump(lines, split_ports=False):
     for line in lines:
         try:
             used_mode = None
+
             if ethertype_unknown_match := ethertype_unknown_pattern.search(line):
                 used_mode = 'ethertype_unknown_match'
                 #print('Ethermatch', ethertype_unknown_match.groups())
@@ -182,6 +184,8 @@ def parse_tcpdump(lines, split_ports=False):
             elif not line.strip(): # ignore empty lines
                 continue
             elif 'ARP, Ethernet' in line or 'ARP, Request who-has' in line: # we ignore ARP for now
+                continue
+            elif layer2_control_pattern.search(line): # layer-2 control frames (STP, CDP, ...) are not tracked
                 continue
             elif line.startswith('    ') or line.startswith('\t'): # these are all detail infos for specific control packets. 4-6 indents indicate deep detail infos
                 continue

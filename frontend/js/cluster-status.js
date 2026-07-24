@@ -1,4 +1,17 @@
 
+async function deleteSystemLog(e){
+    e.preventDefault()
+    const log_id = this.getAttribute('data-log-id');
+    try {
+        await makeAPICall('/v1/system-log', {log_id: parseInt(log_id), action: 'delete'}, null, true)
+        $('#system-logs-table').DataTable().row(this.closest('tr')).remove().draw();
+        showNotification('Log deleted', 'System log entry deleted successfully', 'success');
+    } catch (err) {
+        showNotification('Could not delete log', err);
+    }
+    return false;
+};
+
 async function cancelJob(e){
     e.preventDefault()
     const job_id = this.getAttribute('data-job-id');
@@ -32,6 +45,18 @@ $(document).ready(function () {
             jobs_data = await makeAPICall('/v2/jobs')
         } catch (err) {
             showNotification('Could not get jobs data from API', err); // we do not return here, as empty data is an OK response
+        }
+
+        let system_logs_data = null;
+        try {
+            system_logs_data = await makeAPICall('/v1/system-logs')
+        } catch (err) {
+            if (err instanceof APIHTTPError && err.status === 401) {
+                document.getElementById('system-logs-section').style.display = 'none';
+                document.getElementById('system-logs-no-access').style.display = '';
+            } else if (!(err instanceof APIHTTPError && err.status === 204)) {
+                showNotification('Could not get system logs from API', err);
+            }
         }
 
         $('#machines-table').DataTable({
@@ -106,12 +131,12 @@ $(document).ready(function () {
             order: [[2, 'asc']], // API also orders, but we need to indicate order for the user
         });
 
-        $('#jobs-table').DataTable({
+        const jobs_table = $('#jobs-table').DataTable({
             data: jobs_data?.data,
             columns: [
                 { data: 0, title: 'ID'},
                 { data: 2, title: 'Name', render: (name, type, row) => row[1] == null ? escapeString(name) : `<a href="/stats.html?id=${row[1]}">${escapeString(name)}</a>`  },
-                { data: 3, title: 'Url', render: (el) => escapeString(el)},
+                { data: 3, title: 'Url', render: (el) => `<span class="left-side-ellipsis long-ellipsis" title="${escapeString(el)}">${escapeString(el)}</span>`},
                 {
                     data: 4,
                     title: 'Filename',
@@ -138,6 +163,44 @@ $(document).ready(function () {
                 document.querySelectorAll('.cancel-job').forEach(el => {
                     el.removeEventListener('click', cancelJob)
                     el.addEventListener('click', cancelJob)
+                })
+            },
+        });
+
+        // Populate the state filter dropdown with the unique states present in the jobs queue
+        const jobs_state_filter = document.getElementById('jobs-state-filter');
+        const states = jobs_table.column(6).data().unique().sort().toArray();
+        states.forEach(state => {
+            if (state == null || state === '') return;
+            const option = document.createElement('option');
+            option.value = state;
+            option.textContent = state;
+            jobs_state_filter.appendChild(option);
+        });
+        jobs_state_filter.addEventListener('change', function() {
+            // Exact-match search on the State column (anchored regex, no smart search)
+            const value = this.value ? `^${this.value}$` : '';
+            jobs_table.column(6).search(value, true, false).draw();
+        });
+
+        $('#system-logs-table').DataTable({
+            data: system_logs_data?.data,
+            columns: [
+                { data: 0, title: 'ID'},
+                { data: 1, title: 'Title', render: (el) => escapeString(el)},
+                { data: 2, title: 'Message', render: (el) => `<pre style="white-space:pre-wrap;max-height:500px; max-width:80vw;overflow:auto;margin:0">${escapeString(el)}</pre>`},
+                { data: 3, title: 'Level', render: (el) => escapeString(el)},
+                { data: 4, title: 'Created at', render: (el) => el == null ? '-' : dateToYMD(new Date(el))},
+                { data: 0, title: '-', class: 'log-action', render: (el) =>
+                    `<a class="delete-log" data-log-id="${el}"><i class="ui large icon red times circle"></i></a>`
+                },
+            ],
+            deferRender: true,
+            order: [[4, 'desc']],
+            drawCallback: function() {
+                document.querySelectorAll('.delete-log').forEach(el => {
+                    el.removeEventListener('click', deleteSystemLog)
+                    el.addEventListener('click', deleteSystemLog)
                 })
             },
         });

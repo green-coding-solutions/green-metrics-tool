@@ -22,10 +22,7 @@ from lib.user import User
 from lib.db import DB
 from lib.secure_variable import SecureVariable
 
-from api.object_specifications import UserSetting
-
-from enum import Enum
-ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
+from api.object_specifications import UserSetting, SystemLogDelete
 
 app = FastAPI()
 
@@ -171,6 +168,7 @@ async def update_user_setting(setting: UserSetting, user: User = Depends(authent
 
 @app.get('/v1/cluster/status')
 async def get_cluster_status(
+    # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
     query = '''
@@ -190,6 +188,7 @@ async def get_cluster_status(
 
 @app.get('/v1/cluster/status/history')
 async def get_cluster_status_history(
+    # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
     query = '''
@@ -211,6 +210,7 @@ async def get_cluster_changelog(
     start_date: date | None = None,
     end_date: date | None = None,
     show_package_updates: bool | None = None,
+    # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
 
@@ -255,6 +255,38 @@ async def get_cluster_changelog(
 
     return CustomORJSONResponse({'success': True, 'data': data})
 
+@app.get('/v1/system-logs')
+async def get_system_logs(
+    # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
+    user: User = Depends(authenticate) # pylint: disable=unused-argument
+    ):
+
+    data = DB().fetch_all(
+        'SELECT id, title, message, level, created_at FROM system_logs ORDER BY created_at DESC LIMIT 20',
+        []
+    )
+    if data is None or data == []:
+        return Response(status_code=204)
+    return CustomORJSONResponse({'success': True, 'data': data})
+
+@app.put('/v1/system-log')
+async def update_system_log(
+    log: SystemLogDelete,
+    # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
+    user: User = Depends(authenticate), # pylint: disable=unused-argument
+    ):
+
+    if log.action != 'delete':
+        raise HTTPException(status_code=422, detail=f"Unsupported action: {log.action}")
+
+    query = 'DELETE FROM system_logs WHERE id = %s RETURNING id'
+    deleted = DB().fetch_one(query, params=[log.log_id])
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail='System log entry not found')
+
+    return Response(status_code=202)
+
 
 if GlobalConfig().config.get('activate_scenario_runner', False):
     from api import scenario_runner
@@ -275,6 +307,10 @@ if GlobalConfig().config.get('activate_carbon_db', False):
 if GlobalConfig().config.get('activate_ai_optimisations', False):
     from ee.api import ai_optimisations
     app.include_router(ai_optimisations.router)
+
+if GlobalConfig().config.get('activate_software_view', False):
+    from api import software
+    app.include_router(software.router)
 
 
 if __name__ == '__main__':

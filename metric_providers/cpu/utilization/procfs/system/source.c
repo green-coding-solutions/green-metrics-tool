@@ -34,6 +34,7 @@ typedef struct procfs_time_t { // struct is a specification and this static make
 // not pollute another threads state
 static unsigned int msleep_time=1000;
 static struct timespec offset;
+static unsigned int min_msleep_time_ms = 0;
 
 static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
 
@@ -83,8 +84,16 @@ static void output_stats() {
     // printf("Main CPU Idle Reading: %ld\nMain CPU Compute Time Reading: %ld\n", idle_reading, compute_time_reading);
     // printf("%ld%06ld %f\n", now.tv_sec, now.tv_usec, (double)compute_time_reading / (double)(compute_time_reading+idle_reading));
 
+    long int total_reading = compute_time_reading + non_compute_reading;
+    long int reading;
+    if(total_reading == 0) {
+        reading = 0;
+    } else {
+        reading = (compute_time_reading*10000) / total_reading; // Deliberate integer conversion. Precision with 0.01% is good enough
+    }
+
     // main output to Stdout
-    printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (compute_time_reading*10000) / (compute_time_reading+non_compute_reading) ); // Deliberate integer conversion. Precision with 0.01% is good enough
+    printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, reading);
 }
 
 int main(int argc, char **argv) {
@@ -94,12 +103,15 @@ int main(int argc, char **argv) {
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
+    min_msleep_time_ms = get_min_sleep_time_ms(); // must run before we validate -i
+
     while ((c = getopt (argc, argv, "i:hc")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
+            printf("\t          (must be >= kernel tick period, currently %u ms)\n", min_msleep_time_ms);
             printf("\t-c      : check system and exit\n");
             printf("\n");
 
@@ -111,6 +123,7 @@ int main(int argc, char **argv) {
             resolution = res.tv_sec + (((double)res.tv_nsec)/1.0e9);
             printf("\tSystemHZ\t%ld\n", (unsigned long)(1/resolution + 0.5));
             printf("\tCLOCKS_PER_SEC\t%ld\n", CLOCKS_PER_SEC);
+            printf("\tMinSampleMS\t%u\n", min_msleep_time_ms);
             exit(0);
         case 'i':
             msleep_time = parse_int(optarg);
@@ -127,6 +140,8 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_path("/proc/stat"));
     }
+
+    validate_min_sleep_time(msleep_time, min_msleep_time_ms);
 
     get_time_offset(&offset);
 

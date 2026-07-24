@@ -26,20 +26,27 @@ from lib.cache_definitions import NoNoneOrNegativeValuesCache
 
 def process(table):
 
-    print(f"Current rows in DB where {table}.lat/lon is missing in last 30 days", fetch_geo_missing(table, count_only=True))
+    data = fetch_geo_missing(table)
+    print(f"Rows in DB where {table}.lat/lon is missing in last 30 days:", len(data))
 
-    updated_rows = update_geo_from_db_cache(table)
+    if not data:
+        return
 
+    ids = [row[0] for row in data]
+
+    updated_rows = update_geo_from_db_cache(table, ids)
     print('Updated rows', updated_rows)
 
-    print(f"Rows after db cached update where {table}.lat/lon is missing in last 30 days", fetch_geo_missing(table, count_only=True))
+    updated_ids = {row[0] for row in updated_rows}
+    remaining_data = [row for row in data if row[0] not in updated_ids]
 
-    data = fetch_geo_missing(table)
-    backfill_geo_missing(table, data)
+    print(f"Rows left after db cached update where {table}.lat/lon is missing in last 30 days:", len(remaining_data))
 
-    print(f"Rows left after manual row-level update where {table}.lat/lon is missing in last 30 days", fetch_geo_missing(table, count_only=True))
+    backfill_geo_missing(table, remaining_data)
 
-def update_geo_from_db_cache(table):
+    print(f"Rows manually backfilled where {table}.lat/lon was missing in last 30 days:", len(remaining_data))
+
+def update_geo_from_db_cache(table, ids):
     query = f"""
         WITH geo_missing AS (
             SELECT DISTINCT ON (from_table.id)
@@ -52,8 +59,7 @@ def update_geo_from_db_cache(table):
                   ip.ip_address = from_table.ip_address
                   AND ABS(EXTRACT(EPOCH FROM (from_table.created_at - ip.created_at::timestamp))) < EXTRACT(EPOCH FROM INTERVAL '30 DAYS')
             WHERE
-                (from_table.latitude IS NULL OR from_table.longitude IS NULL)
-                AND (from_table.carbon_intensity_g IS NULL) -- indicates it is not user set
+                from_table.id = ANY(%s)
             ORDER BY
                 from_table.id,
                 ABS(EXTRACT(EPOCH FROM (from_table.created_at - ip.created_at::timestamp))) ASC
@@ -66,25 +72,19 @@ def update_geo_from_db_cache(table):
         WHERE from_table.id = gm.id
           AND gm.latitude IS NOT NULL
           AND gm.longitude IS NOT NULL
-        RETURNING from_table.id, from_table.latitude, from_table.longitude;
+        RETURNING from_table.id;
     """
 
-    return DB().fetch_all(query)
+    return DB().fetch_all(query, params=(ids,))
 
-def fetch_geo_missing(table, count_only=False):
-
-    if count_only:
-        selection = 'COUNT(*)'
-    else:
-        selection = 'id, ip_address'
-
+def fetch_geo_missing(table):
     query = f"""
-        SELECT {selection}
+        SELECT id, ip_address
         FROM {table} as from_table
         WHERE
             (from_table.longitude is NULL OR from_table.latitude IS NULL)
             AND from_table.carbon_intensity_g IS NULL -- indicates it is not user set
-            AND from_table.ip_address IS NOT NULL
+            AND from_table.ip_address IS NOT NULL -- needed to ignore carbondb data rows copied from scenario runner which never have an ip address
             AND created_at > NOW() - INTERVAL '30 DAYS'
     """
     data = DB().fetch_all(query)

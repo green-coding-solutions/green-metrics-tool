@@ -44,26 +44,45 @@ jobs:
 
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: 'Checkout repository'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: 'main'
           submodules: 'false'
 
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
-        name: 'Setup, Run, and Teardown Tests'
+        name: 'Setup'
+        uses: ./.github/actions/gmt-pytest
+        with:
+         task: setup
+         github-token: ${{ secrets.GITHUB_TOKEN }}
+         enable-ssh: ${{ inputs.enable-ssh }}
+
+      - if: ${{ always() && (github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true') }}
+        name: Eco CI Energy Estimation - Get Measurement (Setup)
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: get-measurement
+          label: 'Setup'
+
+      - if: ${{ always() && (github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true') }}
+        name: 'Run'
         uses: ./.github/actions/gmt-pytest
         # Never bringt this to the PR test, as other people can then extract it. Running it on the periodic tests is enough
         env:
           ELECTRICITY_MAPS_TOKEN: ${{ secrets.ELECTRICITYMAPS_SANDBOX_TOKEN }}
         with:
+         task: run
          github-token: ${{ secrets.GITHUB_TOKEN }}
-         enable-ssh: ${{ inputs.enable-ssh }}
+         docker-user: ${{ secrets.GMT_TESTING_DOCKER_USER }}
+         docker-pat: ${{ secrets.GMT_TESTING_DOCKER_PAT }}
          test-path: ${{ inputs.test-path }}
 
-      - name: Eco CI Energy Estimation - Get Measurement
+      - name: Eco CI Energy Estimation - Get Measurement (Run)
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: get-measurement
+          label: 'Run'
 
       - name: Eco CI Energy Estimation - End Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@main

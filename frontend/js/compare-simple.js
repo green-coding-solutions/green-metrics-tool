@@ -52,7 +52,7 @@ const fetchSinglePhaseStats = async (run_id) => {
         const response = await makeAPICall(`/v1/phase_stats/single/${encodeURIComponent(run_id)}`);
         return response?.data || null;
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) return null;
+        if (err instanceof APIHTTPError && err.status === 204) return null;
         showNotification(`Could not load phase stats for run ${run_id}`, err);
         return null;
     }
@@ -190,6 +190,7 @@ const populatePhaseDropdown = () => {
 
     select.addEventListener('change', () => {
         compareSimpleState.selectedPhase = select.value;
+        syncURLParams();
         // Re-list the dropdown options for the new phase, but keep the selection — metrics that don't
         // exist in the new phase are silently dropped from view but preserved in state for if the user
         // switches back.
@@ -233,9 +234,12 @@ const syncURLParams = () => {
     const url = new URL(window.location.href);
     const p = url.searchParams;
 
+    if (compareSimpleState.selectedPhase !== DEFAULT_PHASE) { p.set('phase', compareSimpleState.selectedPhase); } else { p.delete('phase'); }
+
     if (compareSimpleState.metricsOnY) { p.set('swap_axes', 'true'); } else { p.delete('swap_axes'); }
     if (compareSimpleState.showSource)  { p.set('source', 'true'); }   else { p.delete('source'); }
     if (compareSimpleState.showDetail)  { p.set('detail', 'true'); }   else { p.delete('detail'); }
+    if (compareSimpleState.colorize)    { p.delete('colorize'); }      else { p.set('colorize', 'false'); }
 
     if (compareSimpleState.selectedMetrics != null && compareSimpleState.selectedMetrics.size > 0) {
         const names = [...new Set([...compareSimpleState.selectedMetrics].map((k) => k.split('||')[0]))];
@@ -331,10 +335,10 @@ const renderRunsOnY = (metricKeys, lookup) => {
             : escapeString(m.clean_name);
         const parts = [`<div>${nameLine}</div>`];
         if (compareSimpleState.showSource) {
-            parts.push(`<small class="detail-name-ellipsis" title="${escapeString(m.source)}">${escapeString(m.source)}</small>`);
+            parts.push(`<small class="left-side-ellipsis" title="${escapeString(m.source)}">${escapeString(m.source)}</small>`);
         }
         if (compareSimpleState.showDetail) {
-            parts.push(`<small class="detail-name-ellipsis" title="${escapeString(m.detail_name)}">${escapeString(m.detail_name)}</small>`);
+            parts.push(`<small class="left-side-ellipsis" title="${escapeString(m.detail_name)}">${escapeString(m.detail_name)}</small>`);
         }
         const header = parts.join('');
         columns.push({
@@ -429,6 +433,7 @@ $(document).ready(() => {
         if (url_params['swap_axes'] === 'true') compareSimpleState.metricsOnY = true;
         if (url_params['source'] === 'true') compareSimpleState.showSource = true;
         if (url_params['detail'] === 'true') compareSimpleState.showDetail = true;
+        if (url_params['colorize'] === 'false') compareSimpleState.colorize = false;
 
         const results = await Promise.all(compareSimpleState.runIds.map(async (run_id) => {
             const [stats, meta] = await Promise.all([
@@ -455,6 +460,15 @@ $(document).ready(() => {
         }
 
         document.querySelector('#loader-compare-simple').remove();
+
+        if (url_params['phase']) {
+            if (compareSimpleState.availablePhases.has(url_params['phase'])) {
+                compareSimpleState.selectedPhase = url_params['phase'];
+            } else {
+                // populatePhaseDropdown() falls back to the first phase that has data in every run
+                showNotification('Invalid deeplink', `Not all selected runs have data for the phase "${url_params['phase']}". Falling back to a phase that they all share.`);
+            }
+        }
 
         populatePhaseDropdown();
 
