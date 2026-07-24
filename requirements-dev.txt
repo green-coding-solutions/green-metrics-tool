@@ -2,4 +2,5 @@
 pydantic==2.13.4
 pylint==4.0.6
 pytest-randomly==4.1.0
+pytest-xdist==3.6.1
 pytest-playwright==0.7.2

@@ -21,6 +21,7 @@ from lib.db import DB
 from lib import utils
 from lib.system_checks import ConfigurationCheckError
 from lib import container_compatibility
+from lib.utils import container_name
 from tests import test_functions as Tests
 
 GMT_DIR = Path(__file__).parent.parent.as_posix()
@@ -32,7 +33,7 @@ GMT_DIR = Path(__file__).parent.parent.as_posix()
 #     / or a remote git repository starting with http(s)://
 def test_uri_local_dir():
 
-    tmp_folder = Path('/tmp/green-metrics-tool').resolve()
+    tmp_folder = Tests.get_tmp_folder().resolve()
     tmp_folder.mkdir(exist_ok=True)
 
     run_name = 'test_' + utils.randomword(12)
@@ -70,7 +71,7 @@ def test_uri_local_dir_missing():
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_git_environment_without_ssh_private_key():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=['check_steal_time'])
     runner._create_folders()
 
     env = runner._get_git_environment()
@@ -80,7 +81,7 @@ def test_git_environment_without_ssh_private_key():
 
 def test_git_environment_with_ssh_private_key():
     key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=['check_steal_time'])
     runner._create_folders()
 
     env = runner._get_git_environment()
@@ -94,7 +95,7 @@ def test_git_environment_with_ssh_private_key():
 
 def test_git_environment_with_secure_variable_ssh_private_key():
     key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=['check_steal_time'])
     runner._create_folders()
 
     env = runner._get_git_environment()
@@ -105,7 +106,7 @@ def test_git_environment_with_secure_variable_ssh_private_key():
 
 def test_runner_arguments_obfuscate_ssh_private_key():
     key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=['check_steal_time'])
 
     runner_arguments = json.dumps(runner._arguments, cls=SecureVariableEncoder)
     assert key not in runner_arguments
@@ -123,7 +124,7 @@ def test_non_git_root_supplied():
 def test_uri_github_repo_and_using_default_filename():
 
     # we use this test also to test file cleanup ... not best practice, but it saves some test time
-    tmp_folder = Path('/tmp/green-metrics-tool').resolve()
+    tmp_folder = Tests.get_tmp_folder().resolve()
     tmp_folder.mkdir(exist_ok=True)
 
     uri = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
@@ -194,11 +195,17 @@ def test_uri_github_repo_branch_missing():
     runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/pytest-dummy-repo', uri_type='URL', branch='missing-branch', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     with pytest.raises(subprocess.CalledProcessError) as e:
         runner.run()
-    expected_exception = f"Command '['git', 'clone', '--depth', '1', '-b', 'missing-branch', '--single-branch', '--recurse-submodules', '--shallow-submodules', 'https://github.com/green-coding-solutions/pytest-dummy-repo', '{os.path.realpath('/tmp/green-metrics-tool/repo')}']' returned non-zero exit status 128."
+    expected_exception = f"Command '['git', 'clone', '--depth', '1', '-b', 'missing-branch', '--single-branch', '--recurse-submodules', '--shallow-submodules', 'https://github.com/green-coding-solutions/pytest-dummy-repo', '{os.path.realpath(runner._repo_folder)}']' returned non-zero exit status 128."
     assert expected_exception == str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 ## --commit-hash COMMIT_HASH
+# Only check_steal_time (an end-only check) is disabled here, and this stops at
+# 'import_metric_providers' - exactly the phase where each provider's real, system-wide
+# check_system() runs, before 'end' checks are ever reached - so it must never overlap with
+# another test that has real metric providers running. See the comment on pytestmark in
+# tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_uri_github_repo_commit_hash_checkout():
     commit_hash = 'b60dd7b9c0d533d0c7fbb1afcfe9fccf13d457bf'
     expected_message = "Remove legacy 'type' field from ubuntu-stress service"
@@ -212,6 +219,7 @@ def test_uri_github_repo_commit_hash_checkout():
         dev_no_container_dependency_collection=True,
         skip_download_dependencies=True,
         skip_optimizations=True,
+        dev_no_system_checks=['check_steal_time'],
     )
 
     with Tests.RunUntilManager(runner) as context:
@@ -233,6 +241,12 @@ def test_uri_github_repo_commit_hash_checkout():
         assert checked_out_commit_hash == commit_hash, Tests.assertion_info(f"commit_hash: {commit_hash}", checked_out_commit_hash)
         assert commit_message == expected_message, Tests.assertion_info(f"commit_message: {expected_message}", commit_message)
 
+# Only check_steal_time (an end-only check) is disabled here, and this stops at
+# 'import_metric_providers' - exactly the phase where each provider's real, system-wide
+# check_system() runs, before 'end' checks are ever reached - so it must never overlap with
+# another test that has real metric providers running. See the comment on pytestmark in
+# tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_relations_checkout_specific_commit_hash():
     relation_commit_hash = 'b8c6c7575e493c9808ceeea2a5e7311c61b16419'
     expected_message = 'Added WOL script'
@@ -245,6 +259,7 @@ def test_relations_checkout_specific_commit_hash():
         dev_no_container_dependency_collection=True,
         skip_download_dependencies=True,
         skip_optimizations=True,
+        dev_no_system_checks=['check_steal_time'],
     )
 
     with Tests.RunUntilManager(runner) as context:
@@ -390,6 +405,11 @@ def test_different_filename_missing():
     expected_exception = f"I_do_not_exist.yml in {GMT_DIR} not found"
     assert expected_exception == str(e.value)
 
+# Runs a real, unchecked runner.py subprocess without --dev-no-metrics, so real metric-provider
+# processes are actually spawned - must never overlap with another test doing the same. See the
+# comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that
+# under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_runner_with_glob_pattern_filename():
     """Test that runner works with glob pattern filenames like folder/*.yml"""
     ps = subprocess.run(
@@ -410,6 +430,11 @@ def test_runner_with_glob_pattern_filename():
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
     # Using relative path as filename with relative path as URI
+# Runs a real, unchecked runner.py subprocess without --dev-no-metrics, so real metric-provider
+# processes are actually spawned - must never overlap with another test doing the same. See the
+# comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that
+# under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_runner_filename_relative_to_local_uri():
     """Test that runner works with filename relative to a local URI directory"""
     # Note: The provided folder is not the root of a git repository. Normally that would fail, however we use the `--dev-no-save` flag so this check is skipped.
@@ -450,6 +475,11 @@ def test_runner_with_iterations_and_save_to_database():
     assert ps.stdout.count('Running:  tests/data/usage_scenarios/basic_stress.yml') == 2
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
+# Runs a real, unchecked runner.py subprocess without --dev-no-metrics, so real metric-provider
+# processes are actually spawned - must never overlap with another test doing the same. See the
+# comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that
+# under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_runner_with_iterations_and_multiple_files():
     """Test that runner processes files in correct order with --iterations and allows duplicates"""
     ps = subprocess.run(
@@ -477,15 +507,24 @@ def test_runner_with_iterations_and_multiple_files():
 
 ## --file-cleanup
 #   Check that default is to leave the files
+# Full unstopped run() without dev_no_metrics=True, so real metric-provider processes are actually
+# spawned - must never overlap with another test doing the same. See the comment on pytestmark in
+# tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_no_file_cleanup():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     runner.run()
 
-    assert os.path.exists('/tmp/green-metrics-tool'), \
-        Tests.assertion_info('tmp directory exists', os.path.exists('/tmp/green-metrics-tool'))
+    assert runner._tmp_folder.exists(), \
+        Tests.assertion_info('tmp directory exists', runner._tmp_folder.exists())
 
 #   Check that the temp dir is deleted when using --file-cleanup
 #   This option exists only in CLI mode
+# Runs a real, unchecked runner.py subprocess without --dev-no-metrics, so real metric-provider
+# processes are actually spawned - must never overlap with another test doing the same. See the
+# comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that
+# under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_file_cleanup():
     subprocess.run(
         ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
@@ -497,7 +536,7 @@ def test_file_cleanup():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-    tmp_folder = Path('/tmp/green-metrics-tool')
+    tmp_folder = Tests.get_tmp_folder()
     assert tmp_folder.exists() and not any(tmp_folder.iterdir()), \
         Tests.assertion_info('tmp directory emptied', f"exists={tmp_folder.exists()}, contents={list(tmp_folder.iterdir()) if tmp_folder.exists() else None}")
 
@@ -511,6 +550,12 @@ def test_skip_and_allow_unsafe_both_true():
     assert str(e.value) == expected_exception, Tests.assertion_info('', str(e.value))
 
 ## --debug
+# Runs a real, unchecked runner.py subprocess without --dev-no-metrics; the debug pause reads EOF
+# from the redirected stdin and falls through, so the full pipeline runs and real metric-provider
+# processes are actually spawned - must never overlap with another test doing the same. See the
+# comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that
+# under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_debug(monkeypatch):
     monkeypatch.setattr('sys.stdin', io.StringIO('Enter'))
     ps = subprocess.run(
@@ -578,6 +623,10 @@ def test_usage_scenario_variable_replacement_done_correctly():
     assert runner._usage_scenario_original['flow'][0]['commands'][0]['command'] == 'stress-ng -c 1 -t 1 -q'
 
 ## Check if metrics provider are already running
+# Starts real metric providers with dev_no_system_checks=False, so it must never overlap with any
+# other test that also starts real metric providers - see the comment on pytestmark in
+# tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_reporters_still_running():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     runner2 = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
@@ -596,6 +645,11 @@ def test_reporters_still_running():
             assert re.match(expected_error, str(e.value)), Tests.assertion_info(expected_error, str(e.value))
 
 ## Using template
+# run-template.sh website ... --quick sets --dev-no-system-checks but NOT --dev-no-metrics, so real
+# metric-provider processes are actually spawned - must never overlap with another test doing the
+# same. See the comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually
+# prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_template_website():
     ps = subprocess.run(
         ['bash', os.path.normpath(f"{GMT_DIR}/run-template.sh"), 'website', 'https://www.google.de', '--quick', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml"],
@@ -666,6 +720,11 @@ def test_runner_run_invalidated():
 
 
 ## Docker pull logic tests
+# Stops at 'setup_services', which is after _start_metric_providers() in the pipeline, and lacks
+# dev_no_metrics=True, so real metric-provider processes are actually spawned - must never overlap
+# with another test doing the same. See the comment on pytestmark in tests/smoke_test.py for why
+# xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_docker_pull_multiarch_image_succeeds():
     """Test successful Docker pull with multi-architecture image"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_multiarch_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
@@ -676,6 +735,11 @@ def test_docker_pull_multiarch_image_succeeds():
     assert runner._usage_scenario_original['services']['test_service']['image'] == 'alpine:3.22.1'
 
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
+# Stops at 'setup_services', which is after _start_metric_providers() in the pipeline, and lacks
+# dev_no_metrics=True, so real metric-provider processes are actually spawned - must never overlap
+# with another test doing the same. See the comment on pytestmark in tests/smoke_test.py for why
+# xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_docker_pull_arm64_image_on_amd64_host_fails():
     """Test Docker pull fails when trying to use ARM64 image on AMD64 host"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_arm64_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
@@ -689,6 +753,11 @@ def test_docker_pull_arm64_image_on_amd64_host_fails():
     assert "amd64" in str(e.value)
 
 @pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
+# Stops at 'setup_services', which is after _start_metric_providers() in the pipeline, and lacks
+# dev_no_metrics=True, so real metric-provider processes are actually spawned - must never overlap
+# with another test doing the same. See the comment on pytestmark in tests/smoke_test.py for why
+# xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_docker_pull_amd64_image_on_arm64_host_fails():
     """Test Docker pull fails when trying to use AMD64 image on ARM64 host"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_amd64_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
@@ -701,6 +770,11 @@ def test_docker_pull_amd64_image_on_arm64_host_fails():
     assert "not available for host architecture" in str(e.value)
     assert "arm64" in str(e.value)
 
+# Stops at 'setup_services', which is after _start_metric_providers() in the pipeline, and lacks
+# dev_no_metrics=True, so real metric-provider processes are actually spawned - must never overlap
+# with another test doing the same. See the comment on pytestmark in tests/smoke_test.py for why
+# xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_docker_pull_nonexistent_image_non_interactive_fails():
     """Test Docker pull fails due to nonexistent image in non-interactive mode"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_nonexistent.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
@@ -713,6 +787,11 @@ def test_docker_pull_nonexistent_image_non_interactive_fails():
     assert "NONEXISTENT_IMAGE" in str(e.value)
 
 
+# Stops at 'setup_services', which is after _start_metric_providers() in the pipeline, and lacks
+# dev_no_metrics=True, so real metric-provider processes are actually spawned - must never overlap
+# with another test doing the same. See the comment on pytestmark in tests/smoke_test.py for why
+# xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_docker_pull_private_image_without_credentials_fails():
     """False-negative control: a private image must be unreachable when no docker credentials are configured."""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_private_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
@@ -839,6 +918,11 @@ def _print_architecture_debug_info(target_platform):
 
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
 @pytest.mark.skipif(can_emulate_arm64_images(), reason="Test is only valid when arm64 can't be emulated")
+# Stops at 'setup_services', which is after _start_metric_providers() in the pipeline, and lacks
+# dev_no_metrics=True, so real metric-provider processes are actually spawned - must never overlap
+# with another test doing the same. See the comment on pytestmark in tests/smoke_test.py for why
+# xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
     """Test Docker run fails immediately when trying to run ARM64 image on AMD64 host without emulation"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
@@ -858,6 +942,11 @@ def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
 
 @pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
 @pytest.mark.skipif(can_emulate_amd64_images(), reason="Test is only valid when amd64 can't be emulated")
+# Stops at 'setup_services', which is after _start_metric_providers() in the pipeline, and lacks
+# dev_no_metrics=True, so real metric-provider processes are actually spawned - must never overlap
+# with another test doing the same. See the comment on pytestmark in tests/smoke_test.py for why
+# xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
     """Test Docker run fails immediately when trying to run amd64 image on arm64 host without emulation"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
@@ -877,6 +966,11 @@ def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
 
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
 @pytest.mark.skipif(not can_emulate_arm64_images(), reason="Test requires Docker with emulation support for arm64 images")
+# Stops at 'setup_services', which is after _start_metric_providers() in the pipeline, and lacks
+# dev_no_metrics=True, so real metric-provider processes are actually spawned - must never overlap
+# with another test doing the same. See the comment on pytestmark in tests/smoke_test.py for why
+# xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_docker_runs_arm64_image_with_emulation_on_amd64_host():
     """Test Docker successfully runs ARM64 images on AMD64 host using emulation and generates warning"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
@@ -892,6 +986,11 @@ def test_docker_runs_arm64_image_with_emulation_on_amd64_host():
 
 @pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
 @pytest.mark.skipif(not can_emulate_amd64_images(), reason="Test requires Docker with emulation support for amd64 images")
+# Stops at 'setup_services', which is after _start_metric_providers() in the pipeline, and lacks
+# dev_no_metrics=True, so real metric-provider processes are actually spawned - must never overlap
+# with another test doing the same. See the comment on pytestmark in tests/smoke_test.py for why
+# xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_docker_runs_amd64_image_with_emulation_on_arm64_host():
     """Test Docker successfully runs AMD64 images on ARM64 host using emulation and generates warning"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True)
@@ -906,6 +1005,10 @@ def test_docker_runs_amd64_image_with_emulation_on_arm64_host():
         assert any("amd64" in warning and "arm64" in warning for warning in emulation_warnings), f"Warning should mention both architectures: {emulation_warnings}"
 
 ## Container running verification
+# Full unstopped run_steps() without dev_no_metrics=True, so real metric-provider processes are
+# actually spawned - must never overlap with another test doing the same. See the comment on
+# pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_container_running_verification_after_boot_phase():
     """Test that container verification catches containers that exit during boot phase"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
@@ -915,10 +1018,14 @@ def test_container_running_verification_after_boot_phase():
             for step in context.run_steps():
                 if step == 'setup_services':
                     # Simulate container failure by stopping it manually
-                    subprocess.run(['docker', 'stop', 'test-container'], check=False)
+                    subprocess.run(['docker', 'stop', container_name('test-container')], check=False)
 
-    assert str(e.value).startswith("Container 'test-container' failed during [BOOT] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
+    assert str(e.value).startswith(f"Container '{container_name('test-container')}' failed during [BOOT] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
 
+# Full unstopped run_steps() without dev_no_metrics=True, so real metric-provider processes are
+# actually spawned - must never overlap with another test doing the same. See the comment on
+# pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_container_running_verification_after_runtime_phase():
     """Test that container verification catches containers that exit during runtime phase"""
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True)
@@ -928,9 +1035,9 @@ def test_container_running_verification_after_runtime_phase():
             for step in context.run_steps():
                 if step == 'runtime_complete':
                     # Simulate container failure by stopping it manually
-                    subprocess.run(['docker', 'stop', 'test-container'], check=False)
+                    subprocess.run(['docker', 'stop', container_name('test-container')], check=False)
 
-    assert str(e.value).startswith("Container 'test-container' failed during [RUNTIME] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
+    assert str(e.value).startswith(f"Container '{container_name('test-container')}' failed during [RUNTIME] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT")
 
 
     ## rethink this one
@@ -941,7 +1048,7 @@ def wip_test_verbose_provider_boot():
          '--verbose-provider-boot', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--filename', 'tests/data/stress-application/usage_scenario.yml',
          '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-container-dependency-collection',
-         '--skip-optimizations', '--skip-download-dependencies'],
+         '--skip-optimizations', '--skip-download-dependencies', '--dev-no-system-checks', 'check_steal_time'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -991,9 +1098,9 @@ def test_logs_structure():
     logs = logs_result[0]
 
     assert isinstance(logs, dict), "Logs should be in dictionary format"
-    assert "test-container" in logs, "Should have logs for test-container"
+    assert container_name('test-container') in logs, "Should have logs for test-container"
 
-    container_logs = logs["test-container"]
+    container_logs = logs[container_name('test-container')]
     assert isinstance(container_logs, list), "Container logs should be a list"
     assert len(container_logs) == 3, f"Should have exactly 3 log entries (container stdout, setup stdout, flow stdout+stderr), found {len(container_logs)}"
 
@@ -1072,7 +1179,7 @@ def test_logs_null_byte_handling():
 
     # Verify no null bytes remain in stored logs
     logs = logs_result[0]
-    container_logs = logs["test-container"]
+    container_logs = logs[container_name('test-container')]
 
     for log_entry in container_logs:
         for key, value in log_entry.items():
@@ -1159,13 +1266,18 @@ def test_logs_invalid_character_handling():
 
     # Verify no invalid characters remain in stored logs
     logs = logs_result[0]
-    container_logs = logs["test-container"]
+    container_logs = logs[container_name('test-container')]
 
     for log_entry in container_logs:
         for key, value in log_entry.items():
             if key in ('stdout', 'stderr'):
                 assert '\xff' not in value, f"Invalid character should be automatically cleaned: {repr(value)}"
 
+# Multiple full unstopped runner.run() calls without dev_no_metrics=True, so real metric-provider
+# processes are actually spawned - must never overlap with another test doing the same. See the
+# comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that
+# under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_all_run_logs_comprehensive():
     """Comprehensive test of _get_all_run_logs() method covering single runs, iterations, and different files"""
 
@@ -1190,8 +1302,8 @@ def test_all_run_logs_comprehensive():
 
     # Test container logs structure
     containers = run_entry["containers"]
-    assert "test-container" in containers, "Should have logs for test-container"
-    container_logs = containers["test-container"]
+    assert container_name('test-container') in containers, "Should have logs for test-container"
+    container_logs = containers[container_name('test-container')]
     assert isinstance(container_logs, list), "Container logs should be a list"
     assert len(container_logs) > 0, "Should have at least one log entry"
 
@@ -1210,8 +1322,8 @@ def test_all_run_logs_comprehensive():
     assert run1["iteration"] == 1, "First run should be iteration 1"
     assert run2["iteration"] == 2, "Second run should be iteration 2"
     assert run1["filename"] == run2["filename"], "Both runs should have same filename"
-    assert "test-container" in run1["containers"], "First run should have container logs"
-    assert "test-container" in run2["containers"], "Second run should have container logs"
+    assert container_name('test-container') in run1["containers"], "First run should have container logs"
+    assert container_name('test-container') in run2["containers"], "Second run should have container logs"
 
     # Test 3: Different filename (reset iteration count)
     runner.set_filename('tests/data/usage_scenarios/basic_stress.yml')
@@ -1225,6 +1337,11 @@ def test_all_run_logs_comprehensive():
     assert run3["filename"] == 'tests/data/usage_scenarios/basic_stress.yml', "Third run should have different filename"
     assert isinstance(run3["containers"], dict), "Third run should have containers dict"
 
+# Runs a real, unchecked runner.py subprocess without --dev-no-metrics, so real metric-provider
+# processes are actually spawned - must never overlap with another test doing the same. See the
+# comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually prevents that
+# under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_print_logs_integration():
     """Integration test for --print-logs CLI flag with iterations"""
     ps = subprocess.run(
@@ -1267,6 +1384,14 @@ def test_print_logs_integration():
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 ## automatic database reconnection
+# This restarts the actual shared Postgres container to simulate an outage. Unlike the
+# 'real-metric-providers' xdist_group tests (which only need to avoid overlapping *each other*),
+# restarting shared infra breaks the live DB connection of literally any other test running
+# concurrently on any other worker - and there's no xdist_group/collection-order trick that can
+# guarantee no other worker is mid-query at that exact moment (pytest-xdist has no session-wide
+# barrier primitive). So this is excluded from -n runs entirely via the 'serial' marker (see
+# tests/conftest.py) and must be run in its own separate, non-parallel invocation.
+@pytest.mark.serial
 def test_database_reconnection_during_run():
     """Verify GMT runner handles database reconnection during execution
 

@@ -134,8 +134,21 @@ def _docker_image_rows():
 
 
 def remove_gmt_tmp_images():
+    from lib.utils import get_test_worker_id # pylint: disable=import-outside-toplevel
+    # local import: lib.utils imports this module (host_platform) at module scope, so importing it
+    # back at module scope here would create an import cycle.
 
-    image_names = [image_name for image_name in _docker_image_rows() if 'gmt_run_tmp' in image_name]
+    # ScenarioRunner._clean_image_name() suffixes its tags with this worker's pytest-xdist id (when
+    # running under -n), precisely so this sweep only ever removes images this worker itself built -
+    # matching on the bare 'gmt_run_tmp' substring here would also catch (and force-remove) images
+    # another, concurrently-running worker just built or is still using, since that substring is
+    # common to every worker's tags. get_test_worker_id() zero-pads the worker id itself (e.g.
+    # 'gw1' -> 'gw001'), so a plain substring match here can't drift onto a different worker's
+    # images the way it could with unpadded ids ('gw1' being a prefix of 'gw10'..'gw19').
+    worker_id = get_test_worker_id()
+    suffix = f'_gmt_run_tmp_{worker_id}' if worker_id else '_gmt_run_tmp'
+
+    image_names = [image_name for image_name in _docker_image_rows() if suffix in image_name]
 
     if image_names:
         subprocess.run(['docker', 'rmi', '-f', *image_names], stderr=subprocess.DEVNULL, check=False)

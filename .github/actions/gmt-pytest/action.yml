@@ -56,8 +56,8 @@ runs:
           exit 1
 
     - name: setup_python
-      uses: actions/setup-python@v7
       if: inputs.task == 'setup' || inputs.task == 'all'
+      uses: actions/setup-python@v7
       with:
         python-version: '3.14'
 
@@ -183,7 +183,9 @@ runs:
         fi
 
         source ../venv/bin/activate
-        python3 -m ${{ inputs.tests-command }} ${TEST_PATH} -rA | tee /tmp/test-results.txt
+        python3 -m ${{ inputs.tests-command }} -n auto --dist=loadgroup ${TEST_PATH} -rA | tee /tmp/test-results.txt
+        # these marked tests must run sequentially after, as it restarts the DB which will collide with other parallel tests running
+        python3 -m ${{ inputs.tests-command }} -m serial -rA | tee -a /tmp/test-results.txt
 
     - name: Display Results
       if: always() && (inputs.task == 'run' || inputs.task == 'all')

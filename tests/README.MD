@@ -47,9 +47,32 @@ There are a few scripts to make this easy.
 `./run-tests.sh` will do everything - start the containers, run pytest, and then stop the containers.
 
 The recommended workflow is to start the containers with the `./start-test-containers.sh` script, then in another shell
-window run the pytest suite using `pytest`, and then stop the containers when your test run has finished.
+window run the tests suite and then stop the containers when your test run has finished.
+
+### Pytest
+
+To run the tests you need to issue a `pytest` call.
+
+This can be, and is recommended, to do with parallel testsing enabled:
+
+- `pytest -n auto --dist=loadgroup`
+
+The command will automatically take all the CPU cores available for testing. If you want to take less use
+a fixed specified number for *n* like `-n 4` as example for four cores.
+
+The after you must still execute the *serial* marked tests as they simply cannot run in parallel with other tests.
+
+- `pytest -m serial`
+
+If you experience errors with this you can also fallback to sequential testing by just issueing:
+
+- `pytest`
+
+### Subset
 
 Running a subset of tests using pytest is better explained within the documentation here:
  https://docs.pytest.org/en/7.2.x/how-to/usage.html
+
+### Runnable script
 
 You can also do everything in one command using the `./run-tests.sh` script.

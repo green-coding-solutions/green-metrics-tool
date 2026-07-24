@@ -12,10 +12,21 @@ services:
     environment:
       - POSTGRES_PASSWORD=PLEASE_CHANGE_THIS
       - TZ=__TZ__
+      - PGOPTIONS=-c search_path=public
+      # Every docker-entrypoint-initdb.d/*.sql file is run as its own psql invocation, defaulting
+      # to the "postgres" database unless told otherwise - explicit here so none of the init files
+      # need a \c of their own: tests/test_functions.py::reset_db() re-runs seed-data.sql (after
+      # truncating) on every test, and create_test_schema() re-runs tables.sql once per pytest-xdist
+      # worker - both wrapped in a single transaction (so a concurrent request never sees the schema
+      # mid-truncate/reseed or mid-create), and a \c would silently end that transaction partway
+      # through.
+      - POSTGRES_DB=green-coding
     volumes:
       - green-coding-postgres-data:/var/lib/postgresql
       - ./structure.sql:/docker-entrypoint-initdb.d/01-structure.sql:ro
-#EE-ONLY#      - ./../ee/docker/structure_ee.sql:/docker-entrypoint-initdb.d/02-structure_ee.sql:ro
+      - ./tables.sql:/docker-entrypoint-initdb.d/02-tables.sql:ro
+#EE-ONLY#      - ./../ee/docker/structure_ee.sql:/docker-entrypoint-initdb.d/03-structure_ee.sql:ro
+      - ./seed-data.sql:/docker-entrypoint-initdb.d/04-seed-data.sql:ro
   # If you want to use a shared socket between postgres and gunicorn please add
   #   - ./postgres/socket:/var/run/postgresql
   # Also add this to the green-coding-gunicorn then

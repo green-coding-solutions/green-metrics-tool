@@ -1,9 +1,24 @@
 import subprocess
 import pytest
 import os
+import logging
 from pathlib import Path
 
 from tests import test_functions as Tests
+from lib.utils import get_test_worker_id
+
+# lib/db.py's ConnectionPool is opened eagerly (open=True) the first time DB() is instantiated in
+# each worker process, and psycopg_pool retries a failed connection attempt internally on its own
+# (this is expected, self-healing behavior, not a real failure) - but it also logs every individual
+# failed attempt via logging.getLogger("psycopg.pool") ("error connecting in 'pool-N': ...")
+# regardless of whether the pool as a whole goes on to succeed a moment later. If that first
+# DB()/pool creation in a worker lands while Postgres is still finishing its own boot/recovery, this
+# log line goes to stderr and gets picked up by any test capturing output with redirect_stderr,
+# failing an unrelated "no errors" assertion over a condition that already resolved itself. Since
+# with_db_retry (lib/db.py) is this codebase's own retry/backoff layer and already prints its own
+# actionable messages on genuine failures, psycopg_pool's internal per-attempt noise isn't needed
+# here.
+logging.getLogger('psycopg.pool').setLevel(logging.CRITICAL)
 
 ## VERY IMPORTANT to override the config file here
 ## otherwise it will automatically connect to non-test DB and delete all your real data
@@ -14,10 +29,86 @@ GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpa
 os.environ['NO_PROXY'] = f"{os.environ.get('NO_PROXY','')},api.green-coding.internal,metrics.green-coding.internal"
 os.environ['no_proxy'] = f"{os.environ.get('no_proxy','')},api.green-coding.internal,metrics.green-coding.internal"
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "serial: test cannot safely run concurrently with anything else (e.g. it restarts shared "
+        "infrastructure like the Postgres container) - skipped under pytest-xdist; run it on its "
+        "own, outside of -n, instead."
+    )
+
+
+@pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(items):
     for item in items:
         if item.fspath.basename == 'test_functions.py':
             item.add_marker(pytest.mark.skip(reason='Skipping this file'))
+
+    # 'serial' tests touch shared infrastructure in a way that would break any other test running
+    # concurrently on any other worker (see the comment above test_database_reconnection_during_run
+    # in tests/test_runner.py). No scheduling trick guarantees exclusivity under xdist, since it has
+    # no session-wide barrier - so these are skipped outright under -n rather than merely reordered.
+    if os.environ.get('PYTEST_XDIST_WORKER'):
+        skip_serial = pytest.mark.skip(reason="marked 'serial': run this outside of -n/xdist, on its own")
+        for item in items:
+            if 'serial' in item.keywords:
+                item.add_marker(skip_serial)
+
+    # Every test carrying the 'real-metric-providers' xdist_group is forced onto a single worker
+    # (see the comment on pytestmark in tests/smoke_test.py) and, combined, they're one of the
+    # longest-running chunks in the whole suite. pytest-xdist's loadgroup scheduler dispatches work
+    # in roughly collection order, so if this group's tests are scattered late in that order, the
+    # worker they land on doesn't start on them until well into the run - and since every other
+    # worker finishes its own (shorter, ungrouped) tests long before that one worker gets through
+    # its serialized group, that worker becomes the straggler the whole session waits on at the
+    # end. Sorting the group to the very front means that worker starts on it immediately and runs
+    # for the same duration everyone else does, instead of after. Stable sort preserves the
+    # relative order within the group and among everything else.
+    # trylast=True so this runs after tests/api/, tests/frontend/, tests/cron/'s own
+    # pytest_collection_modifyitems hooks have already attached their own xdist_group markers.
+    items.sort(key=lambda item: 0 if any(
+        marker.name == 'xdist_group' and marker.kwargs.get('name') == 'real-metric-providers'
+        for marker in item.iter_markers()
+    ) else 1)
+
+
+# Scenario-runner test containers are suffixed with this worker's xdist id (see
+# lib/utils.py::container_name()), precisely so concurrent workers never collide on a name - but
+# that same determinism means a container left running by an earlier crashed/interrupted run on
+# this exact worker id (gw6, say) will collide with a brand new, unrelated run that happens to
+# land on worker gw6 again: lib/scenario_runner.py::_check_running_containers_before_start()
+# then refuses to proceed with "... is already running on system". Force-removing anything still
+# running under this worker's suffix before the session's first test runs means every session
+# starts from a clean slate regardless of how the previous one on this worker id ended.
+@pytest.fixture(scope='session', autouse=True)
+def _initial_container_cleanup():
+    worker_id = get_test_worker_id()
+    if not worker_id:
+        return
+
+    suffix = f'-{worker_id}'
+    result = subprocess.run(
+        ['docker', 'ps', '-a', '--format', '{{.Names}}'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, encoding='UTF-8',
+    )
+    for name in result.stdout.splitlines():
+        if name.endswith(suffix):
+            subprocess.run(['docker', 'rm', '-f', name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+
+
+# Under pytest-xdist each worker gets its own private schema (gmt_test_gw001, gmt_test_gw002, ...)
+# that doesn't exist at all until something creates it - only the boot-time default ('gmt_test',
+# with no worker suffix) is populated with tables at container start. Without this, a worker's
+# first test would run before setup_and_cleanup_test's own reset_db() ever fires (that one only
+# runs at teardown), hitting a schema that doesn't exist yet and failing with
+# 'relation "users" does not exist'; every test after the first would then pass, since teardown
+# had created and populated it by then. session scope + autouse makes this run exactly once per
+# worker, before that worker's first test - which is also why reset_db() itself no longer needs to
+# check whether the schema/tables already exist: by the time anything else calls it, this fixture
+# guarantees they do.
+@pytest.fixture(scope='session', autouse=True)
+def _initial_db_reset():
+    Tests.create_test_schema()
 
 
 # Note: This fixture runs always

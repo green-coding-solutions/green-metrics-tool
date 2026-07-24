@@ -132,7 +132,11 @@ class ScenarioRunner:
         self._dev_no_save = dev_no_save
         self._dev_stream_outputs = dev_stream_outputs
         self._dev_cache_repos = dev_cache_repos
-        self._dev_no_system_checks = dev_no_system_checks
+        # Normalizes True/False (disable all/nothing) as well as a comma-separated string (CLI) or
+        # an iterable of check names (direct kwarg) into True/False/a set of names - see
+        # lib/system_checks.py::normalize_disabled_checks(). self._arguments (above) already
+        # captured the raw, unnormalized value for run-invalidation/logging purposes.
+        self._dev_no_system_checks = system_checks.normalize_disabled_checks(dev_no_system_checks)
         self._dev_no_resource_limits = dev_no_resource_limits
 
         self._uri = uri
@@ -142,7 +146,11 @@ class ScenarioRunner:
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._requested_commit_hash = commit_hash
 
-        self._tmp_folder = host_platform.get_tmp_root().joinpath('green-metrics-tool')
+        # Suffixed with the pytest-xdist worker id (when running under -n) so parallel test
+        # workers never share the same working directory. Empty outside of pytest-xdist.
+        worker_id = utils.get_test_worker_id()
+        tmp_folder_name = f'green-metrics-tool-{worker_id}' if worker_id else 'green-metrics-tool'
+        self._tmp_folder = host_platform.get_tmp_root().joinpath(tmp_folder_name)
 
         if isinstance(ssh_private_key, SecureVariable):
             self._ssh_private_key = ssh_private_key
@@ -234,6 +242,7 @@ class ScenarioRunner:
         self.__all_runs_logs = []  # List of runs, each containing iteration, filename, and containers with their logs
         self.__containers = {}
         self.__networks = []
+        self.__network_name_map = {} # raw YAML network name -> actual (worker-suffixed) docker network name
         self.__ps_to_kill = []
         self.__ps_to_read = []
         self.__metric_providers = []
@@ -460,11 +469,18 @@ class ScenarioRunner:
 
     def _check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
-        if self._dev_no_system_checks:
-            print('Skipping check system due to --dev-no-system-checks')
+        if self._dev_no_system_checks is True:
+            print('Skipping all system checks due to --dev-no-system-checks')
             return
 
-        warnings = system_checks.system_check(mode, self._measurement_system_check_threshold, run_duration=self._last_measurement_duration)
+        if self._dev_no_system_checks:
+            print(f"Skipping system checks due to --dev-no-system-checks: {', '.join(sorted(self._dev_no_system_checks))}")
+
+        warnings = system_checks.system_check(
+            mode, self._measurement_system_check_threshold,
+            disabled_checks=self._dev_no_system_checks or None,
+            run_duration=self._last_measurement_duration,
+        )
         for warn in warnings:
             self.__warnings.append(warn) # are already printed via system_checks
 
@@ -835,6 +851,10 @@ class ScenarioRunner:
         # Disable Docker CLI hints (e.g. "What's Next? ...")
         os.environ['DOCKER_CLI_HINTS'] = 'false'
 
+    def _resolve_container_name(self, service_name, service_config):
+        base_name = service_config.get('container_name', service_name)
+        return utils.container_name(base_name), base_name
+
     def _check_running_containers_before_start(self):
         result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
                                 stdout=subprocess.PIPE,
@@ -843,10 +863,7 @@ class ScenarioRunner:
         for line in result.stdout.splitlines():
             for running_container in line.split(','): # if docker container has multiple tags, they will be split by comma, so we only want to
                 for service_name in self.__usage_scenario.get('services', {}):
-                    if 'container_name' in self.__usage_scenario['services'][service_name]:
-                        container_name = self.__usage_scenario['services'][service_name]['container_name']
-                    else:
-                        container_name = service_name
+                    container_name, _ = self._resolve_container_name(service_name, self.__usage_scenario['services'][service_name])
 
                     if running_container == container_name:
                         raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
@@ -1140,7 +1157,7 @@ class ScenarioRunner:
                 if metric_provider == 'carbon_intensity_elephant_machine':
                     optional_conf['simulation_uuid'] = str(self.__carbon_simulation_uuid)
 
-            if self._dev_no_system_checks:
+            if self._dev_no_system_checks is True:
                 optional_conf['skip_check'] = True
 
             print(f"Importing {class_name} from {module_path}")
@@ -1187,8 +1204,10 @@ class ScenarioRunner:
         name = re.sub(r'[^A-Za-z0-9_]', '_', name)
         # only lowercase letters are allowed for tags
         name = name.lower()
-        name = f"{name}_gmt_run_tmp"
-        return name
+        # utils.gmt_tmp_image_name() appends the pytest-xdist worker suffix (see its own docstring
+        # for why this machine-wide, cross-run cache tag needs one) - the same helper is used by
+        # host_platform.remove_gmt_tmp_images() and by test assertions, so all three stay in sync.
+        return utils.gmt_tmp_image_name(name)
 
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
@@ -1434,16 +1453,20 @@ class ScenarioRunner:
             for network in self.__usage_scenario['networks']:
                 if network in ('host', 'bridge', 'none'):
                     raise ValueError('Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined.')
-                print('Creating network: ', network)
+                # utils.container_name() is generic worker-id suffixing, not container-specific;
+                # reused as-is here for network names.
+                resolved_network = utils.container_name(network)
+                print('Creating network: ', resolved_network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
-                subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
+                subprocess.run(['docker', 'network', 'rm', resolved_network], stderr=subprocess.DEVNULL, check=False)
 
                 if self.__usage_scenario['networks'][network] and self.__usage_scenario['networks'][network].get('internal', False):
-                    subprocess.check_output(['docker', 'network', 'create', '--internal', network], encoding='UTF-8', errors='replace')
+                    subprocess.check_output(['docker', 'network', 'create', '--internal', resolved_network], encoding='UTF-8', errors='replace')
                 else:
-                    subprocess.check_output(['docker', 'network', 'create', network], encoding='UTF-8', errors='replace')
+                    subprocess.check_output(['docker', 'network', 'create', resolved_network], encoding='UTF-8', errors='replace')
 
-                self.__networks.append(network)
+                self.__networks.append(resolved_network)
+                self.__network_name_map[network] = resolved_network
         else:
             print(TerminalColors.HEADER, '\nNo network found. Creating default network', TerminalColors.ENDC)
             network = f"GMT_default_tmp_network_{random.randint(500000,10000000)}"
@@ -1492,10 +1515,7 @@ class ScenarioRunner:
         services_ordered = self._order_services(services)
         for service_name, service in services_ordered.items():
 
-            if 'container_name' in service:
-                container_name = service['container_name']
-            else:
-                container_name = service_name
+            container_name, base_container_name = self._resolve_container_name(service_name, service)
 
             container_data = {
                 'name': container_name,
@@ -1540,7 +1560,7 @@ class ScenarioRunner:
 
             # this is a special feature container with a reserved name.
             # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc == True
-            if self.__include_playwright_ipc and container_name == 'gmt-playwright-nodejs':
+            if self.__include_playwright_ipc and base_container_name == 'gmt-playwright-nodejs':
                 docker_run_string.append('--mount')
                 docker_run_string.append(f"type=bind,source={GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc.js,target=/tmp/gmt-utils/gmt-playwright-ipc.js,readonly")
 
@@ -1730,12 +1750,21 @@ class ScenarioRunner:
                 if labels_check_errors:
                     raise RuntimeError('Docker container labels that have problems:\n\n'.join(labels_check_errors))
 
+            # Always alias the container under its plain, unsuffixed service name (base_container_name),
+            # in addition to its real worker-suffixed name (container_name) - this matches normal
+            # docker-compose semantics, where the service name is itself the resolvable hostname on the
+            # compose network. Without this, any scenario where one service hardcodes another's service
+            # name (e.g. a Django app configured with DB HOST="db") breaks under -n, since the real
+            # container is actually named e.g. 'db-gw000' and the plain 'db' hostname would otherwise
+            # never resolve.
             if 'networks' in service:
                 for network in service['networks']:
                     if network == 'host' and not self._allow_unsafe:
                         raise ValueError('Docker network host is restricted in GMT and cannot be joined. If running in CLI mode or if you have cluster capabilities try again with --allow-unsafe.')
                     docker_run_string.append('--net')
-                    docker_run_string.append(network)
+                    docker_run_string.append(self.__network_name_map.get(network, network))
+                    docker_run_string.append('--network-alias')
+                    docker_run_string.append(base_container_name)
                     if isinstance(service['networks'], dict) and service['networks'][network]:
                         if service['networks'][network].get('aliases', None):
                             for alias in service['networks'][network]['aliases']:
@@ -1750,6 +1779,8 @@ class ScenarioRunner:
                 # if this is true only one entry is in self.__networks
                 docker_run_string.append('--net')
                 docker_run_string.append(self.__networks[0])
+                docker_run_string.append('--network-alias')
+                docker_run_string.append(base_container_name)
 
 
             if 'pause-after-phase' in service:
@@ -1872,9 +1903,7 @@ class ScenarioRunner:
             # If no healthcheck is defined, the container state "running" is sufficient.
             if 'depends_on' in service:
                 for dependent_service in service['depends_on']:
-                    dependent_container_name = dependent_service
-                    if 'container_name' in services[dependent_service]:
-                        dependent_container_name = services[dependent_service]["container_name"]
+                    dependent_container_name, _ = self._resolve_container_name(dependent_service, services[dependent_service])
 
                     time_waited = 0
                     state = ''
@@ -2283,6 +2312,15 @@ class ScenarioRunner:
             ps_to_kill_tmp.clear()
             ps_to_read_tmp.clear()
 
+            # flow['container'] is the service key from the usage_scenario, not the actual docker
+            # container name - _setup_services() created the real container via
+            # _resolve_container_name(), which both respects a service's own 'container_name'
+            # override and appends this worker's xdist suffix. Every docker command below must
+            # target that same resolved name, or it 404s the moment a worker suffix is in play.
+            resolved_flow_container, _ = self._resolve_container_name(
+                flow['container'], self.__usage_scenario['services'][flow['container']]
+            )
+
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
@@ -2292,13 +2330,13 @@ class ScenarioRunner:
                     self._check_total_runtime_exceeded()
 
                     if 'note' in cmd_obj:
-                        self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=flow['container'], timestamp=int(time.time_ns() / 1_000))
+                        self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=resolved_flow_container, timestamp=int(time.time_ns() / 1_000))
 
-                    print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', flow['container'], TerminalColors.ENDC)
+                    print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', resolved_flow_container, TerminalColors.ENDC)
                     print(cmd_obj['command'])
 
                     docker_exec_command = ['docker', 'exec']
-                    docker_exec_command.append(flow['container'])
+                    docker_exec_command.append(resolved_flow_container)
 
                     stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
 
@@ -2371,10 +2409,10 @@ class ScenarioRunner:
                     ps_to_read_tmp.append({
                         'cmd': docker_exec_command,
                         'ps': ps,
-                        'container_name': flow['container'],
+                        'container_name': resolved_flow_container,
                         'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
                         'ignore-errors': cmd_obj.get('ignore-errors', False),
-                        'detail_name': flow['container'],
+                        'detail_name': resolved_flow_container,
                         'detach': cmd_obj.get('detach', False),
                         'flow_name': flow['name'],
                     })
@@ -2385,7 +2423,7 @@ class ScenarioRunner:
                         print("Awaiting Playwright function return")
                         try:
                             ps = subprocess.run(
-                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
+                                ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-ready'],
                                 check=True,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
@@ -2395,7 +2433,7 @@ class ScenarioRunner:
                             )
                         except subprocess.TimeoutExpired as exc:
                             error_message = subprocess.check_output(
-                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-error'],
+                                ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-error'],
                                 encoding='UTF-8',
                                 errors='replace',
                             )
@@ -2875,10 +2913,11 @@ class ScenarioRunner:
         self.__containers.clear()
 
         print('Removing network')
-        for network_name in self.__networks:
+        for network in self.__networks:
             # no check=True, as the network might already be gone. We do not want to fail here
-            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
+            subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
         self.__networks.clear()
+        self.__network_name_map.clear()
 
         self._remove_docker_images()
 

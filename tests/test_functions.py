@@ -8,8 +8,10 @@ import tempfile
 import pandas
 from pathlib import Path
 
-from lib.db import DB
+from lib.db import DB, get_test_schema
 from lib.global_config import GlobalConfig
+from lib import host_platform
+from lib.utils import get_test_worker_id
 from lib.log_types import LogType
 from lib import metric_importer
 from lib.user import User
@@ -21,6 +23,14 @@ from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSy
 from metric_providers.network.io.cgroup.container.provider import NetworkIoCgroupContainerProvider
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def get_tmp_folder():
+    # Mirrors ScenarioRunner's own tmp-folder naming (lib/scenario_runner.py) so tests that
+    # invoke runner.py as a subprocess can locate the same worker-suffixed directory the
+    # runner process itself computed independently.
+    worker_id = get_test_worker_id()
+    name = f'green-metrics-tool-{worker_id}' if worker_id else 'green-metrics-tool'
+    return host_platform.get_tmp_root().joinpath(name)
 
 # Dedicated, isolated folder for the metric providers built by the import_* helpers below.
 GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-test-functions-'))
@@ -219,7 +229,7 @@ def insert_user(user_id, token, make_super_user=False):
     sha256_hash.update(token.encode('UTF-8'))
 
     DB().query("""
-        INSERT INTO "public"."users"("id", "name","token","capabilities","created_at")
+        INSERT INTO "users"("id", "name","token","capabilities","created_at")
         VALUES
         (%s, %s, %s, (SELECT capabilities FROM users WHERE id = 1), E'2024-08-22 11:28:24.937262+00')
     """, params=(user_id, token, sha256_hash.hexdigest()))
@@ -234,46 +244,47 @@ def insert_user(user_id, token, make_super_user=False):
         """, params=('false', user_id))
 
 
-def import_demo_data():
+def _import_demo_data_file(sql_path):
     config = GlobalConfig().config
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
-    ps = subprocess.run(
-        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../data/demo_data.sql",
-        check=True,
-        shell=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
+    # Without this, the import falls back to whatever PGOPTIONS the postgres container itself
+    # was started with, ignoring the caller's own worker schema (see get_test_schema()) -
+    # currently harmless only because every caller happens to be a tests/frontend or tests/api
+    # test, which already targets that same fallback schema.
+    schema = get_test_schema()
+
+    with open(sql_path, encoding='utf-8') as sql_file:
+        ps = subprocess.run(
+            [
+                'docker', 'exec', '-i', '--user', 'postgres',
+                '-e', f'PGOPTIONS=-c search_path={schema},public',
+                'test-green-coding-postgres-container',
+                'psql', '-d', pg_dbname, '-p', str(pg_port),
+            ],
+            stdin=sql_file,
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8',
+        )
 
     if ps.stderr != '':
         reset_db()
         raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
+
+def import_demo_data():
+    _import_demo_data_file(f'{CURRENT_DIR}/../data/demo_data.sql')
 
 def import_demo_data_ee():
-    config = GlobalConfig().config
-    pg_port = config['postgresql']['port']
-    pg_dbname = config['postgresql']['dbname']
-    ps = subprocess.run(
-        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../ee/data/demo_data_ee.sql",
-        check=True,
-        shell=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
-
-    if ps.stderr != '':
-        reset_db()
-        raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
+    _import_demo_data_file(f'{CURRENT_DIR}/../ee/data/demo_data_ee.sql')
 
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"
 
-def check_if_container_running(container_name):
+def check_if_container_running(name):
     ps = subprocess.run(
-            ['docker', 'container', 'inspect', '-f', '{{.State.Running}}', container_name],
+            ['docker', 'container', 'inspect', '-f', '{{.State.Running}}', name],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
             encoding='UTF-8',
@@ -294,6 +305,59 @@ def build_image_fixture():
         '--build-arg', f'no_proxy={os.environ.get("no_proxy")}',
     ], check=True)
 
+# Called once per pytest-xdist worker (see conftest.py::_initial_db_reset), before that worker's
+# first test - creates this worker's private schema and populates it via tables.sql's
+# CREATE TABLE/TYPE/TRIGGER/... DDL, which isn't written to be safely re-runnable. Every reset_db()
+# call after this one (see below) can then assume the schema/tables already exist and just
+# truncate + reseed the data, with no need to check.
+#
+# Idempotent by design (safe to call more than once for the same schema): tests/api/conftest.py and
+# tests/frontend/conftest.py also call this directly, for the unsuffixed 'gmt_test' schema the
+# shared gunicorn container reads/writes - which is a *different* schema than the one this worker's
+# own tests/conftest.py::_initial_db_reset already created for its real (suffixed) worker id, so
+# both calls are legitimate and need to coexist without erroring on tables.sql's non-idempotent DDL.
+def create_test_schema():
+    config = GlobalConfig().config
+    pg_port = config['postgresql']['port']
+    pg_dbname = config['postgresql']['dbname']
+    schema = get_test_schema()
+
+    docker_exec_prefix = [
+        'docker', 'exec', '--user', 'postgres',
+        '-e', f'PGOPTIONS=-c search_path={schema},public',
+        'test-green-coding-postgres-container',
+        'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
+    ]
+
+    check_ps = subprocess.run(
+        docker_exec_prefix + [
+            '-tAc',
+            f"SELECT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = '{schema}' AND tablename = 'users')",
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if check_ps.returncode != 0:
+        raise RuntimeError('Checking whether the test schema is already set up failed with ', check_ps.stdout, check_ps.stderr)
+    if check_ps.stdout.strip() == b't':
+        return
+
+    ps = subprocess.run(
+        docker_exec_prefix + [
+            '--single-transaction',
+            '-c', f'CREATE SCHEMA IF NOT EXISTS "{schema}"',
+            '-f', './docker-entrypoint-initdb.d/02-tables.sql',
+            '-f', './docker-entrypoint-initdb.d/04-seed-data.sql',
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if ps.returncode != 0:
+        raise RuntimeError('Creating the test schema failed with ', ps.stdout, ps.stderr)
+
+
 # should be preceded by a yield statement and on autouse
 def reset_db():
     # DB().query('DROP schema "public" CASCADE') # we do not want to call DB commands. Reason being is that because of a misconfiguration we could be sending this to the live DB
@@ -301,25 +365,64 @@ def reset_db():
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
     redis_port = config['redis']['port']
-    subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} -c \'DROP SCHEMA IF EXISTS "public" CASCADE\' '],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} < ./docker-entrypoint-initdb.d/01-structure.sql'],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    # One schema per pytest-xdist worker (falls back to 'public' outside of -n runs) so that
+    # concurrent workers can each reset their own tables without touching each other's. The schema
+    # and its tables already exist by this point - create_test_schema() (see above) / conftest.py's
+    # _initial_db_reset runs once per worker before its first test - so this only ever needs to
+    # wipe and reseed the *data*, never check for or create the schema itself.
+    schema = get_test_schema()
 
-    subprocess.run(
-        ['docker', 'exec', 'test-green-coding-redis-container', 'redis-cli', '-p', f"{redis_port}", 'FLUSHALL'],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+    ps = subprocess.run(
+        [
+            'docker', 'exec', '--user', 'postgres',
+            '-e', f'PGOPTIONS=-c search_path={schema},public',
+            'test-green-coding-postgres-container',
+            'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
+            # --single-transaction wraps the truncate/reseed below into one commit, so any other
+            # session querying this schema concurrently (the gunicorn container serving a
+            # tests/frontend or tests/api request, most likely) either sees the complete old data
+            # or the complete new data - never a truncated-but-not-yet-reseeded one, which is what
+            # was intermittently producing spurious "relation ... does not exist" / empty-table
+            # errors (including from error_helpers.log_error() itself trying to write to
+            # system_logs) when a request landed mid-reset. Requires that nothing in the files
+            # below does its own '\c' (see structure.sql/compose.yml.example for how the database
+            # itself is selected instead), since that would silently end the transaction partway
+            # through.
+            '--single-transaction',
+            '-c',
+            # Naming every table in one TRUNCATE (rather than looping over pg_tables issuing one
+            # TRUNCATE per table) matters: CASCADE already sweeps every table that transitively
+            # references the one named, so a per-table loop would re-walk and re-lock a
+            # dependency closure that a previous statement in the same loop already emptied -
+            # doing (and paying full lock-acquisition cost for) redundant work several times over.
+            f'''DO $$
+DECLARE
+    tbls text;
+BEGIN
+    SELECT string_agg(format('%I.%I', schemaname, tablename), ', ')
+    INTO tbls FROM pg_tables WHERE schemaname = '{schema}';
+    IF tbls IS NOT NULL THEN
+        EXECUTE format('TRUNCATE TABLE %s RESTART IDENTITY CASCADE', tbls);
+    END IF;
+END $$;''',
+            '-f', './docker-entrypoint-initdb.d/04-seed-data.sql',
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
+    if ps.returncode != 0:
+        raise RuntimeError('Resetting the test schema failed with ', ps.stdout, ps.stderr)
+
+    ps = subprocess.run(
+        ['docker', 'exec', 'test-green-coding-redis-container', 'redis-cli', '-p', f"{redis_port}", 'FLUSHALL'],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if ps.returncode != 0:
+        raise RuntimeError('Flushing redis failed with ', ps.stdout, ps.stderr)
+
     DB().shutdown()
 
 class RunUntilManager:

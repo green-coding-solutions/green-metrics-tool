@@ -5,6 +5,7 @@ import random
 from functools import wraps
 from contextlib import contextmanager
 from psycopg_pool import ConnectionPool
+from psycopg.conninfo import make_conninfo
 import psycopg.rows
 import psycopg
 import pytest
@@ -12,6 +13,26 @@ from lib.global_config import GlobalConfig
 
 def is_pytest_session():
     return "pytest" in os.environ.get('_', '')
+
+def get_test_schema():
+    # One Postgres schema per xdist worker so tests can run against the same DB
+    # container concurrently. Falls back to 'gmt_test' for non-parallel/local runs so
+    # behavior is unchanged when not running under pytest-xdist.
+    from lib.utils import get_test_worker_id # pylint: disable=import-outside-toplevel
+    # local import: lib.utils imports DB from this module at module scope, so importing
+    # it back at module scope here would create an import cycle.
+
+    # Whether we're pointed at the test database is the signal here, not is_pytest_session():
+    # tests/frontend and tests/api drive the one shared gunicorn+nginx container over HTTP, and
+    # that container's own process is never itself a pytest session, even when it's the test
+    # build serving test traffic. It loads the same test-config.yml as the tests do though, so
+    # dbname reliably tells the two apart.
+    if GlobalConfig().config['postgresql']['dbname'] == 'green-coding':
+        return "public"
+
+    worker_id = get_test_worker_id()
+    return f"gmt_test_{worker_id}" if worker_id else "gmt_test"
+
 
 def with_db_retry(func):
     @wraps(func)
@@ -92,17 +113,21 @@ class DB:
         # from 50 kB to 100kB.
         # Users are required to use the mask of the API requests to read the data.
         # force domain socket connection by not supplying host
-        # pylint: disable=consider-using-f-string
+
+        conninfo = make_conninfo(
+            user=config['postgresql']['user'],
+            password=config['postgresql']['password'],
+            host=config['postgresql']['host'],
+            port=config['postgresql']['port'],
+            dbname=config['postgresql']['dbname'],
+            sslmode='require',
+            # search_path is only ever non-default under pytest-xdist (see get_test_schema());
+            # every connection in the pool gets it set at startup so callers never need to care.
+            options=f"-c search_path={get_test_schema()},public {' '.join(config['postgresql'].get('options', []))}",
+        )
 
         self._pool = ConnectionPool(
-            "user=%s password=%s host=%s port=%s dbname=%s sslmode=require options='%s'" % (
-                config['postgresql']['user'],
-                config['postgresql']['password'],
-                config['postgresql']['host'],
-                config['postgresql']['port'],
-                config['postgresql']['dbname'],
-                ' '.join(config['postgresql'].get('options', []))
-            ),
+            conninfo,
             min_size=1,
             max_size=2,
             open=True,

@@ -1,6 +1,7 @@
 import io
 import math
 import shutil
+import tempfile
 
 from decimal import Decimal
 from pathlib import Path
@@ -17,10 +18,11 @@ from lib.phase_stats import build_and_store_phase_stats
 from lib.post_metric_providers.calculate_co2_intensity import calculate_co2_intensity
 from lib import metric_importer
 from lib.scenario_runner import ScenarioRunner
+from lib.utils import container_name
 
 MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
 
-GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
+GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-phase-stats-'))
 
 ## Create a tmp folder only for this run
 @pytest.fixture(autouse=True, scope='module')
@@ -762,6 +764,11 @@ def test_phase_stats_process_user_custom_metrics():
     assert runtime_data['value'] == 42
     assert runtime_data['type'] == 'TOTAL'
 
+# Starts the full default set of real metric providers from test-config.yml (dev_no_metrics=False)
+# for real, so it must never overlap with any other test that also starts real metric providers -
+# see the comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually
+# prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_custom_metric_sci_run():
     runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_custom_metrics.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
@@ -774,72 +781,63 @@ def test_custom_metric_sci_run():
 
     assert len(data) == 12
 
+    # The query's 'ORDER BY ... detail_name ASC' isn't safe to index into positionally once
+    # detail_name is worker-suffixed (container_name() appends '-<worker_id>', e.g. '-gw0'): that
+    # suffix makes 'test-container-2-gw0' sort *before* 'test-container-gw0' ('2' < 'g'), the
+    # opposite of the unsuffixed 'test-container' < 'test-container-2' order these indices used to
+    # assume. Look rows up by (phase, metric, detail_name) instead so the assertions hold either way.
+    tc1 = container_name('test-container')
+    tc2 = container_name('test-container-2')
+
+    def get_row(phase, metric, detail_name):
+        matches = [d for d in data if d['phase'] == phase and d['metric'] == metric and d['detail_name'] == detail_name]
+        assert len(matches) == 1, f"Expected exactly one row for phase={phase}, metric={metric}, detail_name={detail_name}, got {len(matches)}"
+        return matches[0]
+
     # 004_[RUNTIME]
-    assert data[0]['metric'] == data[1]['metric'] == 'custom_api_hits'
-    assert data[0]['unit'] == data[1]['unit'] == 'API Hits'
-    assert data[0]['detail_name'] == 'test-container'
-    assert data[1]['detail_name'] == 'test-container-2'
-    assert data[0]['phase'] == data[1]['phase'] == '004_[RUNTIME]'
-    assert 10 < data[0]['value'] < 250
-    assert 10 < data[1]['value'] < 250
+    row = get_row('004_[RUNTIME]', 'custom_api_hits', tc1)
+    row2 = get_row('004_[RUNTIME]', 'custom_api_hits', tc2)
+    assert row['unit'] == row2['unit'] == 'API Hits'
+    assert 10 < row['value'] < 250
+    assert 10 < row2['value'] < 250
 
+    row = get_row('004_[RUNTIME]', 'custom_api_hits_sci_global', tc1)
+    row2 = get_row('004_[RUNTIME]', 'custom_api_hits_sci_global', tc2)
+    assert row['unit'] == row2['unit'] == 'ugCO2e/API Hits'
+    assert 10 < row['value'] < 250
+    assert 10 < row2['value'] < 250
 
-    assert data[2]['metric'] == data[3]['metric'] == 'custom_api_hits_sci_global'
-    assert data[2]['unit'] == data[3]['unit'] == 'ugCO2e/API Hits'
-    assert data[2]['detail_name'] == 'test-container'
-    assert data[3]['detail_name'] == 'test-container-2'
-    assert data[2]['phase'] == data[3]['phase'] == '004_[RUNTIME]'
-    assert 10 < data[2]['value'] < 250
-    assert 10 < data[3]['value'] < 250
-
-
-    assert data[4]['metric'] == data[5]['metric'] == 'custom_my_coolness'
-    assert data[4]['unit'] == data[5]['unit'] == 'gigacools'
-    assert data[4]['detail_name'] == 'test-container'
-    assert data[5]['detail_name'] == 'test-container-2'
-    assert data[4]['phase'] == data[5]['phase'] == '004_[RUNTIME]'
-    assert 10 < data[4]['value'] < 250
-    assert 10 < data[5]['value'] < 250
-
+    row = get_row('004_[RUNTIME]', 'custom_my_coolness', tc1)
+    row2 = get_row('004_[RUNTIME]', 'custom_my_coolness', tc2)
+    assert row['unit'] == row2['unit'] == 'gigacools'
+    assert 10 < row['value'] < 250
+    assert 10 < row2['value'] < 250
 
     # 005_Stress
-    assert data[6]['metric'] == 'custom_api_hits'
-    assert data[6]['unit'] == 'API Hits'
-    assert data[6]['detail_name'] == 'test-container'
-    assert data[6]['phase'] == '005_Stress'
-    assert 10 < data[6]['value'] < 250
+    row = get_row('005_Stress', 'custom_api_hits', tc1)
+    assert row['unit'] == 'API Hits'
+    assert 10 < row['value'] < 250
 
-    assert data[7]['metric'] == 'custom_api_hits_sci_global'
-    assert data[7]['unit'] == 'ugCO2e/API Hits'
-    assert data[7]['detail_name'] == 'test-container'
-    assert data[7]['phase'] == '005_Stress'
-    assert 10 < data[7]['value'] < 250
+    row = get_row('005_Stress', 'custom_api_hits_sci_global', tc1)
+    assert row['unit'] == 'ugCO2e/API Hits'
+    assert 10 < row['value'] < 250
 
-    assert data[8]['metric'] == 'custom_my_coolness'
-    assert data[8]['unit'] == 'gigacools'
-    assert data[8]['detail_name'] == 'test-container'
-    assert data[8]['phase'] == '005_Stress'
-    assert 10 < data[8]['value'] < 250
-
+    row = get_row('005_Stress', 'custom_my_coolness', tc1)
+    assert row['unit'] == 'gigacools'
+    assert 10 < row['value'] < 250
 
     # 006_Stress 2
-    assert data[9]['metric'] == 'custom_api_hits'
-    assert data[9]['unit'] == 'API Hits'
-    assert data[9]['detail_name'] == 'test-container-2'
-    assert data[9]['phase'] == '006_Stress 2'
-    assert 10 < data[9]['value'] < 250
+    row = get_row('006_Stress 2', 'custom_api_hits', tc2)
+    assert row['unit'] == 'API Hits'
+    assert 10 < row['value'] < 250
 
-    assert data[10]['metric'] == 'custom_api_hits_sci_global'
-    assert data[10]['unit'] == 'ugCO2e/API Hits'
-    assert data[10]['detail_name'] == 'test-container-2'
-    assert data[10]['phase'] == '006_Stress 2'
-    assert 10 < data[10]['value'] < 250
+    row = get_row('006_Stress 2', 'custom_api_hits_sci_global', tc2)
+    assert row['unit'] == 'ugCO2e/API Hits'
+    assert 10 < row['value'] < 250
 
-    assert data[11]['metric'] == 'custom_my_coolness'
-    assert data[11]['unit'] == 'gigacools'
-    assert data[11]['detail_name'] == 'test-container-2'
-    assert data[11]['phase'] == '006_Stress 2'
-    assert 10 < data[11]['value'] < 250
+    row = get_row('006_Stress 2', 'custom_my_coolness', tc2)
+    assert row['unit'] == 'gigacools'
+    assert 10 < row['value'] < 250
 
 
 def test_calculate_co2_intensity_uses_microgram_scale():

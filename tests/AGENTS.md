@@ -5,7 +5,7 @@ This directory contains the integration and unit-style test harness for the repo
 ## Important behavior
 
 - Run pytest from `tests/`, not the repository root. `tests/conftest.py` exits the session if the working directory is wrong.
-- `setup-test-env.py` prepares `test-config.yml`, `test-compose.yml`, frontend test config, and `tests/structure.sql`.
+- `setup-test-env.py` prepares `test-config.yml`, `test-compose.yml`, frontend test config, and `tests/structure.sql`/`tests/tables.sql`.
 - `conftest.py` overrides `GlobalConfig` to the test config and resets the DB between tests.
 
 ## Useful commands
@@ -22,6 +22,6 @@ This directory contains the integration and unit-style test harness for the repo
 
 ## Working rules
 
-- If you change schema or seeded capabilities, rerun `setup-test-env.py` so `tests/structure.sql` matches the canonical schema.
+- If you change schema or seeded capabilities, rerun `setup-test-env.py` so `tests/tables.sql` matches the canonical `docker/tables.sql`.
 - Cron behavior belongs in `tests/cron/`; API behavior belongs in `tests/api/`; provider parsing belongs in `tests/metric_providers/`.
 - Many tests assume the dockerized test environment is already running. If a test interacts with the API, DB, or runner end-to-end, verify the container prerequisite first.

@@ -20,6 +20,7 @@ GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 from lib.scenario_runner import ScenarioRunner
 from lib import error_helpers
 from lib import utils
+from lib import system_checks
 from lib.terminal_colors import TerminalColors
 from lib.db import DB
 from lib.global_config import GlobalConfig
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     parser.add_argument('--skip-optimizations', action='store_true', help='Skip analysis after run to find possible optimizations.')
 
     # These switches may break or skew proper measurements or make them uncomparable due to missing info
-    parser.add_argument('--dev-no-system-checks', action='store_true', help='Do not check the system if the GMT can run properly')
+    parser.add_argument('--dev-no-system-checks', nargs='?', const=system_checks.ALL_CHECKS_SENTINEL, default=False, help='Do not check the system if the GMT can run properly. Pass no argument to disable ALL checks, or a comma-separated list of check names (e.g. check_steal_time,check_utf_encoding) to disable only those.')
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
