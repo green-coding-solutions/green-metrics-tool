@@ -1,6 +1,10 @@
 name: 'GMT Pytest'
 description:  'Run Pytest with setup and teardown'
 inputs:
+  task:
+    description: 'Task to be executed (setup, run, or all). "all" runs setup and run in one call - the original, single-step behavior. Call this action twice, once with "setup" and once with "run", to see them as separate steps in the GitHub Actions log.'
+    required: false
+    default: 'all'
   metrics-to-turn-off:
     description: 'a list of metrics to turn off that is passed to the disable metrics script'
     required: false
@@ -43,18 +47,29 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - id: guard
+      if: inputs.task != 'setup' && inputs.task != 'run' && inputs.task != 'all'
+      shell: bash
+      run: |
+          echo 'Please call GMT Pytest with a valid task name: setup, run, or all' >> $GITHUB_STEP_SUMMARY
+          echo "GMT Pytest task was called with ${{ inputs.task }} instead" >> $GITHUB_STEP_SUMMARY
+          exit 1
+
     - name: setup_python
       uses: actions/setup-python@v7
+      if: inputs.task == 'setup' || inputs.task == 'all'
       with:
         python-version: '3.13'
 
     - id: python_cache
+      if: inputs.task == 'setup' || inputs.task == 'all'
       uses: actions/cache@v6
       with:
         path: venv
         key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('docker/requirements.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
 
     - name: install script and packages
+      if: inputs.task == 'setup' || inputs.task == 'all'
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
@@ -73,6 +88,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
 
     - name: Install dev requirements and run test setup script
+      if: inputs.task == 'setup' || inputs.task == 'all'
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
@@ -92,10 +108,12 @@ runs:
       # https://github.com/green-coding-solutions/green-metrics-tool/pkgs/container/gunicorn-container-cache/versions
 
     - name: Set up Docker Buildx
+      if: inputs.task == 'setup' || inputs.task == 'all'
       id: buildx
       uses: docker/setup-buildx-action@v4
 
     - name: Login to Docker Registry
+      if: inputs.task == 'setup' || inputs.task == 'all'
       uses: docker/login-action@v4
       with:
         registry: ghcr.io
@@ -103,6 +121,7 @@ runs:
         password: ${{ inputs.github-token }}
 
     - name: Build docker-compose
+      if: inputs.task == 'setup' || inputs.task == 'all'
       id: build-docker-compose
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
@@ -120,6 +139,7 @@ runs:
         fi
 
     - name: Start Test container
+      if: inputs.task == 'setup' || inputs.task == 'all'
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
@@ -127,17 +147,19 @@ runs:
 
     # for debugging purposes you can setup a ssh connection by setting 'inputs.enable-ssh' to true
     - name: Setup upterm session
-      if: ${{ inputs.enable-ssh == 'true' }}
+      if: (inputs.task == 'setup' || inputs.task == 'all') && inputs.enable-ssh == 'true'
       uses: owenthereal/action-upterm@47652056242288ccbebd30f836e9885d09a75365
       with:
         limit-access-to-actor: true # Restrict to the user who triggered the workflow
 
     - name: Disable swap
+      if: inputs.task == 'setup' || inputs.task == 'all'
       shell: bash
       run: |
         sudo swapoff -a
 
     - name: Run Tests
+      if: inputs.task == 'run' || inputs.task == 'all'
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
       env:
@@ -164,14 +186,14 @@ runs:
         python3 -m ${{ inputs.tests-command }} ${TEST_PATH} -rA | tee /tmp/test-results.txt
 
     - name: Display Results
+      if: always() && (inputs.task == 'run' || inputs.task == 'all')
       shell: bash
-      if: always()
       run: |
         cat /tmp/test-results.txt | grep -oPz '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
 
     - name: Stop Containers
+      if: always() && (inputs.task == 'run' || inputs.task == 'all')
       shell: bash
-      if: always()
       working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
         ./stop-test-containers.sh
