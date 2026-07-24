@@ -258,6 +258,7 @@ def todo_test_simple_email_job():
        Tests.assertion_info('Successfully processed jobs queue item.', f"STDOUT:\n{ps.stdout}\nSTDERR:\n{ps.stderr}")
 
 
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_docker_pull_private_image_via_db_credentials():
     if not os.getenv('GMT_TESTING_DOCKER_USER') or not os.getenv('GMT_TESTING_DOCKER_PAT'):
         raise RuntimeError('To run this test you need to set ENV vars GMT_TESTING_DOCKER_USER and GMT_TESTING_DOCKER_PAT - Can be ignored if you are submitting a PR as external developer as only the repo owners know these credentials.')
