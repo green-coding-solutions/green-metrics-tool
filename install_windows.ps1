@@ -28,6 +28,8 @@ param(
     [switch]$DeactivatePowerHog,
     [switch]$ActivateCarbonDb,
     [switch]$DeactivateCarbonDb,
+    [switch]$ActivateSoftwareView,
+    [switch]$DeactivateSoftwareView,
     [Alias("z")]
     [switch]$NoTelemetryPing,
     [Alias("ForcePing")]
@@ -233,7 +235,7 @@ function Invoke-ScaphandreProviderBuild {
         try {
             & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
             if ($LASTEXITCODE -ne 0) {
-                Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
             } else {
                 Write-Host "Successfully built metric-provider-binary.exe"
             }
@@ -257,11 +259,11 @@ function Invoke-ScaphandreProviderBuild {
                 Write-Host "Found Visual Studio at: $vsInstallPath"
                 $absSource = Join-Path $providerDir $sourceFile
                 $absOutput = Join-Path $providerDir $outputBinary
-                # Run via cmd.exe so vcvarsall environment is inherited by cl.exe
-                $cmdLine = "`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib"
-                Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow
-                if ($LASTEXITCODE -ne 0) {
-                    Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                # Outer quotes wrap the whole command so cmd.exe handles the inner quoted paths correctly.
+                $cmdLine = "`"`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib`""
+                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow -PassThru
+                if ($proc.ExitCode -ne 0) {
+                    Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
                 } else {
                     Write-Host "Successfully built metric-provider-binary.exe"
                 }
@@ -270,9 +272,104 @@ function Invoke-ScaphandreProviderBuild {
         }
     }
 
-    Write-Warning "MSVC compiler (cl.exe) not found. The scaphandre RAPL energy provider was not built."
-    Write-Warning "To build it manually, open 'x64 Native Tools Command Prompt for VS 2026' and run build.bat in:"
-    Write-Warning "  $providerDir"
+    Write-Error "MSVC compiler (cl.exe) not found. The scaphandre RAPL energy provider was not built.`nTo build it manually, open 'x64 Native Tools Command Prompt for VS 2022' and run build.bat in:`n  $providerDir"
+}
+function Invoke-CpuUtilizationSystemProviderBuild {
+    $providerDir = Join-Path $Root "metric_providers\cpu\utilization\windows\system"
+    $sourceFile = "source.c"
+    $outputBinary = "metric-provider-binary"
+
+    Write-Step "Building CPU utilization (system) provider binary"
+
+    if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
+        Push-Location $providerDir
+        try {
+            & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+            } else {
+                Write-Host "Successfully built metric-provider-binary.exe"
+            }
+        } finally {
+            Pop-Location
+        }
+        return
+    }
+
+    $vswherePath = @(
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
+        "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if ($vswherePath) {
+        $vsInstallPath = & $vswherePath -latest -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
+        if ($vsInstallPath) {
+            $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
+            if (Test-Path $vcvarsall) {
+                Write-Host "Found Visual Studio at: $vsInstallPath"
+                $absSource = Join-Path $providerDir $sourceFile
+                $absOutput = Join-Path $providerDir $outputBinary
+                $cmdLine = "`"`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib`""
+                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow -PassThru
+                if ($proc.ExitCode -ne 0) {
+                    Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                } else {
+                    Write-Host "Successfully built metric-provider-binary.exe"
+                }
+                return
+            }
+        }
+    }
+
+    Write-Error "MSVC compiler (cl.exe) not found. The CPU utilization (system) provider was not built.`nTo build it manually, open 'x64 Native Tools Command Prompt for VS 2022' and run build.bat in:`n  $providerDir"
+}
+
+function Invoke-CpuUtilizationCoreProviderBuild {
+    $providerDir = Join-Path $Root "metric_providers\cpu\utilization\windows\core"
+    $sourceFile = "source.c"
+    $outputBinary = "metric-provider-binary"
+
+    Write-Step "Building CPU utilization (per-core) provider binary"
+
+    if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
+        Push-Location $providerDir
+        try {
+            & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+            } else {
+                Write-Host "Successfully built metric-provider-binary.exe"
+            }
+        } finally {
+            Pop-Location
+        }
+        return
+    }
+
+    $vswherePath = @(
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
+        "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if ($vswherePath) {
+        $vsInstallPath = & $vswherePath -latest -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
+        if ($vsInstallPath) {
+            $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
+            if (Test-Path $vcvarsall) {
+                Write-Host "Found Visual Studio at: $vsInstallPath"
+                $absSource = Join-Path $providerDir $sourceFile
+                $absOutput = Join-Path $providerDir $outputBinary
+                $cmdLine = "`"`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib`""
+                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow -PassThru
+                if ($proc.ExitCode -ne 0) {
+                    Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                } else {
+                    Write-Host "Successfully built metric-provider-binary.exe"
+                }
+                return
+            }
+        }
+    }
+
+    Write-Error "MSVC compiler (cl.exe) not found. The CPU utilization (per-core) provider was not built.`nTo build it manually, open 'x64 Native Tools Command Prompt for VS 2022' and run build.bat in:`n  $providerDir"
 }
 
 function Send-TelemetryPing {
@@ -339,6 +436,11 @@ $activatePowerHogValue = $false
 if ($ActivatePowerHog) { $activatePowerHogValue = $true }
 elseif ($DeactivatePowerHog) { $activatePowerHogValue = $false }
 else { $activatePowerHogValue = Read-YesNo "Do you want to activate PowerHOG?" $false }
+
+$activateSoftwareViewValue = $false
+if ($ActivateSoftwareView) { $activateSoftwareViewValue = $true }
+elseif ($DeactivateSoftwareView) { $activateSoftwareViewValue = $false }
+else { $activateSoftwareViewValue = Read-YesNo "Do you want to activate the software category and tasks view?" $false }
 
 if ([string]::IsNullOrWhiteSpace($ApiUrl)) {
     $ApiUrl = Read-Default "Please enter the desired API endpoint URL. Use port 9142 for local installs and no port for production to auto-use 80/443" "http://api.green-coding.internal:9142"
@@ -500,7 +602,9 @@ Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_SCENARIO_RUNNER__" $a
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_ECO_CI__" $activateEcoCiValue.ToString().ToLowerInvariant()
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_POWER_HOG__" $activatePowerHogValue.ToString().ToLowerInvariant()
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_CARBON_DB__" $activateCarbonDbValue.ToString().ToLowerInvariant()
+Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_SOFTWARE_VIEW__" $activateSoftwareViewValue.ToString().ToLowerInvariant()
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_AI_OPTIMISATIONS__" "false"
+Replace-RegexInFile "config.yml" "activate_software_view:.*" ("activate_software_view: " + $activateSoftwareViewValue)
 
 if ($enableSsl) {
     Replace-InFile "docker/compose.yml" "9142:9142" "443:443"
@@ -549,6 +653,8 @@ if ($installPythonPackages) {
 }
 
 Invoke-ScaphandreProviderBuild
+Invoke-CpuUtilizationSystemProviderBuild
+Invoke-CpuUtilizationCoreProviderBuild
 
 if ($buildContainers -and -not $NoDocker) {
     Write-Step "Building / Updating docker containers"

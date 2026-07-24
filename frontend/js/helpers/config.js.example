@@ -572,6 +572,16 @@ METRIC_MAPPINGS = {
         "source": "mach",
         "explanation": "CPU Utilization of total system"
     },
+    "cpu_utilization_windows_system": {
+        "clean_name": "CPU %",
+        "source": "Windows",
+        "explanation": "CPU Utilization of total system"
+    },
+    "cpu_utilization_windows_core": {
+        "clean_name": "CPU % per core",
+        "source": "Windows",
+        "explanation": "CPU Utilization per logical core"
+    },
     "memory_carbon_rapl_msr_component": {
         "clean_name": "DRAM CO₂ (operational)",
         "source": "RAPL",

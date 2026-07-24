@@ -267,6 +267,8 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 'lmsensors_fan_component',
                 'cpu_utilization_procfs_system',
                 'cpu_utilization_mach_system',
+                'cpu_utilization_windows_system',
+                'cpu_utilization_windows_core',
                 'cpu_utilization_cgroup_container',
                 'cpu_utilization_cgroup_system',
                 'memory_used_cgroup_container',
@@ -284,7 +286,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             ):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_avg, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
-                if metric in ('cpu_utilization_procfs_system', 'cpu_utilization_mach_system'):
+                if metric in ('cpu_utilization_procfs_system', 'cpu_utilization_mach_system', 'cpu_utilization_windows_system'):
                     cpu_utilization_machine = value_avg
                 if metric in ('cpu_utilization_cgroup_container', 'cpu_utilization_cgroup_system', ):
                     cpu_utilization_containers[detail_name] = value_avg

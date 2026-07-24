@@ -50,7 +50,7 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
         if not configured_providers['psu_energy_ac_sdia_machine']['TDP']:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease set the TDP config option for PsuEnergyAcSdiaMachineProvider in the config.yml")
 
-        if 'cpu_utilization_mach_system' not in configured_providers and 'cpu_utilization_procfs_system' not in configured_providers:
+        if 'cpu_utilization_mach_system' not in configured_providers and 'cpu_utilization_procfs_system' not in configured_providers and 'cpu_utilization_windows_system' not in configured_providers:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate a CPU Utilization provider (cpu_utilization_mach_system / cpu_utilization_procfs_system) in the config.yml\n \
                 This is required to run PsuEnergyAcSdiaMachineProvider")
 
@@ -61,6 +61,8 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
                 self._filename = self._folder.joinpath('cpu_utilization_procfs_system.log')
             elif self._folder.joinpath('cpu_utilization_mach_system.log').exists():
                 self._filename = self._folder.joinpath('cpu_utilization_mach_system.log')
+            elif self._folder.joinpath('cpu_utilization_windows_system.log').exists():
+                self._filename = self._folder.joinpath('cpu_utilization_windows_system.log')
             else:
                 raise RuntimeError(f"could not find the cpu_utilization_procfs_system.log or cpu_utilization_mach_system.log file in {self._folder}. \
                     Did you activate the cpu_utilization_mach_system or cpu_utilization_procfs_system in the config.yml too? \
