@@ -826,7 +826,7 @@ class ScenarioRunner:
                 # Important: Before we had here a 10,19 timestamp and where upgrading it from second to
                 # microsecond precision. This lead to errors in correct phase attribution by ghosting into previous phases
                 # Timing must be at least microsecond precision
-                custom_metric['regex'] = rf"^(\d{{16,19}}) {key}=(\d+)$" # default fallback regex
+                custom_metric['regex'] = rf"^(\d{{16,19}}) {re.escape(key)}=(-?\d+(?:\.\d+)?)$" # default fallback regex. allowing only valid intergers or floats. not 12..10 bogus or similar
             self.__custom_metrics[safe_key] = custom_metric
             if custom_metric.get('sci', False):
                 self.__sci_metrics.append(safe_key)

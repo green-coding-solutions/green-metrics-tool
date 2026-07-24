@@ -1,12 +1,12 @@
 PyYAML==6.0.3
-pandas==3.0.3
+pandas==3.0.5
 cryptography==49.0.0
 psycopg[binary]==3.3.4
 psycopg_pool==3.3.1
 pyserial==3.5
 psutil==7.2.2
 schema==0.7.8
-aiohttp==3.14.2
+aiohttp==3.14.3
 energy-dependency-inspector==0.5.1
 
 # calibration script dep
