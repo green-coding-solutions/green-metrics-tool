@@ -633,8 +633,12 @@ def test_container_immediate_exit_with_error():
             for step in context.run_steps():
                 if step == 'setup_services':
                     # Race condition fix: Container exits with error code 1, but takes time to execute the command.
-                    # Adding delay ensures container has time to exit before the running container check.
-                    time.sleep(0.5)
+                    # Poll (bounded) until the container has actually exited before letting the running
+                    # container check run - a fixed short sleep is not always enough time for docker to even
+                    # schedule and run the container's command under heavy parallel test load.
+                    deadline = time.monotonic() + 10
+                    while Tests.check_if_container_running(container_name('failing-container')) and time.monotonic() < deadline:
+                        time.sleep(0.1)
 
     error_message = str(e.value)
     assert "failed during [BOOT]" in error_message, \

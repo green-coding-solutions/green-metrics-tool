@@ -295,5 +295,5 @@ def test_docker_pull_private_image_via_db_credentials():
     assert 'Pulling greencoding/simple-test' in ps.stdout # step in question
     assert 'Saving image and volume sizes' in ps.stdout # step after
     # error after
-    assert "'docker', 'run', '-it', '-d', '--name', 'test_service'" in ps.stderr
+    assert f"'docker', 'run', '-it', '-d', '--name', '{utils.container_name('test_service')}'" in ps.stderr
     assert 'returned non-zero exit status 125.' in ps.stderr
