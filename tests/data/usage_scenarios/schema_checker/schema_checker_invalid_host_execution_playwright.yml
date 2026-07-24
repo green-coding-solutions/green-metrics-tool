@@ -1,0 +1,11 @@
+---
+name: Schema Checker Invalid Host Execution Playwright
+author: Didi Hoffmann
+description: Playwright commands are not allowed for flows that run on the host
+
+flow:
+  - name: Host flow
+    container: null
+    commands:
+      - type: playwright
+        command: await page.goto('http://example.com')

@@ -1291,3 +1291,72 @@ def test_database_reconnection_during_run():
 
     assert ('Database connection error' in out.getvalue() and 'Retrying in' in out.getvalue()), \
         "No database retry messages found - test may not have properly simulated database outage"
+
+## Host execution
+#   Flows with `container: null` run their commands directly on the host. This is
+#   security sensitive and therefore gated behind the 'host' orchestrator capability
+#   of the user. The DEFAULT user (id 1) has it enabled for local usage.
+def test_host_execution_denied_without_host_capability():
+    Tests.insert_user(762, 'no-host-capability-user')
+    DB().query("UPDATE users SET capabilities = capabilities #- '{measurement,orchestrators,host}' WHERE id = 762")
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution.yml', user_id=762, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    with pytest.raises(PermissionError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('import_metric_providers')
+
+    assert 'host execution is not permitted' in str(e.value), \
+        Tests.assertion_info('host execution is not permitted', str(e.value))
+
+def test_host_execution_allowed_runs_on_host():
+    out = io.StringIO()
+    err = io.StringIO()
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+
+    assert 'will execute directly on the host system' in out.getvalue()
+    assert out.getvalue().count('command on [HOST]') == 2, \
+        Tests.assertion_info('2x command on [HOST]', out.getvalue().count('command on [HOST]'))
+
+def test_host_execution_mixed_container_and_host_flow():
+    out = io.StringIO()
+    err = io.StringIO()
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution_mixed.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+
+    assert 'command on test-container' in out.getvalue()
+    assert 'command on [HOST]' in out.getvalue()
+
+def test_container_metric_providers_disabled_without_services():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    out = io.StringIO()
+    with redirect_stdout(out):
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('import_metric_providers')
+            imported_metric_names = [provider._metric_name for provider in runner._ScenarioRunner__metric_providers] #pylint: disable=protected-access
+
+    assert 'as it needs containers and no containers are part of this run' in out.getvalue()
+
+    assert imported_metric_names, Tests.assertion_info('metric providers imported', imported_metric_names)
+    assert not any(name.endswith('_container') or name == 'network_connections_tcpdump_system' for name in imported_metric_names), \
+        Tests.assertion_info('no container bound metric providers imported', imported_metric_names)
+
+def test_container_metric_providers_imported_with_services():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution_mixed.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    out = io.StringIO()
+    with redirect_stdout(out):
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('import_metric_providers')
+            imported_metric_names = [provider._metric_name for provider in runner._ScenarioRunner__metric_providers] #pylint: disable=protected-access
+
+    assert any(name.endswith('_container') for name in imported_metric_names), \
+        Tests.assertion_info('container bound metric providers imported', imported_metric_names)

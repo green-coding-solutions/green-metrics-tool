@@ -6,7 +6,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from schema import SchemaError
 
-from lib.schema_checker import SchemaChecker
+from lib.schema_checker import SchemaChecker, flow_runs_on_host
 from tests import test_functions as Tests
 
 
@@ -117,3 +117,32 @@ def test_schema_checker_invalid_wrong_type():
     print(error.value)
     assert expected_exception in str(error.value), \
         Tests.assertion_info(f"Exception: {expected_exception}", str(error.value))
+
+def test_schema_checker_valid_host_execution():
+    usage_scenario_name = 'schema_checker_valid_host_execution.yml'
+    usage_scenario_path = os.path.join(CURRENT_DIR, '../data/usage_scenarios/schema_checker/', usage_scenario_name)
+    with open(usage_scenario_path, encoding='utf8') as file:
+        usage_scenario = yaml.safe_load(file)
+    schema_checker = SchemaChecker(validate_compose_flag=True)
+    schema_checker.check_usage_scenario(usage_scenario)
+
+def test_schema_checker_invalid_host_execution_playwright():
+    usage_scenario_name = 'schema_checker_invalid_host_execution_playwright.yml'
+    usage_scenario_path = os.path.join(CURRENT_DIR, '../data/usage_scenarios/schema_checker/', usage_scenario_name)
+    with open(usage_scenario_path, encoding='utf8') as file:
+        usage_scenario = yaml.safe_load(file)
+
+    schema_checker = SchemaChecker(validate_compose_flag=True)
+    with pytest.raises(SchemaError) as error:
+        schema_checker.check_usage_scenario(usage_scenario)
+
+    expected_exception = "runs directly on the host (container: null) and only supports 'console' commands"
+    assert expected_exception in str(error.value), \
+        Tests.assertion_info(f"Exception: {expected_exception}", str(error.value))
+
+def test_flow_runs_on_host_only_for_yaml_null():
+    assert flow_runs_on_host({'name': 'flow'}) is True
+    assert flow_runs_on_host({'name': 'flow', 'container': None}) is True
+    # the literal string 'None' is a valid container name and must not trigger host execution
+    assert flow_runs_on_host({'name': 'flow', 'container': 'None'}) is False
+    assert flow_runs_on_host({'name': 'flow', 'container': 'my-container'}) is False
