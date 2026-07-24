@@ -185,7 +185,7 @@ runs:
         source ../venv/bin/activate
         python3 -m ${{ inputs.tests-command }} -n auto --dist=loadgroup ${TEST_PATH} -rA | tee /tmp/test-results.txt
         # these marked tests must run sequentially after, as it restarts the DB which will collide with other parallel tests running
-        python3 -m ${{ inputs.tests-command }} -m serial -rA | tee /tmp/test-results.txt
+        python3 -m ${{ inputs.tests-command }} -m serial -rA | tee -a /tmp/test-results.txt
 
     - name: Display Results
       if: always() && (inputs.task == 'run' || inputs.task == 'all')
