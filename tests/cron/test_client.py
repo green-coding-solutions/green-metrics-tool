@@ -7,12 +7,13 @@ import pytest
 
 from lib import utils
 from lib.job.run import RunJob
+from lib.user import User
 from tests import test_functions as Tests
 
 ## Check if metrics provider are already running
-# Starts real metric providers with dev_no_system_checks=False, so it must never overlap with any
-# other test that also starts real metric providers - see the comment on pytestmark in
-# tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
+# Starts real metric providers, so it must never overlap with any other test that also starts
+# real metric providers - see the comment on pytestmark in tests/smoke_test.py for why
+# xdist_group is what actually prevents that under -n.
 @pytest.mark.xdist_group(name="real-metric-providers")
 def test_simple_cluster_run():
 
@@ -28,6 +29,10 @@ def test_simple_cluster_run():
     Tests.shorten_sleep_times(1)
 
     RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
+
+    user = User(1)
+    user._capabilities['measurement']['dev_no_system_checks'] = ['check_steal_time']
+    user.update()
 
     ps = subprocess.run(
             ['python3', '../cron/client.py', '--testing', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],

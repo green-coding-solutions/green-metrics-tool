@@ -20,7 +20,8 @@ run_stdout = None
 
 RUN_NAME = 'test_' + utils.randomword(12)
 
-# This whole file runs a real measurement with dev_no_system_checks=False, so every real metric
+# This whole file runs a real measurement with dev_no_system_checks set to the minimum value (check_steal_time) which
+# guards it only from VM failures, so every real metric
 # provider process it starts is checked (and later left running for the duration of the module)
 # against the actual system-wide "is another instance of this provider already running" guard in
 # metric_providers.base - a check that is intentionally NOT worker-scoped, since its whole point is
@@ -51,7 +52,7 @@ def setup_module(module):
         subprocess.run(['docker', 'compose', '-f', GMT_DIR+folder+'compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = ScenarioRunner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=False, dev_no_sleeps=False, dev_no_metrics=False, dev_no_system_checks=False, dev_no_container_dependency_collection=False, measurement_pre_test_sleep=1, measurement_baseline_duration=1, measurement_idle_duration=1, measurement_post_test_sleep=1, measurement_phase_transition_time=1, measurement_wait_time_dependencies=5)
+        runner = ScenarioRunner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=False, dev_no_sleeps=False, dev_no_metrics=False, dev_no_system_checks=['check_steal_time'], dev_no_container_dependency_collection=False, measurement_pre_test_sleep=1, measurement_baseline_duration=1, measurement_idle_duration=1, measurement_post_test_sleep=1, measurement_phase_transition_time=1, measurement_wait_time_dependencies=5)
         runner.run()
 
     #pylint: disable=global-statement
