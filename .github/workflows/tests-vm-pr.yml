@@ -41,13 +41,21 @@ jobs:
           submodules: 'false'
 
 
-      - name: 'Setup, Run, and Teardown Tests'
+      - name: 'Setup'
         uses: ./.github/actions/gmt-pytest
         with:
+         task: setup
+         github-token: ${{ secrets.GITHUB_TOKEN }}
+         enable-ssh: ${{ inputs.enable-ssh }}
+
+      - name: 'Run'
+        if: always()
+        uses: ./.github/actions/gmt-pytest
+        with:
+         task: run
          github-token: ${{ secrets.GITHUB_TOKEN }}
          docker-user: ${{ secrets.GMT_TESTING_DOCKER_USER }}
          docker-pat: ${{ secrets.GMT_TESTING_DOCKER_PAT }}
-         enable-ssh: ${{ inputs.enable-ssh }}
          test-path: ${{ inputs.test-path }}
 
       - name: Eco CI Energy Estimation - Get Measurement
