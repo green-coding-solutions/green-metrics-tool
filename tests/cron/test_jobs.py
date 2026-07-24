@@ -284,7 +284,7 @@ def test_docker_pull_private_image_via_db_credentials():
     user.update()
 
     ps = subprocess.run(
-        ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml", '--dev-no-metrics'],
+        ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,

@@ -116,6 +116,7 @@ def test_volume_without_allowed_mount_interpreted_as_missing_path():
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
+@pytest.mark.xdist_group(name="volume-loading")
 def test_non_existent_but_allowed_volume_should_fail():
     # we do NOT create the volume here beforehand as we want the test to fail
 
@@ -132,6 +133,7 @@ def test_non_existent_but_allowed_volume_should_fail():
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
+@pytest.mark.xdist_group(name="volume-loading")
 def test_non_existent_but_allowed_volume_should_fail_readonly():
     # we do NOT create the volume here beforehand as we want the test to fail
 
@@ -149,14 +151,17 @@ def test_non_existent_but_allowed_volume_should_fail_readonly():
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
 
-# These tests below create real, globally-named docker volumes ('gmt-test-volume-delete-me',
+# The tests below all reference real, globally-named docker volumes ('gmt-test-volume-delete-me',
 # '2g89huiwecjuShjg_Sdnufewiuasd') that are also hardcoded (unresolved, unsuffixed) into the
 # usage_scenario YAML fixtures they load - lib/scenario_runner.py deliberately never applies
 # worker-suffix resolution to named volume mounts (they may reference volumes a real user
 # manages outside of GMT, so silently rewriting the name would be wrong there). That means, unlike
-# containers/networks, these volumes are not made worker-unique automatically, so two of these
-# tests running concurrently on different xdist workers would race on the same volume. Grouping
-# them all onto a single worker via xdist_group serializes them relative to each other instead.
+# containers/networks, these volumes are not made worker-unique automatically, so any two of these
+# tests running concurrently on different xdist workers would race on the same volume name - even
+# the two 'should_fail' tests above that only reference the name and never create it, since another
+# worker creating the volume mid-test would make the volume unexpectedly exist for them too, and
+# racing against their eventual `docker volume rm` in another test. Grouping them all onto a single
+# worker via xdist_group serializes them relative to each other instead.
 @pytest.mark.xdist_group(name="volume-loading")
 def test_non_permitted_volume_should_fail():
 

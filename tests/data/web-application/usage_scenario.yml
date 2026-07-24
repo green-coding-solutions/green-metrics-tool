@@ -16,5 +16,8 @@ flow:
     container: curl
     commands:
       - type: console
-        command: curl http://__GMT_VAR_WEB_HOST__:8000
+        # --retry-connrefused: the Django dev server can take longer than the setup-commands sleep
+        # to start listening under load (e.g. many other containers competing for CPU on the same
+        # host under parallel test workers), so retry instead of failing on the first refused connection.
+        command: curl --retry 10 --retry-connrefused --retry-delay 1 http://__GMT_VAR_WEB_HOST__:8000
         note: Hello World
