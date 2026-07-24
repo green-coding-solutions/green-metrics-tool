@@ -4,6 +4,8 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
+import bisect
+import math
 from decimal import Decimal
 from io import StringIO
 
@@ -77,6 +79,110 @@ def generate_csv_line(hidden, run_id, metric, detail_name, phase_name, value, va
     return f"{hidden},{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{round(sampling_rate_avg) if sampling_rate_avg is not None else ''},{round(sampling_rate_max) if sampling_rate_max is not None else ''},{round(sampling_rate_95p) if sampling_rate_95p is not None else ''},{unit},NOW()\n"
 
 
+def _percentile_cont(sorted_values, p):
+    # mirrors postgres' percentile_cont(p) WITHIN GROUP (ORDER BY ...): linear interpolation
+    # between the two closest ranks. sorted_values must not contain None/NULL entries.
+    n = len(sorted_values)
+    if n == 0:
+        return None
+    if n == 1:
+        return float(sorted_values[0])
+    rank = p * (n - 1)
+    lower = math.floor(rank)
+    upper = math.ceil(rank)
+    if lower == upper:
+        return float(sorted_values[lower])
+    frac = rank - lower
+    return float(sorted_values[lower] + frac * (sorted_values[upper] - sorted_values[lower]))
+
+
+def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phase_start, duration):
+    # Re-implements in Python what used to be a per (metric, phase) SQL query against
+    # measurement_values: sum/max/min/avg over the phase, a time-weighted average and
+    # a derivative (both based on a LAG-style diff to the previous sample), plus the
+    # sampling rate stats. `times`/`values` must already be sorted by time ascending.
+    #
+    # To be able to compute a diff/derivative at the phase boundary, the first sample
+    # at or after phase_end (but still before the next phase starts) is folded into the
+    # aggregates too - exactly like the previous query's "next_one" CTE did.
+    # Derivative Values
+    # These are only a true derivate if value is already a difference, which is the case for energy values
+    # and for _io_ providers or any other that outputs increments instead of totals
+    # using the derivative for other providers makes no sense atm
+
+    left = bisect.bisect_right(times, phase_start)
+    right = bisect.bisect_left(times, phase_end)
+
+    combined_times = list(times[left:right])
+    combined_values = list(values[left:right])
+    in_phase = len(combined_values)  # count of samples strictly inside the phase boundaries
+
+    if right < len(times) and times[right] < next_phase_start:
+        combined_times.append(times[right])
+        combined_values.append(values[right])
+
+    value_count = len(combined_values)
+    if value_count == 0:
+        return (None, None, None, None, None, None, None, 0, None, None, None, None)
+
+    value_sum = sum(combined_values)
+    max_value = max(combined_values)
+    min_value = min(combined_values)
+    # kept as Decimal (like postgres' NUMERIC AVG(bigint) would return via psycopg) since
+    # it is divided against Decimal(duration)/... below.
+    classic_value_avg = Decimal(value_sum) / Decimal(value_count)
+
+    # sampling rate is derivable as soon as there is at least one diff between two samples,
+    # independent of whether that diff is trusted enough to build the weighted average from
+    # (see the value_count <= 2 case below) - this matches the original query, where the LAG-based
+    # diff column was never gated on how many rows the phase had.
+    if value_count > 1:
+        weighted_num = Decimal(0)
+        weighted_den = 0
+        derivative_values = []
+        diff_values = []
+        # index 0 has no predecessor, its diff is NULL by concept
+        # We could estimate it with an AVG, but this would increase complexity of this query as well as create fake values in case of network,
+        # where we cannot assume that the value before the first measurement is linearly extraploateable. thus we do skip it
+        for i in range(1, value_count):
+            diff = combined_times[i] - combined_times[i - 1]
+            weighted_num += Decimal(combined_values[i]) * diff
+            weighted_den += diff
+            derivative_values.append(Decimal(combined_values[i]) / diff) # can flake with division by zero if database is corrupted which should never be. Thus no guard. we simply fail
+            diff_values.append(diff)
+        weighted_value_avg = weighted_num / Decimal(weighted_den)
+
+        weighted_derivative_avg = sum(derivative_values) / len(derivative_values)
+        weighted_derivative_max = max(derivative_values)
+        weighted_derivative_min = min(derivative_values)
+
+        sampling_rate_avg = sum(diff_values) / len(diff_values)
+        sampling_rate_max = max(diff_values)
+        sampling_rate_95p = _percentile_cont(sorted(diff_values), 0.95)
+    else:
+        sampling_rate_avg = sampling_rate_max = sampling_rate_95p = None
+
+    # Since we need to LAG the table the first value will be NULL. So it means we need at least
+    # 3 rows to make a useful weighted average. In case we cannot do that we use the classic average.
+    if value_count in (1,2):
+        value_avg = classic_value_avg
+        # This derivative is only an approximation, but better than delivering no value as it is at least based on one sample
+        derivative_avg = classic_value_avg / (duration / value_count)
+        derivative_max = Decimal(max_value) / (duration / value_count)
+        derivative_min = Decimal(min_value) / (duration / value_count)
+    else:
+        value_avg = weighted_value_avg # pylint: disable=possibly-used-before-assignment
+        derivative_avg = weighted_derivative_avg # pylint: disable=possibly-used-before-assignment
+        derivative_max = weighted_derivative_max # pylint: disable=possibly-used-before-assignment
+        derivative_min = weighted_derivative_min # pylint: disable=possibly-used-before-assignment
+
+    return (
+        value_sum, max_value, min_value, value_avg,
+        derivative_avg, derivative_max, derivative_min, value_count,
+        sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase
+    )
+
+
 
 def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
     if not sci:
@@ -96,7 +202,6 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
         error_helpers.log_error('Metrics was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
         return
 
-
     query = """
         SELECT phases
         FROM runs
@@ -109,6 +214,23 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
         return
 
     phases = phase_data[0]
+
+    # Fetch every measurement value for the whole run in one go, pre-ordered by metric and
+    # time, instead of issuing one SELECT per (phase, metric) pair further down. All the
+    # window/aggregate math that used to live in that per-pair SQL query is now done in
+    # _compute_metric_phase_stats() on these in-memory, per-metric time series.
+    measurement_values_query = """
+        SELECT mv.measurement_metric_id, mv.time, mv.value
+        FROM measurement_values mv
+        JOIN measurement_metrics mm ON mm.id = mv.measurement_metric_id
+        WHERE mm.run_id = %s
+        ORDER BY mv.measurement_metric_id ASC, mv.time ASC
+    """
+    metric_time_series = {}
+    for measurement_metric_id, m_time, m_value in DB().fetch_all(measurement_values_query, (run_id, )):
+        metric_time_series.setdefault(measurement_metric_id, ([], []))
+        metric_time_series[measurement_metric_id][0].append(m_time)
+        metric_time_series[measurement_metric_id][1].append(m_value)
 
     csv_buffer = StringIO()
 
@@ -133,114 +255,29 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
         machine_power_current_phase = None
         machine_energy_current_phase = None
 
-        select_query = """
-            WITH in_range AS (
-                SELECT
-                    time,
-                    value,
-                    1 as in_phase -- a dummy marker to tell us if the later joined samples are from inside our outside the phase boundary
-                FROM measurement_values
-                WHERE measurement_metric_id = %s
-                  AND time > %s
-                  AND time < %s
-            ),
-            next_one AS (
-                SELECT
-                    time,
-                    value,
-                    0 as in_phase  -- a dummy marker to tell us if the later joined samples are from inside our outside the phase boundary
-                FROM measurement_values
-                WHERE measurement_metric_id = %s
-                  AND time >= %s          -- same upper bound as above
-                  AND time < %s
-                ORDER BY time ASC
-                LIMIT 1
-            ),
-            lag_table as (
-                SELECT
-                    time,
-                    value,
-                    (time - LAG(time) OVER (ORDER BY time ASC)) AS diff,
-                    in_phase
-                FROM (
-                    SELECT time, value, in_phase FROM in_range
-                    UNION ALL
-                    SELECT time, value, in_phase FROM next_one
-                )
-                ORDER BY time ASC
-            )
-            SELECT
-                SUM(value), MAX(value), MIN(value),
-                AVG(value), -- This would be the normal average. we only use that when there is less than three values available and we cannot build a weighted average
-                (SUM(value*diff::DOUBLE PRECISION))/(SUM(diff)), -- weighted average -- we are missing the first row, which is NULL by concept. We could estimate it with an AVG, but this would increase complexity of this query as well as create fake values in case of network, where we cannot assume that the value before the first measurement is linearly extraploateable. thus we do skip it
-
-                -- these are only a true derivate if value is already a difference, which is the case for energy values and for _io_ providers or any other that outputs increments instead of totals
-                -- using the derivative for other providers makes no sense atm
-                AVG(value::DOUBLE PRECISION/diff) as derivative_avg, -- is enough to cast nominator
-                MAX(value::DOUBLE PRECISION/diff) as derivative_max, -- is enough to cast nominator
-                MIN(value::DOUBLE PRECISION/diff) as derivative_min, -- is enough to cast nominator
-
-                COUNT(value),
-                AVG(diff) as sampling_rate_avg,
-                MAX(diff) as sampling_rate_max,
-                percentile_cont(0.95) WITHIN GROUP (ORDER BY diff) AS sampling_rate_95p,
-                SUM(in_phase) as in_phase  -- a dummy marker to tell us if the later joined samples are from inside our outside the phase boundary
-            FROM lag_table
-        """
-
         duration = Decimal(phase['end']-phase['start'])
         next_phase_start = phases[idx+1]['start'] if idx+1 < len(phases) else MAX_POSTGRES_BIGINT
         duration_in_s = Decimal(duration / 1_000_000)
         csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, None, None, None, 'us'))
 
-
-        for measurement_metric_id, metric, unit, detail_name in metrics:
-            params = (measurement_metric_id, phase['start'], phase['end'], measurement_metric_id, phase['end'], next_phase_start)
-            results = DB().fetch_one(select_query, params=params)
-
-            if metric not in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', 'carbon_intensity_static_machine'):
-                continue
-
-            value_sum, _, _, classic_value_avg, weighted_value_avg, _, _, _, value_count, _, _, _, in_phase = results
-
-            if value_count == 0 or not in_phase:
-                continue
-
-            if value_count <= 2:
-                resolved_value_avg = Decimal(classic_value_avg)
-            else:
-                resolved_value_avg = Decimal(weighted_value_avg)
-
-            if carbon_intensity is not None:
-                phase_warnings.add(f"More than one carbon intensity provider is configured. Now using {metric}")
-            carbon_intensity = resolved_value_avg
-            chosen_carbon_metric_name = metric
-
-        # now we go through all metrics in the run and aggregate them
+        # we go through all metrics in the run and aggregate them, using the pre-fetched
+        # per-metric time series instead of running a SELECT per (phase, metric) pair
         for measurement_metric_id, metric, unit, detail_name in metrics: # unpack
-            params = (measurement_metric_id, phase['start'], phase['end'], measurement_metric_id, phase['end'], next_phase_start)
-            results = DB().fetch_one(select_query, params=params)
+            times = metric_time_series[measurement_metric_id][0] # can fail if metric does not exist. This should never be. Thus we simply crash
+            values = metric_time_series[measurement_metric_id][1] # can fail if metric does not exist. This should never be. Thus we simply crash
 
-            value_sum, max_value, min_value, classic_value_avg, weighted_value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase = results
+            value_sum, max_value, min_value, value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start, duration)
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
             if value_count == 0 or not in_phase:
                 continue
 
-            # Since we need to LAG the table the first value will be NULL. So it means we need at least 3 rows to make a useful weighted average.
-            # In case we cannot do that we use the classic average
-            if value_count <= 2:
-                value_avg = Decimal(classic_value_avg)
-                # This derivative is only an approximation, but better than delivering no value as it is at least based on one sample
-                derivative_avg = Decimal(classic_value_avg / (duration/value_count))
-                derivative_max = Decimal(max_value / (duration/value_count))
-                derivative_min = Decimal(min_value / (duration/value_count))
-            else:
-                value_avg = Decimal(weighted_value_avg)
-                derivative_avg = Decimal(derivative_avg)
-                derivative_max = Decimal(derivative_max)
-                derivative_min = Decimal(derivative_min)
+            if metric in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', 'carbon_intensity_static_machine'):
+                if carbon_intensity is not None:
+                    phase_warnings.add(f"More than one carbon intensity provider is configured. Now using {metric}")
+                carbon_intensity = value_avg
+                chosen_carbon_metric_name = metric
 
             # Dynamic undersampling warning: flag when actual samples < 50% of what the observed
             # sampling rate implies we should have received over the phase duration.
