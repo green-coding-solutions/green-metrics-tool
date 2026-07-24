@@ -5,7 +5,7 @@ import pytest
 from lib.scenario_runner import ScenarioRunner
 from tests import test_functions as Tests
 from lib.db import DB
-from lib.utils import gmt_tmp_image_name, container_name
+from lib.utils import gmt_tmp_image_name
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
@@ -355,16 +355,10 @@ class TestDependencyCollection:
 
     def test_integration_dependency_collection_with_real_web_application(self):
         """Integration test using real containers and energy-dependency-inspector (no mocking)"""
-        # docker-compose.yml's 'web' service has no explicit container_name, so ScenarioRunner
-        # names its actual container via utils.container_name('web') - unsuffixed normally, but
-        # worker-suffixed (e.g. 'web-gw002') under -n (see lib/utils.py::container_name()). The
-        # flow's curl command can't hardcode 'web' as the hostname then, since no container/alias
-        # by that literal name exists - inject the real name as a usage_scenario_variable instead.
         runner = ScenarioRunner(
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/web-application/usage_scenario.yml',
-            usage_scenario_variables={'__GMT_VAR_WEB_HOST__': container_name('web')},
             skip_unsafe=True,
             dev_no_system_checks=True,
             dev_cache_build=True,

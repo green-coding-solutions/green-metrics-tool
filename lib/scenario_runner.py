@@ -1750,12 +1750,21 @@ class ScenarioRunner:
                 if labels_check_errors:
                     raise RuntimeError('Docker container labels that have problems:\n\n'.join(labels_check_errors))
 
+            # Always alias the container under its plain, unsuffixed service name (base_container_name),
+            # in addition to its real worker-suffixed name (container_name) - this matches normal
+            # docker-compose semantics, where the service name is itself the resolvable hostname on the
+            # compose network. Without this, any scenario where one service hardcodes another's service
+            # name (e.g. a Django app configured with DB HOST="db") breaks under -n, since the real
+            # container is actually named e.g. 'db-gw000' and the plain 'db' hostname would otherwise
+            # never resolve.
             if 'networks' in service:
                 for network in service['networks']:
                     if network == 'host' and not self._allow_unsafe:
                         raise ValueError('Docker network host is restricted in GMT and cannot be joined. If running in CLI mode or if you have cluster capabilities try again with --allow-unsafe.')
                     docker_run_string.append('--net')
                     docker_run_string.append(self.__network_name_map.get(network, network))
+                    docker_run_string.append('--network-alias')
+                    docker_run_string.append(base_container_name)
                     if isinstance(service['networks'], dict) and service['networks'][network]:
                         if service['networks'][network].get('aliases', None):
                             for alias in service['networks'][network]['aliases']:
@@ -1770,6 +1779,8 @@ class ScenarioRunner:
                 # if this is true only one entry is in self.__networks
                 docker_run_string.append('--net')
                 docker_run_string.append(self.__networks[0])
+                docker_run_string.append('--network-alias')
+                docker_run_string.append(base_container_name)
 
 
             if 'pause-after-phase' in service:
