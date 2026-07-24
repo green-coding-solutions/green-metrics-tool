@@ -59,7 +59,7 @@ runs:
       uses: actions/setup-python@v7
       if: inputs.task == 'setup' || inputs.task == 'all'
       with:
-        python-version: '3.15'
+        python-version: '3.14'
 
     - id: python_cache
       if: inputs.task == 'setup' || inputs.task == 'all'
