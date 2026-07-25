@@ -2542,14 +2542,14 @@ class ScenarioRunner:
                     self._append_and_print_warning(f"Capturing regex for custom metric {key} did not result in two capture groups. Must be a timestamp and value pair. Resulting capture groups are: {matches}. Regex was: {custom_metric['regex']}")
                     return
 
-                df = pandas.DataFrame(matches, columns=['time', 'value'])
                 try:
+                    df = pandas.DataFrame(matches, columns=['time', 'value'])
                     df['time'] = df['time'].apply(utils.normalize_timestamp).astype('int64')
+                    df['value'] = df['value'].astype('int64') # guards from regexes that try to match string or similar
                 except ValueError as exc:
-                    self._append_and_print_warning(f"Parsing time string for custom metric from stdout failed: {exc}")
+                    self._append_and_print_warning(f"Parsing time / value for custom metric from stdout failed: {exc}")
                     return
 
-                df['value'] = df['value'].astype('int64')
                 df['metric'] = key
                 df['detail_name'] = container_name
                 df['unit'] = self.__custom_metrics[key].get('unit', 'Unknown')
