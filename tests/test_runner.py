@@ -1316,7 +1316,7 @@ def test_parse_timestamped_log_lines_fallback_on_no_match():
 def test_parse_timestamped_log_lines_empty_input():
     assert _parse_timestamped_log_lines('') == []
 
-def test_container_execution_log_uses_entries_not_plain_strings():
+def test_container_execution_log_uses_entries_and_plain_strings():
     runner = ScenarioRunner(
         uri=GMT_DIR, uri_type='folder',
         filename='tests/data/usage_scenarios/basic_stress.yml',
@@ -1338,10 +1338,14 @@ def test_container_execution_log_uses_entries_not_plain_strings():
     entry = logs['test-container'][0]
     assert 'stdout_entries' in entry, 'CONTAINER_EXECUTION should use stdout_entries'
     assert 'stderr_entries' in entry, 'CONTAINER_EXECUTION should use stderr_entries'
-    assert 'stdout' not in entry, 'CONTAINER_EXECUTION must not use plain stdout key'
-    assert 'stderr' not in entry, 'CONTAINER_EXECUTION must not use plain stderr key'
     assert entry['stdout_entries'][0] == {'timestamp': '2025-09-17T06:46:17.013138795Z', 'content': 'hello from container'}
     assert entry['stderr_entries'][0] == {'timestamp': '2025-09-17T06:46:17.500000000Z', 'content': 'error output'}
+    # The plain stdout/stderr keys must also be populated (joined from the entries' content),
+    # since the legacy frontend log box reads these directly and knows nothing about *_entries.
+    assert 'stdout' in entry, 'CONTAINER_EXECUTION must also populate plain stdout key for the legacy frontend box'
+    assert 'stderr' in entry, 'CONTAINER_EXECUTION must also populate plain stderr key for the legacy frontend box'
+    assert entry['stdout'] == 'hello from container'
+    assert entry['stderr'] == 'error output'
 
 def test_setup_command_log_uses_plain_strings():
     runner = ScenarioRunner(
