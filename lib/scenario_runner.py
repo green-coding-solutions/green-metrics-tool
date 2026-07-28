@@ -2089,6 +2089,8 @@ class ScenarioRunner:
                 log_entry[f'{key}_entries'] = entries
                 # Must also be copied as plain string: the (legacy) frontend log box reads
                 # stdout/stderr directly and does not know about the *_entries structure.
+                # value_str still contains raw RFC3339Nano timestamp prefixes; join from entries
+                # gives the timestamp-stripped version for the legacy frontend box.
                 log_entry[key] = '\n'.join(entry['content'] for entry in entries)
             else:
                 log_entry[key] = value_str
