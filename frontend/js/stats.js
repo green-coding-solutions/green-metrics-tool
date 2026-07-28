@@ -206,9 +206,10 @@ const fetchAndFillRunData = async (run_id) => {
             for (relation in run_data[item]) {
                 const url = run_data[item][relation]['url'];
                 const httpsUrl = toHttpsUri(url);
+                const relationHash = run_data[item][relation]['commit_hash'];
                 const display = httpsUrl.startsWith('http')
-                    ? `<a href="${escapeString(httpsUrl)}" target="_blank">${escapeString(url)} (${run_data[item][relation]['commit_hash']})</a>`
-                    : `${escapeString(url)} (${run_data[item][relation]['commit_hash']})`;
+                    ? `<a href="${escapeString(httpsUrl)}" target="_blank">${escapeString(url)} (${relationHash})</a>`
+                    : `${escapeString(url)} (${relationHash})`;
                 document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td>${display}</td></tr>`)
             }
         }  else if(item == 'commit_hash') {

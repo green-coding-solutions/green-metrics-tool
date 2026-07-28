@@ -31,13 +31,20 @@ const getRepoRefUrl = (uri, type) => {
     const cleanUri = toHttpsUri(uri);
     if (!cleanUri.startsWith('http')) return null;
     if (type !== 'commit' && type !== 'tree') {
-        throw new Error(`getRepoRefUrl: unknown type '${type}', expected 'commit' or 'tree'`);
+        console.error(`getRepoRefUrl: unknown type '${type}', expected 'commit' or 'tree'`);
+        return '#broken-url';
+    }
+    let hostname;
+    try {
+        hostname = new URL(cleanUri).hostname.toLowerCase();
+    } catch {
+        return null;
     }
     const base = cleanUri.endsWith('.git') ? cleanUri.slice(0, -4) : cleanUri;
-    if (base.includes('bitbucket')) {
+    if (hostname.includes('bitbucket')) {
         return base + (type === 'commit' ? '/commits/' : '/src/');
     }
-    const pathSep = base.includes('gitlab') ? '/-/' : '/';
+    const pathSep = hostname.includes('gitlab') ? '/-/' : '/';
     return base + (type === 'commit' ? pathSep + 'commit/' : pathSep + 'tree/');
 };
 
