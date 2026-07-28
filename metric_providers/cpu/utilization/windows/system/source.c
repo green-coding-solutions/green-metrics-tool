@@ -1,9 +1,9 @@
-/*
+ /*
  * cpu_utilization_windows_system - source.c
  *
  * Reads system-wide CPU utilization via GetSystemTimes() and outputs it
- * in GMT format to stdout. Timing pattern (deadline-based loop, QPC clock)
- * mirrors metric_providers/cpu/energy/rapl/scaphandre/component.
+ * in GMT format to stdout. Fixed-interval sampling loop (Sleep(interval_ms)
+ * between snapshots), consistent with the other GMT metric providers.
  */
 
 #include <windows.h>
@@ -134,23 +134,23 @@ int main(int argc, char **argv)
     clock_state_t clock = clock_init();
     timeBeginPeriod(1);
 
-    LARGE_INTEGER qpc_freq;
-    QueryPerformanceFrequency(&qpc_freq);
-    double qpc_ticks_per_ms = (double)qpc_freq.QuadPart / 1000.0;
-
-    cpu_time_t prev;
+    cpu_time_t prev, curr;
     read_cpu_times(&prev);
     Sleep(interval_ms); /* wait one interval before the first snapshot so the first emitted value is meaningful, not a cold-start zero */
 
     while (1) {
-        LONGLONG deadline = now_qpc() + (LONGLONG)(interval_ms * qpc_ticks_per_ms);
-
-        cpu_time_t curr;
         read_cpu_times(&curr);
 
-        /* same compute/non_compute split logic as procfs, mapped to Windows fields */
-        uint64_t busy_delta  = (curr.user - prev.user) + (curr.kernel - prev.kernel) - (curr.idle - prev.idle);
-        uint64_t total_delta = (curr.user - prev.user) + (curr.kernel - prev.kernel);
+        /* Windows' KernelTime already includes IdleTime (unlike Linux's separate
+         * idle/system counters), so kernel_delta below still contains the idle
+         * portion. total_delta is therefore "kernel (incl. idle) + user", and we
+         * subtract idle_delta to arrive at the actual busy time. */
+        uint64_t kernel_delta = curr.kernel - prev.kernel;
+        uint64_t user_delta   = curr.user   - prev.user;
+        uint64_t idle_delta   = curr.idle   - prev.idle;
+
+        uint64_t total_delta = kernel_delta + user_delta;
+        uint64_t busy_delta  = (total_delta > idle_delta) ? (total_delta - idle_delta) : 0;
 
         uint64_t ts_us = now_us(&clock);
         long value = (total_delta > 0) ? (long)((busy_delta * 10000ULL) / total_delta) : 0;
@@ -159,11 +159,7 @@ int main(int argc, char **argv)
 
         prev = curr;
 
-        LONGLONG remaining_qpc = deadline - now_qpc();
-        double sleep_ms = (remaining_qpc > 0) ? (remaining_qpc / qpc_ticks_per_ms) : 0.0;
-        if (sleep_ms > 0) {
-            Sleep((DWORD)sleep_ms);
-        }
+        Sleep(interval_ms);
     }
 
     timeEndPeriod(1);
