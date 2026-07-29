@@ -77,8 +77,9 @@ typedef struct {
 typedef struct {
     HANDLE        handle;
     USHORT        version;
-    USHORT        channel_count;     /* named channels only              */
-    ULONG         measure_buf_size;  /* buffer for ALL channels (incl. unnamed) */
+    USHORT        channel_count;     /* named channels only                     */
+    ULONG         measure_buf_size;  /* buffer size for ALL channels (incl. unnamed) */
+    BYTE         *measure_buf;       /* pre-allocated measurement buffer        */
     emi_channel_t channels[MAX_CHANNELS];
 } emi_device_t;
 
@@ -140,6 +141,7 @@ static unsigned int parse_uint(const char *s)
  */
 static int normalize_name(const WCHAR *wname, char *out, size_t out_size)
 {
+    if (out_size == 0) return 0;
     size_t i = 0;
     for (const WCHAR *p = wname; *p && i < out_size - 1; p++) {
         char c;
@@ -237,6 +239,12 @@ static int open_emi_devices(emi_device_t *devs, int max_devs)
             continue;
         }
 
+        if (msize.MetadataSize == 0) {
+            fprintf(stderr, "Warning: EMI device %lu reported zero metadata size — skipping\n", idx);
+            CloseHandle(h);
+            continue;
+        }
+
         BYTE *meta = malloc(msize.MetadataSize);
         if (!meta) { CloseHandle(h); continue; }
 
@@ -260,17 +268,25 @@ static int open_emi_devices(emi_device_t *devs, int max_devs)
             dev->measure_buf_size = sizeof(EMI_CHANNEL_MEASUREMENT_DATA);
 
         } else { /* V2 */
-            const EMI_METADATA_V2 *m  = (const EMI_METADATA_V2 *)meta;
-            const EMI_CHANNEL_V2  *ch = m->Channels;
+            const EMI_METADATA_V2 *m       = (const EMI_METADATA_V2 *)meta;
+            const EMI_CHANNEL_V2  *ch      = m->Channels;
+            const BYTE            *meta_end = meta + msize.MetadataSize;
             USHORT valid = 0;
 
             for (USHORT c = 0; c < m->ChannelCount; c++) {
+                /* Bound check: current entry must fit inside the metadata buffer */
+                if ((const BYTE *)ch + sizeof(EMI_CHANNEL_V2) > meta_end) {
+                    fprintf(stderr, "Warning: EMI metadata truncated on device %lu at channel %u — stopping\n", idx, c);
+                    break;
+                }
+
                 if (valid < MAX_CHANNELS &&
                     normalize_name(ch->ChannelName,
                                    dev->channels[valid].name, MAX_NAME_LEN)) {
                     dev->channels[valid].buf_index = c;
                     valid++;
                 }
+
                 /*
                  * Advance to the next EMI_CHANNEL_V2 entry.
                  * ChannelNameSize includes the null terminator, in bytes.
@@ -278,7 +294,14 @@ static int open_emi_devices(emi_device_t *devs, int max_devs)
                  */
                 size_t stride = offsetof(EMI_CHANNEL_V2, ChannelName) + ch->ChannelNameSize;
                 stride = (stride + 7) & ~(size_t)7;
-                ch = (const EMI_CHANNEL_V2 *)((const BYTE *)ch + stride);
+
+                /* Bound check: next entry must not start past the metadata buffer */
+                const BYTE *next = (const BYTE *)ch + stride;
+                if (c + 1 < m->ChannelCount && next >= meta_end) {
+                    fprintf(stderr, "Warning: EMI metadata layout invalid on device %lu — truncating at channel %u\n", idx, c);
+                    break;
+                }
+                ch = (const EMI_CHANNEL_V2 *)next;
             }
             dev->channel_count = valid;
             /*
@@ -293,6 +316,14 @@ static int open_emi_devices(emi_device_t *devs, int max_devs)
 
         if (dev->channel_count == 0) {
             fprintf(stderr, "Warning: EMI device %lu has no named channels — skipping\n", idx);
+            CloseHandle(h);
+            continue;
+        }
+
+        /* Pre-allocate the measurement buffer once; reused every sample tick */
+        dev->measure_buf = malloc(dev->measure_buf_size);
+        if (!dev->measure_buf) {
+            fprintf(stderr, "Warning: out of memory for EMI device %lu measurement buffer — skipping\n", idx);
             CloseHandle(h);
             continue;
         }
@@ -338,20 +369,16 @@ static void sample_devices(emi_device_t *devs, int count, const clock_state_t *c
     for (int i = 0; i < count; i++) {
         emi_device_t *dev = &devs[i];
 
-        BYTE *buf = malloc(dev->measure_buf_size);
-        if (!buf) continue;
-
         DWORD ret = 0;
         if (!DeviceIoControl(dev->handle, IOCTL_EMI_GET_MEASUREMENT,
-                             NULL, 0, buf, dev->measure_buf_size, &ret, NULL)) {
+                             NULL, 0, dev->measure_buf, dev->measure_buf_size, &ret, NULL)) {
             fprintf(stderr, "Warning: IOCTL_EMI_GET_MEASUREMENT failed for device %d (%lu)\n",
                     i, GetLastError());
-            free(buf);
             continue;
         }
 
         const EMI_CHANNEL_MEASUREMENT_DATA *data =
-            (const EMI_CHANNEL_MEASUREMENT_DATA *)buf;
+            (const EMI_CHANNEL_MEASUREMENT_DATA *)dev->measure_buf;
 
         for (USHORT c = 0; c < dev->channel_count; c++) {
             emi_channel_t *ch     = &dev->channels[c];
@@ -379,8 +406,6 @@ static void sample_devices(emi_device_t *devs, int count, const clock_state_t *c
             ch->prev_energy = energy;
             ch->has_prev    = 1;
         }
-
-        free(buf);
     }
 }
 
@@ -410,8 +435,10 @@ int main(int argc, char *argv[])
     }
 
     if (check_mode) {
-        for (int i = 0; i < device_count; i++)
+        for (int i = 0; i < device_count; i++) {
+            free(devs[i].measure_buf);
             CloseHandle(devs[i].handle);
+        }
         return 0;
     }
 
@@ -434,7 +461,9 @@ int main(int argc, char *argv[])
 
     /* Not reached in normal operation; shown for completeness */
     timeEndPeriod(1);
-    for (int i = 0; i < device_count; i++)
+    for (int i = 0; i < device_count; i++) {
+        free(devs[i].measure_buf);
         CloseHandle(devs[i].handle);
+    }
     return 0;
 }
