@@ -28,7 +28,6 @@ CARBON_INTENSITY_TESTING_DEFAULT = 1000
 
 def test_insert_and_compress_eco_ci_with_two_users():
 
-    print(GlobalConfig().config)
     RANGE_AMOUNT = 10
 
     Tests.insert_user(345, 'ALTERNATIVE-USER')
