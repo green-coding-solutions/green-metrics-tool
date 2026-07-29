@@ -42,11 +42,20 @@ def process(table):
 
     print(f"Rows left after db cached update where {table}.lat/lon is missing in last 30 days:", len(remaining_data))
 
-    backfill_geo_missing(table, remaining_data)
+    backfilled_ids = backfill_geo_missing(table, remaining_data)
 
-    print(f"Rows manually backfilled where {table}.lat/lon was missing in last 30 days:", len(remaining_data))
+    print(f"Rows manually backfilled where {table}.lat/lon was missing in last 30 days:", len(backfilled_ids))
+
+    # Do not go back to the DB to re-check. We already know from the manual backfill above exactly
+    # which of the initially-missing ids got updated. Anything else is a leftover - this should never happen.
+    remaining_ids = [row[0] for row in remaining_data]
+    leftover_ids = [row_id for row_id in remaining_ids if row_id not in backfilled_ids]
+    if leftover_ids:
+        raise RuntimeError(f"Rows in {table} still have missing lat/lon after backfilling. This should never happen. IDs: {leftover_ids}")
 
 def update_geo_from_db_cache(table, ids):
+    # Only looking back 30 days max, as we believe IP data will typically be stable in that interval
+    # but might change for longer timeframes
     query = f"""
         WITH geo_missing AS (
             SELECT DISTINCT ON (from_table.id)
@@ -94,12 +103,16 @@ def fetch_geo_missing(table):
 def backfill_geo_missing(table, data):
     query = f"UPDATE {table} SET latitude = %s, longitude = %s WHERE id = %s"
 
+    updated_ids = []
     for row in data:
         row_id = row[0]
         row_ip = row[1]
         (latitude, longitude) = get_geo(row_ip) # since this function is cached we will not over-query API
         print('Filling', latitude, longitude, 'for id', row_id)
         DB().query(query, params=(latitude, longitude, row_id))
+        updated_ids.append(row_id)
+
+    return updated_ids
 
 
 # The decorator will not work between workers, but since uvicorn_worker.UvicornWorker is using asyncIO it has some functionality between requests

@@ -40,12 +40,21 @@ def process(table):
 
     print(f"Rows left after db cached update where {table}.carbon_intensity_g is missing in last 30 Minutes:", len(remaining_data))
 
-    backfill_carbon_intensity_missing(table, remaining_data)
+    backfilled_ids = backfill_carbon_intensity_missing(table, remaining_data)
 
-    print(f"Rows manually backfilled where {table}.carbon_intensity_g was missing in last 30 Minutes:", len(remaining_data))
+    print(f"Rows manually backfilled where {table}.carbon_intensity_g was missing in last 30 Minutes:", len(backfilled_ids))
+
+    # Do not go back to the DB to re-check. We already know from the manual backfill above exactly
+    # which of the initially-missing ids got updated. Anything else is a leftover - this should never happen.
+    remaining_ids = [row[0] for row in remaining_data]
+    leftover_ids = [row_id for row_id in remaining_ids if row_id not in backfilled_ids]
+    if leftover_ids:
+        raise RuntimeError(f"Rows in {table} still have missing carbon_intensity_g after backfilling. This should never happen. IDs: {leftover_ids}")
 
 def update_carbon_intensity_from_db_cache(table, ids):
     # Backfilled carbon intensity data should only be 30 minutes apart
+    # It makes no sense to look for later values as the value will not be accurate anymore
+    # Most APIs default to 60 minutes update time. So we are conservative here with 30 minutes
     query = f"""
         WITH carbon_missing AS (
             SELECT DISTINCT ON (from_table.id)
@@ -88,6 +97,7 @@ def fetch_carbon_intensity_missing(table):
 def backfill_carbon_intensity_missing(table, data):
     query = f"UPDATE {table} SET carbon_intensity_g = %s WHERE id = %s"
 
+    updated_ids = []
     for row in data:
         row_id = row[0]
         row_latitude = row[1]
@@ -95,6 +105,10 @@ def backfill_carbon_intensity_missing(table, data):
         carbon_intensity_g = get_carbon_intensity(row_latitude, row_longitude)
         print('Filling', carbon_intensity_g, 'for id', row_id)
         DB().query(query, params=(carbon_intensity_g, row_id))
+        if carbon_intensity_g is not None:
+            updated_ids.append(row_id)
+
+    return updated_ids
 
 def update_eco_ci_carbon():
     query = '''
