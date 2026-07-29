@@ -7,6 +7,7 @@ faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to st
 
 import os
 import fcntl
+import threading
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -102,8 +103,9 @@ def backfill_geo_missing(table, data):
         DB().query(query, params=(latitude, longitude, row_id))
 
 
-# The decorator will not work between workers, but since uvicorn_worker.UvicornWorker is using asyncIO it has some functionality between requests
-@cached(cache=NoNoneOrNegativeValuesCache(maxsize=1024, ttl=86400)) # 24 hours
+# The cache is not shared between worker processes, but the lock makes it safe within a worker
+# even if this function is ever called from multiple threads.
+@cached(cache=NoNoneOrNegativeValuesCache(maxsize=1024, ttl=86400), lock=threading.Lock()) # 24 hours
 def get_geo(ip):
     ip_obj = ipaddress.ip_address(ip) # may raise a ValueError
     if ip_obj.is_private:

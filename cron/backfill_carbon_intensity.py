@@ -8,6 +8,7 @@ faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to st
 import os
 import json
 import fcntl
+import threading
 
 import requests
 from cachetools import cached
@@ -130,8 +131,9 @@ def update_carbondb_data_raw_carbon():
     return DB().fetch_all(query)
 
 
-# The decorator will not work between workers, but since uvicorn_worker.UvicornWorker is using asyncIO it has some functionality between requests
-@cached(cache=NoNoneOrNegativeValuesCache(maxsize=1024, ttl=3600)) # 60 Minutes
+# The cache is not shared between worker processes, but the lock makes it safe within a worker
+# even if this function is ever called from multiple threads.
+@cached(cache=NoNoneOrNegativeValuesCache(maxsize=1024, ttl=3600), lock=threading.Lock()) # 60 Minutes
 def get_carbon_intensity(latitude, longitude):
 
     if latitude is None or longitude is None:
