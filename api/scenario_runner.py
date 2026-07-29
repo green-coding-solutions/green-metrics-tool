@@ -95,7 +95,7 @@ def parse_carbon_simulation(carbon_simulation):
 
 # Return a list of all known machines in the cluster
 @router.get('/v1/machines')
-async def get_machines(
+def get_machines(
     # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate), # pylint: disable=unused-argument
     ):
@@ -112,7 +112,7 @@ def old_v1_jobs_endpoint():
 
 
 @router.get('/v2/jobs')
-async def get_jobs(
+def get_jobs(
     machine_id: int | None = None,
     state: str | None = None,
     job_id: int | None = None,
@@ -161,7 +161,7 @@ async def get_jobs(
     return CustomORJSONResponse({'success': True, 'data': data})
 
 @router.put('/v1/job')
-async def update_job(
+def update_job(
     job: JobChange,
     user: User = Depends(authenticate),
     ):
@@ -211,7 +211,7 @@ async def update_job(
 
 # A route for deleting watchlist entries
 @router.put('/v1/watchlist')
-async def update_watchlist(
+def update_watchlist(
     change: WatchlistChange,
     user: User = Depends(authenticate),  # consistent with jobs
     ):
@@ -235,7 +235,7 @@ async def update_watchlist(
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v1/notes/{run_id}')
-async def get_notes(run_id, user: User = Depends(authenticate)):
+def get_notes(run_id, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
         raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
@@ -260,7 +260,7 @@ async def get_notes(run_id, user: User = Depends(authenticate)):
 
 
 @router.get('/v1/warnings/{run_id}')
-async def get_warnings(run_id, user: User = Depends(authenticate)):
+def get_warnings(run_id, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
         raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
@@ -283,7 +283,7 @@ async def get_warnings(run_id, user: User = Depends(authenticate)):
 
 
 @router.get('/v1/network/{run_id}')
-async def get_network(run_id: str, user: User = Depends(authenticate)):
+def get_network(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
         return ORJSONResponseObjKeep({'success': False, 'data': 'Run ID is not a valid UUID or empty'}, status_code=422)
 
@@ -313,7 +313,7 @@ async def get_network(run_id: str, user: User = Depends(authenticate)):
 
 
 @router.get('/v1/repositories')
-async def get_repositories(
+def get_repositories(
     uri: str | None = None,
     branch: str | None = None,
     machine_id: int | None = None,
@@ -375,7 +375,7 @@ def old_v1_runs_endpoint():
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v2/runs')
-async def get_runs(
+def get_runs(
     name: str | None = None,
     uri: str | None = None,
     branch: str | None = None,
@@ -485,7 +485,7 @@ async def get_runs(
 # later if supplied. Also deprecation shall be used once we move to v2 for all v1 routesthrough
 
 @router.get('/v1/compare')
-async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = Depends(authenticate)):
+def compare_in_repo(ids: str, force_mode:str | None = None, user: User = Depends(authenticate)):
     if ids is None or not ids.strip():
         raise HTTPException(status_code=422, detail='run_id is empty')
     ids = ids.split(',')
@@ -587,7 +587,7 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
 
 
 @router.get('/v1/phase_stats/single/{run_id}')
-async def get_phase_stats_single(run_id: str, user: User = Depends(authenticate)):
+def get_phase_stats_single(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
         raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
@@ -610,7 +610,7 @@ async def get_phase_stats_single(run_id: str, user: User = Depends(authenticate)
 
 # This route gets the measurements to be displayed in a timeline chart
 @router.get('/v1/measurements/single/{run_id}')
-async def get_measurements_single(run_id: str, user: User = Depends(authenticate)):
+def get_measurements_single(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
         raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
@@ -639,7 +639,7 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 @router.get('/v1/timeline', deprecated=True)
-async def get_timeline_stats(
+def get_timeline_stats(
     uri: str, machine_id: int, branch: str | None = None, filename: str | None = None,
     metric: str | None = None, phase: str | None = None,
     show_archived: bool | None = None,
@@ -665,7 +665,7 @@ async def get_timeline_stats(
     return CustomORJSONResponse({'success': True, 'data': data})
 
 @router.get('/v2/timeline')
-async def get_timeline_stats_v2(
+def get_timeline_stats_v2(
     uri: str, machine_id: int, branch: str | None = None, filename: str | None = None,
     metric: str | None = None, phase: str | None = None,
     show_archived: bool | None = None,
@@ -698,7 +698,7 @@ async def get_timeline_stats_v2(
 ## an unexpected result because they occur at same timepoints but the trend assumes them to be at sequential timepoints.
 ## You might get unexpected results, but generally it is desireable to have a regression of all CPU cores for instance forthe cpu energy reporter
 @router.get('/v1/badge/timeline')
-async def get_timeline_badge(
+def get_timeline_badge(
     metric: str, uri: str,
     unit: str = 'watt-hours',
     detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None,
@@ -770,7 +770,7 @@ async def get_timeline_badge(
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
 ## User 1 restricted to only this route but a fully populated 'visible_users' array
 @router.get('/v1/badge/single/{run_id}')
-async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_component', unit: str = 'watt-hours', phase: str | None = None, user: User = Depends(authenticate)):
+def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_component', unit: str = 'watt-hours', phase: str | None = None, user: User = Depends(authenticate)):
 
     if run_id is None or not is_valid_uuid(run_id):
         raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
@@ -861,7 +861,7 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
 
 
 @router.get('/v1/watchlist')
-async def get_watchlist(user: User = Depends(authenticate)):
+def get_watchlist(user: User = Depends(authenticate)):
     # Do not get the email jobs as they do not need to be display in the frontend atm
     # Also do not get the email field for privacy
     query = '''
@@ -899,7 +899,7 @@ async def get_watchlist(user: User = Depends(authenticate)):
 
 
 @router.post('/v1/runs/add')
-async def runs_add(software: Software, no_url_check: bool = False, user: User = Depends(authenticate)):
+def runs_add(software: Software, no_url_check: bool = False, user: User = Depends(authenticate)):
 
     if software.name is None or software.name.strip() == '':
         raise HTTPException(status_code=422, detail='Name is empty')
@@ -1004,7 +1004,7 @@ def old_v1_run_endpoint():
 
 
 @router.get('/v2/run/{run_id}')
-async def get_run(run_id: str, user: User = Depends(authenticate)):
+def get_run(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
         raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
     try:
@@ -1068,7 +1068,7 @@ def update_run(
 
 
 @router.get('/v1/optimizations/{run_id}')
-async def get_optimizations(run_id: str, user: User = Depends(authenticate)):
+def get_optimizations(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
         raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
@@ -1092,7 +1092,7 @@ async def get_optimizations(run_id: str, user: User = Depends(authenticate)):
 
 
 @router.get('/v1/diff')
-async def diff(ids: str, user: User = Depends(authenticate)):
+def diff(ids: str, user: User = Depends(authenticate)):
     if ids is None or not ids.strip():
         raise HTTPException(status_code=422, detail='run_ids are empty')
     ids = ids.split(',')
@@ -1115,7 +1115,7 @@ async def diff(ids: str, user: User = Depends(authenticate)):
 
 
 @router.get('/v1/insights')
-async def get_insights(user: User = Depends(authenticate)):
+def get_insights(user: User = Depends(authenticate)):
 
     query = '''
             SELECT COUNT(id), DATE(MIN(created_at))

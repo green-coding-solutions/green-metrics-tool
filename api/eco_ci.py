@@ -113,7 +113,7 @@ def old_v1_measurement_add_endpoint():
 
 
 @router.post('/v2/ci/measurement/add')
-async def post_ci_measurement_add(
+def post_ci_measurement_add(
     request: Request,
     measurement: CI_Measurement,
     user: User = Depends(authenticate)  # pylint: disable=unused-argument
@@ -124,7 +124,7 @@ async def post_ci_measurement_add(
     return _insert_ci_measurement(request, measurement, user)
 
 @router.post('/v3/ci/measurement/add')
-async def post_ci_measurement_add_v3(
+def post_ci_measurement_add_v3(
     request: Request,
     measurement: CI_MeasurementV3,
     user: User = Depends(authenticate)  # pylint: disable=unused-argument
@@ -137,7 +137,7 @@ async def post_ci_measurement_add_v3(
 
 
 @router.get('/v1/ci/measurements')
-async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date, job_id: str | None = None, user: User = Depends(authenticate)):
+def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date, job_id: str | None = None, user: User = Depends(authenticate)):
 
     params = [user.is_super_user(), user.visible_users(), repo, branch, workflow, str(start_date), str(end_date)]
 
@@ -173,7 +173,7 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
     return CustomORJSONResponse({'success': True, 'data': data})
 
 @router.get('/v1/ci/stats')
-async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, end_date: date, user: User = Depends(authenticate)):
+def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, end_date: date, user: User = Depends(authenticate)):
 
 
     query = '''
@@ -234,7 +234,7 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
 
 
 @router.get('/v1/ci/repositories')
-async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name', user: User = Depends(authenticate)):
+def get_ci_repositories(repo: str | None = None, sort_by: str = 'name', user: User = Depends(authenticate)):
 
     query = '''
         SELECT repo, source, MAX(created_at) as last_run
@@ -262,7 +262,7 @@ async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name', us
     return CustomORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
 
 @router.get('/v1/ci/runs')
-async def get_ci_runs(repo: str, user: User = Depends(authenticate)):
+def get_ci_runs(repo: str, user: User = Depends(authenticate)):
 
 
     query = '''
@@ -294,7 +294,7 @@ async def get_ci_runs(repo: str, user: User = Depends(authenticate)):
 ## User 1 restricted to only this route but a fully populated 'visible_users' array
 @router.head('/v1/ci/badge/get')
 @router.get('/v1/ci/badge/get')
-async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy', duration_days: int | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
+def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy', duration_days: int | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
     if metric == 'energy':
         metric = 'energy_uj'
         metric_unit = 'uJ'
@@ -372,7 +372,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
 
 
 @router.get('/v1/ci/insights')
-async def get_insights(user: User = Depends(authenticate)):
+def get_insights(user: User = Depends(authenticate)):
 
     query = '''
             SELECT COUNT(id), DATE(MIN(created_at))
