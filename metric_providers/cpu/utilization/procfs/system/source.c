@@ -84,8 +84,16 @@ static void output_stats() {
     // printf("Main CPU Idle Reading: %ld\nMain CPU Compute Time Reading: %ld\n", idle_reading, compute_time_reading);
     // printf("%ld%06ld %f\n", now.tv_sec, now.tv_usec, (double)compute_time_reading / (double)(compute_time_reading+idle_reading));
 
+    long int total_reading = compute_time_reading + non_compute_reading;
+    long int reading;
+    if(total_reading == 0) {
+        reading = 0;
+    } else {
+        reading = (compute_time_reading*10000) / total_reading; // Deliberate integer conversion. Precision with 0.01% is good enough
+    }
+
     // main output to Stdout
-    printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (compute_time_reading*10000) / (compute_time_reading+non_compute_reading) ); // Deliberate integer conversion. Precision with 0.01% is good enough
+    printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, reading);
 }
 
 int main(int argc, char **argv) {

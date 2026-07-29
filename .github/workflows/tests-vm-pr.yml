@@ -41,19 +41,36 @@ jobs:
           submodules: 'false'
 
 
-      - name: 'Setup, Run, and Teardown Tests'
+      - name: 'Setup'
         uses: ./.github/actions/gmt-pytest
         with:
+         task: setup
          github-token: ${{ secrets.GITHUB_TOKEN }}
-         docker-user: ${{ secrets.GMT_TESTING_DOCKER_USER }}
-         docker-pat: ${{ secrets.GMT_TESTING_DOCKER_PAT }}
          enable-ssh: ${{ inputs.enable-ssh }}
-         test-path: ${{ inputs.test-path }}
 
-      - name: Eco CI Energy Estimation - Get Measurement
+      - name: Eco CI Energy Estimation - Get Measurement (Setup)
+        if: always()
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: get-measurement
+          label: 'Setup'
+
+      - name: 'Run'
+        if: always()
+        uses: ./.github/actions/gmt-pytest
+        with:
+         task: run
+         github-token: ${{ secrets.GITHUB_TOKEN }}
+         docker-user: ${{ secrets.GMT_TESTING_DOCKER_USER }}
+         docker-pat: ${{ secrets.GMT_TESTING_DOCKER_PAT }}
+         test-path: ${{ inputs.test-path }}
+
+      - name: Eco CI Energy Estimation - Get Measurement (Run)
+        if: always()
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: get-measurement
+          label: 'Run'
 
       - name: Eco CI Energy Estimation - End Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@main

@@ -146,28 +146,33 @@ function check_file_permissions() {
     return 0
 }
 
+BACKUP_DIR=".config_backups"
+
 function rotate_backup() {
     local file="$1"
     local max_backups=10
+    local backup_file="${BACKUP_DIR}/${file}.backup"
 
     print_message "Rotating backups for ${file}"
 
+    mkdir -p "$(dirname "$backup_file")"
+
     # Delete oldest
-    if [ -f "${file}.backup.${max_backups}" ]; then
+    if [ -f "${backup_file}.${max_backups}" ]; then
         echo "Removing file that exceeds max_backup of ${max_backups} ..."
-        rm -f "${file}.backup.${max_backups}"
+        rm -f "${backup_file}.${max_backups}"
     fi
 
     # Shift existing backups (9 -> 10, 8 -> 9, ..., 1 -> 2)
     for ((i=max_backups-1; i>=1; i--)); do
-        if [ -f "${file}.backup.${i}" ]; then
-            mv "${file}.backup.${i}" "${file}.backup.$((i+1))"
+        if [ -f "${backup_file}.${i}" ]; then
+            mv "${backup_file}.${i}" "${backup_file}.$((i+1))"
         fi
     done
 
     # Move current backup (if exists) to .1
-    if [ -f "${file}.backup" ]; then
-        mv "${file}.backup" "${file}.backup.1"
+    if [ -f "${backup_file}" ]; then
+        mv "${backup_file}" "${backup_file}.1"
     fi
 }
 
@@ -176,6 +181,7 @@ function copy_backup() {
     local file="$1"
     rotate_backup "$file"
     local example_file="${file}.example"
+    local backup_file="${BACKUP_DIR}/${file}.backup"
 
     if [[ ! -f "$example_file" ]]; then
         echo "Error: Example file ${example_file} does not exist"
@@ -183,8 +189,9 @@ function copy_backup() {
     fi
 
     if [[ -f "$file" ]]; then
-        print_message "Backing up existing ${file} to ${file}.backup"
-        cp "$file" "${file}.backup"
+        print_message "Backing up existing ${file} to ${backup_file}"
+        mkdir -p "$(dirname "$backup_file")"
+        cp "$file" "$backup_file"
     fi
 
     cp "$example_file" "$file"
@@ -192,17 +199,13 @@ function copy_backup() {
 
 function prepare_config() {
 
-    print_message "Clearing old api.conf and frontend.conf files"
-    rm -Rf docker/nginx/api.conf
-    rm -Rf docker/nginx/frontend.conf
-
     local sed_command="sed -i"
     if [[ $(uname) == "Darwin" ]]; then
         sed_command="sed -i ''"
     fi
 
     print_message "Updating compose.yml with current path ..."
-    cp docker/compose.yml.example docker/compose.yml
+    copy_backup docker/compose.yml
     eval "${sed_command} -e \"s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD|\" docker/compose.yml"
     eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS|$db_pw|\" docker/compose.yml"
     eval "${sed_command} -e \"s|__TZ__|$tz|g\" docker/compose.yml"
