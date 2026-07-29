@@ -109,15 +109,15 @@ def validate_table_constraints():
         FROM
             carbondb_data_raw
         WHERE
-            (user_id IS NULL
-            OR time IS NULL
-            OR energy_kwh IS NULL
-            OR carbon_kg IS NULL
-            OR type IS NULL
-            OR project IS NULL
-            OR machine IS NULL
-            OR source IS NULL
-            OR tags IS NULL)
+            (user_id IS NULL -- null by design. only guard for broken schema
+            OR time IS NULL -- null by design. only guard for broken schema
+            OR energy_kwh IS NULL -- null by design. only guard for broken schema
+            OR carbon_kg IS NULL  -- can be null bc of backfill
+            OR type IS NULL -- null by design. only guard for broken schema
+            OR project IS NULL -- null by design. only guard for broken schema
+            OR machine IS NULL -- null by design. only guard for broken schema
+            OR source IS NULL -- null by design. only guard for broken schema
+            OR tags IS NULL) -- null by design. only guard for broken schema
             AND created_at > NOW() - INTERVAL '60 DAYS' -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions
             AND created_at < NOW() - INTERVAL '30 MINUTES' -- data just arrived can be null, before it is backfilled
      ''')
@@ -126,7 +126,6 @@ def validate_table_constraints():
         raise RuntimeError(f"NULL values found `carbondb_data_raw` - {data}")
 
 def remove_duplicates():
-    validate_table_constraints() # since the query works only if columns are not null
     DB().query('''
         DELETE FROM carbondb_data_raw a
         USING carbondb_data_raw b
@@ -139,7 +138,7 @@ def remove_duplicates():
             AND a.source = b.source
             AND a.tags = b.tags
             AND a.energy_kwh = b.energy_kwh
-            AND a.carbon_kg = b.carbon_kg
+            AND a.carbon_kg = b.carbon_kg -- if this column is null the rows will simply not match. so not problematic. we check later with validate_table_constraints
             AND a.user_id = b.user_id
             AND a.time > EXTRACT(EPOCH FROM ((NOW() - INTERVAL '60 days')::date::timestamp))*1e6 -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions - Time filter must be starting from midnight and not include elapsed minutes in the day to work with copy over which cuts off time info
     ''')
@@ -156,5 +155,8 @@ if __name__ == '__main__':
         copy_over_power_hog()
         print('remove_duplicates')
         remove_duplicates()
+        print('validate_table_constraints against ')
+        validate_table_constraints()
+
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])
