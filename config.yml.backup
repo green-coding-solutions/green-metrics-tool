@@ -1,13 +1,13 @@
 postgresql:
-  host: green-coding-postgres-container
+  host: localhost
   user: postgres
   dbname: green-coding
-  password: PLEASE_CHANGE_THIS
+  password: test1234
   port: 9573
   retry_timeout: 300  # Total time to retry database connections on outage/failure (5 minutes)
 
 redis:
-  host: green-coding-redis-container
+  host: localhost
   port: 6379
 
 security:
@@ -36,20 +36,16 @@ admin:
 
 
 cluster:
-  api_url: __API_URL__
-  metrics_url: __METRICS_URL__
+  api_url: http://api.green-coding.internal:9142
+  metrics_url: http://metrics.green-coding.internal:9142
   cors_allowed_origins:
-      - __API_URL__
-      - __METRICS_URL__
+      - http://api.green-coding.internal:9142
+      - http://metrics.green-coding.internal:9142
   client:
     sleep_time_no_job: 300
     jobs_processing: "random"
     update_os_packages: True
     shutdown_on_job_no: suspend
-    # Force a reboot after the machine has been running for this many seconds. Only triggers when no
-    # measurement is active. If the job queue is never empty the reboot will be deferred indefinitely.
-    # Set to False or 0 to disable. Example: 86400 = 24 hours.
-    reboot_after_seconds: False
     # These two parameters have only effect in cluster mode. When using CLI they will be set via flags --docker-prune and --full-docker-prune only
     docker_prune: False
     full_docker_prune: True
@@ -82,9 +78,6 @@ cluster:
         network_total_cgroup_container:
           threshold: 10000 # 10 kB
           type: stddev
-        custom_sysbench_events_sci_global:
-          threshold: 0.01
-          type: stddev_rel
         phase_time_syscall_system:
           threshold: 0.01 # 1%
           type: stddev_rel
@@ -102,58 +95,6 @@ machine:
   # host_reserved_cpus must always be >= 1 or GMT will fail
   host_reserved_cpus: 1
   host_reserved_memory: 0
-
-  # Optional: if set, system_checks verifies that the named RAPL domain power limits are
-  # exactly equal to the configured values (in Watts). Omit any sub-key to skip that domain check.
-  # Useful to confirm consistent power capping across cluster nodes.
-  # rapl_power_capping:
-  #   package: null  # per-socket package power limit in Watts (name starts with "package-")
-  #   dram: null     # DRAM domain power limit in Watts
-  #   psys: null     # platform-wide (psys) power limit in Watts
-
-  # Optional: if set, system_checks verifies that Docker is configured to use this URL as a
-  # registry mirror. Useful to confirm a private or local registry mirror is active on the machine.
-  # docker_registry_url: null
-
-  # Optional: if set, system_checks verifies the total logical CPU count (including SMT/HT threads).
-  # Useful to detect hot-plug events or unexpected HT state changes.
-  # cpu_cores: null
-
-  # Optional: if set, system_checks verifies total installed RAM matches this value (whole GB).
-  # Useful to detect failed or removed DIMMs.
-  # dram_gb: null
-
-  # Optional: if set, system_checks warns when any connected USB device is not in this allowlist.
-  # Each entry is matched as a substring against lsusb output lines (ID or name).
-  # Useful to detect unexpected USB peripherals on cluster nodes.
-  # usb_devices:
-  #   - "8087:0026"          # Intel USB hub (example)
-  #   - "046d:c52b"          # Logitech Unifying Receiver (example)
-
-  # Optional: if set, system_checks warns when any connected PCI device is not in this allowlist.
-  # Each entry is matched as a substring against lspci output lines.
-  # Useful to detect unexpected cards added to the machine.
-  # pci_devices:
-  #   - "Network controller"  # (example substring)
-  #   - "SATA controller"     # (example substring)
-
-  # Optional: expected CPU scaling governor for all cores (e.g. "performance").
-  # Warns if any core deviates. Common silent drift after reboots.
-  # cpu_governor: null
-
-  # Optional: expected current CPU frequency in MHz. Warns if any core deviates by more than ±10 MHz.
-  # Reads scaling_cur_freq; useful to confirm frequency is locked (e.g. via intel_pstate min=max).
-  # cpu_frequency_mhz: null
-
-  # Optional: expected cpufreq scaling driver (e.g. "intel_pstate", "acpi-cpufreq").
-  # A different driver may apply different power and frequency policies.
-  # cpu_scaling_driver: null
-
-  # Optional: expected SMT/Hyper-Threading state. true = enabled, false = disabled.
-  # cpu_smt: null
-
-  # Optional: expected CPU turbo boost state. true = enabled, false = disabled.
-  # cpu_turbo_boost: null
 
 measurement:
   full_docker_prune_whitelist:
@@ -214,7 +155,7 @@ measurement:
 #        sampling_rate: 99
 #      cpu_frequency_msr_core:
 #        sampling_rate: 99
-#        base_ghz: 2.4  # Set to the nominal (non-turbo) base clock of your x86 (Intel or AMD) CPU in GHz
+#        base_ghz: 2.4  # Set to the nominal (non-turbo) base clock of your Intel CPU in GHz
 #      cpu_time_cgroup_container:
 #        sampling_rate: 99
 #      cpu_time_cgroup_system:
@@ -270,18 +211,15 @@ measurement:
     #--- Architecture - Windows
     #--- Windows: Python runs natively, Docker Desktop runs Linux containers.
     windows:
-    #--- RAPL via EMI - No kernel driver required. Works on Windows 11 with Intel/AMD CPUs.
-    #--- Uses the Windows Energy Meter Interface (inbox PPM driver bridges RAPL MSRs).
-    #--- Both EMI and Scaphandre can run simultaneously for cross-validation.
-      cpu_energy_rapl_emi_component:
+    #--- RAPL - Requires the ScaphandreDrv kernel driver to be installed and running.
+      cpu_energy_rapl_scaphandre_component:
         sampling_rate: 99
-    #--- RAPL via Scaphandre - Requires the ScaphandreDrv kernel driver (test-mode or signed).
-#      cpu_energy_rapl_scaphandre_component:
-#        sampling_rate: 99
-#        # Optionally disable individual RAPL domains (cpu_package, cpu_cores, cpu_gpu, dram, psys)
-#        # domains:
-#        #   cpu_gpu: False
-#        #   dram: False
+        # Optionally disable individual RAPL domains (cpu_package, cpu_cores, cpu_gpu, dram, psys)
+        # domains:
+        #   cpu_gpu: False
+        #   dram: False
+      cpu_utilization_windows_system:
+         sampling_rate: 99
     #--- Architecture - Common
     common:
 #      network_connections_proxy_container:
@@ -305,28 +243,6 @@ measurement:
 ######### vhost_ratio is the virtualization degree of the machine. For Bare Metal this is 1. For 1 out of 4 VMs this would be 0.25 etc.
 #        VHost_Ratio: 1
 #
-#--- Carbon intensity
-#      carbon_intensity_elephant_machine:
-#        region: 'DE'
-#        sampling_rate: 99 # Remove if you don't want value padding
-#        provider: 'bundesnetzagentur'
-#        elephant:
-#          host: localhost
-#          port: 8085
-#          protocol: http
-#      carbon_intensity_electricitymaps_machine:
-#        region: 'DE'
-#        token: 'XXXX'
-#        sampling_rate: 99 # Remove if you don't want value padding
-      carbon_intensity_static_machine:
-        # Static carbon intensity in gCO2e/kWh. Replaces the former SCI 'I' value.
-        # The number 445 is global 2024 (https://www.iea.org/reports/electricity-2025/emissions)
-        value: 445
-        sampling_rate: 99
-#      carbon_intensity_level_electricitymaps_machine:
-#        region: 'DE'
-#        token: 'XXXX'
-#        sampling_rate: 99 # Remove if you don't want value padding
 ###### DEBUG
 #      network_connections_tcpdump_system:
 #        split_ports: True
@@ -353,8 +269,13 @@ sci:
     # https://www.delltechnologies.com/asset/en-us/products/servers/technical-support/Full_LCA_Dell_R740.pdf
     # The default is the value for a developer machine (Pro Laptop - https://dataviz.boavizta.org/terminalimpact)
     TE: 181000
-    # Carbon Intensity (SCI 'I') is now provided by a metric provider — see the
-    # carbon_intensity_*_machine entries under metric_providers above (e.g. carbon_intensity_static_machine).
+    # I is the Carbon Intensity at the location of this machine
+    # The value can either be a number in gCO2e/kWh or a carbon intensity provider that fetches this number dynamically
+    # https://docs.green-coding.io/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/ (TODO)
+    # For fixed world-wide values get the number from https://ember-climate.org/insights/research/global-electricity-review-2025/
+    # The number worldwide for 2024 is 473
+    # The number 334 that comes as default is for Germany from 2024 and comes from https://app.electricitymaps.com/zone/DE/all/yearly
+    I: 334
     # N is not technically part of the SCI, but we keep the value here for better clustering.
     # N is the network energy intensity per transferred data. It transforms values like GB to kWh
     # See https://www.green-coding.io/co2-formulas/ for details
@@ -372,12 +293,11 @@ sci:
 # Modules API / Frontend
 # GMT can selectively activate some API and frontend components. This is asked in the install process and should NOT
 # only be changed here as files in different locations are changed too. Please re-run the install process.
-activate_scenario_runner: False
-activate_eco_ci: False
-activate_power_hog: False
-activate_carbon_db: False
-activate_ai_optimisations: False
-activate_software_view: False
+activate_scenario_runner: True
+activate_eco_ci: True
+activate_power_hog: True
+activate_carbon_db: True
+activate_ai: False
 
 # GMT can activate additional enterprise only functionality
 # If you have a subscription insert your token here

@@ -547,6 +547,21 @@ METRIC_MAPPINGS = {
         "source": "Formula (NVIDIA NVML)",
         "explanation": "GPU operational CO₂ calculated by formula via NVIDIA NVML"
     },
+    "cpu_energy_rapl_emi_component": {
+        "clean_name": "CPU Package Energy",
+        "source": "EMI",
+        "explanation": "CPU energy via Windows Energy Meter Interface (inbox RAPL driver, no custom kernel driver required)"
+    },
+    "cpu_power_rapl_emi_component": {
+        "clean_name": "CPU Package Power",
+        "source": "EMI",
+        "explanation": "Derived CPU power via Windows Energy Meter Interface"
+    },
+    "cpu_carbon_rapl_emi_component": {
+        "clean_name": "CPU Package CO₂ (operational)",
+        "source": "Formula (EMI)",
+        "explanation": "Derived CPU operational CO₂ via formula from Windows Energy Meter Interface"
+    },
     "cpu_energy_rapl_msr_component": {
         "clean_name": "CPU Package Energy",
         "source": "RAPL",
