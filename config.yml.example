@@ -278,10 +278,10 @@ measurement:
 #           cpu_gpu: False
 #           dram: False
     #--- CPU Utilization - System-wide CPU load via GetSystemTimes()
-      cpu_utilization_windows_system:
+      cpu_utilization_win32_system:
         sampling_rate: 99
 #--- CPU Utilization - Per-core, off by default. Set include_interrupt_dpc: True for DPC/interrupt breakdown per core.
-#      cpu_utilization_windows_core:
+#      cpu_utilization_ntapi_core:
 #        sampling_rate: 99  
 #        include_interrupt_dpc: True      
     #--- Architecture - Common

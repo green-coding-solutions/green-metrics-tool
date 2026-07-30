@@ -4,11 +4,11 @@ from lib import host_platform
 from metric_providers.base import BaseMetricProvider
 
 
-class CpuUtilizationWindowsSystemProvider(BaseMetricProvider):
+class CpuUtilizationWin32SystemProvider(BaseMetricProvider):
     def __init__(self, sampling_rate, folder, skip_check=False):
         self._stdout_file = None
         super().__init__(
-            metric_name='cpu_utilization_windows_system',
+            metric_name='cpu_utilization_win32_system',
             metrics={'time': int, 'value': int},
             sampling_rate=sampling_rate,
             unit='Ratio',

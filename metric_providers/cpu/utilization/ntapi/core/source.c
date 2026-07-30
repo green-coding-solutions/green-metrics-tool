@@ -1,5 +1,5 @@
 /*
- * cpu_utilization_windows_core - source.c
+ * * cpu_utilization_ntapi_core - source.c
  *
  * Per-core CPU utilization on Windows via NtQuerySystemInformation
  * (SystemProcessorPerformanceInformation). Outputs busy%, and optionally

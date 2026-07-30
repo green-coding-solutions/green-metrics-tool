@@ -1,5 +1,5 @@
  /*
- * cpu_utilization_windows_system - source.c
+ *  * cpu_utilization_win32_system - source.c
  *
  * Reads system-wide CPU utilization via GetSystemTimes() and outputs it
  * in GMT format to stdout. Fixed-interval sampling loop (Sleep(interval_ms)
