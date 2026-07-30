@@ -274,6 +274,107 @@ function Invoke-ScaphandreProviderBuild {
     Write-Warning "To build it manually, open 'x64 Native Tools Command Prompt for VS 2026' and run build.bat in:"
     Write-Warning "  $providerDir"
 }
+function Invoke-CpuUtilizationSystemProviderBuild {
+    $providerDir = Join-Path $Root "metric_providers\cpu\utilization\windows\system"
+    $sourceFile = "source.c"
+    $outputBinary = "metric-provider-binary"
+
+    Write-Step "Building CPU utilization (system) provider binary"
+
+    if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
+        Push-Location $providerDir
+        try {
+            & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+            } else {
+                Write-Host "Successfully built metric-provider-binary.exe"
+            }
+        } finally {
+            Pop-Location
+        }
+        return
+    }
+
+    $vswherePath = @(
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
+        "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if ($vswherePath) {
+        $vsInstallPath = & $vswherePath -latest -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
+        if ($vsInstallPath) {
+            $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
+            if (Test-Path $vcvarsall) {
+                Write-Host "Found Visual Studio at: $vsInstallPath"
+                $absSource = Join-Path $providerDir $sourceFile
+                $absOutput = Join-Path $providerDir $outputBinary
+                $cmdLine = "`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib"
+                Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                } else {
+                    Write-Host "Successfully built metric-provider-binary.exe"
+                }
+                return
+            }
+        }
+    }
+
+    Write-Warning "MSVC compiler (cl.exe) not found. The CPU utilization (system) provider was not built."
+    Write-Warning "To build it manually, open 'x64 Native Tools Command Prompt for VS 2026' and run build.bat in:"
+    Write-Warning "  $providerDir"
+}
+
+function Invoke-CpuUtilizationCoreProviderBuild {
+    $providerDir = Join-Path $Root "metric_providers\cpu\utilization\windows\core"
+    $sourceFile = "source.c"
+    $outputBinary = "metric-provider-binary"
+
+    Write-Step "Building CPU utilization (per-core) provider binary"
+
+    if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
+        Push-Location $providerDir
+        try {
+            & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+            } else {
+                Write-Host "Successfully built metric-provider-binary.exe"
+            }
+        } finally {
+            Pop-Location
+        }
+        return
+    }
+
+    $vswherePath = @(
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
+        "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if ($vswherePath) {
+        $vsInstallPath = & $vswherePath -latest -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
+        if ($vsInstallPath) {
+            $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
+            if (Test-Path $vcvarsall) {
+                Write-Host "Found Visual Studio at: $vsInstallPath"
+                $absSource = Join-Path $providerDir $sourceFile
+                $absOutput = Join-Path $providerDir $outputBinary
+                $cmdLine = "`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib"
+                Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
+                } else {
+                    Write-Host "Successfully built metric-provider-binary.exe"
+                }
+                return
+            }
+        }
+    }
+
+    Write-Warning "MSVC compiler (cl.exe) not found. The CPU utilization (per-core) provider was not built."
+    Write-Warning "To build it manually, open 'x64 Native Tools Command Prompt for VS 2026' and run build.bat in:"
+    Write-Warning "  $providerDir"
+}
 
 function Send-TelemetryPing {
     $machineGuid = "unknown"
@@ -549,6 +650,8 @@ if ($installPythonPackages) {
 }
 
 Invoke-ScaphandreProviderBuild
+Invoke-CpuUtilizationSystemProviderBuild
+Invoke-CpuUtilizationCoreProviderBuild
 
 if ($buildContainers -and -not $NoDocker) {
     Write-Step "Building / Updating docker containers"
