@@ -547,21 +547,6 @@ METRIC_MAPPINGS = {
         "source": "Formula (NVIDIA NVML)",
         "explanation": "GPU operational CO₂ calculated by formula via NVIDIA NVML"
     },
-    "cpu_energy_rapl_emi_component": {
-        "clean_name": "CPU Package Energy",
-        "source": "EMI",
-        "explanation": "CPU energy via Windows Energy Meter Interface (inbox RAPL driver, no custom kernel driver required)"
-    },
-    "cpu_power_rapl_emi_component": {
-        "clean_name": "CPU Package Power",
-        "source": "EMI",
-        "explanation": "Derived CPU power via Windows Energy Meter Interface"
-    },
-    "cpu_carbon_rapl_emi_component": {
-        "clean_name": "CPU Package CO₂ (operational)",
-        "source": "Formula (EMI)",
-        "explanation": "Derived CPU operational CO₂ via formula from Windows Energy Meter Interface"
-    },
     "cpu_energy_rapl_msr_component": {
         "clean_name": "CPU Package Energy",
         "source": "RAPL",
@@ -587,10 +572,15 @@ METRIC_MAPPINGS = {
         "source": "mach",
         "explanation": "CPU Utilization of total system"
     },
-    "memory_carbon_rapl_msr_component": {
-        "clean_name": "DRAM CO₂ (operational)",
-        "source": "RAPL",
-        "explanation": "RAPL based memory operational CO₂ of DRAM domain"
+    "cpu_utilization_win32_system": {
+        "clean_name": "CPU %",
+        "source": "win32",
+        "explanation": "CPU Utilization of total system"
+    },
+    "cpu_utilization_ntapi_core": {
+        "clean_name": "CPU % per core",
+        "source": "ntapi",
+        "explanation": "CPU Utilization per logical core"
     },
     "memory_energy_rapl_msr_component": {
         "clean_name": "DRAM Energy",
