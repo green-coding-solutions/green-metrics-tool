@@ -134,8 +134,27 @@ def _docker_image_rows():
 
 
 def remove_gmt_tmp_images():
+    from lib.utils import get_test_worker_id, is_test_run, GMT_TMP_IMAGE_SUFFIX_RUN, GMT_TMP_IMAGE_SUFFIX_TEST # pylint: disable=import-outside-toplevel
+    # local import: lib.utils imports this module (host_platform) at module scope, so importing it
+    # back at module scope here would create an import cycle.
 
-    image_names = [image_name for image_name in _docker_image_rows() if 'gmt_run_tmp' in image_name]
+    # ScenarioRunner._clean_image_name() suffixes its tags with this worker's pytest-xdist id (when
+    # running under -n), precisely so this sweep only ever removes images this worker itself built -
+    # matching on the bare suffix here would also catch (and force-remove) images another,
+    # concurrently-running worker just built or is still using, since that substring is common to
+    # every worker's tags. get_test_worker_id() zero-pads the worker id itself (e.g. 'gw1' ->
+    # 'gw001'), so a plain substring match here can't drift onto a different worker's images the
+    # way it could with unpadded ids ('gw1' being a prefix of 'gw10'..'gw19').
+    #
+    # is_test_run() picks between the production and test tag namespaces - see
+    # utils.gmt_tmp_image_name(). Without this split, a test run invoked without -n (so
+    # get_test_worker_id() is also None) would fall back to the exact same unsuffixed production
+    # substring a real production run uses, and this sweep would force-remove that run's images too.
+    worker_id = get_test_worker_id()
+    base_suffix = GMT_TMP_IMAGE_SUFFIX_TEST if is_test_run() else GMT_TMP_IMAGE_SUFFIX_RUN
+    suffix = f'_{base_suffix}_{worker_id}' if worker_id else f'_{base_suffix}'
+
+    image_names = [image_name for image_name in _docker_image_rows() if suffix in image_name]
 
     if image_names:
         subprocess.run(['docker', 'rmi', '-f', *image_names], stderr=subprocess.DEVNULL, check=False)

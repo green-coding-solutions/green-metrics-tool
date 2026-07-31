@@ -13,8 +13,8 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib import error_helpers
 from lib.job.run import RunJob
-from lib.job.email import EmailJob
 from lib.job.email_simple import EmailSimpleJob
+from lib.job.email_report import EmailReportJob
 from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
 from lib.system_checks import ConfigurationCheckError
@@ -30,7 +30,8 @@ from lib.db import DB
 
 JOB_TYPE_CLASSES = {
     'run': RunJob,
-    'email': EmailJob, # abstract family covering email-simple, email-report, ...
+    'email-simple': EmailSimpleJob,
+    'email-report': EmailReportJob,
 }
 
 
@@ -39,7 +40,7 @@ if __name__ == '__main__':
 
     try:
         parser = argparse.ArgumentParser()
-        parser.add_argument('type', help='Select the operation mode.', choices=['email', 'run'])
+        parser.add_argument('type', help='Select the operation mode.', choices=['email-simple', 'run', 'email-report'])
         parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
         parser.add_argument('--full-docker-prune', action='store_true', default=False, help='Prune all images and build caches on the system')
         parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')

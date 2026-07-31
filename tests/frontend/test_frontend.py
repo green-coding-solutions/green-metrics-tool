@@ -26,6 +26,8 @@ browser = None
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
+
 ## Shared Playwright setup for all tests
 @pytest.fixture(autouse=True, scope='module')
 def setup_playwright():

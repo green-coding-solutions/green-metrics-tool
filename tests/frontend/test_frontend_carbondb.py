@@ -1,3 +1,4 @@
+import os
 import pytest
 
 from lib.global_config import GlobalConfig
@@ -13,23 +14,42 @@ browser = None
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
+
 ## Reset DB only once after module
 #pylint: disable=unused-argument
 @pytest.fixture(autouse=True, scope='module')
 def setup_and_cleanup_module():
     # before
 
-    global playwright #pylint: disable=global-statement
-    # start only one browser for whole file
-    playwright = sync_playwright().start()
+    # This file drives the one shared gunicorn container over HTTP, which always reads/writes the
+    # unsuffixed 'gmt_test' schema. This fixture defines its own module-scoped
+    # setup_and_cleanup_module though, so it must force the schema itself for the whole module's
+    # duration rather than relying on tests/conftest.py's setup_and_cleanup_test (which this
+    # module's own function-scoped setup_and_cleanup_test below overrides).
+    old_worker_id = os.environ.pop('PYTEST_XDIST_WORKER', None)
 
-    Tests.import_demo_data()
-    yield
+    # Restoring PYTEST_XDIST_WORKER is wrapped in its own innermost finally: if it's skipped
+    # (setup raises before yield, a test in the module fails, or playwright.stop()/reset_db()
+    # themselves raise during teardown), every later test in this worker process silently falls
+    # back to the shared 'gmt_test' schema instead of its own gmt_test_gw*, and starts colliding
+    # with whatever tests/frontend and tests/api are doing there.
+    try:
+        global playwright #pylint: disable=global-statement
+        # start only one browser for whole file
+        playwright = sync_playwright().start()
 
-    # after
-    playwright.stop()
-
-    Tests.reset_db()
+        Tests.import_demo_data()
+        yield
+    finally:
+        try:
+            # after
+            if playwright is not None:
+                playwright.stop()
+            Tests.reset_db()
+        finally:
+            if old_worker_id is not None:
+                os.environ['PYTEST_XDIST_WORKER'] = old_worker_id
 
 # will run after every test.
 # We must close the browser to clear localStorage
