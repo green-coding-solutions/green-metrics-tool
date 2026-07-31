@@ -39,6 +39,15 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 GMT_TMP_IMAGE_SUFFIX_RUN = 'gmt_run_tmp'
 GMT_TMP_IMAGE_SUFFIX_TEST = 'gmt_test_tmp'
 
+# Marker container_name() below mixes into every test container/network name, together with the
+# pytest-xdist worker id when there is one. A plain worker-id suffix ('-gw0') is not distinctive
+# enough on its own - tests/conftest.py::_initial_container_cleanup() force-removes anything on the
+# host ending in the current worker's suffix, and without this marker that match isn't scoped to
+# this project at all, so on a shared dev machine or CI host it could catch an unrelated
+# container that merely happens to end in the same worker-id-shaped string. Single source of truth
+# shared by container_name() and that cleanup fixture, so both sides always agree.
+GMT_TEST_CONTAINER_MARKER = 'gmt-test'
+
 def get_test_worker_id():
     # pytest-xdist sets this to 'gw0', 'gw1', ... in each worker process, and leaves it
     # unset when pytest is run without -n (or when not running under pytest at all).
@@ -56,23 +65,28 @@ def get_test_worker_id():
         return worker
     return f'gw{int(match.group(1)):03d}'
 
-def container_name(base_name):
-    # Suffixed with the pytest-xdist worker id (when running under -n) so that parallel test
-    # workers never fight over the same container/network name. Empty outside of pytest-xdist.
-    # Single source of truth shared by ScenarioRunner (production naming, lib/scenario_runner.py)
-    # and the test suite's own assertions (tests/test_functions.py), so both sides always agree.
-    worker_id = get_test_worker_id()
-    return f"{base_name}-{worker_id}" if worker_id else base_name
-
 def is_test_run():
     # pytest sets this for the duration of every test (setup/call/teardown, inherited by any
     # subprocess spawned meanwhile), regardless of whether -n/xdist is in use - unlike
-    # get_test_worker_id() above, which is only non-None under -n. Used by gmt_tmp_image_name()
-    # below and host_platform.remove_gmt_tmp_images() to keep test-built images in a namespace
-    # entirely separate from production ones, so that cleanup sweep can never cross-match between
-    # the two - which it previously could whenever a test ran without -n, since both then produced
-    # the exact same unsuffixed production tag.
+    # get_test_worker_id() above, which is only non-None under -n. Used by container_name() and
+    # gmt_tmp_image_name() below (and host_platform.remove_gmt_tmp_images()) to keep test-built
+    # names/tags in a namespace entirely separate from production ones, so cleanup sweeps can
+    # never cross-match between the two - which they previously could whenever a test ran without
+    # -n, since both then produced the exact same unsuffixed production name/tag.
     return bool(os.environ.get('PYTEST_CURRENT_TEST'))
+
+def container_name(base_name):
+    # Suffixed with GMT_TEST_CONTAINER_MARKER (plus the pytest-xdist worker id, when running under
+    # -n, so that parallel test workers never fight over the same container/network name) whenever
+    # this is a test run; unsuffixed in production. Single source of truth shared by ScenarioRunner
+    # (production naming, lib/scenario_runner.py), the test suite's own assertions
+    # (tests/test_functions.py), and tests/conftest.py::_initial_container_cleanup(), so all three
+    # always agree.
+    if not is_test_run():
+        return base_name
+    worker_id = get_test_worker_id()
+    suffix = f'{GMT_TEST_CONTAINER_MARKER}-{worker_id}' if worker_id else GMT_TEST_CONTAINER_MARKER
+    return f"{base_name}-{suffix}"
 
 def gmt_tmp_image_name(cleaned_base_name):
     # Same worker-id suffixing as container_name(), but for the '<image>_<suffix>' docker image

@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 
 from tests import test_functions as Tests
-from lib.utils import get_test_worker_id
+from lib.utils import get_test_worker_id, GMT_TEST_CONTAINER_MARKER
 
 # lib/db.py's ConnectionPool is opened eagerly (open=True) the first time DB() is instantiated in
 # each worker process, and psycopg_pool retries a failed connection attempt internally on its own
@@ -72,21 +72,27 @@ def pytest_collection_modifyitems(items):
     ) else 1)
 
 
-# Scenario-runner test containers are suffixed with this worker's xdist id (see
-# lib/utils.py::container_name()), precisely so concurrent workers never collide on a name - but
-# that same determinism means a container left running by an earlier crashed/interrupted run on
-# this exact worker id (gw6, say) will collide with a brand new, unrelated run that happens to
-# land on worker gw6 again: lib/scenario_runner.py::_check_running_containers_before_start()
+# Scenario-runner test containers are suffixed with GMT_TEST_CONTAINER_MARKER and this worker's
+# xdist id (see lib/utils.py::container_name()), precisely so concurrent workers never collide on
+# a name - but that same determinism means a container left running by an earlier crashed/
+# interrupted run on this exact worker id (gw6, say) will collide with a brand new, unrelated run
+# that happens to land on worker gw6 again: lib/scenario_runner.py::_check_running_containers_before_start()
 # then refuses to proceed with "... is already running on system". Force-removing anything still
 # running under this worker's suffix before the session's first test runs means every session
 # starts from a clean slate regardless of how the previous one on this worker id ended.
+#
+# Matching requires both the worker id AND the GMT_TEST_CONTAINER_MARKER marker, not just a bare
+# '-{worker_id}' suffix: 'docker ps -a' lists every container on the host, not just this project's,
+# so a plain worker-id suffix (e.g. '-gw0') isn't scoped to this project at all - on a shared dev
+# machine or CI host it could force-remove an unrelated container that merely happens to end in the
+# same worker-id-shaped string.
 @pytest.fixture(scope='session', autouse=True)
 def _initial_container_cleanup():
     worker_id = get_test_worker_id()
     if not worker_id:
         return
 
-    suffix = f'-{worker_id}'
+    suffix = f'-{GMT_TEST_CONTAINER_MARKER}-{worker_id}'
     result = subprocess.run(
         ['docker', 'ps', '-a', '--format', '{{.Names}}'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, encoding='UTF-8',
