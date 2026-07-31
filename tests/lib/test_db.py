@@ -83,6 +83,13 @@ class TestDbIntegration(unittest.TestCase):
         self.db = DB()
         self.table_name = "test_integration_table"
 
+    def tearDown(self):
+        # reset_db() only truncates tables already registered in tables.sql - it doesn't drop
+        # ad-hoc tables created directly by a test like this one, so each test must clean up its
+        # own or a later CREATE TABLE in this same schema collides with a leftover from a previous
+        # run.
+        self.db.query(f"DROP TABLE IF EXISTS {self.table_name}")
+
     def test_basic_query_execution(self):
         result = self.db.query(f"CREATE TABLE {self.table_name} (id INT, name TEXT)")
         self.assertIn("CREATE TABLE", result)
