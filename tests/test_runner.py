@@ -8,6 +8,7 @@ import os
 import platform
 import stat
 import subprocess
+import sys
 import yaml
 
 from contextlib import redirect_stdout, redirect_stderr
@@ -1044,7 +1045,7 @@ def test_container_running_verification_after_runtime_phase():
 def wip_test_verbose_provider_boot():
     run_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR,
+        [sys.executable, f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR,
          '--verbose-provider-boot', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--filename', 'tests/data/stress-application/usage_scenario.yml',
          '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-container-dependency-collection',
