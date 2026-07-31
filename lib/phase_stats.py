@@ -123,7 +123,11 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
 
     value_count = len(combined_values)
     if value_count == 0:
-        return (None, None, None, None, None, None, None, 0, None, None, None, None)
+        return {
+            'value_sum': None, 'max_value': None, 'min_value': None, 'value_avg': None,
+            'derivative_avg': None, 'derivative_max': None, 'derivative_min': None, 'value_count': 0,
+            'sampling_rate_avg': None, 'sampling_rate_max': None, 'sampling_rate_95p': None, 'in_phase': None,
+        }
 
     value_sum = sum(combined_values)
     max_value = max(combined_values)
@@ -176,11 +180,11 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
         derivative_max = weighted_derivative_max # pylint: disable=possibly-used-before-assignment
         derivative_min = weighted_derivative_min # pylint: disable=possibly-used-before-assignment
 
-    return (
-        value_sum, max_value, min_value, value_avg,
-        derivative_avg, derivative_max, derivative_min, value_count,
-        sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase
-    )
+    return {
+        'value_sum': value_sum, 'max_value': max_value, 'min_value': min_value, 'value_avg': value_avg,
+        'derivative_avg': derivative_avg, 'derivative_max': derivative_max, 'derivative_min': derivative_min, 'value_count': value_count,
+        'sampling_rate_avg': sampling_rate_avg, 'sampling_rate_max': sampling_rate_max, 'sampling_rate_95p': sampling_rate_95p, 'in_phase': in_phase,
+    }
 
 
 
@@ -272,27 +276,27 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             times = metric_time_series[measurement_metric_id][0] # can fail if metric does not exist. This should never be. Thus we simply crash
             values = metric_time_series[measurement_metric_id][1] # can fail if metric does not exist. This should never be. Thus we simply crash
 
-            value_sum, max_value, min_value, value_avg, derivative_avg, derivative_max, derivative_min, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, in_phase = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start, duration)
+            metric_stats = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start, duration)
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
-            if value_count == 0 or not in_phase:
+            if metric_stats['value_count'] == 0 or not metric_stats['in_phase']:
                 continue
 
             if metric in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', 'carbon_intensity_static_machine'):
                 if carbon_intensity is not None:
                     phase_warnings.add(f"More than one carbon intensity provider is configured. Now using {metric}")
-                carbon_intensity = value_avg
+                carbon_intensity = metric_stats['value_avg']
                 chosen_carbon_metric_name = metric
 
             # Dynamic undersampling warning: flag when actual samples < 50% of what the observed
             # sampling rate implies we should have received over the phase duration.
             # Some metrics should not be flagged as they are custom.
             if not metric.startswith('custom_'):
-                if sampling_rate_avg is not None and sampling_rate_avg > 0:
+                if metric_stats['sampling_rate_avg'] is not None and metric_stats['sampling_rate_avg'] > 0:
                     # sampling_rate_avg and duration are both in microseconds
-                    expected_samples = duration / Decimal(sampling_rate_avg)
-                    is_undersampled = Decimal(value_count) < expected_samples * Decimal('0.5')
+                    expected_samples = duration / Decimal(metric_stats['sampling_rate_avg'])
+                    is_undersampled = Decimal(metric_stats['value_count']) < expected_samples * Decimal('0.5')
                 else:
                     # value_count == 1: no LAG diff available, cannot estimate rate — always undersampled
                     is_undersampled = True
@@ -300,10 +304,10 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                     phase_warnings.add(f"Very few samples (< 50% of observed duration or < 2) encountered in phase '{phase['name']}' and metric '{metric}', MEAN values might be inaccurate")
 
             # we make everything Decimal so in subsequent divisions these values stay Decimal
-            value_sum = Decimal(value_sum)
-            max_value = Decimal(max_value)
-            min_value = Decimal(min_value)
-            value_count = Decimal(value_count)
+            metric_stats['value_sum'] = Decimal(metric_stats['value_sum'])
+            metric_stats['max_value'] = Decimal(metric_stats['max_value'])
+            metric_stats['min_value'] = Decimal(metric_stats['min_value'])
+            metric_stats['value_count'] = Decimal(metric_stats['value_count'])
 
             if metric in (
                 'lmsensors_temperature_component',
@@ -325,12 +329,12 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 'carbon_intensity_static_machine',
                 'carbon_intensity_level_electricitymaps_machine',
             ):
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_avg, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_avg'], 'MEAN', metric_stats['max_value'], metric_stats['min_value'], metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
 
                 if metric in ('cpu_utilization_procfs_system', 'cpu_utilization_mach_system'):
-                    cpu_utilization_machine = value_avg
+                    cpu_utilization_machine = metric_stats['value_avg']
                 if metric in ('cpu_utilization_cgroup_container', 'cpu_utilization_cgroup_system', ):
-                    cpu_utilization_containers[detail_name] = value_avg
+                    cpu_utilization_containers[detail_name] = metric_stats['value_avg']
 
             elif metric in ['network_io_cgroup_system',
                             'network_io_cgroup_container',
@@ -346,50 +350,50 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                             'disk_io_read_cgroup_system',
                             ]:
 
-                derivative_avg_s = derivative_avg * Decimal(1e6)
-                derivative_max_s = derivative_max * Decimal(1e6)
-                derivative_min_s = derivative_min * Decimal(1e6)
+                derivative_avg_s = metric_stats['derivative_avg'] * Decimal(1e6)
+                derivative_max_s = metric_stats['derivative_max'] * Decimal(1e6)
+                derivative_min_s = metric_stats['derivative_min'] * Decimal(1e6)
 
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", derivative_avg_s, 'MEAN', derivative_max_s, derivative_min_s, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, f"{unit}/s"))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", derivative_avg_s, 'MEAN', derivative_max_s, derivative_min_s, metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], f"{unit}/s"))
 
                 # we also generate a total line to see how much total data was processed
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric.replace('_io_', '_total_'), detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric.replace('_io_', '_total_'), detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', None, None, metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
 
                 if metric == 'network_io_cgroup_container': # save to calculate CO2 later. We do this only for the cgroups. Not for the system to not double count
-                    network_bytes_total.append(value_sum)
+                    network_bytes_total.append(metric_stats['value_sum'])
 
             elif metric in ('cpu_time_powermetrics_vm', ):
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', metric_stats['max_value'], metric_stats['min_value'], metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
 
             elif "_energy_" in metric and unit == 'uJ':
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', None, None, metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
 
-                power_avg_mW = derivative_avg * Decimal(1e3)
-                power_max_mW = derivative_max * Decimal(1e3)
-                power_min_mW = derivative_min * Decimal(1e3)
+                power_avg_mW = metric_stats['derivative_avg'] * Decimal(1e3)
+                power_max_mW = metric_stats['derivative_max'] * Decimal(1e3)
+                power_min_mW = metric_stats['derivative_min'] * Decimal(1e3)
 
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg_mW, 'MEAN', power_max_mW, power_min_mW, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg_mW, 'MEAN', power_max_mW, power_min_mW, metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], 'mW'))
 
                 if metric.endswith('_machine'):
                     if phase['name'] == '[BASELINE]':
                         machine_power_baseline = power_avg_mW
                     else: # this will effectively happen for all subsequent phases where energy data is available
-                        machine_energy_current_phase = value_sum
+                        machine_energy_current_phase = metric_stats['value_sum']
                         machine_power_current_phase = power_avg_mW
 
             elif '_carbon_' in metric and unit in ('ug', 'ugCO2e'):
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', None, None, metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
 
                 if metric.endswith('_machine') and chosen_carbon_metric_name is not None and chosen_carbon_metric_name in detail_name:
-                    sci_phase_data['machine_carbon_ug'] = sci_phase_data.get('machine_carbon_ug', 0) + Decimal(value_sum)
+                    sci_phase_data['machine_carbon_ug'] = sci_phase_data.get('machine_carbon_ug', 0) + Decimal(metric_stats['value_sum'])
 
             else: # Default
                 if metric.startswith('custom_'):
-                    sci_phase_data_custom.setdefault(metric, {})[detail_name] = {'value': value_sum, 'unit': unit}
+                    sci_phase_data_custom.setdefault(metric, {})[detail_name] = {'value': metric_stats['value_sum'], 'unit': unit}
                 else:
                     error_helpers.log_error('Unmapped phase_stat found, using default', metric=metric, detail_name=detail_name, run_id=run_id)
 
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', metric_stats['max_value'], metric_stats['min_value'], metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
 
 
         # after going through detail metrics, create cumulated ones
