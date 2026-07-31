@@ -87,6 +87,7 @@ def test_get_jobs_redacts_url_credentials():
 
 def test_compare_valid():
     Tests.import_demo_data()
+    Tests.flush_redis()
 
     response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}", timeout=15)
     res_json = response.json()
@@ -149,6 +150,7 @@ def test_compare_force_mode_different_style():
 def test_compare_ids_mode():
     # Although no proper mode can be found for these two comparisons the mode will be set to IDs
     Tests.import_demo_data()
+    Tests.flush_redis()
 
     DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
 
@@ -174,6 +176,7 @@ def test_compare_mode_usage_scenario_variables():
 
 def test_compare_force_mode_not_writing_to_cache():
     Tests.import_demo_data()
+    Tests.flush_redis()
 
     response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_2}", timeout=15)
     res_json = response.json()

@@ -363,13 +363,24 @@ def create_test_schema():
         raise RuntimeError('Creating the test schema failed with ', ps.stdout, ps.stderr)
 
 
+def flush_redis():
+    config = GlobalConfig().config
+    redis_port = config['redis']['port']
+    ps = subprocess.run(
+        ['docker', 'exec', 'test-green-coding-redis-container', 'redis-cli', '-p', f"{redis_port}", 'FLUSHALL'],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if ps.returncode != 0:
+        raise RuntimeError('Flushing redis failed with ', ps.stdout, ps.stderr)
+
 # should be preceded by a yield statement and on autouse
 def reset_db():
     # DB().query('DROP schema "public" CASCADE') # we do not want to call DB commands. Reason being is that because of a misconfiguration we could be sending this to the live DB
     config = GlobalConfig().config
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
-    redis_port = config['redis']['port']
     # One schema per pytest-xdist worker (falls back to 'public' outside of -n runs) so that
     # concurrent workers can each reset their own tables without touching each other's. The schema
     # and its tables already exist by this point - create_test_schema() (see above) / conftest.py's
@@ -418,15 +429,6 @@ END $$;''',
     )
     if ps.returncode != 0:
         raise RuntimeError('Resetting the test schema failed with ', ps.stdout, ps.stderr)
-
-    ps = subprocess.run(
-        ['docker', 'exec', 'test-green-coding-redis-container', 'redis-cli', '-p', f"{redis_port}", 'FLUSHALL'],
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if ps.returncode != 0:
-        raise RuntimeError('Flushing redis failed with ', ps.stdout, ps.stderr)
 
     DB().shutdown()
 
