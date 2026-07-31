@@ -34,10 +34,12 @@ RUN_NAME = 'test_' + utils.randomword(12)
 # and carry the same group for that reason.
 pytestmark = pytest.mark.xdist_group(name="real-metric-providers")
 
-#pylint: disable=unused-argument
-@pytest.fixture(autouse=True, scope='module') # override by setting scope to module only
+
+# override by setting scope to module only. otherwise we would truncate DB between test functions in this file
+# pylint: disable=unused-argument
+@pytest.fixture(autouse=True, scope='module')
 def setup_and_cleanup_test():
-    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # we want to do this globally for all tests
+    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml")
     yield
     Tests.reset_db()
 
