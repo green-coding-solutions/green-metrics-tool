@@ -14,6 +14,14 @@ from lib import error_helpers
 
 MAX_POSTGRES_BIGINT = 2**63 - 1
 
+def _is_carbon_intensity_metric(metric, unit):
+    # Matched by naming convention (any provider under metric_providers/carbon/intensity/*/machine) instead of
+    # an explicit list of provider names, so a newly added provider is picked up automatically. The unit check
+    # excludes metrics like carbon_intensitylevel_electricitymaps_machine, which also matches the naming
+    # convention but reports a categorical 1/2/3 'level' rather than an actual gCO2e/kWh value and must never
+    # be used as the source for the SCI carbon math.
+    return metric.startswith('carbon_intensity_') and metric.endswith('_machine') and unit == 'gCO2e/kWh'
+
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
     # First we create averages for all types. This includes means and totals
     DB().query('''
@@ -206,6 +214,17 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
         error_helpers.log_error('Metrics was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
         return
 
+    # Determined once here, from the full set of metrics available for the run, instead of inside the
+    # per-phase/per-metric loop below. Doing it there made the outcome depend on iteration order: whichever
+    # metric happened to be processed first would see chosen_carbon_metric_name still as None, so any
+    # '_carbon_' metric processed before its matching carbon_intensity_* metric silently failed to
+    # accumulate into sci_phase_data['machine_carbon_ug'].
+    chosen_carbon_metric_name = None
+    for _, metric, unit, _ in metrics:
+        if _is_carbon_intensity_metric(metric, unit):
+            chosen_carbon_metric_name = metric
+            break
+
     query = """
         SELECT phases
         FROM runs
@@ -259,7 +278,6 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
         cpu_utilization_machine = None
         network_io_carbon_in_ug = None
         carbon_intensity = None
-        chosen_carbon_metric_name = None
         sci_phase_data = {}
         sci_phase_data_custom = {}
         machine_power_current_phase = None
@@ -283,11 +301,11 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             if metric_stats['value_count'] == 0 or not metric_stats['in_phase']:
                 continue
 
-            if metric in ('carbon_intensity_elephant_machine', 'carbon_intensity_electricity_maps_machine', 'carbon_intensity_static_machine'):
-                if carbon_intensity is not None:
-                    phase_warnings.add(f"More than one carbon intensity provider is configured. Now using {metric}")
-                carbon_intensity = metric_stats['value_avg']
-                chosen_carbon_metric_name = metric
+            if _is_carbon_intensity_metric(metric, unit):
+                if metric == chosen_carbon_metric_name:
+                    carbon_intensity = metric_stats['value_avg']
+                else:
+                    phase_warnings.add(f"More than one carbon intensity provider is configured. Now using {chosen_carbon_metric_name}")
 
             # Dynamic undersampling warning: flag when actual samples < 50% of what the observed
             # sampling rate implies we should have received over the phase duration.
