@@ -8,6 +8,12 @@ This directory defines the canonical local deployment and baseline database sche
   - Main development / local runtime stack
 - `test-compose.yml`
   - Test stack template used by the test harness
+- `00-test-schema.sql`
+  - Test-only (mounted via compose.yml.example's `#TEST-ONLY#` volume line). Creates the `gmt_test`
+    schema before `structure.sql`/`tables.sql`/`seed-data.sql` run, so their unqualified
+    DDL/DML - resolved through the test postgres container's `PGOPTIONS` search_path - lands in
+    `gmt_test` instead of silently falling back to `public` (Postgres skips schemas in
+    `search_path` that don't exist yet when picking the target for unqualified object creation).
 - `structure.sql`
   - One-time database bootstrap only (`CREATE DATABASE` + `\c`). Runs once, ever, on first
     container boot; never re-run after that (`CREATE DATABASE` has no `IF NOT EXISTS`).

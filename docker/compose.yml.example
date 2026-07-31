@@ -23,6 +23,7 @@ services:
       - POSTGRES_DB=green-coding
     volumes:
       - green-coding-postgres-data:/var/lib/postgresql
+#TEST-ONLY#      - ./00-test-schema.sql:/docker-entrypoint-initdb.d/00-test-schema.sql:ro
       - ./structure.sql:/docker-entrypoint-initdb.d/01-structure.sql:ro
       - ./tables.sql:/docker-entrypoint-initdb.d/02-tables.sql:ro
 #EE-ONLY#      - ./../ee/docker/structure_ee.sql:/docker-entrypoint-initdb.d/03-structure_ee.sql:ro
