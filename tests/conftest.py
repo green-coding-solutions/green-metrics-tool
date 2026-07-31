@@ -1,24 +1,10 @@
 import subprocess
 import pytest
 import os
-import logging
 from pathlib import Path
 
 from tests import test_functions as Tests
 from lib.utils import get_test_worker_id, GMT_TEST_CONTAINER_MARKER
-
-# lib/db.py's ConnectionPool is opened eagerly (open=True) the first time DB() is instantiated in
-# each worker process, and psycopg_pool retries a failed connection attempt internally on its own
-# (this is expected, self-healing behavior, not a real failure) - but it also logs every individual
-# failed attempt via logging.getLogger("psycopg.pool") ("error connecting in 'pool-N': ...")
-# regardless of whether the pool as a whole goes on to succeed a moment later. If that first
-# DB()/pool creation in a worker lands while Postgres is still finishing its own boot/recovery, this
-# log line goes to stderr and gets picked up by any test capturing output with redirect_stderr,
-# failing an unrelated "no errors" assertion over a condition that already resolved itself. Since
-# with_db_retry (lib/db.py) is this codebase's own retry/backoff layer and already prints its own
-# actionable messages on genuine failures, psycopg_pool's internal per-attempt noise isn't needed
-# here.
-logging.getLogger('psycopg.pool').setLevel(logging.CRITICAL)
 
 ## VERY IMPORTANT to override the config file here
 ## otherwise it will automatically connect to non-test DB and delete all your real data
