@@ -2,8 +2,7 @@
 
 This repository benchmarks the energy usage of other software, primarily through containerized measurement runs.
 Use this file as the top-level map, and when you need to touch files in a subdirectory
-read nearest `AGENTS.md` before making localized changes. Instructions in these files can override instructions from
-this file.
+read nearest `AGENTS.md` before making localized changes. Instructions in these files can override instructions from this file.
 
 ## System Overview
 
@@ -75,3 +74,8 @@ If a new field is visible to users, it often has to move through multiple layers
   - then `python3 runner.py --uri /home/node/green-metrics-tool --filename tests/data/usage_scenarios/basic_stress.yml --dev-no-sleeps --dev-cache-build --skip-download-dependencies --skip-optimizations`
 - Compile-check a Python file:
   - `python3 -m py_compile path/to/file.py`
+
+## Updating this file
+
+In case you find general concepts that apply to most of the code in this repository
+please update this file.

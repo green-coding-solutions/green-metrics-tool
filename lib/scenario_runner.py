@@ -842,7 +842,7 @@ class ScenarioRunner:
                 # Important: Before we had here a 10,19 timestamp and where upgrading it from second to
                 # microsecond precision. This lead to errors in correct phase attribution by ghosting into previous phases
                 # Timing must be at least microsecond precision
-                custom_metric['regex'] = rf"^(\d{{16,19}}) {re.escape(key)}=(-?\d+(?:\.\d+)?)$" # default fallback regex. allowing only valid intergers or floats. not 12..10 bogus or similar
+                custom_metric['regex'] = rf"^(\d{{16,19}}) {key}=(\d+)$" # default fallback regex
             self.__custom_metrics[safe_key] = custom_metric
             if custom_metric.get('sci', False):
                 self.__sci_metrics.append(safe_key)
@@ -2580,14 +2580,14 @@ class ScenarioRunner:
                     self._append_and_print_warning(f"Capturing regex for custom metric {key} did not result in two capture groups. Must be a timestamp and value pair. Resulting capture groups are: {matches}. Regex was: {custom_metric['regex']}")
                     return
 
-                df = pandas.DataFrame(matches, columns=['time', 'value'])
                 try:
+                    df = pandas.DataFrame(matches, columns=['time', 'value'])
                     df['time'] = df['time'].apply(utils.normalize_timestamp).astype('int64')
+                    df['value'] = df['value'].astype('int64') # guards from regexes that try to match string or similar
                 except ValueError as exc:
-                    self._append_and_print_warning(f"Parsing time string for custom metric from stdout failed: {exc}")
+                    self._append_and_print_warning(f"Parsing time / value for custom metric from stdout failed: {exc}")
                     return
 
-                df['value'] = df['value'].astype('int64')
                 df['metric'] = key
                 df['detail_name'] = container_name
                 df['unit'] = self.__custom_metrics[key].get('unit', 'Unknown')

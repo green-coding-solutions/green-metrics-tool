@@ -4,7 +4,7 @@
 -- needs to run once per schema.
 
 -- Default password for authentication is DEFAULT
-INSERT INTO users (
+INSERT INTO "users"(
     "id",
     "name",
     "token",
@@ -37,7 +37,7 @@ VALUES (
                 "measurement.phase_transition_time",
                 "measurement.wait_time_dependencies",
                 "measurement.skip_volume_inspect",
-				"ssh_private_key",
+                "ssh_private_key",
                 "docker_credentials"
             ]
         },
@@ -154,7 +154,7 @@ VALUES (
 
 
 -- Default password for user 0 is empty
-INSERT INTO users ("id", "name","token","ssh_private_key","capabilities","created_at","updated_at")
+INSERT INTO "users"("id", "name","token","ssh_private_key","capabilities","created_at","updated_at")
 VALUES (
     0,
     E'[GMT-SYSTEM]',
@@ -204,13 +204,13 @@ BEGIN
 END $$;
 
 -- Default password for authentication is DEFAULT
-INSERT INTO machines ("description", "available")
+INSERT INTO "machines"("description", "available")
 VALUES
 (E'Development machine for testing', true);
 
 INSERT INTO "jobs"("type","state","name","email","url","branch","filename","usage_scenario_variables","category_ids","machine_id","message","user_id","created_at","updated_at")
-	VALUES
-	(E'run',E'FINISHED',E'This is a demo job - Please delete when you run in cluster mode',NULL,E'demo-url',E'demo-branch',E'demo-filename',E'{}',NULL,1,NULL,1,E'2025-10-03 07:57:29.829712+00',NULL);
+    VALUES
+    (E'run',E'FINISHED',E'This is a demo job - Please delete when you run in cluster mode',NULL,E'demo-url',E'demo-branch',E'demo-filename',E'{}',NULL,1,NULL,1,E'2025-10-03 07:57:29.829712+00',NULL);
 
 INSERT INTO "categories"("id","name","parent_id")
 VALUES
