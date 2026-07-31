@@ -17,7 +17,7 @@ LEVEL_MAP = {
 }
 
 
-class CarbonIntensityLevelElectricitymapsMachineProvider(BaseMetricProvider):
+class CarbonIntensitylevelElectricitymapsMachineProvider(BaseMetricProvider):
     def __init__(self, region, token, folder, sampling_rate=-1, skip_check=False):
 
         self.region = region
@@ -28,14 +28,14 @@ class CarbonIntensityLevelElectricitymapsMachineProvider(BaseMetricProvider):
 
         if not self.region:
             raise MetricProviderConfigurationError(
-                'Please set the region config option for CarbonIntensityLevelElectricitymapsMachineProvider in the config.yml')
+                'Please set the region config option for CarbonIntensitylevelElectricitymapsMachineProvider in the config.yml')
 
         if not self.token:
             raise MetricProviderConfigurationError(
-                'Please set the token config option for CarbonIntensityLevelElectricitymapsMachineProvider in the config.yml')
+                'Please set the token config option for CarbonIntensitylevelElectricitymapsMachineProvider in the config.yml')
 
         super().__init__(
-            metric_name='carbon_intensity_level_electricitymaps_machine',
+            metric_name='carbon_intensitylevel_electricitymaps_machine',
             metrics={'time': int, 'value': int, 'provider': str},
             sampling_rate=sampling_rate,
             unit='level',
