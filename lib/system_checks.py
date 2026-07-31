@@ -653,6 +653,8 @@ def normalize_disabled_checks(value):
         if not value.strip():
             raise ValueError('--dev-no-system-checks was given an empty string. Omit the switch entirely to run every check, or pass a comma-separated list of check names to disable specific ones.')
         names = {name.strip() for name in value.split(',') if name.strip()}
+        if not names:
+            raise ValueError('--dev-no-system-checks must include at least one check name.')
     elif isinstance(value, list):
         if not value:
             raise ValueError('dev_no_system_checks was given an empty list. Pass False to run every check, or a non-empty list of check names to disable specific ones.')
