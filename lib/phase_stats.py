@@ -219,6 +219,12 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
     # time, instead of issuing one SELECT per (phase, metric) pair further down. All the
     # window/aggregate math that used to live in that per-pair SQL query is now done in
     # _compute_metric_phase_stats() on these in-memory, per-metric time series.
+    #
+    # Note: This function is suprisingly efficient on CPU as even a 3 hour run only takes 11 seconds to process here
+    # However it is very costly on memory as a 3 hour run uses 800 MB resident memory here
+    # If we ever want to support really long runs like 24h+ or even monitoring mode this must be chunked / stream
+    # or we need to process it on a machine directly locally connected to the database to not have connection overhead
+
     measurement_values_query = """
         SELECT mv.measurement_metric_id, mv.time, mv.value
         FROM measurement_values mv
