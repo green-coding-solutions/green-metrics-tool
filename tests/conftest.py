@@ -37,6 +37,27 @@ def pytest_configure(config):
         "own, outside of -n, instead."
     )
 
+    # tests/api/conftest.py and tests/frontend/conftest.py both target the same *unsuffixed*
+    # 'gmt_test' schema (the one the shared gunicorn container actually reads/writes - see the
+    # comments on their _initial_gunicorn_schema_setup fixtures), and rely entirely on their shared
+    # xdist_group(name="gunicorn") marker to keep both directories' tests on a single worker, so
+    # only one worker process ever calls Tests.create_test_schema() for that schema. pytest-xdist
+    # only honors xdist_group under '--dist=loadgroup' - under any other distribution mode (e.g.
+    # the 'load' that's otherwise typical with '-n') those tests can land on different workers,
+    # which can then race to concurrently create/populate that same schema via tables.sql's
+    # non-idempotent DDL, intermittently aborting a worker's whole session with a confusing
+    # RuntimeError. Failing fast here, before any worker spawns, turns that into an immediate,
+    # actionable error instead. Sequential runs (no '-n' at all) are unaffected: there's only one
+    # process, so there's nothing to race. Both tests/run-tests.sh and the CI 'gmt-pytest' action
+    # already always pass '--dist=loadgroup'.
+    numprocesses = config.getoption("numprocesses", default=None)
+    if numprocesses and config.getoption("dist", default="no") != "loadgroup":
+        raise pytest.UsageError(
+            "Running with -n/--numprocesses requires --dist=loadgroup (use tests/run-tests.sh, "
+            "or pass --dist=loadgroup yourself, or drop -n for a sequential run) - see the "
+            "comment above this check in tests/conftest.py::pytest_configure for why."
+        )
+
 
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(items):
