@@ -1,6 +1,7 @@
 import os
 import requests
 import math
+import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -15,6 +16,12 @@ from cron.carbondb_copy_over_and_remove_duplicates import copy_over_scenario_run
 
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
+
+# Unlike test_client.py/test_jobs.py/test_watchlist.py in this same directory, this file talks to
+# the shared gunicorn container over HTTP (POST /v2/carbondb/add) and then asserts on the result
+# with its own direct DB() calls - both need to target the same unsuffixed 'gmt_test' schema the
+# container reads/writes, hence this marker (see tests/conftest.py::setup_and_cleanup_test).
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
 
 from tests.api.test_api_eco_ci import MEASUREMENT_MODEL_NEW as ECO_CI_DATA
 from tests.api.test_api_carbondb import ENERGY_DATA

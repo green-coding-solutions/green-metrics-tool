@@ -18,6 +18,8 @@ from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
+
 MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
 
 RUN_1 = 'a416057b-235f-41d8-9fb8-9bcc70a308e7'

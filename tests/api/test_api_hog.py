@@ -3,6 +3,7 @@ import json
 import os
 import zlib
 import requests
+import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -12,6 +13,8 @@ from tests import test_functions as Tests
 import time
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
+
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
 
 # This comes from the hog tests under
 # https://github.com/green-coding-solutions/hog/tree/main/tests

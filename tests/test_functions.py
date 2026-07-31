@@ -24,6 +24,8 @@ from metric_providers.network.io.cgroup.container.provider import NetworkIoCgrou
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+GUNICORN_SEQUENTIAL_GROUP = "gunicorn-sequential-tests"
+
 def get_tmp_folder():
     # Mirrors ScenarioRunner's own tmp-folder naming (lib/scenario_runner.py) so tests that
     # invoke runner.py as a subprocess can locate the same worker-suffixed directory the
@@ -306,16 +308,15 @@ def build_image_fixture():
     ], check=True)
 
 # Called once per pytest-xdist worker (see conftest.py::_initial_db_reset), before that worker's
-# first test - creates this worker's private schema and populates it via tables.sql's
+# first test - creates this worker's private (suffixed) schema and populates it via tables.sql's
 # CREATE TABLE/TYPE/TRIGGER/... DDL, which isn't written to be safely re-runnable. Every reset_db()
 # call after this one (see below) can then assume the schema/tables already exist and just
 # truncate + reseed the data, with no need to check.
 #
-# Idempotent by design (safe to call more than once for the same schema): tests/api/conftest.py and
-# tests/frontend/conftest.py also call this directly, for the unsuffixed 'gmt_test' schema the
-# shared gunicorn container reads/writes - which is a *different* schema than the one this worker's
-# own tests/conftest.py::_initial_db_reset already created for its real (suffixed) worker id, so
-# both calls are legitimate and need to coexist without erroring on tables.sql's non-idempotent DDL.
+# The unsuffixed 'gmt_test' schema the shared gunicorn container reads/writes never goes through
+# this function at all: docker/00-test-schema.sql creates that schema before docker/tables.sql and
+# docker/seed-data.sql run at container boot, so it's already fully populated by the time any test
+# runs.
 def create_test_schema():
     config = GlobalConfig().config
     pg_port = config['postgresql']['port']
@@ -375,13 +376,24 @@ def flush_redis():
     if ps.returncode != 0:
         raise RuntimeError('Flushing redis failed with ', ps.stdout, ps.stderr)
 
+# Must run before the test body, not just before reset_db()'s own truncate/reseed: DB (lib/db.py)
+# is a process-wide singleton whose connection pool bakes in search_path once, at pool-creation
+# time, and only rebuilds it after reset_db()'s DB().shutdown() call tears it down - so the env var
+# has to already be gone by the time the test body makes its own first DB() call (which may be
+# well before reset_db() ever runs), or that call (and everything sharing the pool it creates)
+# targets the wrong schema for the rest of the test.
+def use_gunicorn_schema(request, monkeypatch):
+    marker = request.node.get_closest_marker('xdist_group')
+    if marker and marker.kwargs.get('name') == GUNICORN_SEQUENTIAL_GROUP:
+        monkeypatch.delenv('PYTEST_XDIST_WORKER', raising=False)
+
 # should be preceded by a yield statement and on autouse
 def reset_db():
     # DB().query('DROP schema "public" CASCADE') # we do not want to call DB commands. Reason being is that because of a misconfiguration we could be sending this to the live DB
     config = GlobalConfig().config
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
-    # One schema per pytest-xdist worker (falls back to 'public' outside of -n runs) so that
+    # One schema per pytest-xdist worker (falls back to 'gmt_test' outside of -n runs) so that
     # concurrent workers can each reset their own tables without touching each other's. The schema
     # and its tables already exist by this point - create_test_schema() (see above) / conftest.py's
     # _initial_db_reset runs once per worker before its first test - so this only ever needs to

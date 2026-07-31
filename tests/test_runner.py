@@ -1390,9 +1390,10 @@ def test_print_logs_integration():
 # restarting shared infra breaks the live DB connection of literally any other test running
 # concurrently on any other worker - and there's no xdist_group/collection-order trick that can
 # guarantee no other worker is mid-query at that exact moment (pytest-xdist has no session-wide
-# barrier primitive). So this is excluded from -n runs entirely via the 'serial' marker (see
-# tests/conftest.py) and must be run in its own separate, non-parallel invocation.
+# barrier primitive). So this is excluded from -n runs entirely and must be run in its own
+# separate, non-parallel invocation (tests/run-tests.sh does this via 'pytest -m serial').
 @pytest.mark.serial
+@pytest.mark.skipif(bool(os.environ.get('PYTEST_XDIST_WORKER')), reason="restarts shared Postgres - run this outside of -n/xdist, on its own")
 def test_database_reconnection_during_run():
     """Verify GMT runner handles database reconnection during execution
 

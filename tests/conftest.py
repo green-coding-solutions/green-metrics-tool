@@ -23,56 +23,36 @@ def pytest_configure(config):
         "own, outside of -n, instead."
     )
 
-    # tests/api/conftest.py and tests/frontend/conftest.py both target the same *unsuffixed*
-    # 'gmt_test' schema (the one the shared gunicorn container actually reads/writes - see the
-    # comments on their _initial_gunicorn_schema_setup fixtures), and rely entirely on their shared
-    # xdist_group(name="gunicorn") marker to keep both directories' tests on a single worker, so
-    # only one worker process ever calls Tests.create_test_schema() for that schema. pytest-xdist
-    # only honors xdist_group under '--dist=loadgroup' - under any other distribution mode (e.g.
-    # the 'load' that's otherwise typical with '-n') those tests can land on different workers,
-    # which can then race to concurrently create/populate that same schema via tables.sql's
-    # non-idempotent DDL, intermittently aborting a worker's whole session with a confusing
-    # RuntimeError. Failing fast here, before any worker spawns, turns that into an immediate,
-    # actionable error instead. Sequential runs (no '-n' at all) are unaffected: there's only one
-    # process, so there's nothing to race. Both tests/run-tests.sh and the CI 'gmt-pytest' action
-    # already always pass '--dist=loadgroup'.
+    # xdist_group only pins tests together under '--dist=loadgroup' - under any other distribution
+    # mode, tests/api/, tests/frontend/, and tests/cron/test_carbondb_compress.py (all marked
+    # Tests.GUNICORN_SEQUENTIAL_GROUP) could land on different workers and run concurrently against
+    # the one shared gunicorn container and its one shared unsuffixed 'gmt_test' schema - one
+    # worker's reset_db() TRUNCATE landing mid-request from another worker's test is exactly the
+    # kind of intermittent failure this is meant to prevent. tests/run-tests.sh and the CI
+    # 'gmt-pytest' action always pass '--dist=loadgroup'; this catches any other invocation
+    # immediately instead of failing later with a confusing error.
     numprocesses = config.getoption("numprocesses", default=None)
     if numprocesses and config.getoption("dist", default="no") != "loadgroup":
         raise pytest.UsageError(
             "Running with -n/--numprocesses requires --dist=loadgroup (use tests/run-tests.sh, "
-            "or pass --dist=loadgroup yourself, or drop -n for a sequential run) - see the "
-            "comment above this check in tests/conftest.py::pytest_configure for why."
+            "or pass --dist=loadgroup yourself, or drop -n for a sequential run)."
         )
 
 
+# trylast=True: pytest-randomly (see requirements-dev.txt) shuffles collection order via its own
+# pytest_collection_modifyitems hook every session. Without trylast here, hook execution order
+# between that shuffle and this one is unspecified, so randomly's shuffle could run after ours and
+# undo the front-loading below.
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(items):
     for item in items:
         if item.fspath.basename == 'test_functions.py':
             item.add_marker(pytest.mark.skip(reason='Skipping this file'))
 
-    # 'serial' tests touch shared infrastructure in a way that would break any other test running
-    # concurrently on any other worker (see the comment above test_database_reconnection_during_run
-    # in tests/test_runner.py). No scheduling trick guarantees exclusivity under xdist, since it has
-    # no session-wide barrier - so these are skipped outright under -n rather than merely reordered.
-    if os.environ.get('PYTEST_XDIST_WORKER'):
-        skip_serial = pytest.mark.skip(reason="marked 'serial': run this outside of -n/xdist, on its own")
-        for item in items:
-            if 'serial' in item.keywords:
-                item.add_marker(skip_serial)
-
     # Every test carrying the 'real-metric-providers' xdist_group is forced onto a single worker
-    # (see the comment on pytestmark in tests/smoke_test.py) and, combined, they're one of the
-    # longest-running chunks in the whole suite. pytest-xdist's loadgroup scheduler dispatches work
-    # in roughly collection order, so if this group's tests are scattered late in that order, the
-    # worker they land on doesn't start on them until well into the run - and since every other
-    # worker finishes its own (shorter, ungrouped) tests long before that one worker gets through
-    # its serialized group, that worker becomes the straggler the whole session waits on at the
-    # end. Sorting the group to the very front means that worker starts on it immediately and runs
-    # for the same duration everyone else does, instead of after. Stable sort preserves the
-    # relative order within the group and among everything else.
-    # trylast=True so this runs after tests/api/, tests/frontend/, tests/cron/'s own
-    # pytest_collection_modifyitems hooks have already attached their own xdist_group markers.
+    # (see tests/smoke_test.py) and, combined, they're one of the longest-running chunks in the
+    # whole suite. Sorting the group to the front means that worker starts on it immediately
+    # instead of picking it up late and becoming the straggler the rest of the session waits on.
     items.sort(key=lambda item: 0 if any(
         marker.name == 'xdist_group' and marker.kwargs.get('name') == 'real-metric-providers'
         for marker in item.iter_markers()
@@ -124,12 +104,10 @@ def _initial_db_reset():
     Tests.create_test_schema()
 
 
-# Note: This fixture runs always
-# Pytest collects all fixtures before running any tests
-# no matter which order they are loaded in
 @pytest.fixture(autouse=True)
-def setup_and_cleanup_test():
-    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # we want to do this globally for all tests
+def setup_and_cleanup_test(request, monkeypatch):
+    Tests.use_gunicorn_schema(request, monkeypatch)
+    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml")
     yield
     Tests.reset_db()
 

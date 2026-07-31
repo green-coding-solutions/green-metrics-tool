@@ -14,17 +14,19 @@ browser = None
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
+
 ## Reset DB only once after module
 #pylint: disable=unused-argument
 @pytest.fixture(autouse=True, scope='module')
 def setup_and_cleanup_module():
     # before
 
-    # This file drives the one shared gunicorn container over HTTP, which always reads/writes
-    # the 'public' schema (see tests/frontend/conftest.py). This fixture defines its own
-    # module-scoped setup_and_cleanup_module though, so it must force the schema itself for the
-    # whole module's duration rather than relying on that conftest fixture (which only covers
-    # the function-scoped setup_and_cleanup_test name).
+    # This file drives the one shared gunicorn container over HTTP, which always reads/writes the
+    # unsuffixed 'gmt_test' schema. This fixture defines its own module-scoped
+    # setup_and_cleanup_module though, so it must force the schema itself for the whole module's
+    # duration rather than relying on tests/conftest.py's setup_and_cleanup_test (which this
+    # module's own function-scoped setup_and_cleanup_test below overrides).
     old_worker_id = os.environ.pop('PYTEST_XDIST_WORKER', None)
 
     # Restoring PYTEST_XDIST_WORKER is wrapped in its own innermost finally: if it's skipped
