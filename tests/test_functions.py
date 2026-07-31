@@ -343,13 +343,18 @@ def create_test_schema():
     if check_ps.stdout.strip() == b't':
         return
 
+    init_files = ['-f', './docker-entrypoint-initdb.d/02-tables.sql']
+    if config.get('ee_token'):
+        # only mounted into the postgres container (as 03-structure_ee.sql) when
+        # setup-test-env.py was run with --ee - see compose.yml.example's '#EE-ONLY#' line
+        init_files += ['-f', './docker-entrypoint-initdb.d/03-structure_ee.sql']
+    init_files += ['-f', './docker-entrypoint-initdb.d/04-seed-data.sql']
+
     ps = subprocess.run(
         docker_exec_prefix + [
             '--single-transaction',
             '-c', f'CREATE SCHEMA IF NOT EXISTS "{schema}"',
-            '-f', './docker-entrypoint-initdb.d/02-tables.sql',
-            '-f', './docker-entrypoint-initdb.d/04-seed-data.sql',
-        ],
+        ] + init_files,
         check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
