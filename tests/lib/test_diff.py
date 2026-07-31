@@ -12,7 +12,7 @@ def test_run_signature():
     # gmt_test, and every worker's own gmt_test_gwNNN schema that's accumulated in the Postgres
     # volume across past pytest-xdist runs) - producing one duplicated block of rows per schema.
     # current_schema() ties this to whichever schema this connection's search_path actually
-    # resolves to (see get_test_schema()/PGOPTIONS), matching what the test is really meant to check.
+    # resolves to (see get_schema()/PGOPTIONS), matching what the test is really meant to check.
     current_signature = DB().fetch_all("SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'runs' ORDER BY ordinal_position;")
     current_signature = ",".join([x[0] for x in current_signature])
 

@@ -6,7 +6,7 @@ from tests import test_functions as Tests
 
 # The API tests here talk to the one shared gunicorn container over HTTP. That container
 # loaded its GlobalConfig (and therefore its DB target) once at process start and is never
-# restarted mid-suite, so it always reads/writes the unsuffixed 'gmt_test' schema (get_test_schema()
+# restarted mid-suite, so it always reads/writes the unsuffixed 'gmt_test' schema (get_schema()
 # falls back to it whenever PYTEST_XDIST_WORKER is unset). Under pytest-xdist every test in this
 # directory must therefore:
 #   1. run on the same worker as every other test here, one at a time (xdist_group), and

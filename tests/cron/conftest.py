@@ -10,7 +10,7 @@ from tests import test_functions as Tests
 # no relationship to that container, so they're deliberately left out of this treatment below to
 # keep their normal per-worker parallelism. That container loaded its GlobalConfig (and therefore
 # its DB target) once at process start and is never restarted mid-suite, so it always reads/writes
-# the unsuffixed 'gmt_test' schema (get_test_schema() falls back to it whenever PYTEST_XDIST_WORKER
+# the unsuffixed 'gmt_test' schema (get_schema() falls back to it whenever PYTEST_XDIST_WORKER
 # is unset). Under pytest-xdist, test_carbondb_compress.py's tests must therefore:
 #   1. run on the same worker as every other test that shares the shared container (tests/api/,
 #      tests/frontend/), one at a time (xdist_group, shared with their conftest.py files), and

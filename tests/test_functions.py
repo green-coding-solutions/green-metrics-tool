@@ -8,7 +8,7 @@ import tempfile
 import pandas
 from pathlib import Path
 
-from lib.db import DB, get_test_schema
+from lib.db import DB, get_schema
 from lib.global_config import GlobalConfig
 from lib import host_platform
 from lib.utils import get_test_worker_id
@@ -249,10 +249,10 @@ def _import_demo_data_file(sql_path):
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
     # Without this, the import falls back to whatever PGOPTIONS the postgres container itself
-    # was started with, ignoring the caller's own worker schema (see get_test_schema()) -
+    # was started with, ignoring the caller's own worker schema (see get_schema()) -
     # currently harmless only because every caller happens to be a tests/frontend or tests/api
     # test, which already targets that same fallback schema.
-    schema = get_test_schema()
+    schema = get_schema()
 
     with open(sql_path, encoding='utf-8') as sql_file:
         ps = subprocess.run(
@@ -320,7 +320,7 @@ def create_test_schema():
     config = GlobalConfig().config
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
-    schema = get_test_schema()
+    schema = get_schema()
 
     docker_exec_prefix = [
         'docker', 'exec', '--user', 'postgres',
@@ -370,7 +370,7 @@ def reset_db():
     # and its tables already exist by this point - create_test_schema() (see above) / conftest.py's
     # _initial_db_reset runs once per worker before its first test - so this only ever needs to
     # wipe and reseed the *data*, never check for or create the schema itself.
-    schema = get_test_schema()
+    schema = get_schema()
 
     ps = subprocess.run(
         [

@@ -14,7 +14,7 @@ from lib.global_config import GlobalConfig
 def is_pytest_session():
     return "pytest" in os.environ.get('_', '')
 
-def get_test_schema():
+def get_schema():
     # One Postgres schema per xdist worker so tests can run against the same DB
     # container concurrently. Falls back to 'gmt_test' for non-parallel/local runs so
     # behavior is unchanged when not running under pytest-xdist.
@@ -121,9 +121,9 @@ class DB:
             port=config['postgresql']['port'],
             dbname=config['postgresql']['dbname'],
             sslmode='require',
-            # search_path is only ever non-default under pytest-xdist (see get_test_schema());
+            # search_path is only ever non-default under pytest-xdist (see get_schema());
             # every connection in the pool gets it set at startup so callers never need to care.
-            options=f"-c search_path={get_test_schema()},public {' '.join(config['postgresql'].get('options', []))}",
+            options=f"-c search_path={get_schema()},public {' '.join(config['postgresql'].get('options', []))}",
         )
 
         self._pool = ConnectionPool(
