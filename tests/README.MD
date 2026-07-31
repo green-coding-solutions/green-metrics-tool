@@ -53,7 +53,7 @@ window run the tests suite and then stop the containers when your test run has f
 
 To run the tests you need to issue a `pytest` call.
 
-This can be, and is recommended, to do with parallel testsing enabled:
+This can be, and is recommended, to do with parallel testing enabled:
 
 - `pytest -n auto --dist=loadgroup`
 
@@ -64,7 +64,7 @@ The after you must still execute the *serial* marked tests as they simply cannot
 
 - `pytest -m serial`
 
-If you experience errors with this you can also fallback to sequential testing by just issueing:
+If you experience errors with this you can also fallback to sequential testing by just issuing:
 
 - `pytest`
 
