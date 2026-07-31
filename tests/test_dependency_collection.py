@@ -427,8 +427,8 @@ class TestDependencyCollection:
             else:
                 print(f"✓ Pre-built container {c_name} has container info")
 
-        # Verify GMT-transformed images (GMT changes a built service's image to <name>_gmt_run_tmp:latest,
-        # worker-suffixed under -n - see utils.gmt_tmp_image_name())
+        # Verify GMT-transformed images (GMT changes a built service's image to <name>_gmt_test_tmp:latest
+        # under pytest, worker-suffixed under -n too - see utils.gmt_tmp_image_name())
         images = [data['source']['image'] for data in dependencies.values()]
 
         assert 'postgres:13' in images

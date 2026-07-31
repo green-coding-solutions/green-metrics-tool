@@ -33,6 +33,12 @@ from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# The two tag namespaces gmt_tmp_image_name() builds '<image>_<suffix>[_<worker>]' tags from, and
+# host_platform.remove_gmt_tmp_images() matches its cleanup sweep against - kept as the single
+# source of truth for both spellings so neither side can drift out of sync with the other.
+GMT_TMP_IMAGE_SUFFIX_RUN = 'gmt_run_tmp'
+GMT_TMP_IMAGE_SUFFIX_TEST = 'gmt_test_tmp'
+
 def get_test_worker_id():
     # pytest-xdist sets this to 'gw0', 'gw1', ... in each worker process, and leaves it
     # unset when pytest is run without -n (or when not running under pytest at all).
@@ -58,8 +64,18 @@ def container_name(base_name):
     worker_id = get_test_worker_id()
     return f"{base_name}-{worker_id}" if worker_id else base_name
 
+def is_test_run():
+    # pytest sets this for the duration of every test (setup/call/teardown, inherited by any
+    # subprocess spawned meanwhile), regardless of whether -n/xdist is in use - unlike
+    # get_test_worker_id() above, which is only non-None under -n. Used by gmt_tmp_image_name()
+    # below and host_platform.remove_gmt_tmp_images() to keep test-built images in a namespace
+    # entirely separate from production ones, so that cleanup sweep can never cross-match between
+    # the two - which it previously could whenever a test ran without -n, since both then produced
+    # the exact same unsuffixed production tag.
+    return bool(os.environ.get('PYTEST_CURRENT_TEST'))
+
 def gmt_tmp_image_name(cleaned_base_name):
-    # Same worker-id suffixing as container_name(), but for the '<image>_gmt_run_tmp' docker image
+    # Same worker-id suffixing as container_name(), but for the '<image>_<suffix>' docker image
     # tags ScenarioRunner._clean_image_name() builds - a machine-wide, cross-run cache/build-cache
     # resource (unlike containers/networks, it's deliberately reused between separate runs), so
     # without a worker suffix, concurrent workers building the same base image would race on the
@@ -69,7 +85,8 @@ def gmt_tmp_image_name(cleaned_base_name):
     # literal that's already known to be clean, e.g. 'alpine'). Single source of truth shared by
     # ScenarioRunner and the test suite's own assertions, so both sides always agree.
     worker_id = get_test_worker_id()
-    name = f"{cleaned_base_name}_gmt_run_tmp"
+    suffix = GMT_TMP_IMAGE_SUFFIX_TEST if is_test_run() else GMT_TMP_IMAGE_SUFFIX_RUN
+    name = f"{cleaned_base_name}_{suffix}"
     return f"{name}_{worker_id}" if worker_id else name
 
 def remove_git_suffix(url):

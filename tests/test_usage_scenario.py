@@ -604,8 +604,9 @@ def test_cmd_entrypoint():
         runner.run()
 
     o = out.getvalue()
-    # The actual built image tag is worker-suffixed under -n (see utils.gmt_tmp_image_name()) -
-    # re.escape it since a worker id could in principle contain regex-special characters.
+    # The actual built image tag uses the 'gmt_test_tmp' namespace under pytest and is
+    # worker-suffixed under -n (see utils.gmt_tmp_image_name()) - re.escape it since a worker id
+    # could in principle contain regex-special characters.
     alpine_tag = re.escape(gmt_tmp_image_name('alpine'))
     assert re.search(rf"--entrypoint[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*-c[\s,\[\]\"']*echo \'Hello from command\'", str(o))
     assert re.search(rf"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*infinity", str(o))
