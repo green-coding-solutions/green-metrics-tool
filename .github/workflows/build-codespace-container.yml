@@ -18,7 +18,7 @@ jobs:
           machine: "ubuntu-latest"
           tags: "CI/CD,Build-Codespace-Container-Workflow"
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
-          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+          electricitymaps-api-token: ${{ secrets.ELECTRICITY_MAPS_ALT_TOKEN_INFO_AT_GCS }}
 
       - name: Checkout repository
         uses: actions/checkout@v7

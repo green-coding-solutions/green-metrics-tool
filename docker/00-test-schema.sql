@@ -1,0 +1,14 @@
+-- Test-only (see compose.yml.example's '#TEST-ONLY#' volume line, stripped in by
+-- tests/setup-test-env.py::edit_compose_file() - never mounted for a production/dev stack).
+--
+-- Runs before structure.sql/tables.sql/seed-data.sql (00- sorts first among
+-- docker-entrypoint-initdb.d/*.sql) so that the boot-time PGOPTIONS search_path of
+-- 'gmt_test,public' (see this file's sibling volume, and setup-test-env.py's rewrite of the
+-- postgres service's PGOPTIONS env var) actually has a 'gmt_test' schema to resolve to for the
+-- unqualified CREATE TABLE / INSERT statements that follow. Without this, Postgres falls back to
+-- the next schema in search_path that does exist - 'public' - since it silently skips missing
+-- schemas when picking the default target for unqualified object creation. That put every
+-- fresh/first-boot test database's tables and seed data in 'public' instead of 'gmt_test', even
+-- though every later write (through lib/db.py, or test_functions.py::create_test_schema()
+-- explicitly creating suffixed worker schemas) correctly targets 'gmt_test'/'gmt_test_gwNNN'.
+CREATE SCHEMA IF NOT EXISTS "gmt_test";
