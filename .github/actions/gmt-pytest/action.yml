@@ -96,9 +96,9 @@ runs:
         python3 -m pip install -r requirements-dev.txt
         playwright install --with-deps firefox
         if ${{inputs.ee}}; then
-          cd tests && python3 setup-test-env.py --no-docker-build --ee
+          cd tests && python3 setup-test-env.py --ee
         else
-          cd tests && python3 setup-test-env.py --no-docker-build
+          cd tests && python3 setup-test-env.py
         fi
 
     - name: Start Test container
