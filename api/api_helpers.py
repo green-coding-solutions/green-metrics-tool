@@ -6,12 +6,13 @@ from collections import OrderedDict
 from functools import cache
 import typing
 import uuid
+import math
+import time
+import orjson
 
 from starlette.background import BackgroundTask
-from fastapi.responses import ORJSONResponse
-from fastapi import Depends, Request, HTTPException
+from fastapi import Depends, Request, HTTPException, Response
 from fastapi.security import APIKeyHeader
-from fastapi.exceptions import RequestValidationError
 import numpy as np
 import scipy.stats
 
@@ -131,25 +132,41 @@ def get_machine_list():
     return DB().fetch_all(query)
 
 def get_run_info(user, run_id):
+
+    run_exists = DB().fetch_one(
+        "SELECT 1 FROM runs WHERE id = %s",
+        params=(run_id,)
+    )
+    if not run_exists:
+        raise HTTPException(status_code=404, detail="Run not found")
+
     query = """
             SELECT
                 id, name, uri, branch, commit_hash,
-                (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(runs.categories) as elements
+                (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(runs.category_ids) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
-                filename, start_measurement, end_measurement,
-                measurement_config, machine_specs, machine_id, usage_scenario, usage_scenario_variables, usage_scenario_dependencies,
+                filename, relations, start_measurement, end_measurement,
+                measurement_config, machine_specs, machine_id, usage_scenario, usage_scenario_variables,
+                containers, container_dependencies, user_id,
+                (SELECT name FROM users WHERE runs.user_id = users.id) as user_name,
                 created_at,
-                (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = runs.id) as invalid_run,
-                phases, logs, failed, gmt_hash, runner_arguments
+                (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = runs.id) as warnings,
+                phases, logs, failed, gmt_hash, runner_arguments, archived, note, public
             FROM runs
             WHERE
-                (TRUE = %s OR user_id = ANY(%s::int[]))
+                (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
                 AND id = %s
-            """
+        """
     params = (user.is_super_user(), user.visible_users(), run_id)
-    return DB().fetch_one(query, params=params, fetch_mode='dict')
+    run = DB().fetch_one(query, params=params, fetch_mode='dict')
 
-def get_timeline_query(user, uri, filename, machine_id, branch, metric, phase, start_date=None, end_date=None, detail_name=None, sorting='run'):
+    if not run:
+        raise HTTPException(status_code=403, detail="You do not have access to this run")
+
+    return run
+
+
+def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=None, end_date=None, detail_name=None, sorting='run', show_archived=None, include_usage_scenario_variables=False):
 
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
@@ -157,11 +174,11 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metric, phase, s
     if branch is None or branch.strip() == '':
         branch = 'main'
 
-    params = [user.is_super_user(), user.visible_users(), uri, filename, branch, f"%{phase}"]
+    params = [user.is_super_user(), user.visible_users(), uri, branch, filename, f"%{phase}"]
 
     metric_condition = ''
     if metric is None or metric.strip() == '' or metric.strip() == 'key':
-        metric_condition =  "AND (p.metric LIKE '%%_energy_%%' OR metric = 'software_carbon_intensity_global' OR metric = 'phase_time_syscall_system') AND p.metric NOT LIKE '%%_container' AND p.metric NOT LIKE '%%_slice' "
+        metric_condition =  "AND (p.metric LIKE '%%_energy_%%' OR p.metric LIKE '%%_power_%%' OR p.metric = 'software_carbon_intensity_global' OR p.metric = 'phase_time_syscall_system') AND p.metric NOT LIKE '%%_container' AND p.metric NOT LIKE '%%_slice' "
     elif metric.strip() != 'all':
         metric_condition =  "AND p.metric = %s"
         params.append(metric)
@@ -187,23 +204,47 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metric, phase, s
         machine_id_condition =  "AND r.machine_id = %s"
         params.append(machine_id)
 
+    usage_scenario_variables_condition = ''
+    if usage_scenario_variables is not None:
+        if isinstance(usage_scenario_variables, str) and usage_scenario_variables.strip() == 'false':
+            usage_scenario_variables_condition = "AND (r.usage_scenario_variables IS NULL OR r.usage_scenario_variables = '{}'::jsonb)"
+        elif isinstance(usage_scenario_variables, dict):
+            for key, value in usage_scenario_variables.items():
+                if key is None or str(key).strip() == '':
+                    raise HTTPException(status_code=422, detail='Usage Scenario Variables keys must not be empty')
+                usage_scenario_variables_condition += 'AND r.usage_scenario_variables ->> %s = %s\n'
+                params.extend([str(key), str(value)])
+        else:
+            raise HTTPException(status_code=422, detail='Usage Scenario Variables must be a JSON object or "false"')
+
     sorting_condition = 'r.commit_timestamp ASC, r.created_at ASC'
     if sorting is not None and sorting.strip() == 'run':
         sorting_condition = 'r.created_at ASC, r.commit_timestamp ASC'
 
+    archived_condition = ''
+    if show_archived is not True:
+        archived_condition = 'AND r.archived = FALSE'
+
+    if include_usage_scenario_variables:
+        usage_scenario_variables_selector = 'r.usage_scenario_variables, '
+    else:
+        usage_scenario_variables_selector = ''
+
     query = f"""
             SELECT
-                r.id, r.name, r.created_at, p.metric, p.detail_name, p.phase,
-                p.value, p.unit, r.commit_hash, r.commit_timestamp, r.gmt_hash,
+                r.id, r.name,
+                {usage_scenario_variables_selector}
+                r.created_at, p.metric, p.detail_name, p.phase,
+                p.value, p.unit, r.commit_hash, r.commit_timestamp, r.gmt_hash, r.archived,
                 row_number() OVER () AS row_num
             FROM runs as r
             LEFT JOIN phase_stats as p ON
                 r.id = p.run_id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND r.uri = %s
-                AND r.filename = %s
                 AND r.branch = %s
+                AND r.filename = %s
                 AND r.end_measurement IS NOT NULL
                 AND r.failed != TRUE
                 AND p.phase LIKE %s
@@ -212,6 +253,8 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metric, phase, s
                 {end_date_condition}
                 {detail_name_condition}
                 {machine_id_condition}
+                {usage_scenario_variables_condition}
+                {archived_condition}
                 AND r.commit_timestamp IS NOT NULL
                 AND r.failed IS FALSE
             ORDER BY
@@ -229,7 +272,7 @@ def get_comparison_details(user, ids, comparison_db_key):
             id, name, created_at, uri, commit_hash, commit_timestamp, gmt_hash, usage_scenario_variables, {}
         FROM runs
         WHERE
-            (TRUE = %s OR user_id = ANY(%s::int[]))
+            (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
             AND id = ANY(%s::uuid[])
         ORDER BY created_at ASC -- must be same order as get_phase_stats so that the order in the comparison bar charts aligns with the comparsion_details array
     ''').format(sql.Identifier(comparison_db_key))
@@ -271,7 +314,7 @@ def determine_comparison_case(user, ids, force_mode=None):
                 SELECT uri, filename, machine_id, commit_hash, branch, usage_scenario_variables
                 FROM runs
                 WHERE
-                    (TRUE = %s OR user_id = ANY(%s::int[]))
+                    (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
                     AND id = ANY(%s::uuid[])
                 GROUP BY uri, filename, usage_scenario_variables, machine_id, commit_hash, branch
             )
@@ -298,7 +341,7 @@ def determine_comparison_case(user, ids, force_mode=None):
     # case = 'Usage Scenario' # Case C_2 : SoftwareDeveloper Case
     # case = 'Machine' # Case C_1 : DataCenter Case
     # case = 'Commit' # Case B: DevOps Case
-    # case = 'Repeated Run' # Case A: Blue Angel
+    # case = 'Repeated Run on same Commit Hash' # Case A: Blue Angel
     # case = 'Usage Scenario Variables' # Case E - Quick Development Case
 
     if force_mode:
@@ -326,83 +369,102 @@ def determine_comparison_case(user, ids, force_mode=None):
 
     ### AUTO MODE ####
 
-    #pylint: disable=no-else-raise,no-else-return
-    if repos == 2:
-        if usage_scenarios > 2:
-            raise RuntimeError('Different repos & more than 2 usage scenarios not supported')
-        if machine_ids > 1:
-            raise RuntimeError('Different repos & machines not supported')
-        if branches > 2:
-            raise RuntimeError('Different repos & more than 2 branches not supported')
+    try:
+
+        #pylint: disable=no-else-raise,no-else-return
+        if repos == 2:
+            if usage_scenarios > 2:
+                raise RuntimeError('Different repos & more than 2 usage scenarios not supported')
+            if machine_ids > 1:
+                raise RuntimeError('Different repos & machines not supported')
+            if branches > 2:
+                raise RuntimeError('Different repos & more than 2 branches not supported')
+            if commit_hashes > 2:
+                raise RuntimeError('Different repos & more than 2 different commits not supported')
+            if usage_scenario_variables > 2:
+                raise RuntimeError('Different repos & more than 2 sets of usage scenario variables not supported')
+
+            return ('Repository', 'uri')  # Case D
+
+        if repos != 1:
+            raise RuntimeError('Less than 1 or more than 2 repos not supported.')
+
+        # repos == 1
+        if usage_scenarios == 2:
+            if machine_ids > 1:
+                raise RuntimeError('Different usage scenarios & machines not supported')
+            if branches > 1:
+                raise RuntimeError('Different usage scenarios & branches not supported')
+            if commit_hashes > 1:
+                raise RuntimeError('Different usage scenarios & commits not supported')
+            if usage_scenario_variables > 1:
+                raise RuntimeError('Different usage scenarios & usage scenario variables not supported')
+
+            return ('Usage Scenario', 'filename')  # Case C_2
+
+        if usage_scenarios != 1:
+            raise RuntimeError('Less than 1 or more than 2 usage scenarios per repo not supported.')
+
+        if machine_ids == 2:
+            if branches > 1:
+                raise RuntimeError('Different machines & branches not supported')
+            if commit_hashes > 1:
+                raise RuntimeError('Different machines & commits not supported')
+            if usage_scenario_variables > 1:
+                raise RuntimeError('Different machines & usage scenario variables not supported')
+
+            return ('Machine', 'machine_id')  # Case C_1
+
+        if machine_ids != 1:
+            raise RuntimeError('Less than 1 or more than 2 Machines per repo not supported.')
+
+        if branches == 2:
+            if commit_hashes > 2:
+                raise RuntimeError('Different branches and more than 2 commits not supported')
+            if usage_scenario_variables > 1:
+                raise RuntimeError('Different branches & usage scenario variables not supported')
+
+            return ('Branch', 'branch')  # Case C_3
+
+        if branches != 1:
+            raise RuntimeError('Less than 1 or more than 2 branches per repo not supported.')
+
+        if commit_hashes == 2:
+            if usage_scenario_variables > 1:
+                raise RuntimeError('Different commit hashes & usage scenario variables not supported')
+            return ('Commit', 'commit_hash')  # Case B
+
         if commit_hashes > 2:
-            raise RuntimeError('Different repos & more than 2 different commits not supported')
-        if usage_scenario_variables > 2:
-            raise RuntimeError('Different repos & more than 2 sets of usage scenario variables not supported')
+            raise RuntimeError('Multiple commits comparison not supported. Please switch to Timeline view')
 
-        return ('Repository', 'uri')  # Case D
+        if commit_hashes != 1:
+            raise RuntimeError('Less than 1 or more than 2 commit hashes per repo not supported.')
 
-    if repos != 1:
-        raise RuntimeError('Less than 1 or more than 2 repos not supported.')
+        if usage_scenario_variables == 2:
+            return ('Usage Scenario Variables', 'usage_scenario_variables')  # Case E
 
-    # repos == 1
-    if usage_scenarios == 2:
-        if machine_ids > 1:
-            raise RuntimeError('Different usage scenarios & machines not supported')
-        if branches > 1:
-            raise RuntimeError('Different usage scenarios & branches not supported')
-        if commit_hashes > 1:
-            raise RuntimeError('Different usage scenarios & commits not supported')
-        if usage_scenario_variables > 1:
-            raise RuntimeError('Different usage scenarios & usage scenario variables not supported')
+        if usage_scenario_variables > 3:
+            raise RuntimeError('Multiple usage scenario variables comparison not supported.')
 
-        return ('Usage Scenario', 'filename')  # Case C_2
+        # important to check this case before checking repeated runs
+        # reason being is that two runs will shown with rel stddev of the population
+        # which is not what we want.
+        # we want actual difference in A vs. B
+        if len(ids) == 2:
+            return ('Repeated Run (Two only) on same Commit Hash', 'id')
 
-    if usage_scenarios != 1:
-        raise RuntimeError('Less than 1 or more than 2 usage scenarios per repo not supported.')
+        if usage_scenario_variables == 1:
+            return ('Repeated Run on same Commit Hash', 'commit_hash')  # Case A - Everything is identical and just repeating runs
 
-    if machine_ids == 2:
-        if branches > 1:
-            raise RuntimeError('Different machines & branches not supported')
-        if commit_hashes > 1:
-            raise RuntimeError('Different machines & commits not supported')
-        if usage_scenario_variables > 1:
-            raise RuntimeError('Different machines & usage scenario variables not supported')
-
-        return ('Machine', 'machine_id')  # Case C_1
-
-    if machine_ids != 1:
-        raise RuntimeError('Less than 1 or more than 2 Machines per repo not supported.')
-
-    if branches == 2:
-        if commit_hashes > 2:
-            raise RuntimeError('Different branches and more than 2 commits not supported')
-        if usage_scenario_variables > 1:
-            raise RuntimeError('Different branches & usage scenario variables not supported')
-
-        return ('Branch', 'branch')  # Case C_3
-
-    if branches != 1:
-        raise RuntimeError('Less than 1 or more than 2 branches per repo not supported.')
-
-    if commit_hashes == 2:
-        if usage_scenario_variables > 1:
-            raise RuntimeError('Different commit hashes & usage scenario variables not supported')
-        return ('Commit', 'commit_hash')  # Case B
-
-    if commit_hashes > 2:
-        raise RuntimeError('Multiple commits comparison not supported. Please switch to Timeline view')
-
-    if commit_hashes != 1:
-        raise RuntimeError('Less than 1 or more than 2 commit hashes per repo not supported.')
-
-    if usage_scenario_variables == 2:
-        return ('Usage Scenario Variables', 'usage_scenario_variables')  # Case E
-
-    if usage_scenario_variables > 3:
-        raise RuntimeError('Multiple usage scenario variables comparison not supported.')
-
-    if usage_scenario_variables == 1:
-        return ('Repeated Run', 'commit_hash')  # Case A - Everything is identical and just repeating runs
+    except RuntimeError as exc:
+        if len(ids) == 2:
+            ### DUO Case ####
+            # In case we only encounter two IDs we can try to short circuit.
+            # Before we would fail here. However for two scenarios we can ALWAYS
+            # show a comparison case as it is guaranteed that we will encounter only two different cases somewhere.
+            return ('IDs', 'id')
+        else:
+            raise exc
 
     raise RuntimeError('Could not determine comparison case after checking all conditions')
 
@@ -412,7 +474,7 @@ def check_run_failed(user, ids):
                COUNT(failed)
             FROM runs
             WHERE
-                (TRUE = %s OR user_id = ANY(%s::int[]))
+                (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
                 AND id = ANY(%s::uuid[])
                 AND failed IS TRUE
             """
@@ -431,7 +493,7 @@ def get_phase_stats(user, ids):
             LEFT JOIN machines as c on c.id = b.machine_id
 
             WHERE
-                (TRUE = %s OR b.user_id = ANY(%s::int[]))
+                (TRUE = %s OR b.user_id = ANY(%s::int[]) OR b.public = TRUE)
                 AND a.run_id = ANY(%s::uuid[])
             ORDER BY
                 b.created_at ASC, -- at least the first sorting key which determinse the order of run_ids must be same order as get_comparison_details so that the order in the comparison bar charts aligns with the comparsion_details array
@@ -565,12 +627,12 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
             key = filename # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
             key = str(machine_id) # Case C_1 : DataCenter Case
-        elif case in ('Commit', 'Repeated Run'):
+        elif case in ('Commit', 'Repeated Run on same Commit Hash'):
             key = commit_hash # Repeated Run
         elif case == 'Usage Scenario Variables':
             key = str(usage_scenario_variables) # Case E: Quick Development Case
         else:
-            key = run_id # No comparison case - Single view
+            key = run_id # Single view (no comparison case) or DUO mode comparison (only ID)
 
         if phase not in phase_stats_object['data']:
             phase_stats_object['data'][phase] = OrderedDict({'hidden': hidden, 'data': {}})
@@ -753,9 +815,18 @@ def get_t_stat(length):
     t_crit = np.abs(scipy.stats.t.ppf((.05)/2,dof)) # for two sided!
     return t_crit/np.sqrt(length)
 
+# since FastAPI deprecates the normal JSONResponse we need to create a custom class to mitigate the deprecation error
+# We do not want to move to pydantic as this cannot natively serialize datetime from the DB.
+# We would then have to call jsonable_encoder everytime ... this solution here seems cleaner and likely faster
+class CustomORJSONResponse(Response):
+    media_type = "application/json"
+
+    def render(self, content) -> bytes:
+        return orjson.dumps(content) # pylint: disable=no-member
+
 # As the ORJSONResponse renders the object on init we need to keep the original around as otherwise we need to reparse
 # it when we use these functions in our code. The header is a copy from starlette/responses.py JSONResponse
-class ORJSONResponseObjKeep(ORJSONResponse):
+class ORJSONResponseObjKeep(CustomORJSONResponse):
     def __init__(
         self,
         content: typing.Any,
@@ -805,12 +876,108 @@ def get_connecting_ip(request):
 
 def check_int_field_api(field, name, max_value):
     if not isinstance(field, int):
-        raise RequestValidationError(f'{name} must be integer')
+        raise HTTPException(status_code=422, detail=f'{name} must be integer')
 
     if field <= 0:
-        raise RequestValidationError(f'{name} must be > 0')
+        raise HTTPException(status_code=422, detail=f'{name} must be > 0')
 
     if field > max_value:
-        raise RequestValidationError(f'{name} must be <= {max_value}')
+        raise HTTPException(status_code=422, detail=f'{name} must be <= {max_value}')
 
+    return True
+
+def carbondb_add(connecting_ip, data, source, user_id):
+
+    merge_window_max = 30 # merge window hardcoded for now. Might be a user setting later. This entails also that carbondb_copy_over_and_remove_duplicates.py makes queries PER USER
+    current_time_us = int(time.time_ns()  / 1e3)
+    if data['time'] < current_time_us - merge_window_max * 24 * 60 * 60 * 1e6 : # microseconds
+        raise ValueError(f"CarbonDB is configured to not accept values older than {merge_window_max} days. Your timestamp was: {data['time']}")
+    if data['time'] > current_time_us:
+        raise ValueError(f"CarbonDB does not accept timestamps in the future. Your timestamp was: {data['time']}")
+
+
+    query = '''
+            INSERT INTO carbondb_data_raw
+                ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","ip_address","user_id","created_at")
+            VALUES
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+    '''
+
+    used_client_ip = data.get('ip', None) # An ip has been given with the data. We prioritize that
+    if used_client_ip is None:
+        used_client_ip = connecting_ip
+
+    carbon_intensity_g_per_kWh = data.get('carbon_intensity_g', None)
+
+    energy_J = float(data['energy_uj']) / 1e6
+    energy_kWh = energy_J / (3_600*1_000)
+    if carbon_intensity_g_per_kWh is None:
+        carbon_kg = None
+    else:
+        carbon_kg = (energy_kWh * carbon_intensity_g_per_kWh)/1_000
+
+    DB().query(
+        query=query,
+        params=(
+            data['type'],
+            data['project'], data['machine'], source, data['tags'], data['time'], energy_kWh, carbon_kg, carbon_intensity_g_per_kWh, used_client_ip, user_id))
+
+def replace_nan_with_zero(obj):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, (dict, list)):
+                replace_nan_with_zero(v)
+            elif isinstance(v, float) and math.isnan(v):
+                obj[k] = 0
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            if isinstance(item, (dict, list)):
+                replace_nan_with_zero(item)
+            elif isinstance(item, float) and math.isnan(item):
+                obj[i] = 0
+    return obj
+
+# Refactor have this in the Pydantic model?
+# https://github.com/green-coding-solutions/green-metrics-tool/issues/907
+def validate_hog_measurement_data(data):
+    required_top_level_fields = [
+        'coalitions', 'all_tasks', 'elapsed_ns', 'processor', 'thermal_pressure'
+    ]
+    for field in required_top_level_fields:
+        if field not in data:
+            raise ValueError(f"Missing required field: {field}")
+
+    # Validate 'coalitions' structure
+    if not isinstance(data['coalitions'], list):
+        raise ValueError("Expected 'coalitions' to be a list")
+
+    for coalition in data['coalitions']:
+        required_coalition_fields = [
+            'name', 'tasks', 'energy_impact_per_s', 'cputime_ms_per_s',
+            'diskio_bytesread', 'diskio_byteswritten', 'intr_wakeups', 'idle_wakeups'
+        ]
+        for field in required_coalition_fields:
+            if field not in coalition:
+                raise ValueError(f"Missing required coalition field: {field}")
+            if field == 'tasks' and not isinstance(coalition['tasks'], list):
+                raise ValueError(f"Expected 'tasks' to be a list in coalition: {coalition['name']}")
+
+    # Validate 'all_tasks' structure
+    if 'energy_impact_per_s' not in data['all_tasks']:
+        raise ValueError("Missing 'energy_impact_per_s' in 'all_tasks'")
+
+    # Validate 'processor' structure based on the processor type
+    processor_fields = data['processor'].keys()
+    if 'ane_energy' in processor_fields:
+        required_processor_fields = ['combined_power', 'cpu_energy', 'gpu_energy', 'ane_energy']
+    elif 'package_joules' in processor_fields:
+        required_processor_fields = ['package_joules', 'cpu_joules', 'igpu_watts']
+    else:
+        raise ValueError("Unknown processor type")
+
+    for field in required_processor_fields:
+        if field not in processor_fields:
+            raise ValueError(f"Missing required processor field: {field}")
+
+    # All checks passed
     return True

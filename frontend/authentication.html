@@ -24,7 +24,7 @@
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
 <body class="preload">
-    <gmt-menu></gmt-menu>
+    <gmt-menu data-active-item="authentication"></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left">
             <a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon opened"></i></a>
@@ -47,8 +47,9 @@
                 <div class="header">Your authentication token</div>
                 <div class="ui form">
                     <div class="description">
-                        <div class="ui fluid icon input">
-                            <input type="text" placeholder="Name" id="authentication-token" name="authentication_token" required>
+                        <div class="ui left fluid icon input">
+                            <input type="password" placeholder="Name" id="authentication-token" name="authentication_token" required>
+                            <i id="togglePassword" class="eye slash link icon"></i>
                         </div>
                         <p></p>
                         <button id="save-authentication-token" class="positive ui button">Login and show details</button>
@@ -60,6 +61,7 @@
                                 <div class="header">
                                     Logout successful!
                                 </div>
+                                <p>Page will reload in 60 seconds to refresh sidebar</p>
                             </div>
                         </div>
                         <div id="login-successful-message" class="ui icon message green" style="display: none;">
@@ -68,6 +70,7 @@
                                 <div class="header">
                                     Login successful!
                                 </div>
+                                <p>Page will reload in 60 seconds to refresh sidebar</p>
                             </div>
                         </div>
                         <div id="token-details-message" class="ui icon message blue" style="display: none;">

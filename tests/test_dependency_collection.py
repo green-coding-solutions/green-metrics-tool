@@ -5,6 +5,7 @@ import pytest
 from lib.scenario_runner import ScenarioRunner
 from tests import test_functions as Tests
 from lib.db import DB
+from lib.utils import gmt_tmp_image_name
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
@@ -17,10 +18,12 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock successful energy-dependency-inspector response
@@ -58,10 +61,12 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         with patch('lib.scenario_runner.resolve_docker_dependencies_as_dict') as mock_resolver:
@@ -79,10 +84,12 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock container data
@@ -115,7 +122,7 @@ class TestDependencyCollection:
                 }
             }
 
-            assert runner._ScenarioRunner__usage_scenario_dependencies == expected_dependencies
+            assert runner._ScenarioRunner__container_dependencies == expected_dependencies
             assert mock_exec.call_count == 2
 
     def test_collect_dependency_info_partial_failure(self):
@@ -124,10 +131,12 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock container data
@@ -159,10 +168,12 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # No containers
@@ -171,7 +182,7 @@ class TestDependencyCollection:
         runner._collect_dependency_info()
 
         # Should remain None
-        assert runner._ScenarioRunner__usage_scenario_dependencies is None
+        assert runner._ScenarioRunner__container_dependencies is None
 
     def test_energy_dependency_inspector_integration_in_run_workflow(self):
         """Test that energy-dependency-inspector is called during the run workflow"""
@@ -179,11 +190,13 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
-            dev_no_save=True
+            dev_no_save=True,
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock the dependency collection method
@@ -202,12 +215,13 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock successful dependency collection
@@ -219,7 +233,7 @@ class TestDependencyCollection:
 
         with patch.object(runner, '_collect_dependency_info') as mock_collect:
             def mock_successful_collection():
-                runner._ScenarioRunner__usage_scenario_dependencies = expected_dependencies
+                runner._ScenarioRunner__container_dependencies = expected_dependencies
             mock_collect.side_effect = mock_successful_collection
 
             run_id = runner.run()
@@ -228,7 +242,7 @@ class TestDependencyCollection:
             assert run_id is not None
 
             result = DB().fetch_one(
-                "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
+                "SELECT container_dependencies FROM runs WHERE id = %s",
                 (run_id,)
             )
 
@@ -240,12 +254,13 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/usage_scenarios/basic_stress.yml',
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         # Mock failed dependency collection that raises exception
@@ -263,18 +278,19 @@ class TestDependencyCollection:
             uri_type='folder',
             filename='tests/data/usage_scenarios/dependency_collection.yml',
             skip_unsafe=True,
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         run_id = runner.run()
         assert run_id is not None
 
-        dependencies = runner._ScenarioRunner__usage_scenario_dependencies
+        dependencies = runner._ScenarioRunner__container_dependencies
         assert dependencies is not None
         assert isinstance(dependencies, dict)
 
@@ -285,21 +301,21 @@ class TestDependencyCollection:
         assert any('test-container' in name for name in container_names), f"No test-container found in: {container_names}"
 
         # Verify each dependency has required fields and correct structure
-        for container_name, container_data in dependencies.items():
-            assert 'source' in container_data, f"Missing 'source' for container {container_name}"
+        for c_name, c_data in dependencies.items():
+            assert 'source' in c_data, f"Missing 'source' for container {c_name}"
 
-            source_info = container_data['source']
-            assert 'image' in source_info, f"Missing 'image' for container {container_name}"
-            assert 'hash' in source_info, f"Missing 'hash' for container {container_name}"
-            assert source_info['image'] is not None, f"Image is None for container {container_name}"
-            assert source_info['hash'] is not None, f"Hash is None for container {container_name}"
-            assert source_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {container_name}"
+            source_info = c_data['source']
+            assert 'image' in source_info, f"Missing 'image' for container {c_name}"
+            assert 'hash' in source_info, f"Missing 'hash' for container {c_name}"
+            assert source_info['image'] is not None, f"Image is None for container {c_name}"
+            assert source_info['hash'] is not None, f"Hash is None for container {c_name}"
+            assert source_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {c_name}"
 
-            assert 'pip' in container_data, f"Missing 'pip' packages for container {container_name}"
-            assert 'dpkg' in container_data, f"Missing 'dpkg' packages for container {container_name}"
+            assert 'pip' in c_data, f"Missing 'pip' packages for container {c_name}"
+            assert 'dpkg' in c_data, f"Missing 'dpkg' packages for container {c_name}"
 
-            pip_data = container_data['pip']
-            dpkg_data = container_data['dpkg']
+            pip_data = c_data['pip']
+            dpkg_data = c_data['dpkg']
 
             # Check for playwright in pip packages (system scope)
             playwright_found = False
@@ -308,7 +324,7 @@ class TestDependencyCollection:
                     if 'playwright' in location_data.get('dependencies', {}):
                         playwright_found = True
                         break
-            assert playwright_found, f"playwright not found in pip packages for {container_name}"
+            assert playwright_found, f"playwright not found in pip packages for {c_name}"
 
             # Check for psutils in pip packages (project scope)
             psutils_found = False
@@ -317,10 +333,10 @@ class TestDependencyCollection:
                     if 'psutils' in location_data.get('dependencies', {}):
                         psutils_found = True
                         break
-            assert psutils_found, f"psutils not found in pip packages for {container_name}"
+            assert psutils_found, f"psutils not found in pip packages for {c_name}"
 
             # Check for apt in dpkg packages
-            assert 'apt' in dpkg_data.get('dependencies', {}), f"apt not found in dpkg packages for {container_name}"
+            assert 'apt' in dpkg_data.get('dependencies', {}), f"apt not found in dpkg packages for {c_name}"
 
         # Verify image name
         images = [data['source']['image'] for data in dependencies.values()]
@@ -328,7 +344,7 @@ class TestDependencyCollection:
 
         # Verify dependencies were stored in database
         result = DB().fetch_one(
-            "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
+            "SELECT container_dependencies FROM runs WHERE id = %s",
             (run_id,)
         )
         assert result is not None
@@ -344,18 +360,19 @@ class TestDependencyCollection:
             uri_type='folder',
             filename='tests/data/web-application/usage_scenario.yml',
             skip_unsafe=True,
-            skip_system_checks=True,
+            dev_no_system_checks=True,
             dev_cache_build=True,
             dev_no_sleeps=True,
             dev_no_metrics=True,
             dev_no_phase_stats=True,
-            dev_no_optimizations=True
+            skip_download_dependencies=True,
+            skip_optimizations=True,
         )
 
         run_id = runner.run()
         assert run_id is not None
 
-        dependencies = runner._ScenarioRunner__usage_scenario_dependencies
+        dependencies = runner._ScenarioRunner__container_dependencies
         assert dependencies is not None
         assert isinstance(dependencies, dict)
 
@@ -367,24 +384,24 @@ class TestDependencyCollection:
         assert any('db' in name for name in container_names), f"No db container found in: {container_names}"
 
         # Verify each dependency has required fields and correct structure
-        for container_name, container_data in dependencies.items():
+        for c_name, c_data in dependencies.items():
             # All containers should have source section
-            assert 'source' in container_data, f"Missing 'source' for container {container_name}"
+            assert 'source' in c_data, f"Missing 'source' for container {c_name}"
 
-            source_info = container_data['source']
-            assert 'image' in source_info, f"Missing 'image' for container {container_name}"
-            assert 'hash' in source_info, f"Missing 'hash' for container {container_name}"
-            assert source_info['image'] is not None, f"Image is None for container {container_name}"
-            assert source_info['hash'] is not None, f"Hash is None for container {container_name}"
-            assert source_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {container_name}"
+            source_info = c_data['source']
+            assert 'image' in source_info, f"Missing 'image' for container {c_name}"
+            assert 'hash' in source_info, f"Missing 'hash' for container {c_name}"
+            assert source_info['image'] is not None, f"Image is None for container {c_name}"
+            assert source_info['hash'] is not None, f"Hash is None for container {c_name}"
+            assert source_info['hash'].startswith('sha256:'), f"Hash doesn't start with sha256: for container {c_name}"
 
             # Check for full dependency resolution on built containers
-            if 'web' in container_name:
+            if 'web' in c_name:
                 # Built containers should have project and system sections with packages
-                assert 'pip' in container_data, f"Missing 'pip' packages for container {container_name}"
+                assert 'pip' in c_data, f"Missing 'pip' packages for container {c_name}"
 
                 # Count pip packages (handle both direct dependencies and locations)
-                pip_data = container_data.get('pip', {})
+                pip_data = c_data.get('pip', {})
                 if 'dependencies' in pip_data:
                     project_packages_count = len(pip_data['dependencies'])
                 elif 'locations' in pip_data:
@@ -397,7 +414,7 @@ class TestDependencyCollection:
                     project_packages_count = 0
 
                 # Count dpkg packages
-                dpkg_data = container_data.get('dpkg', {})
+                dpkg_data = c_data.get('dpkg', {})
                 if 'dependencies' in dpkg_data:
                     system_packages_count = len(dpkg_data['dependencies'])
                 else:
@@ -405,19 +422,22 @@ class TestDependencyCollection:
 
                 total_packages = project_packages_count + system_packages_count
 
-                assert total_packages > 0, f"Built container {container_name} should have some packages"
-                print(f"✓ Built container {container_name} has {project_packages_count} project packages and {system_packages_count} system packages")
+                assert total_packages > 0, f"Built container {c_name} should have some packages"
+                print(f"✓ Built container {c_name} has {project_packages_count} project packages and {system_packages_count} system packages")
             else:
-                print(f"✓ Pre-built container {container_name} has container info")
+                print(f"✓ Pre-built container {c_name} has container info")
 
-        # Verify GMT-transformed images (GMT changes postgres:13 to postgres13_gmt_run_tmp:latest)
+        # Verify GMT-transformed images (GMT changes a built service's image to <name>_gmt_test_tmp:latest
+        # under pytest, worker-suffixed under -n too - see utils.gmt_tmp_image_name())
         images = [data['source']['image'] for data in dependencies.values()]
-        assert any('postgres13_gmt_run_tmp' in image for image in images), f"postgres13_gmt_run_tmp not found in images: {images}"
-        assert any('web_gmt_run_tmp' in image for image in images), f"web_gmt_run_tmp not found in images: {images}"
+
+        assert 'postgres:13' in images
+        assert f'{gmt_tmp_image_name("web")}:latest' in images
+        assert 'curlimages/curl:8.10.1' in images
 
         # Verify dependencies were stored in database
         result = DB().fetch_one(
-            "SELECT usage_scenario_dependencies FROM runs WHERE id = %s",
+            "SELECT container_dependencies FROM runs WHERE id = %s",
             (run_id,)
         )
         assert result is not None

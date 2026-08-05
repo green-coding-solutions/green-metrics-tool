@@ -36,6 +36,6 @@ def message_optimization(self, run, measurements, repo_path, network, notes, pha
                           list into your config file.
                           ''', 'https://www.green-coding.io/products/green-metrics-tool/')
 
-# @register_reporter('example_optimization_test', Criticality.CRITICAL, REPORTER_NAME, REPORTER_ICON, need_files=True)
+# @register_reporter('example_optimization_test', Criticality.HIGH, REPORTER_NAME, REPORTER_ICON, need_files=True)
 # def example_optimization_test(self, run, measurements, repo_path, network, notes, phase_stats):
 #     self.add_optimization('You should never see this', 'This is a test for the ignore list!!!')

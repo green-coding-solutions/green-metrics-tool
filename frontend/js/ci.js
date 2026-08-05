@@ -174,6 +174,11 @@ const displayStatsTable = (stats) => {
         total_table.appendChild(label_stats_total_node);
 
     }) ;
+    $('#stats-container table').tablesort();
+    $('#stats-container table thead th[data-sort="numeric"]').data('sortBy', function(th, td, tablesort) {
+        return parseFloat(td.text().replace(',', ''));
+    });
+
 
 }
 
@@ -194,12 +199,13 @@ const displayRunDetailsTable = (measurements, repo) => {
         let run_link = '';
 
         const run_id_esc = encodeURIComponent(run_id)
+        const repo_encoded = repo.split('/').map(encodeURIComponent).join('/');
 
         if(source == 'github') {
-            run_link = `https://github.com/${encodeURIComponent(repo)}/actions/runs/${run_id_esc}`;
+            run_link = `https://github.com/${repo_encoded}/actions/runs/${run_id_esc}`;
         }
         else if (source == 'gitlab') {
-            run_link = `https://gitlab.com/${encodeURIComponent(repo)}/-/pipelines/${run_id_esc}`
+            run_link = `https://gitlab.com/${repo_encoded}/-/pipelines/${run_id_esc}`;
         }
 
         const run_link_node = `<a href="${run_link}" target="_blank">${run_id_esc}</a>`
@@ -225,7 +231,11 @@ const displayRunDetailsTable = (measurements, repo) => {
                             `;
         document.querySelector("#ci-table").appendChild(li_node);
     });
-    $('table').tablesort();
+    $('#run-details-table table').tablesort();
+    $('#run-details-table table thead th[data-sort="numeric"]').data('sortBy', function(th, td, tablesort) {
+        return parseFloat(td.text().replace(',', ''));
+    });
+
 }
 
 const getBadges = async (repo, branch, workflow_id) => {
@@ -312,7 +322,7 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
         document.querySelector('#message-no-data').style.display = 'none';
 
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             document.querySelectorAll('.container-no-data').forEach(el => el.style.display = 'none')
             document.querySelector('#message-no-data').style.display = '';
             return
@@ -366,11 +376,12 @@ const populateRunInfos = async (repo, branch, source, workflow_name, workflow_id
     document.querySelector('#ci-data-workflow').innerText =  escapeString(workflow_name);
 
     let repo_link = ''
+    const repo_encoded = repo.split('/').map(encodeURIComponent).join('/');
     if(source == 'github') {
-        repo_link = `https://github.com/${encodeURIComponent(repo)}`;
+        repo_link = `https://github.com/${repo_encoded}`;
     }
     else if(source == 'gitlab') {
-        repo_link = `https://gitlab.com/${encodeURIComponent(repo)}`;
+        repo_link = `https://gitlab.com/${repo_encoded}`;
     }
 
     const repo_link_node = `<a href="${repo_link}" target="_blank">${escapeString(repo)}</a>`

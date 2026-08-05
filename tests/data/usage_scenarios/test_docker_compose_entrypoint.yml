@@ -7,7 +7,6 @@ compose-file: !include test_docker_entry_command.yml
 
 services:
   test-container:
-    type: container
     image: alpine
 
 flow:

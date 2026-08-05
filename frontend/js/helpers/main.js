@@ -1,6 +1,59 @@
 const GMT_MACHINES = JSON.parse(localStorage.getItem('gmt_machines')) || {}; // global variable. dynamically resolved via resolveMachinesToGlobalVariable
 
-class APIEmptyResponse204 extends Error {}
+const escapeString = (string) =>{
+    let my_string = String(string)
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;'
+    };
+    const reg = /[&<>"']/ig;
+    return my_string.replace(reg, (match) => map[match]);
+}
+
+const toHttpsUri = (uri) => {
+    if (uri.startsWith('git@')) {
+        return uri.replace(/^git@([^:]+):/, 'https://$1/').replace(/\.git$/, '');
+    }
+    if (uri.startsWith('ssh://')) {
+        return uri.replace(/^ssh:\/\/(?:[^@]+@)?/, 'https://').replace(/\.git$/, '');
+    }
+    return uri;
+};
+
+// Platform path conventions:
+//   type='commit': /commit/ (GitHub), /-/commit/ (GitLab), /commits/ (Bitbucket)
+//   type='tree':   /tree/   (GitHub), /-/tree/   (GitLab), /src/     (Bitbucket)
+// Returns null for non-HTTP URIs (e.g. local paths).
+const getRepoRefUrl = (uri, type) => {
+    const cleanUri = toHttpsUri(uri);
+    if (!cleanUri.startsWith('http')) return null;
+    if (type !== 'commit' && type !== 'tree') {
+        console.error(`getRepoRefUrl: unknown type '${type}', expected 'commit' or 'tree'`);
+        return '#broken-url';
+    }
+    let hostname;
+    try {
+        hostname = new URL(cleanUri).hostname.toLowerCase();
+    } catch {
+        return null;
+    }
+    const base = cleanUri.endsWith('.git') ? cleanUri.slice(0, -4) : cleanUri;
+    if (hostname.includes('bitbucket')) {
+        return base + (type === 'commit' ? '/commits/' : '/src/');
+    }
+    const pathSep = hostname.includes('gitlab') ? '/-/' : '/';
+    return base + (type === 'commit' ? pathSep + 'commit/' : pathSep + 'tree/');
+};
+
+class APIHTTPError extends Error {
+    constructor(status, message) {
+        super(message);
+        this.status = status;
+    }
+}
 
 const date_options = {
   year: 'numeric',
@@ -17,62 +70,90 @@ const date_options = {
 */
 class GMTMenu extends HTMLElement {
    connectedCallback() {
+        const validActiveMenuKeys = new Set([
+            'home',
+            'scenario-runner',
+            'runs-repos',
+            'watchlist',
+            'submit-software',
+            'cluster-status',
+            'eco-ci',
+            'power-hog',
+            'carbondb',
+            'data-analysis',
+            'authentication',
+            'settings',
+        ]);
+        const configuredActiveMenuKey = this.getAttribute('data-active-item');
+        const activeMenuKey = validActiveMenuKeys.has(configuredActiveMenuKey) ? configuredActiveMenuKey : 'home';
+        const menuItemClass = (menuKey) => activeMenuKey === menuKey ? 'item active' : 'item';
+
         let html_content = `
-        <div id="menu" class="ui inverted vertical menu">
+        <div id="menu" class="ui inverted secondary pointing vertical menu">
             <div class="item-container">
-                <a class="item" href="/index.html" aria-label="Home">
+                <a class="${menuItemClass('home')}" href="/index.html" aria-label="Home">
                     <b><i class="home icon"></i> Home</b>
                 </a>`
 
         if (ACTIVATE_SCENARIO_RUNNER == true) {
-            html_content = `${html_content}
-                <a class="item" href="/runs.html" aria-label="ScenarioRunner"><b><i class="tachometer alternate left icon"></i> ScenarioRunner</b></a>
-                <a class="item" href="/runs.html" aria-label="Runs / Repos">
+            html_content += `
+                <a class="${menuItemClass('scenario-runner')}" href="/runs.html" aria-label="ScenarioRunner"><b><i class="tachometer alternate left icon"></i> ScenarioRunner</b></a>
+                <a class="${menuItemClass('runs-repos')}" href="/runs.html" aria-label="Runs / Repos">
                     ⮑&nbsp;&nbsp;<b><i class="code branch icon"></i> Runs / Repos</b>
                 </a>
-                <a class="item" href="/watchlist.html" aria-label="Watchlist">
+                <a class="${menuItemClass('watchlist')}" href="/watchlist.html" aria-label="Watchlist">
                     ⮑&nbsp;&nbsp;<b><i class="list icon"></i> Watchlist</b>
                 </a>
-                <a class="item" href="/request.html" aria-label="Submit Software">
+                <a class="${menuItemClass('submit-software')}" href="/request.html" aria-label="Submit Software">
                     ⮑&nbsp;&nbsp;<b><i class="bullseye icon"></i> Submit Software</b>
                 </a>
-                <a class="item" href="/cluster-status.html" aria-label="Cluster Status">
+                <a class="${menuItemClass('cluster-status')}" href="/cluster-status.html" aria-label="Cluster Status">
                     ⮑&nbsp;&nbsp;<b><i class="database icon"></i> Cluster Status</b>
                 </a>`;
         };
 
         if (ACTIVATE_ECO_CI == true) {
-            html_content = `${html_content}
-                <a class="item" href="/ci-index.html" aria-label="Eco CI">
+            html_content += `
+                <a class="${menuItemClass('eco-ci')}" href="/ci-index.html" aria-label="Eco CI">
                     <b><i class="seedling icon"></i> Eco CI</b>
                 </a>`;
         };
 
         if (ACTIVATE_POWER_HOG == true) {
-            html_content = `${html_content}
-                <a class="item" href="/hog.html" aria-label="Power HOG">
+            html_content += `
+                <a class="${menuItemClass('power-hog')}" href="/hog.html" aria-label="Power HOG">
                     <b><i class="piggy bank icon"></i> Power HOG</b>
                 </a>`;
         };
 
         if (ACTIVATE_CARBON_DB == true) {
-            html_content = `${html_content}
-                <a class="item" href="/carbondb.html" aria-label="CarbonDB">
+            html_content += `
+                <a class="${menuItemClass('carbondb')}" href="/carbondb.html" aria-label="CarbonDB">
                     <b><i class="balance scale icon"></i> CarbonDB</b>
                 </a>`;
         };
 
-        html_content = `${html_content}
-                <a class="item" href="/data-analysis.html" aria-label="Data Analysis">
+        html_content += `
+                <a class="${menuItemClass('data-analysis')}" href="/data-analysis.html" aria-label="Data Analysis">
                     <b><i class="chartline icon"></i> Data Analysis</b>
                 </a>
-                <a class="item" href="/authentication.html" aria-label="Authentication">
+                <a class="${menuItemClass('authentication')}" href="/authentication.html" aria-label="Authentication">
                     <b><i class="users icon"></i>Authentication</b>
                 </a>
-                <a class="item" href="/settings.html" aria-label="Settings">
+                <a class="${menuItemClass('settings')}" href="/settings.html" aria-label="Settings">
                     <b><i class="cogs icon"></i> Settings</b>
                 </a>
-            </div>
+            </div>`;
+
+        const user_name = localStorage.getItem('user_name');
+        if (user_name != null) {
+            html_content += `
+                <div class="sticky-container" style="width: 90%; margin: 20px auto;">
+                    <span class="ui label"><i class="users icon"></i> User: ${escapeString(user_name)}</span>
+                </div>`;
+        }
+
+        html_content += `
             <div class="sticky-container">
                 <a href="https://www.green-coding.io">
                   <img class="ui fluid image menu-logo" src="/images/green-coding-menu-logo-2x.webp"
@@ -81,7 +162,6 @@ class GMTMenu extends HTMLElement {
                        alt="Green Coduing Solutions Logo">
                 </a>
             </div>
-
         </div> <!-- end menu -->`;
 
         this.innerHTML = html_content;
@@ -113,7 +193,7 @@ const getClusterStatus = async (status_ok_selector, status_warning_selector) => 
         document.querySelector('.cluster-health-message.yellow').style.display = 'flex'; // show
 
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             document.querySelector('.cluster-health-message.success').style.display = 'flex'; // show
         } else {
             showNotification('Could not get cluster health status data from API', err); // no return as we want other calls to happen
@@ -144,7 +224,11 @@ const getURLParams = () => {
 }
 
 const getPretty = (metric_name, key)  => {
-    if (METRIC_MAPPINGS[metric_name] == null || METRIC_MAPPINGS[metric_name][key] == null) {
+    if(metric_name.startsWith('custom_')) {
+        if (key == 'source') return 'User supplied';
+        if (key == 'clean_name') return metric_name.replace(/^custom_/, '').replace(/_sci_global$/, ' (SCI)').split('_').map(e => e.charAt(0).toUpperCase() + e.slice(1)).join(' ');
+        if (key == 'explanation') return metric_name.endsWith('sci_global') ? 'SCI (Software Carbon Intensity) derived from user supplied custom metric' : 'User supplied custom metric';
+    } else if (METRIC_MAPPINGS[metric_name] == null || METRIC_MAPPINGS[metric_name][key] == null) {
         console.log(metric_name, ' is undefined in METRIC_MAPPINGS or has no key');
         return `${metric_name}_${key}`;
     }
@@ -157,26 +241,21 @@ const getPretty = (metric_name, key)  => {
 // one MUST use the sample STDDEV.
 // Still one could argue that one does not want to characterize the measured software but rather the measurement setup
 // it is safer to use the sample STDDEV as it is always higher
-const calculateStatistics = (data, object_access=false) => {
+const calculateStatistics = (data) => {
+    const getNumericValue = (entry) => {
+        if (Array.isArray(entry?.value)) return entry.value[1];
+        if (entry?.value != null) return entry.value;
+        return entry;
+    }
     let sum = null;
     let stddev = null;
     let mean = null;
-    if (object_access == true) {
-        sum = data.reduce((sum, value) => sum + value.value, 0)
-        mean = sum / data.length;
-        if (data.length < 2) {
-            stddev = 0
-        } else {
-            stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value.value - mean, 2), 0) / (data.length - 1) );
-        }
+    sum = data.reduce((sum, value) => sum + getNumericValue(value), 0)
+    mean = sum / data.length;
+    if (data.length < 2) {
+        stddev = 0
     } else {
-        sum = data.reduce((sum, value) => sum + value, 0)
-        mean = sum / data.length;
-        if (data.length < 2) {
-            stddev = 0
-        } else {
-            stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / (data.length - 1) );
-        }
+        stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(getNumericValue(value) - mean, 2), 0) / (data.length - 1) );
     }
     const stddev_rel = (stddev / mean) * 100;
 
@@ -186,7 +265,7 @@ const calculateStatistics = (data, object_access=false) => {
 
 const replaceRepoIcon = (uri) => {
 
-  uri = String(uri)
+  uri = toHttpsUri(String(uri))
   if(!uri.startsWith('http')) return escapeString(uri); // ignore filesystem paths, but escape them for HTML
 
   let url;
@@ -214,14 +293,16 @@ const replaceRepoIcon = (uri) => {
     default:
       return escapeString(uri);
   }
-  return `<i class="icon ${iconClass}"></i>` + escapeString(uri.substring(url.origin.length));
+  return `<i class="icon ${iconClass}"></i>` + escapeString(url.pathname + url.search + url.hash);
 };
 
 const createExternalIconLink = (url) => {
-    // Creates a safe external icon link with protocol validation to prevent XSS attacks
-    // Only allows http/https protocols, returns empty string for non-HTTP URLs
-    if (url && url.startsWith('http')) {
-        return `<a href="${url}" target="_blank"><i class="icon external alternate"></i></a>`;
+    // Build a safe external icon link. toHttpsUri only normalises SSH/git@ prefixes; it does NOT strip
+    // HTML-attribute-breaking chars like ", so the href value still requires escapeString.
+    // The startsWith('http') check restricts the protocol but does not on its own prevent attribute breakout.
+    const httpsUrl = url ? toHttpsUri(url) : url;
+    if (httpsUrl && httpsUrl.startsWith('http')) {
+        return `<a href="${escapeString(httpsUrl)}" target="_blank"><i class="icon external alternate"></i></a>`;
     }
     return '';
 }
@@ -229,7 +310,7 @@ const createExternalIconLink = (url) => {
 const showNotification = (message_title, message_text, type='error') => {
     if (typeof message_text === 'object') console.log(message_text); // this is most likey an error. We need it in the console
 
-    const message = (typeof message_text === 'string' || typeof message_text === 'object') ? message_text : JSON.stringify(message_text);
+    const message = typeof message_text === 'string' ? message_text : (message_text instanceof Error ? message_text.message : JSON.stringify(message_text));
     $('body')
       .toast({
         class: type,
@@ -271,18 +352,6 @@ const dateToYMD = (date, short=false, no_break=false) => {
     return ` ${date.getFullYear()}-${month}-${day} ${breaker} ${hours}:${minutes} UTC${offset}`;
 }
 
-const escapeString = (string) =>{
-    let my_string = String(string)
-    const map = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#x27;'
-    };
-    const reg = /[&<>"']/ig;
-    return my_string.replace(reg, (match) => map[match]);
-  }
 
 async function makeAPICall(path, values=null, force_authentication_token=null, force_put=false) {
 
@@ -311,13 +380,15 @@ async function makeAPICall(path, values=null, force_authentication_token=null, f
     }
 
     let json_response = null;
+    let _http_status = null;
     if(localStorage.getItem('remove_idle') === 'true') path += (path.includes('?') ? '&' : '?') + 'remove_idle=true'
 
     await fetch(API_URL + path, options)
     .then(response => {
+        _http_status = response.status;
         if (response.status == 204) {
             // 204 responses use no body, so json() call would fail
-            throw new APIEmptyResponse204('No data to display. API returned empty response (HTTP 204)')
+            throw new APIHTTPError(204, 'No data to display. API returned empty response (HTTP 204)')
         }
         if (response.status == 202) {
             return
@@ -328,9 +399,9 @@ async function makeAPICall(path, values=null, force_authentication_token=null, f
     .then(my_json => {
         if (my_json != null && my_json.success != true) {
             if (Array.isArray(my_json.err) && my_json.err.length !== 0)
-                throw my_json.err[0]?.msg
+                throw new APIHTTPError(_http_status, my_json.err[0]?.msg)
             else
-                throw my_json.err
+                throw new APIHTTPError(_http_status, my_json.err)
         }
         json_response = my_json
     })
@@ -393,6 +464,16 @@ const showHiddenPhaseTab = (el) => {
     }
 }
 
+const fetchTimelineNotes = async (run_id) => {
+    let notes = null;
+    try {
+        notes = await makeAPICall('/v1/notes/' + run_id)
+    } catch (err) {
+        showNotification('Could not get notes data from API', err);
+    }
+    return notes?.data;
+}
+
 
 if (localStorage.getItem('closed_descriptions') == null) {
     localStorage.setItem('closed_descriptions', '');
@@ -422,4 +503,3 @@ $(document).ready(() => {
     }
     resolveMachinesToGlobalVariable();
 });
-

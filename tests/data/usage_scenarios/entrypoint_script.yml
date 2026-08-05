@@ -5,12 +5,11 @@ description: test
 
 services:
   test-container:
-    type: container
     image: gcb_stress_entrypoint # image with an endpoint
     build:
       context: ../entrypoint-application
     volumes:
-      - ../entrypoint-application/entrypoint-overwrite.sh:/tmp/entrypoint-overwrite.sh
+      - ../entrypoint-application/entrypoint-overwrite.sh:/tmp/entrypoint-overwrite.sh:ro
     entrypoint: /tmp/entrypoint-overwrite.sh # overwrite entrypoint
 
 flow:

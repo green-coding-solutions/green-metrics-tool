@@ -1,18 +1,19 @@
 import os
 import re
+import json
+import uuid
 import orjson
+from typing import Annotated
 from xml.sax.saxutils import escape as xml_escape
 from datetime import date, datetime, timedelta
 import pprint
 
-from fastapi import APIRouter, Response, Depends
-from fastapi.responses import ORJSONResponse
-from fastapi.exceptions import RequestValidationError
+from fastapi import APIRouter, Response, Depends, HTTPException, Request
 
 import anybadge
 
-from api.object_specifications import Software, JobChange
-from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics,
+from api.object_specifications import Software, JobChange, WatchlistChange, RunChange, ArtifactType
+from api.api_helpers import (CustomORJSONResponse, ORJSONResponseObjKeep, add_phase_stats_statistics,
                          determine_comparison_case,get_comparison_details,
                          get_phase_stats, get_phase_stats_object, check_run_failed,
                          is_valid_uuid, convert_value, get_timeline_query,
@@ -22,23 +23,80 @@ from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics,
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.diff import get_diffable_rows, diff_rows
-from lib.job.base import Job
+from lib.job.run import RunJob
+from lib.job.email_simple import EmailSimpleJob
 from lib.user import User
 from lib.watchlist import Watchlist
 from lib import utils
 from lib import error_helpers
+from lib.encryption import EncryptionConfigurationError
 
-from enum import Enum
-ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 router = APIRouter()
 
+def parse_usage_scenario_variables(request: Request, usage_scenario_variables: str | None = None) -> dict[str, str] | str | None:
+    usage_scenario_variables_pairs = {}
+
+    for key, value in request.query_params.multi_items():
+        if key.startswith('usage_scenario_variables[') and key.endswith(']'):
+            variable_key = key[25:-1]
+            if variable_key.strip() == '':
+                raise HTTPException(status_code=422, detail='Usage Scenario Variables key must not be empty')
+            usage_scenario_variables_pairs[variable_key] = value
+
+    if usage_scenario_variables_pairs:
+        return usage_scenario_variables_pairs
+
+    if usage_scenario_variables is None or usage_scenario_variables.strip() == '':
+        return None
+
+    if usage_scenario_variables.strip() == 'false':
+        return 'false'
+
+    raise HTTPException(status_code=422, detail='Usage Scenario Variables must be usage_scenario_variables[KEY]=VALUE pairs or the string false')
+
+def parse_carbon_simulation(carbon_simulation):
+    if carbon_simulation is None:
+        return None
+
+    if isinstance(carbon_simulation, bool):
+        raise HTTPException(status_code=422, detail='Carbon simulation must be an integer, list of integers, or UUID string')
+
+    if isinstance(carbon_simulation, int):
+        return [carbon_simulation]
+
+    if isinstance(carbon_simulation, list):
+        if all(isinstance(value, int) and not isinstance(value, bool) for value in carbon_simulation):
+            return carbon_simulation
+        raise HTTPException(status_code=422, detail='Carbon simulation list must contain only integers')
+
+    if isinstance(carbon_simulation, str):
+        carbon_simulation = carbon_simulation.strip()
+        if carbon_simulation == '':
+            return None
+
+        try:
+            parsed_value = json.loads(carbon_simulation)
+        except json.JSONDecodeError:
+            try:
+                return str(uuid.UUID(carbon_simulation))
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail='Carbon simulation must be an integer, list of integers, or UUID string'
+                ) from exc
+
+        return parse_carbon_simulation(parsed_value)
+
+    raise HTTPException(status_code=422, detail='Carbon simulation must be an integer, list of integers, or UUID string')
+
 
 # Return a list of all known machines in the cluster
 @router.get('/v1/machines')
 async def get_machines(
+    # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate), # pylint: disable=unused-argument
     ):
 
@@ -46,11 +104,11 @@ async def get_machines(
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 @router.get('/v1/jobs', deprecated=True)
 def old_v1_jobs_endpoint():
-    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/jobs'}, status_code=410)
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/jobs'}, status_code=410)
 
 
 @router.get('/v2/jobs')
@@ -58,7 +116,7 @@ async def get_jobs(
     machine_id: int | None = None,
     state: str | None = None,
     job_id: int | None = None,
-    user: User = Depends(authenticate), # pylint: disable=unused-argument
+    user: User = Depends(authenticate),
     ):
 
     params = [user.is_super_user(), user.visible_users()]
@@ -80,7 +138,7 @@ async def get_jobs(
 
 
     query = f"""
-        SELECT j.id, r.id as run_id, j.name, j.url, j.filename, j.usage_scenario_variables, j.branch, m.description, j.state, j.updated_at, j.created_at
+        SELECT j.id, r.id as run_id, j.name, j.url, j.filename, j.usage_scenario_variables, j.branch, m.description, j.state, j.updated_at, j.created_at, j.category_ids
         FROM jobs as j
         LEFT JOIN machines as m on m.id = j.machine_id
         LEFT JOIN runs as r on r.job_id = j.id
@@ -96,12 +154,16 @@ async def get_jobs(
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    # jobs.url is kept unredacted in the DB as the cluster worker needs the real
+    # credentials to clone the repo. Redact it here as it is never needed by the client.
+    data = [(*row[:3], utils.filter_sensitive_data(row[3]), *row[4:]) for row in data]
+
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 @router.put('/v1/job')
 async def update_job(
     job: JobChange,
-    user: User = Depends(authenticate), # pylint: disable=unused-argument
+    user: User = Depends(authenticate),
     ):
 
     params = [user.is_super_user(), user._id, job.job_id]
@@ -117,19 +179,19 @@ async def update_job(
 
     job_state = DB().fetch_one(query, params)
     if job_state is None or job_state == []:
-        raise RequestValidationError('The job you wanted to change does not exist in the database or is not assigned to your user_id.')
+        raise HTTPException(status_code=422, detail='The job you wanted to change does not exist in the database or is not assigned to your user_id.')
 
     if job_state[0] == 'RUNNING':
-        raise RequestValidationError('The job you are trying to change is already running and cannot be cancelled anymore.')
+        raise HTTPException(status_code=422, detail='The job you are trying to change is already running and cannot be cancelled anymore.')
 
     if job_state[0] == 'CANCELLED':
-        raise RequestValidationError('The job you are trying to change is already cancelled.')
+        raise HTTPException(status_code=422, detail='The job you are trying to change is already cancelled.')
 
     if job_state[0] != 'WAITING':
-        raise RequestValidationError('The job you are trying to change is not in the waiting state anymore and thus cannot be cancelled.')
+        raise HTTPException(status_code=422, detail='The job you are trying to change is not in the waiting state anymore and thus cannot be cancelled.')
 
     if job.action != 'cancel':
-        raise RequestValidationError(f"You are trying to make an unsupported action: {job.action}")
+        raise HTTPException(status_code=422, detail=f"You are trying to make an unsupported action: {job.action}")
 
     query = '''
         UPDATE jobs
@@ -147,20 +209,46 @@ async def update_job(
         error_helpers.log_error('Job update did return unexpected result', params=params, status_message=status_message)
         raise RuntimeError('Could not update job due to database error')
 
+# A route for deleting watchlist entries
+@router.put('/v1/watchlist')
+async def update_watchlist(
+    change: WatchlistChange,
+    user: User = Depends(authenticate),  # consistent with jobs
+    ):
+
+    if change.action != 'delete':
+        raise HTTPException(status_code=422, detail=f"Unsupported action: {change.action}")
+
+    query = """
+        DELETE FROM watchlist
+        WHERE id = %s
+          AND (TRUE = %s OR user_id = %s)
+        RETURNING id
+    """
+    params = (change.watchlist_id, user.is_super_user(), user._id)
+    deleted = DB().fetch_one(query, params=params)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail='Watchlist entry not found or not owned by user')
+
+    return CustomORJSONResponse({'success': True, 'deleted_id': deleted[0]}, status_code=202)
+
 # A route to return all of the available entries in our catalog.
 @router.get('/v1/notes/{run_id}')
 async def get_notes(run_id, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     query = '''
-            SELECT n.run_id, n.detail_name, n.note, n.time
+            SELECT
+                n.run_id, n.detail_name, n.note, n.time,
+                (-( n.time - LEAD(n.time) OVER (ORDER BY n.time)) / 1_000_000.0)::DOUBLE PRECISION AS duration
             FROM notes as n
             JOIN runs as r on n.run_id = r.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND n.run_id = %s
-            ORDER BY n.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
+            ORDER BY n.time ASC;
             '''
 
     params = (user.is_super_user(), user.visible_users(), run_id)
@@ -174,14 +262,14 @@ async def get_notes(run_id, user: User = Depends(authenticate)):
 @router.get('/v1/warnings/{run_id}')
 async def get_warnings(run_id, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     query = '''
             SELECT w.run_id, w.message, w.created_at
             FROM warnings as w
             JOIN runs as r on w.run_id = r.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND w.run_id = %s
             ORDER BY w.created_at DESC
             '''
@@ -195,27 +283,46 @@ async def get_warnings(run_id, user: User = Depends(authenticate)):
 
 
 @router.get('/v1/network/{run_id}')
-async def get_network(run_id, user: User = Depends(authenticate)):
+async def get_network(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        return ORJSONResponseObjKeep({'success': False, 'data': 'Run ID is not a valid UUID or empty'}, status_code=422)
+
+    run_exists = DB().fetch_one(
+        "SELECT 1 FROM runs WHERE id = %s",
+        params=(run_id,)
+    )
+    if not run_exists:
+        return ORJSONResponseObjKeep({'success': False, 'data': 'Run not found'}, status_code=404)
 
     query = '''
             SELECT ni.*
             FROM network_intercepts as ni
             JOIN runs as r on r.id = ni.run_id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND ni.run_id = %s
             ORDER BY ni.time
-    '''
+        '''
     params = (user.is_super_user(), user.visible_users(), run_id)
     data = DB().fetch_all(query, params=params)
+
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 
 @router.get('/v1/repositories')
-async def get_repositories(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, sort_by: str = 'name', user: User = Depends(authenticate)):
+async def get_repositories(
+    uri: str | None = None,
+    branch: str | None = None,
+    machine_id: int | None = None,
+    machine: str | None = None,
+    filename: str | None = None,
+    sort_by: str = 'name',
+    user: User = Depends(authenticate),
+    ):
+
     query = '''
             SELECT
                 r.uri,
@@ -223,7 +330,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
     '''
 
     params = [user.is_super_user(), user.visible_users()]
@@ -259,42 +366,70 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 
 @router.get('/v1/runs', deprecated=True)
 def old_v1_runs_endpoint():
-    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/runs'}, status_code=410)
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/runs'}, status_code=410)
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v2/runs')
-async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, job_id: int | None = None, failed: bool | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
+async def get_runs(
+    name: str | None = None,
+    uri: str | None = None,
+    branch: str | None = None,
+    machine_id: int | None = None,
+    machine: str | None = None,
+    filename: str | None = None,
+    usage_scenario_variables: str | None = None,
+    job_id: int | None = None,
+    failed: bool | None = None,
+    show_archived: bool | None = None,
+    show_other_users: bool | None = None,
+    limit: int | None = 50,
+    uri_mode = 'none',
+    start_date: date | None = None,
+    end_date: date | None = None,
+    user: User = Depends(authenticate)
+    ):
 
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at,
-            (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = r.id) as invalid_run,
-            r.filename, r.usage_scenario_variables, r.usage_scenario_dependencies, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
+            (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = r.id) as warnings,
+            r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id, r.relations
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
     '''
-    params = [user.is_super_user(), user.visible_users()]
+    params = []
+
+    if show_other_users is False:
+        query = f"{query} r.user_id = %s  \n"
+        params.append(user._id)
+    else:
+        query = f"{query} (TRUE = %s OR r.user_id = ANY(%s::int[]) or r.public = TRUE) \n"
+        params.append(user.is_super_user())
+        params.append(user.visible_users())
+
+    if name:
+        query = f"{query} AND r.name ILIKE %s  \n"
+        params.append(f"%{name}%")
 
     if uri:
         if uri_mode == 'exact':
             query = f"{query} AND r.uri = %s  \n"
             params.append(uri)
         else:
-            query = f"{query} AND r.uri LIKE %s  \n"
+            query = f"{query} AND r.uri ILIKE %s  \n"
             params.append(f"%{uri}%")
 
     if branch:
-        query = f"{query} AND r.branch LIKE %s  \n"
+        query = f"{query} AND r.branch ILIKE %s  \n"
         params.append(f"%{branch}%")
 
     if filename:
-        query = f"{query} AND r.filename LIKE %s  \n"
+        query = f"{query} AND r.filename ILIKE %s  \n"
         params.append(f"%{filename}%")
 
     if machine_id and check_int_field_api(machine_id, 'machine_id', 1024):
@@ -302,8 +437,15 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
         params.append(machine_id)
 
     if machine:
-        query = f"{query} AND m.description LIKE %s \n"
+        query = f"{query} AND m.description ILIKE %s \n"
         params.append(f"%{machine}%")
+
+    if usage_scenario_variables:
+        # This query cannot use an index because of the cast
+        # at the moment the column has no index, so it must anyway be scanned.
+        # But potential target for optimizations if schema changes
+        query = f"{query} AND r.usage_scenario_variables::text ILIKE %s \n"
+        params.append(f"%{usage_scenario_variables}%")
 
     if job_id:
         query = f"{query} AND r.job_id = %s \n"
@@ -312,6 +454,17 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
     if failed is not None:
         query = f"{query} AND r.failed = %s \n"
         params.append(bool(failed))
+
+    if show_archived is not True:
+        query = f"{query} AND r.archived = False \n"
+
+    if start_date is not None:
+        query = f"{query} AND DATE(r.created_at) >= %s"
+        params.append(start_date)
+
+    if end_date is not None:
+        query = f"{query} AND DATE(r.created_at) <= %s"
+        params.append(end_date)
 
     query = f"{query} ORDER BY r.created_at DESC"
 
@@ -325,8 +478,7 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
-
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 # Just copy and paste if we want to deprecate URLs
 # @router.get('/v1/measurements/uri', deprecated=True) # Here you can see, that URL is nevertheless accessible as variable
@@ -335,27 +487,27 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
 @router.get('/v1/compare')
 async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = Depends(authenticate)):
     if ids is None or not ids.strip():
-        raise RequestValidationError('run_id is empty')
+        raise HTTPException(status_code=422, detail='run_id is empty')
     ids = ids.split(',')
     if not all(is_valid_uuid(id) for id in ids):
-        raise RequestValidationError('One of Run IDs is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='One of Run IDs is not a valid UUID or empty')
 
 
     if not force_mode: # force_mode must always get fresh data
         if artifact := get_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}"):
-            return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
+            return CustomORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
 
     try:
         case, comparison_db_key = determine_comparison_case(user, ids, force_mode=force_mode)
     except (RuntimeError, ValueError) as exc:
-        raise RequestValidationError(str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     comparison_details = get_comparison_details(user, ids, comparison_db_key)
 
     # check if a run failed
 
     if check_run_failed(user, ids) >= 1:
-        raise RequestValidationError('At least one run in your runs to compare failed. Comparsion for failed runs is not supported.')
+        raise HTTPException(status_code=422, detail='At least one run in your runs to compare failed. Comparsion for failed runs is not supported.')
 
 
     if not (phase_stats := get_phase_stats(user, ids)):
@@ -365,7 +517,7 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
         phase_stats_object = get_phase_stats_object(phase_stats, case, comparison_details)
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
     except ValueError as exc:
-        raise RequestValidationError(str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     phase_stats_object['common_info'] = {}
 
@@ -383,7 +535,8 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
         filename = run_info['filename']
 
         match case:
-            case 'Repeated Run':
+
+            case 'Repeated Run on same Commit Hash' | 'Repeated Run (Two only) on same Commit Hash':
                 # same repo, same usage scenarios, same machines, same branches, same commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
                 phase_stats_object['common_info']['Filename'] = filename
@@ -422,22 +575,24 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
                 phase_stats_object['common_info']['Machine'] = machine
 
     except RuntimeError as err:
-        raise RequestValidationError(str(err)) from err
+        raise HTTPException(status_code=422, detail=str(err)) from err
+    except HTTPException as err:
+        return ORJSONResponseObjKeep({'success': False, 'data': err.detail}, status_code=err.status_code)
 
     if not force_mode: # force_mode must never store data
         store_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}", orjson.dumps(phase_stats_object)) # pylint: disable=no-member
 
 
-    return ORJSONResponse({'success': True, 'data': phase_stats_object})
+    return CustomORJSONResponse({'success': True, 'data': phase_stats_object})
 
 
 @router.get('/v1/phase_stats/single/{run_id}')
 async def get_phase_stats_single(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     if artifact := get_artifact(ArtifactType.STATS, f"{user._id}_{str(run_id)}"):
-        return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
+        return CustomORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
 
     if not (phase_stats := get_phase_stats(user, [run_id])):
         return Response(status_code=204) # No-Content
@@ -446,7 +601,7 @@ async def get_phase_stats_single(run_id: str, user: User = Depends(authenticate)
         phase_stats_object = get_phase_stats_object(phase_stats, None, None, [run_id])
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
     except ValueError as exc:
-        raise RequestValidationError(str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     store_artifact(ArtifactType.STATS, f"{user._id}_{str(run_id)}", orjson.dumps(phase_stats_object)) # pylint: disable=no-member
 
@@ -457,7 +612,7 @@ async def get_phase_stats_single(run_id: str, user: User = Depends(authenticate)
 @router.get('/v1/measurements/single/{run_id}')
 async def get_measurements_single(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     query = '''
             SELECT
@@ -467,7 +622,7 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
             JOIN measurement_values as mv ON mv.measurement_metric_id = mm.id
             JOIN runs as r ON mm.run_id = r.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) or r.public = TRUE)
                 AND mm.run_id = %s
     '''
 
@@ -483,24 +638,57 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
 
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
-@router.get('/v1/timeline')
-async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: date | None = None, end_date: date | None = None, metric: str | None = None, phase: str | None = None, sorting: str | None = None, user: User = Depends(authenticate)):
+@router.get('/v1/timeline', deprecated=True)
+async def get_timeline_stats(
+    uri: str, machine_id: int, branch: str | None = None, filename: str | None = None,
+    metric: str | None = None, phase: str | None = None,
+    show_archived: bool | None = None,
+    start_date: date | None = None, end_date: date | None = None,  sorting: str | None = None,
+    usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
+    user: User = Depends(authenticate)
+    ):
+
     if uri is None or uri.strip() == '':
-        raise RequestValidationError('URI is empty')
+        raise HTTPException(status_code=422, detail='URI is empty')
 
     if phase is None or phase.strip() == '':
-        raise RequestValidationError('Phase is empty')
+        raise HTTPException(status_code=422, detail='Phase is empty')
 
     check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
-
-    query, params = get_timeline_query(user, uri, filename, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting)
+    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting, show_archived=show_archived)
 
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
+
+@router.get('/v2/timeline')
+async def get_timeline_stats_v2(
+    uri: str, machine_id: int, branch: str | None = None, filename: str | None = None,
+    metric: str | None = None, phase: str | None = None,
+    show_archived: bool | None = None,
+    start_date: date | None = None, end_date: date | None = None,  sorting: str | None = None,
+    usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
+    user: User = Depends(authenticate)
+    ):
+
+    if uri is None or uri.strip() == '':
+        raise HTTPException(status_code=422, detail='URI is empty')
+
+    if phase is None or phase.strip() == '':
+        raise HTTPException(status_code=422, detail='Phase is empty')
+
+    check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
+    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting, show_archived=show_archived, include_usage_scenario_variables=True)
+
+    data = DB().fetch_all(query, params=params)
+
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 # Show the timeline badges with regression trend
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
@@ -510,28 +698,34 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
 ## an unexpected result because they occur at same timepoints but the trend assumes them to be at sequential timepoints.
 ## You might get unexpected results, but generally it is desireable to have a regression of all CPU cores for instance forthe cpu energy reporter
 @router.get('/v1/badge/timeline')
-async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
+async def get_timeline_badge(
+    metric: str, uri: str,
+    unit: str = 'watt-hours',
+    detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None,
+    show_archived: bool | None = None,
+    usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
+    user: User = Depends(authenticate),
+    ):
+
     if uri is None or uri.strip() == '':
-        raise RequestValidationError('URI is empty')
+        raise HTTPException(status_code=422, detail='URI is empty')
 
     if metric is None or metric.strip() == '':
-        raise RequestValidationError('Metric is mandatory')
+        raise HTTPException(status_code=422, detail='Metric is mandatory')
 
     if machine_id is not None:
         check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
 
 
     if unit not in ('watt-hours', 'joules'):
-        raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
-
+        raise HTTPException(status_code=422, detail='Requested unit is not in allow list: watt-hours, joules')
     # we believe that there is no injection possible to the artifact store and any string can be constructured here ...
     if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metric}_{detail_name}_{unit}"):
         return Response(content=str(artifact), media_type="image/svg+xml")
 
     date_30_days_ago = datetime.now() - timedelta(days=30)
 
-    query, params = get_timeline_query(user, uri, filename, machine_id, branch, metric, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now())
-
+    query, params = get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id, branch, metric, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now(), show_archived=show_archived)
     # query already contains user access check. No need to have it in aggregate query too
     query = f"""
         WITH trend_data AS (
@@ -552,7 +746,7 @@ async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = No
 
     if data[4] != 1:
         error_helpers.log_error('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', query=query, params=params)
-        return Response('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual RequestValidationError as we log error separately
+        return Response('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual Response as we log error separately
 
     cost = data[1]
     display_in_joules = (unit == 'joules') #pylint: disable=superfluous-parens
@@ -579,10 +773,10 @@ async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = No
 async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_component', unit: str = 'watt-hours', phase: str | None = None, user: User = Depends(authenticate)):
 
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     if unit not in ('watt-hours', 'joules'):
-        raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
+        raise HTTPException(status_code=422, detail='Requested unit is not in allow list: watt-hours, joules')
 
     if phase:
         phase_label = phase
@@ -603,7 +797,7 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
         JOIN
             runs as r ON ps.run_id = r.id
         WHERE
-            (TRUE = %s OR r.user_id = ANY(%s::int[]))
+            (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
             AND ps.run_id = %s
             AND ps.metric = %s
             AND ps.phase LIKE %s
@@ -618,11 +812,11 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
     else:
         if data[2] != 'TOTAL':
             error_helpers.log_error('Your request tried to request a metric that is averaged. Only metrics that can be totaled (like energy, network, carbon etc.) can be requested. Please select a different metric.', query=query, params=params)
-            return Response('Your request tried to request a metric that is averaged. Only metrics that can be totaled (like energy, network, carbon etc.) can be requested. Please select a different metric.', status_code=422) # manual RequestValidationError as we log error separately
+            return Response('Your request tried to request a metric that is averaged. Only metrics that can be totaled (like energy, network, carbon etc.) can be requested. Please select a different metric.', status_code=422) # manual Response as we log error separately
 
         if data[3] != 1:
             error_helpers.log_error('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', query=query, params=params)
-            return Response('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual RequestValidationError as we log error separately
+            return Response('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual Response as we log error separately
 
         display_in_joules = (unit == 'joules') #pylint: disable=superfluous-parens
         [metric_value, energy_unit] = convert_value(data[0], data[1], display_in_joules)
@@ -675,7 +869,7 @@ async def get_watchlist(user: User = Depends(authenticate)):
             tp.id, tp.name, tp.image_url, tp.repo_url,
             (
                 SELECT STRING_AGG(t.name, ', ' )
-                FROM unnest(tp.categories) as elements
+                FROM unnest(tp.category_ids) as elements
                 LEFT JOIN categories as t on t.id = elements
             ) as categories,
             tp.branch, tp.filename, tp.machine_id, m.description, tp.schedule_mode, tp.last_scheduled, tp.created_at, tp.updated_at,
@@ -701,18 +895,18 @@ async def get_watchlist(user: User = Depends(authenticate)):
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 
-@router.post('/v1/software/add')
-async def software_add(software: Software, user: User = Depends(authenticate)):
+@router.post('/v1/runs/add')
+async def runs_add(software: Software, no_url_check: bool = False, user: User = Depends(authenticate)):
 
     if software.name is None or software.name.strip() == '':
-        raise RequestValidationError('Name is empty')
+        raise HTTPException(status_code=422, detail='Name is empty')
 
     # Note that we use uri as the general identifier, however when adding through web interface we only allow urls
     if software.repo_url is None or software.repo_url.strip() == '':
-        raise RequestValidationError('URL is empty')
+        raise HTTPException(status_code=422, detail='URL is empty')
 
     if software.image_url is None:
         software.image_url = ''
@@ -723,40 +917,68 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if software.branch is None or software.branch.strip() == '':
         software.branch = 'main'
 
+    if software.commit_hash is not None and software.commit_hash.strip() == '':
+        software.commit_hash = None
+
     if software.filename is None or software.filename.strip() == '':
         software.filename = 'usage_scenario.yml'
 
     if software.usage_scenario_variables is None:
         software.usage_scenario_variables = {}
 
+    carbon_simulation = parse_carbon_simulation(software.carbon_simulation)
+
+    unique_category_ids = None
+    if software.category_ids:
+        result = DB().fetch_one("SELECT array_agg(id) FROM categories WHERE id = ANY(%s)", (software.category_ids,))[0]
+        if not result:
+            raise HTTPException(status_code=422, detail=f"Categories not known: {software.category_ids}")
+
+        existing_ids = set(result)
+        unique_category_ids = set(software.category_ids) # deduplicate
+        unknown_ids = unique_category_ids - existing_ids
+        if unknown_ids:
+            raise HTTPException(status_code=422, detail=f"Categories not known: {unknown_ids}")
+        unique_category_ids = list(unique_category_ids) # transform back to list so we can insert it. psycopg does not understand sets
+
     if not DB().fetch_one('SELECT id FROM machines WHERE id=%s AND available=TRUE', params=(software.machine_id,)):
-        raise RequestValidationError('Machine does not exist')
+        raise HTTPException(status_code=422, detail='Machine does not exist')
 
     if not user.can_use_machine(software.machine_id):
-        raise RequestValidationError('Your user does not have the permissions to use that machine.')
+        raise HTTPException(status_code=422, detail='Your user does not have the permissions to use that machine.')
 
     if software.schedule_mode not in ['one-off', 'daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance', 'variance', 'statistical-significance']:
-        raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
+        raise HTTPException(status_code=422, detail=f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
 
     if not user.can_schedule_job(software.schedule_mode):
-        raise RequestValidationError('Your user does not have the permissions to use that schedule mode.')
+        raise HTTPException(status_code=422, detail='Your user does not have the permissions to use that schedule mode.')
 
+    if not no_url_check:
+        try:
+            utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=utils.filter_sensitive_data(str(exc))) from exc
+
+    unencrypted_repo_url = software.repo_url
     try:
-        utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
-    except ValueError as exc: # We accept the value error here if the repository is unknown, but log it for now
-        error_helpers.log_error('Repository could not be checked in /v1/software/add.', exception=exc)
-
+        software.repo_url = utils.encrypt_uri_credentials(software.repo_url)
+    except EncryptionConfigurationError as exc:
+        raise HTTPException(status_code=422, detail='Cannot store URL credentials: encryption is not configured on this server') from exc
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 
         last_marker = None
-        if 'tag' in software.schedule_mode:
-            last_marker = utils.get_repo_last_marker(software.repo_url, 'tags')
+        if not no_url_check:
+            try:
+                if 'tag' in software.schedule_mode:
+                    last_marker = utils.get_repo_last_marker(unencrypted_repo_url, 'tags')
 
-        if 'commit' in software.schedule_mode:
-            last_marker = utils.get_repo_last_marker(software.repo_url, 'commits')
+                if 'commit' in software.schedule_mode:
+                    last_marker = utils.get_repo_last_marker(unencrypted_repo_url, 'commits')
+            except RuntimeError as exc:
+                raise HTTPException(status_code=422, detail=utils.filter_sensitive_data(str(exc))) from exc
 
-        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
     job_ids_inserted = []
 
@@ -768,41 +990,94 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         amount = 1
 
     for _ in range(0,amount):
-        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables))
+        job_ids_inserted.append(RunJob.insert(user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, commit_hash=software.commit_hash, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation))
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:
-        Job.insert('email', user_id=user._id, name='New run added from Web Interface', message=pprint.pformat(software.model_dump(), width=60, indent=2), email=notification_email)
+        EmailSimpleJob.insert(user_id=user._id, name='New run added from Web Interface', message=pprint.pformat(software.model_dump(), width=60, indent=2), email=notification_email)
 
-    return ORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
+    return CustomORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
 
 @router.get('/v1/run/{run_id}', deprecated=True)
 def old_v1_run_endpoint():
-    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/run/{run_id}'}, status_code=410)
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/run/{run_id}'}, status_code=410)
+
 
 @router.get('/v2/run/{run_id}')
 async def get_run(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
-
-    data = get_run_info(user, run_id)
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
+    try:
+        data = get_run_info(user, run_id)
+    except HTTPException as err:
+        return ORJSONResponseObjKeep({'success': False, 'data': err.detail}, status_code=err.status_code)
 
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
+@router.put('/v1/run/{run_id}')
+def update_run(
+    run_id: str,
+    run: RunChange,
+    user: User = Depends(authenticate),
+    ):
+
+    if run_id is None or not is_valid_uuid(run_id):
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
+
+    columns = []
+    params = []
+
+    if run.archived is not None:
+        columns.append('archived = %s')
+        params.append(run.archived)
+
+    if run.note is not None:
+        columns.append('note = %s')
+        params.append(run.note.strip())
+
+    if run.public is not None:
+        columns.append('public = %s')
+        params.append(run.public)
+
+    if not columns:
+        raise HTTPException(status_code=422, detail='No data submitted in PUT request to change run with. Please submit data.')
+
+    set_columns = ',\n'.join(columns)
+    query = f"""
+        UPDATE runs
+        SET
+            {set_columns}
+        WHERE
+            (TRUE = %s OR user_id = %s)
+            AND id = %s
+        RETURNING id;
+    """
+
+    params.append(user.is_super_user())
+    params.append(user._id)
+    params.append(run_id)
+    updated = DB().fetch_one(query, params=params)
+
+    if not updated:
+        raise HTTPException(status_code=404, detail='Run not found or not owned by user')
+
+    return Response(status_code=202) # No-Content
+
+
 @router.get('/v1/optimizations/{run_id}')
 async def get_optimizations(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        raise RequestValidationError('Run ID is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
 
     query = '''
             SELECT o.title, o.label, o.criticality, o.reporter, o.icon, o.description, o.link
             FROM optimizations as o
             JOIN runs as r ON o.run_id = r.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
                 AND o.run_id = %s
     '''
 
@@ -819,24 +1094,24 @@ async def get_optimizations(run_id: str, user: User = Depends(authenticate)):
 @router.get('/v1/diff')
 async def diff(ids: str, user: User = Depends(authenticate)):
     if ids is None or not ids.strip():
-        raise RequestValidationError('run_ids are empty')
+        raise HTTPException(status_code=422, detail='run_ids are empty')
     ids = ids.split(',')
     if not all(is_valid_uuid(id) for id in ids):
-        raise RequestValidationError('One of Run IDs is not a valid UUID or empty')
+        raise HTTPException(status_code=422, detail='One of Run IDs is not a valid UUID or empty')
     if len(ids) != 2:
-        raise RequestValidationError('Run IDs != 2. Only exactly 2 Run IDs can be diffed.')
+        raise HTTPException(status_code=422, detail='Run IDs != 2. Only exactly 2 Run IDs can be diffed.')
 
     if artifact := get_artifact(ArtifactType.DIFF, f"{user._id}_{str(ids)}"):
-        return ORJSONResponse({'success': True, 'data': artifact})
+        return CustomORJSONResponse({'success': True, 'data': artifact})
 
     try:
         diff_runs = diff_rows(get_diffable_rows(user, ids))
     except ValueError as exc:
-        raise RequestValidationError(str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     store_artifact(ArtifactType.DIFF, f"{user._id}_{str(ids)}", diff_runs)
 
-    return ORJSONResponse({'success': True, 'data': diff_runs})
+    return CustomORJSONResponse({'success': True, 'data': diff_runs})
 
 
 @router.get('/v1/insights')

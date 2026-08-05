@@ -6,20 +6,51 @@ from datetime import datetime
 
 # https://github.com/compose-spec/compose-spec/blob/master/spec.md
 
+VALID_CHARS = set(string.ascii_letters + string.digits + '_' + '-')
+
+VALID_CHARS_SPACE = VALID_CHARS.copy()
+VALID_CHARS_SPACE.add(' ')
+
 class SchemaChecker():
     def __init__(self, validate_compose_flag):
         self._validate_compose_flag = validate_compose_flag
 
+    def no_newlines(self, value):
+        if re.findall(r'\n', value):
+            raise SchemaError(f"{value} must not contain a newline character")
+        return value
+
+
     def is_valid_string(self, value):
-        valid_chars = set(string.ascii_letters + string.digits + '_' + '-')
-        if not set(value).issubset(valid_chars):
+        if not set(value).issubset(VALID_CHARS):
             raise SchemaError(f"{value} does not use valid characters! (a-zA-Z0-9_-)")
         return value
+
+    def is_valid_string_with_spaces(self, value):
+        if not set(value).issubset(VALID_CHARS_SPACE):
+            raise SchemaError(f"{value} does not use valid characters! (a-zA-Z0-9_-) and space")
+        return value
+
+    def regex_has_two_groups(self, value):
+        try:
+            regex = re.compile(value)
+        except re.error as exc:
+            raise SchemaError(f"Regex {value} for custom metric did not compile: {exc} ") from exc
+        if regex.groups != 2:
+            raise SchemaError(f"Regex {value} did not have two capture groups that capture TIMESTAMP_IN_MICRO_OR_NANOSECONDS and NUMERIC_VALUE")
+        return value
+
 
     def contains_no_invalid_chars(self, value):
         bad_values = re.findall(r'(\.\.|\$|\'|"|`|!)', value)
         if bad_values:
             raise SchemaError(f"{value} includes disallowed values: {bad_values}")
+        return value
+
+    def is_valid_commit_hash(self, value):
+        pattern = r'^([a-zA-Z][a-zA-Z0-9_\-\./]*|[0-9a-f]{7,40})$'
+        if not bool(re.fullmatch(pattern, value)):
+            raise SchemaError(f"Commit Hash '{value}' may only be branch name, tag name or SHA-1 hash")
         return value
 
     def not_empty(self, value):
@@ -57,12 +88,6 @@ class SchemaChecker():
 
         return value
 
-    def valid_service_types(self, value):
-        if value != 'container':
-            raise SchemaError(f"{value} is not 'container'")
-        return value
-
-
     def validate_networks_no_invalid_chars(self, value):
         if isinstance(value, list):
             for item in value:
@@ -88,8 +113,12 @@ class SchemaChecker():
             Optional('ignore-unsupported-compose'): bool,
             Optional('version'): Or(str, int, float, datetime), # is part of compose. we ignore it as it is non functionaly anyway
             Optional('architecture'): And(str, Use(self.not_empty)),
-            Optional('sci'): {
-                'R_d': And(str, Use(self.not_empty)),
+            Optional('custom_metrics'): {
+                And(str, Use(self.not_empty), Use(self.is_valid_string)): {
+                    'unit': And(str, Use(self.not_empty), Use(self.no_newlines)),
+                    Optional('regex'): And(str, Use(self.not_empty), Use(self.regex_has_two_groups)),
+                    Optional('sci'): bool,
+                },
             },
 
             Optional('networks'): Or(
@@ -100,14 +129,35 @@ class SchemaChecker():
                 dict,
                 And(str, Use(self.contains_no_invalid_chars))
             ),
+            Optional('relations'): {
+                And(str, Use(self.not_empty), Use(self.is_valid_string)): {
+                    'url': And(str, Use(self.not_empty)),
+                    Optional('branch'): And(str, Use(self.not_empty)),
+                    Optional('commit_hash'): And(str, Use(self.not_empty), Use(self.is_valid_commit_hash)),
+                }
+            },
             Optional('services'): {
                 Use(self.contains_no_invalid_chars): {
                     Optional('restart'): str, # is part of compose. we ignore it as GMT has own orchestration
                     Optional('expose'): [str, int], # is part of compose. we ignore it as it is non functionaly anyway
                     Optional('init'): bool,
-                    Optional('type'): Use(self.valid_service_types),
                     Optional('image'): And(str, Use(self.not_empty)),
-                    Optional('build'): Or(Or({And(str, Use(self.not_empty)):And(str, Use(self.not_empty))},list),And(str, Use(self.not_empty))),
+                    Optional('build'): Or(
+                        And(str, Use(self.not_empty)),
+                        {
+                            Optional('context'): And(str, Use(self.not_empty)),
+                            Optional('dockerfile'): And(str, Use(self.not_empty)),
+                            Optional('args'): Or(
+                                {And(str, Use(self.not_empty)): Or(str, int, float, bool, None)},
+                                [
+                                    Or(
+                                        And(str, Use(self.not_empty)),
+                                        {And(str, Use(self.not_empty)): Or(str, int, float, bool, None)}
+                                    )
+                                ]
+                            ),
+                        }
+                    ),
                     Optional('networks'): Or(
                         [And(str, Use(self.contains_no_invalid_chars))],
                         {
@@ -167,7 +217,7 @@ class SchemaChecker():
                     Optional('log-stdout'): bool,
                     Optional('log-stderr'): bool,
                     Optional('read-notes-stdout'): bool,
-                    Optional('read-sci-stdout'): bool,
+                    Optional('read-sci-stdout'): bool, # not supported anymore and now always on. kept for backwards compatibility
                     Optional('docker-run-args'): [And(str, Use(self.not_empty))],
 
                 }
@@ -187,9 +237,7 @@ class SchemaChecker():
                     Optional('ignore-errors'): bool,
                     Optional('shell'): And(str, Use(self.not_empty)),
                     Optional('log-stdout'): bool,
-                    Optional('stream-stdout'): bool,
                     Optional('log-stderr'): bool,
-                    Optional('stream-stderr'): bool,
                 }],
 
             }],
@@ -250,11 +298,11 @@ class SchemaChecker():
             known_flow_names.append(flow['name'])
 
             for command in flow['commands']:
-                if command.get('read-sci-stdout', False) and (not command.get('log-stdout', True) or command.get('stream-stdout', False)): # log-stdout is by default always on. This is why we set default to True
-                    raise SchemaError(f"You have specified `read-sci-stdout` in flow {flow['name']} but either set `log-stdout` to False or `stream-stdout` to True, which prevents log capturing.")
+                if command.get('read-sci-stdout', False) and not command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
+                    raise SchemaError(f"You have specified `read-sci-stdout` in flow {flow['name']} but set `log-stdout` to False, which prevents log capturing.")
 
-                if command.get('read-notes-stdout', False) and (not command.get('log-stdout', True) or command.get('stream-stdout', False)): # log-stdout is by default always on. This is why we set default to True
-                    raise SchemaError(f"You have specified `read-notes-stdout` in flow {flow['name']} but either set `log-stdout` to False or `stream-stdout` to True, which prevents log capturing.")
+                if command.get('read-notes-stdout', False) and not command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
+                    raise SchemaError(f"You have specified `read-notes-stdout` in flow {flow['name']} but set `log-stdout` to False, which prevents log capturing.")
 
 
 # if __name__ == '__main__':

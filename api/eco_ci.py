@@ -1,12 +1,10 @@
 from datetime import date
 
 from fastapi import APIRouter
-from fastapi import Request, Response, Depends
-from fastapi.responses import ORJSONResponse
-from fastapi.exceptions import RequestValidationError
+from fastapi import Request, Response, Depends, HTTPException
 
-from api.api_helpers import authenticate, get_connecting_ip, convert_value
-from api.object_specifications import CI_Measurement
+from api.api_helpers import authenticate, get_connecting_ip, convert_value, CustomORJSONResponse
+from api.object_specifications import CI_Measurement, CI_MeasurementV3
 
 import anybadge
 
@@ -19,32 +17,41 @@ from lib.db import DB
 router = APIRouter()
 
 
-@router.post('/v1/ci/measurement/add', deprecated=True)
-def old_v1_measurement_add_endpoint():
-    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/ci/measurement/add'}, status_code=410)
+def _insert_ci_measurement(request: Request, measurement, user: User) -> Response:
+    """
+    Shared insert logic for CI measurements.
+    Works for both v2 (CI_Measurement) and v3 (CI_MeasurementV3),
+    as they share the same DB-relevant fields.
+    """
 
-@router.post('/v2/ci/measurement/add')
-async def post_ci_measurement_add(
-    request: Request,
-    measurement: CI_Measurement,
-    user: User = Depends(authenticate) # pylint: disable=unused-argument
-    ):
+    if measurement.lon is None or measurement.lon.strip() == '':
+        measurement.lon = None
+
+    if measurement.lat is None or measurement.lat.strip() == '':
+        measurement.lat = None
+
+    if measurement.city is None or measurement.city.strip() == '':
+        measurement.city = None
+
 
     params = [measurement.energy_uj, measurement.repo, measurement.branch,
-            measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
-            measurement.commit_hash, measurement.duration_us, measurement.cpu_util_avg, measurement.workflow_name,
-            measurement.lat, measurement.lon, measurement.city, measurement.carbon_intensity_g, measurement.carbon_ug,
-            measurement.filter_type, measurement.filter_project, measurement.filter_machine]
+              measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
+              measurement.commit_hash, measurement.duration_us, measurement.cpu_util_avg, measurement.workflow_name,
+              measurement.lat, measurement.lon, measurement.city, measurement.carbon_intensity_g, measurement.carbon_ug,
+              measurement.filter_type, measurement.filter_project, measurement.filter_machine]
 
     tags_replacer = ' ARRAY[]::text[] '
     if measurement.filter_tags:
         tags_replacer = f" ARRAY[{','.join(['%s']*len(measurement.filter_tags))}] "
         params = params + measurement.filter_tags
 
-    used_client_ip = measurement.ip # If an ip has been given with the data. We prioritize that
+    # If an IP has been given with the data, we prioritize that
+    used_client_ip = measurement.ip
     if used_client_ip is None:
         used_client_ip = get_connecting_ip(request)
 
+    for field in ['os_name', 'cpu_arch', 'job_id', 'version']:
+        params.append(getattr(measurement, field, None))
     params.append(used_client_ip)
     params.append(user._id)
 
@@ -55,35 +62,38 @@ async def post_ci_measurement_add(
     query = f"""
         INSERT INTO
             ci_measurements (energy_uj,
-                            repo,
-                            branch,
-                            workflow_id,
-                            run_id,
-                            label,
-                            source,
-                            cpu,
-                            commit_hash,
-                            duration_us,
-                            cpu_util_avg,
-                            workflow_name,
-                            lat,
-                            lon,
-                            city,
-                            carbon_intensity_g,
-                            carbon_ug,
-                            filter_type,
-                            filter_project,
-                            filter_machine,
-                            filter_tags,
-                            ip_address,
-                            user_id,
-                            note
-                            )
+                             repo,
+                             branch,
+                             workflow_id,
+                             run_id,
+                             label,
+                             source,
+                             cpu,
+                             commit_hash,
+                             duration_us,
+                             cpu_util_avg,
+                             workflow_name,
+                             latitude,
+                             longitude,
+                             city,
+                             carbon_intensity_g,
+                             carbon_ug,
+                             filter_type,
+                             filter_project,
+                             filter_machine,
+                             filter_tags,
+                             os_name,
+                             cpu_arch,
+                             job_id,
+                             version,
+                             ip_address,
+                             user_id,
+                             note
+                             )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 {tags_replacer},
-                %s, %s, %s)
-
+                %s, %s, %s, %s, %s, %s, %s)
         """
 
     DB().query(query=query, params=params)
@@ -94,12 +104,49 @@ async def post_ci_measurement_add(
             measurement=measurement
         )
 
-    return Response(status_code=204)
+    return Response(status_code=202)
+
+
+@router.post('/v1/ci/measurement/add', deprecated=True)
+def old_v1_measurement_add_endpoint():
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/ci/measurement/add'}, status_code=410)
+
+
+@router.post('/v2/ci/measurement/add')
+async def post_ci_measurement_add(
+    request: Request,
+    measurement: CI_Measurement,
+    user: User = Depends(authenticate)  # pylint: disable=unused-argument
+):
+    """
+    v2: backward-compatible behaviour (no new fields).
+    """
+    return _insert_ci_measurement(request, measurement, user)
+
+@router.post('/v3/ci/measurement/add')
+async def post_ci_measurement_add_v3(
+    request: Request,
+    measurement: CI_MeasurementV3,
+    user: User = Depends(authenticate)  # pylint: disable=unused-argument
+):
+    """
+    v3: accepts additional fields (os_name, cpu_arch, job_id, version) via CI_MeasurementV3.
+    For now, the insert logic is the same as v2 and ignores these extra fields.
+    """
+    return _insert_ci_measurement(request, measurement, user)
+
 
 @router.get('/v1/ci/measurements')
-async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date, user: User = Depends(authenticate)):
+async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date, job_id: str | None = None, user: User = Depends(authenticate)):
 
-    query = '''
+    params = [user.is_super_user(), user.visible_users(), repo, branch, workflow, str(start_date), str(end_date)]
+
+    job_id_condition = ''
+    if job_id is not None:
+        job_id_condition = 'AND job_id = %s'
+        params.append(job_id)
+
+    query = f"""
         SELECT energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util_avg,
                (SELECT workflow_name FROM ci_measurements AS latest_workflow
                 WHERE latest_workflow.repo = ci_measurements.repo
@@ -107,23 +154,23 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
                 AND latest_workflow.workflow_id = ci_measurements.workflow_id
                 ORDER BY latest_workflow.created_at DESC
                 LIMIT 1) AS workflow_name,
-               lat, lon, city, carbon_intensity_g, carbon_ug, note
+               latitude, longitude, city, carbon_intensity_g, carbon_ug, note
         FROM ci_measurements
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))
             AND repo = %s AND branch = %s AND workflow_id = %s
             AND DATE(created_at) >= TO_DATE(%s, 'YYYY-MM-DD')
             AND DATE(created_at) <= TO_DATE(%s, 'YYYY-MM-DD')
+            {job_id_condition}
         ORDER BY run_id ASC, created_at ASC
-    '''
+    """
 
-    params = (user.is_super_user(), user.visible_users(), repo, branch, workflow, str(start_date), str(end_date))
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
         return Response(status_code=204)  # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})
 
 @router.get('/v1/ci/stats')
 async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, end_date: date, user: User = Depends(authenticate)):
@@ -183,7 +230,7 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
     if per_label_data is None or per_label_data[0] is None:
         return Response(status_code=204)  # No-Content
 
-    return ORJSONResponse({'success': True, 'data': {'totals': totals_data, 'per_label': per_label_data}})
+    return CustomORJSONResponse({'success': True, 'data': {'totals': totals_data, 'per_label': per_label_data}})
 
 
 @router.get('/v1/ci/repositories')
@@ -212,7 +259,7 @@ async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name', us
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
+    return CustomORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
 
 @router.get('/v1/ci/runs')
 async def get_ci_runs(repo: str, user: User = Depends(authenticate)):
@@ -240,7 +287,7 @@ async def get_ci_runs(repo: str, user: User = Depends(authenticate)):
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
+    return CustomORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
 
 # Route to display a badge for a CI run
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
@@ -260,13 +307,13 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         default_color = 'black'
     # Do not easily add values like cpu_util or carbon_intensity_g here. They need a weighted average in the SQL query later!
     else:
-        raise RequestValidationError('Unsupported metric requested')
+        raise HTTPException(status_code=422, detail='Unsupported metric requested')
 
     if unit not in ('watt-hours', 'joules'):
-        raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
+        raise HTTPException(status_code=422, detail='Requested unit is not in allow list: watt-hours, joules')
 
     if duration_days and (duration_days < 1 or duration_days > 365):
-        raise RequestValidationError('Duration days must be between 1 and 365 days')
+        raise HTTPException(status_code=422, detail='Duration days must be between 1 and 365 days')
 
     query = f"""
         SELECT SUM({metric})
@@ -279,7 +326,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
 
     if mode == 'avg':
         if not duration_days:
-            raise RequestValidationError('Duration days must be set for average')
+            raise HTTPException(status_code=422, detail='Duration days must be set for average')
         query = f"""
             WITH my_table as (
                 SELECT SUM({metric}) my_sum
@@ -339,4 +386,4 @@ async def get_insights(user: User = Depends(authenticate)):
     if data is None:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return CustomORJSONResponse({'success': True, 'data': data})

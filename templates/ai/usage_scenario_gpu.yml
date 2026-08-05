@@ -5,7 +5,7 @@ description: Run an inference with a cached AI model on the GPU
 
 services:
   gcb-ai-model:
-    image: ollama/ollama
+    image: ollama/ollama:latest
     docker-run-args:
       - -v ollama:/root/.ollama:ro
       - --gpus=all
@@ -15,6 +15,7 @@ flow:
     container: gcb-ai-model
     commands:
       - type: console
-        command: ollama run '__GMT_VAR_MODEL__' '__GMT_VAR_PROMPT__'
+        command: |
+          ollama run __GMT_VAR_MODEL__ __GMT_VAR_PROMPT__
         read-notes-stdout: true
         log-stdout: true

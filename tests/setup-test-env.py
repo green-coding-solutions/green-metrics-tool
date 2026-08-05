@@ -4,12 +4,9 @@ import subprocess
 import sys
 from time import sleep
 import yaml
-import shutil
 import re
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-from lib import utils
 
 BASE_COMPOSE_NAME = 'compose.yml.example'
 TEST_COMPOSE_NAME = 'test-compose.yml'
@@ -18,7 +15,7 @@ OVERLAY_FRONTEND_CONFIG_NAME = 'frontend/js/helpers/config.js'
 TEST_FRONTEND_CONFIG_NAME = 'test-config.js'
 BASE_NGINX_PORT = 9142
 TEST_NGINX_PORT = 9143
-TEST_NGINX_PORT_MAPPING = [f"{TEST_NGINX_PORT}:{BASE_NGINX_PORT}"] # only change public port
+TEST_NGINX_PORT_MAPPING = [f"127.0.0.1:{TEST_NGINX_PORT}:{BASE_NGINX_PORT}"] # bind to loopback only: a 0.0.0.0-published port lets Docker Desktop route host traffic via the VM's external interface, so the container intermittently sees the host's real LAN/VPN IP instead of the internal gateway (breaks the is_private IP check). Loopback keeps it on the internal path.
 BASE_DATABASE_PORT = 9573
 TEST_DATABASE_PORT = 9574
 TEST_DATABASE_PORT_MAPPING = [f"{TEST_DATABASE_PORT}:{TEST_DATABASE_PORT}"] # change external and internal port
@@ -26,6 +23,7 @@ TEST_REDIS_PORT = 6380 # original port: 6379
 TEST_REDIS_PORT_MAPPING = [f"127.0.0.1:{TEST_REDIS_PORT}:{TEST_REDIS_PORT}"] # change external and internal port
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
+repo_root = os.path.normpath(f"{current_dir}/../")
 base_compose_path = os.path.join(current_dir, f"../docker/{BASE_COMPOSE_NAME}")
 test_compose_path = os.path.join(current_dir, f"../docker/{TEST_COMPOSE_NAME}")
 base_frontend_config_path = os.path.join(current_dir, f'../{BASE_FRONTEND_CONFIG_NAME}')
@@ -51,28 +49,16 @@ def check_sudo():
 
         sys.exit(1)
 
-def copy_sql_structure(ee=False):
-    print('Copying SQL structure...')
-    shutil.copyfile('../docker/structure.sql', './structure.sql')
-
-    if ee:
-        with open('../ee/docker/structure_ee.sql', 'r', encoding='utf-8') as source, open('./structure.sql', 'a', encoding='utf-8') as target:
-            target.write(source.read())
-            print("Enterprise DB definitions of '../ee/docker/structure.sql' appended to './structure.sql' successfully.")
-
-    if utils.get_architecture() == 'macos':
-        command = ['sed', '-i', "", 's/green-coding/test-green-coding/g', './structure.sql']
-    else:
-        command = ['sed', '-i', 's/green-coding/test-green-coding/g', './structure.sql']
-
-    subprocess.check_output(command)
-
-
-def edit_compose_file():
+def edit_compose_file(ee=False):
     print('Creating test-compose.yml...')
     compose = None
-    with open(base_compose_path, encoding='utf8') as base_compose_file:
-        compose = yaml.load(base_compose_file, Loader=yaml.FullLoader)
+    with open(base_compose_path, encoding='utf8') as f:
+        base_compose = f.read()
+
+    base_compose = base_compose.replace('#TEST-ONLY#', '')
+    if ee:
+        base_compose = base_compose.replace('#EE-ONLY#', '')
+    compose = yaml.load(base_compose, Loader=yaml.FullLoader)
 
     # Edit stack name
     compose['name'] = 'green-metrics-tool-test'
@@ -85,6 +71,9 @@ def edit_compose_file():
         compose['volumes'][f"test-{vol_name}"] = deepcopy(compose['volumes'][vol_name])
         del compose['volumes'][vol_name]
 
+    tz_value = detect_timezone()
+
+
     # Edit Services
     for service in compose.get('services').copy():
         # Edit Services with new volumes
@@ -95,7 +84,6 @@ def edit_compose_file():
                 volume = volume.replace(k, f'test-{k}')
             volume = volume.replace('PATH_TO_GREEN_METRICS_TOOL_REPO',
                           f'{current_dir}/../')
-            volume = volume.replace('./structure.sql', '../tests/structure.sql')
             new_vol_list.append(volume)
 
         # Change the depends on: in services as well
@@ -116,18 +104,28 @@ def edit_compose_file():
             new_vol_list.append(
                 f'{current_dir}/test-config.yml:/var/www/green-metrics-tool/config.yml')
 
+        # for gunicorn, mount encryption keys at host paths so the container can read them
+        if 'gunicorn' in service:
+            key_public = os.path.normpath(f'{current_dir}/data/encryption_public_key.pem')
+            key_private = os.path.normpath(f'{current_dir}/data/encryption_private_key.pem')
+            new_vol_list.append(f'{key_public}:{key_public}:ro')
+            new_vol_list.append(f'{key_private}:{key_private}:ro')
+
         compose['services'][service]['volumes'] = new_vol_list
 
         # For postgresql, change port mapping and password
         if 'postgres' in service:
             command = compose['services'][service]['command']
             new_command = command.replace(str(BASE_DATABASE_PORT), str(TEST_DATABASE_PORT))
+            new_command = new_command.replace('__TZ__', tz_value) # timezone in command string must go extra
             compose['services'][service]['command'] = new_command
             compose['services'][service]['ports'] = TEST_DATABASE_PORT_MAPPING
 
             new_env = []
             for env in compose['services'][service]['environment']:
                 env = env.replace('PLEASE_CHANGE_THIS', DB_PW)
+                env = env.replace('PGOPTIONS=-c search_path=public', 'PGOPTIONS=-c search_path=gmt_test,public')
+                env = env.replace('POSTGRES_DB=green-coding', 'POSTGRES_DB=test-green-coding')
                 new_env.append(env)
             compose['services'][service]['environment'] = new_env
 
@@ -137,6 +135,13 @@ def edit_compose_file():
             new_command = f'{command} --port {TEST_REDIS_PORT}'
             compose['services'][service]['command'] = new_command
             compose['services'][service]['ports'] = TEST_REDIS_PORT_MAPPING
+
+        # For all, change time zone in env vars
+        new_env = []
+        for env in compose['services'][service]['environment']:
+            env = env.replace('__TZ__', tz_value)
+            new_env.append(env)
+        compose['services'][service]['environment'] = new_env
 
         # Edit service container name
         old_container_name = compose['services'][service]['container_name']
@@ -152,15 +157,26 @@ def edit_compose_file():
 
 def create_test_config_file(ee=False, ai=False):
     print('Creating test-config.yml...')
+    public_key_file = os.path.normpath(f'{current_dir}/data/encryption_public_key.pem')
+    private_key_file = os.path.normpath(f'{current_dir}/data/encryption_private_key.pem')
 
     with open('test-config.yml.example', 'r', encoding='utf-8') as file:
         content = file.read()
 
+    content = content.replace('activate_eco_ci: False', 'activate_eco_ci: True')
+    content = content.replace('activate_power_hog: False', 'activate_power_hog: True')
+    content = content.replace('activate_carbon_db: False', 'activate_carbon_db: True')
+    content = content.replace('activate_software_view: False', 'activate_power_hog: True')
+    content = content.replace(
+        'security:\n  encryption_public_key_file: none\n  encryption_private_key_file: none\n',
+        'security:\n'
+        f'  encryption_public_key_file: {public_key_file}\n'
+        f'  encryption_private_key_file: {private_key_file}\n',
+    )
+
     if ee:
         print('Activating enterprise in config.yml ...')
         content = content.replace('#ee_token:', 'ee_token:')
-        content = content.replace('activate_power_hog: False', 'activate_power_hog: True')
-        content = content.replace('activate_carbon_db: False', 'activate_carbon_db: True')
 
     if ai:
         print('Activating AI in config.yml ...')
@@ -177,17 +193,16 @@ def create_frontend_config_file(ee=False, ai=False):
 
     content = content.replace('__API_URL__', 'http://api.green-coding.internal:9143')
     content = content.replace('__METRICS_URL__', 'http://metrics.green-coding.internal:9143')
+    content = content.replace('__ELEPHANT_URL__', 'http://elephant.green-coding.internal:8085')
 
     content = re.sub(r'ACTIVATE_SCENARIO_RUNNER.*$', 'ACTIVATE_SCENARIO_RUNNER = true;', content, flags=re.MULTILINE)
     content = re.sub(r'ACTIVATE_ECO_CI.*$', 'ACTIVATE_ECO_CI = true;', content, flags=re.MULTILINE)
+    content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = true;', content, flags=re.MULTILINE)
+    content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = true;', content, flags=re.MULTILINE)
+    content = re.sub(r'ACTIVATE_SOFTWARE_VIEW.*$', 'ACTIVATE_SOFTWARE_VIEW = true;', content, flags=re.MULTILINE)
 
     if ee:
-        print(f'Activating enterprise in {TEST_FRONTEND_CONFIG_NAME} ...')
-        content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = true;', content, flags=re.MULTILINE)
-        content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = true;', content, flags=re.MULTILINE)
-    else:
-        content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = false;', content, flags=re.MULTILINE)
-        content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = false;', content, flags=re.MULTILINE)
+        pass # currently noop as all non ai enterprise content has been moved to open source
 
     if ai:
         print(f'Activating AI in {TEST_FRONTEND_CONFIG_NAME} ...')
@@ -205,12 +220,38 @@ def edit_etc_hosts():
 def build_test_docker_image():
     subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build'], check=True)
 
+def pull_test_docker_image():
+    subprocess.run(['docker', 'compose', '-f', test_compose_path, 'pull'], check=True)
+
+# We never want to set a different timezone than GMT for tests.
+# The reason being is that we have a lot of demo data with GMT timestamps in the DB and this
+# should always be tested against a system running on GMT. Otherwise users in different timezones will experience failing tests
+def detect_timezone(): # default="Europe/Berlin"
+    return 'GMT'
+
+    # if os.path.isfile("/etc/timezone"):
+    #     with open("/etc/timezone", encoding="utf-8") as f:
+    #         tz = f.read().strip()
+    #         if tz:
+    #             return tz
+
+    # if os.path.exists("/etc/localtime"):
+    #     real = os.path.realpath("/etc/localtime")
+    #     if "zoneinfo.default/" in real:
+    #         return real.split("zoneinfo.default/")[-1]
+    #     elif "zoneinfo/" in real:
+    #         return real.split("zoneinfo/")[-1]
+    # return default
+
+
 if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-docker-build', action='store_true',
                         help='Do not build the docker image')
+    parser.add_argument('--no-docker-pull', action='store_true',
+                        help='Do not pull the docker images')
     parser.add_argument('--ee', action='store_true',
                         help='Enable enterprise tests')
     parser.add_argument('--ai', action='store_true',
@@ -220,11 +261,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     check_sudo()
-    copy_sql_structure(args.ee)
     create_test_config_file(args.ee, args.ai)
     create_frontend_config_file(args.ee, args.ai)
-    edit_compose_file()
+    edit_compose_file(args.ee)
     edit_etc_hosts()
+    if not args.no_docker_pull:
+        pull_test_docker_image()
     if not args.no_docker_build:
         build_test_docker_image()
     subprocess.check_output(['sudo', '-k']) # deactivate sudo again

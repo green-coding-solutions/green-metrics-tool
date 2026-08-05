@@ -3,7 +3,7 @@ import os
 from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
-    def __init__(self, sampling_rate, skip_check=False):
+    def __init__(self, sampling_rate, folder, skip_check=False):
         super().__init__(
             metric_name='psu_energy_ac_mcp_machine',
             metrics={'time': int, 'value': int},
@@ -11,6 +11,7 @@ class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
             unit="uJ",
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
         )
 
     def _parse_metrics(self, df):
@@ -40,7 +41,7 @@ class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
         df.dropna(inplace=True)
 
         df['interval'] = intervals  # in microseconds
-        df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_00, axis=1) # value is in centiwatts (0.01 W), so divide by 1_00 to get Watts and multiply with us to get micro-Joules
+        df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_000_000, axis=1) # value is in micro-Watts, so divide by 1_000_000 to get micro-Joules
         df['value'] = df.value.astype('int64')
 
         df = df.drop(columns='interval')  # clean up

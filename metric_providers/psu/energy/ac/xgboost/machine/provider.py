@@ -8,9 +8,10 @@ import model.xgb as mlmodel
 
 from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
 from lib.global_config import GlobalConfig
+from lib.utils import get_metric_providers
 
 class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
-    def __init__(self, *, HW_CPUFreq, CPUChips, CPUThreads, TDP,
+    def __init__(self, *, folder, HW_CPUFreq, CPUChips, CPUThreads, TDP,
                  HW_MemAmountGB, CPUCores=None, Hardware_Availability_Year=None, VHost_Ratio=1, skip_check=False, filename=None):
         super().__init__(
             metric_name="psu_energy_ac_xgboost_machine",
@@ -19,6 +20,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
             unit="uJ",
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
         )
         self.HW_CPUFreq = HW_CPUFreq
         self.CPUChips = CPUChips
@@ -28,6 +30,8 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         self.CPUCores = CPUCores
         self.Hardware_Availability_Year=Hardware_Availability_Year
         self.VHost_Ratio = VHost_Ratio
+         # we overwrite the parent class set default, bc this provider has not source file it writes on its own
+         # It must be either supplied in the constructor or will be set None for auto detect later
         self._filename = filename
 
     # Since no process is ever started we just return None
@@ -42,22 +46,29 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         # We want to skip both the normal binary check, as well as the parallel provider check
         # as there is no metric_provider_executable to check
         super().check_system(check_command=None, check_parallel_provider=False)
-        config = GlobalConfig().config
-        if 'cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider' not in config['measurement']['metric_providers']['linux']:
-            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate the CpuUtilizationProcfsSystemProvider in the config.yml\n \
+
+        configured_providers = get_metric_providers(GlobalConfig().config)
+
+        if not configured_providers['psu_energy_ac_xgboost_machine']['CPUChips']:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease set the CPUChips config option for PsuEnergyAcXgboostMachineProvider in the config.yml")
+        if not configured_providers['psu_energy_ac_xgboost_machine']['TDP']:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease set the TDP config option for PsuEnergyAcXgboostMachineProvider in the config.yml")
+
+        if 'cpu_utilization_mach_system' not in configured_providers and 'cpu_utilization_procfs_system' not in configured_providers:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate a CPU Utilization provider (cpu_utilization_mach_system / cpu_utilization_procfs_system) in the config.yml\n \
                 This is required to run PsuEnergyAcXgboostMachineProvider")
 
     def _read_metrics(self):
 
         if not self._filename:
-            if os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
-                self._filename = '/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'
-            elif os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_mach_system.log'):
-                self._filename = '/tmp/green-metrics-tool/cpu_utilization_mach_system.log'
+            if self._folder.joinpath('cpu_utilization_procfs_system.log').exists():
+                self._filename = self._folder.joinpath('cpu_utilization_procfs_system.log')
+            elif self._folder.joinpath('cpu_utilization_mach_system.log').exists():
+                self._filename = self._folder.joinpath('cpu_utilization_mach_system.log')
             else:
-                raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log or /tmp/green-metrics-tool/cpu_utilization_mach_system.log file. \
-                    Did you activate the CpuUtilizationProcfsSystemProvider or CpuUtilizationMacSystemProvider in the config.yml too? \
-                    This is required to run PsuEnergyAcXgboostMachineProvider')
+                raise RuntimeError(f"could not find the cpu_utilization_procfs_system.log or cpu_utilization_mach_system.log file in {self._folder}. \
+                    Did you activate the cpu_utilization_mach_system or cpu_utilization_procfs_system in the config.yml too? \
+                    This is required to run PsuEnergyAcXgboostMachineProvider")
 
         return super()._read_metrics()
 
@@ -107,8 +118,5 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         df.dropna(inplace=True)
 
         df.value = df.value.astype('int64')
-
-        if df.empty:
-            raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
 
         return df

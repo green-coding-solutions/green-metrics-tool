@@ -9,7 +9,6 @@ networks:
     
 services:
   test-container:
-    type: container
     image: alpine/curl
     networks: 
       - gmt-test-network

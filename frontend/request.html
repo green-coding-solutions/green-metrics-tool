@@ -23,7 +23,7 @@
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
 <body class="preload">
-    <gmt-menu></gmt-menu>
+    <gmt-menu data-active-item="submit-software"></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left">
             <a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon opened"></i></a>
@@ -95,13 +95,25 @@
                         <div class="ui fluid icon input">
                             <input type="text" placeholder="Filename (optional - default: usage_scenario.yml)" name="filename">
                         </div>
-                        <div class="ui fluid icon input">
-                            <input type="text" placeholder="Branch (optional - default: main)" name="branch">
+                        <div class="two fields">
+                            <div class="field">
+                                <div class="ui fluid icon input">
+                                    <input type="text" placeholder="Branch (optional - default: main)" name="branch">
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui fluid icon input">
+                                    <input type="text" placeholder="Commit hash (optional - checkout specific revision)" name="commit_hash">
+                                </div>
+                            </div>
                         </div>
                         <div class="ui fluid icon input">
                             <select name="machine_id" class="ui fluid dropdown" required>
                                 <option value=''>-- Select hardware for testing --</option>
                             </select>
+                        </div>
+                        <div class="ui fluid icon input">
+                            <input type="text" placeholder="Carbon simulation (optional - integer, [integers], or UUID)" name="carbon_simulation">
                         </div>
                         <p style="text-align: right;">Find the specifications of the machines <a href="https://docs.green-coding.io/docs/measuring/measurement-cluster/">in our documentation</a></p>
                         <div class="ui fluid icon input">
@@ -118,8 +130,17 @@
                                 <option value='statistical-significance'>Do 10 runs to evaluate statistical significance [Premium]</option>
                             </select>
                         </div>
-                        <button class="positive ui button">Submit software</button>
-                    </div>
+                        <p style="text-align: right;">Define variables to be used. See the documentation <a href="https://docs.green-coding.io/docs/measuring/usage-scenario/#variables" target="_blank">here</a>.</p>
+                        <div id="variables-container">
+                        </div>
+                        <div style="text-align: right;">
+                            <button type="button" class="ui mini icon button" id="add-variable">
+                                <i class="plus icon"></i> Add Variable
+                            </button>
+                        </div>
+                        </div>
+                    <button type="submit" id="submit-software" class="positive ui button" style="margin-top: 20px;">Submit software</button>
+                    <button type="submit" id="submit-keep-values" class="grey ui button" style="margin-top: 20px;">Submit & continue</button>
                 </form>
             </div>
         </div>

@@ -4,7 +4,7 @@
 
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 import platform
 import subprocess
 from packaging.version import parse
@@ -14,7 +14,7 @@ from metric_providers.base import MetricProviderConfigurationError, BaseMetricPr
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
-    def __init__(self, *, host_ip=None, skip_check=False):
+    def __init__(self, *, folder, host_ip=None, skip_check=False):
         tinyproxy_path = subprocess.getoutput('which tinyproxy')
 
         super().__init__(
@@ -24,6 +24,7 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
             unit=None,
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
             metric_provider_executable=f"{tinyproxy_path}",
         )
 
@@ -34,7 +35,7 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
         super().check_system(check_command=None)
 
         # check tinyproxy version
-        output = subprocess.check_output(['tinyproxy', '-v'], stderr=subprocess.STDOUT, text=True)
+        output = subprocess.check_output(['tinyproxy', '-v'], stderr=subprocess.STDOUT, encoding='UTF-8', errors='replace')
         version_string = output.strip().split()[1].split('-')[0]
         if parse(version_string) >= parse('1.11'):
             return True
@@ -50,8 +51,8 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
         elif platform.system() == 'Linux':
             # Under Linux there is no way to directly link to the host
             cmd =  "ip addr show dev $(ip route | grep default | awk '{print $5}') | grep 'inet '| awk '{print $2}'| cut -f1 -d'/'"
-            ps = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
-            proxy_addr = ps.stdout.strip()
+            output = subprocess.check_output(cmd, shell=True, encoding='UTF-8', errors='replace')
+            proxy_addr = output.strip()
         else:
             proxy_addr = 'host.docker.internal'
 
@@ -90,7 +91,7 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
                 except ValueError:
                     date = datetime.strptime(f"{datetime.now().year} {date_str}", '%Y %b %d %H:%M:%S')
 
-                time =  int(date.replace(tzinfo=timezone.utc).timestamp() * 1000)
+                time =  int(date.timestamp() * 1000)
                 parsed_lines.append([time, connection_type, protocol])
 
         return pandas.DataFrame.from_records(parsed_lines, columns=['time', 'connection_type', 'protocol']) # may be empty as no network traffic can happen

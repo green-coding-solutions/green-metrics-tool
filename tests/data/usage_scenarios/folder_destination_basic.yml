@@ -14,5 +14,6 @@ flow:
     container: test-container
     commands:
       - type: console
-        command: sh -c "test -f /custom/repo/path/tests/test_usage_scenario.py && echo 'Test file found at custom path'"
+        command: test -f /custom/repo/path/tests/test_usage_scenario.py && echo 'Test file found at custom path'
+        shell: sh
         log-stdout: true

@@ -9,6 +9,10 @@ redis:
   host: test-green-coding-redis-container
   port: 6380
 
+security:
+  encryption_public_key_file: none
+  encryption_private_key_file: none
+
 smtp:
   server: null
   sender: null
@@ -53,35 +57,40 @@ cluster:
 machine:
   id: 1
   description: Development machine for testing
-  base_temperature_value: 10
+  base_temperature_value: null
   base_temperature_chip: "asd"
   base_temperature_feature: "asd"
+
+  # Reservations guarantee that GMT always cpu time to execute metric providers and system does not OOM
+  # Not recommended to set this in development, but when running on a cluster it should be set
+  host_reserved_cpus: 1
+  host_reserved_memory: 2147483648 # 2 GB
 
 measurement:
   metric_providers:
     linux:
-      cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
+      cpu_utilization_procfs_system:
         sampling_rate: 99
-#      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
+#      disk_io_procfs_system:
 #        sampling_rate: 99
-      network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
+      network_io_procfs_system:
         sampling_rate: 99
         remove_virtual_interfaces: True
-      disk.used.statvfs.system.provider.DiskUsedStatvfsSystemProvider:
+      disk_used_statvfs_system:
         sampling_rate: 99
-      memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
+      memory_used_procfs_system:
         sampling_rate: 99
-      cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
+      cpu_utilization_cgroup_container:
         sampling_rate: 99
-      memory.used.cgroup.container.provider.MemoryUsedCgroupContainerProvider:
+      memory_used_cgroup_container:
         sampling_rate: 99
-      network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
+      network_io_cgroup_container:
         sampling_rate: 99
     macos:
-      cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
+      cpu_utilization_mach_system:
         sampling_rate: 99
     common:
-      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
+      psu_energy_ac_xgboost_machine:
         CPUChips: 1
         HW_CPUFreq: 3200
         CPUCores: 4
@@ -89,12 +98,14 @@ measurement:
         TDP: 65
         HW_MemAmountGB: 16
         Hardware_Availability_Year: 2011
+      carbon_intensity_static_machine:
+        value: 436
+        sampling_rate: 99
 
 sci:
   EL: 4
   RS: 1
   TE: 181000
-  I: 436
   N: 0.001875
 
 optimization:
@@ -105,7 +116,7 @@ electricity_maps_token: 'testing'
 #ee_token: 'testing'
 
 activate_scenario_runner: True
-activate_eco_ci: True
+activate_eco_ci: False
 activate_power_hog: False
 activate_carbon_db: False
 activate_ai_optimisations: False

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import sys
 import faulthandler
@@ -39,3 +38,5 @@ if __name__ == '__main__':
         if answer.strip().lower() == 'y':
             DB().query('DELETE FROM runs WHERE failed = TRUE OR end_measurement IS NULL')
             print("Done")
+    elif args.mode == 'retention-expired':
+        raise NotImplementedError()

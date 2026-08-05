@@ -4,12 +4,17 @@ import hashlib
 import json
 import pytest
 import random
+import tempfile
 import pandas
+from pathlib import Path
 
-from lib.db import DB
+from lib.db import DB, get_schema
 from lib.global_config import GlobalConfig
+from lib import host_platform
+from lib.utils import get_test_worker_id
 from lib.log_types import LogType
 from lib import metric_importer
+from lib.user import User
 from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtilizationCgroupContainerProvider
 from metric_providers.cpu.utilization.cgroup.system.provider import CpuUtilizationCgroupSystemProvider
 from metric_providers.psu.energy.ac.mcp.machine.provider import PsuEnergyAcMcpMachineProvider
@@ -19,7 +24,28 @@ from metric_providers.network.io.cgroup.container.provider import NetworkIoCgrou
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+GUNICORN_SEQUENTIAL_GROUP = "gunicorn-sequential-tests"
+
+def get_tmp_folder():
+    # Mirrors ScenarioRunner's own tmp-folder naming (lib/scenario_runner.py) so tests that
+    # invoke runner.py as a subprocess can locate the same worker-suffixed directory the
+    # runner process itself computed independently.
+    worker_id = get_test_worker_id()
+    name = f'green-metrics-tool-{worker_id}' if worker_id else 'green-metrics-tool'
+    return host_platform.get_tmp_root().joinpath(name)
+
+# Dedicated, isolated folder for the metric providers built by the import_* helpers below.
+GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-test-functions-'))
+
 TEST_MEASUREMENT_CONTAINERS = {'bb0ea912f295ab0d8b671caf061929de9bb8b106128c071d6a196f9b6c05cd98': {'name': 'Arne'}, 'f78f0ca43069836d975f2bd4c45724227bbc71fc4788e60b33a77f1494cd2e0c': {'name': 'Not-Arne'}}
+
+OPENSSH_EXAMPLE_PRIVATE_KEY = '''-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACBaJtSTmDwlgU0uPP0+zPSerJQZaYWd9dYCctpibwl4ZwAAAJgWu55CFrue
+QgAAAAtzc2gtZWQyNTUxOQAAACBaJtSTmDwlgU0uPP0+zPSerJQZaYWd9dYCctpibwl4Zw
+AAAEDIFKWnFdbeP4joIRyTvJ1KG2Z3IPmEy9XNhScJwmsffFom1JOYPCWBTS48/T7M9J6s
+lBlphZ311gJy2mJvCXhnAAAAE2FybmVAbWludGJvb2subG9jYWwBAg==
+-----END OPENSSH PRIVATE KEY-----'''
 
 def add_random_padding():
     return random.randint(100, 10000)
@@ -74,17 +100,32 @@ TEST_MEASUREMENT_DURATION_RAW_H = TEST_MEASUREMENT_DURATION_RAW_S/60/60
 
 def filter_df_runtime_subphase(df, *, hidden=False, phase_name=None):
     df_list = []
-    for phase in TEST_MEASUREMENT_PHASES:
+    for idx, phase in enumerate(TEST_MEASUREMENT_PHASES):
+        next_phase_start = TEST_MEASUREMENT_PHASES[idx+1]['start'] if idx+1 < len(TEST_MEASUREMENT_PHASES) else None
         if phase_name:
             if phase['name'] == phase_name:
-                df_list.append(apply_mask(df, phase))
+                df_list.append(apply_mask(df, phase, next_phase_start))
         elif ']' not in phase['name'] and phase['hidden'] is hidden:
-            df_list.append(apply_mask(df, phase))
+            df_list.append(apply_mask(df, phase, next_phase_start))
     return pandas.concat(df_list).sort_index()
 
-def apply_mask(df, phase):
+def apply_mask(df, phase, next_phase_start=None):
     mask = df['time'].between(phase['start'], phase['end'], inclusive="neither")
     df_temp = df[mask].copy()
+
+    # mimic the 'next_one' CTE in lib/phase_stats.py, which pads the phase with
+    # the first value at or after the phase end, so sums/diffs match production.
+    # That value is only borrowed if it does not already belong to the next
+    # phase (time < next_phase_start), otherwise it would get double-counted
+    # once here and once as the next phase's own in-range value.
+    next_row_mask = df['time'] >= phase['end']
+    if next_phase_start is not None:
+        next_row_mask &= df['time'] < next_phase_start
+    next_row = df[next_row_mask].sort_values('time').head(1)
+    if not next_row.empty:
+        df_temp = pandas.concat([df_temp, next_row])
+
+    df_temp = df_temp.sort_values('time')
     df_temp['time_diff'] = df_temp['time'].diff()
     return df_temp
 
@@ -93,13 +134,8 @@ def apply_mask(df, phase):
 def delete_jobs_from_DB():
     DB().query('DELETE FROM jobs')
 
-def shorten_sleep_times(duration_in_s):
-    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,pre_test_sleep}',%s,false)", params=(str(duration_in_s), ))
-    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,baseline_duration}',%s,false)", params=(str(duration_in_s), ))
-    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,idle_duration}',%s,false)", params=(str(duration_in_s), ))
-    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,post_test_sleep}',%s,false)", params=(str(duration_in_s), ))
-    DB().query("UPDATE users SET capabilities = jsonb_set(capabilities,'{measurement,phase_transition_time}',%s,false)", params=(str(duration_in_s), ))
-
+def shorten_sleep_times(user_id):
+    User(user_id).change_setting('measurement.dev_no_sleeps', True)
 
 def insert_run(phases, *, uri='test-uri', branch='test-branch', filename='test-filename', user_id=1, machine_id=1):
     return DB().fetch_one('''
@@ -111,7 +147,7 @@ def insert_run(phases, *, uri='test-uri', branch='test-branch', filename='test-f
 
 def import_cpu_utilization_container(run_id):
 
-    obj = CpuUtilizationCgroupContainerProvider(99, skip_check=True)
+    obj = CpuUtilizationCgroupContainerProvider(99, folder=GMT_METRICS_DIR, skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_utilization_cgroup_container.log')
 
@@ -125,7 +161,7 @@ def import_cpu_utilization_container(run_id):
 
 def import_cpu_utilization_system(run_id):
 
-    obj = CpuUtilizationCgroupSystemProvider(99, skip_check=True)
+    obj = CpuUtilizationCgroupSystemProvider(99, folder=GMT_METRICS_DIR, skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_utilization_cgroup_system.log')
     df = obj.read_metrics()
@@ -137,7 +173,7 @@ def import_cpu_utilization_system(run_id):
 
 def import_machine_energy(run_id):
 
-    obj = PsuEnergyAcMcpMachineProvider(99, skip_check=True)
+    obj = PsuEnergyAcMcpMachineProvider(99, folder=GMT_METRICS_DIR, skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/psu_energy_ac_mcp_machine.log')
     df = obj.read_metrics()
@@ -148,7 +184,7 @@ def import_machine_energy(run_id):
 
 def import_network_io_procfs(run_id, filename='network_io_procfs_system.log'):
 
-    obj = NetworkIoProcfsSystemProvider(99, skip_check=True, remove_virtual_interfaces=False)
+    obj = NetworkIoProcfsSystemProvider(99, folder=GMT_METRICS_DIR, skip_check=True, remove_virtual_interfaces=False)
 
     obj._filename = os.path.join(CURRENT_DIR, f'data/metrics/{filename}')
     df = obj.read_metrics()
@@ -159,7 +195,7 @@ def import_network_io_procfs(run_id, filename='network_io_procfs_system.log'):
 
 def import_network_io_cgroup_container(run_id):
 
-    obj = NetworkIoCgroupContainerProvider(99, skip_check=True)
+    obj = NetworkIoCgroupContainerProvider(99, folder=GMT_METRICS_DIR, skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_cgroup_container.log')
     df = obj.read_metrics()
@@ -170,7 +206,7 @@ def import_network_io_cgroup_container(run_id):
 
 def import_cpu_energy(run_id, filename='cpu_energy_rapl_msr_component.log'):
 
-    obj = CpuEnergyRaplMsrComponentProvider(99, skip_check=True)
+    obj = CpuEnergyRaplMsrComponentProvider(99, folder=GMT_METRICS_DIR, skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, f"data/metrics/{filename}")
     df = obj.read_metrics()
@@ -190,61 +226,67 @@ def update_user_token(user_id, token):
     ''', params=(sha256_hash.hexdigest(), user_id))
 
 
-def insert_user(user_id, token):
+def insert_user(user_id, token, make_super_user=False):
     sha256_hash = hashlib.sha256()
     sha256_hash.update(token.encode('UTF-8'))
 
     DB().query("""
-        INSERT INTO "public"."users"("id", "name","token","capabilities","created_at")
+        INSERT INTO "users"("id", "name","token","capabilities","created_at")
         VALUES
         (%s, %s, %s, (SELECT capabilities FROM users WHERE id = 1), E'2024-08-22 11:28:24.937262+00')
     """, params=(user_id, token, sha256_hash.hexdigest()))
     DB().query("""
         UPDATE users SET capabilities = jsonb_set(capabilities, '{user,visible_users}', %s ,false)
             WHERE id = %s
-    """, params=(str(user_id), user_id))
+    """, params=(str([user_id]), user_id))
+    if not make_super_user:
+        DB().query("""
+            UPDATE users SET capabilities = jsonb_set(capabilities, '{user,is_super_user}', %s ,false)
+                WHERE id = %s
+        """, params=('false', user_id))
 
+
+def _import_demo_data_file(sql_path):
+    config = GlobalConfig().config
+    pg_port = config['postgresql']['port']
+    pg_dbname = config['postgresql']['dbname']
+    # Without this, the import falls back to whatever PGOPTIONS the postgres container itself
+    # was started with, ignoring the caller's own worker schema (see get_schema()) -
+    # currently harmless only because every caller happens to be a tests/frontend or tests/api
+    # test, which already targets that same fallback schema.
+    schema = get_schema()
+
+    with open(sql_path, encoding='utf-8') as sql_file:
+        ps = subprocess.run(
+            [
+                'docker', 'exec', '-i', '--user', 'postgres',
+                '-e', f'PGOPTIONS=-c search_path={schema},public',
+                'test-green-coding-postgres-container',
+                'psql', '-d', pg_dbname, '-p', str(pg_port),
+            ],
+            stdin=sql_file,
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8',
+        )
+
+    if ps.stderr != '':
+        reset_db()
+        raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
 
 def import_demo_data():
-    config = GlobalConfig().config
-    pg_port = config['postgresql']['port']
-    pg_dbname = config['postgresql']['dbname']
-    ps = subprocess.run(
-        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../data/demo_data.sql",
-        check=True,
-        shell=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
-
-    if ps.stderr != '':
-        reset_db()
-        raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
+    _import_demo_data_file(f'{CURRENT_DIR}/../data/demo_data.sql')
 
 def import_demo_data_ee():
-    config = GlobalConfig().config
-    pg_port = config['postgresql']['port']
-    pg_dbname = config['postgresql']['dbname']
-    ps = subprocess.run(
-        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../ee/data/demo_data_ee.sql",
-        check=True,
-        shell=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
-
-    if ps.stderr != '':
-        reset_db()
-        raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
+    _import_demo_data_file(f'{CURRENT_DIR}/../ee/data/demo_data_ee.sql')
 
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"
 
-def check_if_container_running(container_name):
+def check_if_container_running(name):
     ps = subprocess.run(
-            ['docker', 'container', 'inspect', '-f', '{{.State.Running}}', container_name],
+            ['docker', 'container', 'inspect', '-f', '{{.State.Running}}', name],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
             encoding='UTF-8',
@@ -265,32 +307,142 @@ def build_image_fixture():
         '--build-arg', f'no_proxy={os.environ.get("no_proxy")}',
     ], check=True)
 
+# Called once per pytest-xdist worker (see conftest.py::_initial_db_reset), before that worker's
+# first test - creates this worker's private (suffixed) schema and populates it via tables.sql's
+# CREATE TABLE/TYPE/TRIGGER/... DDL, which isn't written to be safely re-runnable. Every reset_db()
+# call after this one (see below) can then assume the schema/tables already exist and just
+# truncate + reseed the data, with no need to check.
+#
+# The unsuffixed 'gmt_test' schema the shared gunicorn container reads/writes never goes through
+# this function at all: docker/00-test-schema.sql creates that schema before docker/tables.sql and
+# docker/seed-data.sql run at container boot, so it's already fully populated by the time any test
+# runs.
+def create_test_schema():
+    config = GlobalConfig().config
+    pg_port = config['postgresql']['port']
+    pg_dbname = config['postgresql']['dbname']
+    schema = get_schema()
+
+    docker_exec_prefix = [
+        'docker', 'exec', '--user', 'postgres',
+        '-e', f'PGOPTIONS=-c search_path={schema},public',
+        'test-green-coding-postgres-container',
+        'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
+    ]
+
+    check_ps = subprocess.run(
+        docker_exec_prefix + [
+            '-tAc',
+            f"SELECT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = '{schema}' AND tablename = 'users')",
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if check_ps.returncode != 0:
+        raise RuntimeError('Checking whether the test schema is already set up failed with ', check_ps.stdout, check_ps.stderr)
+    if check_ps.stdout.strip() == b't':
+        return
+
+    init_files = ['-f', './docker-entrypoint-initdb.d/02-tables.sql']
+    if config.get('ee_token'):
+        # only mounted into the postgres container (as 03-structure_ee.sql) when
+        # setup-test-env.py was run with --ee - see compose.yml.example's '#EE-ONLY#' line
+        init_files += ['-f', './docker-entrypoint-initdb.d/03-structure_ee.sql']
+    init_files += ['-f', './docker-entrypoint-initdb.d/04-seed-data.sql']
+
+    ps = subprocess.run(
+        docker_exec_prefix + [
+            '--single-transaction',
+            '-c', f'CREATE SCHEMA IF NOT EXISTS "{schema}"',
+        ] + init_files,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if ps.returncode != 0:
+        raise RuntimeError('Creating the test schema failed with ', ps.stdout, ps.stderr)
+
+
+def flush_redis():
+    config = GlobalConfig().config
+    redis_port = config['redis']['port']
+    ps = subprocess.run(
+        ['docker', 'exec', 'test-green-coding-redis-container', 'redis-cli', '-p', f"{redis_port}", 'FLUSHALL'],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if ps.returncode != 0:
+        raise RuntimeError('Flushing redis failed with ', ps.stdout, ps.stderr)
+
+# Must run before the test body, not just before reset_db()'s own truncate/reseed: DB (lib/db.py)
+# is a process-wide singleton whose connection pool bakes in search_path once, at pool-creation
+# time, and only rebuilds it after reset_db()'s DB().shutdown() call tears it down - so the env var
+# has to already be gone by the time the test body makes its own first DB() call (which may be
+# well before reset_db() ever runs), or that call (and everything sharing the pool it creates)
+# targets the wrong schema for the rest of the test.
+def use_gunicorn_schema(request, monkeypatch):
+    marker = request.node.get_closest_marker('xdist_group')
+    if marker and marker.kwargs.get('name') == GUNICORN_SEQUENTIAL_GROUP:
+        monkeypatch.delenv('PYTEST_XDIST_WORKER', raising=False)
+
 # should be preceded by a yield statement and on autouse
 def reset_db():
     # DB().query('DROP schema "public" CASCADE') # we do not want to call DB commands. Reason being is that because of a misconfiguration we could be sending this to the live DB
     config = GlobalConfig().config
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
-    redis_port = config['redis']['port']
-    subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} -c \'DROP SCHEMA IF EXISTS "public" CASCADE\' '],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} < ./docker-entrypoint-initdb.d/01-structure.sql'],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    # One schema per pytest-xdist worker (falls back to 'gmt_test' outside of -n runs) so that
+    # concurrent workers can each reset their own tables without touching each other's. The schema
+    # and its tables already exist by this point - create_test_schema() (see above) / conftest.py's
+    # _initial_db_reset runs once per worker before its first test - so this only ever needs to
+    # wipe and reseed the *data*, never check for or create the schema itself.
+    schema = get_schema()
 
-    subprocess.run(
-        ['docker', 'exec', 'test-green-coding-redis-container', 'redis-cli', '-p', f"{redis_port}", 'FLUSHALL'],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+    ps = subprocess.run(
+        [
+            'docker', 'exec', '--user', 'postgres',
+            '-e', f'PGOPTIONS=-c search_path={schema},public',
+            'test-green-coding-postgres-container',
+            'psql', '-v', 'ON_ERROR_STOP=1', '-d', pg_dbname, '--port', str(pg_port),
+            # --single-transaction wraps the truncate/reseed below into one commit, so any other
+            # session querying this schema concurrently (the gunicorn container serving a
+            # tests/frontend or tests/api request, most likely) either sees the complete old data
+            # or the complete new data - never a truncated-but-not-yet-reseeded one, which is what
+            # was intermittently producing spurious "relation ... does not exist" / empty-table
+            # errors (including from error_helpers.log_error() itself trying to write to
+            # system_logs) when a request landed mid-reset. Requires that nothing in the files
+            # below does its own '\c' (see structure.sql/compose.yml.example for how the database
+            # itself is selected instead), since that would silently end the transaction partway
+            # through.
+            '--single-transaction',
+            '-c',
+            # Naming every table in one TRUNCATE (rather than looping over pg_tables issuing one
+            # TRUNCATE per table) matters: CASCADE already sweeps every table that transitively
+            # references the one named, so a per-table loop would re-walk and re-lock a
+            # dependency closure that a previous statement in the same loop already emptied -
+            # doing (and paying full lock-acquisition cost for) redundant work several times over.
+            f'''DO $$
+DECLARE
+    tbls text;
+BEGIN
+    SELECT string_agg(format('%I.%I', schemaname, tablename), ', ')
+    INTO tbls FROM pg_tables WHERE schemaname = '{schema}';
+    IF tbls IS NOT NULL THEN
+        EXECUTE format('TRUNCATE TABLE %s RESTART IDENTITY CASCADE', tbls);
+    END IF;
+END $$;''',
+            '-f', './docker-entrypoint-initdb.d/04-seed-data.sql',
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
+    if ps.returncode != 0:
+        raise RuntimeError('Resetting the test schema failed with ', ps.stdout, ps.stderr)
+
+    DB().shutdown()
 
 class RunUntilManager:
     def __init__(self, runner):
@@ -332,22 +484,30 @@ class RunUntilManager:
             raise RuntimeError("run_steps must be used within the context")
 
         try:
+            self.__runner._delete_docker_config_dir()
+            self.__runner._delete_ssh_private_key_file()
+            self.__runner._create_folders()
             self.__runner._start_measurement()
             self.__runner._clear_caches()
             self.__runner._check_system('start')
-            self.__runner._initialize_folder(self.__runner._tmp_folder)
             self.__runner._checkout_repository()
             self.__runner._load_yml_file()
             self.__runner._initial_parse()
+            self.__runner._checkout_relations()
             self.__runner._register_machine_id()
+            if self.__runner._carbon_simulation:
+                self.__runner._setup_carbon_simulator()
+
             self.__runner._import_metric_providers()
             yield 'import_metric_providers'
             if stop_at == 'import_metric_providers':
                 return
             self.__runner._populate_image_names()
+            self.__runner._populate_cpu_and_memory_limits()
             self.__runner._prepare_docker()
             self.__runner._check_running_containers_before_start()
             self.__runner._remove_docker_images()
+            self.__runner._prepare_docker_credentials()
             self.__runner._download_dependencies()
             self.__runner._initialize_run()
             yield 'initialize_run'
@@ -379,13 +539,19 @@ class RunUntilManager:
                 return
             self.__runner._end_phase('[BOOT]')
 
-            self.__runner._check_running_containers_after_boot_phase()
+            self.__runner._check_running_containers('[BOOT]')
+            self.__runner._store_active_containers() # should be separated from setup services to keep network delay out of the step
             self.__runner._check_process_returncodes()
+
+            yield 'check_process_returncodes'
+            if stop_at == 'check_process_returncodes':
+                return
 
             self.__runner._add_containers_to_metric_providers()
             self.__runner._start_metric_providers(allow_container=True, allow_other=False)
 
             self.__runner._collect_container_dependencies()
+            yield 'collect_container_dependencies'
             if stop_at == 'collect_container_dependencies':
                 return
 
@@ -400,7 +566,7 @@ class RunUntilManager:
             if stop_at == 'runtime_complete':
                 return
 
-            self.__runner._check_running_containers_after_runtime_phase()
+            self.__runner._check_running_containers('[RUNTIME]')
 
             self.__runner._start_phase('[REMOVE]')
             self.__runner._custom_sleep(1)

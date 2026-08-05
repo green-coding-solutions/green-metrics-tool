@@ -7,18 +7,23 @@ NC='\033[0m' # No Color
 db_pw=''
 api_url=''
 metrics_url=''
+elephant_url=''
+tz=''
 ask_scenario_runner=true
 activate_scenario_runner=true
 ask_eco_ci=true
 activate_eco_ci=false
 ask_power_hog=true
 activate_power_hog=false
+ask_software_view=true
+activate_software_view=false
 ask_carbon_db=true
 activate_carbon_db=false
 ask_ai_optimisations=true
 activate_ai_optimisations=false
 build_docker_containers=true
 install_python_packages=true
+install_tinyproxy=true
 modify_hosts=true
 ask_tmpfs=true
 install_ipmi=true
@@ -37,7 +42,9 @@ enterprise=false
 ask_ping=true
 force_send_ping=false
 install_nvidia_toolkit_headers=false
+disable_path_security_checks=false
 ee_branch=''
+ask_elephant=true
 
 function print_message {
     echo ""
@@ -57,55 +64,124 @@ function check_python_version() {
     fi
 }
 
+# This function:
+# - Checks wether a file is owned root:root (0:0)
+# - Wheter a file or any part of the path is a symlink
+# - Wether the file is public writeable
+# - If any ACLs are set which might change writeablity
+# This is done in order to make sure that the sudoers entry we create and the root executable files
+# are in safe locations that cannot be tempered with
+# Typically everything in /usr /bin /sbin etc. should be safe anyway, but we double check
 function check_file_permissions() {
-    local file=$1
+    local path="$1"
 
-    # Check if the file exists
-    if [ ! -e "$file" ]; then
-        echo "File '$file' does not exist."
+    if [[ $disable_path_security_checks == true ]]; then
+        echo "Skipping security check of path $path"
+        return 0
+    fi
+
+    echo "Checking security of $path"
+
+    if [ ! -e "$path" ]; then
+        echo "Path '$path' does not exist."
         return 1
     fi
 
-    # Check if the file is owned by root
-    if [[ $(uname) == "Darwin" ]]; then
-        if [ "$(stat -f %Su "$file")" != "root" ]; then
-            echo "File '$file' is not owned by root."
-            return 1
-        fi
-    else
-        if [ "$(stat -c %U "$file")" != "root" ]; then
-            echo "File '$file' is not owned by root."
-            return 1
-        fi
-    fi
-
-        # Check if the file is owned by root
-
-    # Check if the file permissions are read-only for group and others using regex
-
-    if [[ $(uname) == "Darwin" ]]; then
-        local permissions=$(stat -f %Sp "$file")
-    else
-        local permissions=$(stat -c %A "$file") # Linux
-    fi
-
-    if [ -L "$file" ]; then
-        echo "File '$file' is a symbolic link. Following ..."
-        check_file_permissions $(readlink -f $file)
-        return $?
-    elif [[ ! $permissions =~ ^-r..r-.r-.$ ]]; then
-        echo "File '$file' is not read-only for group and others or not a regular file"
+    if [ -L "$path" ]; then
+        echo "Path '$path' is a symbolic link. This is not allowed."
         return 1
     fi
 
-    echo "File $file is save to create sudoers entry for"
+    # Determine stat commands based on OS
+    local path_owner path_mode
+
+    if [[ $(uname) == "Darwin" ]]; then
+        if ls -lde "$path" | grep -q '^.\{10\}\+ '; then
+            echo "Path '$path' has an ACL. Unsafe!"
+            return 1
+        fi
+
+        # Numeric mode
+        path_owner=$(stat -f %u "$path")
+        path_group=$(stat -f %g "$path")
+        path_mode=$(stat -f %Lp "$path")
+    else
+        path_owner=$(stat -c %u "$path")
+        path_group=$(stat -c %g "$path")
+        path_mode=$(stat -c %a "$path")
+        # Check ACLs
+        if getfacl -c "$path" 2>/dev/null | awk '!/^#|^user::|^group::|^other::/' | grep -q .; then
+            echo "Path '$path' has an ACL. Unsafe!"
+            return 1
+        fi
+    fi
+
+    # Check ownership
+    if [[ "$path_owner" != "0" ]]; then
+        echo "Path '$path' is not owned by UID 0."
+        return 1
+    fi
+
+    if [[ "$path_group" != "0" ]]; then
+        echo "Path '$path' group not GID 0"
+        return 1
+    fi
+
+     # first converts possible octal number to decimal, than takes last 3 digits in case number is longer
+     # apparently some older versions of macOs can return a path_mode that is longer
+     # But even on linux for instance /tmp will return 1777 .. so in any case we must only take the last 3
+    local path_perm_numeric=$((10#${path_mode: -3}))
+    local path_other=$(( path_perm_numeric % 10 ))
+
+    if (( path_other & 2 )); then
+        echo "Path '$path' is writable by others. Unsafe!"
+        return 1
+    fi
+
+    if [[ "$path" != "/" ]]; then
+        local path_parent="$(dirname "$path")" # we do not resolve as we want to check every step for a symlink
+        check_file_permissions "$path_parent" || return 1
+    fi
 
     return 0
 }
 
+BACKUP_DIR=".config_backups"
+
+function rotate_backup() {
+    local file="$1"
+    local max_backups=10
+    local backup_file="${BACKUP_DIR}/${file}.backup"
+
+    print_message "Rotating backups for ${file}"
+
+    mkdir -p "$(dirname "$backup_file")"
+
+    # Delete oldest
+    if [ -f "${backup_file}.${max_backups}" ]; then
+        echo "Removing file that exceeds max_backup of ${max_backups} ..."
+        rm -f "${backup_file}.${max_backups}"
+    fi
+
+    # Shift existing backups (9 -> 10, 8 -> 9, ..., 1 -> 2)
+    for ((i=max_backups-1; i>=1; i--)); do
+        if [ -f "${backup_file}.${i}" ]; then
+            mv "${backup_file}.${i}" "${backup_file}.$((i+1))"
+        fi
+    done
+
+    # Move current backup (if exists) to .1
+    if [ -f "${backup_file}" ]; then
+        mv "${backup_file}" "${backup_file}.1"
+    fi
+}
+
+
 function copy_backup() {
-    local file=$1
+    local file="$1"
+    rotate_backup "$file"
     local example_file="${file}.example"
+    local backup_file="${BACKUP_DIR}/${file}.backup"
 
     if [[ ! -f "$example_file" ]]; then
         echo "Error: Example file ${example_file} does not exist"
@@ -113,8 +189,9 @@ function copy_backup() {
     fi
 
     if [[ -f "$file" ]]; then
-        print_message "Backing up existing ${file} to ${file}.backup"
-        cp "$file" "${file}.backup"
+        print_message "Backing up existing ${file} to ${backup_file}"
+        mkdir -p "$(dirname "$backup_file")"
+        cp "$file" "$backup_file"
     fi
 
     cp "$example_file" "$file"
@@ -122,19 +199,16 @@ function copy_backup() {
 
 function prepare_config() {
 
-    print_message "Clearing old api.conf and frontend.conf files"
-    rm -Rf docker/nginx/api.conf
-    rm -Rf docker/nginx/frontend.conf
-
     local sed_command="sed -i"
     if [[ $(uname) == "Darwin" ]]; then
         sed_command="sed -i ''"
     fi
 
     print_message "Updating compose.yml with current path ..."
-    cp docker/compose.yml.example docker/compose.yml
+    copy_backup docker/compose.yml
     eval "${sed_command} -e \"s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD|\" docker/compose.yml"
     eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS|$db_pw|\" docker/compose.yml"
+    eval "${sed_command} -e \"s|__TZ__|$tz|g\" docker/compose.yml"
 
     print_message "Updating config.yml with new password ..."
     copy_backup config.yml
@@ -145,23 +219,25 @@ function prepare_config() {
     eval "${sed_command} -e \"s|__API_URL__|$api_url|\" config.yml"
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" config.yml"
 
-
-    copy_backup docker/nginx/api.conf
-    local host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
-    local host_api_url=${host_api_url%:*}
-    eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/api.conf"
-
-
-    copy_backup docker/nginx/block.conf
-
-    copy_backup docker/nginx/frontend.conf
     local host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
     local host_metrics_url=${host_metrics_url%:*}
+    local host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
+    local host_api_url=${host_api_url%:*}
+
+    copy_backup docker/nginx/api.conf
+    eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/api.conf"
+
+    copy_backup docker/nginx/block-and-redirect.conf
+    eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/block-and-redirect.conf"
+    eval "${sed_command} -e \"s|__METRICS_URL__|$host_metrics_url|\" docker/nginx/block-and-redirect.conf"
+
+    copy_backup docker/nginx/frontend.conf
     eval "${sed_command} -e \"s|__METRICS_URL__|$host_metrics_url|\" docker/nginx/frontend.conf"
 
     copy_backup frontend/js/helpers/config.js
     eval "${sed_command} -e \"s|__API_URL__|$api_url|\" frontend/js/helpers/config.js"
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" frontend/js/helpers/config.js"
+    eval "${sed_command} -e \"s|__ELEPHANT_URL__|$elephant_url|\" frontend/js/helpers/config.js"
 
     if [[ $activate_scenario_runner == true ]]; then
         eval "${sed_command} -e \"s|__ACTIVATE_SCENARIO_RUNNER__|true|\" frontend/js/helpers/config.js"
@@ -183,8 +259,6 @@ function prepare_config() {
         eval "${sed_command} -e \"s|ee_token:.*$|ee_token: ${ee_token}|\" config.yml"
     fi
 
-    # Activating CarbonDB and PowerHOG makes actually only sense in enterprise mode
-    # but must run still, as we need to set the variables and replacements
     if [[ $activate_power_hog == true ]]; then
         eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|true|\" frontend/js/helpers/config.js"
         eval "${sed_command} -e \"s|activate_power_hog:.*$|activate_power_hog: True|\" config.yml"
@@ -197,6 +271,17 @@ function prepare_config() {
     else
         eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
     fi
+
+    if [[ $activate_software_view == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_SOFTWARE_VIEW__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_software_view:.*$|activate_software_view: True|\" config.yml"
+    else
+        eval "${sed_command} -e \"s|__ACTIVATE_SOFTWARE_VIEW__|false|\" frontend/js/helpers/config.js"
+    fi
+
+
+    # Activating AI Optimisations makes actually only sense in enterprise mode
+    # but must run still, as we need to set the variables and replacements
     if [[ $activate_ai_optimisations == true ]]; then
         eval "${sed_command} -e \"s|__ACTIVATE_AI_OPTIMISATIONS__|true|\" frontend/js/helpers/config.js"
         eval "${sed_command} -e \"s|activate_ai_optimisations:.*$|activate_ai_optimisations: True|\" config.yml"
@@ -211,12 +296,12 @@ function prepare_config() {
 
         eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/frontend.conf"
         eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/api.conf"
-        eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/block.conf"
+        eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/block-and-redirect.conf"
 
     else
         eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/frontend.conf"
         eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/api.conf"
-        eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/block.conf"
+        eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/block-and-redirect.conf"
     fi
 
     if [[ $modify_hosts == true ]] ; then
@@ -257,21 +342,35 @@ function setup_python() {
     print_message "Setting GMT in include path for python via .pth file"
     find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
-    print_message "Adding python3 lib.hardware_info_root to sudoers file"
-    check_file_permissions "/usr/bin/python3"
-    # Please note the -m as here we will later call python3 without venv. It must understand the .lib imports
-    # and not depend on venv installed packages
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root" | sudo tee /etc/sudoers.d/green-coding-hardware-info
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
-    sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
+    print_message "Adding python3 hardware_info_root.py to sudoers file"
+    local python_path=$(realpath "/usr/bin/python3")
+    check_file_permissions "$python_path"
+
+    print_message "Making hardware_info_root.py to be owned by root"
+    sudo cp -f "${PWD}/lib/hardware_info_root_original.py" "${gmt_root_bin_dir}/hardware_info_root.py"
+    # using chown with UID:GID as names could be remapped and 0 is safe and also cross-platform (wheel in macos)
+    sudo chown 0:0 "${gmt_root_bin_dir}/hardware_info_root.py"
+    sudo chmod 755 "${gmt_root_bin_dir}/hardware_info_root.py"
+    # delete old unsafe file from GMT v2.5
+    sudo rm -f "${PWD}/lib/hardware_info_root.py"
+
+    # It must only use python root installed packages and no venv packages
+    # furthermore it may only use an absolute path
+    print_message "Setting hardware_info_root.py sudoers entry"
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} -I -B -S ${gmt_root_bin_dir}/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} -I -B -S ${gmt_root_bin_dir}/hardware_info_root.py --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
+    sudo chmod 400 /etc/sudoers.d/green-coding-hardware-info
     # remove old file name
     sudo rm -f /etc/sudoers.d/green_coding_hardware_info
 
-    print_message "Setting the hardare hardware_info to be owned by root"
-    sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
-    sudo chown root:$(id -gn root) $PWD/lib/hardware_info_root.py
-    sudo chmod 755 $PWD/lib/hardware_info_root.py
+    print_message "Making system_checks_root.py to be owned by root"
+    sudo cp -f "${PWD}/lib/system_checks_root.py" "${gmt_root_bin_dir}/system_checks_root.py"
+    sudo chown 0:0 "${gmt_root_bin_dir}/system_checks_root.py"
+    sudo chmod 755 "${gmt_root_bin_dir}/system_checks_root.py"
 
+    print_message "Setting system_checks_root.py sudoers entry"
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} -I -B -S ${gmt_root_bin_dir}/system_checks_root.py" | sudo tee /etc/sudoers.d/green-coding-system-checks
+    sudo chmod 400 /etc/sudoers.d/green-coding-system-checks
 
     if [[ $install_python_packages == true ]] ; then
         print_message "Updating python requirements"
@@ -308,20 +407,12 @@ function checkout_submodules() {
             git -C ee checkout $ee_branch
         fi
 
-        ln -sf ../ee/cron/delete_expired_data.py cron/delete_expired_data.py
-        ln -sf ../ee/cron/carbondb_copy_over_and_remove_duplicates.py cron/carbondb_copy_over_and_remove_duplicates.py
-        ln -sf ../ee/cron/carbondb_compress.py cron/carbondb_compress.py
-        ln -sf ../../ee/tests/cron/test_carbondb_compress.py tests/cron/test_carbondb_compress.py
-        ln -sf ../../ee/tests/frontend/test_frontend_ee.py tests/frontend/test_frontend_ee.py
-        ln -sf ../../ee/tests/api/test_api_hog.py tests/api/test_api_hog.py
-        ln -sf ../../ee/tests/api/test_api_carbondb.py tests/api/test_api_carbondb.py
-        ln -sf ../ee/tools/rebuild_carbondb.py tools/rebuild_carbondb.py
-        ln -sf ../../ee/frontend/js/hog-details.js frontend/js/hog-details.js
-        ln -sf ../../ee/frontend/js/carbondb.js frontend/js/carbondb.js
-        ln -sf ../../ee/frontend/js/hog.js frontend/js/hog.js
-        ln -sf ../ee/frontend/hog-details.html frontend/hog-details.html
-        ln -sf ../ee/frontend/hog.html frontend/hog.html
-        ln -sf ../ee/frontend/carbondb.html frontend/carbondb.html
+        # Link enterprise only files to running instance. Requires the ../ee repo is present. Will be silently ingored if not
+        arr=('cron/delete_expired_data.py')
+        for item in "${arr[@]}"; do
+            [ -e "ee/${item}" ] && ln -sf "../ee/${item}" "${item}" || { echo "Could not find enterprise source file: ee/${item}" >&2; }
+        done
+
     fi
 }
 
@@ -421,8 +512,21 @@ check_python_version
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --tz)
+            check_optarg 'tz' "${2:-}"
+            tz="$2"
+            shift 2
+            ;;
         --nvidia-gpu)
             install_nvidia_toolkit_headers=true
+            shift
+            ;;
+        --disable-tinyproxy)
+            install_tinyproxy=false
+            shift
+            ;;
+        --disable-path-security)
+            disable_path_security_checks=true
             shift
             ;;
         --ai) # This is not documented in the help, as it is only for GCS internal use
@@ -440,6 +544,16 @@ while [[ $# -gt 0 ]]; do
             ee_branch="$2"
             shift 2
             ;;
+        --elephant-url)
+            check_optarg 'elephant-url' "${2:-}"
+            elephant_url="$2"
+            shift 2
+            ;;
+        --no-elephant)
+            ask_elephant=false
+            shift
+            ;;
+
         -p)
             check_optarg 'p' "${2:-}"
             db_pw="$2"
@@ -540,6 +654,16 @@ while [[ $# -gt 0 ]]; do
             ask_power_hog=false
             shift
             ;;
+        --no-software-view)
+            activate_software_view=false
+            ask_software_view=false
+            shift
+            ;;
+        --software-view)
+            activate_software_view=true
+            ask_software_view=false
+            shift
+            ;;
         -f)
             activate_scenario_runner=true
             ask_scenario_runner=false
@@ -561,35 +685,49 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h)
-            echo 'usage: ./install_XXX [p:] [a:] [m:] [N] [h] [T] [B] [I] [S] [u] [R] [L] [c:] [k:] [e:] [z] [Z] [d] [D] [g] [G] [f] [F] [j] [J]'
+            echo 'usage: ./install_XXX [options]'
             echo ''
             echo 'options:'
-            echo -e '  -p DB_PW:\t\tSupply DB password'
+            echo -e '  --tz TZ:\t\t\tSet timezone'
+            echo -e '  --nvidia-gpu:\t\tInstall NVIDIA container toolkit headers'
+            echo -e '  --disable-tinyproxy:\tDo not install tinyproxy'
+            echo -e '  --disable-path-security:\tDisable path security checks'
+            echo -e '  --elephant-url URL:\tSupply Elephant URL'
+            echo -e '  --no-elephant:\t\tDo not configure Elephant'
+
+            echo -e '  -p DB_PW:\t\t\tSupply DB password'
             echo -e '  -a API_URL:\t\tSupply API URL'
             echo -e '  -m METRICS_URL:\tSupply Dashboard URL'
+
             echo -e '  -B:\t\t\tDo not build docker containers'
-            echo -e '  -W:\t\t\tDo not Modify hosts'
+            echo -e '  -W:\t\t\tDo not modify hosts file'
             echo -e '  -N:\t\t\tDo not install Python packages'
             echo -e '  -T:\t\t\tDo not ask for tmpfs remounting'
             echo -e '  -I:\t\t\tDo not install IPMI drivers'
             echo -e '  -S:\t\t\tDo not install lm-sensors package'
             echo -e '  -R:\t\t\tDo not install MSR tools'
-            echo -e '  -u:\t\t\tUse Python system packages'
+
+            echo -e '  -u:\t\t\tUse Python system site packages'
             echo -e '  -L:\t\t\tDisable SSL'
             echo -e '  -X:\t\t\tDo not build SGX checking binaries'
-            echo -e '  -c:\t\t\tSupply SSL .crt file'
-            echo -e '  -k:\t\t\tSupply SSL .key file'
-            echo -e '  -e: EE_TOKEN\t\tActivate enterprise features and store token'
+
+            echo -e '  -c FILE:\t\tSupply SSL .crt file'
+            echo -e '  -k FILE:\t\tSupply SSL .key file'
+            echo -e '  -e TOKEN:\t\tActivate enterprise features and store token'
+
             echo -e '  -z:\t\t\tDo not ask to send install telemetry ping'
-            echo -e '  -Z:\t\t\tForce to send install telemetry ping'
+            echo -e '  -Z:\t\t\tForce sending install telemetry ping'
+
             echo -e '  -d:\t\t\tActivate CarbonDB'
-            echo -e '  -D:\t\t\tDe-activate CarbonDB'
+            echo -e '  -D:\t\t\tDeactivate CarbonDB'
             echo -e '  -g:\t\t\tActivate PowerHOG'
-            echo -e '  -G:\t\t\tDe-activate PowerHOG'
+            echo -e '  -G:\t\t\tDeactivate PowerHOG'
             echo -e '  -f:\t\t\tActivate ScenarioRunner'
-            echo -e '  -F:\t\t\tDe-activate ScenarioRunner'
+            echo -e '  -F:\t\t\tDeactivate ScenarioRunner'
             echo -e '  -j:\t\t\tActivate Eco CI'
-            echo -e '  -J:\t\t\tDe-activate Eco CI'
+            echo -e '  -J:\t\t\tDeactivate Eco CI'
+            echo -e '  --software-view:\t\t\tActivate Software Category and Task View'
+            echo -e '  --no-software-view:\t\t\tDeactivate Software Category and Task View'
 
             exit 0
             ;;
@@ -651,6 +789,32 @@ if [[ -z $metrics_url ]] ; then
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
 fi
 
+if [[ $ask_elephant == true ]]; then
+    if [[ -z $elephant_url ]] ; then
+        echo ""
+        read -p "Use the Elephant Carbon Service? (y/N) : " use_elephant_service
+        if [[  "$use_elephant_service" == "Y" || "$use_elephant_service" == "y" ]] ; then
+            read -p "Please enter the Elephant Carbon Service URL (default: http://elephant.green-coding.internal:8085): " elephant_url
+            elephant_url=${elephant_url:-"http://elephant.green-coding.internal:8085"}
+        else
+            elephant_url=''
+        fi
+    fi
+fi
+
+# ---- Ask for timezone (default from system; fallback Europe/Berlin) ----
+if [[ -z $tz ]] ; then
+    default_tz=''
+    if [[ -f /etc/timezone ]]; then
+        default_tz="$(cat /etc/timezone 2>/dev/null)"
+    elif [[ -L /etc/localtime ]]; then
+        default_tz="$(realpath /etc/localtime 2>/dev/null | sed -E 's#.*/zoneinfo(\.default)?/##')"
+    fi
+    default_tz="${default_tz:-Europe/Berlin}"
+    echo ""
+    read -p "Enter timezone for Postgres and containers (e.g., Europe/Berlin) (default: ${default_tz}): " tz
+    tz="${tz:-$default_tz}"
+fi
 
 if [[ -f config.yml ]]; then
     password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)
@@ -686,7 +850,7 @@ if [[ $ask_eco_ci == true ]]; then
     fi
 fi
 
-if [[ $enterprise == true && $ask_carbon_db == true ]]; then
+if [[ $ask_carbon_db == true ]]; then
     echo ""
     read -p "Do you want to activate CarbonDB? (y/N) : " activate_carbon_db
     if [[  "$activate_carbon_db" == "Y" || "$activate_carbon_db" == "y" ]] ; then
@@ -696,7 +860,7 @@ if [[ $enterprise == true && $ask_carbon_db == true ]]; then
     fi
 fi
 
-if [[ $enterprise == true && $ask_power_hog == true ]]; then
+if [[ $ask_power_hog == true ]]; then
     echo ""
     read -p "Do you want to activate PowerHOG? (y/N) : " activate_power_hog
     if [[  "$activate_power_hog" == "Y" || "$activate_power_hog" == "y" ]] ; then
@@ -705,6 +869,17 @@ if [[ $enterprise == true && $ask_power_hog == true ]]; then
         activate_power_hog=false
     fi
 fi
+
+if [[ $ask_software_view == true ]]; then
+    echo ""
+    read -p "Do you want to activate the software category and tasks view? (y/N) : " activate_software_view
+    if [[  "$activate_software_view" == "Y" || "$activate_software_view" == "y" ]] ; then
+        activate_software_view=true
+    else
+        activate_software_view=false
+    fi
+fi
+
 
 if [[ $enterprise == true && $ask_ai_optimisations == true ]]; then
     echo ""
@@ -727,3 +902,11 @@ fi
 if [[ $force_send_ping == true || "$send_ping_input" == "Y" || "$send_ping_input" == "y" ]] ; then
     send_ping
 fi
+
+print_message 'Requesting sudo access to generate root only executable files'
+gmt_root_bin_dir='/usr/local/bin/green-metrics-tool'
+[ -d "$gmt_root_bin_dir" ] || sudo mkdir "$gmt_root_bin_dir"
+# using chown with UID:GID as names could be remapped and 0 is safe and also cross-platform (wheel in macos)
+sudo chown 0:0 "$gmt_root_bin_dir"
+# check as path can still contain symlinks
+check_file_permissions "$gmt_root_bin_dir"

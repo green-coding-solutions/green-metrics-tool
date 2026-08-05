@@ -5,7 +5,6 @@ description: Testing Noop
 
 services:
   test-container:
-    type: container
     image: alpine
 
 flow:
@@ -13,4 +12,4 @@ flow:
     container: test-container
     commands:
       - type: console
-        command: echo 1
+        command: sleep 1

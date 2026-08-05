@@ -8,7 +8,7 @@ const transformIfNotNull = (value, divide_by) => {
 // we do not allow a dynamic rescaling here, as we need all the units we feed into
 // to be on the same order of magnitude for comparisons and calcuations
 //
-// Function furthemore uses .substr instead of just replacing the unit, as some units have demominators like Bytes/s or
+// Function furthemore uses .slice instead of just replacing the unit, as some units have demominators like Bytes/s or
 // ugCO2e/ page request which we want to retain
 const convertValue = (value, unit) => {
 
@@ -16,33 +16,46 @@ const convertValue = (value, unit) => {
 
     switch (compare_unit) {
         case 'ugCO2e':
-            return [transformIfNotNull(value, 1_000_000), unit.substr(1)]
+            return [transformIfNotNull(value, 1_000_000), unit.slice(1)]
         case 'mJ':
             if (display_in_joules)
-                return [transformIfNotNull(value, 1_000), unit.substr(1)];
+                return [transformIfNotNull(value, 1_000), unit.slice(1)];
             else
-                return [transformIfNotNull(value, 3_600), `mWh${unit.substr(2)}`];
+                return [transformIfNotNull(value, 3_600), `mWh${unit.slice(2)}`];
         case 'uJ':
             if (display_in_joules)
-                return [transformIfNotNull(value, 1_000_000), unit.substr(1)];
+                return [transformIfNotNull(value, 1_000_000), unit.slice(1)];
             else
-                return [transformIfNotNull(value, 1_000 * 3_600), `mWh${unit.substr(2)}`];
+                return [transformIfNotNull(value, 1_000 * 3_600), `mWh${unit.slice(2)}`];
+        case 'J':
+            if (display_in_joules)
+                return [value, unit];
+            else
+                return [transformIfNotNull(value, 3_600_000), `kWh${unit.slice(1)}`];
         case 'mW':
-            return [transformIfNotNull(value, 1_000), unit.substr(1)];
+            return [transformIfNotNull(value, 1_000), unit.slice(1)];
         case 'Ratio':
-            return [transformIfNotNull(value, 100), `%${unit.substr(5)}`];
+            return [transformIfNotNull(value, 100), `%${unit.slice(5)}`];
         case 'centi°C':
-            return [transformIfNotNull(value, 100), unit.substr(5)];
+            return [transformIfNotNull(value, 100), unit.slice(5)];
         case 'Hz':
             return [transformIfNotNull(value, 1_000_000_000), `G${unit}`];
         case 'ns':
-            return [transformIfNotNull(value, 1_000_000_000), unit.substr(1)];
+            return [transformIfNotNull(value, 1_000_000_000), unit.slice(1)];
         case 'us':
-            return [transformIfNotNull(value, 1_000_000), unit.substr(1)];
+            return [transformIfNotNull(value, 1_000_000), unit.slice(1)];
         case 'ug':
-            return [transformIfNotNull(value, 1_000_000), unit.substr(1)]
+            return [transformIfNotNull(value, 1_000_000), unit.slice(1)]
         case 'Bytes':
-            return [transformIfNotNull(value, 1_000_000), `MB${unit.substr(5)}`];
+            return [transformIfNotNull(value, 1_000_000), `MB${unit.slice(5)}`];
+        case 'Wh':
+            return [transformIfNotNull(value, 1_000), `kWh${unit.slice(2)}`];
+        case 'mWh':
+            return [transformIfNotNull(value, 1_000_000), `kWh${unit.slice(3)}`];
+        case 'uWh':
+            return [transformIfNotNull(value, 1_000_000_000), `kWh${unit.slice(3)}`];
+        case 'kWh':
+            return [value, unit];
         default:
             return [value, unit];        // no conversion in default case
     }
@@ -54,4 +67,3 @@ const rescaleCO2Value = (value,unit) => {
     else if(value > 1_000) return [(value/(10**3)).toFixed(2), 'mg'];
     return [value.toFixed(2) , unit];
 }
-

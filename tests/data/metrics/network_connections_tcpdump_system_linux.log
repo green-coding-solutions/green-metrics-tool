@@ -20526,3 +20526,6 @@ tcpdump: listening on eth0, link-type EN10MB (Ethernet), snapshot length 262144 
     192.168.178.43.59366 > 5.75.242.14.9573: Flags [.], cksum 0x6a54 (incorrect -> 0x3b47), ack 3396, win 501, options [nop,nop,TS val 1787281943 ecr 740707352], length 0
 1736263288.963754 IP (tos 0x0, ttl 54, id 35161, offset 0, flags [DF], proto TCP (6), length 88)
     5.75.242.14.9573 > 192.168.178.43.59350: Flags [P.], cksum 0x9e28 (correct), seq 3262:3298, ack 998598, win 5379, options [nop,nop,TS val 740707397 ecr 1787281928], length 36
+1736263289.000000 STP 802.1w, Rapid STP, Flags [Proposal, Learn, Forward], bridge-id 8000.d0:ea:11:0d:f2:ae.8005, length 36
+	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
+	root-id 8000.d0:ea:11:0d:f2:ae, root-pathcost 0, port-role Designated

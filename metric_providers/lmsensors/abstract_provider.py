@@ -23,11 +23,11 @@ class LmsensorsProvider(BaseMetricProvider):
         return ['-c'] + [f"'{i}'" for i in provider_config['chips']] \
             + ['-f'] + [f"'{i}'" for i in provider_config['features']]
 
-    def __init__(self, metric_name, sampling_rate, unit, skip_check=False):
+    def __init__(self, *, metric_name, sampling_rate, unit, folder, skip_check=False):
         if __name__ == '__main__':
             # If you run this on the command line you will need to set this in the config
             # This is separate so it is always clear what config is used.
-            self._provider_config_path = 'lmsensors.abstract_provider.LmsensorsProvider'
+            self._provider_config_path = None
 
 
         super().__init__(
@@ -37,13 +37,14 @@ class LmsensorsProvider(BaseMetricProvider):
             unit=unit,
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
         )
 
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         super().check_system(check_command=None)
 
         # Run 'sensors' command and capture the output
-        ps = subprocess.run(['sensors'], capture_output=True, text=True, check=False)
+        ps = subprocess.run(['sensors'], capture_output=True, encoding='UTF-8', errors='replace', check=False)
         if ps.returncode != 0:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot run the 'sensors' command. Did you install lm-sensors?.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
 

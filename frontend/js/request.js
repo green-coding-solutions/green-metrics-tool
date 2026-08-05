@@ -19,18 +19,95 @@ const populateFieldsFromURL = () => {
     if (urlParams.has('branch')) {
         document.querySelector('input[name="branch"]').value = escapeString(urlParams.get('branch'));
     }
+    if (urlParams.has('commit_hash')) {
+        document.querySelector('input[name="commit_hash"]').value = escapeString(urlParams.get('commit_hash'));
+    }
     if (urlParams.has('machine_id')) {
         document.querySelector('select[name="machine_id"]').value = escapeString(urlParams.get('machine_id'));
+    }
+    if (urlParams.has('carbon_simulation')) {
+        document.querySelector('input[name="carbon_simulation"]').value = escapeString(urlParams.get('carbon_simulation'));
     }
     if (urlParams.has('schedule_mode')) {
         document.querySelector('select[name="schedule_mode"]').value = escapeString(urlParams.get('schedule_mode'));
     }
+    const usageScenarioVariables = {};
+    for (const [key, value] of urlParams.entries()) {
+        if (key.startsWith('usage_scenario_variables[') && key.endsWith(']')) {
+            const variableKey = key.slice(25, -1);
+            if (variableKey.trim() !== '') {
+                usageScenarioVariables[variableKey] = value;
+            }
+        }
+    }
+
+    if (Object.keys(usageScenarioVariables).length > 0) {
+        const variablesContainer = document.getElementById('variables-container');
+        variablesContainer.innerHTML = '';
+
+        for (const [key, value] of Object.entries(usageScenarioVariables)) {
+            const match = key.match(/^__GMT_VAR_([\w]+)__$/);
+            if (match) {
+                addVariableField(match[1], value);
+            }
+        }
+    }
 }
+const addVariableField = (keyPart = '', value = '') => {
+    const variablesContainer = document.getElementById('variables-container');
+    const newVariableRow = document.createElement('div');
+    newVariableRow.classList.add('variable-row', 'ui', 'grid', 'middle', 'aligned',  'stackable');
+
+  newVariableRow.innerHTML = `
+        <div class="seven wide column">
+                <div class="ui right labeled input fluid">
+                    <div class="ui label">__GMT_VAR_</div>
+                    <input type="text" placeholder="Key (Variables are optional. Leave empty if not needed)" class="variable-key" pattern="[\\w]+" title="Only alphanumeric characters and underscores are allowed." value="${escapeString(keyPart)}">
+                    <div class="ui label">__</div>
+                </div>
+        </div>
+        <div class="one wide column computer only tablet only" style="text-align: center; padding: 0;">
+            =
+        </div>
+        <div class="eight wide column">
+                <div class="ui action input fluid">
+                    <input type="text" placeholder="Value (Variables are optional. Leave empty if not needed)" class="variable-value" value="${escapeString(value)}">
+                    <button type="button" class="ui red mini icon button remove-variable">
+                        <i class="times icon"></i>
+                    </button>
+                </div>
+        </div>
+    `;
+
+    variablesContainer.appendChild(newVariableRow);
+    
+    const divider = document.createElement('div');
+    divider.classList.add('ui', 'divider', 'custom-mobile-divider');
+    variablesContainer.appendChild(divider);
+
+    updateRemoveButtonsVisibility();
+};
+
+const updateRemoveButtonsVisibility = () => {
+    const variableRows = document.querySelectorAll('#variables-container .variable-row');
+    variableRows.forEach(row => {
+        row.querySelector('.remove-variable').style.display = 'inline-block';
+    });
+    
+};
 
 
 (async () => {
 
-    await getClusterStatus();
+    getClusterStatus();
+
+    $('#add-variable').on('click', () => addVariableField());
+    addVariableField() // always add one empty row
+
+    $('#variables-container').on('click', '.remove-variable', function (e) {
+        $(this).closest('.variable-row').remove();
+        updateRemoveButtonsVisibility();
+    });
 
     try {
         var machines_json = await makeAPICall('/v1/machines');
@@ -41,13 +118,11 @@ const populateFieldsFromURL = () => {
                 const select = document.querySelector('select');
                 select.add(newOption,undefined);
             })
-
-        populateFieldsFromURL();
-
     } catch (err) {
         showNotification('Could not get machines data from API', err);
     }
 
+    populateFieldsFromURL(); // can run here as makeAPICall is anyway blocking and filling should take place even if API call fails
 
     document.forms[0].onsubmit = async (event) => {
         event.preventDefault();
@@ -56,21 +131,47 @@ const populateFieldsFromURL = () => {
         const data = new FormData(form);
         const values = Object.fromEntries(data.entries());
 
+        const usageScenarioVariables = {};
+        let validationError = false;
+        document.querySelectorAll('#variables-container .variable-row').forEach(row => {
+            const keyPart = row.querySelector('.variable-key').value.trim();
+            const value = row.querySelector('.variable-value').value.trim();
+            if (keyPart) {
+                if (!/^[\w]+$/.test(keyPart)) {
+                    showNotification('Validation Error', `Variable part "${keyPart}" must only contain alphanumeric characters.`, 'error');
+                    validationError = true;
+                    return;
+                }
+                const key = `__GMT_VAR_${keyPart}__`;
+                usageScenarioVariables[key] = value;
+            }
+        });
+
+        if (validationError) {
+            return;
+        }
+
+        values.usage_scenario_variables = usageScenarioVariables;
+
         for (let key in values) {
             if (typeof values[key] === 'string') {
                 values[key] = values[key].trim();
             }
         }
+        if (values.carbon_simulation === '') {
+            delete values.carbon_simulation;
+        }
 
         try {
-            await makeAPICall('/v1/software/add', values);
-            form.reset()
+            await makeAPICall('/v1/runs/add', values);
+            if (event.submitter?.id !== 'submit-keep-values') {
+                form.reset()
+                document.getElementById('variables-container').innerHTML = '';
+            }
             showNotification('Success', 'Save successful. Check your mail in 10-15 minutes', 'success');
         } catch (err) {
             showNotification('Could not get data from API', err);
         }
 
     }
-
-
 })();

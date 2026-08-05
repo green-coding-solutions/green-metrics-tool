@@ -15,7 +15,7 @@ done
 echo $detach
 
 if [ "$detach" = true ] ; then
-    docker compose -f ../docker/test-compose.yml up -d --remove-orphans 
+    docker compose -f ../docker/test-compose.yml up -d --pull never --no-build --remove-orphans
 else
-    docker compose -f ../docker/test-compose.yml up --remove-orphans
+    docker compose -f ../docker/test-compose.yml up --pull never --no-build --remove-orphans
 fi

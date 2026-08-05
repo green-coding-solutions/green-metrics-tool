@@ -10,7 +10,7 @@ import signal
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class PowermetricsProvider(BaseMetricProvider):
-    def __init__(self, sampling_rate, skip_check=False):
+    def __init__(self, sampling_rate, folder, skip_check=False):
         # We get this value on init as we want to have to for check_system to work in the normal case
         self._pm_process_count = self.powermetrics_total_count()
 
@@ -23,6 +23,7 @@ class PowermetricsProvider(BaseMetricProvider):
             metric_provider_executable='/usr/bin/powermetrics',
             sudo=True,
             skip_check=skip_check,
+            folder=folder,
         )
 
         self._skip_check =  skip_check
@@ -32,12 +33,13 @@ class PowermetricsProvider(BaseMetricProvider):
         if self._pm_process_count > 0:
             raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\n'
                                                    'Please close it before running the Green Metrics Tool.\n'
-                                                   'You can also override this with --skip-system-checks\n')
+                                                   'You can also override this with --dev-no-system-checks\n')
 
     def powermetrics_total_count(self):
         cmd = ['pgrep', '-ix', 'powermetrics']
         result = subprocess.run(cmd,
                                 encoding='UTF-8',
+                                errors='replace',
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
                                 check=False)
@@ -73,7 +75,7 @@ class PowermetricsProvider(BaseMetricProvider):
             # There is really no better way of doing this as of now. Keeping the process id for instance in a hash and
             # killing only that would also fail du to root permissions missing. If we add an /etc/sudoers entry with a
             # wildcard for a PID we open up a security hole. Happy to take suggestions on this one!
-            subprocess.check_output('sudo /usr/bin/killall powermetrics', shell=True)
+            subprocess.check_output('sudo /usr/bin/killall powermetrics', shell=True, encoding='UTF-8', errors='replace')
             print('Killed powermetrics process with killall!')
             if self._pm_process_count > 0:
                 print('-----------------------------------------------------------------------------------------------------------------')
@@ -88,7 +90,7 @@ class PowermetricsProvider(BaseMetricProvider):
             time.sleep(1)
             count += 1
             if count >= 60:
-                subprocess.check_output('sudo /usr/bin/killall -9 powermetrics', shell=True)
+                subprocess.check_output('sudo /usr/bin/killall -9 powermetrics', shell=True, encoding='UTF-8', errors='replace')
                 raise RuntimeError('powermetrics had to be killed with kill -9. Values can not be trusted!')
 
         self._ps = None
@@ -211,9 +213,6 @@ class PowermetricsProvider(BaseMetricProvider):
                             'uJ'])
 
         df = pandas.DataFrame.from_records(dfs, columns=['time', 'value', 'metric', 'detail_name', 'unit'])
-
-        if df.empty:
-            raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
 
         return df
 

@@ -3,7 +3,7 @@ import os
 from metric_providers.base import BaseMetricProvider
 
 class CpuThrottlingMsrComponentProvider(BaseMetricProvider):
-    def __init__(self, sampling_rate, skip_check=False):
+    def __init__(self, sampling_rate, folder, skip_check=False):
         super().__init__(
             metric_name='cpu_throttling_msr_component',
             metrics={'time': int, 'thermal_throttling_status': int, 'power_limit_throttling_status': int, 'package_id': str},
@@ -11,6 +11,7 @@ class CpuThrottlingMsrComponentProvider(BaseMetricProvider):
             unit='boolean',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
         )
         self._sub_metrics_name = ['cpu_throttling_thermal_msr_component', 'cpu_throttling_power_msr_component']
 

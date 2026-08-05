@@ -1,2 +1,2 @@
 test-container:
-  type: container
+  image: alpine

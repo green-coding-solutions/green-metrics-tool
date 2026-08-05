@@ -4,6 +4,9 @@ let repository_uri = null; // Store unescaped URI for URL construction
 window.onresize = function() { // set callback when ever the user changes the viewport
     chart_instances.forEach(chart_instance => {
         chart_instance.resize();
+        // graphic elements (changelog markers) are positioned in pixels, so they need
+        // to be redrawn whenever the chart's layout changes
+        renderChangelogChangeLines(chart_instance, chart_instance._changelogTotalDataPoints, chart_instance._changelogSegments);
     })
 }
 
@@ -57,86 +60,402 @@ const populateMachines = async () => {
 
 }
 
+const normalizeVariableKeyPart = (key) => {
+    const match = key.match(/^__GMT_VAR_([\w]+)__$/);
+    if (match) return match[1];
+    return key;
+}
+
+const addVariableField = (keyPart = '', value = '') => {
+    const variablesContainer = document.getElementById('variables-container');
+    const newVariableRow = document.createElement('div');
+    newVariableRow.classList.add('variable-row', 'ui', 'grid', 'middle', 'aligned',  'stackable');
+
+    newVariableRow.innerHTML = `
+        <div class="seven wide column">
+            <div class="ui right labeled input fluid">
+                <div class="ui label">__GMT_VAR_</div>
+                <input type="text" placeholder="Key part" class="variable-key" pattern="[\\w]+" title="Only alphanumeric characters and underscores are allowed." value="${escapeString(keyPart)}">
+                <div class="ui label">__</div>
+            </div>
+        </div>
+        <div class="one wide column computer only tablet only" style="text-align: center; padding: 0;">
+            =
+        </div>
+        <div class="eight wide column">
+            <div class="ui action input fluid">
+                <input type="text" placeholder="Value" class="variable-value" value="${escapeString(value)}">
+                <button type="button" class="ui red mini icon button remove-variable">
+                    <i class="times icon"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    variablesContainer.appendChild(newVariableRow);
+}
+
+const parseUsageScenarioVariablesFromURL = () => {
+    const variables = {};
+    const urlSearchParams = new URLSearchParams(window.location.search);
+
+    for (const [key, value] of urlSearchParams.entries()) {
+        if (key.startsWith('usage_scenario_variables[') && key.endsWith(']')) {
+            const variableKey = key.slice(25, -1);
+            if (variableKey.trim() !== '') {
+                variables[variableKey] = value;
+            }
+        }
+    }
+
+    return variables;
+}
+
+const getUsageScenarioVariablesFromForm = () => {
+    const usageScenarioVariables = {};
+    let validationError = false;
+
+    document.querySelectorAll('#variables-container .variable-row').forEach(row => {
+        const keyPart = row.querySelector('.variable-key').value.trim();
+        const value = row.querySelector('.variable-value').value.trim();
+
+        if (keyPart === '') return;
+
+        if (!/^[\w]+$/.test(keyPart)) {
+            showNotification('Validation Error', `Variable part "${keyPart}" must only contain alphanumeric characters.`, 'error');
+            validationError = true;
+            return;
+        }
+
+        const key = `__GMT_VAR_${keyPart}__`;
+        usageScenarioVariables[key] = value;
+    });
+
+    if (validationError) return null;
+    return usageScenarioVariables;
+}
+
+const stringifyUsageScenarioVariables = (usageScenarioVariables, joiner=', ', escape=false) => {
+    let pairs = null;
+    if (escape) {
+        pairs = Object.entries(usageScenarioVariables).map(([key, value]) => escapeString(`${key}=${value}`) );
+    } else {
+        pairs = Object.entries(usageScenarioVariables).map(([key, value]) => `${key}=${value}`);
+    }
+    return pairs.length > 0 ? pairs.join(joiner) : '-';
+}
+
+const updateUsageScenarioVariablesInputState = () => {
+    const noVariablesOnly = document.querySelector('#usage-scenario-variables-none')?.checked === true;
+    document.querySelectorAll('#variables-container .variable-key, #variables-container .variable-value, #variables-container .remove-variable').forEach((el) => {
+        el.disabled = noVariablesOnly;
+    });
+    const addButton = document.querySelector('#add-variable');
+    if (addButton) addButton.disabled = noVariablesOnly;
+
+    const variablesContainer = document.querySelector('#variables-container');
+    if (variablesContainer) {
+        if (noVariablesOnly) variablesContainer.classList.add('disabled');
+        else variablesContainer.classList.remove('disabled');
+    }
+}
+
 const fillInputsFromURL = (url_params) => {
 
-    repository_uri = url_params['uri']; // Store the unescaped value globally for URL construction later
+    repository_uri = url_params['uri']; // Store the unescaped value globaly for URL construction later
     if(repository_uri == null
         || repository_uri == ''
         || repository_uri == 'null') {
         showNotification('No uri', 'uri parameter in URL is empty or not present. Did you follow a correct URL?');
         throw "Error";
     }
-    if(!repository_uri.startsWith('http') && !repository_uri.startsWith('/')) {
-        showNotification('Invalid URI', 'URI must be a valid HTTP/HTTPS URL or absolute file path');
+    if(!repository_uri.startsWith('http') && !repository_uri.startsWith('/') && !repository_uri.startsWith('git@') && !repository_uri.startsWith('ssh://')) {
+        showNotification('Invalid URI', 'URI must be a valid HTTP/HTTPS URL, absolute file path, or SSH repository URI (git@/ssh://)');
         throw "Error";
     }
-    $('input[name="uri"]').val(escapeString(repository_uri));
-    $('#uri').text(escapeString(repository_uri));
+    // setting as value / innerText needs no XSS escaping
+    $('input[name="uri"]').val(repository_uri);
+    $('#uri').text(repository_uri);
 
     // all variables can be set via URL initially
     if(url_params['branch'] != null) {
-        $('input[name="branch"]').val(escapeString(url_params['branch']));
-        $('#branch').text(escapeString(url_params['branch']));
+        $('input[name="branch"]').val(url_params['branch']);
+        $('#branch').text(url_params['branch']);
     }
     if(url_params['filename'] != null) {
-        $('input[name="filename"]').val(escapeString(url_params['filename']));
-        $('#filename').text(escapeString(url_params['filename']));
+        $('input[name="filename"]').val(url_params['filename']);
+        $('#filename').text(url_params['filename']);
     }
+
+    const noUsageScenarioVariables = url_params['usage_scenario_variables'] === 'false';
+    const usageScenarioVariables = parseUsageScenarioVariablesFromURL();
+    const usageScenarioVariableEntries = Object.entries(usageScenarioVariables);
+    if (usageScenarioVariableEntries.length > 0) {
+        const variablesContainer = document.getElementById('variables-container');
+        variablesContainer.innerHTML = '';
+        usageScenarioVariableEntries.forEach(([key, value]) => {
+            addVariableField(normalizeVariableKeyPart(key), value);
+        });
+    }
+
+    const noUsageScenarioVariablesCheckbox = document.querySelector('#usage-scenario-variables-none');
+    if (noUsageScenarioVariablesCheckbox) {
+        noUsageScenarioVariablesCheckbox.checked = noUsageScenarioVariables;
+    }
+    updateUsageScenarioVariablesInputState();
+
+    if (noUsageScenarioVariables) $('#usage-scenario-variables').text('No usage scenario variables');
+    else $('#usage-scenario-variables').text(stringifyUsageScenarioVariables(usageScenarioVariables));
     if(url_params['machine_id'] != null) {
-        $('select[name="machine_id"]').val(escapeString(url_params['machine_id']));
+        $('select[name="machine_id"]').val(url_params['machine_id']);
         $('#machine').text($('select[name="machine_id"] :checked').text());
     }
     if(url_params['sorting'] != null) $(`#sorting-${url_params['sorting']}`).prop('checked', true);
-    if(url_params['phase'] != null) $(`#phase-${url_params['phase']}`).prop('checked', true);
-    if(url_params['metrics'] != null) $(`#metrics-${url_params['metrics']}`).prop('checked', true);
+    if(url_params['metric'] != null) $(`#metric-${url_params['metric']}`).prop('checked', true);
+    if(url_params['show_archived'] != null) $(`input[name="show_archived"][value="${url_params['show_archived']}"]`).prop('checked', true);
+
+    if(url_params['phase'] != null && url_params['phase'] !== '') {
+        const matchingPhaseRadio = $(`input[name="phase"][value="${url_params['phase']}"]`);
+        if (matchingPhaseRadio.length > 0) {
+            matchingPhaseRadio.prop('checked', true);
+        } else {
+            $('input[name="phase"][value="custom"]').prop('checked', true);
+            $('input[name="phase_custom"]').val(url_params['phase']);
+        }
+    }
+
+    updateCustomPhaseInputVisibility();
 
 }
 
-const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null) => {
+const updateCustomPhaseInputVisibility = () => {
+    const isCustomSelected = $('input[name="phase"]:checked').val() === 'custom';
+    const customField = $('.phase-custom-field');
+    const customInput = $('input[name="phase_custom"]');
+
+    if (isCustomSelected) {
+        customField.show();
+        customInput.prop('disabled', false);
+    } else {
+        customField.hide();
+        customInput.prop('disabled', true);
+        customInput.val('');
+    }
+}
+
+const getSelectedPhase = () => {
+    const selectedPhase = $('input[name="phase"]:checked').val();
+    if (selectedPhase !== 'custom') return selectedPhase;
+
+    const customPhase = $('input[name="phase_custom"]').val().trim();
+    return customPhase;
+}
+
+const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null,html_replace=false) => {
+    const usageScenarioVariables = getUsageScenarioVariablesFromForm();
+    if (usageScenarioVariables === null) {
+        throw new Error('Invalid usage scenario variables');
+    }
+
     let api_url = `uri=${encodeURIComponent(repository_uri)}`;
 
+    const ampersand = html_replace ? '&amp;' : '&';
+
     // however, the form takes precendence
-    if($('input[name="branch"]').val() !== '') api_url = `${api_url}&branch=${encodeURIComponent($('input[name="branch"]').val())}`
-    if($('input[name="sorting"]:checked').val() !== '') api_url = `${api_url}&sorting=${encodeURIComponent($('input[name="sorting"]:checked').val())}`
-    if($('input[name="phase"]:checked').val() !== '') api_url = `${api_url}&phase=${encodeURIComponent($('input[name="phase"]:checked').val())}`
-    if($('select[name="machine_id"]').val() !== '') api_url = `${api_url}&machine_id=${encodeURIComponent($('select[name="machine_id"]').val())}`
-    if($('input[name="filename"]').val() !== '') api_url = `${api_url}&filename=${encodeURIComponent($('input[name="filename"]').val())}`
+    if($('input[name="branch"]').val() !== '') api_url += `${ampersand}branch=${encodeURIComponent($('input[name="branch"]').val())}`
+    if($('input[name="sorting"]:checked').val() !== '') api_url += `${ampersand}sorting=${encodeURIComponent($('input[name="sorting"]:checked').val())}`
+    if($('input[name="phase"]:checked').val() !== '') {
+        const selectedPhase = $('input[name="phase"]:checked').val();
+        const phaseValue = getSelectedPhase();
+        if (selectedPhase === 'custom') {
+            if (phaseValue !== '') api_url += `${ampersand}phase=${encodeURIComponent(phaseValue)}`
+        } else {
+            api_url += `${ampersand}phase=${encodeURIComponent(selectedPhase)}`
+        }
+    }
+    if($('select[name="machine_id"]').val() !== '') api_url += `${ampersand}machine_id=${encodeURIComponent($('select[name="machine_id"]').val())}`
+    if($('input[name="filename"]').val() !== '') api_url += `${ampersand}filename=${encodeURIComponent($('input[name="filename"]').val())}`
+    if($('input[name="show_archived"]:checked').val() === 'true') api_url += `${ampersand}show_archived=true`
+    if (document.querySelector('#usage-scenario-variables-none')?.checked === true) {
+        api_url += `${ampersand}usage_scenario_variables=${encodeURIComponent('false')}`
+    } else {
+        Object.entries(usageScenarioVariables).forEach(([key, value]) => {
+            api_url += `${ampersand}usage_scenario_variables[${encodeURIComponent(key)}]=${encodeURIComponent(value)}`
+        });
+    }
 
-    if(metric_override != null) api_url = `${api_url}&metric=${encodeURIComponent(metric_override)}`
-    else if($('input[name="metrics"]:checked').val() !== '') api_url = `${api_url}&metric=${encodeURIComponent($('input[name="metrics"]:checked').val())}`
+    if(metric_override != null) api_url += `${ampersand}metric=${encodeURIComponent(metric_override)}`
+    else if($('input[name="metric"]:checked').val() !== '') api_url += `${ampersand}metric=${encodeURIComponent($('input[name="metric"]:checked').val())}`
 
-    if(detail_name != null) api_url = `${api_url}&detail_name=${encodeURIComponent(detail_name)}`
+    if(detail_name != null) api_url += `${ampersand}detail_name=${encodeURIComponent(detail_name)}`
 
     if (skip_dates) return api_url;
 
     if ($('input[name="start_date"]').val() != '') {
         let start_date = dateToYMD(new Date($('input[name="start_date"]').val()), short=true);
-        api_url = `${api_url}&start_date=${encodeURIComponent(start_date)}`
+        api_url += `${ampersand}start_date=${encodeURIComponent(start_date)}`
     }
 
     if ($('input[name="end_date"]').val() != '') {
         let end_date = dateToYMD(new Date($('input[name="end_date"]').val()), short=true);
-        api_url = `${api_url}&end_date=${encodeURIComponent(end_date)}`
+        api_url += `${ampersand}end_date=${encodeURIComponent(end_date)}`
     }
     return api_url;
 }
 
+// Builds one segment per pair of neighbouring datapoints that a changelog entry falls between.
+// Positioning is resolved later against actual pixel coordinates (see renderChangelogChangeLines),
+// since a category axis always rounds fractional index/coord values onto a tick and can't place a
+// markLine "between" two points on its own.
+const buildClusterChangelogSegments = (clusterChangelog, timestamps) => {
+    if (clusterChangelog == null || clusterChangelog.length === 0 || timestamps.length === 0) return [];
+
+    const labelTimestamps = timestamps.map((timestamp, index) => ({
+        index: index,
+        timestamp: new Date(timestamp).getTime(),
+    })).filter((entry) => !Number.isNaN(entry.timestamp));
+
+    if (labelTimestamps.length < 2) return [];
+
+    const firstTimestamp = labelTimestamps[0].timestamp;
+    const lastTimestamp = labelTimestamps[labelTimestamps.length - 1].timestamp;
+
+    let aggregatedEntries = {};
+
+    clusterChangelog.forEach((entry) => {
+        const changelogCreatedAt = new Date(entry[3]).getTime();
+        if (Number.isNaN(changelogCreatedAt)) return;
+        if (changelogCreatedAt < firstTimestamp || changelogCreatedAt > lastTimestamp) return;
+
+        // find the datapoint right before the change (leftLabel) and right after it (rightLabel)
+        // so the line can be placed between them instead of snapping onto the right one
+        let leftIndex = 0;
+        while (leftIndex < labelTimestamps.length - 2 && labelTimestamps[leftIndex + 1].timestamp <= changelogCreatedAt) {
+            leftIndex++;
+        }
+        const rightIndex = leftIndex + 1;
+
+        if (aggregatedEntries[leftIndex] == undefined) {
+            aggregatedEntries[leftIndex] = {
+                leftIndex: labelTimestamps[leftIndex].index,
+                rightIndex: labelTimestamps[rightIndex].index,
+                messages: [],
+            };
+        }
+
+        aggregatedEntries[leftIndex].messages.push(`${entry[1]} (${dateToYMD(new Date(entry[3]), false, true)})`);
+
+    });
+
+    return Object.values(aggregatedEntries);
+}
+
+const wrapTooltipText = (text, maxLength = 40) => {
+    if (text.length <= maxLength) return text;
+
+    const lines = [];
+    let currentLine = '';
+
+    for (const char of text) {
+        currentLine += char;
+        if (currentLine.length >= maxLength) {
+            lines.push(escapeString(currentLine.substring(0, maxLength)));
+            currentLine = currentLine.substring(maxLength);
+        }
+    }
+
+    if (currentLine.length > 0) escapeString(lines.push(currentLine));
+    return lines.join('<br>');
+}
+
+// Draws the changelog markers as pixel-positioned graphic elements rather than a markLine,
+// since a category axis rounds any fractional xAxis/coord value onto the nearest tick and
+// can therefore never place a markLine visually between two datapoints.
+// Must be re-run whenever the chart's pixel layout changes (resize, dataZoom).
+const renderChangelogChangeLines = (chart_instance, totalDataPoints, segments) => {
+    if (segments == null || segments.length === 0) {
+        chart_instance.setOption({graphic: {elements: []}}, {replaceMerge: ['graphic']});
+        return;
+    }
+
+    const dataZoomOption = chart_instance.getOption().dataZoom?.[0];
+    const startIndex = dataZoomOption ? Math.floor(dataZoomOption.start / 100 * totalDataPoints) : 0;
+    const endIndex = dataZoomOption ? Math.ceil(dataZoomOption.end / 100 * totalDataPoints) - 1 : totalDataPoints - 1;
+
+    const gridRect = chart_instance.getModel().getComponent('grid').coordinateSystem.getRect();
+
+    const elements = [];
+    segments.forEach((segment, segmentIndex) => {
+        if (segment.rightIndex < startIndex || segment.leftIndex > endIndex) return; // fully outside the zoomed view
+
+        const leftPixel = chart_instance.convertToPixel({xAxisIndex: 0}, segment.leftIndex);
+        const rightPixel = chart_instance.convertToPixel({xAxisIndex: 0}, segment.rightIndex);
+        if (leftPixel == null || rightPixel == null) return;
+
+        const midX = (leftPixel + rightPixel) / 2;
+        const mergedMessages = segment.messages.map((message) => wrapTooltipText(message)).join('</li><li>');
+
+        elements.push({
+            id: `changelog-marker-${segmentIndex}`,
+            type: 'group',
+            children: [
+                {
+                    type: 'line',
+                    silent: true,
+                    shape: {x1: midX, y1: gridRect.y, x2: midX, y2: gridRect.y + gridRect.height},
+                    style: {stroke: '#d17a22', lineWidth: 2, lineDash: [4, 4]},
+                },
+                {
+                    type: 'rect',
+                    cursor: 'pointer',
+                    shape: {x: midX - 5, y: gridRect.y, width: 10, height: gridRect.height},
+                    style: {fill: 'transparent'},
+                    tooltip: {
+                        formatter: () => `<strong>Cluster Change</strong><br>
+                            <ul style="margin-left: -20px">
+                            <li>${mergedMessages}</li>
+                            </ul>
+                        `
+                    },
+                }
+            ]
+        });
+    });
+
+    chart_instance.setOption({graphic: {elements}}, {replaceMerge: ['graphic']});
+}
+
 
 const loadCharts = async () => {
+    if ($('input[name="phase"]:checked').val() === 'custom' && $('input[name="phase_custom"]').val().trim() === '') {
+        showNotification('Custom phase missing', 'Please provide a phase name for the custom phase filter.');
+        return;
+    }
+
     chart_instances = []; // reset
     document.querySelector("#chart-container").innerHTML = ''; // reset
     document.querySelector("#badge-container").innerHTML = ''; // reset
 
-    let phase_stats_data = null;
-    try {
-        phase_stats_data = (await makeAPICall(`/v1/timeline?${buildQueryParams()}`)).data
-        console.log(phase_stats_data);
+    const usageScenarioVariables = getUsageScenarioVariablesFromForm();
+    if (usageScenarioVariables === null) {
+        return;
+    }
+    if (document.querySelector('#usage-scenario-variables-none')?.checked === true) {
+        $('#usage-scenario-variables').text('No usage scenario variables');
+    } else {
+        $('#usage-scenario-variables').text(stringifyUsageScenarioVariables(usageScenarioVariables));
+    }
 
+    let phase_stats_data = null;
+    let cluster_changelog_data = [];
+    try {
+        const queryParams = buildQueryParams();
+        phase_stats_data = (await makeAPICall(`/v2/timeline?${queryParams}`)).data
         document.querySelectorAll('.container-no-data').forEach(el => el.style.display = '')
         document.querySelector('#message-no-data').style.display = 'none';
 
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             document.querySelectorAll('.container-no-data').forEach(el => el.style.display = 'none')
             document.querySelector('#message-no-data').style.display = '';
             document.querySelector('a.item[data-tab=two]').click()
@@ -149,35 +468,61 @@ const loadCharts = async () => {
 
     history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${buildQueryParams()}`); // replace URL to bookmark!
 
+    const isMeasurementSorting = $('input[name="sorting"]:checked').val() === 'run';
     let legends = {};
     let series = {};
 
     let prun_id = null
 
     phase_stats_data.forEach( (data) => {
-        let [run_id, run_name, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash] = data
+        let [run_id, run_name, usage_scenario_variables, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash, archived] = data
 
         const [transformed_value, transformed_unit] = convertValue(value, unit)
 
         if (series[`${metric_name} - ${detail_name}`] == undefined) {
-            series[`${metric_name} - ${detail_name}`] = {labels: [], values: [], notes: [], unit: transformed_unit, metric_name: metric_name, detail_name: detail_name}
+            series[`${metric_name} - ${detail_name}`] = {labels: [], timestamps: [], values: [], notes: [], unit: transformed_unit, metric_name: metric_name, detail_name: detail_name}
         }
 
-        series[`${metric_name} - ${detail_name}`].labels.push(commit_timestamp)
+        const timelineTimestamp = isMeasurementSorting ? created_at : commit_timestamp;
+        series[`${metric_name} - ${detail_name}`].labels.push(timelineTimestamp)
+        series[`${metric_name} - ${detail_name}`].timestamps.push(created_at)
         series[`${metric_name} - ${detail_name}`].values.push({value: transformed_value, commit_hash: commit_hash, gmt_hash: gmt_hash})
         series[`${metric_name} - ${detail_name}`].notes.push({
             run_name: run_name,
+            usage_scenario_variables: usage_scenario_variables,
             created_at: created_at,
             commit_timestamp: commit_timestamp,
             commit_hash: commit_hash,
             phase: phase,
             run_id: run_id,
             prun_id: prun_id,
+            archived: archived,
             gmt_hash: gmt_hash,
         })
 
         prun_id = run_id
     })
+
+    try {
+        const machineId = $('select[name="machine_id"]').val();
+
+        if (isMeasurementSorting && machineId !== '') {
+            const changelogParams = new URLSearchParams();
+            changelogParams.set('machine_id', machineId);
+            changelogParams.set('show_package_updates', false);
+            if ($('input[name="start_date"]').val() !== '') {
+                changelogParams.set('start_date', dateToYMD(new Date($('input[name="start_date"]').val()), true));
+            }
+            if ($('input[name="end_date"]').val() !== '') {
+                changelogParams.set('end_date', dateToYMD(new Date($('input[name="end_date"]').val()), true));
+            }
+            cluster_changelog_data = (await makeAPICall(`/v1/cluster/changelog?${changelogParams.toString()}`)).data ?? [];
+        }
+    } catch (err) {
+        if (!(err instanceof APIHTTPError && err.status === 204)) {
+            showNotification('Could not get cluster changelog data from API', err);
+        }
+    }
 
     for(const my_series in series) {
         let badge = `
@@ -190,7 +535,7 @@ const loadCharts = async () => {
                             <i class="question circle icon link"></i>
                         </i>
                     </div>
-                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams()}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(skip_dates=false,metric_override=series[my_series].metric_name,detail_name=series[my_series].detail_name)}&unit=joules"></a></span>
+                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams(false, null, null, true)}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(false,series[my_series].metric_name,series[my_series].detail_name, true)}&unit=joules" onerror="this.parentNode.parentNode.parentNode.remove(); console.log('Could not render ${series[my_series].metric_name} badge - Likely due to non public visibility of the run.')"></a></span>
                     <a class="copy-badge"><i class="copy icon"></i></a>
                 </div>
                 <p></p>`
@@ -212,9 +557,11 @@ const loadCharts = async () => {
             data: my_values,
             markLine: {
                 precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
-                data: [ {type: "average",label: {formatter: "AVG:\n{c}"}}] 
+                data: [ {type: "average",label: {formatter: "AVG:\n{c}"}}]
             }
-        }]
+        }];
+
+        const clusterChangelogSegments = isMeasurementSorting ? buildClusterChangelogSegments(cluster_changelog_data, series[my_series].timestamps) : [];
 
         let options = getLineBarChartOptions([], series[my_series].labels, data_series, 'Time', series[my_series].unit,  'category', null, false, null, true, false, true);
 
@@ -222,19 +569,35 @@ const loadCharts = async () => {
             triggerOn: 'click',
             formatter: function (params, ticket, callback) {
                 if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
-                return `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong><br>
+                const repository_uri_encoded = repository_uri.split('/').map(encodeURIComponent).join('/');
+                const html_content = `<strong>${escapeString(series[params.seriesName].notes[params.dataIndex].run_name)}</strong> ${series[params.seriesName].notes[params.dataIndex].archived ? '<span class="ui orange label">Archived</span>' : ''}<br>
                         run_id: <a href="/stats.html?id=${series[params.seriesName].notes[params.dataIndex].run_id}"  target="_blank">${series[params.seriesName].notes[params.dataIndex].run_id}</a><br>
-                        date: ${series[params.seriesName].notes[params.dataIndex].created_at}<br>
+                        date: ${dateToYMD(new Date(series[params.seriesName].notes[params.dataIndex].created_at), false, true)}<br>
                         metric_name: ${escapeString(params.seriesName)}<br>
                         phase: ${escapeString(series[params.seriesName].notes[params.dataIndex].phase)}<br>
+                        usage_scenario_variables: ${stringifyUsageScenarioVariables(series[params.seriesName].notes[params.dataIndex].usage_scenario_variables, '<br>&nbsp;&nbsp;', true)}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
-                        commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
-                        commit_hash: <a href="${encodeURIComponent(repository_uri)}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
+                        commit_timestamp: ${dateToYMD(new Date(series[params.seriesName].notes[params.dataIndex].commit_timestamp), false, true)} <br>
+                        commit_hash: <a class="commit-hash-link" href="" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
                         gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].gmt_hash)}</a><br>
 
                         <br>
                         👉 <a href="/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}" target="_blank">Diff with previous run</a>
                         `;
+                        const container = document.createElement('div');
+                        container.innerHTML = html_content;
+                        // adding as href will not trigger any XSS problems which might come from user input here
+                        const commitHashLink = container.querySelector('.commit-hash-link');
+                        const commitLink = getRepoRefUrl(repository_uri, 'commit');
+                        if (commitLink) {
+                            commitHashLink.href = `${commitLink}${series[params.seriesName].notes[params.dataIndex].commit_hash}`;
+                        } else {
+                            commitHashLink.replaceWith(commitHashLink.textContent);
+                        }
+                        return container;
+
+
+
             }
         };
 
@@ -247,6 +610,13 @@ const loadCharts = async () => {
 
         chart_instance.setOption(options);
         chart_instances.push(chart_instance);
+
+        // stored on the instance so the resize handler (top of file) can redraw the changelog
+        // markers whenever the chart's pixel layout changes
+        chart_instance._changelogSegments = clusterChangelogSegments;
+        chart_instance._changelogTotalDataPoints = my_values.length;
+        renderChangelogChangeLines(chart_instance, my_values.length, clusterChangelogSegments);
+
         chart_instance.on('datazoom', function(e, f) {
             const data = chart_instance.getOption().series[0].data
             const dataZoomOption = chart_instance.getOption().dataZoom[0];
@@ -255,13 +625,18 @@ const loadCharts = async () => {
             const totalDataPoints = data.length;
             const startIndex = Math.floor(startPercent / 100 * totalDataPoints);
             const endIndex = Math.ceil(endPercent / 100 * totalDataPoints) - 1;
-            const [ mean, stddev ] = calculateStatistics(data.slice(startIndex, endIndex+1), true);
+            const [ mean, stddev ] = calculateStatistics(data.slice(startIndex, endIndex+1));
 
             let options = chart_instance.getOption()
-            options.series[2].markArea.data[0][0].name = `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `(${(stddev/mean * 100).toFixed(2)} %)` : 'N/A'}} %)`
-            options.series[2].markArea.data[0][0].yAxis = mean + stddev
-            options.series[2].markArea.data[0][1].yAxis = mean - stddev;
+            const stddevSeries = options.series.find((entry) => entry.name === 'Stddev');
+            if (stddevSeries?.markArea?.data?.[0] != null) {
+                stddevSeries.markArea.data[0][0].name = `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `(${(stddev/mean * 100).toFixed(2)} %)` : 'N/A'}} %)`
+                stddevSeries.markArea.data[0][0].yAxis = mean + stddev
+                stddevSeries.markArea.data[0][1].yAxis = mean - stddev;
+            }
             chart_instance.setOption(options)
+
+            renderChangelogChangeLines(chart_instance, chart_instance._changelogTotalDataPoints, chart_instance._changelogSegments);
         });
 
     }
@@ -280,13 +655,25 @@ $(document).ready( (e) => {
         const url_params = getURLParams();
         dateTimePicker(30, url_params);
 
+        $('#add-variable').on('click', () => addVariableField());
+        $('#usage-scenario-variables-none').on('change', function() {
+            updateUsageScenarioVariablesInputState();
+        });
+        $('#variables-container').on('click', '.remove-variable', function () {
+            $(this).closest('.variable-row').remove();
+            if (document.querySelectorAll('#variables-container .variable-row').length === 0) {
+                addVariableField();
+            }
+        });
+        addVariableField();
+
         await populateMachines();
 
         $('#submit').on('click', function() {
             loadCharts();
         });
+        $('input[name="phase"]').on('change', updateCustomPhaseInputVisibility);
         fillInputsFromURL(url_params);
         loadCharts();
     })();
 });
-

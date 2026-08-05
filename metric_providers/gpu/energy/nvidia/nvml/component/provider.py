@@ -3,7 +3,7 @@ import os
 from metric_providers.base import BaseMetricProvider
 
 class GpuEnergyNvidiaNvmlComponentProvider(BaseMetricProvider):
-    def __init__(self, sampling_rate, skip_check=False):
+    def __init__(self, sampling_rate, folder, skip_check=False):
         super().__init__(
             metric_name='gpu_energy_nvidia_nvml_component',
             metrics={'time': int, 'value': int, 'card_model': str},
@@ -11,6 +11,7 @@ class GpuEnergyNvidiaNvmlComponentProvider(BaseMetricProvider):
             unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
         )
 
     def _parse_metrics(self, df):

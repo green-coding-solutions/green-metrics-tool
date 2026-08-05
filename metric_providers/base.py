@@ -20,6 +20,7 @@ class BaseMetricProvider:
         sampling_rate,
         unit,
         current_dir,
+        folder,
         metric_provider_executable='metric-provider-binary',
         sudo=False,
         disable_buffer=True,
@@ -35,13 +36,10 @@ class BaseMetricProvider:
         self._has_started = False
         self._disable_buffer = disable_buffer
         self._skip_check = skip_check
-
-        self._tmp_folder = '/tmp/green-metrics-tool'
         self._ps = None
 
-        Path(self._tmp_folder).mkdir(exist_ok=True)
-
-        self._filename = f"{self._tmp_folder}/{self._metric_name}.log"
+        self._folder = Path(folder).resolve(strict=True)
+        self._filename = self._folder.joinpath(f"{self._metric_name}.log")
 
         if not self._skip_check:
             self.check_system()
@@ -56,7 +54,7 @@ class BaseMetricProvider:
                     call_string = f"{self._current_dir}/{call_string}"
                 check_command = [f"{call_string}", '-c']
 
-            ps = subprocess.run(check_command, capture_output=True, encoding='UTF-8', check=False)
+            ps = subprocess.run(check_command, capture_output=True, encoding='UTF-8', errors='replace', check=False)
             if ps.returncode != 0:
                 if check_error_message is None:
                     check_error_message = ps.stderr
@@ -68,7 +66,7 @@ class BaseMetricProvider:
             result = subprocess.run(cmd,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
-                                check=False, encoding='UTF-8')
+                                check=False, encoding='UTF-8', errors='replace')
             if result.returncode == 1:
                 pass
             elif result.returncode == 0:
@@ -90,7 +88,7 @@ class BaseMetricProvider:
         if self._ps.stderr is not None:
             stderr_read = self._ps.stderr.read()
             if isinstance(stderr_read, bytes):
-                stderr_read = stderr_read.decode('utf-8')
+                stderr_read = stderr_read.decode('utf-8', errors='replace')
         return stderr_read
 
     def has_started(self):

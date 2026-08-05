@@ -10,7 +10,7 @@ services:
     image: gcb_stress
     container_name: test-container
     volumes:
-      - ../mounts/test-file:/tmp/test-file
+      - ../mounts/test-file:/tmp/test-file:ro
 
 flow:
   - name: Stress

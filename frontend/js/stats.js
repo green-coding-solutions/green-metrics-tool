@@ -72,22 +72,66 @@ class CO2Tangible extends HTMLElement {
 
 customElements.define('co2-tangible', CO2Tangible);
 
-const fetchAndFillRunData = async (url_params) => {
+const getElephantServiceUrl = () => {
+    return typeof ELEPHANT_URL === 'string' ? ELEPHANT_URL.trim() : ''
+};
+
+const setAndShowAnalyticsLinks = (run_id, run_data) => {
+
+    if (getElephantServiceUrl() !== '') {
+        const simulationLink = document.querySelector('#analytics-simulation-link');
+        if (simulationLink) {
+            simulationLink.href = `simulation.html?id=${encodeURIComponent(run_id)}`;
+        }
+        const simulationYearlyLink = document.querySelector('#analytics-simulation-yearly-link');
+        if (simulationYearlyLink) {
+            simulationYearlyLink.href = `simulation-yearly.html?id=${encodeURIComponent(run_id)}`;
+        }
+    } else {
+        document.querySelector('a[data-tab="analytics-simulation"]').classList.add('hidden');
+    }
+
+    const timelineLink = document.querySelector('#analytics-timeline-link');
+    if (!timelineLink) return;
+
+    const timelineParams = new URLSearchParams();
+    if (run_data?.uri) timelineParams.set('uri', run_data.uri);
+    if (run_data?.branch) timelineParams.set('branch', run_data.branch);
+    if (run_data?.filename) timelineParams.set('filename', run_data.filename);
+    if (run_data?.machine_id != null) timelineParams.set('machine_id', String(run_data.machine_id));
+    if (run_data?.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
+        timelineParams.set('usage_scenario_variables', JSON.stringify(run_data.usage_scenario_variables));
+    }
+
+    if (timelineParams.get('uri')) {
+        timelineLink.href = `timeline.html?${timelineParams.toString()}`;
+        timelineLink.classList.remove('disabled');
+        return;
+    }
+
+    timelineLink.removeAttribute('href');
+    timelineLink.classList.add('disabled');
+};
+
+const fetchAndFillRunData = async (run_id) => {
 
     let run = null;
 
     try {
-        run = await makeAPICall('/v2/run/' + url_params['id'])
+        run = await makeAPICall('/v2/run/' + run_id)
     } catch (err) {
         showNotification('Could not get run data from API', err);
         return
     }
 
     const run_data = run.data
+    const run_data_accordion_node = document.querySelector('#run-data-accordion');
+
+    setAndShowAnalyticsLinks(run_id, run_data);
 
     for (const item in run_data) {
         if (item == 'machine_id') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])} (${escapeString(GMT_MACHINES[run_data[item]] || run_data[item])})</td></tr>`);
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])} (${escapeString(GMT_MACHINES[run_data[item]] || run_data[item])})</td></tr>`);
         } else if (item == 'runner_arguments') {
             fillRunTab('#runner-arguments', run_data[item]); // recurse
         } else if (item == 'machine_specs') {
@@ -104,8 +148,34 @@ const fetchAndFillRunData = async (url_params) => {
             } else {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
             }
-        } else if(item == 'usage_scenario_dependencies') {
-            renderUsageScenarioDependencies(run_data[item]);
+        } else if(item == 'container_dependencies') {
+             // skip. Is used in 'containers'
+        } else if(item == 'containers') {
+            if (run_data[item] == null) continue; // can be null
+            const containers_node = document.querySelector('#containers');
+            for (const ctr_name in run_data[item]) {
+                containers_node.insertAdjacentHTML('beforeend', `
+                    <div id="container-${escapeString(ctr_name)}" class="ui segment">
+                        <h3>${escapeString(ctr_name)}</h3>
+                        <p>CPUS: ${escapeString(run_data[item][ctr_name].cpus)}</p>
+                        <p>CPUSet: ${escapeString(run_data[item][ctr_name].cpuset)}</p>
+                        <p>Memory Limit: ${escapeString(run_data[item][ctr_name].mem_limit)} (${Math.round(run_data[item][ctr_name].mem_limit/1024**2)} MB)</p>
+                        <p>Memory Swap: ${escapeString(run_data[item][ctr_name].memory_swap)} (${Math.round(run_data[item][ctr_name].memory_swap/1024**2)} MB)</p>
+                        <p>Memory Swappiness: ${escapeString(run_data[item][ctr_name].memory_swappiness)}</p>
+                        <p>OOM Score Adj.: ${escapeString(run_data[item][ctr_name].oom_score_adj)}</p>
+                        <p>Image: ${escapeString(run_data?.container_dependencies?.[ctr_name]?.['source']?.['image'])}</p>
+                        <p>Hash: ${escapeString(run_data?.container_dependencies?.[ctr_name]?.['source']?.['hash'])}</p>
+                        <p>OS: ${escapeString(run_data?.container_dependencies?.[ctr_name]?.['source']?.['os'])}</p>
+                        <p data-tooltip="Kernel Version will be same as host for Linux docker containers. On macOS it will be the kernel of the VM" data-position="top center">Kernel Version <i class="question circle icon"></i>: ${escapeString(run_data?.container_dependencies?.[ctr_name]?.['source']?.['kernel_version'])}</p>
+                        <h4>Dependencies</h4>
+                        ${renderUsageScenarioDependencies(ctr_name, run_data?.container_dependencies)}
+                </div>`);
+            }
+            document.querySelectorAll('.ui.accordion.container-dependencies').forEach(accordion => {
+                $(accordion).accordion();
+            });
+
+
 
         } else if(item == 'logs') {
             const logsData = run_data[item];
@@ -131,69 +201,178 @@ const fetchAndFillRunData = async (url_params) => {
             fillRunTab('#measurement-config', run_data[item]); // recurse
         } else if(item == 'id' || item == 'phases') {
             // skip
+        }  else if(item == 'relations') {
+            if (run_data[item] == null) continue; // can be empty
+            for (relation in run_data[item]) {
+                const url = run_data[item][relation]['url'];
+                const httpsUrl = toHttpsUri(url);
+                const relationHash = run_data[item][relation]['commit_hash'];
+                const display = httpsUrl.startsWith('http')
+                    ? `<a href="${escapeString(httpsUrl)}" target="_blank">${escapeString(url)} (${relationHash})</a>`
+                    : `${escapeString(url)} (${relationHash})`;
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td>${display}</td></tr>`)
+            }
         }  else if(item == 'commit_hash') {
             if (run_data[item] == null) continue; // some old runs did not save it
-            let commit_link = buildCommitLink(run_data);
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data[item])}</a></td></tr>`)
+            const commit_link = getRepoRefUrl(run_data['uri'], 'tree');
+            const display = commit_link
+                ? `<a href="${escapeString(commit_link + run_data['commit_hash'])}" target="_blank">${run_data[item]}</a>`
+                : run_data[item];
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${display}</td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
         } else if(item == 'failed' && run_data[item] == true) {
-            document.querySelector('#run-failed').classList.remove('hidden');
+            const failedContainer = document.querySelector('#run-failed');
+            failedContainer.classList.remove('hidden');
+
         } else if(item == 'start_measurement' || item == 'end_measurement') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item] / 1e3)}</td></tr>`)
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item] / 1e3)}</td></tr>`)
         } else if(item == 'created_at' ) {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item])}</td></tr>`)
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item])}</td></tr>`)
         } else if(item == 'gmt_hash') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data[item]}">${escapeString(run_data[item])}</a></td></tr>`);
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data[item]}">${escapeString(run_data[item])}</a></td></tr>`);
         } else if(item == 'uri') {
             const uri = run_data[item];
-            let uriDisplay;
-            if(uri.startsWith('http')) {
-                // URI is safe for href attribute: validated to have http/https protocol prevents XSS
-                // HTML escaping not needed here and would break URLs (e.g., & would become &amp;)
-                uriDisplay = `<a href="${uri}">${escapeString(uri)}</a>`;
-            } else {
-                uriDisplay = escapeString(uri);
-            }
+            const httpsUri = toHttpsUri(uri);
+            // toHttpsUri only rewrites SSH/git@ prefixes; it does not strip HTML-attribute-breaking chars,
+            // so the href value still needs escapeString. Absolute paths stay as plain text.
+            const uriDisplay = httpsUri.startsWith('http')
+                ? `<a href="${escapeString(httpsUri)}">${escapeString(uri)}</a>`
+                : escapeString(uri);
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
+        } else if(item == 'note') {
+            const note = run_data[item].trim();
+            if (note !== '') {
+                // no need to escape here as .value and .innerText will not execute HTML / JS
+                document.querySelector('textarea[name=note]').value = note;
+                document.querySelector('#run-note-text').innerText = note;
+                document.querySelector('#run-note').classList.remove('hidden')
+            }
+        } else if(item == 'user_id') {
+            continue
+        } else if (item == 'user_name') {
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>user</strong></td><td>${escapeString(run_data[item])} (${escapeString(run_data['user_id'])})</td></tr>`)
+        } else if(item == 'archived') {
+            const archive_run_button = document.querySelector('#archive-run');
+            const unarchive_run_button = document.querySelector('#unarchive-run');
+
+            if (run_data[item] === true) {
+                archive_run_button.classList.add('hidden');
+                unarchive_run_button.classList.remove('hidden');
+            }
+
+            archive_run_button.addEventListener('click', async () => {
+                try {
+                    await makeAPICall(`/v1/run/${run_id}`, {archived: true}, false, true);
+                } catch (err) {
+                    showNotification('Error while trying to archive run!', err);
+                    return;
+                }
+                archive_run_button.classList.add('hidden');
+                unarchive_run_button.classList.remove('hidden');
+                showNotification('Run Archived!', '', 'success')
+            })
+            unarchive_run_button.addEventListener('click', async () => {
+                try {
+                    await makeAPICall(`/v1/run/${run_id}`, {archived: false}, false, true);
+                } catch (err) {
+                    showNotification('Error while trying to un-archive run!', err);
+                    return;
+                }
+                archive_run_button.classList.remove('hidden');
+                unarchive_run_button.classList.add('hidden');
+                showNotification('Run Unarchived!', '', 'success')
+            })
+
+        } else if(item == 'public') {
+            const public_button = document.querySelector('#make-run-public');
+            const non_public_button = document.querySelector('#make-run-non-public');
+
+            if (run_data[item] === true) {
+                public_button.classList.add('hidden');
+                non_public_button.classList.remove('hidden');
+            }
+
+            public_button.addEventListener('click', async () => {
+                try {
+                    await makeAPICall(`/v1/run/${run_id}`, {public: true}, false, true);
+                } catch (err) {
+                    showNotification('Error while trying to make run public!', err);
+                    return;
+                }
+                public_button.classList.add('hidden');
+                non_public_button.classList.remove('hidden');
+                showNotification('Run Made Public!', '', 'success')
+            })
+            non_public_button.addEventListener('click', async () => {
+                try {
+                    await makeAPICall(`/v1/run/${run_id}`, {public: false}, false, true);
+                } catch (err) {
+                    showNotification('Error while trying to make run non-public!', err);
+                    return;
+                }
+                public_button.classList.remove('hidden');
+                non_public_button.classList.add('hidden');
+                showNotification('Run Made Non-Public!', '', 'success')
+            })
+
         } else {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
         }
     }
 
+    document.querySelector('#save-note').addEventListener('click', async () => {
+        const note_text = document.querySelector('textarea[name=note]').value;
+        try {
+            await makeAPICall(`/v1/run/${run_id}`, {note: note_text}, false, true);
+        } catch (err) {
+            showNotification('Error while trying to save note!', err);
+            return;
+        }
+        showNotification('Note saved!', '', 'success')
+    });
+
+    document.querySelectorAll('.re-submit-run').forEach(el => {
+        el.addEventListener('click', () => {
+            const params = new URLSearchParams();
+            if (run_data.name) params.set('name', run_data.name);
+            if (run_data.uri) params.set('repo_url', run_data.uri);
+            if (run_data.filename) params.set('filename', run_data.filename);
+            if (run_data.branch) params.set('branch', run_data.branch);
+            if (run_data.machine_id) params.set('machine_id', run_data.machine_id);
+            if (run_data.schedule_mode) params.set('schedule_mode', run_data.schedule_mode);
+            if (run_data.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
+                Object.entries(run_data.usage_scenario_variables).forEach(([key, value]) => {
+                    params.append(`usage_scenario_variables[${key}]`, String(value));
+                });
+            } else {
+                params.set('usage_scenario_variables', 'false');
+            }
+            window.open(`request.html?${params.toString()}`, '_blank');
+        });
+    })
     // create new custom field
     // timestamp is in microseconds, therefore divide by 10**6
     const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1e6
     const measurement_duration_display = (measurement_duration_in_s > 60) ? `${numberFormatter.format(measurement_duration_in_s / 60)} min` : `${numberFormatter.format(measurement_duration_in_s)} s`
 
-    document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
+    run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
 
     // warnings will be fetched separately
 
 }
 
-const buildCommitLink = (run_data) => {
-    let commit_link;
-    commit_link = run_data['uri'].endsWith('.git') ? run_data['uri'].slice(0, -4) : run_data['uri']
-    if (run_data['uri'].includes('github')) {
-        commit_link = commit_link + '/tree/' + run_data['commit_hash']
-    }
-    else if (run_data['uri'].includes('gitlab')) {
-        commit_link = commit_link + '/-/tree/' + run_data ['commit_hash']
-    }
-    return commit_link;
-}
-
 const fillRunTab = async (selector, data, parent = '') => {
+    const node = document.querySelector(selector);
     for (const item in data) {
 
         if(data[item] != null && typeof data[item] == 'object') {
             if (parent == '') {
-                document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(item)}</h2></strong></td><td></td></tr>`)
+                node.insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(item)}</h2></strong></td><td></td></tr>`)
             }
             fillRunTab(selector, data[item], `${item}.`)
         } else {
-            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data[item])}</td></tr>`)
+            node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data[item])}</td></tr>`)
         }
     }
 }
@@ -587,7 +766,7 @@ const displayTimelineCharts = async (metrics, notes) => {
 
 }
 
-const renderBadges = async (url_params, phase_stats) => {
+const renderBadges = async (run_id, phase_stats) => {
     if (phase_stats == null) return;
 
     const phase_stats_keys = Object.keys(phase_stats);
@@ -600,15 +779,16 @@ const renderBadges = async (url_params, phase_stats) => {
 
         badge_container.innerHTML += `
             <div class="inline field">
-                <a href="${METRICS_URL}/stats.html?id=${url_params['id']}">
-                    <img src="${API_URL}/v1/badge/single/${url_params['id']}?metric=${encodeURIComponent(metric_name)}" loading="lazy">
+                <a href="${METRICS_URL}/stats.html?id=${run_id}">
+                    <img src="${API_URL}/v1/badge/single/${run_id}?metric=${encodeURIComponent(metric_name)}" loading="lazy" onerror="this.parentNode.parentNode.remove(); console.log('Could not render ${metric_name} badge - Likely due to non public visibility of the run.')">
                 </a>
                 <a class="copy-badge"><i class="copy icon"></i></a>
                 <div class="ui left pointing blue basic label">
-                    ${escapeString(METRIC_MAPPINGS[metric_name]['explanation'])}
+                    ${escapeString(METRIC_MAPPINGS[metric_name]?.['explanation'])}
                 </div>
-            </div>
-            <hr class="ui divider"></hr>`;
+                <hr class="ui divider"></hr>
+            </div>`;
+
 
     })
     document.querySelectorAll(".copy-badge").forEach(el => {
@@ -616,11 +796,11 @@ const renderBadges = async (url_params, phase_stats) => {
     })
 }
 
-const fetchAndFillPhaseStatsData = async (url_params) => {
+const fetchAndFillPhaseStatsData = async (run_id) => {
 
     let phase_stats = null;
     try {
-        phase_stats = await makeAPICall('/v1/phase_stats/single/' + url_params['id'])
+        phase_stats = await makeAPICall('/v1/phase_stats/single/' + run_id)
     } catch (err) {
         showNotification('Could not get phase_stats data from API', err);
         return
@@ -635,36 +815,56 @@ const fetchAndFillPhaseStatsData = async (url_params) => {
         })
     );
 
+    document.querySelectorAll('.ui.steps.phases .step, #runtime-sub-phases .item').forEach(node => { node.addEventListener('click', event => {
+        const activeTab = localStorage.getItem('activeMetricTab');
+        const tabName = node.getAttribute('data-tab');
+        const segment = document.querySelector('.ui.attached.tab.segment[data-tab="' + tabName + '"]');
+
+        if (!segment) return;
+
+        const tabs = $(segment).find('.ui.pointing.menu .item');
+
+        if (activeTab) {
+            tabs.tab('change tab', activeTab);
+        }
+      });
+    });
+
     renderCompareChartsForPhase(phase_stats.data, getAndShowPhase());
     displayTotalChart(...buildTotalChartData(phase_stats.data));
 
     return phase_stats;
 }
 
-const fetchAndFillNetworkIntercepts = async (url_params) => {
+const fetchAndFillNetworkIntercepts = async (run_id) => {
     let network = null;
     try {
-        network = await makeAPICall('/v1/network/' + url_params['id'])
+        network = await makeAPICall('/v1/network/' + run_id)
     } catch (err) {
-        showNotification('Could not get network intercepts data from API', err);
+        if (err instanceof APIHTTPError && err.status === 204) {
+            console.log('No network intercepts present in API response. Skipping error as this is allowed case.')
+        } else {
+            showNotification('Could not get network intercepts data from API', err);
+        }
         return
     }
 
     if (network.data.length === 0) {
         document.querySelector("#network-divider").insertAdjacentHTML('afterEnd', '<p>No external network connections were detected.</p>')
     } else {
+        const node = document.querySelector("#network-intercepts");
         for (const item of network.data) {
-            const date = (new Date(Number(item[2]))).toLocaleString();
-            document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(date)}</strong></td><td>${escapeString(item[3])}</td><td>${escapeString(item[4])}</td></tr>`)
+            const date = dateToYMD(new Date(Number(item[2])), false, true);
+            node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(date)}</strong></td><td>${escapeString(item[3])}</td><td>${escapeString(item[4])}</td></tr>`)
         }
     }
 }
 
-const fetchAndFillOptimizationsData = async (url_params) => {
+const fetchAndFillOptimizationsData = async (run_id) => {
 
     let optimizations = null;
     try {
-        optimizations = await makeAPICall('/v1/optimizations/' + url_params['id'])
+        optimizations = await makeAPICall('/v1/optimizations/' + run_id)
     } catch (err) {
         showNotification('Could not get optimizations data from API', err);
         return
@@ -718,13 +918,13 @@ const fetchAndFillOptimizationsData = async (url_params) => {
     $('#optimization_count').html(optimizations.data.length)
 }
 
-const fetchAndFillAIData = async (url_params) => {
+const fetchAndFillAIData = async (run_id) => {
 
     if (ACTIVATE_AI_OPTIMISATIONS !== true) return;
 
     let ai_data = null;
     try {
-        ai_data = await makeAPICall('/v1/ai/' + url_params['id'])
+        ai_data = await makeAPICall('/v1/ai/' + run_id)
     } catch (err) {
         // Do nothing as ai data will be empty most of the time
         return
@@ -827,13 +1027,13 @@ function copyTextToClipboard(text) {
     }
 }
 
-const fetchTimelineData = async (url_params) => {
+const fetchTimelineData = async (run_id) => {
     document.querySelector('#api-loader').classList.remove('hidden');
     document.querySelector('#loader-question').remove();
 
     let measurements = null;
     try {
-        measurements = await makeAPICall('/v1/measurements/single/' + url_params['id'])
+        measurements = await makeAPICall('/v1/measurements/single/' + run_id)
     } catch (err) {
         showNotification('Could not get stats data from API', err);
     }
@@ -841,23 +1041,12 @@ const fetchTimelineData = async (url_params) => {
 
 }
 
-const fetchTimelineNotes = async (url_params) => {
-    let notes = null;
-    try {
-        notes = await makeAPICall('/v1/notes/' + url_params['id'])
-    } catch (err) {
-        showNotification('Could not get notes data from API', err);
-    }
-    return notes?.data;
-}
-
-const fetchAndFillWarnings = async (url_params) => {
+const fetchAndFillWarnings = async (run_id) => {
     let warnings = null;
     try {
-        warnings = await makeAPICall('/v1/warnings/' + url_params['id'])
-        if (!warnings || warnings?.data?.length === 0) return;
+        warnings = await makeAPICall('/v1/warnings/' + run_id)
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             console.log('No warnings where present in API response. Skipping error as this is allowed case.')
         } else {
             showNotification('Could not get warnings data from API', err);
@@ -865,6 +1054,8 @@ const fetchAndFillWarnings = async (url_params) => {
         return;
 
     }
+
+    if (!warnings || warnings?.data?.length === 0) return;
 
     const container = document.querySelector('#run-warnings');
     const ul = container.querySelector('ul');
@@ -877,21 +1068,10 @@ const fetchAndFillWarnings = async (url_params) => {
 
 
 // Templates for usage scenario dependencies
-const dependenciesTemplates = {
-    container: `
-        <div class="ui segment">
-            <h4 class="ui dividing header">Container: {{containerName}}</h4>
-            <div class="ui secondary segment">
-                <strong>Image:</strong> {{image}}<br>
-                <strong>Hash:</strong> <code>{{hash}}</code>
-            </div>
-            {{scopeContent}}
-        </div>
-    `,
-
+const dependencies_templates = {
     scopeAccordion: `
-        <div class="ui accordion">
-            {{accordionItems}}
+        <div class="ui accordion container-dependencies">
+            {{accordion_items}}
         </div>
     `,
 
@@ -938,57 +1118,32 @@ const dependenciesTemplates = {
     noDepsMessage: `<div class="ui message">{{message}}</div>`
 };
 
-function renderUsageScenarioDependencies(dependenciesData) {
-    const dependenciesSection = document.querySelector("#usage-scenario-dependencies");
+function renderUsageScenarioDependencies(container_name, dependency_data) {
 
-    if (!dependenciesData || Object.keys(dependenciesData).length === 0) {
-        dependenciesSection.insertAdjacentHTML('beforeend',
-            dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependency information available</em>')
-        );
-        return;
+    if (dependency_data == null || dependency_data?.[container_name] == null) {
+        return '<em>No dependency information available</em>';
     }
 
-    let containersHTML = '';
+    const container_dependencies = dependency_data[container_name];
+    const container_data = container_dependencies['source'] || {};
 
-    for (const containerName in dependenciesData) {
-        const containerData = dependenciesData[containerName];
-        const containerInfo = containerData['source'] || {};
+    const package_managers = Object.keys(container_dependencies).filter(key => key !== 'source');
 
-        const image = escapeString(containerInfo.image || 'N/A');
-        const hash = escapeString(containerInfo.hash || 'N/A');
+    let package_manager_content = '';
 
-        const packageManagers = Object.keys(containerData).filter(key => key !== 'source');
+    if (package_managers.length > 0) {
+        const accordion_items = buildPackageManagerAccordionItems(package_managers, container_dependencies);
 
-        let packageManagerContent = '';
-
-        if (packageManagers.length > 0) {
-            const accordionItems = buildPackageManagerAccordionItems(packageManagers, containerData);
-
-            packageManagerContent = dependenciesTemplates.scopeAccordion.replace('{{accordionItems}}', accordionItems);
-        } else {
-            packageManagerContent = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
-        }
-
-        const containerHTML = dependenciesTemplates.container
-            .replace('{{containerName}}', escapeString(containerName))
-            .replace('{{image}}', image)
-            .replace('{{hash}}', hash)
-            .replace('{{scopeContent}}', packageManagerContent);
-
-        containersHTML += containerHTML;
+        package_manager_content = dependencies_templates.scopeAccordion.replace('{{accordion_items}}', accordion_items);
+    } else {
+        package_manager_content = dependencies_templates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
     }
 
-    dependenciesSection.insertAdjacentHTML('beforeend', containersHTML);
+    return package_manager_content;
 
-    // Initialize accordions
-    setTimeout(() => {
-        dependenciesSection.querySelectorAll('.ui.accordion').forEach(accordion => {
-            $(accordion).accordion();
-        });
-    }, 0);
 }
 
-function buildSingleAccordionItem(packageManager, displayName, data) {
+function buildSingleAccordionItem(packageManager, displayName, data, parentData) {
     const dependencies = data.dependencies || {};
     const dependenciesArray = Object.entries(dependencies).map(([name, pkgData]) => ({
         name: name,
@@ -1006,33 +1161,42 @@ function buildSingleAccordionItem(packageManager, displayName, data) {
     if (data.location) {
         metadataContent += `<strong>Location:</strong> ${escapeString(data.location)}<br>`;
     }
+    if (parentData.php_version) {
+        metadataContent += `<strong>PHP Version:</strong> ${escapeString(parentData.php_version)}<br>`;
+    }
+    if (parentData.node_version) {
+        metadataContent += `<strong>NodeJS Version:</strong> ${escapeString(parentData.node_version)}<br>`;
+    }
+    if (parentData.python_version) {
+        metadataContent += `<strong>Python Version:</strong> ${escapeString(parentData.python_version)}<br>`;
+    }
     if (data.hash) {
         metadataContent += `<strong>Hash:</strong> <code>${escapeString(data.hash)}</code><br>`;
     }
 
     const packageManagerMetadata = metadataContent ?
-        dependenciesTemplates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
+        dependencies_templates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
 
     let depsTable = '';
     if (totalDeps > 0) {
         const tableRows = buildDependencyTableRows(dependenciesArray);
-        depsTable = dependenciesTemplates.depsTable.replace('{{tableRows}}', tableRows);
+        depsTable = dependencies_templates.depsTable.replace('{{tableRows}}', tableRows);
     } else {
-        depsTable = dependenciesTemplates.noDepsMessage.replace('{{message}}', '<em>No dependencies found</em>');
+        depsTable = dependencies_templates.noDepsMessage.replace('{{message}}', '<em>No dependencies found</em>');
     }
 
-    return dependenciesTemplates.accordionItem
+    return dependencies_templates.accordionItem
         .replace('{{scopeDisplayName}}', escapeString(displayName))
         .replace('{{totalDeps}}', totalDeps)
         .replace('{{scopeMetadata}}', packageManagerMetadata)
         .replace('{{depsTable}}', depsTable);
 }
 
-function buildPackageManagerAccordionItems(packageManagers, containerData) {
-    let accordionItems = '';
+function buildPackageManagerAccordionItems(package_managers, container_dependencies) {
+    let accordion_items = '';
 
-    packageManagers.forEach(packageManager => {
-        const packageManagerData = containerData[packageManager];
+    package_managers.forEach(packageManager => {
+        const packageManagerData = container_dependencies[packageManager];
 
         // Check if this is a mixed-scope with multiple locations
         if (packageManagerData.locations) {
@@ -1041,15 +1205,15 @@ function buildPackageManagerAccordionItems(packageManagers, containerData) {
                 const scope = locationData.scope || 'unknown';
                 const displayName = `${packageManager} (${scope})`;
                 const dataWithLocation = { ...locationData, location: location };
-                accordionItems += buildSingleAccordionItem(packageManager, displayName, dataWithLocation);
+                accordion_items += buildSingleAccordionItem(packageManager, displayName, dataWithLocation, packageManagerData);
             }
         } else {
             // Handle system or project scope with direct dependencies
-            accordionItems += buildSingleAccordionItem(packageManager, packageManager, packageManagerData);
+            accordion_items += buildSingleAccordionItem(packageManager, packageManager, packageManagerData, packageManagerData);
         }
     });
 
-    return accordionItems;
+    return accordion_items;
 }
 
 function buildDependencyTableRows(packages) {
@@ -1060,7 +1224,7 @@ function buildDependencyTableRows(packages) {
         const depHash = pkg.hash || 'N/A';
         const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
 
-        const row = dependenciesTemplates.depsTableRow
+        const row = dependencies_templates.depsTableRow
             .replace('{{depName}}', escapeString(pkg.name || 'N/A'))
             .replace('{{version}}', version)
             .replace('{{fullHash}}', escapeString(depHash))
@@ -1077,7 +1241,8 @@ function buildDependencyTableRows(packages) {
 $(document).ready( () => {
     (async () => {
 
-        $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
+        $('.run-data-tabs .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
+        $('.analytics-tabs .item').tab({childrenOnly: true, context: '.analytics-tab-container'}); // activate tabs for analytics
         $('.ui.accordion').accordion();
 
         let url_params = getURLParams();
@@ -1087,23 +1252,25 @@ $(document).ready( () => {
             return;
         }
 
+        const run_id = url_params['id'];
+
         // run all without await, as they have no blocking visuals or depended upon changes
-        fetchAndFillNetworkIntercepts(url_params);
-        fetchAndFillOptimizationsData(url_params);
-        fetchAndFillAIData(url_params);
-        fetchAndFillWarnings(url_params);
-        fetchAndFillRunData(url_params);
+        fetchAndFillNetworkIntercepts(run_id);
+        fetchAndFillOptimizationsData(run_id);
+        fetchAndFillAIData(run_id);
+        fetchAndFillWarnings(run_id);
+        fetchAndFillRunData(run_id);
 
         (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
-            const phase_stats = await fetchAndFillPhaseStatsData(url_params);
-            renderBadges(url_params, phase_stats?.data?.data?.['[RUNTIME]']?.data); // phase_stats can be empty when returned if run is broken or not done. thus the safe access
+            const phase_stats = await fetchAndFillPhaseStatsData(run_id);
+            renderBadges(run_id, phase_stats?.data?.data?.['[RUNTIME]']?.data); // phase_stats can be empty when returned if run is broken or not done. thus the safe access
         })();
 
 
         if (localStorage.getItem('fetch_time_series') === 'true') {
             const [timeline_data, timeline_notes] = await Promise.all([
-                fetchTimelineData(url_params),
-                fetchTimelineNotes(url_params)
+                fetchTimelineData(run_id),
+                fetchTimelineNotes(run_id)
             ]);
             if (timeline_data == null) {
                 document.querySelector('#api-loader').remove()
@@ -1115,8 +1282,8 @@ $(document).ready( () => {
         } else {
             document.querySelector('#fetch-time-series').addEventListener('click', async () => {
                 const [timeline_data, timeline_notes] = await Promise.all([
-                    fetchTimelineData(url_params),
-                    fetchTimelineNotes(url_params)
+                    fetchTimelineData(run_id),
+                    fetchTimelineNotes(run_id)
                 ]);
 
                 if (timeline_data == null) {
@@ -1132,4 +1299,3 @@ $(document).ready( () => {
         }
     })();
 });
-

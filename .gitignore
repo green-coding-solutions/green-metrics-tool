@@ -1,33 +1,28 @@
 .DS_Store
 __pycache__
 /config.yml
-/config.yml.backup
 /docker/nginx/api.conf
-/docker/nginx/api.conf.backup
 /docker/nginx/frontend.conf
-/docker/nginx/frontend.conf.backup
-/docker/nginx/block.conf
-/docker/nginx/block.conf.backup
+/docker/nginx/block-and-redirect.conf
 /docker/nginx/ssl/*
 !/docker/nginx/ssl/README.md
 /frontend/js/helpers/config.js
-/frontend/js/helpers/config.js.backup
+/.config_backups/
 /sftp-config.json
+*.sublime-project
+*.sublime-workspace
 TODO
 /docker/compose.yml
 metric-provider-binary
 .vscode
 static-binary
 .pytest_cache
-/lib/hardware_info_root.py
-/tools/cluster/cleanup.py
 /node_modules/
 /lib/c/*.o
 /tools/backup
 /manager-config.yml
 /venv/
 /docker/test-compose.yml
-/tests/structure.sql
 tools/sgx_enable
 /tests/test-config.yml
 /tests/.testmondata
@@ -36,23 +31,12 @@ tools/sgx_enable
 /templates/ai/usage_scenario.yml.tmp
 /templates/website/usage_scenario.yml.tmp
 .nova/
+.rsa/
 
 ## Files that will be created if Enterprise Version gets installed with valid license
 /ee
 /cron/delete_expired_data.py
-/cron/carbondb_copy_over_and_remove_duplicates.py
-/cron/carbondb_compress.py
-/tests/cron/test_carbondb_compress.py
-/tests/frontend/test_frontend_ee.py
-/tests/api/test_api_hog.py
-/tests/api/test_api_carbondb.py
-/tools/rebuild_carbondb.py
-/frontend/js/hog-details.js
-/frontend/js/carbondb.js
-/frontend/js/hog.js
-/frontend/hog-details.html
-/frontend/hog.html
-/frontend/carbondb.html
+/lib/ai-optimisations.py
 
 # gemini-cli settings
 .gemini/
@@ -60,3 +44,6 @@ tools/sgx_enable
 # GitHub App credentials
 gha-creds-*.json
 
+# Window executables
+*.exe
+*.obj

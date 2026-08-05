@@ -1,3 +1,12 @@
+# License Index
+1. License for Green Metrics Tool Source Code
+2. License for the bundled Electricity Maps Grid Intensity Data
+
+
+
+1. Licening for the CO2.js library Apache License
+=================================================================
+
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
 
@@ -659,3 +668,16 @@ specific requirements.
 if any, to sign a "copyright disclaimer" for the program, if necessary.
 For more information on this, and how to apply and follow the GNU AGPL, see
 <http://www.gnu.org/licenses/>.
+
+
+2. License for Electricity Maps Grid Intensity Data
+-----------------------------------------------------------------
+
+Electricity Maps Grid Intensity Data - The annual grid intensity data is republished from Electricity Maps under the Open Database License (ODbL). Users of this data through CO2.js must:
+
+- Attribute: Credit Electricity Maps as the source
+- Share-Alike: Keep derivative works under the same license
+- Keep open: Provide unrestricted versions if using DRM
+
+For full details on Electricity Maps methodology see: https://www.electricitymaps.com/data/methodology
+For full detail on the ODbL see: https://opendatacommons.org/licenses/odbl/summary/

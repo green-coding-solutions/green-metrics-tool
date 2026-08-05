@@ -11,7 +11,7 @@ jobs:
       contents: read
     steps:
       - name: 'Checkout repository'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: 'main'
           submodules: 'false'
@@ -24,7 +24,7 @@ jobs:
           machine: "ubuntu-latest"
           tags: "CI/CD, Test-Eco-CI-Workflow"
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
-          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+          electricitymaps-api-token: ${{ secrets.ELECTRICITY_MAPS_ALT_TOKEN_INFO_AT_GCS }}
 
 
       - name: Measuring idle cost 10 s

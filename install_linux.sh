@@ -19,34 +19,50 @@ build_containers
 if [[ $activate_scenario_runner == true ]] ; then
     print_message "Installing needed binaries for building ..."
     if cat /etc/os-release | grep -q "Fedora"; then
-        sudo dnf -y install glib2 glib2-devel tinyproxy stress-ng lshw
+        sudo dnf -y install tinyproxy stress-ng lshw libcurl-devel
     elif cat /etc/os-release | grep -q "openSUSE"; then
-        sudo zypper -n in glib2-tools glib2-devel tinyproxy stress-ng lshw
+        sudo zypper -n in stress-ng lshw libcurl-devel
     else
         sudo apt-get update
-        sudo apt-get install -y  libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw
+        sudo apt-get install -y  libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw libcurl4-openssl-dev
     fi
 
-    if cat /etc/os-release | grep -q "Fedora"; then
-        if ! sudo dnf -y install lm_sensors lm_sensors-devel; then
-            print_message "Failed to install lm_sensors lm_sensors-devel;" >&2
-            print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
-            exit 1
+    if [[ $install_tinyproxy == true ]] ; then
+        if cat /etc/os-release | grep -q "Fedora"; then
+            sudo dnf -y install tinyproxy
+        elif cat /etc/os-release | grep -q "openSUSE"; then
+            sudo zypper -n in tinyproxy
+        else
+            sudo apt-get update
+            sudo apt-get install -y tinyproxy
         fi
-    elif cat /etc/os-release | grep -q "openSUSE"; then
-        if ! sudo zypper -n in sensors libsensors4-devel; then
-            print_message "Failed to install sensors libsensors4-devel; continuing without Sensors."
-        fi
-    else
-        if ! sudo apt-get install -y lm-sensors libsensors-dev; then
-           print_message "Failed to install lm-sensors libsensors-dev;" >&2
-            print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
-           exit 1
-        fi
+        sudo systemctl stop tinyproxy
+        sudo systemctl disable tinyproxy
     fi
 
-    sudo systemctl stop tinyproxy
-    sudo systemctl disable tinyproxy
+
+
+
+
+    if [[ $install_sensors == true ]] ; then
+        if cat /etc/os-release | grep -q "Fedora"; then
+            if ! sudo dnf -y install glib2 glib2-devel lm_sensors lm_sensors-devel; then
+                print_message "Failed to install lm_sensors lm_sensors-devel;" >&2
+                print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
+                exit 1
+            fi
+        elif cat /etc/os-release | grep -q "openSUSE"; then
+            if ! sudo zypper -n in glib2-tools glib2-devel sensors libsensors4-devel; then
+                print_message "Failed to install sensors libsensors4-devel; continuing without Sensors."
+            fi
+        else
+            if ! sudo apt-get install -y lm-sensors libsensors-dev; then
+                print_message "Failed to install libglib2.0-0 libglib2.0-dev lm-sensors libsensors-dev;" >&2
+                print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
+               exit 1
+            fi
+        fi
+    fi
 
     if [[ $install_nvidia_toolkit_headers == true ]] ; then
         print_message "Installing nvidia toolkit headers"
@@ -82,14 +98,21 @@ if [[ $activate_scenario_runner == true ]] ; then
     fi
 
     print_message "Enabling cache cleanup without sudo via sudoers entry"
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/sbin/sysctl -w vm.drop_caches=3" | sudo tee /etc/sudoers.d/green-coding-drop-caches
-    sudo chmod 500 /etc/sudoers.d/green-coding-drop-caches
+    sysctl_path=$(realpath "/usr/sbin/sysctl")
+    check_file_permissions "$sysctl_path"
+    echo "${USER} ALL=(ALL) NOPASSWD:${sysctl_path} -w vm.drop_caches=3" | sudo tee /etc/sudoers.d/green-coding-drop-caches
+    sudo chmod 400 /etc/sudoers.d/green-coding-drop-caches
 
-    print_message "Setting the cluster cleanup.sh file to be owned by root"
-    sudo cp -f $PWD/tools/cluster/cleanup_original.py $PWD/tools/cluster/cleanup.py
-    sudo chown root:root $PWD/tools/cluster/cleanup.py
-    sudo chmod 755 $PWD/tools/cluster/cleanup.py
-    sudo chmod +x $PWD/tools/cluster/cleanup.py
+    print_message "Setting the cluster maintenance.py file to be owned by root"
+    check_file_permissions $(realpath "/usr/bin/python3") # since it will be called later with this interpreter, we need to check if that is ok
+    # we do not expose this sudoers entry here as it is only for cluster mode. Thus we want to reduce possible attack surface in case of bugs
+    sudo cp -f "${PWD}/tools/cluster/maintenance_original.py" "${gmt_root_bin_dir}/maintenance.py"
+
+    # using chown with UID:GID as names could be remapped and 0 is safe and also cross-platform (wheel in macos)
+    sudo chown 0:0 "${gmt_root_bin_dir}/maintenance.py"
+    sudo chmod 755 "${gmt_root_bin_dir}/maintenance.py"
+    # delete old unsafe file from GMT v2.5
+    sudo rm -f "${PWD}/tools/cluster/maintenance.py"
 
     if [[ $install_msr_tools == true ]] ; then
         print_message "Installing msr-tools"
@@ -97,7 +120,7 @@ if [[ $activate_scenario_runner == true ]] ; then
         print_message ""
         if cat /etc/os-release | grep -q "Fedora"; then
             if ! sudo dnf -y install msr-tools; then
-                print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-r'" >&2
+                print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-R'" >&2
                 exit 1
             fi
         elif cat /etc/os-release | grep -q "openSUSE"; then
@@ -106,7 +129,7 @@ if [[ $activate_scenario_runner == true ]] ; then
             fi
         else
             if ! sudo apt-get install -y msr-tools; then
-                print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-r'" >&2
+                print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-R'" >&2
                 exit 1
             fi
         fi
@@ -124,9 +147,10 @@ if [[ $activate_scenario_runner == true ]] ; then
                 sudo apt-get install -y freeipmi-tools ipmitool
             fi
             print_message "Adding IPMI to sudoers file"
-            check_file_permissions "/usr/sbin/ipmi-dcmi"
-            echo "${USER} ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
-            sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+            ipmi_dcmi_path=$(realpath "/usr/sbin/ipmi-dcmi")
+            check_file_permissions "$ipmi_dcmi_path"
+            echo "${USER} ALL=(ALL) NOPASSWD:${ipmi_dcmi_path} --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+            sudo chmod 400 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
             # remove old file name
             sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
         } || {

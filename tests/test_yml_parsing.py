@@ -12,22 +12,22 @@ class TestYML(unittest.TestCase):
         test_root_file = 'tests/data/usage_scenarios/import_one_root.yml'
         name = 'test_' + utils.randomword(12)
 
-        runner = ScenarioRunner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
+        runner = ScenarioRunner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file, dev_no_system_checks=['check_steal_time'])
         runner._checkout_repository() # We need to do this to setup the file paths correctly
 
         runner._load_yml_file()
         result_obj = {'name': 'Import Test',
                     'services': {'test-container':
-                                    {'type': 'container'}},
-                    'flow': [{'name': 'Stress', 'container': 'test-container'}]}
+                                    {'image': 'alpine'}},
+                    'flow': [{'name': 'Stress', 'container': 'test-container', 'commands': [{'type': 'console', 'command': 'echo 1'}]}]}
 
-        self.assertEqual(result_obj, runner._usage_scenario)
+        self.assertEqual(result_obj, runner._usage_scenario_original)
 
     def test_(self):
         test_root_file = 'tests/data/usage_scenarios/import_two_root.yml'
         name = 'test_' + utils.randomword(12)
 
-        runner = ScenarioRunner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
+        runner = ScenarioRunner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file, dev_no_system_checks=['check_steal_time'])
         runner._checkout_repository() # We need to do this to setup the file paths correctly
 
         runner._load_yml_file()
@@ -41,14 +41,14 @@ class TestYML(unittest.TestCase):
                                  }
                      }
 
-        print(f"actual: {runner._usage_scenario}")
+        print(f"actual: {runner._usage_scenario_original}")
         print(f"expect: {result_obj}")
-        self.assertEqual(result_obj, runner._usage_scenario)
+        self.assertEqual(result_obj, runner._usage_scenario_original)
 
 
     def test_invalid_path(self):
         name = 'test_' + utils.randomword(12)
         test_root_file = 'tests/data/usage_scenarios/import_error.yml'
-        runner = ScenarioRunner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
+        runner = ScenarioRunner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file, dev_no_system_checks=['check_steal_time'])
         runner._checkout_repository() # We need to do this to setup the file paths correctly
         self.assertRaises(ValueError, runner._load_yml_file)

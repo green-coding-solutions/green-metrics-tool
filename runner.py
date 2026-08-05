@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import glob
 import sys
@@ -9,19 +8,23 @@ faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to st
 from lib.venv_checker import check_venv
 check_venv() # this check must even run before __main__ as imports might not get resolved
 
-import shutil
 import os
 import re
 import subprocess
+import json
+import uuid
 from pathlib import Path
 
 GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.scenario_runner import ScenarioRunner
 from lib import error_helpers
+from lib import utils
+from lib import system_checks
 from lib.terminal_colors import TerminalColors
 from lib.db import DB
 from lib.global_config import GlobalConfig
+from lib.secure_variable import SecureVariable
 
 if __name__ == '__main__':
     import argparse
@@ -29,37 +32,48 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--name', type=str, help='A name which will be stored to the database to discern this run from others')
-
-    parser.add_argument('--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory starting  with / or a remote git repository starting with http(s)://')
+    parser.add_argument('--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory or a remote git repository starting with http(s)://')
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
+    parser.add_argument('--commit-hash', type=str, help='Optionally specify a git commit hash to check out when using a remote repository to clone from')
     parser.add_argument('--filename', type=str, action='append', help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported. Duplicate filenames are allowed and will be processed multiple times.')
-
     parser.add_argument('--variable', action='append', help='Variable that will be replaced into the usage_scenario.yml file. Use multiple times for multiple variables.')
+    parser.add_argument('--carbon-simulation', type=str, help='The grid intensity when running the job. Can be an int which will be applied to the whole run, a list which will be sent to elephant or a uuid which will be used as simulation id for elephant.')
+    parser.add_argument('--category', action='append', type=int, help='Category to store for this run. Use multiple times for multiple categories.')
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
-
     parser.add_argument('--user-id', type=int, default=1, help='A user-ID the run shall be mapped to. Defaults to 1 (the default user)')
+    parser.add_argument('--ssh-private-key', type=str, help='A filename path on your system that holds an SSH private key')
+    parser.add_argument('--docker-credentials', type=str, help='Path to a JSON file with docker registry credentials: [{"registry":"...","username":"...","password":"..."}]')
     parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
     parser.add_argument('--file-cleanup', action='store_true', help='Delete all temporary files that the runner produced')
     parser.add_argument('--debug', action='store_true', help='Activate steppable debug mode')
     parser.add_argument('--allow-unsafe', action='store_true', help='Activate unsafe volume bindings, ports and complex environment vars')
-    parser.add_argument('--skip-unsafe', action='store_true', help='Skip unsafe volume bindings, ports and complex environment vars')
-    parser.add_argument('--skip-system-checks', action='store_true', help='Skip checking the system if the GMT can run')
     parser.add_argument('--verbose-provider-boot', action='store_true', help='Boot metric providers gradually')
     parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
     parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
+    parser.add_argument('--iterations', type=int, default=1, help='Specify how many times each scenario should be run. Default is 1. With multiple files, all files are processed sequentially, then the entire sequence is repeated N times. Example: with files A.yml, B.yml and --iterations 2, the execution order is A, B, A, B.')
+
+    # These switches do not alter proper measurements, but might result in data not being generated
+    parser.add_argument('--skip-unsafe', action='store_true', help='Skip unsafe volume bindings, ports and complex environment vars')
+    parser.add_argument('--skip-download-dependencies', action='store_true', help='Skip downloading GMT dependencies like Kaniko etc. Useful to speed up runs if your dependencies are up to date')
     parser.add_argument('--skip-volume-inspect', action='store_true', help='Disable docker volume inspection. Can help if you encounter permission issues.')
-    parser.add_argument('--no-phase-padding', action='store_true', help='Do not add paddings to phase end to capture incomplete last sampling interval.')
+    parser.add_argument('--skip-optimizations', action='store_true', help='Skip analysis after run to find possible optimizations.')
+
+    # These switches may break or skew proper measurements or make them uncomparable due to missing info
+    parser.add_argument('--dev-no-system-checks', nargs='?', const=system_checks.ALL_CHECKS_SENTINEL, default=False, help='Do not check the system if the GMT can run properly. Pass no argument to disable ALL checks, or a comma-separated list of check names (e.g. check_steal_time,check_utf_encoding) to disable only those.')
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
     parser.add_argument('--dev-no-phase-stats', action='store_true', help='Do not calculate phase stats.')
     parser.add_argument('--dev-cache-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
-    parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
-    parser.add_argument('--dev-no-save', action='store_true', help='Will save no data to the DB. This implicitly activates --dev-no-phase-stats, --dev-no-metrics and --dev-no-optimizations')
+    parser.add_argument('--dev-no-save', action='store_true', help='Will save no data to the DB. This implicitly activates --dev-no-phase-stats, --dev-no-metrics and --skip-optimizations')
+    parser.add_argument('--dev-stream-outputs', action='store_true', help='Stream the output of the container build and the called processes in flows and setup-commands to the terminal. Note that this disallows capturing of errors and build outputs in logs and error messages.')
+    parser.add_argument('--dev-cache-repos', action='store_true', help='Do not clone repository and relations again but use the one already present on disk.')
+    parser.add_argument('--dev-no-container-dependency-collection', action='store_true', help='Do not collect dependency information of started containers')
+    parser.add_argument('--dev-no-resource-limits', action='store_true', help='Disable setting of resource limits per container')
+
+    # Output settings
     parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
-    parser.add_argument('--iterations', type=int, default=1, help='Specify how many times each scenario should be run. Default is 1. With multiple files, all files are processed sequentially, then the entire sequence is repeated N times. Example: with files A.yml, B.yml and --iterations 2, the execution order is A, B, A, B.')
-
 
     # Measurement settings
     parser.add_argument('--measurement-system-check-threshold', type=int, default=3, help='System check threshold when to issue warning and when to fail. When set on 3 runs will fail only on erros, when 2 then also on warnings and 1 also on pure info statements. Can be 1=INFO, 2=WARN or 3=ERROR')
@@ -83,19 +97,15 @@ if __name__ == '__main__':
         error_helpers.log_error('Please supply --uri to get usage_scenario.yml from')
         sys.exit(1)
 
-    if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':
-        print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', args.uri, TerminalColors.ENDC)
+    if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://' or args.uri[0:6] == 'ssh://' or args.uri[0:4] == 'git@':
+        print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', utils.filter_sensitive_data(args.uri), TerminalColors.ENDC)
         run_type = 'URL'
-    elif args.uri[0:1] == '/':
+    elif Path(args.uri).is_dir():
         print(TerminalColors.OKBLUE, '\nDetected supplied folder: ', args.uri, TerminalColors.ENDC)
         run_type = 'folder'
-        if not Path(args.uri).is_dir():
-            parser.print_help()
-            error_helpers.log_error('Could not find folder on local system. Please double check: ', uri=args.uri)
-            sys.exit(1)
     else:
         parser.print_help()
-        error_helpers.log_error('Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ', uri=args.uri)
+        error_helpers.log_error('Could not detect correct URI. Please use a local folder path or URL http(s):// : ', uri=args.uri)
         sys.exit(1)
 
     variables_dict = {}
@@ -112,6 +122,28 @@ if __name__ == '__main__':
             error_helpers.log_error('Config override file must be a yml file')
             sys.exit(1)
         GlobalConfig(config_location=args.config_override)
+
+    carbon_simulation_to_pass = None
+    if args.carbon_simulation is not None:
+        try:
+            carbon_simulation_value = json.loads(args.carbon_simulation) # this will catch number and [...] lists
+            if isinstance(carbon_simulation_value, int) and not isinstance(carbon_simulation_value, bool):
+                carbon_simulation_value = [carbon_simulation_value]
+            elif not (
+                isinstance(carbon_simulation_value, list)
+                and all(isinstance(v, int) and not isinstance(v, bool) for v in carbon_simulation_value)
+            ):
+                raise TypeError
+            carbon_simulation_to_pass = carbon_simulation_value
+        except (json.JSONDecodeError, TypeError):
+            try:
+                carbon_simulation_to_pass = str(uuid.UUID(args.carbon_simulation))
+            except ValueError:  # not a valid uuid
+                error_helpers.log_error('Could not parse --carbon-simulation value. Please provide either an integer, a list of integers or a uuid string.')
+                sys.exit(1)
+
+    if args.dev_cache_repos and args.file_cleanup:
+        raise ValueError('Cannot set both --dev-cache-repos and --file-cleanup as the latter will delete the cached file. Please choose one option.')
 
     # Use default filename if none provided
     filename_patterns = args.filename if args.filename else ['usage_scenario.yml']
@@ -147,17 +179,36 @@ if __name__ == '__main__':
     # Execute the given usage scenarios multiple times (if iterations > 1)
     filenames = filenames * args.iterations
 
+    if args.ssh_private_key:
+        with open(args.ssh_private_key, 'r', encoding='UTF-8') as f:
+            ssh_private_key_contents = SecureVariable(f.read())
+    else:
+        ssh_private_key_contents = None
+
+    if args.docker_credentials:
+        with open(args.docker_credentials, 'r', encoding='UTF-8') as f:
+            raw_creds = json.load(f)
+        if not isinstance(raw_creds, list):
+            error_helpers.log_error('--docker-credentials file must contain a JSON array of credential objects')
+            sys.exit(1)
+        docker_credentials_to_pass = [
+            {'registry': c['registry'], 'username': c['username'], 'password': SecureVariable(c['password'])}
+            for c in raw_creds
+        ]
+    else:
+        docker_credentials_to_pass = None
+
     # Create ScenarioRunner once and reuse it for all files
     runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filenames[0],
-                    branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
-                    skip_system_checks=args.skip_system_checks,
-                    skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
-                    full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
-                    dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics, dev_no_save=args.dev_no_save,
-                    dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
-                    docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
-                    skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder,
-                    usage_scenario_variables=variables_dict, phase_padding=not args.no_phase_padding,
+                    branch=args.branch, commit_hash=args.commit_hash, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
+                    full_docker_prune=args.full_docker_prune, docker_prune=args.docker_prune,
+                    verbose_provider_boot=args.verbose_provider_boot,
+                    user_id=args.user_id, ssh_private_key=ssh_private_key_contents,
+                    docker_credentials=docker_credentials_to_pass,
+                    commit_hash_folder=args.commit_hash_folder,
+                    usage_scenario_variables=variables_dict, category_ids=args.category,
+                    carbon_simulation=carbon_simulation_to_pass,
+
                     measurement_system_check_threshold=args.measurement_system_check_threshold,
                     measurement_pre_test_sleep=args.measurement_pre_test_sleep,
                     measurement_idle_duration=args.measurement_idle_duration,
@@ -167,9 +218,27 @@ if __name__ == '__main__':
                     measurement_wait_time_dependencies=args.measurement_wait_time_dependencies,
                     measurement_flow_process_duration=args.measurement_flow_process_duration,
                     measurement_total_duration=args.measurement_total_duration,
+
+                    # These switches do not alter proper measurements, but might result in data not being generated
+                    skip_download_dependencies=args.skip_download_dependencies, skip_optimizations=args.skip_optimizations,
+                    skip_unsafe=args.skip_unsafe, skip_volume_inspect=args.skip_volume_inspect,
+
+                    # These switches may break or skew proper measurements if set
+                    dev_no_sleeps=args.dev_no_sleeps, dev_stream_outputs=args.dev_stream_outputs, dev_cache_repos=args.dev_cache_repos,
+                    dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics, dev_no_save=args.dev_no_save,
+                    dev_flow_timetravel=args.dev_flow_timetravel, dev_no_system_checks=args.dev_no_system_checks,
+                    dev_no_phase_stats=args.dev_no_phase_stats, dev_no_container_dependency_collection=args.dev_no_container_dependency_collection,
+                    dev_no_resource_limits=args.dev_no_resource_limits,
+
                     #disabled_metric_providers # this is intentionally not supported as the user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
                     #allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] # this is intentionally not supported as the user can just enter --allow-unsafe in CLI mode and using another args="+" for parsing CLI is flaky
                     )
+    if not runner._skip_optimizations and not runner._dev_no_save and not runner._dev_no_metrics:
+        # We cannot import this at the top of the as we need the correct config file
+        # Config file is replaced through args.config_override sometimes
+        import optimization_providers.base
+        print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
+        optimization_providers.base.import_reporters()
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
@@ -186,15 +255,15 @@ if __name__ == '__main__':
             # From a user perspective it makes perfect sense to run both jobs directly after each other
             # In a cloud setup it however makes sense to free the measurement machine as soon as possible
             # So this code should be individually callable, separate from the runner
-            if not runner._dev_no_optimizations and not runner._dev_no_save:
-                import optimization_providers.base  # We need to import this here as we need the correct config file
-                print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
-                optimization_providers.base.import_reporters()
+            if not runner._skip_optimizations and not runner._dev_no_save and not runner._dev_no_metrics:
                 print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
                 optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
             if args.file_cleanup:
-                shutil.rmtree(runner._tmp_folder)
+                # Empty the folder in place rather than removing it (see
+                # ScenarioRunner._initialize_folder) so the directory inode stays stable
+                # for Docker Desktop's virtiofs cache on macOS.
+                runner._initialize_folder(runner._tmp_folder)
 
             if not runner._dev_no_save:
                 print(TerminalColors.OKGREEN,'\n\n####################################################################################')

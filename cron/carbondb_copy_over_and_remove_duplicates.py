@@ -1,0 +1,162 @@
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
+
+import os
+
+from lib.global_config import GlobalConfig
+from lib.db import DB
+from lib import error_helpers
+
+
+def copy_over_power_hog(interval=60): # 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days
+    params = []
+    query = '''
+        INSERT INTO carbondb_data_raw
+            ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+
+            SELECT
+                'machine.desktop',
+                'Not-Set',
+                machine_uuid,
+                'Power HOG',
+                '{}',
+                "timestamp" * 1e3, -- timestamp is already milliseconds. thus only 1e3
+                (combined_energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
+                (operational_carbon_ug::DOUBLE PRECISION)/1e9 + (embodied_carbon_ug/1e9), -- to get to kg
+                carbon_intensity_g,
+                latitude,
+                longitude,
+                ip_address,
+                user_id,
+                NOW()
+            FROM hog_simplified_measurements
+    '''
+    if interval:
+        query = f"{query} WHERE created_at > CURRENT_DATE - make_interval(days => %s)"
+        params.append(interval)
+
+    DB().query(query, params=params)
+
+
+def copy_over_eco_ci(interval=60): # 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days
+    params = []
+    query = '''
+        INSERT INTO carbondb_data_raw
+            ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+
+            SELECT
+                filter_type,
+                filter_project,
+                filter_machine,
+                'Eco CI',
+                filter_tags,
+                EXTRACT(EPOCH FROM created_at) * 1e6,
+                (energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
+                (carbon_ug::DOUBLE PRECISION)/1e9, -- to get to kg
+                carbon_intensity_g,
+                latitude,
+                longitude,
+                ip_address,
+                user_id,
+                NOW()
+            FROM ci_measurements
+    '''
+    if interval:
+        query = f"{query} WHERE created_at > CURRENT_DATE - make_interval(days => %s)"
+        params.append(interval)
+
+    DB().query(query, params=params)
+
+def copy_over_scenario_runner(interval=60): # 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days
+    params = []
+    query = '''
+        INSERT INTO carbondb_data_raw
+            ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+            SELECT
+                'machine.server' as type,
+                'ScenarioRunner' as project,
+                m.description,
+                'ScenarioRunner',
+                ARRAY[]::text[] as tags ,
+                EXTRACT(EPOCH FROM r.created_at) * 1e6 as time,
+
+                -- we do these two queries as subselects as if they were left joins they will blow up the table whenever we relax the condition that only one metric with same name may exist
+                COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p WHERE p.run_id = r.id AND p.unit = 'uJ' AND p.phase != '004_[RUNTIME]' AND p.metric LIKE '%%_energy_%%_machine')/1e6/3600/1000, 0) as energy_kwh,
+                COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p2 WHERE p2.run_id = r.id AND p2.unit = 'ug' AND p2.phase != '004_[RUNTIME]' AND p2.metric LIKE '%%_carbon_%%_machine')/1e9, 0) as carbon_kg,
+
+                NULL, -- there simply is no carbon intensity atm
+                NULL, -- there simply is no latitude as no IP is present
+                NULL, -- there simply is no longitude as no IP is present
+                NULL, -- no connecting IP was used to transmit the data
+                r.user_id,
+                NOW()
+            FROM runs as r
+            -- we do LEFT JOIN as we do not want to silent skip data. If a column gets NULL it will fail
+            LEFT JOIN machines as m ON m.id = r.machine_id
+    '''
+    if interval:
+        query = f"{query} WHERE r.created_at > CURRENT_DATE - make_interval(days => %s)"
+        params.append(interval)
+
+    query = f"{query} GROUP BY r.id, m.description"
+
+    DB().query(query, params=params)
+
+
+def validate_table_constraints():
+    data = DB().fetch_all('''
+        SELECT id
+        FROM
+            carbondb_data_raw
+        WHERE
+            (user_id IS NULL -- null by design. only guard for broken schema
+            OR time IS NULL -- null by design. only guard for broken schema
+            OR energy_kwh IS NULL -- null by design. only guard for broken schema
+            OR carbon_kg IS NULL  -- can be null bc of backfill
+            OR type IS NULL -- null by design. only guard for broken schema
+            OR project IS NULL -- null by design. only guard for broken schema
+            OR machine IS NULL -- null by design. only guard for broken schema
+            OR source IS NULL -- null by design. only guard for broken schema
+            OR tags IS NULL) -- null by design. only guard for broken schema
+            AND created_at > NOW() - INTERVAL '60 DAYS' -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions
+            AND created_at < NOW() - INTERVAL '30 MINUTES' -- data just arrived can be null, before it is backfilled
+     ''')
+
+    if data:
+        raise RuntimeError(f"NULL values found `carbondb_data_raw` - {data}")
+
+def remove_duplicates():
+    DB().query('''
+        DELETE FROM carbondb_data_raw a
+        USING carbondb_data_raw b
+        WHERE
+            a.ctid < b.ctid
+            AND a.time = b.time
+            AND a.machine = b.machine
+            AND a.type = b.type
+            AND a.project = b.project
+            AND a.source = b.source
+            AND a.tags = b.tags
+            AND a.energy_kwh = b.energy_kwh
+            AND a.carbon_kg = b.carbon_kg -- if this column is null the rows will simply not match. so not problematic. we check later with validate_table_constraints
+            AND a.user_id = b.user_id
+            AND a.time > EXTRACT(EPOCH FROM ((NOW() - INTERVAL '60 days')::date::timestamp))*1e6 -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions - Time filter must be starting from midnight and not include elapsed minutes in the day to work with copy over which cuts off time info
+    ''')
+
+
+if __name__ == '__main__':
+    try:
+        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
+        print('copy_over_eco_ci')
+        copy_over_eco_ci()
+        print('copy_over_scenario_runner')
+        copy_over_scenario_runner()
+        print('copy_over_power_hog')
+        copy_over_power_hog()
+        print('remove_duplicates')
+        remove_duplicates()
+        print('validate_table_constraints against ')
+        validate_table_constraints()
+
+    except Exception as exc: # pylint: disable=broad-except
+        error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])

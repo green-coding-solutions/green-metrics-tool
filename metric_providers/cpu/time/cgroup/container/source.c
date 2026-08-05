@@ -9,14 +9,7 @@
 #include <limits.h>
 #include <stdbool.h>
 #include "gmt-lib.h"
-#include "detect_cgroup_path.h"
-
-#define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
-
-typedef struct container_t { // struct is a specification and this static makes no sense here
-    char* path;
-    char id[DOCKER_CONTAINER_ID_BUFFER];
-} container_t;
+#include "gmt-container-lib.h"
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
@@ -27,11 +20,11 @@ static long int user_hz;
 static unsigned int msleep_time=1000;
 static struct timespec offset;
 
-static long int read_cpu_cgroup(char* filename) {
+static long int read_cpu_cgroup(char* path, char* container_name) {
     long int cpu_usage = -1;
-    FILE* fd = fopen(filename, "r");
+    FILE* fd = fopen(path, "r");
     if ( fd == NULL) {
-        fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore?  Errno: %d\n", filename, errno);
+        fprintf(stderr, "Error - Could not open path %s (%s) for reading. Maybe the container is not running anymore?  Errno: %d\n", path, container_name, errno);
         exit(1);
     }
     int match_result = fscanf(fd, "usage_usec %ld", &cpu_usage);
@@ -49,58 +42,9 @@ static void output_stats(container_t *containers, int length) {
     get_adjusted_time(&now, &offset);
 
     for(int i=0; i<length; i++) {
-        printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, read_cpu_cgroup(containers[i].path), containers[i].id);
+        printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, read_cpu_cgroup(containers[i].path, containers[i].name), containers[i].id);
     }
     usleep(msleep_time*1000);
-}
-
-static int parse_containers(container_t** containers, char* containers_string) {
-    if(containers_string == NULL) {
-        fprintf(stderr, "Please supply at least one container id or cgroup name with -s XXXX\n");
-        exit(1);
-    }
-
-    *containers = malloc(sizeof(container_t));
-    if (!containers) {
-        fprintf(stderr, "Could not allocate memory for containers string\n");
-        exit(1);
-    }
-    char *id = strtok(containers_string,",");
-    int length = 0;
-
-    for (; id != NULL; id = strtok(NULL, ",")) {
-        //printf("Token: %s\n", id);
-        length++;
-        *containers = realloc(*containers, length * sizeof(container_t));
-        if (!containers) {
-            fprintf(stderr, "Could not allocate memory for containers string\n");
-            exit(1);
-        }
-        strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
-        (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
-
-        (*containers)[length-1].path = detect_cgroup_path("cpu.stat", user_id, id);
-    }
-
-    if(length == 0) {
-        fprintf(stderr, "Please supply at least one container id or cgroup name with -s XXXX\n");
-        exit(1);
-    }
-    return length;
-}
-
-static int check_system() {
-    const char* check_path;
-
-    check_path = "/sys/fs/cgroup/cpu.stat";
-    FILE* fd = fopen(check_path, "r");
-
-    if (fd == NULL) {
-        fprintf(stderr, "Couldn't open cpu.stat file at %s\n", check_path);
-        exit(1);
-    }
-    fclose(fd);
-    return 0;
 }
 
 int main(int argc, char **argv) {
@@ -167,12 +111,12 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system());
+        exit(check_path("/sys/fs/cgroup/cpu.stat"));
     }
 
     get_time_offset(&offset);
 
-    int length = parse_containers(&containers, containers_string);
+    int length = parse_containers("cpu.stat", user_id, &containers, containers_string, false);
 
     while(1) {
         output_stats(containers, length);

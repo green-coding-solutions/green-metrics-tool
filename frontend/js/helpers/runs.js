@@ -2,18 +2,16 @@
 
 const compareButton = () => {
     const checkedBoxes = document.querySelectorAll('input[type=checkbox]:checked');
+    const ids = Array.from(checkedBoxes).map(cb => cb.value).join(',');
 
-    let link = '/compare.html?ids='
+    const value = document.querySelector('#compare-force-mode').value;
+    localStorage.setItem('compare_mode_last_value', value);
 
-    checkedBoxes.forEach(checkbox => {
-        link = `${link}${checkbox.value},`;
-    });
-    link = link.substr(0,link.length-1);
-
-    if (localStorage.getItem('expert_compare_mode') === 'true'){
-        const value = document.querySelector('#compare-force-mode').value;
-        link = `${link}&force_mode=${value}`
-        localStorage.setItem('expert_compare_mode_last_value', value);
+    let link;
+    if (value === 'simple_table') {
+        link = `/compare-simple.html?ids=${ids}`;
+    } else {
+        link = `/compare.html?ids=${ids}&force_mode=${value}`;
     }
 
     window.open(link, '_blank');
@@ -30,17 +28,11 @@ const updateCompareCount = () => {
     const checkedCount = document.querySelectorAll('input[type=checkbox]:checked').length;
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
     if (checkedCount === 0) {
-        document.querySelector('#unselect-button').style.display = 'none';
-        if (localStorage.getItem('expert_compare_mode') === 'true') {
-            document.querySelector('#compare-force-mode').style.display = 'none';
-        }
-
+        document.querySelector('#compare-force-mode-dropdown').style.visibility = 'hidden';
+        document.querySelector('#unselect-button').classList.add('hidden');
     } else {
-        document.querySelector('#unselect-button').style.display = 'block';
-        if (localStorage.getItem('expert_compare_mode') === 'true') {
-            document.querySelector('#compare-force-mode').style.display = 'block';
-        }
-
+        document.querySelector('#compare-force-mode-dropdown').style.visibility = 'visible';
+        document.querySelector('#unselect-button').classList.remove('hidden');
     }
 }
 
@@ -82,43 +74,122 @@ const removeFilter = (paramName) => {
     window.location.href = newUrl;
 }
 
-const showActiveFilters = (key, value) => {
-    document.querySelector(`.ui.warning.message`).classList.remove('hidden');
-    const newListItem = document.createElement("span");
-    newListItem.innerHTML = `<div class="ui label"><i class="times circle icon" onClick="removeFilter('${escapeString(key)}')"></i>${escapeString(key)}: ${escapeString(value)} </div> `;
-    document.querySelector(`.ui.warning.message ul`).appendChild(newListItem);
 
+const getFilterQueryStringFromURI = (use_basic_filters=true) => {
+    const url_params = getURLParams();
+
+    let query_string = '';
+
+    if (use_basic_filters !== false) {
+        if (url_params['name'] != null && url_params['name'].trim() != '') {
+            const name = url_params['name'].trim()
+            query_string += `&name=${encodeURIComponent(name)}`
+            document.querySelector('input[name="name"]').value = name;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+        if (url_params['uri'] != null && url_params['uri'].trim() != '') {
+            const uri = url_params['uri'].trim()
+            query_string += `&uri=${encodeURIComponent(uri)}`
+            document.querySelector('input[name="uri"]').value = uri;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+        if (url_params['filename'] != null && url_params['filename'].trim() != '') {
+            const filename = url_params['filename'].trim()
+            query_string += `&filename=${encodeURIComponent(filename)}`
+            document.querySelector('input[name="filename"]').value = filename;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+        if (url_params['branch'] != null && url_params['branch'].trim() != '') {
+            const branch = url_params['branch'].trim()
+            query_string += `&branch=${encodeURIComponent(branch)}`
+            document.querySelector('input[name="branch"]').value = branch;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+        if (url_params['machine_id'] != null && url_params['machine_id'].trim() != '') {
+            const machine_id = url_params['machine_id'].trim()
+            query_string += `&machine_id=${encodeURIComponent(machine_id)}`
+            document.querySelector('input[name="machine_id"]').value = machine_id;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+        if (url_params['machine'] != null && url_params['machine'].trim() != '') {
+            const machine = url_params['machine'].trim()
+            query_string += `&machine=${encodeURIComponent(machine)}`
+            document.querySelector('input[name="machine"]').value = machine;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+        if (url_params['usage_scenario_variables'] != null && url_params['usage_scenario_variables'].trim() != '') {
+            const usage_scenario_variables = url_params['usage_scenario_variables'].trim()
+            query_string += `&usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}`
+            document.querySelector('input[name="usage_scenario_variables"]').value = usage_scenario_variables;
+            document.querySelector('#filters-active').classList.remove('hidden');
+        }
+    }
+
+    let show_archived = null;
+    if (url_params['show_archived'] != null && url_params['show_archived'].trim() != '') {
+        show_archived = url_params['show_archived'].trim()
+        document.querySelector('#filters-active').classList.remove('hidden');
+    } else if (localStorage.getItem('show_archived')) {
+        show_archived = localStorage.getItem('show_archived');
+        document.querySelector('#filters-active').classList.remove('hidden');
+    } else {
+        show_archived = 'false';
+    }
+
+    const archived_radio = document.querySelector(`input[name="show_archived"][value="${show_archived}"]`)
+    if (archived_radio != null) { // since user can submit bullshit we do not want to except on querySelector after accessing checkes
+        archived_radio.checked = true;
+        localStorage.setItem('show_archived', show_archived);
+        query_string += `&show_archived=${show_archived}`
+    }
+
+    let show_other_users = null;
+    if (url_params['show_other_users'] != null && url_params['show_other_users'].trim() != '') {
+        show_other_users = url_params['show_other_users'].trim()
+        document.querySelector('#filters-active').classList.remove('hidden');
+    } else if (localStorage.getItem('show_other_users')) {
+        show_other_users = localStorage.getItem('show_other_users');
+        document.querySelector('#filters-active').classList.remove('hidden');
+    } else {
+        show_other_users = 'true';
+    }
+
+    const other_users_radio = document.querySelector(`input[name="show_other_users"][value="${show_other_users}"]`)
+    if (other_users_radio != null) { // since user can submit bullshit we do not want to except on querySelector after accessing checkes
+        document.querySelector(`input[name="show_other_users"][value="${show_other_users}"]`).checked = true;
+        localStorage.setItem('show_other_users', show_other_users);
+        query_string += `&show_other_users=${show_other_users}`
+    }
+
+    return query_string
 }
 
-const getFilterQueryStringFromURI = () => {
-    const url_params = getURLParams();
+const getFilterQueryStringFromInputs = () => {
     let query_string = '';
-    if (url_params['uri'] != null && url_params['uri'].trim() != '') {
-        const uri = url_params['uri'].trim()
-        query_string = `${query_string}&uri=${uri}`
-        showActiveFilters('uri', uri)
-    }
-    if (url_params['filename'] != null && url_params['filename'].trim() != '') {
-        const filename = url_params['filename'].trim()
-        query_string = `${query_string}&filename=${filename}`
-        showActiveFilters('filename', filename)
-    }
-    if (url_params['branch'] != null && url_params['branch'].trim() != '') {
-        const branch = url_params['branch'].trim()
-        query_string = `${query_string}&branch=${branch}`
-        showActiveFilters('branch', branch)
-    }
-    if (url_params['machine_id'] != null && url_params['machine_id'].trim() != '') {
-        const machine_id = url_params['machine_id'].trim()
-        query_string = `${query_string}&machine_id=${machine_id}`
-        showActiveFilters('machine_id', machine_id)
-    }
-    if (url_params['machine'] != null && url_params['machine'].trim() != '') {
-        const machine = url_params['machine'].trim()
-        query_string = `${query_string}&machine=${machine}`
-        showActiveFilters('machine', machine)
-    }
 
+    const name = document.querySelector('input[name="name"]').value.trim()
+    const uri = document.querySelector('input[name="uri"]').value.trim()
+    const filename = document.querySelector('input[name="filename"]').value.trim()
+    const branch = document.querySelector('input[name="branch"]').value.trim()
+    const machine = document.querySelector('input[name="machine"]').value.trim()
+    const machine_id = document.querySelector('input[name="machine_id"]').value.trim()
+    const usage_scenario_variables = document.querySelector('input[name="usage_scenario_variables"]').value.trim()
+    const show_archived = document.querySelector('input[name="show_archived"]:checked')?.value?.trim()
+    localStorage.setItem('show_archived', show_archived);
+    const show_other_users = document.querySelector('input[name="show_other_users"]:checked')?.value?.trim()
+    localStorage.setItem('show_other_users', show_other_users);
+
+    if(name != '') query_string += `&name=${encodeURIComponent(name)}`
+    if(uri != '') query_string += `&uri=${encodeURIComponent(uri)}`
+    if(filename != '') query_string += `&filename=${encodeURIComponent(filename)}`
+    if(branch != '') query_string += `&branch=${encodeURIComponent(branch)}`
+    if(machine != '') query_string += `&machine=${encodeURIComponent(machine)}`
+    if(machine_id != '') query_string += `&machine_id=${encodeURIComponent(machine_id)}`
+    if(usage_scenario_variables != '') query_string += `&usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}`
+    if(show_archived != null && show_archived != '') query_string += `&show_archived=${encodeURIComponent(show_archived)}`
+    if(show_other_users != null && show_other_users != '') query_string += `&show_other_users=${encodeURIComponent(show_other_users)}`
+
+    document.querySelector('#filters-active').classList.remove('hidden');
 
     return query_string
 }
@@ -140,12 +211,12 @@ async function getRepositories(sort_by = 'date') {
         const last_run = el[1];
         let uri_link = replaceRepoIcon(uri);
 
-        uri_link = `${uri_link} ${createExternalIconLink(uri)}`;
+        uri_link = `<span class="left-side-ellipsis long-ellipsis" title="${escapeString(uri)}">${uri_link}</span> ${createExternalIconLink(uri)}`;
 
         let row = table_body.insertRow()
         row.innerHTML = `
             <td>
-                <div class="ui accordion" style="width: 100%;">
+                <div class="ui accordion repositories" style="width: 100%;">
                   <div class="title">
                     <i class="dropdown icon"></i> ${uri_link}
                     <span class="ui label float-right"><i class="clock icon"></i> ${dateToYMD(new Date(last_run), short=true)}</span>
@@ -156,15 +227,16 @@ async function getRepositories(sort_by = 'date') {
                 </div>
             </td>`;
     });
-    $('.ui.accordion').accordion({
+    $('.ui.accordion.repositories').accordion({
         onOpen: function(value, text) {
             const table = this.querySelector('table');
 
             if(!$.fn.DataTable.isDataTable(table)) {
                 const uri = this.getAttribute('data-uri');
-                getRunsTable($(table), `/v2/runs?uri=${uri}&uri_mode=exact&limit=0`, false, false, true)
+                getRunsTable($(table), `/v2/runs?uri=${uri}&uri_mode=exact&limit=0&${getFilterQueryStringFromURI(false)}`, false, false, true)
             }
     }});
+    $('.ui.accordion.filter-dropdown').hide();
 }
 
 const getRunsTable = async (el, url, include_uri=true, include_button=true, searching=false) => {
@@ -175,6 +247,9 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         runs = await makeAPICall(url)
     } catch (err) {
         showNotification('Could not get run data from API', err);
+        const dt = el.DataTable();
+        dt.clear();
+        dt.draw();
         return
     }
 
@@ -187,8 +262,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 el = escapeString(el);
 
                 // Show status labels based on run state
-                if(row[12] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
-                else if(row[11] == null) el = `${el} (in progress 🔥)`;
+                if(row[11] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
+                else if(row[10] == null) el = `${el} (in progress 🔥)`;
 
                 // Show warning label if warnings exist
                 if(row[5] != 0) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">Warnings</span>`;
@@ -198,15 +273,36 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         },
     ]
 
+    const parseRelations = (relationsRaw) => {
+        if (relationsRaw == null) return {};
+        if (typeof(relationsRaw) === 'string') {
+            try {
+                return JSON.parse(relationsRaw);
+            } catch (_) {
+                return {};
+            }
+        }
+        if (typeof(relationsRaw) !== 'object') return {};
+        return relationsRaw;
+    }
+
     if(include_uri) {
         columns.push({
                 data: 2,
                 title: '(<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.) Repo',
                 render: function(el, type, row) {
                     let uri_link = replaceRepoIcon(el);
+                    const ext_link = createExternalIconLink(el);
 
-                    uri_link = `${uri_link} ${createExternalIconLink(el)}`;
-                    return uri_link
+                    uri_link = `<span class="left-side-ellipsis long-ellipsis" title="${escapeString(el)}">${uri_link}</span> ${ext_link}`;
+                    const relations = parseRelations(row[13]);
+                    const relationLinks = Object.values(relations)
+                        .map((relation) => relation?.url)
+                        .filter((relationUrl) => relationUrl != null && relationUrl !== '')
+                        .map((relationUrl) => `<span class="ui mini label">${replaceRepoIcon(relationUrl)} ${createExternalIconLink(relationUrl)}</span>`);
+
+                    if (relationLinks.length === 0) return uri_link;
+                    return `${uri_link}<br>${relationLinks.join(' ')}`
                 },
         })
     }
@@ -214,11 +310,24 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     columns.push({ data: 3, title: '<i class="icon code branch"></i>Branch', render: (el, type, row) => escapeString(el) });
 
     columns.push({
-        data: 10,
+        data: 9,
         title: '<i class="icon history"></i>Commit</th>',
         render: function(el, type, row) {
-          // Modify the content of the "Name" column here
-          return el == null ? null : `${escapeString(el.substr(0,3))}...${escapeString(el.substr(-3,3))}`
+            const commitLabels = [];
+
+            if (el != null && el !== '') {
+                commitLabels.push(`${escapeString(el.slice(0,3))}...${escapeString(el.slice(-3))}<br>`);
+            }
+
+            const relations = parseRelations(row[13]);
+            Object.entries(relations).forEach(([relationName, relationData]) => {
+                const relationHash = relationData?.commit_hash;
+                if (relationHash == null || relationHash === '') return;
+                commitLabels.push(`<span class="ui small label">${escapeString(relationName)}: ${escapeString(relationHash.slice(0,7))}</span>`);
+            });
+
+            if (commitLabels.length === 0) return null;
+            return commitLabels.join(' ');
         },
     });
 
@@ -226,47 +335,93 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         data: 6,
         title: '<i class="icon file alternate"></i>Filename',
         render: function(el, type, row) {
-            const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui label">${escapeString(k)}=${escapeString(v)}</span>`);
-            return `${escapeString(el)} ${usage_scenario_variables.join(' ')}`
+            const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui small label">${escapeString(k)}=${escapeString(v)}</span>`);
+            return `${escapeString(el)} <br> ${usage_scenario_variables.join(' ')}`
         }
     });
-    columns.push({ data: 9, title: '<i class="icon laptop code"></i>Machine</th>', render: (el, type, row) => escapeString(el) });
-    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (el, type, row) => el == null ? '-' : `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${encodeURIComponent(row[2])}&branch=${encodeURIComponent(row[3])}&machine_id=${row[13]}&filename=${encodeURIComponent(row[6])}&metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>` });
+    columns.push({ data: 8, title: '<i class="icon laptop code"></i>Machine</th>', render: (el, type, row) => escapeString(el) });
+    columns.push({
+        data: 4,
+        title: '<i class="icon calendar"></i>Last run</th>',
+        render: function(el, type, row) {
+            if (el == null) return '-';
+            return `${dateToYMD(new Date(el))}`;
+
+        }
+    });
+    columns.push({
+        title: '<i class="cog icon"></i>Actions</th>',
+        className: 'dt-nowrap',
+        render: function(_, type, row) {
+            const params = new URLSearchParams();
+            params.set('uri', row[2]);
+            params.set('branch', row[3] ?? '');
+            params.set('machine_id', row[12]);
+            params.set('filename', row[6] ?? '');
+
+            const usageScenarioVariables = row[7] ?? {};
+            if (Object.keys(usageScenarioVariables).length > 0) {
+                Object.entries(usageScenarioVariables).forEach(([key, value]) => {
+                    params.append(`usage_scenario_variables[${key}]`, String(value));
+                });
+            } else {
+                params.set('usage_scenario_variables', 'false');
+            }
+
+            const href = `/timeline.html?${params.toString().replace(/&/g, '&amp;')}`;
+
+            return `
+                <div class="run-actions no-wrap">
+                    <a title="Timeline Analysis" href="${href}" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="ui icon clock"></i></a>
+                    <a title="Carbon Simulation" href="/simulation.html?id=${encodeURIComponent(row[0])}" class="ui tiny teal horizontal icon button no-wrap" target="_blank"><i class="chartline icon"></i></a>
+                </div>`
+        },
+        orderable: false,
+    });
 
     columns.push({
         data: 0,
         render: function(el, type, row) {
             // Modify the content of the "Name" column here
             return `<input type="checkbox" value="${el}" name="chbx-proj"/>&nbsp;`
-        }
+        },
+        orderable: false,
     });
 
-    el.DataTable({
-        // searchPanes: {
-        //     initCollapsed: true,
-        // },
-        searching: searching,
-        data: runs.data,
-        columns: columns,
-        deferRender: true,
-        layout: {
-    topStart: '',
-    topEnd: '',
-    bottomStart: 'pageLength',
-    bottomEnd: 'paging'
-},
-        drawCallback: function(settings) {
-            document.querySelectorAll('input[type="checkbox"]').forEach((e) =>{
-                e.removeEventListener('change', updateCompareCount);
-                e.addEventListener('change', updateCompareCount);
-            })
-            document.querySelector('#unselect-button').removeEventListener('click', unselectHandler);
-            document.querySelector('#unselect-button').addEventListener('click', unselectHandler)
-            allow_group_select_checkboxes();
-            updateCompareCount();
-        },
-        order: [[columns.length-2, 'desc']] // API also orders, but we need to indicate order for the user
-    });
+
+   if ($.fn.DataTable.isDataTable(el)) { // just refill. A clean .destroy and .clear will break sorting sadly ...
+        const dt = el.DataTable();
+        dt.clear();
+        dt.rows.add(runs.data); // array or Ajax-style data
+        dt.draw();
+    } else { // init
+        el.DataTable({
+            // searchPanes: {
+            //     initCollapsed: true,
+            // },
+            searching: searching,
+            data: runs.data,
+            columns: columns,
+            deferRender: true,
+            layout: {
+                topStart: '',
+                topEnd: '',
+                bottomStart: 'pageLength',
+                bottomEnd: 'paging'
+            },
+            drawCallback: function(settings) {
+                document.querySelectorAll('input[type="checkbox"]').forEach((e) =>{
+                    e.removeEventListener('change', updateCompareCount);
+                    e.addEventListener('change', updateCompareCount);
+                })
+                document.querySelector('#unselect-button').removeEventListener('click', unselectHandler);
+                document.querySelector('#unselect-button').addEventListener('click', unselectHandler)
+                allow_group_select_checkboxes();
+                updateCompareCount();
+            },
+            order: [[columns.length-3, 'desc']] // API also orders, but we need to indicate order for the user
+        });
+    }
 
 }
 
@@ -278,10 +433,12 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         if (el.currentTarget.innerText === 'Switch to repository view') {
             document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Repositories';
             localStorage.setItem('scenario_runner_data_shown', 'repositories');
+            history.replaceState(null, '', window.location.pathname); // clear any filters if any set
             window.location.reload();
         } else {
             document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Last 50 Runs';
             localStorage.setItem('scenario_runner_data_shown', 'last_runs');
+            history.replaceState(null, '', window.location.pathname); // clear any filters if any set
             window.location.reload();
         }
     });
@@ -298,12 +455,35 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?${getFilterQueryStringFromURI()}&limit=50`)
     }
 
-    if (localStorage.getItem('expert_compare_mode') === 'true') {
-        const value = localStorage.getItem('expert_compare_mode_last_value');
-        if (value != null) {
-            const el = document.querySelector('#compare-force-mode');
-            el.value = value;
-        }
+    const value = localStorage.getItem('compare_mode_last_value');
+    if (value != null && value != '') {
+        document.querySelector('#compare-force-mode').value = value;
+        $('.ui.accordion.compare-force-mode').accordion('open', 0);
+    } else {
+        $('.ui.accordion.compare-force-mode').accordion('close', 0);
     }
+
+
+
+    // filters
+    $('.ui.accordion.filter-dropdown').accordion();
+    $('form').on('submit', async function (e) {
+        e.preventDefault();
+        const query_string = getFilterQueryStringFromInputs()
+        getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?${query_string}&limit=0`)
+        history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${query_string}`); // replace URL to bookmark!
+        $('.ui.accordion.filter-dropdown').accordion('close', 0);
+        return false;
+    });
+    $('button[name=clear]').on('click', async function () {
+        history.replaceState(null, '', window.location.pathname);
+        document.querySelectorAll('input.filter-option').forEach((el) => {
+            el.value = '';
+        })
+        getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?limit=50`)
+        $('.ui.accordion').accordion('close', 0); // close all accordions
+        document.querySelector('#filters-active').classList.add('hidden');
+    });
+
 
 })();

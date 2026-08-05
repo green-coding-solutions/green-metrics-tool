@@ -36,7 +36,7 @@
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
 <body class="preload">
-    <gmt-menu></gmt-menu>
+    <gmt-menu data-active-item="runs-repos"></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left"><a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon opened"></i></a> Green Metrics Tool - ScenarioRunner Timeline</h1>
         <div class="ui full-width-card card">
@@ -61,19 +61,26 @@
                                     <span id="uri">-</span>
                                 </div>
                                 <div class="inline field">
-                                    <label>Filename:</label>
-                                    <span id="filename">-</span>
+                                    <label>Branch:</label>
+                                    <span id="branch">-</span>
                                 </div>
                             </div>
                             <div class="equal width fields">
                                 <div class="inline field">
-                                    <label>Branch:</label>
-                                    <span id="branch">-</span>
+                                    <label>Filename:</label>
+                                    <span id="filename">-</span>
                                 </div>
+                                <div class="inline field">
+                                    <label>Usage Scenario Variables:</label>
+                                    <span id="usage-scenario-variables">-</span>
+                                </div>
+                            </div>
+                            <div class="equal width fields">
                                 <div class="inline field">
                                     <label>Machine:</label>
                                     <span id="machine">-</span>
                                 </div>
+                                <div class="inline field"></div>
                             </div>
                         </div>
                         <div class="ui one column stackable grid">
@@ -84,8 +91,11 @@
                                         <div class="header">
                                             Badge Info
                                         </div>
-                                        <p>Badges are showing always the trend over the last 30 days and calculations will always be on the Runtime phase as well as calculated by sorting on commit timestamp.</p>
-                                        <p>Badges are cached and will only update once per day, even if the charts already show new data.</p>
+                                        <ul>
+                                            <li>Badges are showing always the trend over the last 30 days and calculations will always be on the Runtime phase as well as calculated by sorting on commit timestamp. They can also only show if there at least 3 data points.</li>
+                                            <li>Badges are cached and will only update once per day, even if the charts already show new data.</li>
+                                            <li>Badges are only visible if the run is public since they are served as images. If badges do not show either make the run public or use a HTTP proxy like Cloudflare workers to tunnel the page if needed.</li>
+                                        </ul>
                                     </div>
                                 </div>
                             </div>
@@ -126,17 +136,35 @@
                                 </select>
                             </div>
                             <div class="inline fields">
+                                <label style="min-width: 15em;">Usage Scenario Variables:<br>
+                                    <i class="info circle icon"></i> <small>Leave empty to include all.<br>Check box to force empty</small>
+                                </label>
+                                <div style="width: 100%;">
+                                    <div class="ui checkbox" style="padding: 0.5em 0 ;">
+                                        <input id="usage-scenario-variables-none" type="checkbox">
+                                        <label for="usage-scenario-variables-none">No usage scenario variables</label>
+                                    </div>
+                                    <div id="variables-container"></div>
+                                    <div style="text-align: right; margin-top: 0.5em;">
+                                        <button type="button" class="ui mini icon button" id="add-variable">
+                                            <i class="plus icon"></i> Add Variable
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="inline fields">
                                 <label>Metrics to show:</label>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="metrics-key" type="radio" name="metrics" value="key" checked>
-                                        <label for="metrics-key">Key metrics only</label>
+                                        <input id="metric-key" type="radio" name="metric" value="key" checked>
+                                        <label for="metric-key">Key metrics only</label>
                                     </div>
                                 </div>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="metrics-all" type="radio" name="metrics" value="all">
-                                        <label for="metrics-all">All metrics</label>
+                                        <input id="metric-all" type="radio" name="metric" value="all">
+                                        <label for="metric-all">All metrics</label>
                                     </div>
                                 </div>
                             </div>
@@ -156,7 +184,7 @@
                                 </div>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="phase-boot" type="radio" name="phase" value=[BOOT]>
+                                        <input id="phase-boot" type="radio" name="phase" value="[BOOT]">
                                         <label for="phase-boot">Boot</label>
                                     </div>
                                 </div>
@@ -179,6 +207,15 @@
                                     </div>
                                 </div>
                                 <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="phase-custom" type="radio" name="phase" value="custom">
+                                        <label for="phase-custom">Custom</label>
+                                    </div>
+                                </div>
+                                <div class="field phase-custom-field" style="display: none;">
+                                    <input id="phase-custom-input" type="text" name="phase_custom" placeholder="Phase name (e.g. Stress)" disabled>
+                                </div>
+                                <div class="field">
                                     <i class="info circle icon"></i> Will not affect badge
                                 </div>
                             </div>
@@ -186,18 +223,33 @@
                                 <label>Sorting order:</label>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="sorting-commit" type="radio" name="sorting" value="commit" checked>
+                                        <input id="sorting-commit" type="radio" name="sorting" value="commit">
                                         <label for="sorting-commit">Date of commit</label>
                                     </div>
                                 </div>
                                 <div class="field">
                                     <div class="ui radio checkbox">
-                                        <input id="sorting-run" type="radio" name="sorting" value="run">
+                                        <input id="sorting-run" type="radio" name="sorting" value="run" checked>
                                         <label for="sorting-run">Date of measurement</label>
                                     </div>
                                 </div>
                                 <div class="field">
                                     <i class="info circle icon"></i> Will not affect badge
+                                </div>
+                            </div>
+                            <div class="inline fields">
+                                <label>Show archived runs:</label>
+                                <div class="field">
+                                    <div class="ui radio checkbox checked">
+                                        <input id="show-archived-no" type="radio" name="show_archived" value="false" checked>
+                                        <label for="show-archived-no">No</label>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="show-archived-yes" type="radio" name="show_archived" value="true">
+                                        <label for="show-archived-yes">Yes</label>
+                                    </div>
                                 </div>
                             </div>
                             <div class="inline fields">

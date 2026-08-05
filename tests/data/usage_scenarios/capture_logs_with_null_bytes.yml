@@ -5,7 +5,6 @@ description: Test handling of null bytes in log output
 
 services:
   test-container:
-    type: container
     image: alpine
     setup-commands:
       - command: 'printf "Setup log with null byte: \x00 embedded\n"'

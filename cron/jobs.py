@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 # pylint: disable=cyclic-import
 import sys
 import faulthandler
@@ -12,7 +12,9 @@ import argparse
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib import error_helpers
-from lib.job.base import Job
+from lib.job.run import RunJob
+from lib.job.email_simple import EmailSimpleJob
+from lib.job.email_report import EmailReportJob
 from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
 from lib.system_checks import ConfigurationCheckError
@@ -26,16 +28,20 @@ from lib.db import DB
     After 14 days all FAILED and NOTIFIED jobs will be deleted.
 """
 
+JOB_TYPE_CLASSES = {
+    'run': RunJob,
+    'email-simple': EmailSimpleJob,
+    'email-report': EmailReportJob,
+}
+
 
 if __name__ == '__main__':
     job_main = None # needs to be defined in case exception triggers
 
     try:
         parser = argparse.ArgumentParser()
-        parser.add_argument('type', help='Select the operation mode.', choices=['email', 'run'])
+        parser.add_argument('type', help='Select the operation mode.', choices=['email-simple', 'run', 'email-report'])
         parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
-        parser.add_argument('--full-docker-prune', action='store_true', default=False, help='Prune all images and build caches on the system')
-        parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
 
         args = parser.parse_args()  # script will exit if type is not present
 
@@ -49,15 +55,12 @@ if __name__ == '__main__':
                 sys.exit(1)
             GlobalConfig(config_location=args.config_override)
 
-        job_main = Job.get_job(args.type)
+        job_main = JOB_TYPE_CLASSES[args.type].get_job()
         if not job_main:
             print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'No job to process. Exiting')
             sys.exit(0)
         print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'Processing Job ID#: ', job_main._id)
-        if args.type == 'run':
-            job_main.process(docker_prune=args.docker_prune, full_docker_prune=args.full_docker_prune)
-        elif args.type == 'email':
-            job_main.process()
+        job_main.process()
         print('Successfully processed jobs queue item.')
     except Exception as exc: #pylint: disable=broad-except
         if job_main:
@@ -65,8 +68,7 @@ if __name__ == '__main__':
 
             # reduced error message to client, but only if no ConfigurationCheckError
             if job_main._email and not isinstance(exc, ConfigurationCheckError):
-                Job.insert(
-                    'email',
+                EmailSimpleJob.insert(
                     user_id=job_main._user_id,
                     email=job_main._email,
                     name='Measurement Job on Green Metrics Tool Cluster failed',

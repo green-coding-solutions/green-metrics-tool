@@ -3,11 +3,23 @@ import subprocess
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+import pytest
+
 from lib import utils
-from lib.job.base import Job
+from lib.job.run import RunJob
+from lib.user import User
 from tests import test_functions as Tests
 
+## Check if metrics provider are already running
+# Starts real metric providers, so it must never overlap with any other test that also starts
+# real metric providers - see the comment on pytestmark in tests/smoke_test.py for why
+# xdist_group is what actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_simple_cluster_run():
+
+    tmp_folder = Tests.get_tmp_folder().resolve()
+    tmp_folder.mkdir(exist_ok=True)
+
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
@@ -16,18 +28,27 @@ def test_simple_cluster_run():
 
     Tests.shorten_sleep_times(1)
 
-    Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+    RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
+
+    user = User(1)
+    user._capabilities['measurement']['dev_no_system_checks'] = ['check_steal_time']
+    user.update()
 
     ps = subprocess.run(
             ['python3', '../cron/client.py', '--testing', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
-            check=True,
+            check=False,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
             encoding='UTF-8'
         )
-    assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
+
+    assert ps.returncode == 0, f"Return code was not 0 but {ps.returncode}. Stderr: {ps.stderr}"
+    assert ps.stderr == '', ps.stderr
     assert 'Successfully ended testing run of client.py' in ps.stdout,\
         Tests.assertion_info('Successfully ended testing run of client.py', ps.stdout)
 
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
+
+    # also check that the tmp folder was deleted locally
+    assert tmp_folder.exists() and not any(tmp_folder.iterdir()), '/tmp/green-metrics-tool was not emptied after run although --file-cleanup was set'

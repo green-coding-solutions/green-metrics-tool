@@ -169,7 +169,7 @@ class TestArchitectureCompatibility:
             # Verify Docker inspect was called
             mock_subprocess.assert_called_once_with(
                 ['docker', 'image', 'inspect', 'test-image', '--format', '{{.Architecture}}'],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', errors='replace', check=False
             )
 
             # Verify platform status check

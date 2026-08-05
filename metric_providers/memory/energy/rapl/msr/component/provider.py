@@ -4,7 +4,7 @@ from metric_providers.base import BaseMetricProvider, MetricProviderConfiguratio
 from lib.utils import is_rapl_energy_filtering_deactivated
 
 class MemoryEnergyRaplMsrComponentProvider(BaseMetricProvider):
-    def __init__(self, sampling_rate, skip_check=False):
+    def __init__(self, sampling_rate, folder, skip_check=False):
         super().__init__(
             metric_name='memory_energy_rapl_msr_component',
             metrics={'time': int, 'value': int, 'dram_id': str},
@@ -12,6 +12,7 @@ class MemoryEnergyRaplMsrComponentProvider(BaseMetricProvider):
             unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            folder=folder,
         )
 
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):

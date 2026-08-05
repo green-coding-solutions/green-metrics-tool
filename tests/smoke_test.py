@@ -2,6 +2,7 @@ import io
 import os
 import subprocess
 import re
+import json
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -19,10 +20,26 @@ run_stdout = None
 
 RUN_NAME = 'test_' + utils.randomword(12)
 
-#pylint: disable=unused-argument
-@pytest.fixture(autouse=True, scope='module') # override by setting scope to module only
+# This whole file runs a real measurement with dev_no_system_checks set to the minimum value (check_steal_time) which
+# guards it only from VM failures, so every real metric
+# provider process it starts is checked (and later left running for the duration of the module)
+# against the actual system-wide "is another instance of this provider already running" guard in
+# metric_providers.base - a check that is intentionally NOT worker-scoped, since its whole point is
+# to catch a real second instance anywhere on the machine. Under xdist that guard would otherwise
+# also fire against any other test elsewhere in the suite that happens to start real metric
+# providers concurrently on a different worker. xdist_group pins every test carrying the same group
+# name onto one worker, which - since a single worker runs its tests one at a time - is what
+# actually keeps them from overlapping; test_reporters_still_running (tests/test_runner.py) and
+# test_provider_early_exit (tests/test_usage_scenario.py) also start real metric providers for real
+# and carry the same group for that reason.
+pytestmark = pytest.mark.xdist_group(name="real-metric-providers")
+
+
+# override by setting scope to module only. otherwise we would truncate DB between test functions in this file
+# pylint: disable=unused-argument
+@pytest.fixture(autouse=True, scope='module')
 def setup_and_cleanup_test():
-    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # we want to do this globally for all tests
+    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml")
     yield
     Tests.reset_db()
 
@@ -37,7 +54,7 @@ def setup_module(module):
         subprocess.run(['docker', 'compose', '-f', GMT_DIR+folder+'compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = ScenarioRunner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=False, dev_no_sleeps=False, dev_no_metrics=False, skip_system_checks=False, measurement_pre_test_sleep=1, measurement_baseline_duration=1, measurement_idle_duration=1, measurement_post_test_sleep=1, measurement_phase_transition_time=1, measurement_wait_time_dependencies=5)
+        runner = ScenarioRunner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=False, dev_no_sleeps=False, dev_no_metrics=False, dev_no_system_checks=['check_steal_time'], dev_no_container_dependency_collection=False, measurement_pre_test_sleep=1, measurement_baseline_duration=1, measurement_idle_duration=1, measurement_post_test_sleep=1, measurement_phase_transition_time=1, measurement_wait_time_dependencies=5)
         runner.run()
 
     #pylint: disable=global-statement
@@ -77,13 +94,13 @@ def test_db_rows_are_written_and_presented():
     assert(data is not None and data != [])
 
     config = GlobalConfig().config # will be pre-loaded with test-config.yml due to conftest.py
-    metric_providers = utils.get_metric_providers_names(config)
+    metric_providers = list(utils.get_metric_providers(config).keys())
 
     # The network connection proxy provider writes to a different table so we need to remove it here
-    if 'NetworkConnectionsProxyContainerProvider' in metric_providers:
-        metric_providers.remove('NetworkConnectionsProxyContainerProvider')
+    if 'network_connections_proxy_container' in metric_providers:
+        metric_providers.remove('network_connections_proxy_container')
 
-    if 'PowermetricsProvider' in metric_providers:
+    if 'powermetrics' in metric_providers:
         # The problem here is that the powermetrics provider splits up the output of powermetrics and acts like
         # there are loads of providers. This makes a lot easier in showing and processing the data but is
         # not std behavior. That is also why we need to patch the imported check down below.
@@ -98,12 +115,23 @@ def test_db_rows_are_written_and_presented():
             'ane_energy_powermetrics_component',
         ]
 
-        metric_providers.extend([utils.get_pascal_case(i) + 'Provider' for i in pm_additional_list])
+        metric_providers.extend(pm_additional_list)
+
+    # calculate_co2_intensity derives a carbon metric for each energy+carbon_intensity combo.
+    # Add those expected derived names so the assertion below can validate them.
+    assert any('carbon_intensity_' in p for p in metric_providers), \
+        "carbon_intensity provider must be present in test-config.yml"
+    derived_carbon_metrics = [
+        p.replace('_energy_', '_carbon_')
+        for p in metric_providers if '_energy_' in p
+    ]
+    metric_providers.extend(derived_carbon_metrics)
 
     do_check = True
 
     for d in data:
-        d_provider = utils.get_pascal_case(d[0]) + 'Provider'
+        d_class_name = utils.get_pascal_case(d[0]) + 'Provider'
+        d_provider = d[0]
         d_count = d[1]
         ## Assert the provider in DB matches one of the metric providers in config
         assert d_provider in metric_providers
@@ -112,21 +140,21 @@ def test_db_rows_are_written_and_presented():
         assert d_count > 0
 
         if do_check:
-            if 'PowermetricsProvider' in metric_providers:
+            if 'powermetrics' in metric_providers:
                 ## Assert the information printed to std.out matches what's in the db
                 match = re.search(r"Imported \S* (\d+) \S* metrics from  PowermetricsProvider", run_stdout, re.MULTILINE)
                 assert match is not None
                 do_check = False
-            else:
+            elif d_provider not in derived_carbon_metrics:
                 ## Assert the information printed to std.out matches what's in the db
-                match = re.search(rf"Imported \S* (\d+) \S* metrics from\s*{d_provider}", run_stdout)
+                match = re.search(rf"Imported \S* (\d+) \S* metrics from\s*{d_class_name}", run_stdout)
                 assert match is not None
                 assert int(match.group(1)) == d_count
 
             ## Assert that all the providers in the config are represented
             metric_providers.remove(d_provider)
 
-    if not 'PowermetricsProvider' in metric_providers:
+    if 'powermetrics' not in metric_providers:
         assert len(metric_providers) == 0
 
 def test_run_contains_warnings():
@@ -144,3 +172,22 @@ def test_run_contains_warnings():
         if warning[0].startswith('You have other containers running on the system. This is usually what you want in local development'):
             found_warning = True
     assert found_warning is True, 'Did not find "You have other containers running on the system. This is usually what you want in local development" in warning strings'
+
+def test_run_contains_no_security_info():
+    # check that SSH private key from security is never stored in any column of the runs table
+
+    run_id = utils.get_run_data(RUN_NAME)["id"]
+    run_row = DB().fetch_one(
+        "SELECT * FROM runs WHERE id = %s", params=(run_id,), fetch_mode="dict"
+    )
+
+    run_row_as_str = json.dumps(run_row, default=str)
+
+    assert (
+        "encryption_private_key_file" not in run_row_as_str
+        and "encryption_public_key_file" not in run_row_as_str
+    ), f"Security Information in the runs table for run {run_id}"
+
+    assert "BEGIN PRIVATE KEY" not in run_row_as_str, (
+        f"SSH Key Information in the runs table for run {run_id}"
+    )

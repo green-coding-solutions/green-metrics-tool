@@ -70,7 +70,7 @@ static void detect_packages(void) {
     for (i = 0; i < MAX_CPUS; i++) {
         snprintf(filename, PATH_MAX, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", i);
         fff = fopen(filename, "r");
-        if (fff == NULL) break;
+        if (fff == NULL) continue; // CPU offline / non-contiguous numbering
         if (fscanf(fff, "%d", &package) != 1) {
             perror("read_package");
             exit(127);
@@ -87,6 +87,12 @@ static void detect_packages(void) {
             package_map[package] = i;
         }
     }
+
+    if (total_packages == 0) {
+        fprintf(stderr, "No CPU packages detected\n");
+        exit(1);
+    }
+
 }
 
 static int check_system() {

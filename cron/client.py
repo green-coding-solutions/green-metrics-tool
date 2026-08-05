@@ -1,38 +1,53 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
-import os
 import re
 import time
 import subprocess
 import json
 import argparse
+from pathlib import Path
 
-from lib.job.base import Job
+from lib.job.run import RunJob
+from lib.job.email_simple import EmailSimpleJob
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.repo_info import get_repo_info
 from lib import validate
 from lib.temperature import get_temperature
 from lib import error_helpers
-from lib.configuration_check_error import ConfigurationCheckError, Status
+from lib import utils
+from lib.configuration_check_error import ConfigurationCheckError, Status, TemperatureException
 
-# We currently have this dynamically as it will probably change quite a bit
-STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_end', 'maintenance_start', 'maintenance_end', 'maintenance_error', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+STATUS_LIST = (
+    'cooldown',
+    'warmup',
+    'job_no',
+    'job_start',
+    'job_error',
+    'job_end',
+    'maintenance_start',
+    'maintenance_end',
+    'maintenance_error',
+    'measurement_control_start',
+    'measurement_control_end',
+    'measurement_control_error',
+    'reboot',
+)
+
+GMT_ROOT_DIR = Path(__file__).resolve().parent.parent
 
 def set_status(status_code, data=None, run_id=None):
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
+
     if not hasattr(set_status, "last_status"):
         set_status.last_status = status_code  # static variable
     elif set_status.last_status == status_code:
         return # no need to update status, if it has not changed since last time
     set_status.last_status = status_code
-
-    config = GlobalConfig().config # pylint: disable=redefined-outer-name
 
     if status_code not in STATUS_LIST:
         raise ValueError(f"Status code not valid: '{status_code}'. Should be in: {STATUS_LIST}")
@@ -51,33 +66,80 @@ def set_status(status_code, data=None, run_id=None):
         WHERE id = %s
     """
 
-    gmt_hash, gmt_timestamp = get_repo_info(CURRENT_DIR)
+    gmt_hash, gmt_timestamp = get_repo_info(GMT_ROOT_DIR)
 
     params = (
         status_code,
         config['machine']['base_temperature_value'], config['cluster']['client']['jobs_processing'],
         gmt_hash, gmt_timestamp,
-        json.dumps({'measurement': config['measurement'], 'machine': config['machine'], 'cluster': config['cluster']}),
+        json.dumps(utils.sanitize_config({'measurement': config['measurement'], 'machine': config['machine'], 'cluster': config['cluster']})),
         config['machine']['id'],
 
     )
     DB().query(query=query, params=params)
+
+def update_current_temperature():
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
+
+    chip = config['machine'].get('base_temperature_chip')
+    feature = config['machine'].get('base_temperature_feature')
+    if not chip or not feature:
+        return # temperature monitoring not configured for this machine — skip
+
+    current_temperature = get_temperature(chip, feature)
+    DB().query('UPDATE machines SET current_temperature=%s WHERE id = %s', params=(current_temperature, config['machine']['id']))
+
+def reboot_if_uptime_exceeded(reboot_after_s):
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
+
+    if type(reboot_after_s) is not int: # pylint: disable=unidiomatic-typecheck - # cannot be isinstance as True is subclass
+        error_helpers.log_error('Wrong type configured for reboot_after_s. Must be int', type=type(reboot_after_s), machine=config['machine']['description'])
+        return
+
+    if not reboot_after_s:
+        return
+
+    with open('/proc/uptime', encoding='UTF-8') as f:
+        uptime_seconds = float(f.read().split()[0])
+
+    if uptime_seconds > reboot_after_s:
+        print(f"Uptime {uptime_seconds:.0f}s exceeds reboot_after_seconds {reboot_after_s}s. Rebooting...")
+        set_status('reboot')
+        subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
+        subprocess.check_output(['/usr/bin/sudo', '/usr/bin/systemctl', 'reboot'], encoding='UTF-8', errors='replace')
+        time.sleep(86400) # reboot request might not be handled directly, thus we wait until this process gets killed.
+
 
 def do_maintenance():
     config = GlobalConfig().config # pylint: disable=redefined-outer-name
 
     set_status('maintenance_start')
 
+    python_realpath = Path('/usr/bin/python3').resolve(strict=True) # bc typically symlinked to python3.12 or similar
+
+    maintenance_cmd = ['/usr/bin/sudo', python_realpath.as_posix(), '-I', '-B', '-S', Path('/usr/local/bin/green-metrics-tool/maintenance.py').resolve(strict=True).as_posix()]
+
+    # first we need to determine if an apt update is also necessary. We only want to update once a day
+    now = time.time()
+    if not config['cluster']['client']['update_os_packages']:
+        print('Cluster OS Package updates are disabled. Skipping in maintenance ...')
+    elif (not Path('/var/log/apt/history.log').exists()) or ((now - Path('/var/log/apt/history.log').stat().st_mtime) > 86400):
+        print("history.log is older than 24 hours. Updating OS packages in maintenance")
+        maintenance_cmd.append('--update-os-packages')
+    else:
+        print("history.log is still newer than 24 hours. Skipping OS updates in maintenance ...")
+
     ps = subprocess.run(
-        ['sudo', os.path.join(os.path.dirname(os.path.abspath(__file__)),'../tools/cluster/cleanup.py')],
+        maintenance_cmd,
         check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, # put both in one stream
         encoding='UTF-8',
+        errors='replace',
     )
     if ps.returncode != 0:
         set_status('maintenance_error')
-        error_helpers.log_error('Cluster cleanup failed', stdout=ps.stdout)
+        error_helpers.log_error('Cluster maintenance failed', stdout=ps.stdout, machine=config['machine']['description'])
         time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
 
     set_status('maintenance_end', data=ps.stdout)
@@ -89,51 +151,6 @@ def do_maintenance():
         return True # must run validation workload again. New packages installed
 
     return None
-
-def validate_temperature():
-    config = GlobalConfig().config # pylint: disable=redefined-outer-name
-
-    if not hasattr(validate_temperature, "temperature_errors") or not hasattr(validate_temperature, "cooldown_time"):
-        validate_temperature.temperature_errors = 0  # initialize static variable
-        validate_temperature.cooldown_time = 0  # initialize static variable
-
-    current_temperature = get_temperature(
-        config['machine']['base_temperature_chip'],
-        config['machine']['base_temperature_feature']
-    )
-
-    DB().query('UPDATE machines SET current_temperature=%s WHERE id = %s', params=(current_temperature, config['machine']['id']))
-
-    if current_temperature > config['machine']['base_temperature_value']:
-        if validate_temperature.temperature_errors >= 10:
-            raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {config['machine']['base_temperature_value']}. Pleae check logs ...")
-
-        print(f"Machine is still too hot: {current_temperature}°. Sleeping for 1 minute")
-        set_status('cooldown')
-        validate_temperature.cooldown_time += 60
-        validate_temperature.temperature_errors += 1
-        time.sleep(60)
-        return False
-
-    if current_temperature <= (config['machine']['base_temperature_value'] - 10):
-        if validate_temperature.temperature_errors >= 10:
-            raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {config['machine']['base_temperature_value']}. Pleae check logs ...")
-
-        print(f"Machine is too cool: {current_temperature}°. Warming up and retrying")
-        set_status('warmup')
-        validate_temperature.temperature_errors += 1
-        current_time = time.time()
-        while True: # spinlock
-            if time.time() > (current_time + 10):
-                break
-        return False
-
-    DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(validate_temperature.cooldown_time, config['machine']['id']))
-
-    validate_temperature.temperature_errors = 0 # reset
-    validate_temperature.cooldown_time = 0 # reset
-
-    return True
 
 def do_measurement_control():
     config = GlobalConfig().config # pylint: disable=redefined-outer-name
@@ -149,21 +166,33 @@ def do_measurement_control():
     try:
         message = validate.validate_workload_stddev(stddev_data, cwl['metrics'])
         if config['cluster']['client']['send_control_workload_status_mail'] and config['admin']['notification_email']:
-            Job.insert(
-                'email',
+            EmailSimpleJob.insert(
                 user_id=0, # User 0 is the [GMT-SYSTEM] user
                 email=config['admin']['notification_email'],
                 name=f"{config['machine']['description']} is operating normally. All STDDEV fine.",
                 message='\n'.join(message)
             )
 
-    except Exception as exception: # pylint: disable=broad-except
-        validate.handle_validate_exception(exception)
+    except Exception as exc: # pylint: disable=broad-except
+
+        error_helpers.log_error('Workload Validation Failed: ',
+            exception=exc,
+            details=f"Please check under {config['cluster']['metrics_url']}/timeline.html?uri={cwl['uri']}&branch={cwl['branch']}&filename={cwl['filename']}&machine_id={config['machine']['id']}",
+            name='Measurement control Workload (on boot)',
+            machine=config['machine']['description'],
+        )
+
         set_status('measurement_control_error')
         # the process will now go to sleep for 'time_between_control_workload_validations''
         # This is as long as the next validation is needed and thus it will loop
         # endlessly in validation until manually handled, which is what we want.
         time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
+
+def reboot():
+    set_status('reboot')
+    subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
+    subprocess.check_output(['/usr/bin/sudo', '/usr/bin/systemctl', 'reboot'], encoding='UTF-8', errors='replace')
+    time.sleep(86400)
 
 if __name__ == '__main__':
     try:
@@ -176,91 +205,160 @@ if __name__ == '__main__':
         if args.config_override is not None:
             if args.config_override[-4:] != '.yml':
                 parser.print_help()
-                error_helpers.log_error('Config override file must be a yml file')
+                error_helpers.log_error('Config override file must be a yml file', machine=GlobalConfig().config['machine']['description'])
                 sys.exit(1)
             GlobalConfig(config_location=args.config_override) # will create a singleton and subsequent calls will retrieve object with altered default config file
 
         config = GlobalConfig().config
 
-        must_revalidate_bc_new_packages = False
+        needs_revalidation = False
         last_24h_maintenance = 0
+        temperature_errors = 0
+        temperature_cooldown_time = 0
+
+        result = DB().fetch_one('SELECT needs_revalidation FROM machines WHERE id = %s', params=(config['machine']['id'],), fetch_mode='dict')
+        if result and result['needs_revalidation']:
+            needs_revalidation = True
 
         while True:
 
-            # run forced maintenance with cleanup every 24 hours
+            if not args.testing:
+                update_current_temperature()
+
+            # run forced maintenance with maintenance every 24 hours
             if not args.testing and last_24h_maintenance < (time.time() - 43200): # every 12 hours
-                must_revalidate_bc_new_packages = do_maintenance()
+                if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
+                    DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
+                    reboot()
                 last_24h_maintenance = time.time()
 
-            job = Job.get_job('run')
+            job = RunJob.get_job()
             if job and job.check_job_running():
                 error_helpers.log_error('Job is still running. This is usually an error case! Continuing for now ...', machine=config['machine']['description'])
                 if not args.testing:
                     time.sleep(config['cluster']['client']['sleep_time_no_job'])
                 continue
 
-            if not args.testing:
-                if validate_temperature():
-                    print('Machine is temperature is good. Continuing ...')
-                else:
-                    continue # retry all checks
-
-            if not args.testing and (must_revalidate_bc_new_packages or validate.is_validation_needed(config['machine']['id'], config['cluster']['client']['time_between_control_workload_validations'])):
+            if not args.testing and (needs_revalidation or validate.is_validation_needed(config['machine']['id'], config['cluster']['client']['time_between_control_workload_validations'])):
                 do_measurement_control()
-                must_revalidate_bc_new_packages = False # reset as measurement control has run. even if failed
+                DB().query('UPDATE machines SET needs_revalidation = false WHERE id = %s', params=(config['machine']['id'],))
+                needs_revalidation = False # reset as measurement control has run. even if failed
                 continue # re-do temperature checks
 
             if job:
                 set_status('job_start', run_id=job._run_id)
                 try:
-                    job.process(docker_prune=config['cluster']['client']['docker_prune'], full_docker_prune=config['cluster']['client']['full_docker_prune'])
+                    job.process()
+                    if temperature_cooldown_time > 0:
+                        DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(temperature_cooldown_time, config['machine']['id']))
+                    temperature_errors = 0
+                    temperature_cooldown_time = 0
                     set_status('job_end', run_id=job._run_id)
+                except TemperatureException as exc:
+                    if temperature_errors >= 10:
+                        raise RuntimeError(f"Temperature could not be stabilized in time. Was {exc.temperature} but should be {config['machine']['base_temperature_value']}. Please check logs ...") from exc
+                    if exc.direction == 'hot':
+                        print(f"Machine is still too hot: {exc.temperature}°. Sleeping for 1 minute")
+                        set_status('cooldown', data=str(exc), run_id=job._run_id)
+                        temperature_cooldown_time += 60
+                        temperature_errors += 1
+                        time.sleep(60)
+                    else:
+                        print(f"Machine is too cool: {exc.temperature}°. Warming up and retrying")
+                        set_status('warmup', data=str(exc), run_id=job._run_id)
+                        temperature_errors += 1
+                        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
+                        time.sleep(300)
+                        subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
                     set_status('job_error', data=str(exc), run_id=job._run_id)
                     if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
-                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception_context=exc.__context__, last_exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config['machine']['description'], sleep_duration=600)
+                        sleep_duration=600 # seconds = 5 Min
+                        error_helpers.log_error('Job processing in cluster failed (client.py)',
+                            exception_context=exc.__context__,
+                            last_exception=exc,
+                            status=exc.status,
+                            run_id=job._run_id,
+                            name=job._name,
+                            url=job._url,
+                            filename=job._filename,
+                            usage_scenario_variables=job._usage_scenario_variables,
+                            branch=job._branch,
+                            machine=config['machine']['description'],
+                            user_id=job._user_id,
+                            sleep_duration=sleep_duration,
+                        )
                         if not args.testing:
-                            time.sleep(600)
+                            time.sleep(sleep_duration)
                     else: # Hard fails won't resolve on it's own. We sleep until next cluster validation
-                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception_context=exc.__context__, last_exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config['machine']['description'], sleep_duration=config['cluster']['client']['time_between_control_workload_validations'])
+                        sleep_duration=config['cluster']['client']['time_between_control_workload_validations']
+                        error_helpers.log_error('Job processing in cluster failed (client.py)',
+                            exception_context=exc.__context__,
+                            last_exception=exc,
+                            status=exc.status,
+                            run_id=job._run_id,
+                            name=job._name,
+                            url=job._url,
+                            filename=job._filename,
+                            usage_scenario_variables=job._usage_scenario_variables,
+                            branch=job._branch,
+                            machine=config['machine']['description'],
+                            user_id=job._user_id,
+                            sleep_duration=sleep_duration,
+                        )
                         if not args.testing:
-                            time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
+                            time.sleep(sleep_duration)
 
                 except Exception as exc: # pylint: disable=broad-except
                     set_status('job_error', data=str(exc), run_id=job._run_id)
+                    exc_stdout = None
+                    if hasattr(exc, 'stdout'):
+                        exc_stdout = exc.stdout
+                    elif hasattr(exc, 'output'):
+                        output = exc.output
+
                     error_helpers.log_error('Job processing in cluster failed (client.py)',
                         exception_context=exc.__context__,
                         last_exception=exc,
-                        stdout=(exc.stdout if hasattr(exc, 'stdout') else None),
+                        stdout=exc_stdout,
                         stderr=(exc.stderr if hasattr(exc, 'stderr') else None),
                         run_id=job._run_id,
-                        machine=config['machine']['description'],
                         name=job._name,
-                        url=job._url
+                        url=job._url,
+                        filename=job._filename,
+                        usage_scenario_variables=job._usage_scenario_variables,
+                        branch=job._branch,
+                        machine=config['machine']['description'],
+                        user_id=job._user_id,
                     )
 
                     # reduced error message to client, but only if no ConfigurationCheckError
                     if job._email:
-                        Job.insert(
-                            'email',
+                        EmailSimpleJob.insert(
                             user_id=job._user_id,
                             email=job._email,
                             name='Measurement Job on Green Metrics Tool Cluster failed',
                             message=f"Run-ID: {job._run_id}\nName: {job._name}\nMachine: {job._machine_description}\n\nDetails can also be found in the log under: {config['cluster']['metrics_url']}/stats.html?id={job._run_id}\n\nError message: {exc.__context__}\n{exc}\n\nStdout:{exc.stdout if hasattr(exc, 'stdout') else None}\nStderr:{exc.stderr if hasattr(exc, 'stderr') else None}\n"
                         )
-                finally: # run periodic maintenance with cleanup in between every run
+                finally: # run periodic maintenance between every run
                     if not args.testing:
-                        must_revalidate_bc_new_packages = do_maintenance() # when new packages are installed, we must revalidate
+                        if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
+                            DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
+                            reboot()
                         last_24h_maintenance = time.time()
 
             else:
                 set_status('job_no')
-                if config['cluster']['client']['shutdown_on_job_no']:
-                    subprocess.check_output(['sync'])
-                    time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
-                    subprocess.check_output(['sudo', 'systemctl', config['cluster']['client']['shutdown_on_job_no']])
 
                 if not args.testing:
+                    if config['cluster']['client']['reboot_after_seconds']: # 0 will also resolve to false, which is what we want
+                        reboot_if_uptime_exceeded(config['cluster']['client']['reboot_after_seconds'])
+
+                    if config['cluster']['client']['shutdown_on_job_no']:
+                        subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
+                        time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
+                        subprocess.check_output(['/usr/bin/sudo', '/usr/bin/systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
+
                     time.sleep(config['cluster']['client']['sleep_time_no_job'])
 
             if args.testing:
@@ -270,6 +368,18 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     except BaseException as exc: # pylint: disable=broad-except
-        error_helpers.log_error(f'Processing in {__file__} failed.', exception_context=exc.__context__, last_exception=exc, machine=config['machine']['description'])
+        exc_stdout = None
+        if hasattr(exc, 'stdout'):
+            exc_stdout = exc.stdout
+        elif hasattr(exc, 'output'):
+            output = exc.output
+
+        error_helpers.log_error(f'Processing in {__file__} failed.',
+            exception_context=exc.__context__,
+            last_exception=exc,
+            machine=config['machine']['description'],
+            stdout=exc_stdout,
+            stderr=(exc.stderr if hasattr(exc, 'stderr') else None),
+        )
 
     DB().shutdown()

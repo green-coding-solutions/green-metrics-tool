@@ -1,0 +1,20 @@
+---
+name: Test dot slash volume path
+author: Test
+description: test
+
+services:
+  test-container:
+    image: gcb_stress
+    build:
+      context: ../stress-application
+    container_name: test-container
+    volumes:
+      - ./:/tmp/repo_dir:ro
+
+flow:
+  - name: Test
+    container: test-container
+    commands:
+      - type: console
+        command: echo 1

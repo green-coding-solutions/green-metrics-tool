@@ -1,7 +1,10 @@
+import subprocess
 import pytest
 import os
+from pathlib import Path
 
 from tests import test_functions as Tests
+from lib.utils import get_test_worker_id, GMT_TEST_CONTAINER_MARKER
 
 ## VERY IMPORTANT to override the config file here
 ## otherwise it will automatically connect to non-test DB and delete all your real data
@@ -12,18 +15,99 @@ GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpa
 os.environ['NO_PROXY'] = f"{os.environ.get('NO_PROXY','')},api.green-coding.internal,metrics.green-coding.internal"
 os.environ['no_proxy'] = f"{os.environ.get('no_proxy','')},api.green-coding.internal,metrics.green-coding.internal"
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "serial: test cannot safely run concurrently with anything else (e.g. it restarts shared "
+        "infrastructure like the Postgres container) - skipped under pytest-xdist; run it on its "
+        "own, outside of -n, instead."
+    )
+
+    # xdist_group only pins tests together under '--dist=loadgroup' - under any other distribution
+    # mode, tests/api/, tests/frontend/, and tests/cron/test_carbondb_compress.py (all marked
+    # Tests.GUNICORN_SEQUENTIAL_GROUP) could land on different workers and run concurrently against
+    # the one shared gunicorn container and its one shared unsuffixed 'gmt_test' schema - one
+    # worker's reset_db() TRUNCATE landing mid-request from another worker's test is exactly the
+    # kind of intermittent failure this is meant to prevent. tests/run-tests.sh and the CI
+    # 'gmt-pytest' action always pass '--dist=loadgroup'; this catches any other invocation
+    # immediately instead of failing later with a confusing error.
+    numprocesses = config.getoption("numprocesses", default=None)
+    if numprocesses and config.getoption("dist", default="no") != "loadgroup":
+        raise pytest.UsageError(
+            "Running with -n/--numprocesses requires --dist=loadgroup (use tests/run-tests.sh, "
+            "or pass --dist=loadgroup yourself, or drop -n for a sequential run)."
+        )
+
+
+# trylast=True: pytest-randomly (see requirements-dev.txt) shuffles collection order via its own
+# pytest_collection_modifyitems hook every session. Without trylast here, hook execution order
+# between that shuffle and this one is unspecified, so randomly's shuffle could run after ours and
+# undo the front-loading below.
+@pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(items):
     for item in items:
         if item.fspath.basename == 'test_functions.py':
             item.add_marker(pytest.mark.skip(reason='Skipping this file'))
 
+    # Every test carrying the 'real-metric-providers' xdist_group is forced onto a single worker
+    # (see tests/smoke_test.py) and, combined, they're one of the longest-running chunks in the
+    # whole suite. Sorting the group to the front means that worker starts on it immediately
+    # instead of picking it up late and becoming the straggler the rest of the session waits on.
+    items.sort(key=lambda item: 0 if any(
+        marker.name == 'xdist_group' and marker.kwargs.get('name') == 'real-metric-providers'
+        for marker in item.iter_markers()
+    ) else 1)
 
-# Note: This fixture runs always
-# Pytest collects all fixtures before running any tests
-# no matter which order they are loaded in
+
+# Scenario-runner test containers are suffixed with GMT_TEST_CONTAINER_MARKER and this worker's
+# xdist id (see lib/utils.py::container_name()), precisely so concurrent workers never collide on
+# a name - but that same determinism means a container left running by an earlier crashed/
+# interrupted run on this exact worker id (gw6, say) will collide with a brand new, unrelated run
+# that happens to land on worker gw6 again: lib/scenario_runner.py::_check_running_containers_before_start()
+# then refuses to proceed with "... is already running on system". Force-removing anything still
+# running under this worker's suffix before the session's first test runs means every session
+# starts from a clean slate regardless of how the previous one on this worker id ended.
+#
+# Matching requires both the worker id AND the GMT_TEST_CONTAINER_MARKER marker, not just a bare
+# '-{worker_id}' suffix: 'docker ps -a' lists every container on the host, not just this project's,
+# so a plain worker-id suffix (e.g. '-gw0') isn't scoped to this project at all - on a shared dev
+# machine or CI host it could force-remove an unrelated container that merely happens to end in the
+# same worker-id-shaped string.
+@pytest.fixture(scope='session', autouse=True)
+def _initial_container_cleanup():
+    worker_id = get_test_worker_id()
+    if not worker_id:
+        return
+
+    suffix = f'-{GMT_TEST_CONTAINER_MARKER}-{worker_id}'
+    result = subprocess.run(
+        ['docker', 'ps', '-a', '--format', '{{.Names}}'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, encoding='UTF-8',
+    )
+    for name in result.stdout.splitlines():
+        if name.endswith(suffix):
+            subprocess.run(['docker', 'rm', '-f', name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+
+
+# Under pytest-xdist each worker gets its own private schema (gmt_test_gw001, gmt_test_gw002, ...)
+# that doesn't exist at all until something creates it - only the boot-time default ('gmt_test',
+# with no worker suffix) is populated with tables at container start. Without this, a worker's
+# first test would run before setup_and_cleanup_test's own reset_db() ever fires (that one only
+# runs at teardown), hitting a schema that doesn't exist yet and failing with
+# 'relation "users" does not exist'; every test after the first would then pass, since teardown
+# had created and populated it by then. session scope + autouse makes this run exactly once per
+# worker, before that worker's first test - which is also why reset_db() itself no longer needs to
+# check whether the schema/tables already exist: by the time anything else calls it, this fixture
+# guarantees they do.
+@pytest.fixture(scope='session', autouse=True)
+def _initial_db_reset():
+    Tests.create_test_schema()
+
+
 @pytest.fixture(autouse=True)
-def setup_and_cleanup_test():
-    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # we want to do this globally for all tests
+def setup_and_cleanup_test(request, monkeypatch):
+    Tests.use_gunicorn_schema(request, monkeypatch)
+    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml")
     yield
     Tests.reset_db()
 
@@ -34,3 +118,36 @@ def setup_and_cleanup_test():
 # @pytest.fixture(autouse=False)  # Set autouse to False to override the fixture
 # def setup_and_cleanup_test():
 #     pass
+
+
+TEST_CONTAINERS = (
+    'test-green-coding-gunicorn-container',
+#    'test-green-coding-postgres-container', # not for now - too verbose
+#    'test-green-coding-redis-container', # not for now - too verbose
+)
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):  # pylint: disable=unused-argument
+    outcome = yield
+    report = outcome.get_result()
+    if report.when == 'call' and report.failed:
+        for container in TEST_CONTAINERS:
+            try:
+                logs = subprocess.check_output(
+                    ['docker', 'logs', container, '--tail', '50'],
+                    stderr=subprocess.STDOUT,
+                    encoding='UTF-8',
+                )
+                report.sections.append((f'Docker logs ({container})', logs))
+            except subprocess.CalledProcessError:
+                pass
+
+
+def pytest_sessionstart(session):  # pylint: disable=unused-argument
+    tests_dir = Path(__file__).parent.resolve()
+    cwd = Path.cwd().resolve()
+
+    if cwd != tests_dir:
+        pytest.exit(
+            f"Tests must be run from {tests_dir}, but current dir is {cwd}"
+        )

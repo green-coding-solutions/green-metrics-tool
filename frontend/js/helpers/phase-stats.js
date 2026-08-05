@@ -190,6 +190,11 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
 
     window.__rendered_phases[phase] = true;
 
+    if (phase_stats_object['data'][phase] == undefined) {
+        console.error('Render request for phase ', phase, ' which is not present in phase stats data. This is ok for failed runs but an error if run passed succesfully');
+        return
+    }
+
     let phase_data = phase_stats_object['data'][phase]['data'];
 
     let radar_chart_labels = [];
