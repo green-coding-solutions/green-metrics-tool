@@ -44,6 +44,13 @@ GMT_RESOURCES = {
 # skipped for environment reasons (unsupported platform, tool unavailable, etc).
 NOT_CONFIGURED = 'not_configured'
 
+# Sentinel returned by a check when it is skipped because it is not implemented / not
+# applicable on the current platform (macOS, Windows - these checks are Linux-only).
+# Distinct from NOT_CONFIGURED (missing machine.* option) and from None (other
+# environment-specific skips, e.g. a tool being unavailable on an otherwise-supported
+# platform).
+NOT_IMPLEMENTED = 'not_implemented'
+
 ######## CHECK FUNCTIONS ########
 def check_db(*_, **__):
     try:
@@ -133,11 +140,57 @@ def check_docker_daemon(*_, **__):
 
 def check_utf_encoding(*_, **__):
     if host_platform.is_windows():
-        return True
+        return NOT_IMPLEMENTED
     return locale.getpreferredencoding().lower() == sys.getdefaultencoding().lower() == 'utf-8'
 
 def check_tty_attached(*_, **__):
     return not sys.stdin.isatty()
+
+
+def check_ssh_session(*_, **__):
+    if platform.system() in ('Darwin', 'Windows'):
+        return NOT_IMPLEMENTED
+
+    ssh_ports = set()
+    try:
+        with open('/etc/ssh/sshd_config', 'r', encoding='utf-8') as f:
+            for line in f:
+                match = re.match(r'^\s*Port\s+(\d+)', line, re.IGNORECASE)
+                if match:
+                    ssh_ports.add(match.group(1))
+    except OSError as exc:
+        raise RuntimeError('Could not read /etc/ssh/sshd_config to determine SSH configuration to guard GMT against lingering SSH connections measurement noise. If you prefer no SSH checking you can disable via --dev-no-system-checks=check_ssh_session') from exc
+    if not ssh_ports:
+        raise RuntimeError('/etc/ssh/sshd_config did contain no valid SSH port to guard GMT against lingering SSH connections measurement noise. If you prefer no SSH checking you can disable via --dev-no-system-checks=check_ssh_session')
+
+    # ss -tn (without -p) reports established connections and their ports without
+    # needing root - only the process-name lookup (-p) requires privileges, which we
+    # don't need here. This is what lets us check non-standard SSH ports without root.
+    port_filter = ' or '.join(f'sport = :{port} or dport = :{port}' for port in ssh_ports)
+    ss_result = subprocess.run(
+        ['ss', '-Htn', 'state', 'established', f'( {port_filter} )'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        encoding='UTF-8', errors='replace', check=False,
+    )
+    if ss_result.returncode == 0 and ss_result.stdout.strip():
+        return False  # established connection on an SSH port
+
+    # Independent signal: interactive login sessions recorded via utmp, regardless of
+    # which port sshd used. Catches setups ss might miss.
+    who_result = subprocess.run(
+        ['who'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        encoding='UTF-8', errors='replace', check=False,
+    )
+
+    for line in who_result.stdout.splitlines():
+        if 'pts/' not in line or '(' not in line:
+            continue
+        remote = line.rsplit('(', 1)[-1].rstrip(')\n')
+        if remote and remote not in (':0', '0.0'):
+            return False  # remote login session present
+
+    return True
 
 
 def check_swap_disabled(*_, **__):
@@ -621,11 +674,13 @@ start_checks = (
     (check_swap_disabled, Status.WARN, 'swap disabled', 'Your system uses a swap filesystem. This can lead to very instable measurements. Please disable swap.'),
     (check_kernel_watchdog, Status.WARN, 'kernel watchdog disabled', 'A kernel lockup watchdog (kernel.watchdog / nmi_watchdog / soft_watchdog) is active. These periodically fire NMIs/interrupts and can create noise in measurements. Disable via sysctl for reliable benchmarking.'),
     (check_tty_attached, Status.WARN, 'tty attached', 'GMT runs with a TTY attached. This will create relevant overhead. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
+    (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
 )
 
 end_checks = (
     (check_suspend, Status.ERROR, 'system suspend', 'System has gone into suspend during measurement. This will skew all measurement data. If GMT shall ever be able to correctly account for suspend states please note that metric providers must support CLOCK_BOOTIME. See https://github.com/green-coding-solutions/green-metrics-tool/pull/1229 for discussion.'),
     (check_steal_time, Status.ERROR, 'cpu steal time', 'The CPU has accounted steal time. This means the measurement could have been interrupted and / or the VM that you are running in halted. This will lead to broken measurement data as time jumps can occur.'),
+    (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
 
 )
 
@@ -703,6 +758,8 @@ def system_check(mode='start', system_check_threshold=3, disabled_checks=None, r
             formatted_key = check[2].ljust(max_key_length)
             if retval is NOT_CONFIGURED:
                 output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} (Skipped: not configured in config.yml)"
+            elif retval is NOT_IMPLEMENTED:
+                output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} (Skipped: not implemented on this platform. Switch to Linux, if possible, to enable this check.)"
             elif retval or retval is None:
                 output = f"{TerminalColors.OKGREEN}OK{TerminalColors.ENDC}"
             else:
