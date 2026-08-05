@@ -17,6 +17,7 @@ from lib.db import DB
 from lib.user import User
 from lib.terminal_colors import TerminalColors
 from lib.scenario_runner import ScenarioRunner
+from lib.global_config import GlobalConfig
 
 class RunJob(Job):
     JOB_TYPE = 'run'
@@ -46,8 +47,9 @@ class RunJob(Job):
         )
 
     #pylint: disable=arguments-differ
-    def _process(self, docker_prune=False, full_docker_prune=False):
+    def _process(self):
 
+        config = GlobalConfig().config
         user = User(self._user_id)
 
         if not user.can_use_machine(self._machine_id):
@@ -70,8 +72,8 @@ class RunJob(Job):
             dev_no_system_checks=user._capabilities['measurement']['dev_no_system_checks'],
             skip_volume_inspect=user._capabilities['measurement']['skip_volume_inspect'],
             skip_optimizations=user._capabilities['measurement']['skip_optimizations'],
-            full_docker_prune=full_docker_prune, # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
-            docker_prune=docker_prune, # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
+            full_docker_prune=config['cluster']['client']['full_docker_prune'], # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
+            docker_prune=config['cluster']['client']['docker_prune'], # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
             job_id=self._id,
             user_id=self._user_id,
             usage_scenario_variables=self._usage_scenario_variables,
