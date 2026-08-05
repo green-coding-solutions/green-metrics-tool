@@ -62,7 +62,7 @@ def check_db(*_, **__):
 
 def check_docker_host_env(*_, **__):
     if host_platform.is_windows():
-        return True
+        return NOT_IMPLEMENTED
     return 'rootless' not in subprocess.check_output(['docker', 'info'], encoding='UTF-8', errors='replace') or os.getenv('DOCKER_HOST', '') != ''
 
 def check_one_energy_and_scope_machine_provider(*_, **__):
@@ -72,12 +72,12 @@ def check_one_energy_and_scope_machine_provider(*_, **__):
 
 def check_tmpfs_mount(*_, **__):
     if host_platform.is_windows():
-        return True
+        return NOT_IMPLEMENTED
     return not any(partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs' for partition in psutil.disk_partitions())
 
 def check_ntp(*_, **__):
     if platform.system() in ('Darwin', 'Windows'): # no NTP for darwin/windows, as this is linux cluster only functionality
-        return True
+        return NOT_IMPLEMENTED
 
     ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8', errors='replace')
     if 'NTP service: inactive' not in ntp_status: # NTP must be inactive
@@ -107,7 +107,7 @@ def check_available_cpus(*_, **__): # GMT min system requirement
 
 def check_docker_cpu_availability(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return True # no checks as Docker runs in a VM here with custom CPU configuration
+        return NOT_IMPLEMENTED # no checks as Docker runs in a VM here with custom CPU configuration
     return os.cpu_count() == resource_limits.get_docker_available_cpus()
 
 def check_assignable_cpus(*_, **__):
@@ -227,7 +227,7 @@ def check_swap_disabled(*_, **__):
 
 def check_kernel_watchdog(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     # kernel.watchdog is the master switch; nmi_watchdog / soft_watchdog are the individual
     # hard/soft lockup detectors it toggles. All three periodically fire NMIs/interrupts which
     # can create noise in measurements, so we want to confirm they are all disabled.
@@ -284,7 +284,7 @@ def check_suspend(*, run_duration):
 
 def check_steal_time(*_, **__):
     if host_platform.is_windows():
-        return True
+        return NOT_IMPLEMENTED
     return math.isclose(getattr(psutil.cpu_times(), 'steal', 0.0), 0.0, abs_tol=1e-6) # safe check for float == 0.0
 
 
@@ -328,7 +328,7 @@ def _parse_timers(data):
 
 def check_systemd_timers(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return True
+        return NOT_IMPLEMENTED
 
     data = _get_sudo_check_results()
     if not data:
@@ -350,7 +350,7 @@ def check_systemd_timers(*_, **__):
 
 def check_cron_files(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return True
+        return NOT_IMPLEMENTED
 
     data = _get_sudo_check_results()
     if not data:
@@ -372,7 +372,7 @@ def _check_rapl_domain(domain_key):
     unavailable, or RAPL not present).
     '''
     if platform.system() in ('Darwin', 'Windows'):
-        return True
+        return NOT_IMPLEMENTED
     config = GlobalConfig().config
     rapl_cfg = config.get('machine', {}).get('rapl_power_capping')
     if not rapl_cfg or not isinstance(rapl_cfg, dict):
@@ -440,7 +440,7 @@ def check_cpu_cores(*_, **__):
 
 def check_dram(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None  # lsmem is a Linux (util-linux) only tool
+        return NOT_IMPLEMENTED  # lsmem is a Linux (util-linux) only tool
     expected_gb = GlobalConfig().config.get('machine', {}).get('dram_gb')
     if not expected_gb:
         return NOT_CONFIGURED
@@ -466,7 +466,7 @@ def check_dram(*_, **__):
 
 def check_usb_devices(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     allowlist = GlobalConfig().config.get('machine', {}).get('usb_devices')
     if not allowlist:
         return NOT_CONFIGURED
@@ -486,7 +486,7 @@ def check_usb_devices(*_, **__):
 
 def check_pci_devices(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     allowlist = GlobalConfig().config.get('machine', {}).get('pci_devices')
     if not allowlist:
         return NOT_CONFIGURED
@@ -506,7 +506,7 @@ def check_pci_devices(*_, **__):
 
 def check_cpu_governor(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     expected = GlobalConfig().config.get('machine', {}).get('cpu_governor')
     if expected is None:
         return NOT_CONFIGURED
@@ -535,7 +535,7 @@ def check_cpu_governor(*_, **__):
 
 def check_cpu_smt(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     config_val = GlobalConfig().config.get('machine', {}).get('cpu_smt')
     if config_val is None:
         return NOT_CONFIGURED
@@ -550,7 +550,7 @@ def check_cpu_smt(*_, **__):
 
 def check_cpu_turbo_boost(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     config_val = GlobalConfig().config.get('machine', {}).get('cpu_turbo_boost')
     if config_val is None:
         return NOT_CONFIGURED
@@ -586,7 +586,7 @@ def check_cpu_frequency(*_, **__):
 
 def check_cpu_scaling_driver(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     expected = GlobalConfig().config.get('machine', {}).get('cpu_scaling_driver')
     if expected is None:
         return NOT_CONFIGURED
