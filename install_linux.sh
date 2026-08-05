@@ -101,7 +101,7 @@ if [[ $activate_scenario_runner == true ]] ; then
     sysctl_path=$(realpath "/usr/sbin/sysctl")
     check_file_permissions "$sysctl_path"
     echo "${USER} ALL=(ALL) NOPASSWD:${sysctl_path} -w vm.drop_caches=3" | sudo tee /etc/sudoers.d/green-coding-drop-caches
-    sudo chmod 500 /etc/sudoers.d/green-coding-drop-caches
+    sudo chmod 400 /etc/sudoers.d/green-coding-drop-caches
 
     print_message "Setting the cluster maintenance.py file to be owned by root"
     check_file_permissions $(realpath "/usr/bin/python3") # since it will be called later with this interpreter, we need to check if that is ok
@@ -150,7 +150,7 @@ if [[ $activate_scenario_runner == true ]] ; then
             ipmi_dcmi_path=$(realpath "/usr/sbin/ipmi-dcmi")
             check_file_permissions "$ipmi_dcmi_path"
             echo "${USER} ALL=(ALL) NOPASSWD:${ipmi_dcmi_path} --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
-            sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+            sudo chmod 400 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
             # remove old file name
             sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
         } || {
