@@ -993,12 +993,17 @@ def test_phase_stats_psu_cgroup_container_and_slice():
     machine_power_current_phase_mw = Decimal(sub1_energy_uj) / sub1_duration_us * Decimal(1000)
 
     surplus_power_expected = machine_power_current_phase_mw - machine_power_baseline_mw
-    surplus_energy_expected = Decimal(sub1_energy_uj) - (machine_power_baseline_mw * sub1_duration_us * Decimal(1e3))
+    # baseline energy over the phase = power_mW * duration_us * 1e-3
+    # (mW * duration_s = mJ; duration_s = duration_us * 1e-6; mJ * 1000 = uJ -> combined factor 1e-3),
+    # matching production's Decimal(1e-3). round() mirrors generate_csv_line()'s own rounding on store.
+    surplus_energy_expected = round(Decimal(sub1_energy_uj) - (machine_power_baseline_mw * sub1_duration_us * Decimal(1e-3)))
 
     assert by_metric['psu_power_cgroup_slice']['value'] == machine_power_current_phase_mw
     assert by_metric['psu_energy_cgroup_slice']['value'] == sub1_energy_uj
     assert by_metric['psu_power_cgroup_container']['value'] == surplus_power_expected
     assert by_metric['psu_energy_cgroup_container']['value'] == surplus_energy_expected
+    # sanity check: baseline power (5W) over 0.5s phase = 2.5J = 2,500,000 uJ subtracted from 3,000,000 uJ used
+    assert surplus_energy_expected == 500_000
 
 
 def test_phase_stats_maps_elephant_machine_carbon():
