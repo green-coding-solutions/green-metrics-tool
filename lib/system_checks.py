@@ -160,9 +160,15 @@ def check_ssh_session(*_, **__):
                     ssh_ports.add(match.group(1))
     except FileNotFoundError:
         pass  # sshd_config not present - fall back to the default port below
-    # Any other OSError (e.g. PermissionError - file exists but is not readable) is
-    # intentionally left to propagate: silently falling back to port 22 there could mask
-    # a real SSH session on a different, unreadable-config port, so this must hard fail.
+    except OSError as exc:
+        # e.g. PermissionError - file exists but is not readable. Silently falling back to
+        # port 22 here could mask a real SSH session on a different, unreadable-config
+        # port, so this must hard fail rather than degrade quietly.
+        raise RuntimeError(
+            "Could not read /etc/ssh/sshd_config to determine SSH configuration to guard "
+            "GMT against lingering SSH connections measurement noise. If you prefer no SSH "
+            "checking you can disable via --dev-no-system-checks=check_ssh_session"
+        ) from exc
     if not ssh_ports:
         ssh_ports.add('22') # If no directive is found in file port 22 is standard.
 
