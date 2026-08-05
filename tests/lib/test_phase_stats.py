@@ -895,6 +895,112 @@ def test_calculate_co2_intensity_uses_microgram_scale():
 
     assert derived_values == [(100,), (400,)]
 
+def test_phase_stats_runtime_max_min_reconstruction():
+    # reconstruct_runtime_phase() must take MAX(max_value)/MIN(min_value) across sub-phases
+    # (the true sample extremes recorded per sub-phase), not MAX(value)/MIN(value) (the
+    # sub-phases' own averaged "value" column, which can sit far away from the actual raw
+    # sample extremes).
+    phases = [
+        {"start": 0, "name": "[BASELINE]", "end": 100_000, "hidden": False},
+        {"start": 200_000, "name": "[RUNTIME]", "end": 3_200_000, "hidden": False},
+        {"start": 200_000, "name": "Sub1", "end": 1_700_000, "hidden": False},
+        {"start": 1_700_000, "name": "Sub2", "end": 3_200_000, "hidden": False},
+    ]
+    run_id = Tests.insert_run(phases)
+
+    import_custom_metric(
+        run_id,
+        'cpu_utilization_cgroup_container',
+        'Ratio',
+        [
+            (300_000, 40), (600_000, 40), (900_000, 40),        # Sub1: flat at 40
+            (1_900_000, 5), (2_500_000, 30), (3_100_000, 200),  # Sub2: true extremes 5 / 200
+        ],
+        detail_name='containerA',
+    )
+
+    build_and_store_phase_stats(run_id)
+
+    data = DB().fetch_all(
+        "SELECT value, max_value, min_value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = 'cpu_utilization_cgroup_container'",
+        params=(run_id, '001_[RUNTIME]'), fetch_mode='dict'
+    )
+    assert len(data) == 1
+    assert data[0]['max_value'] == 200, 'RUNTIME max_value must reflect the true sample max across sub-phases'
+    assert data[0]['min_value'] == 5, 'RUNTIME min_value must reflect the true sample min across sub-phases'
+    # sanity check that the averaged "value" column is unrelated to (and well inside) the true extremes
+    assert 5 < data[0]['value'] < 200
+
+
+def test_phase_stats_psu_cgroup_container_and_slice():
+    # Covers two fixes in the psu_*_cgroup_* surplus block:
+    # 1) psu_power_cgroup_slice/psu_power_cgroup_container must be stored as type MEAN (not TOTAL)
+    # 2) surplus_energy_runtime's exact formula, pinned here so any accidental change to it is caught
+    phases = [
+        {"start": 0, "name": "[BASELINE]", "end": 100_000, "hidden": False},
+        {"start": 200_000, "name": "[RUNTIME]", "end": 700_000, "hidden": False},
+        {"start": 200_000, "name": "Sub1", "end": 700_000, "hidden": False},
+    ]
+    run_id = Tests.insert_run(phases)
+
+    baseline_duration_us = Decimal(100_000)
+    baseline_energy_uj = 500_000
+    sub1_duration_us = Decimal(700_000 - 200_000)
+    sub1_energy_uj = 3_000_000
+
+    import_custom_metric(
+        run_id,
+        'psu_energy_ac_mcp_machine',
+        'uJ',
+        [
+            (50_000, baseline_energy_uj),  # inside [BASELINE]
+            (450_000, sub1_energy_uj),     # inside Sub1
+        ],
+        detail_name='[MACHINE]',
+    )
+    import_custom_metric(
+        run_id,
+        'cpu_utilization_procfs_system',
+        'Ratio',
+        [(450_000, 50)],
+        detail_name='[SYSTEM]',
+    )
+    import_custom_metric(
+        run_id,
+        'cpu_utilization_cgroup_container',
+        'Ratio',
+        [(450_000, 30)],
+        detail_name='containerA',
+    )
+
+    build_and_store_phase_stats(run_id)
+
+    data = DB().fetch_all(
+        "SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s AND phase = %s AND metric IN ('psu_power_cgroup_slice','psu_energy_cgroup_slice','psu_power_cgroup_container','psu_energy_cgroup_container')",
+        params=(run_id, '002_Sub1'), fetch_mode='dict'
+    )
+    by_metric = {row['metric']: row for row in data}
+    assert set(by_metric.keys()) == {'psu_power_cgroup_slice', 'psu_energy_cgroup_slice', 'psu_power_cgroup_container', 'psu_energy_cgroup_container'}
+    assert all(row['detail_name'] == 'containerA' for row in by_metric.values())
+
+    # single container -> splitting_ratio == 1, so slice/container values equal the machine-wide figures
+    assert by_metric['psu_power_cgroup_slice']['type'] == 'MEAN'
+    assert by_metric['psu_energy_cgroup_slice']['type'] == 'TOTAL'
+    assert by_metric['psu_power_cgroup_container']['type'] == 'MEAN'
+    assert by_metric['psu_energy_cgroup_container']['type'] == 'TOTAL'
+
+    machine_power_baseline_mw = Decimal(baseline_energy_uj) / baseline_duration_us * Decimal(1000)
+    machine_power_current_phase_mw = Decimal(sub1_energy_uj) / sub1_duration_us * Decimal(1000)
+
+    surplus_power_expected = machine_power_current_phase_mw - machine_power_baseline_mw
+    surplus_energy_expected = Decimal(sub1_energy_uj) - (machine_power_baseline_mw * sub1_duration_us * Decimal(1e3))
+
+    assert by_metric['psu_power_cgroup_slice']['value'] == machine_power_current_phase_mw
+    assert by_metric['psu_energy_cgroup_slice']['value'] == sub1_energy_uj
+    assert by_metric['psu_power_cgroup_container']['value'] == surplus_power_expected
+    assert by_metric['psu_energy_cgroup_container']['value'] == surplus_energy_expected
+
+
 def test_phase_stats_maps_elephant_machine_carbon():
     run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
     stress_phase = next(phase for phase in Tests.TEST_MEASUREMENT_PHASES if phase['name'] == 'Stress')
