@@ -158,10 +158,13 @@ def check_ssh_session(*_, **__):
                 match = re.match(r'^\s*Port\s+(\d+)', line, re.IGNORECASE)
                 if match:
                     ssh_ports.add(match.group(1))
-    except OSError as exc:
-        raise RuntimeError('Could not read /etc/ssh/sshd_config to determine SSH configuration to guard GMT against lingering SSH connections measurement noise. If you prefer no SSH checking you can disable via --dev-no-system-checks=check_ssh_session') from exc
+    except FileNotFoundError:
+        pass  # sshd_config not present - fall back to the default port below
+    # Any other OSError (e.g. PermissionError - file exists but is not readable) is
+    # intentionally left to propagate: silently falling back to port 22 there could mask
+    # a real SSH session on a different, unreadable-config port, so this must hard fail.
     if not ssh_ports:
-        raise RuntimeError('/etc/ssh/sshd_config did contain no valid SSH port to guard GMT against lingering SSH connections measurement noise. If you prefer no SSH checking you can disable via --dev-no-system-checks=check_ssh_session')
+        ssh_ports.add('22') # If no directive is found in file port 22 is standard.
 
     # ss -tn (without -p) reports established connections and their ports without
     # needing root - only the process-name lookup (-p) requires privileges, which we
