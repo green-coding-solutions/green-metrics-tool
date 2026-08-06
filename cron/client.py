@@ -4,6 +4,7 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
+import os
 import re
 import time
 import subprocess
@@ -188,6 +189,34 @@ def do_measurement_control():
         # endlessly in validation until manually handled, which is what we want.
         time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
 
+def do_warmup():
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
+    set_status('warmup')
+
+    nproc = os.cpu_count() or 1
+    cmd = [
+        'stress-ng',
+        '--cpu', str(nproc), '--cpu-method', 'all',
+        '--vm', str(nproc), '--vm-bytes', '60%', '--vm-keep',
+        '--syscall', str(nproc),
+        '--timeout', '180s',
+        '--metrics-brief',
+    ]
+
+    ps = subprocess.run(
+        cmd,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, # put both in one stream
+        encoding='UTF-8',
+        errors='replace',
+    )
+    if ps.returncode != 0:
+        error_helpers.log_error('Warmup workload failed', stdout=ps.stdout, machine=config['machine']['description'])
+
+    time.sleep(120) # also let machine come down again for two minutes
+
+
 def reboot():
     set_status('reboot')
     subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
@@ -219,6 +248,9 @@ if __name__ == '__main__':
         result = DB().fetch_one('SELECT needs_revalidation FROM machines WHERE id = %s', params=(config['machine']['id'],), fetch_mode='dict')
         if result and result['needs_revalidation']:
             needs_revalidation = True
+
+        if not args.testing:
+            do_warmup()
 
         while True:
 
@@ -267,9 +299,7 @@ if __name__ == '__main__':
                         print(f"Machine is too cool: {exc.temperature}°. Warming up and retrying")
                         set_status('warmup', data=str(exc), run_id=job._run_id)
                         temperature_errors += 1
-                        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
-                        time.sleep(300)
-                        subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
+                        do_warmup()
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
                     set_status('job_error', data=str(exc), run_id=job._run_id)
                     if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
