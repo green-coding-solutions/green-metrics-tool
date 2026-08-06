@@ -69,7 +69,7 @@ jobs:
         uses: ./.github/actions/gmt-pytest
         # Never bringt this to the PR test, as other people can then extract it. Running it on the periodic tests is enough
         env:
-          ELECTRICITY_MAPS_TOKEN: ${{ secrets.ELECTRICITY_MAPS_ALT_TOKEN_INFO_AT_GCS }}
+          ELECTRICITY_MAPS_TOKEN: ${{ secrets.ELECTRICITY_MAPS_TOKEN_DIDI }}
         with:
          task: run
          github-token: ${{ secrets.GITHUB_TOKEN }}
