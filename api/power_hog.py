@@ -23,7 +23,7 @@ def old_v1_hog_add_endpoint():
     return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/hog/add'}, status_code=410)
 
 @router.post('/v2/hog/add')
-async def add_hog(
+def add_hog(
     request: Request,
     measurements: List[HogMeasurement],
     user: User = Depends(authenticate) # pylint: disable=unused-argument
@@ -130,7 +130,7 @@ async def add_hog(
     return Response(status_code=202)
 
 @router.get('/v2/hog/top_processes')
-async def hog_get_top_processes():
+def hog_get_top_processes():
     query = """
         SELECT
             name,
@@ -158,7 +158,7 @@ async def hog_get_top_processes():
 
 
 @router.get('/v2/hog/details')
-async def user_detail(
+def user_detail(
     user: User = Depends(authenticate),
     start_date: date | None = None,
     end_date: date | None = None,
@@ -273,7 +273,7 @@ async def user_detail(
 
 
 @router.get('/v1/hog/insights')
-async def get_insights(user: User = Depends(authenticate)):
+def get_insights(user: User = Depends(authenticate)):
 
     query = '''
             SELECT COUNT(id), DATE(MIN(created_at))
