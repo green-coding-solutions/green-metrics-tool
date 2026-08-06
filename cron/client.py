@@ -196,9 +196,11 @@ def do_warmup():
     nproc = os.cpu_count() or 1
     cmd = [
         'stress-ng',
-        '--cpu', str(nproc), '--cpu-method', 'all',
-        '--vm', str(nproc), '--vm-bytes', '60%', '--vm-keep',
-        '--syscall', str(nproc),
+        '--cpu', str(nproc-1), '--cpu-method', 'all',
+        '--vm', '1', '--vm-bytes', '60%', '--vm-keep',
+        '--eventfd', '1',
+        '--epoll', '1',
+        '--pipe', '1',
         '--timeout', '180s',
         '--metrics-brief',
     ]
