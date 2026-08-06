@@ -67,7 +67,7 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx):
                 (SELECT p2.value FROM phase_stats as p2 WHERE p2.metric = 'phase_time_syscall_system' AND p2.detail_name = '[SYSTEM]' AND p2.unit = 'us' AND p2.run_id = phase_stats.run_id AND p2.phase = phase_stats.phase) as time_of_the_sub_phase,
                 value
             FROM phase_stats
-            WHERE run_id = %s AND phase NOT LIKE '%%[%%' AND hidden IS FALSE
+            WHERE run_id = %s AND phase NOT LIKE '%%[%%' AND hidden IS FALSE AND type = 'MEAN'
         )
         UPDATE phase_stats
             SET value =
