@@ -261,7 +261,7 @@ def test_cpu_time_carbon_providers():
             seen_phase_time_syscall_system = True
             phase_time = val
 
-            assert 5*MICROSECONDS < val < 6*MICROSECONDS , f"phase_time_syscall_system is not between 5 and 6 s but {val} {metric_provider['unit']}"
+            assert 10*MICROSECONDS < val < 11*MICROSECONDS , f"phase_time_syscall_system is not between 10 and 11 s but {val} {metric_provider['unit']}"
 
         elif metric == 'embodied_carbon_share_machine':
             # we have the phase time value as we sort by metric DESC
