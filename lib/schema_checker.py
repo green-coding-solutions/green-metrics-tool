@@ -11,6 +11,11 @@ VALID_CHARS = set(string.ascii_letters + string.digits + '_' + '-')
 VALID_CHARS_SPACE = VALID_CHARS.copy()
 VALID_CHARS_SPACE.add(' ')
 
+def flow_runs_on_host(flow):
+    # An omitted value or YAML null (container: null / container:) requests host execution.
+    # The literal string 'None' is deliberately not accepted as it is a valid container name.
+    return flow.get('container') is None
+
 class SchemaChecker():
     def __init__(self, validate_compose_flag):
         self._validate_compose_flag = validate_compose_flag
@@ -225,7 +230,8 @@ class SchemaChecker():
 
              'flow': [{
                 'name': And(str, Use(self.not_empty), Regex(r'^[\.\s0-9a-zA-Z_\(\)-]+$')),
-                'container': And(str, Use(self.not_empty), Use(self.contains_no_invalid_chars)),
+                # container: null (YAML null) requests host execution, which is permission-gated in the ScenarioRunner
+                'container': Or(None, And(str, Use(self.not_empty), Use(self.contains_no_invalid_chars))),
                 Optional('hidden'): bool,
                 'commands': [{
                     'type': Or('console', 'playwright'),
@@ -297,7 +303,12 @@ class SchemaChecker():
                 raise SchemaError(f"The 'name' field in 'flow' must be unique. '{flow['name']}' was already used.")
             known_flow_names.append(flow['name'])
 
+            runs_on_host = flow_runs_on_host(flow)
+
             for command in flow['commands']:
+                if runs_on_host and command['type'] != 'console':
+                    raise SchemaError(f"Flow '{flow['name']}' runs directly on the host (container: null) and only supports 'console' commands. Found command type: '{command['type']}'")
+
                 if command.get('read-sci-stdout', False) and not command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
                     raise SchemaError(f"You have specified `read-sci-stdout` in flow {flow['name']} but set `log-stdout` to False, which prevents log capturing.")
 

@@ -46,19 +46,22 @@ from lib import container_compatibility
 from lib.repo_info import get_repo_info
 from lib.debug_helper import DebugHelper
 from lib.terminal_colors import TerminalColors
-from lib.schema_checker import SchemaChecker
+from lib.schema_checker import SchemaChecker, flow_runs_on_host
 from lib.db import DB
 from lib.global_config import GlobalConfig, freeze_dict, FrozenDict
 from lib.notes import Notes
 from lib.machine import Machine
 from lib.container_compatibility import CompatibilityStatus
 from lib.log_types import LogType
+from lib.user import User
 from metric_providers.base import MetricProviderConfigurationError
 
 from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
+
+HOST_EXECUTION_DETAIL_NAME = '[HOST]'
 
 def validate_usage_scenario_variables(usage_scenario_variables):
     for key, _ in usage_scenario_variables.items():
@@ -833,6 +836,12 @@ class ScenarioRunner:
         if self._allow_unsafe:
             print(TerminalColors.WARNING, arrows('Warning: Runner is running in unsafe mode'), TerminalColors.ENDC)
 
+        has_host_flows = any(flow_runs_on_host(flow) for flow in self.__usage_scenario.get('flow', []))
+        if has_host_flows and not User(self._user_id).can_use_orchestrator('host'):
+            raise PermissionError(f"The usage scenario contains flows that are configured to run directly on the host (container: null), but host execution is not permitted for your user (id: {self._user_id}). The user needs the 'host' orchestrator capability (measurement.orchestrators.host).")
+        if has_host_flows:
+            print(TerminalColors.WARNING, arrows('Warning: Some flows will execute directly on the host system'), TerminalColors.ENDC)
+
         if self.__usage_scenario.get('architecture') is not None and self._architecture != self.__usage_scenario['architecture'].lower():
             raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self.__usage_scenario.get('architecture')})")
 
@@ -1139,6 +1148,14 @@ class ScenarioRunner:
         if not metric_providers:
             print(TerminalColors.WARNING, arrows('No metric providers were configured in config.yml. Was this intentional?'), TerminalColors.ENDC)
             return
+
+        # A usage scenario without services will never have containers. Instead of guarding all
+        # call sites we move the container bound metric providers to the disabled providers.
+        if not self.__usage_scenario.get('services'):
+            for metric_provider in metric_providers:
+                if (metric_provider.endswith('_container') or metric_provider == 'network_connections_tcpdump_system') and metric_provider not in self._disabled_metric_providers:
+                    self._append_and_print_warning(f"Disabling {metric_provider} as it needs containers and no containers are part of this run")
+                    self._disabled_metric_providers.append(metric_provider)
 
         self._initialize_folder(self._metrics_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
 
@@ -2319,11 +2336,12 @@ class ScenarioRunner:
             # _resolve_container_name(), which both respects a service's own 'container_name'
             # override and appends this worker's xdist suffix. Every docker command below must
             # target that same resolved name, or it 404s the moment a worker suffix is in play.
-            resolved_flow_container, _ = self._resolve_container_name(
+            print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
+
+            runs_on_host = flow_runs_on_host(flow)
+            resolved_flow_container, _ = HOST_EXECUTION_DETAIL_NAME if runs_on_host else self._resolve_container_name(
                 flow['container'], self.__usage_scenario['services'][flow['container']]
             )
-
-            print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
                 self._start_phase(flow['name'], hidden=flow.get('hidden', False), transition=False)
@@ -2337,8 +2355,10 @@ class ScenarioRunner:
                     print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', resolved_flow_container, TerminalColors.ENDC)
                     print(cmd_obj['command'])
 
-                    docker_exec_command = ['docker', 'exec']
-                    docker_exec_command.append(resolved_flow_container)
+                    if runs_on_host:
+                        exec_command = []
+                    else:
+                        exec_command = ['docker', 'exec', flow['container']]
 
                     stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
 
@@ -2353,19 +2373,25 @@ class ScenarioRunner:
                         print(TerminalColors.WARNING, arrows('Process output is streamed. Please note that this disallows capturing of errors and build outputs in logs and error messages.'), TerminalColors.ENDC)
 
                     if cmd_obj['type'] == 'playwright':
-                        docker_exec_command.append(cmd_obj.get('shell', 'sh'))
-                        docker_exec_command.append('-ec')
+                        exec_command.append(cmd_obj.get('shell', 'sh'))
+                        exec_command.append('-ec')
                         escaped_command = cmd_obj['command'].replace("'", "\\'")
-                        docker_exec_command.append(f"echo '{escaped_command}' > /tmp/playwright-ipc-commands")
+                        exec_command.append(f"echo '{escaped_command}' > /tmp/playwright-ipc-commands")
 
                     elif cmd_obj['type'] == 'console':
 
                         if shell := cmd_obj.get('shell', False):
-                            docker_exec_command.append(shell)
-                            docker_exec_command.append('-ec')
-                            docker_exec_command.append(cmd_obj['command'])
+                            if runs_on_host:
+                                exec_command.extend(host_platform.shell_command_argv(shell, cmd_obj['command']))
+                            else:
+                                exec_command.append(shell)
+                                exec_command.append('-ec')
+                                exec_command.append(cmd_obj['command'])
+                        elif runs_on_host:
+                            # posix=False would keep quote characters on POSIX systems; on Windows path syntax (backslashes) demands posix=False
+                            exec_command.extend(shlex.split(cmd_obj['command'], posix=not host_platform.is_windows()))
                         else:
-                            docker_exec_command.extend(shlex.split(cmd_obj['command'], posix=False))
+                            exec_command.extend(shlex.split(cmd_obj['command'], posix=False))
                     else:
                         raise RuntimeError('Unknown command type in flow: ', cmd_obj['type'])
 
@@ -2380,7 +2406,7 @@ class ScenarioRunner:
 
                         #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
                         ps = subprocess.Popen(
-                            docker_exec_command,
+                            exec_command,
                             stderr=stderr_behaviour,
                             stdout=stdout_behaviour,
                             encoding='UTF-8',
@@ -2399,7 +2425,7 @@ class ScenarioRunner:
                             print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
 
                         ps = subprocess.run(
-                            docker_exec_command,
+                            exec_command,
                             stderr=stderr_behaviour,
                             stdout=stdout_behaviour,
                             encoding='UTF-8',
@@ -2409,7 +2435,7 @@ class ScenarioRunner:
                         )
 
                     ps_to_read_tmp.append({
-                        'cmd': docker_exec_command,
+                        'cmd': exec_command,
                         'ps': ps,
                         'container_name': resolved_flow_container,
                         'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
