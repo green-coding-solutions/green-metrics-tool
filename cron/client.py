@@ -216,7 +216,10 @@ def do_warmup():
     if ps.returncode != 0:
         error_helpers.log_error('Warmup workload failed', stdout=ps.stdout, machine=config['machine']['description'])
 
-    time.sleep(120) # also let machine come down again for two minutes
+    # also let machine come down. Important is to let cool down longer
+    # than it takes for the CPU to recover but also include the time it
+    # takes for the system fans to reduce spinning again
+    time.sleep(300)
 
 
 def reboot():
