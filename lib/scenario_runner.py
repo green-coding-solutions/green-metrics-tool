@@ -2362,7 +2362,10 @@ class ScenarioRunner:
 
                         if shell := cmd_obj.get('shell', False):
                             docker_exec_command.append(shell)
-                            docker_exec_command.append('-ec')
+                            docker_exec_command.append('-o pipefail')
+                            docker_exec_command.append('-o nounset')
+                            docker_exec_command.append('-o errexit')
+                            docker_exec_command.append('-c')
                             docker_exec_command.append(cmd_obj['command'])
                         else:
                             docker_exec_command.extend(shlex.split(cmd_obj['command'], posix=False))
