@@ -13,7 +13,7 @@ psutil==7.2.2
 schema==0.7.8
 deepdiff==9.1.0
 redis==8.1.0
-hiredis==3.4.0
+hiredis==3.4.1
 requests==2.34.2
 uvicorn-worker==0.4.0
 cachetools==7.1.7
