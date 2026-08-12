@@ -3,7 +3,7 @@ psycopg[binary]==3.3.4
 psycopg_pool==3.3.1
 uvicorn[standard]==0.52.1
 fastapi[standard]==0.141.1
-starlette>=1.4.1
+starlette>=1.6.0
 pandas==3.0.5
 PyYAML==6.0.3
 anybadge==1.16.0
