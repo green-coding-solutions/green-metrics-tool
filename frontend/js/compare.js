@@ -313,6 +313,12 @@ $(document).ready( () => {
             }
             phase_stats_data = (await makeAPICall(url)).data
         } catch (err) {
+            if (err instanceof APIHTTPError && err.status === 409) {
+                console.log('Endpoint cannot handle request. Will redirect to simple table.')
+                window.location.href = `/compare-simple.html?ids=${run_ids}&redirect_from_auto=true`;
+                return
+            }
+
             showNotification('Could not get compare in-repo data from API', err);
             return
         }

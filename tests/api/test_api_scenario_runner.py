@@ -100,15 +100,15 @@ def test_compare_valid():
 
     assert res_json['data'] == data
 
-def test_compare_fails():
+def test_compare_falls_back_to_table_mode():
     Tests.import_demo_data()
 
     DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
 
+    # Auto mode cannot find a single differing attribute here (usage_scenario AND commit_hash
+    # differ at once), so it should fall back to the generic per-run 'IDs' table view instead of failing.
     response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1},{RUN_2}", timeout=15)
-    res_json = response.json()
-    assert response.status_code == 422
-    assert res_json['err'] == 'Different usage scenarios & commits not supported'
+    assert response.status_code == 409
 
 # Will force same style by comparing A vs B. No repeated run style
 def test_compare_force_mode_same_style():
