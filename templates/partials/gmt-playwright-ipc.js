@@ -22,12 +22,25 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function gmtPlaywrightCache(url, sleep_duration) {
-    await page.goto(url);
-    await sleep(sleep_duration*1000);
+async function gmtPlaywrightResetContext() {
     await context.close();
     context = await browser.newContext(contextOptions);
     page = await context.newPage();
+}
+
+async function gmtPlaywrightCache(url, sleep_duration) {
+    await page.goto(url);
+    await sleep(sleep_duration*1000);
+    await gmtPlaywrightResetContext();
+}
+
+// Runs a base64 encoded user supplied script body.
+// We transport it encoded, because the raw command is string replaced into the usage_scenario.yml before it is
+// parsed as YAML and is then passed through `sh -ec "echo '<command>' > <fifo>"` in lib/scenario_runner.py.
+// Neither of these two steps survives arbitrary newlines and quotes, but the base64 alphabet passes both untouched.
+async function gmtRunScript(script_base64) {
+    const script = Buffer.from(script_base64, 'base64').toString('utf-8');
+    await eval(`(async () => { ${script} })()`);
 }
 
 async function startFifoReader(fifoPath, callback) {
