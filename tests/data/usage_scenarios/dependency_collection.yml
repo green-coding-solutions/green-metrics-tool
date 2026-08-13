@@ -12,8 +12,8 @@ services:
           cd /root
           python3 -m virtualenv venv
           /root/venv/bin/pip install psutils
-          apt update
-          apt install nano
+          timeout 180 apt update
+          apt -o Acquire::http::ConnectTimeout=10 -o Acquire::https::ConnectTimeout=10 install nano
 
 flow:
   - name: Stress

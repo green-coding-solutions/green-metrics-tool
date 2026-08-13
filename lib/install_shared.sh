@@ -390,15 +390,16 @@ function checkout_submodules() {
 
     print_message "Checking out further git submodules ..."
 
+    # these are small repos, so an overall timeout (rather than just a connect timeout) is fine here
     if [[ $(uname) != "Darwin" ]]; then
-        git submodule update --init lib/sgx-software-enable
+        timeout 120 git submodule update --init lib/sgx-software-enable
     fi
 
-    git submodule update --init metric_providers/psu/energy/ac/xgboost/machine/model
+    timeout 120 git submodule update --init metric_providers/psu/energy/ac/xgboost/machine/model
 
     if [[ $enterprise == true ]] ; then
         if [[ ! -d "ee" ]]; then
-            git clone git@github.com:green-coding-solutions/gmt-enterprise.git ee
+            timeout 120 git clone git@github.com:green-coding-solutions/gmt-enterprise.git ee
         fi
 
         if [[ ! -z $ee_branch ]]; then
@@ -488,6 +489,7 @@ function send_ping() {
     local os_version=$(uname -r)
 
     curl -i -X POST https://plausible.io/api/event \
+        --connect-timeout 5 --max-time 10 \
         -H "User-Agent: ${random_hash}" \
         -H 'Content-Type: application/json' \
         --data "{\"name\":\"install\",\"url\":\"http://hello.green-coding.io/install\",\"domain\":\"hello.green-coding.io\",\"props\":{\"unique_hash\":\"${unique_hash}\",\"arch\":\"${arch}\",\"os\":\"${os}\",\"os_version\":\"${os_version}\"}}" > /dev/null
@@ -749,6 +751,7 @@ done
 if [[ $enterprise == true ]] ; then
     echo "Validating enterprise token"
     curl --silent -X POST https://plausible.io/api/event \
+         --connect-timeout 5 --max-time 10 \
          -H 'Content-Type: application/json' \
          --data "{\"name\":\"api_test\",\"url\":\"https://www.green-coding.io/?utm_source=${ee_token}\",\"domain\":\"proxy.green-coding.io\"}" > /dev/null
 fi
