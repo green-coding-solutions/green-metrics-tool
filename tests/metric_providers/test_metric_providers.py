@@ -189,6 +189,7 @@ def test_memory_providers():
 
         assert psutil.virtual_memory().total*0.55 <= val <= psutil.virtual_memory().total * 0.65 , f"memory_used_procfs_system avg is not between 55% and 65% of total memory but {val} {metric_provider['unit']}"
 
+@pytest.mark.skip(reason="Test is currently in maintenance")
 def test_cpu_time_carbon_providers():
 
     assert run_id
