@@ -147,8 +147,13 @@ runs:
 
         source ../venv/bin/activate
 
+        # Leave 2 cores unassigned to xdist workers so the host (dockerd, gunicorn, etc.) has some
+        # headroom instead of every core being claimed by a worker's pinned containers.
+        WORKERS=$(python3 -c "import os; print(max(1, (os.cpu_count() or 3) - 2))")
+        echo "Running with $WORKERS parallel pytest-xdist workers"
+
         set +e
-        python3 -m ${{ inputs.tests-command }} -n auto --dist=loadgroup ${TEST_PATH} -rA | tee /tmp/test-results.txt
+        python3 -m ${{ inputs.tests-command }} -n "$WORKERS" --dist=loadgroup ${TEST_PATH} -rA | tee /tmp/test-results.txt
         PARALLEL_EXIT_CODE=${PIPESTATUS[0]}
         # these marked tests must run sequentially after, as it restarts the DB which will collide with other parallel tests running
         python3 -m ${{ inputs.tests-command }} -m serial -rA | tee -a /tmp/test-results.txt
