@@ -279,8 +279,47 @@ def test_setup_commands_one_command():
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    assert 'Running command:  docker exec test-container sh -ec ps -a' in out.getvalue()
+    assert 'Running command:  docker exec test-container sh -o errexit -o nounset -o pipefail -c ps -a' in out.getvalue()
     assert '1 root      0:00 /bin/sh' in out.getvalue(), 'Expected container stdout showing /bin/sh as process 1'
+
+# shell-options: [array|str] (optional)
+# Options that are passed to the shell before the -c flag. Defaults to errexit, nounset and pipefail
+def test_shell_options_default_catches_error_in_pipe():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/shell_options_default.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with pytest.raises(RuntimeError) as e:
+        with redirect_stdout(out), redirect_stderr(err):
+            runner.run()
+
+    assert 'had bad returncode: 1' in str(e.value), Tests.assertion_info('Expected failing command due to pipefail', str(e.value))
+
+def test_shell_options_override():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/shell_options_override.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+
+    assert 'Running command:  docker exec test-container /bin/sh -c false | cat' in out.getvalue(), Tests.assertion_info('Expected setup-command without any shell options', out.getvalue())
+    assert 'command was not aborted' in out.getvalue(), Tests.assertion_info('Expected pipefail to be disabled', out.getvalue())
+    assert 'unset variable did not abort:' in out.getvalue(), Tests.assertion_info('Expected nounset to be disabled', out.getvalue())
+
+def test_shell_options_unsupported_gives_hint():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/shell_options_unsupported.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with pytest.raises(RuntimeError) as e:
+        with redirect_stdout(out), redirect_stderr(err):
+            runner.run()
+
+    assert 'The used shell does not support the shell options (unsupported-gmt-option)' in str(e.value), Tests.assertion_info('Expected hint about unsupported shell options', str(e.value))
 
 def test_setup_commands_multiple_commands():
     out = io.StringIO()

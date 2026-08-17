@@ -209,6 +209,7 @@ class SchemaChecker():
                         'command': And(str, Use(self.not_empty)),
                         Optional('detach'): bool,
                         Optional('shell'): And(str, Use(self.not_empty)),
+                        Optional('shell-options'): Or(And(str, Use(self.not_empty)), [And(str, Use(self.not_empty))]), # empty list is allowed and disables all options
                     }],
                     Optional('volumes'): [And(str, Use(self.not_empty))],
                     Optional('folder-destination'):And(str, Use(self.not_empty)),
@@ -236,6 +237,7 @@ class SchemaChecker():
                     Optional('read-sci-stdout'): bool,
                     Optional('ignore-errors'): bool,
                     Optional('shell'): And(str, Use(self.not_empty)),
+                    Optional('shell-options'): Or(And(str, Use(self.not_empty)), [And(str, Use(self.not_empty))]), # empty list is allowed and disables all options
                     Optional('log-stdout'): bool,
                     Optional('log-stderr'): bool,
                 }],
@@ -283,6 +285,10 @@ class SchemaChecker():
                 raise SchemaError(f"The 'cmd' key for service '{service_name}' is not supported anymore. Please migrate to 'command'")
 
 
+            for setup_command in service.get('setup-commands', []):
+                if 'shell-options' in setup_command and 'shell' not in setup_command:
+                    raise SchemaError(f"You have specified `shell-options` in a setup-command of service '{service_name}' but no `shell`. Options can only be passed when a shell is used.")
+
             if (cpus := service.get('cpus')) and (cpus_deploy := service.get('deploy', {}).get('resources', {}).get('limits', {}).get('cpus')):
                 if cpus != cpus_deploy:
                     raise SchemaError('cpus service top level key and deploy.resources.limits.cpus must be identical')
@@ -303,6 +309,12 @@ class SchemaChecker():
 
                 if command.get('read-notes-stdout', False) and not command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
                     raise SchemaError(f"You have specified `read-notes-stdout` in flow {flow['name']} but set `log-stdout` to False, which prevents log capturing.")
+
+                if 'shell-options' in command:
+                    if command['type'] != 'console':
+                        raise SchemaError(f"You have specified `shell-options` in flow {flow['name']} for a command of type '{command['type']}'. This is only supported for commands of type 'console'.")
+                    if 'shell' not in command:
+                        raise SchemaError(f"You have specified `shell-options` in flow {flow['name']} but no `shell`. Options can only be passed when a shell is used.")
 
 
 # if __name__ == '__main__':

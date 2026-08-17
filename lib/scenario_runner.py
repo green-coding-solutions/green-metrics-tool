@@ -60,6 +60,47 @@ from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
+# Options that are set for every command that is run through a shell.
+# They make the shell fail on the first error, on unset variables and on errors in a pipe.
+# Can be overridden per command with the 'shell-options' key in the usage_scenario.yml
+DEFAULT_SHELL_OPTIONS = ('-o', 'errexit', '-o', 'nounset', '-o', 'pipefail')
+
+# Not every shell supports all of the options we set by default (POSIX only mandates errexit and nounset).
+# Since we cannot probe every shell before every call we rather run into the error and then give a helpful hint.
+SHELL_OPTION_ERROR_MARKERS = ('illegal option', 'invalid option', 'unrecognized option', 'unknown option', 'bad option')
+
+def get_shell_options(cmd_obj):
+    shell_options = cmd_obj.get('shell-options', DEFAULT_SHELL_OPTIONS)
+
+    if isinstance(shell_options, str):
+        shell_options = shlex.split(shell_options)
+
+    return list(shell_options)
+
+def get_shell_options_error(cmd, stderr):
+    # Some shells (busybox ash for instance) even exit with returncode 0 when an option is unknown and then
+    # silently do not run the command at all. Therefore we must look at the stderr and not only at the returncode.
+    cmd_list = cmd if isinstance(cmd, list) else str(cmd).split()
+    option_names = [option_name for flag, option_name in zip(cmd_list, cmd_list[1:]) if flag == '-o']
+
+    if not option_names:
+        return ''
+
+    stderr_string = str(stderr).lower()
+
+    if not any(marker in stderr_string for marker in SHELL_OPTION_ERROR_MARKERS):
+        return ''
+
+    if not any(option_name.lower() in stderr_string for option_name in option_names):
+        return ''
+
+    return (f"The used shell does not support the shell options ({' '.join(option_names)}) that were set for this command. "
+            f"Please note that your command was possibly not executed at all!\n"
+            f"GMT sets '{' '.join(DEFAULT_SHELL_OPTIONS)}' by default so that errors in your commands cannot go unnoticed.\n"
+            "Please either use a shell that supports these options (for instance 'shell: bash') or override them for this "
+            "command with the 'shell-options' key in your usage_scenario.yml. An empty list ('shell-options: []') disables "
+            "them entirely, but then errors in your command may go unnoticed.")
+
 def validate_usage_scenario_variables(usage_scenario_variables):
     for key, _ in usage_scenario_variables.items():
         if not re.fullmatch(r'__GMT_VAR_[\w]+__', key):
@@ -1975,7 +2016,7 @@ class ScenarioRunner:
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
                 if shell := cmd_obj.get('shell', False):
-                    d_command = ['docker', 'exec', container_name, shell, '-ec', cmd_obj['command']] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, shell, *get_shell_options(cmd_obj), '-c', cmd_obj['command']] # This must be a list!
                 else:
                     d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'], posix=False)] # This must be a list!
 
@@ -2016,6 +2057,8 @@ class ScenarioRunner:
 
                     if ps.returncode == 137:
                         raise MemoryError(f"Your process {d_command} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                    elif shell_options_error := get_shell_options_error(d_command, ps.stderr):
+                        raise RuntimeError(f"Process {d_command} could not be run. {shell_options_error}\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
                     elif ps.returncode != 0:
                         raise RuntimeError(f"Process {d_command} failed with return code {ps.returncode}.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
 
@@ -2322,9 +2365,7 @@ class ScenarioRunner:
 
                         if shell := cmd_obj.get('shell', False):
                             docker_exec_command.append(shell)
-                            docker_exec_command.append('-o pipefail')
-                            docker_exec_command.append('-o nounset')
-                            docker_exec_command.append('-o errexit')
+                            docker_exec_command.extend(get_shell_options(cmd_obj))
                             docker_exec_command.append('-c')
                             docker_exec_command.append(cmd_obj['command'])
                         else:
@@ -2616,6 +2657,9 @@ class ScenarioRunner:
                         stderr = ps['ps'].stderr
                 except subprocess.TimeoutExpired:
                     stderr = 'Could not read due to timeout'
+
+                if shell_options_error := get_shell_options_error(ps['cmd'], stderr):
+                    raise RuntimeError(f"Process '{ps['cmd']}' could not be run. {shell_options_error}\n\n========== Stderr ==========\n{stderr}")
 
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
                     if ps['ps'].returncode == 137:
