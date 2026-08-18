@@ -4,7 +4,7 @@ FROM ubuntu
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get -y update && apt-get install -y curl squid-openssl
+RUN timeout 180 apt-get -y update && apt-get -o Acquire::http::ConnectTimeout=10 -o Acquire::https::ConnectTimeout=10 install -y curl squid-openssl
 
 ARG HTTP_PROXY
 ARG HTTPS_PROXY

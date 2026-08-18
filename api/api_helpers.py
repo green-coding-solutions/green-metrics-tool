@@ -456,17 +456,23 @@ def determine_comparison_case(user, ids, force_mode=None):
         if usage_scenario_variables == 1:
             return ('Repeated Run on same Commit Hash', 'commit_hash')  # Case A - Everything is identical and just repeating runs
 
-    except RuntimeError as exc:
+        raise RuntimeError('Could not determine comparison case after checking all conditions')
+
+    except RuntimeError:
+        # Although the check appears also couple of lines above we need it here again
+        # Reason being is that two scenarios with two repos and two machines for instance will get into here
+        # We then want to show this fallback
         if len(ids) == 2:
             ### DUO Case ####
             # In case we only encounter two IDs we can try to short circuit.
             # Before we would fail here. However for two scenarios we can ALWAYS
             # show a comparison case as it is guaranteed that we will encounter only two different cases somewhere.
             return ('IDs', 'id')
-        else:
-            raise exc
 
-    raise RuntimeError('Could not determine comparison case after checking all conditions')
+        ### TABLE / IDs Case ####
+        # If auto mode cannot find a single differing attribute to compare on we fall back to
+        # a generic per-run table view. This always works, as every run has a unique id.
+        return ('Table', 'simple_table')
 
 def check_run_failed(user, ids):
     query = """

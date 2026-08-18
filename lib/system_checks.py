@@ -44,6 +44,13 @@ GMT_RESOURCES = {
 # skipped for environment reasons (unsupported platform, tool unavailable, etc).
 NOT_CONFIGURED = 'not_configured'
 
+# Sentinel returned by a check when it is skipped because it is not implemented / not
+# applicable on the current platform (macOS, Windows - these checks are Linux-only).
+# Distinct from NOT_CONFIGURED (missing machine.* option) and from None (other
+# environment-specific skips, e.g. a tool being unavailable on an otherwise-supported
+# platform).
+NOT_IMPLEMENTED = 'not_implemented'
+
 ######## CHECK FUNCTIONS ########
 def check_db(*_, **__):
     try:
@@ -55,7 +62,7 @@ def check_db(*_, **__):
 
 def check_docker_host_env(*_, **__):
     if host_platform.is_windows():
-        return True
+        return NOT_IMPLEMENTED
     return 'rootless' not in subprocess.check_output(['docker', 'info'], encoding='UTF-8', errors='replace') or os.getenv('DOCKER_HOST', '') != ''
 
 def check_one_energy_and_scope_machine_provider(*_, **__):
@@ -65,12 +72,12 @@ def check_one_energy_and_scope_machine_provider(*_, **__):
 
 def check_tmpfs_mount(*_, **__):
     if host_platform.is_windows():
-        return True
+        return NOT_IMPLEMENTED
     return not any(partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs' for partition in psutil.disk_partitions())
 
 def check_ntp(*_, **__):
     if platform.system() in ('Darwin', 'Windows'): # no NTP for darwin/windows, as this is linux cluster only functionality
-        return True
+        return NOT_IMPLEMENTED
 
     ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8', errors='replace')
     if 'NTP service: inactive' not in ntp_status: # NTP must be inactive
@@ -100,7 +107,7 @@ def check_available_cpus(*_, **__): # GMT min system requirement
 
 def check_docker_cpu_availability(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return True # no checks as Docker runs in a VM here with custom CPU configuration
+        return NOT_IMPLEMENTED # no checks as Docker runs in a VM here with custom CPU configuration
     return os.cpu_count() == resource_limits.get_docker_available_cpus()
 
 def check_assignable_cpus(*_, **__):
@@ -133,11 +140,66 @@ def check_docker_daemon(*_, **__):
 
 def check_utf_encoding(*_, **__):
     if host_platform.is_windows():
-        return True
+        return NOT_IMPLEMENTED
     return locale.getpreferredencoding().lower() == sys.getdefaultencoding().lower() == 'utf-8'
 
 def check_tty_attached(*_, **__):
     return not sys.stdin.isatty()
+
+
+def check_ssh_session(*_, **__):
+    if platform.system() in ('Darwin', 'Windows'):
+        return NOT_IMPLEMENTED
+
+    ssh_ports = set()
+    try:
+        with open('/etc/ssh/sshd_config', 'r', encoding='utf-8') as f:
+            for line in f:
+                match = re.match(r'^\s*Port\s+(\d+)', line, re.IGNORECASE)
+                if match:
+                    ssh_ports.add(match.group(1))
+    except FileNotFoundError:
+        pass  # sshd_config not present - fall back to the default port below
+    except OSError as exc:
+        # e.g. PermissionError - file exists but is not readable. Silently falling back to
+        # port 22 here could mask a real SSH session on a different, unreadable-config
+        # port, so this must hard fail rather than degrade quietly.
+        raise RuntimeError(
+            "Could not read /etc/ssh/sshd_config to determine SSH configuration to guard "
+            "GMT against lingering SSH connections measurement noise. If you prefer no SSH "
+            "checking you can disable via --dev-no-system-checks=check_ssh_session"
+        ) from exc
+    if not ssh_ports:
+        ssh_ports.add('22') # If no directive is found in file port 22 is standard.
+
+    # ss -tn (without -p) reports established connections and their ports without
+    # needing root - only the process-name lookup (-p) requires privileges, which we
+    # don't need here. This is what lets us check non-standard SSH ports without root.
+    port_filter = ' or '.join(f'sport = :{port} or dport = :{port}' for port in ssh_ports)
+    ss_result = subprocess.run(
+        ['ss', '-Htn', 'state', 'established', f'( {port_filter} )'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        encoding='UTF-8', errors='replace', check=False,
+    )
+    if ss_result.returncode == 0 and ss_result.stdout.strip():
+        return False  # established connection on an SSH port
+
+    # Independent signal: interactive login sessions recorded via utmp, regardless of
+    # which port sshd used. Catches setups ss might miss.
+    who_result = subprocess.run(
+        ['who'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        encoding='UTF-8', errors='replace', check=False,
+    )
+
+    for line in who_result.stdout.splitlines():
+        if 'pts/' not in line or '(' not in line:
+            continue
+        remote = line.rsplit('(', 1)[-1].rstrip(')\n')
+        if remote and remote not in (':0', '0.0'):
+            return False  # remote login session present
+
+    return True
 
 
 def check_swap_disabled(*_, **__):
@@ -165,7 +227,7 @@ def check_swap_disabled(*_, **__):
 
 def check_kernel_watchdog(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     # kernel.watchdog is the master switch; nmi_watchdog / soft_watchdog are the individual
     # hard/soft lockup detectors it toggles. All three periodically fire NMIs/interrupts which
     # can create noise in measurements, so we want to confirm they are all disabled.
@@ -222,7 +284,7 @@ def check_suspend(*, run_duration):
 
 def check_steal_time(*_, **__):
     if host_platform.is_windows():
-        return True
+        return NOT_IMPLEMENTED
     return math.isclose(getattr(psutil.cpu_times(), 'steal', 0.0), 0.0, abs_tol=1e-6) # safe check for float == 0.0
 
 
@@ -266,7 +328,7 @@ def _parse_timers(data):
 
 def check_systemd_timers(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return True
+        return NOT_IMPLEMENTED
 
     data = _get_sudo_check_results()
     if not data:
@@ -288,7 +350,7 @@ def check_systemd_timers(*_, **__):
 
 def check_cron_files(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return True
+        return NOT_IMPLEMENTED
 
     data = _get_sudo_check_results()
     if not data:
@@ -310,7 +372,7 @@ def _check_rapl_domain(domain_key):
     unavailable, or RAPL not present).
     '''
     if platform.system() in ('Darwin', 'Windows'):
-        return True
+        return NOT_IMPLEMENTED
     config = GlobalConfig().config
     rapl_cfg = config.get('machine', {}).get('rapl_power_capping')
     if not rapl_cfg or not isinstance(rapl_cfg, dict):
@@ -378,7 +440,7 @@ def check_cpu_cores(*_, **__):
 
 def check_dram(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None  # lsmem is a Linux (util-linux) only tool
+        return NOT_IMPLEMENTED  # lsmem is a Linux (util-linux) only tool
     expected_gb = GlobalConfig().config.get('machine', {}).get('dram_gb')
     if not expected_gb:
         return NOT_CONFIGURED
@@ -404,7 +466,7 @@ def check_dram(*_, **__):
 
 def check_usb_devices(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     allowlist = GlobalConfig().config.get('machine', {}).get('usb_devices')
     if not allowlist:
         return NOT_CONFIGURED
@@ -424,7 +486,7 @@ def check_usb_devices(*_, **__):
 
 def check_pci_devices(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     allowlist = GlobalConfig().config.get('machine', {}).get('pci_devices')
     if not allowlist:
         return NOT_CONFIGURED
@@ -444,7 +506,7 @@ def check_pci_devices(*_, **__):
 
 def check_cpu_governor(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     expected = GlobalConfig().config.get('machine', {}).get('cpu_governor')
     if expected is None:
         return NOT_CONFIGURED
@@ -473,7 +535,7 @@ def check_cpu_governor(*_, **__):
 
 def check_cpu_smt(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     config_val = GlobalConfig().config.get('machine', {}).get('cpu_smt')
     if config_val is None:
         return NOT_CONFIGURED
@@ -488,7 +550,7 @@ def check_cpu_smt(*_, **__):
 
 def check_cpu_turbo_boost(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     config_val = GlobalConfig().config.get('machine', {}).get('cpu_turbo_boost')
     if config_val is None:
         return NOT_CONFIGURED
@@ -524,7 +586,7 @@ def check_cpu_frequency(*_, **__):
 
 def check_cpu_scaling_driver(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
-        return None
+        return NOT_IMPLEMENTED
     expected = GlobalConfig().config.get('machine', {}).get('cpu_scaling_driver')
     if expected is None:
         return NOT_CONFIGURED
@@ -621,15 +683,60 @@ start_checks = (
     (check_swap_disabled, Status.WARN, 'swap disabled', 'Your system uses a swap filesystem. This can lead to very instable measurements. Please disable swap.'),
     (check_kernel_watchdog, Status.WARN, 'kernel watchdog disabled', 'A kernel lockup watchdog (kernel.watchdog / nmi_watchdog / soft_watchdog) is active. These periodically fire NMIs/interrupts and can create noise in measurements. Disable via sysctl for reliable benchmarking.'),
     (check_tty_attached, Status.WARN, 'tty attached', 'GMT runs with a TTY attached. This will create relevant overhead. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
+    (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
 )
 
 end_checks = (
     (check_suspend, Status.ERROR, 'system suspend', 'System has gone into suspend during measurement. This will skew all measurement data. If GMT shall ever be able to correctly account for suspend states please note that metric providers must support CLOCK_BOOTIME. See https://github.com/green-coding-solutions/green-metrics-tool/pull/1229 for discussion.'),
     (check_steal_time, Status.ERROR, 'cpu steal time', 'The CPU has accounted steal time. This means the measurement could have been interrupted and / or the VM that you are running in halted. This will lead to broken measurement data as time jumps can occur.'),
+    (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
 
 )
 
-def system_check(mode='start', system_check_threshold=3, run_duration=None):
+
+# Value of --dev-no-system-checks / ScenarioRunner(dev_no_system_checks=...) when the switch is
+# given with no argument (argparse nargs='?' const) - means "disable every check", as opposed to a
+# comma-separated string/collection of individual check names to disable just those.
+ALL_CHECKS_SENTINEL = 'ALL'
+
+
+def normalize_disabled_checks(value):
+    # True / False: disable every check / disable nothing - the switch's original, all-or-nothing
+    # behavior, kept for the CLI's no-argument form and for existing boolean callers (e.g.
+    # lib/job/run.py's user._capabilities['measurement']['dev_no_system_checks']).
+    if value is True or value == ALL_CHECKS_SENTINEL:
+        return True
+    if value is False or value is None:
+        return False
+
+    # Anything else must name specific checks to disable - either a comma-separated string (CLI)
+    # or a list of names (direct ScenarioRunner(...) kwarg) - and must not be empty, since an empty
+    # value here is almost certainly a mistake rather than a deliberate "disable nothing" (that's
+    # what omitting the switch / passing False is for).
+    if isinstance(value, str):
+        if not value.strip():
+            raise ValueError('--dev-no-system-checks was given an empty string. Omit the switch entirely to run every check, or pass a comma-separated list of check names to disable specific ones.')
+        names = {name.strip() for name in value.split(',') if name.strip()}
+        if not names:
+            raise ValueError('--dev-no-system-checks must include at least one check name.')
+    elif isinstance(value, list):
+        if not value:
+            raise ValueError('dev_no_system_checks was given an empty list. Pass False to run every check, or a non-empty list of check names to disable specific ones.')
+        names = set(value)
+    else:
+        raise ValueError(f"dev_no_system_checks must be True, False, a comma-separated string, or a list of check names - got {type(value).__name__}: {value!r}")
+
+    # Validated here, once, rather than in system_check() - that runs twice per measurement (once
+    # for mode='start', once for mode='end'), so checking there would walk the registry twice for
+    # no reason since disabled_checks never changes between those two calls.
+    unknown = names - {check[0].__name__ for check in (start_checks + end_checks)}
+    if unknown:
+        raise ValueError(f"Unknown check name(s) passed to --dev-no-system-checks: {', '.join(sorted(unknown))}")
+
+    return names
+
+
+def system_check(mode='start', system_check_threshold=3, disabled_checks=None, run_duration=None):
     print(TerminalColors.HEADER, f"\nRunning System Checks - Mode: {mode}", TerminalColors.ENDC)
     warnings = []
 
@@ -639,6 +746,14 @@ def system_check(mode='start', system_check_threshold=3, run_duration=None):
         checks = end_checks
     else:
         raise RuntimeError('Unknown mode for system check:', mode)
+
+    if disabled_checks:
+        # Names are already validated against the full check registry by normalize_disabled_checks()
+        # at ScenarioRunner construction time, so nothing here can be unknown.
+        checks = tuple(check for check in checks if check[0].__name__ not in disabled_checks)
+
+    if not checks:
+        return warnings
 
     max_key_length = max(len(key[2]) for key in checks)
 
@@ -652,6 +767,8 @@ def system_check(mode='start', system_check_threshold=3, run_duration=None):
             formatted_key = check[2].ljust(max_key_length)
             if retval is NOT_CONFIGURED:
                 output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} (Skipped: not configured in config.yml)"
+            elif retval is NOT_IMPLEMENTED:
+                output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} (Skipped: not implemented on this platform. Switch to Linux, if possible, to enable this check.)"
             elif retval or retval is None:
                 output = f"{TerminalColors.OKGREEN}OK{TerminalColors.ENDC}"
             else:

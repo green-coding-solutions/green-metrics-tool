@@ -248,7 +248,7 @@ if __name__ == '__main__':
             if job:
                 set_status('job_start', run_id=job._run_id)
                 try:
-                    job.process(docker_prune=config['cluster']['client']['docker_prune'], full_docker_prune=config['cluster']['client']['full_docker_prune'])
+                    job.process()
                     if temperature_cooldown_time > 0:
                         DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(temperature_cooldown_time, config['machine']['id']))
                     temperature_errors = 0
@@ -311,10 +311,16 @@ if __name__ == '__main__':
 
                 except Exception as exc: # pylint: disable=broad-except
                     set_status('job_error', data=str(exc), run_id=job._run_id)
+                    exc_stdout = None
+                    if hasattr(exc, 'stdout'):
+                        exc_stdout = exc.stdout
+                    elif hasattr(exc, 'output'):
+                        output = exc.output
+
                     error_helpers.log_error('Job processing in cluster failed (client.py)',
                         exception_context=exc.__context__,
                         last_exception=exc,
-                        stdout=(exc.stdout if hasattr(exc, 'stdout') else None),
+                        stdout=exc_stdout,
                         stderr=(exc.stderr if hasattr(exc, 'stderr') else None),
                         run_id=job._run_id,
                         name=job._name,
@@ -362,6 +368,18 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     except BaseException as exc: # pylint: disable=broad-except
-        error_helpers.log_error(f'Processing in {__file__} failed.', exception_context=exc.__context__, last_exception=exc, machine=config['machine']['description'])
+        exc_stdout = None
+        if hasattr(exc, 'stdout'):
+            exc_stdout = exc.stdout
+        elif hasattr(exc, 'output'):
+            output = exc.output
+
+        error_helpers.log_error(f'Processing in {__file__} failed.',
+            exception_context=exc.__context__,
+            last_exception=exc,
+            machine=config['machine']['description'],
+            stdout=exc_stdout,
+            stderr=(exc.stderr if hasattr(exc, 'stderr') else None),
+        )
 
     DB().shutdown()

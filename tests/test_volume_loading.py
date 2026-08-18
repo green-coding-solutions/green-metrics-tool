@@ -12,6 +12,8 @@ import pytest
 from tests import test_functions as Tests
 from lib.scenario_runner import ScenarioRunner
 from lib.db import DB
+from lib.utils import container_name
+
 
 def test_volume_load_no_escape():
     runner = _volume_dot_path_runner('tests/data/usage_scenarios/volume_load_etc_hosts.yml')
@@ -21,7 +23,7 @@ def test_volume_load_no_escape():
             with Tests.RunUntilManager(runner) as context:
                 context.run_until('setup_services')
     finally:
-        container_running = Tests.check_if_container_running('test-container')
+        container_running = Tests.check_if_container_running(container_name('test-container'))
 
     expected_error = '/etc/hosts must not be in folder above root repo folder'
     assert str(e.value).startswith(expected_error), Tests.assertion_info(expected_error, str(e.value))
@@ -34,7 +36,7 @@ def test_volume_load_escape_ok_with_allow_unsafe():
         context.run_until('setup_services')
         # check that the volume was loaded
         ps = subprocess.run(
-            ['docker', 'exec', 'test-container', '/bin/sh',
+            ['docker', 'exec', container_name('test-container'), '/bin/sh',
             '-c', 'test -f /tmp/hosts && echo "File mounted"'],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -53,7 +55,7 @@ def test_load_files_from_within_gmt():
         context.run_until('setup_services')
         # check that the volume was loaded
         ps = subprocess.run(
-            ['docker', 'exec', 'test-container', '/bin/sh',
+            ['docker', 'exec', container_name('test-container'), '/bin/sh',
             '-c', 'test -f /tmp/test-file && echo "File mounted"'],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -78,7 +80,7 @@ def test_symlinks_should_fail():
             with Tests.RunUntilManager(runner) as context:
                 context.run_until('setup_services')
     finally:
-        container_running = Tests.check_if_container_running('test-container')
+        container_running = Tests.check_if_container_running(container_name('test-container'))
         os.remove(symlink_file)
 
     expected_error = '../tmp/symlink must not be in folder above root repo folder'
@@ -93,7 +95,7 @@ def test_volume_not_set_as_read_only_should_fail():
             with Tests.RunUntilManager(runner) as context:
                 context.run_until('setup_services')
     finally:
-        container_running = Tests.check_if_container_running('test-container')
+        container_running = Tests.check_if_container_running(container_name('test-container'))
 
     expected_error = 'We only allow readonly (ro) as parameter in volume mounts in safe mode. Volume: gmt-test-volume-delete-me:/tmp/test-volume - Try --allow-unsafe if you are running locally'
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
@@ -108,12 +110,13 @@ def test_volume_without_allowed_mount_interpreted_as_missing_path():
             with Tests.RunUntilManager(runner) as context:
                 context.run_until('setup_services')
     finally:
-        container_running = Tests.check_if_container_running('test-container')
+        container_running = Tests.check_if_container_running(container_name('test-container'))
 
     expected_error = 'The mount path gmt-test-volume-delete-me could not be loaded or found at the specified path.'
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
+@pytest.mark.xdist_group(name="volume-loading")
 def test_non_existent_but_allowed_volume_should_fail():
     # we do NOT create the volume here beforehand as we want the test to fail
 
@@ -124,12 +127,13 @@ def test_non_existent_but_allowed_volume_should_fail():
             with Tests.RunUntilManager(runner) as context:
                 context.run_until('setup_services')
     finally:
-        container_running = Tests.check_if_container_running('test-container')
+        container_running = Tests.check_if_container_running(container_name('test-container'))
 
     expected_error = "Could not find volume 'gmt-test-volume-delete-me' locally from service: test-container. The volume must be created manually before it can be loaded. GMT does not create named volumes."
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
+@pytest.mark.xdist_group(name="volume-loading")
 def test_non_existent_but_allowed_volume_should_fail_readonly():
     # we do NOT create the volume here beforehand as we want the test to fail
 
@@ -140,13 +144,25 @@ def test_non_existent_but_allowed_volume_should_fail_readonly():
             with Tests.RunUntilManager(runner) as context:
                 context.run_until('setup_services')
     finally:
-        container_running = Tests.check_if_container_running('test-container')
+        container_running = Tests.check_if_container_running(container_name('test-container'))
 
     expected_error = "Could not find volume 'gmt-test-volume-delete-me' locally from service: test-container. The volume must be created manually before it can be loaded. GMT does not create named volumes."
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
 
+# The tests below all reference real, globally-named docker volumes ('gmt-test-volume-delete-me',
+# '2g89huiwecjuShjg_Sdnufewiuasd') that are also hardcoded (unresolved, unsuffixed) into the
+# usage_scenario YAML fixtures they load - lib/scenario_runner.py deliberately never applies
+# worker-suffix resolution to named volume mounts (they may reference volumes a real user
+# manages outside of GMT, so silently rewriting the name would be wrong there). That means, unlike
+# containers/networks, these volumes are not made worker-unique automatically, so any two of these
+# tests running concurrently on different xdist workers would race on the same volume name - even
+# the two 'should_fail' tests above that only reference the name and never create it, since another
+# worker creating the volume mid-test would make the volume unexpectedly exist for them too, and
+# racing against their eventual `docker volume rm` in another test. Grouping them all onto a single
+# worker via xdist_group serializes them relative to each other instead.
+@pytest.mark.xdist_group(name="volume-loading")
 def test_non_permitted_volume_should_fail():
 
     subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
@@ -159,7 +175,7 @@ def test_non_permitted_volume_should_fail():
                 with Tests.RunUntilManager(runner) as context:
                     context.run_until('setup_services')
         finally:
-            container_running = Tests.check_if_container_running('test-container')
+            container_running = Tests.check_if_container_running(container_name('test-container'))
 
         expected_error = 'The mount path gmt-test-volume-delete-me could not be loaded or found at the specified path.'
         assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
@@ -167,6 +183,7 @@ def test_non_permitted_volume_should_fail():
     finally:
         subprocess.check_output(['docker', 'volume', 'rm', 'gmt-test-volume-delete-me'])
 
+@pytest.mark.xdist_group(name="volume-loading")
 def test_allowed_volume_rw_should_work():
 
     subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
@@ -179,6 +196,7 @@ def test_allowed_volume_rw_should_work():
     finally:
         subprocess.check_output(['docker', 'volume', 'rm', 'gmt-test-volume-delete-me'])
 
+@pytest.mark.xdist_group(name="volume-loading")
 def test_allowed_volume_fails_bc_readonly():
 
     subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
@@ -191,7 +209,7 @@ def test_allowed_volume_fails_bc_readonly():
                 with Tests.RunUntilManager(runner) as context:
                     context.run_until('setup_services')
         finally:
-            container_running = Tests.check_if_container_running('test-container')
+            container_running = Tests.check_if_container_running(container_name('test-container'))
 
         expected_error = 'The mount path gmt-test-volume-delete-me could not be loaded or found at the specified path.'
         assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
@@ -199,6 +217,7 @@ def test_allowed_volume_fails_bc_readonly():
     finally:
         subprocess.check_output(['docker', 'volume', 'rm', 'gmt-test-volume-delete-me'])
 
+@pytest.mark.xdist_group(name="volume-loading")
 def test_allowed_volume_readonly_works():
 
     subprocess.check_output(['docker', 'volume', 'create', 'gmt-test-volume-delete-me'])
@@ -220,7 +239,7 @@ def test_load_volume_references():
         context.run_until('setup_services')
         # check that the volume was loaded
         ps = subprocess.run(
-            ['docker', 'exec', 'test-container-2', '/bin/sh',
+            ['docker', 'exec', container_name('test-container-2'), '/bin/sh',
             '-c', 'test -f /tmp/test-file && echo "File mounted"'],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -243,19 +262,19 @@ def test_volume_loading_subdirectories_root():
     run_stdout = out.getvalue()
     assert run_stderr == '', Tests.assertion_info('stderr empty', f"stderr: {run_stderr}")
 
-    expect_content_testfile_root = "stdout from process: ['docker', 'exec', 'test-container-root', 'grep', 'testfile-root-content', '/tmp/testfile-root'] testfile-root-content"
+    expect_content_testfile_root = f"stdout from process: ['docker', 'exec', '{container_name('test-container-root')}', 'grep', 'testfile-root-content', '/tmp/testfile-root'] testfile-root-content"
     assert expect_content_testfile_root in run_stdout, Tests.assertion_info(expect_content_testfile_root, f"expected output not in {run_stdout}")
 
-    expect_extra_testfile_root = "stdout from process: ['docker', 'exec', 'test-container-root', 'grep', 'testfile-root-content', '/tmp/testfile-root-extra-copied'] testfile-root-content"
+    expect_extra_testfile_root = f"stdout from process: ['docker', 'exec', '{container_name('test-container-root')}', 'grep', 'testfile-root-content', '/tmp/testfile-root-extra-copied'] testfile-root-content"
     assert expect_extra_testfile_root in run_stdout, Tests.assertion_info(expect_extra_testfile_root, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile-content', '/tmp/testfile-correctly-mounted'] testfile-content"
+    expect_mounted_testfile = f"stdout from process: ['docker', 'exec', '{container_name('test-container')}', 'grep', 'testfile-content', '/tmp/testfile-correctly-mounted'] testfile-content"
     assert expect_mounted_testfile in run_stdout, Tests.assertion_info(expect_mounted_testfile, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
+    expect_mounted_testfile_2 = f"stdout from process: ['docker', 'exec', '{container_name('test-container')}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
     assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container-root', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
+    expect_mounted_testfile_3 = f"stdout from process: ['docker', 'exec', '{container_name('test-container-root')}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir():
@@ -269,10 +288,10 @@ def test_volume_loading_subdirectories_subdir():
     run_stdout = out.getvalue()
     assert run_stderr == '', Tests.assertion_info('stderr empty', f"stderr: {run_stderr}")
 
-    expect_mounted_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
+    expect_mounted_testfile_2 = f"stdout from process: ['docker', 'exec', '{container_name('test-container')}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
     assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-mounted'] testfile3-content"
+    expect_mounted_testfile_3 = f"stdout from process: ['docker', 'exec', '{container_name('test-container')}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-mounted'] testfile3-content"
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir2():
@@ -286,16 +305,16 @@ def test_volume_loading_subdirectories_subdir2():
     run_stdout = out.getvalue()
     assert run_stderr == '', Tests.assertion_info('stderr empty', f"stderr: {run_stderr}")
 
-    expect_mounted_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
-    assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, "expected output not in {run_stdout}")
+    expect_mounted_testfile_2 = f"stdout from process: ['docker', 'exec', '{container_name('test-container')}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
+    assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, f"expected output not in {run_stdout}")
 
-    expect_copied_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-copied'] testfile2-content"
+    expect_copied_testfile_2 = f"stdout from process: ['docker', 'exec', '{container_name('test-container')}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-copied'] testfile2-content"
     assert expect_copied_testfile_2 in run_stdout, Tests.assertion_info(expect_copied_testfile_2, f"expected output not in {run_stdout}")
 
-    expect_copied_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
+    expect_copied_testfile_3 = f"stdout from process: ['docker', 'exec', '{container_name('test-container')}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
     assert expect_copied_testfile_3 in run_stdout, Tests.assertion_info(expect_copied_testfile_3, f"expected output not in {run_stdout}")
 
-    expect_copied_testfile_4 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile4-content', '/tmp/testfile4-correctly-copied'] testfile4-content"
+    expect_copied_testfile_4 = f"stdout from process: ['docker', 'exec', '{container_name('test-container')}', 'grep', 'testfile4-content', '/tmp/testfile4-correctly-copied'] testfile4-content"
     assert expect_copied_testfile_4 in run_stdout, Tests.assertion_info(expect_copied_testfile_4, f"expected output not in {run_stdout}")
 
 
@@ -333,7 +352,7 @@ def test_volume_dot_path_safe(scenario_filename):
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps_read = subprocess.run(
-            ['docker', 'exec', 'test-container', '/bin/sh',
+            ['docker', 'exec', container_name('test-container'), '/bin/sh',
             '-c', f'test -f /tmp/repo_dir/{mounted_file} && echo "Scenario dir mounted"'],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -343,7 +362,7 @@ def test_volume_dot_path_safe(scenario_filename):
         out = ps_read.stdout
         err = ps_read.stderr
         ps_write = subprocess.run(
-            ['docker', 'exec', 'test-container', '/bin/sh',
+            ['docker', 'exec', container_name('test-container'), '/bin/sh',
             '-c', f'touch /tmp/repo_dir/{os.path.basename(created_file)}'],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -374,7 +393,7 @@ def test_volume_dot_path_unsafe(scenario_filename):
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
             ps = subprocess.run(
-                ['docker', 'exec', 'test-container', '/bin/sh',
+                ['docker', 'exec', container_name('test-container'), '/bin/sh',
                 '-c', f'test -f /tmp/repo_dir/{mounted_file} && touch /tmp/repo_dir/{os.path.basename(created_file)} && echo "Repo mounted rw"'],
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -390,6 +409,7 @@ def test_volume_dot_path_unsafe(scenario_filename):
         if os.path.exists(created_file):
             os.remove(created_file)
 
+@pytest.mark.xdist_group(name="volume-loading")
 def test_volume_inspect():
 
     if platform.system() == 'Darwin':

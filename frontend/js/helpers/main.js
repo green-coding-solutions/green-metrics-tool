@@ -23,6 +23,31 @@ const toHttpsUri = (uri) => {
     return uri;
 };
 
+// Platform path conventions:
+//   type='commit': /commit/ (GitHub), /-/commit/ (GitLab), /commits/ (Bitbucket)
+//   type='tree':   /tree/   (GitHub), /-/tree/   (GitLab), /src/     (Bitbucket)
+// Returns null for non-HTTP URIs (e.g. local paths).
+const getRepoRefUrl = (uri, type) => {
+    const cleanUri = toHttpsUri(uri);
+    if (!cleanUri.startsWith('http')) return null;
+    if (type !== 'commit' && type !== 'tree') {
+        console.error(`getRepoRefUrl: unknown type '${type}', expected 'commit' or 'tree'`);
+        return '#broken-url';
+    }
+    let hostname;
+    try {
+        hostname = new URL(cleanUri).hostname.toLowerCase();
+    } catch {
+        return null;
+    }
+    const base = cleanUri.endsWith('.git') ? cleanUri.slice(0, -4) : cleanUri;
+    if (hostname.includes('bitbucket')) {
+        return base + (type === 'commit' ? '/commits/' : '/src/');
+    }
+    const pathSep = hostname.includes('gitlab') ? '/-/' : '/';
+    return base + (type === 'commit' ? pathSep + 'commit/' : pathSep + 'tree/');
+};
+
 class APIHTTPError extends Error {
     constructor(status, message) {
         super(message);
@@ -272,11 +297,12 @@ const replaceRepoIcon = (uri) => {
 };
 
 const createExternalIconLink = (url) => {
-    // Creates a safe external icon link with protocol validation to prevent XSS attacks
-    // Only allows http/https protocols, returns empty string for non-HTTP URLs
+    // Build a safe external icon link. toHttpsUri only normalises SSH/git@ prefixes; it does NOT strip
+    // HTML-attribute-breaking chars like ", so the href value still requires escapeString.
+    // The startsWith('http') check restricts the protocol but does not on its own prevent attribute breakout.
     const httpsUrl = url ? toHttpsUri(url) : url;
     if (httpsUrl && httpsUrl.startsWith('http')) {
-        return `<a href="${httpsUrl}" target="_blank"><i class="icon external alternate"></i></a>`;
+        return `<a href="${escapeString(httpsUrl)}" target="_blank"><i class="icon external alternate"></i></a>`;
     }
     return '';
 }
@@ -329,19 +355,20 @@ const dateToYMD = (date, short=false, no_break=false) => {
 
 async function makeAPICall(path, values=null, force_authentication_token=null, force_put=false) {
 
+    let options = {}
     if(values != null ) {
-        var options = {
+        options = {
             method: "POST",
             body: JSON.stringify(values),
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
         }
         if (force_put == true) {
             options.method = 'PUT';
         }
     }  else {
-        var options = { method: 'GET', headers: {} }
+        options = { method: 'GET', headers: {} }
     }
 
     if (force_authentication_token != null && force_authentication_token != '') {
@@ -360,12 +387,16 @@ async function makeAPICall(path, values=null, force_authentication_token=null, f
     await fetch(API_URL + path, options)
     .then(response => {
         _http_status = response.status;
-        if (response.status == 204) {
+        if (response.status === 204) {
             // 204 responses use no body, so json() call would fail
             throw new APIHTTPError(204, 'No data to display. API returned empty response (HTTP 204)')
         }
-        if (response.status == 202) {
+        if (response.status === 202) {
             return
+        }
+
+        if (response.status === 409) {
+            throw new APIHTTPError(409, 'Endpoint cannot handle request. Please redirect request.')
         }
 
         return response.json()

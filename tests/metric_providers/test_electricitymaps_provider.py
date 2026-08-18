@@ -312,6 +312,12 @@ def test_live_read_metrics_returns_real_data():
 
 
 @skip_without_live_token
+# Merges into the base test-config.yml 'common' providers rather than replacing it, so this starts
+# the full default set of real metric providers for real (dev_no_system_checks=True disables the
+# check for this test only) - must never overlap with another test that also starts real metric
+# providers. See the comment on pytestmark in tests/smoke_test.py for why xdist_group is what
+# actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_live_full_gmt_run_creates_metric_and_phase_stat():
 
     base_config_path = TESTS_DIR / 'test-config.yml'

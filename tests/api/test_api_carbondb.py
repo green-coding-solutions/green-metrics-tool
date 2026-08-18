@@ -4,6 +4,7 @@ import ipaddress
 import time
 import math
 import json
+import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -13,6 +14,8 @@ from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
+
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
 
 ENERGY_DATA = {
     'type': 'machine.ci',

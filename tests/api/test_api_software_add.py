@@ -2,6 +2,7 @@ import json
 import os
 import requests
 import re
+import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -12,6 +13,8 @@ from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url']
+
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
 
 from api.scenario_runner import Software
 

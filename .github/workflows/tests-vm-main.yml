@@ -16,7 +16,8 @@ on:
 
 jobs:
   run-tests-main:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 20
     permissions:
       packages: write
     steps:
@@ -29,7 +30,7 @@ jobs:
           tags: "CI/CD, Main-Workflow"
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
           co2-calculation-method: 'location-based'
-          co2-grid-intensity-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+          co2-grid-intensity-api-token: ${{ secrets.ELECTRICITY_MAPS_ALT_TOKEN_INFO_AT_GCS }}
 
       - id: check-date
         if: ${{ github.event_name != 'workflow_dispatch' }}
@@ -69,7 +70,7 @@ jobs:
         uses: ./.github/actions/gmt-pytest
         # Never bringt this to the PR test, as other people can then extract it. Running it on the periodic tests is enough
         env:
-          ELECTRICITY_MAPS_TOKEN: ${{ secrets.ELECTRICITYMAPS_SANDBOX_TOKEN }}
+          ELECTRICITY_MAPS_TOKEN: ${{ secrets.ELECTRICITY_MAPS_TOKEN_DIDI }}
         with:
          task: run
          github-token: ${{ secrets.GITHUB_TOKEN }}

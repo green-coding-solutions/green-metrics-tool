@@ -18,6 +18,8 @@ from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
+
 MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
 
 RUN_1 = 'a416057b-235f-41d8-9fb8-9bcc70a308e7'
@@ -87,6 +89,7 @@ def test_get_jobs_redacts_url_credentials():
 
 def test_compare_valid():
     Tests.import_demo_data()
+    Tests.flush_redis()
 
     response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}", timeout=15)
     res_json = response.json()
@@ -97,15 +100,15 @@ def test_compare_valid():
 
     assert res_json['data'] == data
 
-def test_compare_fails():
+def test_compare_falls_back_to_table_mode():
     Tests.import_demo_data()
 
     DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
 
+    # Auto mode cannot find a single differing attribute here (usage_scenario AND commit_hash
+    # differ at once), so it should fall back to the generic per-run 'IDs' table view instead of failing.
     response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1},{RUN_2}", timeout=15)
-    res_json = response.json()
-    assert response.status_code == 422
-    assert res_json['err'] == 'Different usage scenarios & commits not supported'
+    assert response.status_code == 409
 
 # Will force same style by comparing A vs B. No repeated run style
 def test_compare_force_mode_same_style():
@@ -149,6 +152,7 @@ def test_compare_force_mode_different_style():
 def test_compare_ids_mode():
     # Although no proper mode can be found for these two comparisons the mode will be set to IDs
     Tests.import_demo_data()
+    Tests.flush_redis()
 
     DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
 
@@ -174,6 +178,7 @@ def test_compare_mode_usage_scenario_variables():
 
 def test_compare_force_mode_not_writing_to_cache():
     Tests.import_demo_data()
+    Tests.flush_redis()
 
     response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_2}", timeout=15)
     res_json = response.json()
