@@ -35,8 +35,8 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx):
                 %s,
                 SUM(value),
                 type,
-                MAX(value),
-                MIN(value),
+                MAX(max_value),
+                MIN(min_value),
                 AVG(sampling_rate_avg), -- approx, but good enough for overview.
                 MAX(sampling_rate_max),
                 AVG(sampling_rate_95p), -- approx, but good enough for overview
@@ -67,7 +67,7 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx):
                 (SELECT p2.value FROM phase_stats as p2 WHERE p2.metric = 'phase_time_syscall_system' AND p2.detail_name = '[SYSTEM]' AND p2.unit = 'us' AND p2.run_id = phase_stats.run_id AND p2.phase = phase_stats.phase) as time_of_the_sub_phase,
                 value
             FROM phase_stats
-            WHERE run_id = %s AND phase NOT LIKE '%%[%%' AND hidden IS FALSE
+            WHERE run_id = %s AND phase NOT LIKE '%%[%%' AND hidden IS FALSE AND type = 'MEAN'
         )
         UPDATE phase_stats
             SET value =
@@ -450,7 +450,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
         if machine_power_current_phase and machine_power_baseline and cpu_utilization_machine and cpu_utilization_containers:
             surplus_power_runtime = machine_power_current_phase - machine_power_baseline
-            surplus_energy_runtime = machine_energy_current_phase - (machine_power_baseline * (Decimal(duration) / 1_000_000)) # we do not subtract phase energy here but calculate, becuase phases have different length
+            surplus_energy_runtime = machine_energy_current_phase - (machine_power_baseline * duration * Decimal('1e-3')) # we cannot directly subtract baseline energy, but need to stretch it to not subtract phase energy here but calculate, bc phases have different length
 
             total_container_utilization = Decimal(sum(cpu_utilization_containers.values()))
 
@@ -461,9 +461,9 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                     splitting_ratio = container_utilization / total_container_utilization
 
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_energy_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_energy_current_phase * splitting_ratio, 'TOTAL', None, None, None, None, None, 'uJ'))
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_power_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_power_current_phase * splitting_ratio, 'TOTAL', None, None, None, None, None, 'mW'))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_power_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_power_current_phase * splitting_ratio, 'MEAN', None, None, None, None, None, 'mW'))
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'uJ'))
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'mW'))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'MEAN', None, None, None, None, None, 'mW'))
 
         if sci_metrics and sci_phase_data_custom \
             and sci_phase_data.get('machine_carbon_ug', None) is not None \

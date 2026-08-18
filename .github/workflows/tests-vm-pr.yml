@@ -17,6 +17,7 @@ on:
 jobs:
   run-tests:
     runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 20
     permissions:
       pull-requests: write
       packages: write

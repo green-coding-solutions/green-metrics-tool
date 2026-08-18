@@ -171,7 +171,7 @@ def get_carbon_intensity(latitude, longitude):
 
         return resp_data.get('carbonIntensity')
 
-    raise RuntimeError(f"Could not get carbon intensity from Electricitymaps.org for {params}", response=response)
+    raise RuntimeError(f"Could not get carbon intensity from Electricitymaps.org for {params}. Response: {response}")
 
 if __name__ == '__main__':
     try:

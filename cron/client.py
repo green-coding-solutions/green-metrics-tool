@@ -248,7 +248,7 @@ if __name__ == '__main__':
             if job:
                 set_status('job_start', run_id=job._run_id)
                 try:
-                    job.process(docker_prune=config['cluster']['client']['docker_prune'], full_docker_prune=config['cluster']['client']['full_docker_prune'])
+                    job.process()
                     if temperature_cooldown_time > 0:
                         DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(temperature_cooldown_time, config['machine']['id']))
                     temperature_errors = 0

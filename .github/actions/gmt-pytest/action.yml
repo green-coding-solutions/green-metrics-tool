@@ -76,12 +76,12 @@ runs:
         if ${{inputs.ee}}; then
           if [[ "${{inputs.ee-branch}}" != '' ]]; then
             echo "Using ee-branch ${{inputs.ee-branch}}"
-            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --ee-branch ${{inputs.ee-branch}} --nvidia-gpu --ai --tz GMT --disable-path-security --no-elephant --no-software-view
+            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -T -L -z -f -j -d -g -e github-actions-test --ee-branch ${{inputs.ee-branch}} --nvidia-gpu --ai --tz GMT --disable-path-security --no-elephant --no-software-view
           else
-            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --nvidia-gpu --ai --tz GMT --disable-path-security --no-elephant --no-software-view
+            ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -T -L -z -f -j -d -g -e github-actions-test --nvidia-gpu --ai --tz GMT --disable-path-security --no-elephant --no-software-view
           fi
         else
-          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g --nvidia-gpu --tz GMT --disable-path-security --no-elephant --no-software-view
+          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -T -L -z -f -j -d -g --nvidia-gpu --tz GMT --disable-path-security --no-elephant --no-software-view
         fi
         source venv/bin/activate
       env:
@@ -96,46 +96,9 @@ runs:
         python3 -m pip install -r requirements-dev.txt
         playwright install --with-deps firefox
         if ${{inputs.ee}}; then
-          cd tests && python3 setup-test-env.py --no-docker-build --ee
+          cd tests && python3 setup-test-env.py --ee
         else
-          cd tests && python3 setup-test-env.py --no-docker-build
-        fi
-
-      # We skipped the build step earlier to now build with a cache.
-      # Sadly docker compose uses a different driver in GitHub Actions and cannot directly
-      # use the cache-from and cache-to directives in the compose.yml as it cannot connect to a remote cache.
-      # Thus, to save cache to packages we use buildx
-      # https://github.com/green-coding-solutions/green-metrics-tool/pkgs/container/gunicorn-container-cache/versions
-
-    - name: Set up Docker Buildx
-      if: inputs.task == 'setup' || inputs.task == 'all'
-      id: buildx
-      uses: docker/setup-buildx-action@v4
-
-    - name: Login to Docker Registry
-      if: inputs.task == 'setup' || inputs.task == 'all'
-      uses: docker/login-action@v4
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ inputs.github-token }}
-
-    - name: Build docker-compose
-      if: inputs.task == 'setup' || inputs.task == 'all'
-      id: build-docker-compose
-      shell: bash
-      working-directory: ${{ inputs.gmt-directory }}/docker
-      run: |
-        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --set test-green-coding-gunicorn.cache-from=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.cache-to=type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache --set test-green-coding-gunicorn.tags='green-metrics-tool-test-test-green-coding-gunicorn:latest' --load 2>&1); DOCKER_EXIT_CODE=$?; } || true
-        if [ "$DOCKER_EXIT_CODE" -ne 0 ]; then
-          echo "Docker build failed with exit code $DOCKER_EXIT_CODE"
-          echo "buildx output:"
-          echo "$DOCKER_OUTPUT"
-          if echo "$DOCKER_OUTPUT" | grep -q "403 Forbidden"; then
-            echo "Docker build failed due to permissions issue. Continuing..."
-          else
-              exit 1
-          fi
+          cd tests && python3 setup-test-env.py
         fi
 
     - name: Start Test container
@@ -184,8 +147,13 @@ runs:
 
         source ../venv/bin/activate
 
+        # Leave 2 cores unassigned to xdist workers so the host (dockerd, gunicorn, etc.) has some
+        # headroom instead of every core being claimed by a worker's pinned containers.
+        WORKERS=$(python3 -c "import os; print(max(1, (os.cpu_count() or 3) - 2))")
+        echo "Running with $WORKERS parallel pytest-xdist workers"
+
         set +e
-        python3 -m ${{ inputs.tests-command }} -n auto --dist=loadgroup ${TEST_PATH} -rA | tee /tmp/test-results.txt
+        python3 -m ${{ inputs.tests-command }} -n "$WORKERS" --dist=loadgroup ${TEST_PATH} -rA | tee /tmp/test-results.txt
         PARALLEL_EXIT_CODE=${PIPESTATUS[0]}
         # these marked tests must run sequentially after, as it restarts the DB which will collide with other parallel tests running
         python3 -m ${{ inputs.tests-command }} -m serial -rA | tee -a /tmp/test-results.txt

@@ -17,13 +17,20 @@ from lib import resource_limits
 from lib.scenario_runner import ScenarioRunner
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
 
-# setup_module below starts the full default set of real metric providers from test-config.yml
-# (dev_no_metrics=False) for real - even though dev_no_system_checks=True means this file never
-# checks for a collision itself, another test elsewhere that DOES check (dev_no_system_checks=False,
-# e.g. tests/smoke_test.py) would still trip on these providers if it ran concurrently on a
-# different xdist worker. See the comment on pytestmark in tests/smoke_test.py for why xdist_group
-# is what actually prevents that under -n.
-pytestmark = pytest.mark.xdist_group(name="real-metric-providers")
+# This file asserts precise cpu_utilization percentages (e.g. stress-container must sit >90% of its
+# pinned cores) which only hold if it has the whole machine's CPUs to itself. Under -n/xdist, every
+# worker computes its own '--cpuset-cpus' from resource_limits.get_assignable_cpus() independently -
+# that function is host-wide, not worker-aware - so concurrent workers all pin their containers to the
+# *same* physical cores and fight each other for cycles, which is what made these assertions flaky.
+# So, like test_database_reconnection_during_run (tests/test_runner.py), this whole module is excluded
+# from -n runs entirely (skipif below) and runs only in the separate, non-parallel 'pytest -m serial'
+# pass (tests/run-tests.sh / the gmt-pytest action run this after the parallel pass finishes) - which
+# also means setup_module's real-metric-provider run never overlaps in time with the real-metric-
+# providers group in tests/smoke_test.py etc., so xdist_group is no longer needed here for that either.
+pytestmark = [
+    pytest.mark.serial,
+    pytest.mark.skipif(bool(os.environ.get('PYTEST_XDIST_WORKER')), reason="needs the whole machine's CPUs uncontended for accurate cpu_utilization assertions - run this outside of -n/xdist, on its own"),
+]
 
 #pylint: disable=unused-argument
 @pytest.fixture(autouse=True, scope='module') # override by setting scope to module only
@@ -261,7 +268,7 @@ def test_cpu_time_carbon_providers():
             seen_phase_time_syscall_system = True
             phase_time = val
 
-            assert 5*MICROSECONDS < val < 6*MICROSECONDS , f"phase_time_syscall_system is not between 5 and 6 s but {val} {metric_provider['unit']}"
+            assert 10*MICROSECONDS < val < 11*MICROSECONDS , f"phase_time_syscall_system is not between 10 and 11 s but {val} {metric_provider['unit']}"
 
         elif metric == 'embodied_carbon_share_machine':
             # we have the phase time value as we sort by metric DESC
