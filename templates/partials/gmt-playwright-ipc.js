@@ -38,8 +38,8 @@ async function gmtPlaywrightCache(url, sleep_duration) {
 // We transport it encoded, because the raw command is string replaced into the usage_scenario.yml before it is
 // parsed as YAML and is then passed through `sh -ec "echo '<command>' > <fifo>"` in lib/scenario_runner.py.
 // Neither of these two steps survives arbitrary newlines and quotes, but the base64 alphabet passes both untouched.
-async function gmtRunScript(script_base64) {
-    const script = Buffer.from(script_base64, 'base64').toString('utf-8');
+async function gmtRunScriptB64(script_b64) {
+    const script = Buffer.from(script_b64, 'base64').toString('utf-8');
     await eval(`(async () => { ${script} })()`);
 }
 

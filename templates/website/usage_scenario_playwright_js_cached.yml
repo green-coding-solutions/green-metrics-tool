@@ -1,16 +1,16 @@
 ---
-name: "Website Playwright Path Test (__GMT_VAR_PAGE__)"
-author: Arne Tarara <arne@green-coding.io>
-description: "Opens __GMT_VAR_PAGE__ from a cache and then runs a user supplied Playwright path (JavaScript)"
+name: "Website User Journey (__GMT_VAR_PAGE__)"
+author: Didi Hoffmann <didi@green-coding.io>
+description: "Opens __GMT_VAR_PAGE__ from a cache and then runs a user supplied user journey (Playwright JavaScript)"
 
 custom_metrics:
-  website_script:
-    unit: Website Playwright Path
+  website_user_journey:
+    unit: Website User Journey
     sci: True
 
 compose-file: !include-gmt-helper gmt-playwright-with-cache.yml
 
-# __GMT_VAR_SCRIPT_B64__ is the base64 encoded body of the user supplied Playwright path.
+# __GMT_VAR_SCRIPT_B64__ is the base64 encoded body of the user supplied user journey.
 # It must be encoded, because usage scenario variables are string replaced into this file before it is parsed as
 # YAML and the resulting command is then passed through `sh -ec "echo '<command>' > <fifo>"` in lib/scenario_runner.py.
 # Neither step survives arbitrary newlines and quotes, but the base64 alphabet passes both untouched.
@@ -23,7 +23,7 @@ flow:
       - type: playwright
         command: await page.goto("__GMT_VAR_PAGE__");
       - type: playwright
-        command: await gmtRunScript("__GMT_VAR_SCRIPT_B64__");
+        command: await gmtRunScriptB64("__GMT_VAR_SCRIPT_B64__");
       - type: console
         command: sleep __GMT_VAR_SLEEP__
       - type: playwright
@@ -43,11 +43,11 @@ flow:
       - type: playwright
         command: if (!page_result.ok()) throw `Page was not accessible. HTTP Return code ${page_result.status()}`
 
-  - name: Run Playwright path
+  - name: Run User Journey
     container: gmt-playwright-nodejs
     commands:
       - type: playwright
-        command: await gmtRunScript("__GMT_VAR_SCRIPT_B64__");
+        command: await gmtRunScriptB64("__GMT_VAR_SCRIPT_B64__");
       - type: console
-        command: echo $(date +%s%N) website_script=1
+        command: echo $(date +%s%N) website_user_journey=1
         shell: sh
