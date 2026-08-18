@@ -1,5 +1,6 @@
 import io
 import math
+import os
 import shutil
 import tempfile
 
@@ -765,10 +766,18 @@ def test_phase_stats_process_user_custom_metrics():
     assert runtime_data['type'] == 'TOTAL'
 
 # Starts the full default set of real metric providers from test-config.yml (dev_no_metrics=False)
-# for real, so it must never overlap with any other test that also starts real metric providers -
-# see the comment on pytestmark in tests/smoke_test.py for why xdist_group is what actually
-# prevents that under -n.
-@pytest.mark.xdist_group(name="real-metric-providers")
+# for real and asserts a narrow numeric range on the resulting real energy/SCI measurements
+# (custom_api_hits_sci_global etc.) - same class of flakiness as test_metric_providers.py's
+# cpu_utilization assertions: under -n/xdist every worker pins its containers to the same
+# '--cpuset-cpus' range (resource_limits.get_assignable_cpus() is host-wide, not worker-aware), so
+# concurrent workers contend for the same physical cores and skew the real measurements this test
+# checks. So, like test_database_reconnection_during_run (tests/test_runner.py) and the whole of
+# tests/metric_providers/test_metric_providers.py, this test is excluded from -n runs entirely and
+# only runs in the separate, non-parallel 'pytest -m serial' pass - which also means it no longer
+# overlaps in time with the rest of the real-metric-providers xdist_group, so that marker is no
+# longer needed here either.
+@pytest.mark.serial
+@pytest.mark.skipif(bool(os.environ.get('PYTEST_XDIST_WORKER')), reason="needs the whole machine's CPUs uncontended for accurate real energy/SCI assertions - run this outside of -n/xdist, on its own")
 def test_custom_metric_sci_run():
     runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_custom_metrics.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 

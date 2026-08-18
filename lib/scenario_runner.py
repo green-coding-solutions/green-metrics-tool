@@ -1471,7 +1471,12 @@ class ScenarioRunner:
                 self.__network_name_map[network] = resolved_network
         else:
             print(TerminalColors.HEADER, '\nNo network found. Creating default network', TerminalColors.ENDC)
-            network = f"GMT_default_tmp_network_{random.randint(500000,10000000)}"
+            # utils.container_name() appends the pytest-xdist worker id under test runs (same as the
+            # explicit-networks branch above). Without it, two concurrent runs could roll the same
+            # random int and collide - the second run's "remove first if present" rm below would then
+            # delete the first run's live network out from under it, right before its containers
+            # attach, surfacing as a spurious "network ... not found" on docker run.
+            network = utils.container_name(f"GMT_default_tmp_network_{random.randint(500000,10000000)}")
             print('Creating network: ', network)
             # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
             subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
@@ -2939,7 +2944,6 @@ class ScenarioRunner:
         self.__current_run_logs.clear()
         self.__phases.clear()
         self.__end_measurement = None
-        self.__join_default_network = False
         self.__services_to_pause_phase.clear()
         self.__join_default_network = False
         self.__docker_params.clear()
