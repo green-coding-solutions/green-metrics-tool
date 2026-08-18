@@ -1991,6 +1991,9 @@ class ScenarioRunner:
             )
 
             if ps.returncode != 0:
+                # CalledProcessError only stringifies the command and the returncode, so the reason docker
+                # refused the container would never show up in the logs. We print it separately.
+                print(TerminalColors.FAIL, f"\nCould not start container '{container_name}'\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}", TerminalColors.ENDC, file=sys.stderr)
                 raise subprocess.CalledProcessError(
                             ps.returncode,
                             docker_run_string,
