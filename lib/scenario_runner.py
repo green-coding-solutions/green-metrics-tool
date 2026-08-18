@@ -57,6 +57,12 @@ from metric_providers.base import MetricProviderConfigurationError
 
 from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
+# Reported as the state of a depends_on dependency whose container 'docker container inspect' cannot
+# find at all. Deliberately not a real docker state ('created', 'running', 'exited', ...) so it can
+# never be mistaken for one, and phrased to read naturally in the 'is not running but <state>'
+# RuntimeError _setup_services() raises when a dependency never comes up.
+MISSING_CONTAINER_STATE = 'missing (container not found)'
+
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
@@ -995,6 +1001,23 @@ class ScenarioRunner:
 
         host_platform.remove_gmt_tmp_images()
 
+        # Both branches below end in 'docker system prune', which is host-global: it tears down every
+        # network without an attached container, every stopped container, all build caches and all
+        # unused volumes on the whole machine. There is no way to scope it to this run, and under the
+        # test suite that is actively destructive. The job tests go through lib/job/run.py, which takes
+        # docker_prune from cluster.client in the config, and they run concurrently with every other
+        # pytest-xdist worker - so a prune firing in the window between another worker's
+        # 'docker network create' in _setup_networks() and its containers attaching in
+        # _setup_services() deletes that network out from under it, surfacing as
+        # 'network ... not found' / exit status 125 in a completely unrelated test. The same sweep
+        # also removes containers a test deliberately left stopped, and the build caches
+        # --dev-cache-build relies on. Worker-suffixed naming (lib/utils.container_name()) cannot
+        # protect against a sweep that matches on "unused" rather than on name, so the only fix is to
+        # never issue one while tests are running.
+        if (self._full_docker_prune or self._docker_prune) and utils.is_test_run():
+            print(TerminalColors.WARNING, arrows('Skipping system-wide docker prune because this is a test run. A global prune would delete networks, containers and build caches belonging to concurrently running tests.'), TerminalColors.ENDC)
+            return
+
         if self._full_docker_prune:
             print(TerminalColors.HEADER, '\nStopping and removing all containers, build caches, volumes and images on the system', TerminalColors.ENDC)
             host_platform.stop_all_docker_containers()
@@ -1917,13 +1940,28 @@ class ScenarioRunner:
                     health = 'healthy' # default because some containers have no health
                     max_waiting_time = self._measurement_wait_time_dependencies
                     while time_waited < max_waiting_time:
-                        status_output = subprocess.check_output(
+                        # check=False rather than check_output(): a container that is not there at all
+                        # makes 'docker container inspect' exit non-zero, and letting that surface as a
+                        # bare CalledProcessError buries the actual problem under a stack trace about
+                        # subprocess internals. The dependency genuinely being gone is a legitimate
+                        # state to report - _order_services() guarantees it was started before we get
+                        # here, so it either died and was removed, or something outside this run removed
+                        # it - and reporting it as the state lets the 'state != running' check below
+                        # raise the same descriptive RuntimeError every other failed dependency gets.
+                        status_ps = subprocess.run(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
-                            stderr=subprocess.STDOUT,
+                            check=False,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, # put both in one stream
                             encoding='UTF-8',
                             errors='replace'
                         )
-                        state = status_output.strip()
+                        if status_ps.returncode == 0:
+                            state = status_ps.stdout.strip()
+                        else:
+                            state = MISSING_CONTAINER_STATE
+                            if time_waited == 0: # only once, the loop below already reports the state every iteration
+                                print(f"Could not inspect dependent service '{dependent_service}': {status_ps.stdout.strip()}")
                         if time_waited == 0 or state != "running":
                             print(f"Container state of dependent service '{dependent_service}': {state}")
 
