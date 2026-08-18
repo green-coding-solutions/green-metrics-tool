@@ -109,6 +109,9 @@ class ScenarioRunner:
         if dev_cache_build and (docker_prune or full_docker_prune):
             raise ValueError('--dev-cache-build blocks pruning docker images. Combination is not allowed')
 
+        if utils.is_test_run() and (docker_prune or full_docker_prune):
+            raise ValueError('Docker pruning must be disabled during test runs because docker system prune is host-global')
+
         if full_docker_prune and \
             config['postgresql']['host'] in ('green-coding-postgres-container', 'test-green-coding-postgres-container') :
             raise ValueError('--full-docker-prune is set while your database host is "(test)-green-coding-postgres-container".\nThe switch is only for remote measuring machines. It would stop the GMT images itself when running locally')
@@ -1000,23 +1003,6 @@ class ScenarioRunner:
             return
 
         host_platform.remove_gmt_tmp_images()
-
-        # Both branches below end in 'docker system prune', which is host-global: it tears down every
-        # network without an attached container, every stopped container, all build caches and all
-        # unused volumes on the whole machine. There is no way to scope it to this run, and under the
-        # test suite that is actively destructive. The job tests go through lib/job/run.py, which takes
-        # docker_prune from cluster.client in the config, and they run concurrently with every other
-        # pytest-xdist worker - so a prune firing in the window between another worker's
-        # 'docker network create' in _setup_networks() and its containers attaching in
-        # _setup_services() deletes that network out from under it, surfacing as
-        # 'network ... not found' / exit status 125 in a completely unrelated test. The same sweep
-        # also removes containers a test deliberately left stopped, and the build caches
-        # --dev-cache-build relies on. Worker-suffixed naming (lib/utils.container_name()) cannot
-        # protect against a sweep that matches on "unused" rather than on name, so the only fix is to
-        # never issue one while tests are running.
-        if (self._full_docker_prune or self._docker_prune) and utils.is_test_run():
-            print(TerminalColors.WARNING, arrows('Skipping system-wide docker prune because this is a test run. A global prune would delete networks, containers and build caches belonging to concurrently running tests.'), TerminalColors.ENDC)
-            return
 
         if self._full_docker_prune:
             print(TerminalColors.HEADER, '\nStopping and removing all containers, build caches, volumes and images on the system', TerminalColors.ENDC)
