@@ -2319,14 +2319,7 @@ class ScenarioRunner:
             ps_to_kill_tmp.clear()
             ps_to_read_tmp.clear()
 
-            # flow['container'] is the service key from the usage_scenario, not the actual docker
-            # container name - _setup_services() created the real container via
-            # _resolve_container_name(), which both respects a service's own 'container_name'
-            # override and appends this worker's xdist suffix. Every docker command below must
-            # target that same resolved name, or it 404s the moment a worker suffix is in play.
-            resolved_flow_container, _ = self._resolve_container_name(
-                flow['container'], self.__usage_scenario['services'][flow['container']]
-            )
+            resolved_flow_container = utils.container_name(flow['container'])
 
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
