@@ -171,7 +171,7 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
         # index 0 has no predecessor, its diff is NULL by concept
         # We could estimate it with an AVG, but this would increase complexity of this query as well as create fake values in case of network,
         # where we cannot assume that the value before the first measurement is linearly extraploateable. thus we do skip it
-        for i in range(1, value_count):
+        for i in range(1, int(value_count)):
             diff = combined_times[i] - combined_times[i - 1]
             weighted_num += Decimal(combined_values[i]) * diff
             weighted_den += diff
