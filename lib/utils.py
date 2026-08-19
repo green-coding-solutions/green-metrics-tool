@@ -66,6 +66,16 @@ def get_test_worker_id():
         return worker
     return f'gw{int(match.group(1)):03d}'
 
+def get_test_worker_count():
+    # pytest-xdist sets this alongside PYTEST_XDIST_WORKER (see get_test_worker_id() above) in every
+    # worker process, to the total number of workers in the session. Unset when pytest runs without
+    # -n, or when not running under pytest at all - in which case there is exactly one process
+    # competing for the host, so returning 1 lets callers divide by this unconditionally.
+    count = os.environ.get('PYTEST_XDIST_WORKER_COUNT')
+    if not count or not count.isdigit() or int(count) < 1:
+        return 1
+    return int(count)
+
 def is_test_run():
     # pytest sets this for the duration of every test (setup/call/teardown, inherited by any
     # subprocess spawned meanwhile), regardless of whether -n/xdist is in use - unlike

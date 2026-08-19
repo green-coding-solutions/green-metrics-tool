@@ -57,6 +57,12 @@ from metric_providers.base import MetricProviderConfigurationError
 
 from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
+# Reported as the state of a depends_on dependency whose container 'docker container inspect' cannot
+# find at all. Deliberately not a real docker state ('created', 'running', 'exited', ...) so it can
+# never be mistaken for one, and phrased to read naturally in the 'is not running but <state>'
+# RuntimeError _setup_services() raises when a dependency never comes up.
+MISSING_CONTAINER_STATE = 'missing (container not found)'
+
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
@@ -102,6 +108,9 @@ class ScenarioRunner:
 
         if dev_cache_build and (docker_prune or full_docker_prune):
             raise ValueError('--dev-cache-build blocks pruning docker images. Combination is not allowed')
+
+        if utils.is_test_run() and (docker_prune or full_docker_prune):
+            raise ValueError('Docker pruning must be disabled during test runs because docker system prune is host-global')
 
         if full_docker_prune and \
             config['postgresql']['host'] in ('green-coding-postgres-container', 'test-green-coding-postgres-container') :
@@ -1917,13 +1926,28 @@ class ScenarioRunner:
                     health = 'healthy' # default because some containers have no health
                     max_waiting_time = self._measurement_wait_time_dependencies
                     while time_waited < max_waiting_time:
-                        status_output = subprocess.check_output(
+                        # check=False rather than check_output(): a container that is not there at all
+                        # makes 'docker container inspect' exit non-zero, and letting that surface as a
+                        # bare CalledProcessError buries the actual problem under a stack trace about
+                        # subprocess internals. The dependency genuinely being gone is a legitimate
+                        # state to report - _order_services() guarantees it was started before we get
+                        # here, so it either died and was removed, or something outside this run removed
+                        # it - and reporting it as the state lets the 'state != running' check below
+                        # raise the same descriptive RuntimeError every other failed dependency gets.
+                        status_ps = subprocess.run(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
-                            stderr=subprocess.STDOUT,
+                            check=False,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, # put both in one stream
                             encoding='UTF-8',
                             errors='replace'
                         )
-                        state = status_output.strip()
+                        if status_ps.returncode == 0:
+                            state = status_ps.stdout.strip()
+                        else:
+                            state = MISSING_CONTAINER_STATE
+                            if time_waited == 0: # only once, the loop below already reports the state every iteration
+                                print(f"Could not inspect dependent service '{dependent_service}': {status_ps.stdout.strip()}")
                         if time_waited == 0 or state != "running":
                             print(f"Container state of dependent service '{dependent_service}': {state}")
 
