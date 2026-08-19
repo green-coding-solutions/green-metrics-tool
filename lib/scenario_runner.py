@@ -2015,6 +2015,9 @@ class ScenarioRunner:
             )
 
             if ps.returncode != 0:
+                # CalledProcessError only stringifies the command and the returncode, so the reason docker
+                # refused the container would never show up in the logs. We print it separately.
+                print(TerminalColors.FAIL, f"\nCould not start container '{container_name}'\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}", TerminalColors.ENDC, file=sys.stderr)
                 raise subprocess.CalledProcessError(
                             ps.returncode,
                             docker_run_string,
@@ -2035,7 +2038,7 @@ class ScenarioRunner:
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
                 if shell := cmd_obj.get('shell', False):
-                    d_command = ['docker', 'exec', container_name, shell, '-ec', cmd_obj['command']] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, shell, *process_helpers.get_shell_options(cmd_obj), '-c', cmd_obj['command']] # This must be a list!
                 else:
                     d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'], posix=False)] # This must be a list!
 
@@ -2076,6 +2079,8 @@ class ScenarioRunner:
 
                     if ps.returncode == 137:
                         raise MemoryError(f"Your process {d_command} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                    elif shell_options_error := process_helpers.get_shell_options_error(d_command, ps.stderr):
+                        raise RuntimeError(f"Process {d_command} could not be run. {shell_options_error}\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
                     elif ps.returncode != 0:
                         raise RuntimeError(f"Process {d_command} failed with return code {ps.returncode}.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
 
@@ -2384,7 +2389,8 @@ class ScenarioRunner:
 
                         if shell := cmd_obj.get('shell', False):
                             docker_exec_command.append(shell)
-                            docker_exec_command.append('-ec')
+                            docker_exec_command.extend(process_helpers.get_shell_options(cmd_obj))
+                            docker_exec_command.append('-c')
                             docker_exec_command.append(cmd_obj['command'])
                         else:
                             docker_exec_command.extend(shlex.split(cmd_obj['command'], posix=False))
@@ -2675,6 +2681,9 @@ class ScenarioRunner:
                         stderr = ps['ps'].stderr
                 except subprocess.TimeoutExpired:
                     stderr = 'Could not read due to timeout'
+
+                if shell_options_error := process_helpers.get_shell_options_error(ps['cmd'], stderr):
+                    raise RuntimeError(f"Process '{ps['cmd']}' could not be run. {shell_options_error}\n\n========== Stderr ==========\n{stderr}")
 
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
                     if ps['ps'].returncode == 137:
