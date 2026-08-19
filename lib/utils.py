@@ -8,6 +8,7 @@ from urllib.parse import urlparse, urlunparse
 from functools import cache
 from pathlib import Path
 
+from lib.global_config import GlobalConfig
 from lib.encryption import encrypt_data, decrypt_data, EncryptionConfigurationError, ENCRYPTED_VALUE_PREFIX
 
 # Matches the userinfo part of a URI that uses HTTP-AUTH, e.g. https://user:pass@host/path
@@ -65,6 +66,16 @@ def get_test_worker_id():
         return worker
     return f'gw{int(match.group(1)):03d}'
 
+def get_test_worker_count():
+    # pytest-xdist sets this alongside PYTEST_XDIST_WORKER (see get_test_worker_id() above) in every
+    # worker process, to the total number of workers in the session. Unset when pytest runs without
+    # -n, or when not running under pytest at all - in which case there is exactly one process
+    # competing for the host, so returning 1 lets callers divide by this unconditionally.
+    count = os.environ.get('PYTEST_XDIST_WORKER_COUNT')
+    if not count or not count.isdigit() or int(count) < 1:
+        return 1
+    return int(count)
+
 def is_test_run():
     # pytest sets this for the duration of every test (setup/call/teardown, inherited by any
     # subprocess spawned meanwhile), regardless of whether -n/xdist is in use - unlike
@@ -73,7 +84,8 @@ def is_test_run():
     # names/tags in a namespace entirely separate from production ones, so cleanup sweeps can
     # never cross-match between the two - which they previously could whenever a test ran without
     # -n, since both then produced the exact same unsuffixed production name/tag.
-    return bool(os.environ.get('PYTEST_CURRENT_TEST'))
+    # We need to also check the GlobalConfig as tests can also make a subprocess call and clear the env()
+    return bool(os.environ.get('PYTEST_CURRENT_TEST')) or GlobalConfig().config['postgresql']['host'] == 'test-green-coding-postgres-container'
 
 def container_name(base_name):
     # Suffixed with GMT_TEST_CONTAINER_MARKER (plus the pytest-xdist worker id, when running under

@@ -486,6 +486,22 @@ def test_depends_on_with_custom_container_name():
     message = 'Container state of dependent service \'test-service-2\': running'
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
+# flow.container references the *service key* from 'services', but the docker container that
+# actually exists may be named differently via that service's 'container_name' override.
+# Flow commands must be executed against the resolved container_name, not the raw service key.
+def test_flow_addresses_container_by_custom_container_name():
+    out = io.StringIO()
+    err = io.StringIO()
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/flow_container_by_custom_name.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+
+    assert f"command on container {container_name('gmt-totally-different-name')}" in out.getvalue(), \
+        Tests.assertion_info(f"command on container {container_name('gmt-totally-different-name')}", out.getvalue())
+    assert container_name('gmt-flow-alias-service') not in out.getvalue(), \
+        Tests.assertion_info('service key should never be used as a docker container name', out.getvalue())
+
 def test_depends_on_healthcheck_using_interval():
     # Test setup: Container has a startup time of 3 seconds, interval is set to 1s, retries is set to a number bigger than 3.
     # Container should become healthy after 3 seconds.
