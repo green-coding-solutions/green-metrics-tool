@@ -123,25 +123,40 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
 
     combined_times = list(times[left:right])
     combined_values = list(values[left:right])
-    in_phase = len(combined_values)  # count of samples strictly inside the phase boundaries
 
+    if len(combined_values) == 0:
+        # if we do not have at least one sample, we simply return.
+        # This is a design change to the previous version where we would still calculate but then set in_phase = 0
+        # However we did never use that value
+        # Technically it would be interesting to still pad the phase with one sample
+        # if possible, but it would give a very distorted picture as you would get the same amount of energy
+        # when using a 100 ms sampling rate for 10ms and 1ms windows. As simply the next value is taken
+        # Here we believe it is better to not show a value at all as the relative error margin then then is smaller
+        # The error when actually having seen one sample and then adding another is still substantial in case of only
+        # one measurement (100 ms  + 10 ms => 2 samples @ 100ms sampling rate ==> energy of 200 ms window instead of 110 ms)
+        # This code can be improved in the future by maybe deciding when to bring the value in for energy measurements
+        # or by forcing a sample tick in the provider.
+        return {
+            'value_sum': None, 'max_value': None, 'min_value': None, 'value_avg': None,
+            'derivative_avg': None, 'derivative_max': None, 'derivative_min': None, 'value_count': 0,
+            'sampling_rate_avg': None, 'sampling_rate_max': None, 'sampling_rate_95p': None,
+        }
+
+    # This parts is the revamped "phase_padding" mechanic. Due to sampling we might have data that
+    # technically should belong to this phase in the pause between phases as for instance kernel might report during
+    # the sleep of the sampler. Only exception is if it already belongs to another phase or we have nor mor samples to map.
+    #
+    # - right boundary is not at phase border. (can be at max len(times) ... so right != len(times) would also work)
+    # - AND not part of next phase
     if right < len(times) and times[right] < next_phase_start:
         combined_times.append(times[right])
         combined_values.append(values[right])
 
-    value_count = len(combined_values)
-    if value_count == 0:
-        return {
-            'value_sum': None, 'max_value': None, 'min_value': None, 'value_avg': None,
-            'derivative_avg': None, 'derivative_max': None, 'derivative_min': None, 'value_count': 0,
-            'sampling_rate_avg': None, 'sampling_rate_max': None, 'sampling_rate_95p': None, 'in_phase': None,
-        }
-
-    value_sum = sum(combined_values)
-    max_value = max(combined_values)
-    min_value = min(combined_values)
-    # kept as Decimal (like postgres' NUMERIC AVG(bigint) would return via psycopg) since
-    # it is divided against Decimal(duration)/... below.
+    # we make everything Decimal so in subsequent divisions these values stay Decimal
+    value_count = Decimal(len(combined_values))
+    value_sum = Decimal(sum(combined_values))
+    max_value = Decimal(max(combined_values))
+    min_value = Decimal(min(combined_values))
     classic_value_avg = Decimal(value_sum) / Decimal(value_count)
 
     # sampling rate is derivable as soon as there is at least one diff between two samples,
@@ -188,10 +203,11 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
         derivative_max = weighted_derivative_max # pylint: disable=possibly-used-before-assignment
         derivative_min = weighted_derivative_min # pylint: disable=possibly-used-before-assignment
 
+
     return {
         'value_sum': value_sum, 'max_value': max_value, 'min_value': min_value, 'value_avg': value_avg,
         'derivative_avg': derivative_avg, 'derivative_max': derivative_max, 'derivative_min': derivative_min, 'value_count': value_count,
-        'sampling_rate_avg': sampling_rate_avg, 'sampling_rate_max': sampling_rate_max, 'sampling_rate_95p': sampling_rate_95p, 'in_phase': in_phase,
+        'sampling_rate_avg': sampling_rate_avg, 'sampling_rate_max': sampling_rate_max, 'sampling_rate_95p': sampling_rate_95p,
     }
 
 
@@ -298,7 +314,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
-            if metric_stats['value_count'] == 0 or not metric_stats['in_phase']:
+            if metric_stats['value_count'] == 0:
                 continue
 
             if _is_carbon_intensity_metric(metric, unit):
@@ -320,12 +336,6 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                     is_undersampled = True
                 if is_undersampled:
                     phase_warnings.add(f"Very few samples (< 50% of observed duration or < 2) encountered in phase '{phase['name']}' and metric '{metric}', MEAN values might be inaccurate")
-
-            # we make everything Decimal so in subsequent divisions these values stay Decimal
-            metric_stats['value_sum'] = Decimal(metric_stats['value_sum'])
-            metric_stats['max_value'] = Decimal(metric_stats['max_value'])
-            metric_stats['min_value'] = Decimal(metric_stats['min_value'])
-            metric_stats['value_count'] = Decimal(metric_stats['value_count'])
 
             if metric in (
                 'lmsensors_temperature_component',
