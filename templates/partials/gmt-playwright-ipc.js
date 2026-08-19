@@ -10,7 +10,6 @@ let page = null;
 const contextOptions = {
   viewport: { width: 1280, height: 800 },
   ignoreHTTPSErrors: true, // <--- disables SSL check as we funnel requests through proxy
-  timeout: 5000,
 };
 
 function logNote(message) {
@@ -25,6 +24,8 @@ function sleep(ms) {
 async function gmtPlaywrightResetContext() {
     await context.close();
     context = await browser.newContext(contextOptions);
+    context.setDefaultTimeout(1500);
+    context.setDefaultNavigationTimeout(1500);
     page = await context.newPage();
 }
 
@@ -77,6 +78,9 @@ async function run(browserName, headless, proxy) {
   }
 
   context = await browser.newContext(contextOptions);
+  context.setDefaultTimeout(1500);
+  context.setDefaultNavigationTimeout(1500);
+
   await context.clearCookies();
   page = await context.newPage()
 

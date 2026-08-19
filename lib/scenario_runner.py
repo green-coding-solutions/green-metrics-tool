@@ -2453,7 +2453,7 @@ class ScenarioRunner:
                                 stderr=subprocess.PIPE,
                                 encoding='UTF-8',
                                 errors='replace',
-                                timeout=60, # 60 seconds should be reasonable for any playwright command we know
+                                timeout=self._measurement_flow_process_duration
                             )
                         except subprocess.TimeoutExpired as exc:
                             error_message = subprocess.check_output(
