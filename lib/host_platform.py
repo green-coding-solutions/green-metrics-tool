@@ -66,6 +66,16 @@ def clear_file_system_caches():
     )
 
 
+def shell_command_argv(shell, command):
+    # cmd and powershell do not understand the POSIX '-ec' convention, so we must map to their native invocation syntax
+    shell_binary = Path(shell).name.lower().removesuffix('.exe')
+    if shell_binary == 'cmd':
+        return [shell, '/d', '/s', '/c', command]
+    if shell_binary in ('powershell', 'pwsh'):
+        return [shell, '-NoProfile', '-NonInteractive', '-Command', command]
+    return [shell, '-ec', command]
+
+
 def popen_process_group_kwargs():
     if is_windows():
         return {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP}
