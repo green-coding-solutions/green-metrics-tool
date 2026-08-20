@@ -125,6 +125,7 @@ VALUES (
             "skip_volume_inspect": false,
             "total_duration": 86400,
             "flow_process_duration": 86400,
+            "playwright_process_duration": null,
             "system_check_threshold": 3,
             "pre_test_sleep": 5,
             "baseline_duration": 60,

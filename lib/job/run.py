@@ -80,6 +80,7 @@ class RunJob(Job):
             category_ids=self._category_ids,
             carbon_simulation=self._carbon_simulation,
             measurement_flow_process_duration=user._capabilities['measurement']['flow_process_duration'],
+            measurement_playwright_process_duration=user._capabilities['measurement'].get('playwright_process_duration', None), # optional. Falls back to flow_process_duration in the ScenarioRunner
             measurement_total_duration=user._capabilities['measurement']['total_duration'],
             measurement_system_check_threshold=user._capabilities['measurement']['system_check_threshold'],
             measurement_pre_test_sleep=user._capabilities['measurement']['pre_test_sleep'],

@@ -86,7 +86,8 @@ class ScenarioRunner:
         category_ids=None,
         measurement_system_check_threshold=3, measurement_pre_test_sleep=5, measurement_idle_duration=60,
         measurement_baseline_duration=60, measurement_post_test_sleep=5, measurement_phase_transition_time=1,
-        measurement_wait_time_dependencies=60, measurement_flow_process_duration=None, measurement_total_duration=None,
+        measurement_wait_time_dependencies=60, measurement_flow_process_duration=None, measurement_playwright_process_duration=None,
+        measurement_total_duration=None,
 
         # These switches may break or skew proper measurements or make them uncomparable due to missing info
         dev_no_save=False, dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False, dev_no_system_checks=False,
@@ -202,6 +203,8 @@ class ScenarioRunner:
         self._commit_hash_folder = commit_hash_folder if commit_hash_folder else ''
         self._user_id = user_id
         self._measurement_flow_process_duration = measurement_flow_process_duration
+        # optional. If not set the flow process duration is used as timeout for awaiting the Playwright function return
+        self._measurement_playwright_process_duration = measurement_playwright_process_duration if measurement_playwright_process_duration is not None else measurement_flow_process_duration
         self._measurement_total_duration = measurement_total_duration
         self._disabled_metric_providers = [] if disabled_metric_providers is None else disabled_metric_providers
         self._allowed_run_args = [] if allowed_run_args is None else allowed_run_args # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
@@ -287,6 +290,7 @@ class ScenarioRunner:
 
         durations = {
             'measurement_flow_process_duration': self._measurement_flow_process_duration,
+            'measurement_playwright_process_duration': self._measurement_playwright_process_duration,
             'pre_test_sleep': self._measurement_pre_test_sleep,
             'post_test_sleep': self._measurement_post_test_sleep,
             'idle_duration': self._measurement_idle_duration,
@@ -2444,7 +2448,7 @@ class ScenarioRunner:
                     # we need to check the ready IPC endpoint to find out if the process is done
                     # this command will block until something is received
                     if cmd_obj['type'] == 'playwright':
-                        print("Awaiting Playwright function return")
+                        print(f"Awaiting Playwright function return. Alloting {self._measurement_playwright_process_duration}s runtime ...")
                         try:
                             ps = subprocess.run(
                                 ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-ready'],
@@ -2453,7 +2457,7 @@ class ScenarioRunner:
                                 stderr=subprocess.PIPE,
                                 encoding='UTF-8',
                                 errors='replace',
-                                timeout=self._measurement_flow_process_duration
+                                timeout=self._measurement_playwright_process_duration
                             )
                         except subprocess.TimeoutExpired as exc:
                             error_message = subprocess.check_output(
