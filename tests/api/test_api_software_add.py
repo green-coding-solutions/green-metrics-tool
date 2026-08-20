@@ -8,6 +8,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.user import User
 from lib.db import DB
+from lib.encryption import ENCRYPTED_VALUE_PREFIX, decrypt_data, encrypt_data
 from lib import utils
 from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
@@ -234,6 +235,49 @@ def test_post_repo_with_auth_credentials_are_encrypted_in_db():
     assert 'arne' not in stored_watchlist_url, 'Plain-text username must not appear in watchlist.repo_url'
     assert 'green-coding.io' in stored_watchlist_url, 'Host must still be present in watchlist.repo_url'
 
+
+def test_post_run_add_secret_variables_are_encrypted_in_db():
+    plain_password = 'supersecret123'
+    run_name = 'test_' + utils.randomword(12)
+    gmt_variables = {'__GMT_VAR_COMMAND__': '300', '__GMT_VAR_SECRET_PASSWORD__': plain_password}
+    run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='daily', usage_scenario_variables=gmt_variables)
+    response = requests.post(f"{API_URL}/v1/runs/add?no_url_check=true", json=run.model_dump(), timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    job_ids = get_job_ids(run_name)
+    assert job_ids, 'Expected at least one job to be created'
+
+    stored_job_variables = DB().fetch_one('SELECT usage_scenario_variables FROM jobs WHERE id = %s', (job_ids[0],))[0]
+    assert stored_job_variables['__GMT_VAR_COMMAND__'] == '300', 'Non-secret variables must be stored as supplied'
+    encrypted_password = stored_job_variables['__GMT_VAR_SECRET_PASSWORD__']
+    assert plain_password not in encrypted_password, 'Plain-text secret must not appear in jobs.usage_scenario_variables'
+    assert encrypted_password.startswith(ENCRYPTED_VALUE_PREFIX), 'Secret variable must carry the encrypted value prefix'
+    assert decrypt_data(encrypted_password) == plain_password, 'Secret variable must still decrypt to the submitted value'
+
+    stored_watchlist_variables = DB().fetch_one('SELECT usage_scenario_variables FROM watchlist WHERE name = %s', (run_name,))
+    assert stored_watchlist_variables is not None, 'Expected a watchlist entry to be created'
+    assert stored_watchlist_variables[0]['__GMT_VAR_SECRET_PASSWORD__'] == encrypted_password
+
+    # the API must never hand the plaintext back out again
+    response = requests.get(f"{API_URL}/v2/jobs?job_id={job_ids[0]}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert plain_password not in response.text
+    assert response.json()['data'][0][5]['__GMT_VAR_SECRET_PASSWORD__'] == encrypted_password
+
+def test_post_run_add_secret_variables_accept_already_encrypted_value():
+    plain_password = 'supersecret123'
+    run_name = 'test_' + utils.randomword(12)
+    encrypted_password = encrypt_data(plain_password)
+    run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off', usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': encrypted_password})
+    response = requests.post(f"{API_URL}/v1/runs/add?no_url_check=true", json=run.model_dump(), timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    job_ids = get_job_ids(run_name)
+    stored_job_variables = DB().fetch_one('SELECT usage_scenario_variables FROM jobs WHERE id = %s', (job_ids[0],))[0]
+
+    # re-submitting an already encrypted value (as the frontend does when re-requesting a run) must not double-encrypt
+    assert stored_job_variables['__GMT_VAR_SECRET_PASSWORD__'] == encrypted_password
+    assert decrypt_data(stored_job_variables['__GMT_VAR_SECRET_PASSWORD__']) == plain_password
 
 def test_post_repo_ssh():
     run_name = 'test_' + utils.randomword(12)

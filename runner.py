@@ -36,7 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
     parser.add_argument('--commit-hash', type=str, help='Optionally specify a git commit hash to check out when using a remote repository to clone from')
     parser.add_argument('--filename', type=str, action='append', help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported. Duplicate filenames are allowed and will be processed multiple times.')
-    parser.add_argument('--variable', action='append', help='Variable that will be replaced into the usage_scenario.yml file. Use multiple times for multiple variables.')
+    parser.add_argument('--variable', action='append', help='Variable that will be replaced into the usage_scenario.yml file. Use multiple times for multiple variables. Variables named __GMT_VAR_SECRET_*__ are treated as secrets and are never stored or displayed in plaintext.')
     parser.add_argument('--carbon-simulation', type=str, help='The grid intensity when running the job. Can be an int which will be applied to the whole run, a list which will be sent to elephant or a uuid which will be used as simulation id for elephant.')
     parser.add_argument('--category', action='append', type=int, help='Category to store for this run. Use multiple times for multiple categories.')
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
