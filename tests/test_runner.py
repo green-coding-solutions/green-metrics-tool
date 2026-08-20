@@ -515,6 +515,11 @@ def test_skip_and_allow_unsafe_both_true():
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, Tests.assertion_info('', str(e.value))
 
+@pytest.mark.parametrize('prune_option', ['docker_prune', 'full_docker_prune'])
+def test_docker_prune_is_not_allowed_in_test_runs(prune_option):
+    with pytest.raises(ValueError, match='Docker pruning must be disabled during test runs'):
+        ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='basic_stress.yml', **{prune_option: True})
+
 def test_debug(monkeypatch):
     monkeypatch.setattr('sys.stdin', io.StringIO('Enter'))
     ps = subprocess.run(

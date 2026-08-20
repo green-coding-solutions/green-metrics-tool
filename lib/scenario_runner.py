@@ -57,6 +57,12 @@ from metric_providers.base import MetricProviderConfigurationError
 
 from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
+# Reported as the state of a depends_on dependency whose container 'docker container inspect' cannot
+# find at all. Deliberately not a real docker state ('created', 'running', 'exited', ...) so it can
+# never be mistaken for one, and phrased to read naturally in the 'is not running but <state>'
+# RuntimeError _setup_services() raises when a dependency never comes up.
+MISSING_CONTAINER_STATE = 'missing (container not found)'
+
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
@@ -102,6 +108,9 @@ class ScenarioRunner:
 
         if dev_cache_build and (docker_prune or full_docker_prune):
             raise ValueError('--dev-cache-build blocks pruning docker images. Combination is not allowed')
+
+        if utils.is_test_run() and (docker_prune or full_docker_prune):
+            raise ValueError('Docker pruning must be disabled during test runs because docker system prune is host-global')
 
         if full_docker_prune and \
             config['postgresql']['host'] in ('green-coding-postgres-container', 'test-green-coding-postgres-container') :
@@ -1917,13 +1926,28 @@ class ScenarioRunner:
                     health = 'healthy' # default because some containers have no health
                     max_waiting_time = self._measurement_wait_time_dependencies
                     while time_waited < max_waiting_time:
-                        status_output = subprocess.check_output(
+                        # check=False rather than check_output(): a container that is not there at all
+                        # makes 'docker container inspect' exit non-zero, and letting that surface as a
+                        # bare CalledProcessError buries the actual problem under a stack trace about
+                        # subprocess internals. The dependency genuinely being gone is a legitimate
+                        # state to report - _order_services() guarantees it was started before we get
+                        # here, so it either died and was removed, or something outside this run removed
+                        # it - and reporting it as the state lets the 'state != running' check below
+                        # raise the same descriptive RuntimeError every other failed dependency gets.
+                        status_ps = subprocess.run(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
-                            stderr=subprocess.STDOUT,
+                            check=False,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, # put both in one stream
                             encoding='UTF-8',
                             errors='replace'
                         )
-                        state = status_output.strip()
+                        if status_ps.returncode == 0:
+                            state = status_ps.stdout.strip()
+                        else:
+                            state = MISSING_CONTAINER_STATE
+                            if time_waited == 0: # only once, the loop below already reports the state every iteration
+                                print(f"Could not inspect dependent service '{dependent_service}': {status_ps.stdout.strip()}")
                         if time_waited == 0 or state != "running":
                             print(f"Container state of dependent service '{dependent_service}': {state}")
 
@@ -1991,6 +2015,9 @@ class ScenarioRunner:
             )
 
             if ps.returncode != 0:
+                # CalledProcessError only stringifies the command and the returncode, so the reason docker
+                # refused the container would never show up in the logs. We print it separately.
+                print(TerminalColors.FAIL, f"\nCould not start container '{container_name}'\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}", TerminalColors.ENDC, file=sys.stderr)
                 raise subprocess.CalledProcessError(
                             ps.returncode,
                             docker_run_string,
@@ -2011,7 +2038,7 @@ class ScenarioRunner:
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
                 if shell := cmd_obj.get('shell', False):
-                    d_command = ['docker', 'exec', container_name, shell, '-ec', cmd_obj['command']] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, shell, *process_helpers.get_shell_options(cmd_obj), '-c', cmd_obj['command']] # This must be a list!
                 else:
                     d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'], posix=False)] # This must be a list!
 
@@ -2052,6 +2079,8 @@ class ScenarioRunner:
 
                     if ps.returncode == 137:
                         raise MemoryError(f"Your process {d_command} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                    elif shell_options_error := process_helpers.get_shell_options_error(d_command, ps.stderr):
+                        raise RuntimeError(f"Process {d_command} could not be run. {shell_options_error}\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
                     elif ps.returncode != 0:
                         raise RuntimeError(f"Process {d_command} failed with return code {ps.returncode}.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
 
@@ -2319,14 +2348,7 @@ class ScenarioRunner:
             ps_to_kill_tmp.clear()
             ps_to_read_tmp.clear()
 
-            # flow['container'] is the service key from the usage_scenario, not the actual docker
-            # container name - _setup_services() created the real container via
-            # _resolve_container_name(), which both respects a service's own 'container_name'
-            # override and appends this worker's xdist suffix. Every docker command below must
-            # target that same resolved name, or it 404s the moment a worker suffix is in play.
-            resolved_flow_container, _ = self._resolve_container_name(
-                flow['container'], self.__usage_scenario['services'][flow['container']]
-            )
+            resolved_flow_container = utils.container_name(flow['container'])
 
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
@@ -2367,7 +2389,8 @@ class ScenarioRunner:
 
                         if shell := cmd_obj.get('shell', False):
                             docker_exec_command.append(shell)
-                            docker_exec_command.append('-ec')
+                            docker_exec_command.extend(process_helpers.get_shell_options(cmd_obj))
+                            docker_exec_command.append('-c')
                             docker_exec_command.append(cmd_obj['command'])
                         else:
                             docker_exec_command.extend(shlex.split(cmd_obj['command'], posix=False))
@@ -2658,6 +2681,9 @@ class ScenarioRunner:
                         stderr = ps['ps'].stderr
                 except subprocess.TimeoutExpired:
                     stderr = 'Could not read due to timeout'
+
+                if shell_options_error := process_helpers.get_shell_options_error(ps['cmd'], stderr):
+                    raise RuntimeError(f"Process '{ps['cmd']}' could not be run. {shell_options_error}\n\n========== Stderr ==========\n{stderr}")
 
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
                     if ps['ps'].returncode == 137:
