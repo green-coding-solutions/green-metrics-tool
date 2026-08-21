@@ -28,6 +28,7 @@ STATUS_LIST = (
     'job_no',
     'job_start',
     'job_error',
+    'job_interrupt',
     'job_end',
     'maintenance_start',
     'maintenance_end',
@@ -270,6 +271,10 @@ if __name__ == '__main__':
                         subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
                         time.sleep(300)
                         subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
+                except KeyboardInterrupt as exc: # must be caught explicitly, as it is a BaseException and would otherwise skip straight past 'except Exception' below
+                    print('Job processing was interrupted by KeyboardInterrupt (client.py)')
+                    set_status('job_interrupt', data=str(exc), run_id=job._run_id)
+                    raise
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
                     set_status('job_error', data=str(exc), run_id=job._run_id)
                     if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
