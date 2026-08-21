@@ -228,157 +228,156 @@ if __name__ == '__main__':
         if result and result['needs_revalidation']:
             needs_revalidation = True
 
+        job = None
         while True:
-
-            if not args.testing:
-                update_current_temperature()
-
-            # run forced maintenance with maintenance every 24 hours
-            if not args.testing and last_24h_maintenance < (time.time() - 43200): # every 12 hours
-                if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
-                    DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
-                    reboot()
-                last_24h_maintenance = time.time()
-
-            job = RunJob.get_job()
-            if job and job.check_job_running():
-                error_helpers.log_error('Job is still running. This is usually an error case! Continuing for now ...', machine=config['machine']['description'])
+            try:
                 if not args.testing:
-                    time.sleep(config['cluster']['client']['sleep_time_no_job'])
-                continue
+                    update_current_temperature()
 
-            if not args.testing and (needs_revalidation or validate.is_validation_needed(config['machine']['id'], config['cluster']['client']['time_between_control_workload_validations'])):
-                do_measurement_control()
-                DB().query('UPDATE machines SET needs_revalidation = false WHERE id = %s', params=(config['machine']['id'],))
-                needs_revalidation = False # reset as measurement control has run. even if failed
-                continue # re-do temperature checks
+                # run forced maintenance with maintenance every 24 hours
+                if not args.testing and last_24h_maintenance < (time.time() - 43200): # every 12 hours
+                    if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
+                        DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
+                        reboot()
+                    last_24h_maintenance = time.time()
 
-            if job:
-                set_status('job_start', run_id=job._run_id)
-                try:
-                    job.process()
-                    if temperature_cooldown_time > 0:
-                        DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(temperature_cooldown_time, config['machine']['id']))
-                    temperature_errors = 0
-                    temperature_cooldown_time = 0
-                    set_status('job_end', run_id=job._run_id)
-                except TemperatureException as exc:
-                    if temperature_errors >= 10:
-                        raise RuntimeError(f"Temperature could not be stabilized in time. Was {exc.temperature} but should be {config['machine']['base_temperature_value']}. Please check logs ...") from exc
-                    if exc.direction == 'hot':
-                        print(f"Machine is still too hot: {exc.temperature}°. Sleeping for 1 minute")
-                        set_status('cooldown', data=str(exc), run_id=job._run_id)
-                        temperature_cooldown_time += 60
-                        temperature_errors += 1
-                        time.sleep(60)
-                    else:
-                        print(f"Machine is too cool: {exc.temperature}°. Warming up and retrying")
-                        set_status('warmup', data=str(exc), run_id=job._run_id)
-                        temperature_errors += 1
-                        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
-                        time.sleep(300)
-                        subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
-                except KeyboardInterrupt as exc: # covers manual Ctrl-C and SIGTERM (via handle_sigterm). Must be caught explicitly, as it is a BaseException and would otherwise skip straight past 'except Exception' below
-                    print('Job processing was interrupted (client.py)')
-                    set_status('job_interrupt', data=str(exc), run_id=job._run_id)
-                    raise
-                except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
-                    set_status('job_error', data=str(exc), run_id=job._run_id)
-                    if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
-                        sleep_duration=600 # seconds = 5 Min
-                        error_helpers.log_error('Job processing in cluster failed (client.py)',
-                            exception_context=exc.__context__,
-                            last_exception=exc,
-                            status=exc.status,
-                            run_id=job._run_id,
-                            name=job._name,
-                            url=job._url,
-                            filename=job._filename,
-                            usage_scenario_variables=job._usage_scenario_variables,
-                            branch=job._branch,
-                            machine=config['machine']['description'],
-                            user_id=job._user_id,
-                            sleep_duration=sleep_duration,
-                        )
-                        if not args.testing:
-                            time.sleep(sleep_duration)
-                    else: # Hard fails won't resolve on it's own. We sleep until next cluster validation
-                        sleep_duration=config['cluster']['client']['time_between_control_workload_validations']
-                        error_helpers.log_error('Job processing in cluster failed (client.py)',
-                            exception_context=exc.__context__,
-                            last_exception=exc,
-                            status=exc.status,
-                            run_id=job._run_id,
-                            name=job._name,
-                            url=job._url,
-                            filename=job._filename,
-                            usage_scenario_variables=job._usage_scenario_variables,
-                            branch=job._branch,
-                            machine=config['machine']['description'],
-                            user_id=job._user_id,
-                            sleep_duration=sleep_duration,
-                        )
-                        if not args.testing:
-                            time.sleep(sleep_duration)
-
-                except Exception as exc: # pylint: disable=broad-except
-                    set_status('job_error', data=str(exc), run_id=job._run_id)
-                    exc_stdout = None
-                    if hasattr(exc, 'stdout'):
-                        exc_stdout = exc.stdout
-                    elif hasattr(exc, 'output'):
-                        output = exc.output
-
-                    error_helpers.log_error('Job processing in cluster failed (client.py)',
-                        exception_context=exc.__context__,
-                        last_exception=exc,
-                        stdout=exc_stdout,
-                        stderr=(exc.stderr if hasattr(exc, 'stderr') else None),
-                        run_id=job._run_id,
-                        name=job._name,
-                        url=job._url,
-                        filename=job._filename,
-                        usage_scenario_variables=job._usage_scenario_variables,
-                        branch=job._branch,
-                        machine=config['machine']['description'],
-                        user_id=job._user_id,
-                    )
-
-                    # reduced error message to client, but only if no ConfigurationCheckError
-                    if job._email:
-                        EmailSimpleJob.insert(
-                            user_id=job._user_id,
-                            email=job._email,
-                            name='Measurement Job on Green Metrics Tool Cluster failed',
-                            message=f"Run-ID: {job._run_id}\nName: {job._name}\nMachine: {job._machine_description}\n\nDetails can also be found in the log under: {config['cluster']['metrics_url']}/stats.html?id={job._run_id}\n\nError message: {exc.__context__}\n{exc}\n\nStdout:{exc.stdout if hasattr(exc, 'stdout') else None}\nStderr:{exc.stderr if hasattr(exc, 'stderr') else None}\n"
-                        )
-                finally: # run periodic maintenance between every run
+                job = RunJob.get_job()
+                if job and job.check_job_running():
+                    error_helpers.log_error('Job is still running. This is usually an error case! Continuing for now ...', machine=config['machine']['description'])
                     if not args.testing:
-                        if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
-                            DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
-                            reboot()
-                        last_24h_maintenance = time.time()
+                        time.sleep(config['cluster']['client']['sleep_time_no_job'])
+                    continue
 
-            else:
-                set_status('job_no')
+                if not args.testing and (needs_revalidation or validate.is_validation_needed(config['machine']['id'], config['cluster']['client']['time_between_control_workload_validations'])):
+                    do_measurement_control()
+                    DB().query('UPDATE machines SET needs_revalidation = false WHERE id = %s', params=(config['machine']['id'],))
+                    needs_revalidation = False # reset as measurement control has run. even if failed
+                    continue # re-do temperature checks
 
-                if not args.testing:
-                    if config['cluster']['client']['reboot_after_seconds']: # 0 will also resolve to false, which is what we want
-                        reboot_if_uptime_exceeded(config['cluster']['client']['reboot_after_seconds'])
+                if job:
+                    set_status('job_start', run_id=job._run_id)
+                    try:
+                        job.process()
+                        if temperature_cooldown_time > 0:
+                            DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(temperature_cooldown_time, config['machine']['id']))
+                        temperature_errors = 0
+                        temperature_cooldown_time = 0
+                        set_status('job_end', run_id=job._run_id)
+                    except TemperatureException as exc:
+                        if temperature_errors >= 10:
+                            raise RuntimeError(f"Temperature could not be stabilized in time. Was {exc.temperature} but should be {config['machine']['base_temperature_value']}. Please check logs ...") from exc
+                        if exc.direction == 'hot':
+                            print(f"Machine is still too hot: {exc.temperature}°. Sleeping for 1 minute")
+                            set_status('cooldown', data=str(exc), run_id=job._run_id)
+                            temperature_cooldown_time += 60
+                            temperature_errors += 1
+                            time.sleep(60)
+                        else:
+                            print(f"Machine is too cool: {exc.temperature}°. Warming up and retrying")
+                            set_status('warmup', data=str(exc), run_id=job._run_id)
+                            temperature_errors += 1
+                            subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
+                            time.sleep(300)
+                            subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
+                    except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
+                        set_status('job_error', data=str(exc), run_id=job._run_id)
+                        if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
+                            sleep_duration=600 # seconds = 5 Min
+                            error_helpers.log_error('Job processing in cluster failed (client.py)',
+                                exception_context=exc.__context__,
+                                last_exception=exc,
+                                status=exc.status,
+                                run_id=job._run_id,
+                                name=job._name,
+                                url=job._url,
+                                filename=job._filename,
+                                usage_scenario_variables=job._usage_scenario_variables,
+                                branch=job._branch,
+                                machine=config['machine']['description'],
+                                user_id=job._user_id,
+                                sleep_duration=sleep_duration,
+                            )
+                            if not args.testing:
+                                time.sleep(sleep_duration)
+                        else: # Hard fails won't resolve on it's own. We sleep until next cluster validation
+                            sleep_duration=config['cluster']['client']['time_between_control_workload_validations']
+                            error_helpers.log_error('Job processing in cluster failed (client.py)',
+                                exception_context=exc.__context__,
+                                last_exception=exc,
+                                status=exc.status,
+                                run_id=job._run_id,
+                                name=job._name,
+                                url=job._url,
+                                filename=job._filename,
+                                usage_scenario_variables=job._usage_scenario_variables,
+                                branch=job._branch,
+                                machine=config['machine']['description'],
+                                user_id=job._user_id,
+                                sleep_duration=sleep_duration,
+                            )
+                            if not args.testing:
+                                time.sleep(sleep_duration)
 
-                    if config['cluster']['client']['shutdown_on_job_no']:
-                        subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
-                        time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
-                        subprocess.check_output(['/usr/bin/sudo', '/usr/bin/systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
+                    except Exception as exc: # pylint: disable=broad-except
+                        set_status('job_error', data=str(exc), run_id=job._run_id)
+                        exc_stdout = None
+                        if hasattr(exc, 'stdout'):
+                            exc_stdout = exc.stdout
+                        elif hasattr(exc, 'output'):
+                            output = exc.output
 
-                    time.sleep(config['cluster']['client']['sleep_time_no_job'])
+                        error_helpers.log_error('Job processing in cluster failed (client.py)',
+                            exception_context=exc.__context__,
+                            last_exception=exc,
+                            stdout=exc_stdout,
+                            stderr=(exc.stderr if hasattr(exc, 'stderr') else None),
+                            run_id=job._run_id,
+                            name=job._name,
+                            url=job._url,
+                            filename=job._filename,
+                            usage_scenario_variables=job._usage_scenario_variables,
+                            branch=job._branch,
+                            machine=config['machine']['description'],
+                            user_id=job._user_id,
+                        )
 
-            if args.testing:
-                print('Successfully ended testing run of client.py')
-                break
+                        # reduced error message to client, but only if no ConfigurationCheckError
+                        if job._email:
+                            EmailSimpleJob.insert(
+                                user_id=job._user_id,
+                                email=job._email,
+                                name='Measurement Job on Green Metrics Tool Cluster failed',
+                                message=f"Run-ID: {job._run_id}\nName: {job._name}\nMachine: {job._machine_description}\n\nDetails can also be found in the log under: {config['cluster']['metrics_url']}/stats.html?id={job._run_id}\n\nError message: {exc.__context__}\n{exc}\n\nStdout:{exc.stdout if hasattr(exc, 'stdout') else None}\nStderr:{exc.stderr if hasattr(exc, 'stderr') else None}\n"
+                            )
+                    finally: # run periodic maintenance between every run
+                        if not args.testing:
+                            if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
+                                DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
+                                reboot()
+                            last_24h_maintenance = time.time()
 
-    except KeyboardInterrupt:
-        pass
+                else:
+                    set_status('job_no')
+
+                    if not args.testing:
+                        if config['cluster']['client']['reboot_after_seconds']: # 0 will also resolve to false, which is what we want
+                            reboot_if_uptime_exceeded(config['cluster']['client']['reboot_after_seconds'])
+
+                        if config['cluster']['client']['shutdown_on_job_no']:
+                            subprocess.check_output(['sync'], encoding='UTF-8', errors='replace')
+                            time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
+                            subprocess.check_output(['/usr/bin/sudo', '/usr/bin/systemctl', config['cluster']['client']['shutdown_on_job_no']], encoding='UTF-8', errors='replace')
+
+                        time.sleep(config['cluster']['client']['sleep_time_no_job'])
+
+                if args.testing:
+                    print('Successfully ended testing run of client.py')
+                    break
+
+            except KeyboardInterrupt as exc: # covers manual Ctrl-C and SIGTERM (via handle_sigterm); wraps the whole loop body so interrupts during maintenance are caught too, not just job.process()
+                print('Processing was interrupted (client.py)')
+                set_status('job_interrupt', data=str(exc), run_id=(job._run_id if job else None))
+                raise
     except BaseException as exc: # pylint: disable=broad-except
         exc_stdout = None
         if hasattr(exc, 'stdout'):
