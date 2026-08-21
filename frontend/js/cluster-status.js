@@ -74,6 +74,7 @@ $(document).ready(function () {
                             case 'job_no': return `${escapeString(el)} <span data-inverted data-tooltip="No job currently in queue"><i class="ui question circle icon fluid"></i></span>`;
                             case 'job_start': return `${escapeString(el)} <span data-inverted data-tooltip="Current Job has started running"><i class="ui question circle icon fluid"></i></span>`;
                             case 'job_error': return `${escapeString(el)} <span data-inverted data-tooltip="Last job failed"></i></span>`;
+                            case 'job_interrupt': return `${escapeString(el)} <span data-inverted data-tooltip="Job was interrupted. This means the machine will be rebooted soon or is currently being serviced"><i class="ui question circle icon fluid"></i></span>`;
                             case 'job_end': return `${escapeString(el)} <span data-inverted data-tooltip="Current job ended"></i></span>`;
                             case 'maintenance_start': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after job has started"><i class="ui question circle icon fluid"></i></span>`;
                             case 'maintenance_end': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after job has finished"><i class="ui question circle icon fluid"></i></span>`;
