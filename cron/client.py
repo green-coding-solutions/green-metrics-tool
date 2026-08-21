@@ -5,6 +5,7 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import re
+import signal
 import time
 import subprocess
 import json
@@ -195,7 +196,13 @@ def reboot():
     subprocess.check_output(['/usr/bin/sudo', '/usr/bin/systemctl', 'reboot'], encoding='UTF-8', errors='replace')
     time.sleep(86400)
 
+def handle_sigterm(signum, frame): # pylint: disable=unused-argument
+    # systemd sends SIGTERM on stop/restart. Python only raises KeyboardInterrupt for SIGINT by default,
+    # so we convert SIGTERM into one to reuse the same job_interrupt handling as a manual Ctrl-C.
+    raise KeyboardInterrupt('SIGTERM received')
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGTERM, handle_sigterm)
     try:
         parser = argparse.ArgumentParser()
         parser.add_argument('--testing', action='store_true', help='End after processing one run for testing')
@@ -271,8 +278,8 @@ if __name__ == '__main__':
                         subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
                         time.sleep(300)
                         subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
-                except KeyboardInterrupt as exc: # must be caught explicitly, as it is a BaseException and would otherwise skip straight past 'except Exception' below
-                    print('Job processing was interrupted by KeyboardInterrupt (client.py)')
+                except KeyboardInterrupt as exc: # covers manual Ctrl-C and SIGTERM (via handle_sigterm). Must be caught explicitly, as it is a BaseException and would otherwise skip straight past 'except Exception' below
+                    print('Job processing was interrupted (client.py)')
                     set_status('job_interrupt', data=str(exc), run_id=job._run_id)
                     raise
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
