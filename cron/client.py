@@ -349,8 +349,8 @@ if __name__ == '__main__':
                                 name='Measurement Job on Green Metrics Tool Cluster failed',
                                 message=f"Run-ID: {job._run_id}\nName: {job._name}\nMachine: {job._machine_description}\n\nDetails can also be found in the log under: {config['cluster']['metrics_url']}/stats.html?id={job._run_id}\n\nError message: {exc.__context__}\n{exc}\n\nStdout:{exc.stdout if hasattr(exc, 'stdout') else None}\nStderr:{exc.stderr if hasattr(exc, 'stderr') else None}\n"
                             )
-                    finally: # run periodic maintenance between every run
-                        if not args.testing:
+                    finally: # run periodic maintenance between every run, but not if we are shutting down anyway
+                        if not args.testing and not isinstance(sys.exc_info()[1], KeyboardInterrupt):
                             if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
                                 DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
                                 reboot()
