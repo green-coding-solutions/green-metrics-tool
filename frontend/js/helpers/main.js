@@ -13,6 +13,15 @@ const escapeString = (string) =>{
     return my_string.replace(reg, (match) => map[match]);
 }
 
+// Usage scenario variables named __GMT_VAR_SECRET_*__ hold secrets. The backend only ever hands us
+// their encrypted value, so nothing sensitive can leak here - we still mask it, as showing a long
+// ciphertext blob in a table label is noise and invites people to copy it around.
+const SECRET_USAGE_SCENARIO_VARIABLE_REGEX = /^__GMT_VAR_SECRET_[\w]+__$/;
+
+const isSecretUsageScenarioVariable = (key) => SECRET_USAGE_SCENARIO_VARIABLE_REGEX.test(String(key));
+
+const displayUsageScenarioVariableValue = (key, value) => isSecretUsageScenarioVariable(key) ? '*****ENCRYPTED*****' : String(value);
+
 const toHttpsUri = (uri) => {
     if (uri.startsWith('git@')) {
         return uri.replace(/^git@([^:]+):/, 'https://$1/').replace(/\.git$/, '');
