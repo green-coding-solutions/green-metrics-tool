@@ -2,6 +2,8 @@ const { firefox, chromium } = require('playwright');
 const fs = require('fs');
 const { execSync } = require('child_process');
 
+const DEFAULT_TIMEOUT = 3000; // ms
+
 // global variables, since we want to keep function signatures slim for exposed functions in usage_scenario.yml
 let browser = null;
 let context = null;
@@ -10,7 +12,6 @@ let page = null;
 const contextOptions = {
   viewport: { width: 1280, height: 800 },
   ignoreHTTPSErrors: true, // <--- disables SSL check as we funnel requests through proxy
-  timeout: 5000,
 };
 
 function logNote(message) {
@@ -25,6 +26,8 @@ function sleep(ms) {
 async function gmtPlaywrightResetContext() {
     await context.close();
     context = await browser.newContext(contextOptions);
+    context.setDefaultTimeout(DEFAULT_TIMEOUT);
+    context.setDefaultNavigationTimeout(DEFAULT_TIMEOUT);
     page = await context.newPage();
 }
 
@@ -77,6 +80,9 @@ async function run(browserName, headless, proxy) {
   }
 
   context = await browser.newContext(contextOptions);
+  context.setDefaultTimeout(DEFAULT_TIMEOUT);
+  context.setDefaultNavigationTimeout(DEFAULT_TIMEOUT);
+
   await context.clearCookies();
   page = await context.newPage()
 
