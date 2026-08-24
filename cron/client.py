@@ -228,8 +228,8 @@ if __name__ == '__main__':
         if result and result['needs_revalidation']:
             needs_revalidation = True
 
-        job = None
         while True:
+            job = None # initialize but also reset so an interrupt before get_job() below isn't misattributed to the previous iteration's (already-finished) job
             try:
                 if not args.testing:
                     update_current_temperature()
@@ -241,18 +241,18 @@ if __name__ == '__main__':
                         reboot()
                     last_24h_maintenance = time.time()
 
-                job = RunJob.get_job()
-                if job and job.check_job_running():
-                    error_helpers.log_error('Job is still running. This is usually an error case! Continuing for now ...', machine=config['machine']['description'])
-                    if not args.testing:
-                        time.sleep(config['cluster']['client']['sleep_time_no_job'])
-                    continue
-
                 if not args.testing and (needs_revalidation or validate.is_validation_needed(config['machine']['id'], config['cluster']['client']['time_between_control_workload_validations'])):
                     do_measurement_control()
                     DB().query('UPDATE machines SET needs_revalidation = false WHERE id = %s', params=(config['machine']['id'],))
                     needs_revalidation = False # reset as measurement control has run. even if failed
                     continue # re-do temperature checks
+
+                job = RunJob.get_job() # assigned as late as possible so an interrupt during maintenance/measurement-control above isn't misattributed to a job that hasn't started yet
+                if job and job.check_job_running():
+                    error_helpers.log_error('Job is still running. This is usually an error case! Continuing for now ...', machine=config['machine']['description'])
+                    if not args.testing:
+                        time.sleep(config['cluster']['client']['sleep_time_no_job'])
+                    continue
 
                 if job:
                     set_status('job_start', run_id=job._run_id)
@@ -350,6 +350,7 @@ if __name__ == '__main__':
                                 message=f"Run-ID: {job._run_id}\nName: {job._name}\nMachine: {job._machine_description}\n\nDetails can also be found in the log under: {config['cluster']['metrics_url']}/stats.html?id={job._run_id}\n\nError message: {exc.__context__}\n{exc}\n\nStdout:{exc.stdout if hasattr(exc, 'stdout') else None}\nStderr:{exc.stderr if hasattr(exc, 'stderr') else None}\n"
                             )
                     finally: # run periodic maintenance between every run, but not if we are shutting down anyway
+                        job = None # reset so an interrupt below isn't misattributed to the previous iteration's (already-finished) job
                         if not args.testing and not isinstance(sys.exc_info()[1], KeyboardInterrupt):
                             if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
                                 DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
