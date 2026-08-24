@@ -72,6 +72,29 @@ def validate_usage_scenario_variables(usage_scenario_variables):
             raise ValueError(f"Usage Scenario variable ({key}) has invalid name. Format must be __GMT_VAR_[\\w]+__ - Example: __GMT_VAR_EXAMPLE__")
     return usage_scenario_variables
 
+_DOCKER_LOG_TIMESTAMP_RE = re.compile(
+    r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+(?:Z|[+-]\d{2}:\d{2})) (.*)$'
+)
+
+def _parse_timestamped_log_lines(log_text):
+    entries = []
+    for line in log_text.splitlines():
+        m = _DOCKER_LOG_TIMESTAMP_RE.match(line)
+        if m:
+            entries.append({'timestamp': m.group(1), 'content': m.group(2).replace('\x00', '0x00')})
+        else:
+            entries.append({'timestamp': None, 'content': line.replace('\x00', '0x00')})
+    return entries
+
+def _stringify_process_output(output):
+    if isinstance(output, str):
+        result = output
+    elif hasattr(output, 'decode') and callable(getattr(output, 'decode')):
+        result = output.decode('UTF-8', errors='replace')
+    else:
+        result = str(output)
+    return result.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
+
 class ScenarioRunner:
     def __init__(self,
         *, uri, uri_type, name=None, filename='usage_scenario.yml', branch=None,
@@ -2036,6 +2059,12 @@ class ScenarioRunner:
 
 
             print('Running commands')
+            # Note on timestamps: unlike `docker logs -t`, `docker exec` output is not routed through the
+            # daemon's logging driver, so there is no per-line timestamp source the daemon can give us here.
+            # We only ever read stdout/stderr back as one fully-buffered blob after the process exits
+            # (see _read_and_cleanup_processes), so even host-side receipt timestamps would collapse to a
+            # single value per process and create false precision. Logs from these commands are therefore
+            # stored as plain stdout/stderr text (LogType.SETUP_COMMAND), not as timestamped entries.
             for cmd_obj in service.get('setup-commands', []):
                 if shell := cmd_obj.get('shell', False):
                     d_command = ['docker', 'exec', container_name, shell, *process_helpers.get_shell_options(cmd_obj), '-c', cmd_obj['command']] # This must be a list!
@@ -2111,22 +2140,26 @@ class ScenarioRunner:
             'phase': phase
         }
 
-        if stdout is not None:
-            if isinstance(stdout, str):
-                log_entry['stdout'] = stdout.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
-            elif hasattr(stdout, 'decode') and callable(getattr(stdout, 'decode')): # can happen if a timeout error has occured and stdout was thus not converted yet
-                log_entry['stdout'] = stdout.decode('UTF-8', errors='replace').replace('\x00', '0x00')
+        # Sensitive data is filtered on the full text before any line-splitting, as
+        # filter_sensitive_data's PRIVATE_KEY_RE can match blocks spanning multiple lines.
+        for key, value in (('stdout', stdout), ('stderr', stderr)):
+            if value is None:
+                continue
+            value_str = utils.filter_sensitive_data(_stringify_process_output(value))
+
+            if log_type == LogType.CONTAINER_EXECUTION:
+                # Frontend display: prepend each entry timestamp before its content,
+                # similar to `docker logs -t`. No stdout/stderr interleaving for now.
+                entries = _parse_timestamped_log_lines(value_str)
+                log_entry[f'{key}_entries'] = entries
+                # Must also be copied as plain string: the (legacy) frontend log box reads
+                # stdout/stderr directly and does not know about the *_entries structure.
+                # value_str still contains raw RFC3339Nano timestamp prefixes; join from entries
+                # gives the timestamp-stripped version for the legacy frontend box.
+                log_entry[key] = '\n'.join(entry['content'] for entry in entries)
             else:
-                log_entry['stdout'] = str(stdout).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
-            log_entry['stdout'] = utils.filter_sensitive_data(log_entry['stdout'])
-        if stderr is not None:
-            if isinstance(stderr, str):
-                log_entry['stderr'] = stderr.replace('\x00', '0x00') # Postgres cannot handle null bytes (\x00) in text fields or \u0000 in JSONB columns
-            elif hasattr(stderr, 'decode') and callable(getattr(stderr, 'decode')): # can happen if a timeout error has occured and stderr was thus not converted yet
-                log_entry['stderr'] = stderr.decode('UTF-8', errors='replace').replace('\x00', '0x00')
-            else:
-                log_entry['stderr'] = str(stderr).replace('\x00', '0x00') # we just force it to a string. This can garble output a bit though
-            log_entry['stderr'] = utils.filter_sensitive_data(log_entry['stderr'])
+                log_entry[key] = value_str
+
         if flow is not None:
             log_entry['flow'] = flow
         if exception_class is not None:
@@ -2364,6 +2397,12 @@ class ScenarioRunner:
                     print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', resolved_flow_container, TerminalColors.ENDC)
                     print(cmd_obj['command'])
 
+                    # Note on timestamps: unlike `docker logs -t`, `docker exec` output is not routed through the
+                    # daemon's logging driver, so there is no per-line timestamp source the daemon can give us here.
+                    # We only ever read stdout/stderr back as one fully-buffered blob after the process exits
+                    # (see _read_and_cleanup_processes), so even host-side receipt timestamps would collapse to a
+                    # single value per process and create false precision. Logs from these commands are therefore
+                    # stored as plain stdout/stderr text (LogType.FLOW_COMMAND), not as timestamped entries.
                     docker_exec_command = ['docker', 'exec']
                     docker_exec_command.append(resolved_flow_container)
 
@@ -2791,7 +2830,7 @@ class ScenarioRunner:
                 stderr_behaviour = subprocess.PIPE
 
             log = subprocess.run(
-                ['docker', 'logs', container_id],
+                ['docker', 'logs', '--timestamps', container_id],
                 check=True,
                 encoding='UTF-8',
                 errors='replace',
