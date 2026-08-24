@@ -324,7 +324,7 @@ if __name__ == '__main__':
                         if hasattr(exc, 'stdout'):
                             exc_stdout = exc.stdout
                         elif hasattr(exc, 'output'):
-                            output = exc.output
+                            exc_stdout = exc.output
 
                         error_helpers.log_error('Job processing in cluster failed (client.py)',
                             exception_context=exc.__context__,
@@ -383,7 +383,7 @@ if __name__ == '__main__':
         if hasattr(exc, 'stdout'):
             exc_stdout = exc.stdout
         elif hasattr(exc, 'output'):
-            output = exc.output
+            exc_stdout = exc.output
 
         error_helpers.log_error(f'Processing in {__file__} failed.',
             exception_context=exc.__context__,
