@@ -26,10 +26,7 @@ REDACTED = '*****GMT-REDACTED*****'
 SECRET_USAGE_SCENARIO_VARIABLE_RE = re.compile(r'__GMT_VAR_SECRET_[\w]+__')
 
 # Plaintext values registered at runtime (currently the decrypted secret usage scenario variables)
-# that filter_sensitive_data() must scrub out of everything we print or persist. Values shorter than
-# MIN_SENSITIVE_VALUE_LENGTH are ignored, as redacting every occurrence of a one or two character
-# string would garble unrelated output without protecting anything that could sensibly be a secret.
-MIN_SENSITIVE_VALUE_LENGTH = 4
+# that filter_sensitive_data() must scrub out of everything we print or persist.
 _SENSITIVE_VALUES = set()
 
 def register_sensitive_values(values):
@@ -39,7 +36,7 @@ def register_sensitive_values(values):
     dropping one too early would leak it into logs written during post-processing.
     """
     for value in values:
-        if isinstance(value, str) and len(value) >= MIN_SENSITIVE_VALUE_LENGTH:
+        if isinstance(value, str) and value:
             _SENSITIVE_VALUES.add(value)
 
 def clear_sensitive_values():

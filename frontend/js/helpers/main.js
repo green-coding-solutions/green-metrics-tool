@@ -18,9 +18,9 @@ const escapeString = (string) =>{
 // ciphertext blob in a table label is noise and invites people to copy it around.
 const SECRET_USAGE_SCENARIO_VARIABLE_REGEX = /^__GMT_VAR_SECRET_[\w]+__$/;
 
-const isSecretUsageScenarioVariable = (key) => SECRET_USAGE_SCENARIO_VARIABLE_REGEX.test(String(key));
+const isSecretUsageScenarioVariable = (key) => SECRET_USAGE_SCENARIO_VARIABLE_REGEX.test(key);
 
-const displayUsageScenarioVariableValue = (key, value) => isSecretUsageScenarioVariable(key) ? '*****ENCRYPTED*****' : String(value);
+const displayUsageScenarioVariableValue = (key, value) => isSecretUsageScenarioVariable(key) ? '*****ENCRYPTED*****' : value;
 
 const toHttpsUri = (uri) => {
     if (uri.startsWith('git@')) {

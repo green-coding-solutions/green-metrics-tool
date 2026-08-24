@@ -53,11 +53,10 @@ def test_registered_sensitive_values_are_filtered():
     finally:
         utils.clear_sensitive_values()
 
-def test_too_short_sensitive_values_are_not_registered():
-    # redacting every occurrence of a one or two character string would garble unrelated output
+def test_short_sensitive_values_are_filtered():
     try:
-        utils.register_sensitive_values(['ab'])
+        utils.register_sensitive_values(['a'])
 
-        assert utils.filter_sensitive_data('about') == 'about'
+        assert utils.filter_sensitive_data('secret=a') == f'secret={utils.REDACTED}'
     finally:
         utils.clear_sensitive_values()
