@@ -57,6 +57,12 @@ from metric_providers.base import MetricProviderConfigurationError
 
 from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
+# Reported as the state of a depends_on dependency whose container 'docker container inspect' cannot
+# find at all. Deliberately not a real docker state ('created', 'running', 'exited', ...) so it can
+# never be mistaken for one, and phrased to read naturally in the 'is not running but <state>'
+# RuntimeError _setup_services() raises when a dependency never comes up.
+MISSING_CONTAINER_STATE = 'missing (container not found)'
+
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
@@ -103,6 +109,9 @@ class ScenarioRunner:
         if dev_cache_build and (docker_prune or full_docker_prune):
             raise ValueError('--dev-cache-build blocks pruning docker images. Combination is not allowed')
 
+        if utils.is_test_run() and (docker_prune or full_docker_prune):
+            raise ValueError('Docker pruning must be disabled during test runs because docker system prune is host-global')
+
         if full_docker_prune and \
             config['postgresql']['host'] in ('green-coding-postgres-container', 'test-green-coding-postgres-container') :
             raise ValueError('--full-docker-prune is set while your database host is "(test)-green-coding-postgres-container".\nThe switch is only for remote measuring machines. It would stop the GMT images itself when running locally')
@@ -132,7 +141,11 @@ class ScenarioRunner:
         self._dev_no_save = dev_no_save
         self._dev_stream_outputs = dev_stream_outputs
         self._dev_cache_repos = dev_cache_repos
-        self._dev_no_system_checks = dev_no_system_checks
+        # Normalizes True/False (disable all/nothing) as well as a comma-separated string (CLI) or
+        # an iterable of check names (direct kwarg) into True/False/a set of names - see
+        # lib/system_checks.py::normalize_disabled_checks(). self._arguments (above) already
+        # captured the raw, unnormalized value for run-invalidation/logging purposes.
+        self._dev_no_system_checks = system_checks.normalize_disabled_checks(dev_no_system_checks)
         self._dev_no_resource_limits = dev_no_resource_limits
 
         self._uri = uri
@@ -142,7 +155,11 @@ class ScenarioRunner:
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._requested_commit_hash = commit_hash
 
-        self._tmp_folder = host_platform.get_tmp_root().joinpath('green-metrics-tool')
+        # Suffixed with the pytest-xdist worker id (when running under -n) so parallel test
+        # workers never share the same working directory. Empty outside of pytest-xdist.
+        worker_id = utils.get_test_worker_id()
+        tmp_folder_name = f'green-metrics-tool-{worker_id}' if worker_id else 'green-metrics-tool'
+        self._tmp_folder = host_platform.get_tmp_root().joinpath(tmp_folder_name)
 
         if isinstance(ssh_private_key, SecureVariable):
             self._ssh_private_key = ssh_private_key
@@ -234,6 +251,7 @@ class ScenarioRunner:
         self.__all_runs_logs = []  # List of runs, each containing iteration, filename, and containers with their logs
         self.__containers = {}
         self.__networks = []
+        self.__network_name_map = {} # raw YAML network name -> actual (worker-suffixed) docker network name
         self.__ps_to_kill = []
         self.__ps_to_read = []
         self.__metric_providers = []
@@ -460,11 +478,18 @@ class ScenarioRunner:
 
     def _check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
-        if self._dev_no_system_checks:
-            print('Skipping check system due to --dev-no-system-checks')
+        if self._dev_no_system_checks is True:
+            print('Skipping all system checks due to --dev-no-system-checks')
             return
 
-        warnings = system_checks.system_check(mode, self._measurement_system_check_threshold, run_duration=self._last_measurement_duration)
+        if self._dev_no_system_checks:
+            print(f"Skipping system checks due to --dev-no-system-checks: {', '.join(sorted(self._dev_no_system_checks))}")
+
+        warnings = system_checks.system_check(
+            mode, self._measurement_system_check_threshold,
+            disabled_checks=self._dev_no_system_checks or None,
+            run_duration=self._last_measurement_duration,
+        )
         for warn in warnings:
             self.__warnings.append(warn) # are already printed via system_checks
 
@@ -835,6 +860,10 @@ class ScenarioRunner:
         # Disable Docker CLI hints (e.g. "What's Next? ...")
         os.environ['DOCKER_CLI_HINTS'] = 'false'
 
+    def _resolve_container_name(self, service_name, service_config):
+        base_name = service_config.get('container_name', service_name)
+        return utils.container_name(base_name), base_name
+
     def _check_running_containers_before_start(self):
         result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
                                 stdout=subprocess.PIPE,
@@ -843,10 +872,7 @@ class ScenarioRunner:
         for line in result.stdout.splitlines():
             for running_container in line.split(','): # if docker container has multiple tags, they will be split by comma, so we only want to
                 for service_name in self.__usage_scenario.get('services', {}):
-                    if 'container_name' in self.__usage_scenario['services'][service_name]:
-                        container_name = self.__usage_scenario['services'][service_name]['container_name']
-                    else:
-                        container_name = service_name
+                    container_name, _ = self._resolve_container_name(service_name, self.__usage_scenario['services'][service_name])
 
                     if running_container == container_name:
                         raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
@@ -1140,7 +1166,9 @@ class ScenarioRunner:
                 if metric_provider == 'carbon_intensity_elephant_machine':
                     optional_conf['simulation_uuid'] = str(self.__carbon_simulation_uuid)
 
-            if self._dev_no_system_checks:
+            # To be Implemented: Currently there is no way of disabling metric provider checks separately with --dev-no-system-checks arguments
+            # Currently I believe there is no valid use case. Implement this once we have one. Otherwise using the full switch seems sufficient for now
+            if self._dev_no_system_checks is True:
                 optional_conf['skip_check'] = True
 
             print(f"Importing {class_name} from {module_path}")
@@ -1187,8 +1215,10 @@ class ScenarioRunner:
         name = re.sub(r'[^A-Za-z0-9_]', '_', name)
         # only lowercase letters are allowed for tags
         name = name.lower()
-        name = f"{name}_gmt_run_tmp"
-        return name
+        # utils.gmt_tmp_image_name() appends the pytest-xdist worker suffix (see its own docstring
+        # for why this machine-wide, cross-run cache tag needs one) - the same helper is used by
+        # host_platform.remove_gmt_tmp_images() and by test assertions, so all three stay in sync.
+        return utils.gmt_tmp_image_name(name)
 
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
@@ -1434,19 +1464,28 @@ class ScenarioRunner:
             for network in self.__usage_scenario['networks']:
                 if network in ('host', 'bridge', 'none'):
                     raise ValueError('Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined.')
-                print('Creating network: ', network)
+                # utils.container_name() is generic worker-id suffixing, not container-specific;
+                # reused as-is here for network names.
+                resolved_network = utils.container_name(network)
+                print('Creating network: ', resolved_network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
-                subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
+                subprocess.run(['docker', 'network', 'rm', resolved_network], stderr=subprocess.DEVNULL, check=False)
 
                 if self.__usage_scenario['networks'][network] and self.__usage_scenario['networks'][network].get('internal', False):
-                    subprocess.check_output(['docker', 'network', 'create', '--internal', network], encoding='UTF-8', errors='replace')
+                    subprocess.check_output(['docker', 'network', 'create', '--internal', resolved_network], encoding='UTF-8', errors='replace')
                 else:
-                    subprocess.check_output(['docker', 'network', 'create', network], encoding='UTF-8', errors='replace')
+                    subprocess.check_output(['docker', 'network', 'create', resolved_network], encoding='UTF-8', errors='replace')
 
-                self.__networks.append(network)
+                self.__networks.append(resolved_network)
+                self.__network_name_map[network] = resolved_network
         else:
             print(TerminalColors.HEADER, '\nNo network found. Creating default network', TerminalColors.ENDC)
-            network = f"GMT_default_tmp_network_{random.randint(500000,10000000)}"
+            # utils.container_name() appends the pytest-xdist worker id under test runs (same as the
+            # explicit-networks branch above). Without it, two concurrent runs could roll the same
+            # random int and collide - the second run's "remove first if present" rm below would then
+            # delete the first run's live network out from under it, right before its containers
+            # attach, surfacing as a spurious "network ... not found" on docker run.
+            network = utils.container_name(f"GMT_default_tmp_network_{random.randint(500000,10000000)}")
             print('Creating network: ', network)
             # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
             subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
@@ -1492,10 +1531,7 @@ class ScenarioRunner:
         services_ordered = self._order_services(services)
         for service_name, service in services_ordered.items():
 
-            if 'container_name' in service:
-                container_name = service['container_name']
-            else:
-                container_name = service_name
+            container_name, base_container_name = self._resolve_container_name(service_name, service)
 
             container_data = {
                 'name': container_name,
@@ -1540,7 +1576,7 @@ class ScenarioRunner:
 
             # this is a special feature container with a reserved name.
             # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc == True
-            if self.__include_playwright_ipc and container_name == 'gmt-playwright-nodejs':
+            if self.__include_playwright_ipc and base_container_name == 'gmt-playwright-nodejs':
                 docker_run_string.append('--mount')
                 docker_run_string.append(f"type=bind,source={GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc.js,target=/tmp/gmt-utils/gmt-playwright-ipc.js,readonly")
 
@@ -1730,12 +1766,21 @@ class ScenarioRunner:
                 if labels_check_errors:
                     raise RuntimeError('Docker container labels that have problems:\n\n'.join(labels_check_errors))
 
+            # Always alias the container under its plain, unsuffixed service name (base_container_name),
+            # in addition to its real worker-suffixed name (container_name) - this matches normal
+            # docker-compose semantics, where the service name is itself the resolvable hostname on the
+            # compose network. Without this, any scenario where one service hardcodes another's service
+            # name (e.g. a Django app configured with DB HOST="db") breaks under -n, since the real
+            # container is actually named e.g. 'db-gw000' and the plain 'db' hostname would otherwise
+            # never resolve.
             if 'networks' in service:
                 for network in service['networks']:
                     if network == 'host' and not self._allow_unsafe:
                         raise ValueError('Docker network host is restricted in GMT and cannot be joined. If running in CLI mode or if you have cluster capabilities try again with --allow-unsafe.')
                     docker_run_string.append('--net')
-                    docker_run_string.append(network)
+                    docker_run_string.append(self.__network_name_map.get(network, network))
+                    docker_run_string.append('--network-alias')
+                    docker_run_string.append(base_container_name)
                     if isinstance(service['networks'], dict) and service['networks'][network]:
                         if service['networks'][network].get('aliases', None):
                             for alias in service['networks'][network]['aliases']:
@@ -1750,6 +1795,8 @@ class ScenarioRunner:
                 # if this is true only one entry is in self.__networks
                 docker_run_string.append('--net')
                 docker_run_string.append(self.__networks[0])
+                docker_run_string.append('--network-alias')
+                docker_run_string.append(base_container_name)
 
 
             if 'pause-after-phase' in service:
@@ -1872,22 +1919,35 @@ class ScenarioRunner:
             # If no healthcheck is defined, the container state "running" is sufficient.
             if 'depends_on' in service:
                 for dependent_service in service['depends_on']:
-                    dependent_container_name = dependent_service
-                    if 'container_name' in services[dependent_service]:
-                        dependent_container_name = services[dependent_service]["container_name"]
+                    dependent_container_name, _ = self._resolve_container_name(dependent_service, services[dependent_service])
 
                     time_waited = 0
                     state = ''
                     health = 'healthy' # default because some containers have no health
                     max_waiting_time = self._measurement_wait_time_dependencies
                     while time_waited < max_waiting_time:
-                        status_output = subprocess.check_output(
+                        # check=False rather than check_output(): a container that is not there at all
+                        # makes 'docker container inspect' exit non-zero, and letting that surface as a
+                        # bare CalledProcessError buries the actual problem under a stack trace about
+                        # subprocess internals. The dependency genuinely being gone is a legitimate
+                        # state to report - _order_services() guarantees it was started before we get
+                        # here, so it either died and was removed, or something outside this run removed
+                        # it - and reporting it as the state lets the 'state != running' check below
+                        # raise the same descriptive RuntimeError every other failed dependency gets.
+                        status_ps = subprocess.run(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
-                            stderr=subprocess.STDOUT,
+                            check=False,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, # put both in one stream
                             encoding='UTF-8',
                             errors='replace'
                         )
-                        state = status_output.strip()
+                        if status_ps.returncode == 0:
+                            state = status_ps.stdout.strip()
+                        else:
+                            state = MISSING_CONTAINER_STATE
+                            if time_waited == 0: # only once, the loop below already reports the state every iteration
+                                print(f"Could not inspect dependent service '{dependent_service}': {status_ps.stdout.strip()}")
                         if time_waited == 0 or state != "running":
                             print(f"Container state of dependent service '{dependent_service}': {state}")
 
@@ -1955,6 +2015,9 @@ class ScenarioRunner:
             )
 
             if ps.returncode != 0:
+                # CalledProcessError only stringifies the command and the returncode, so the reason docker
+                # refused the container would never show up in the logs. We print it separately.
+                print(TerminalColors.FAIL, f"\nCould not start container '{container_name}'\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}", TerminalColors.ENDC, file=sys.stderr)
                 raise subprocess.CalledProcessError(
                             ps.returncode,
                             docker_run_string,
@@ -1975,7 +2038,7 @@ class ScenarioRunner:
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
                 if shell := cmd_obj.get('shell', False):
-                    d_command = ['docker', 'exec', container_name, shell, '-ec', cmd_obj['command']] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, shell, *process_helpers.get_shell_options(cmd_obj), '-c', cmd_obj['command']] # This must be a list!
                 else:
                     d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'], posix=False)] # This must be a list!
 
@@ -2016,6 +2079,8 @@ class ScenarioRunner:
 
                     if ps.returncode == 137:
                         raise MemoryError(f"Your process {d_command} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                    elif shell_options_error := process_helpers.get_shell_options_error(d_command, ps.stderr):
+                        raise RuntimeError(f"Process {d_command} could not be run. {shell_options_error}\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
                     elif ps.returncode != 0:
                         raise RuntimeError(f"Process {d_command} failed with return code {ps.returncode}.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
 
@@ -2283,6 +2348,8 @@ class ScenarioRunner:
             ps_to_kill_tmp.clear()
             ps_to_read_tmp.clear()
 
+            resolved_flow_container = utils.container_name(flow['container'])
+
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
@@ -2292,13 +2359,13 @@ class ScenarioRunner:
                     self._check_total_runtime_exceeded()
 
                     if 'note' in cmd_obj:
-                        self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=flow['container'], timestamp=int(time.time_ns() / 1_000))
+                        self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=resolved_flow_container, timestamp=int(time.time_ns() / 1_000))
 
-                    print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', flow['container'], TerminalColors.ENDC)
+                    print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', resolved_flow_container, TerminalColors.ENDC)
                     print(cmd_obj['command'])
 
                     docker_exec_command = ['docker', 'exec']
-                    docker_exec_command.append(flow['container'])
+                    docker_exec_command.append(resolved_flow_container)
 
                     stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
 
@@ -2322,7 +2389,8 @@ class ScenarioRunner:
 
                         if shell := cmd_obj.get('shell', False):
                             docker_exec_command.append(shell)
-                            docker_exec_command.append('-ec')
+                            docker_exec_command.extend(process_helpers.get_shell_options(cmd_obj))
+                            docker_exec_command.append('-c')
                             docker_exec_command.append(cmd_obj['command'])
                         else:
                             docker_exec_command.extend(shlex.split(cmd_obj['command'], posix=False))
@@ -2371,10 +2439,10 @@ class ScenarioRunner:
                     ps_to_read_tmp.append({
                         'cmd': docker_exec_command,
                         'ps': ps,
-                        'container_name': flow['container'],
+                        'container_name': resolved_flow_container,
                         'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
                         'ignore-errors': cmd_obj.get('ignore-errors', False),
-                        'detail_name': flow['container'],
+                        'detail_name': resolved_flow_container,
                         'detach': cmd_obj.get('detach', False),
                         'flow_name': flow['name'],
                     })
@@ -2385,7 +2453,7 @@ class ScenarioRunner:
                         print("Awaiting Playwright function return")
                         try:
                             ps = subprocess.run(
-                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
+                                ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-ready'],
                                 check=True,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
@@ -2395,7 +2463,7 @@ class ScenarioRunner:
                             )
                         except subprocess.TimeoutExpired as exc:
                             error_message = subprocess.check_output(
-                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-error'],
+                                ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-error'],
                                 encoding='UTF-8',
                                 errors='replace',
                             )
@@ -2542,14 +2610,14 @@ class ScenarioRunner:
                     self._append_and_print_warning(f"Capturing regex for custom metric {key} did not result in two capture groups. Must be a timestamp and value pair. Resulting capture groups are: {matches}. Regex was: {custom_metric['regex']}")
                     return
 
-                df = pandas.DataFrame(matches, columns=['time', 'value'])
                 try:
+                    df = pandas.DataFrame(matches, columns=['time', 'value'])
                     df['time'] = df['time'].apply(utils.normalize_timestamp).astype('int64')
+                    df['value'] = df['value'].astype('int64') # guards from regexes that try to match string or similar
                 except ValueError as exc:
-                    self._append_and_print_warning(f"Parsing time string for custom metric from stdout failed: {exc}")
+                    self._append_and_print_warning(f"Parsing time / value for custom metric from stdout failed: {exc}")
                     return
 
-                df['value'] = df['value'].astype('int64')
                 df['metric'] = key
                 df['detail_name'] = container_name
                 df['unit'] = self.__custom_metrics[key].get('unit', 'Unknown')
@@ -2613,6 +2681,9 @@ class ScenarioRunner:
                         stderr = ps['ps'].stderr
                 except subprocess.TimeoutExpired:
                     stderr = 'Could not read due to timeout'
+
+                if shell_options_error := process_helpers.get_shell_options_error(ps['cmd'], stderr):
+                    raise RuntimeError(f"Process '{ps['cmd']}' could not be run. {shell_options_error}\n\n========== Stderr ==========\n{stderr}")
 
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
                     if ps['ps'].returncode == 137:
@@ -2875,10 +2946,11 @@ class ScenarioRunner:
         self.__containers.clear()
 
         print('Removing network')
-        for network_name in self.__networks:
+        for network in self.__networks:
             # no check=True, as the network might already be gone. We do not want to fail here
-            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
+            subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
         self.__networks.clear()
+        self.__network_name_map.clear()
 
         self._remove_docker_images()
 
@@ -2898,7 +2970,6 @@ class ScenarioRunner:
         self.__current_run_logs.clear()
         self.__phases.clear()
         self.__end_measurement = None
-        self.__join_default_network = False
         self.__services_to_pause_phase.clear()
         self.__join_default_network = False
         self.__docker_params.clear()

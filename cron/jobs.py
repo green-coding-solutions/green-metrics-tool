@@ -13,8 +13,8 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib import error_helpers
 from lib.job.run import RunJob
-from lib.job.email import EmailJob
 from lib.job.email_simple import EmailSimpleJob
+from lib.job.email_report import EmailReportJob
 from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
 from lib.system_checks import ConfigurationCheckError
@@ -30,7 +30,8 @@ from lib.db import DB
 
 JOB_TYPE_CLASSES = {
     'run': RunJob,
-    'email': EmailJob, # abstract family covering email-simple, email-report, ...
+    'email-simple': EmailSimpleJob,
+    'email-report': EmailReportJob,
 }
 
 
@@ -39,10 +40,8 @@ if __name__ == '__main__':
 
     try:
         parser = argparse.ArgumentParser()
-        parser.add_argument('type', help='Select the operation mode.', choices=['email', 'run'])
+        parser.add_argument('type', help='Select the operation mode.', choices=['email-simple', 'run', 'email-report'])
         parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
-        parser.add_argument('--full-docker-prune', action='store_true', default=False, help='Prune all images and build caches on the system')
-        parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
 
         args = parser.parse_args()  # script will exit if type is not present
 
@@ -61,10 +60,7 @@ if __name__ == '__main__':
             print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'No job to process. Exiting')
             sys.exit(0)
         print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'Processing Job ID#: ', job_main._id)
-        if args.type == 'run':
-            job_main.process(docker_prune=args.docker_prune, full_docker_prune=args.full_docker_prune)
-        else:
-            job_main.process()
+        job_main.process()
         print('Successfully processed jobs queue item.')
     except Exception as exc: #pylint: disable=broad-except
         if job_main:

@@ -22,7 +22,7 @@ This directory contains the FastAPI application and the product-specific routers
 - Prefer adding or updating typed request models in `object_specifications.py` instead of parsing raw bodies inline.
 - Most authenticated routes use `Depends(authenticate)` and must filter data by visible users unless the route is intentionally public.
 - Keep response shapes stable. Several frontend pages consume positional arrays directly from SQL-backed responses.
-- If you add a new authenticated route, check whether the seeded route allowlist in `docker/structure.sql` also needs to include it.
+- If you add a new authenticated route, check whether the seeded route allowlist in `docker/tables.sql` also needs to include it.
 - If a new API field affects queued measurements, trace it through `api/ -> lib/job/ -> lib/scenario_runner.py -> frontend/`.
 
 ## Validation and error handling

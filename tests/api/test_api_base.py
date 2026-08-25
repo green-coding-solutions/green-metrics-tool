@@ -15,6 +15,8 @@ from tests.test_functions import delete_jobs_from_DB # pylint: disable=unused-im
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
+
 def test_route_forbidden():
     user = User(1)
     user._capabilities['api']['routes'] = []

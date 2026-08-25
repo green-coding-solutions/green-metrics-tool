@@ -1,6 +1,8 @@
 import io
 import math
+import os
 import shutil
+import tempfile
 
 from decimal import Decimal
 from pathlib import Path
@@ -17,10 +19,11 @@ from lib.phase_stats import build_and_store_phase_stats
 from lib.post_metric_providers.calculate_co2_intensity import calculate_co2_intensity
 from lib import metric_importer
 from lib.scenario_runner import ScenarioRunner
+from lib.utils import container_name
 
 MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
 
-GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
+GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-phase-stats-'))
 
 ## Create a tmp folder only for this run
 @pytest.fixture(autouse=True, scope='module')
@@ -762,6 +765,19 @@ def test_phase_stats_process_user_custom_metrics():
     assert runtime_data['value'] == 42
     assert runtime_data['type'] == 'TOTAL'
 
+# Starts the full default set of real metric providers from test-config.yml (dev_no_metrics=False)
+# for real and asserts a narrow numeric range on the resulting real energy/SCI measurements
+# (custom_api_hits_sci_global etc.) - same class of flakiness as test_metric_providers.py's
+# cpu_utilization assertions: under -n/xdist every worker pins its containers to the same
+# '--cpuset-cpus' range (resource_limits.get_assignable_cpus() is host-wide, not worker-aware), so
+# concurrent workers contend for the same physical cores and skew the real measurements this test
+# checks. So, like test_database_reconnection_during_run (tests/test_runner.py) and the whole of
+# tests/metric_providers/test_metric_providers.py, this test is excluded from -n runs entirely and
+# only runs in the separate, non-parallel 'pytest -m serial' pass - which also means it no longer
+# overlaps in time with the rest of the real-metric-providers xdist_group, so that marker is no
+# longer needed here either.
+@pytest.mark.serial
+@pytest.mark.skipif(bool(os.environ.get('PYTEST_XDIST_WORKER')), reason="needs the whole machine's CPUs uncontended for accurate real energy/SCI assertions - run this outside of -n/xdist, on its own")
 def test_custom_metric_sci_run():
     runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_custom_metrics.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
@@ -774,72 +790,63 @@ def test_custom_metric_sci_run():
 
     assert len(data) == 12
 
+    # The query's 'ORDER BY ... detail_name ASC' isn't safe to index into positionally once
+    # detail_name is worker-suffixed (container_name() appends '-<worker_id>', e.g. '-gw0'): that
+    # suffix makes 'test-container-2-gw0' sort *before* 'test-container-gw0' ('2' < 'g'), the
+    # opposite of the unsuffixed 'test-container' < 'test-container-2' order these indices used to
+    # assume. Look rows up by (phase, metric, detail_name) instead so the assertions hold either way.
+    tc1 = container_name('test-container')
+    tc2 = container_name('test-container-2')
+
+    def get_row(phase, metric, detail_name):
+        matches = [d for d in data if d['phase'] == phase and d['metric'] == metric and d['detail_name'] == detail_name]
+        assert len(matches) == 1, f"Expected exactly one row for phase={phase}, metric={metric}, detail_name={detail_name}, got {len(matches)}"
+        return matches[0]
+
     # 004_[RUNTIME]
-    assert data[0]['metric'] == data[1]['metric'] == 'custom_api_hits'
-    assert data[0]['unit'] == data[1]['unit'] == 'API Hits'
-    assert data[0]['detail_name'] == 'test-container'
-    assert data[1]['detail_name'] == 'test-container-2'
-    assert data[0]['phase'] == data[1]['phase'] == '004_[RUNTIME]'
-    assert 10 < data[0]['value'] < 250
-    assert 10 < data[1]['value'] < 250
+    row = get_row('004_[RUNTIME]', 'custom_api_hits', tc1)
+    row2 = get_row('004_[RUNTIME]', 'custom_api_hits', tc2)
+    assert row['unit'] == row2['unit'] == 'API Hits'
+    assert 10 < row['value'] < 250
+    assert 10 < row2['value'] < 250
 
+    row = get_row('004_[RUNTIME]', 'custom_api_hits_sci_global', tc1)
+    row2 = get_row('004_[RUNTIME]', 'custom_api_hits_sci_global', tc2)
+    assert row['unit'] == row2['unit'] == 'ugCO2e/API Hits'
+    assert 10 < row['value'] < 250
+    assert 10 < row2['value'] < 250
 
-    assert data[2]['metric'] == data[3]['metric'] == 'custom_api_hits_sci_global'
-    assert data[2]['unit'] == data[3]['unit'] == 'ugCO2e/API Hits'
-    assert data[2]['detail_name'] == 'test-container'
-    assert data[3]['detail_name'] == 'test-container-2'
-    assert data[2]['phase'] == data[3]['phase'] == '004_[RUNTIME]'
-    assert 10 < data[2]['value'] < 250
-    assert 10 < data[3]['value'] < 250
-
-
-    assert data[4]['metric'] == data[5]['metric'] == 'custom_my_coolness'
-    assert data[4]['unit'] == data[5]['unit'] == 'gigacools'
-    assert data[4]['detail_name'] == 'test-container'
-    assert data[5]['detail_name'] == 'test-container-2'
-    assert data[4]['phase'] == data[5]['phase'] == '004_[RUNTIME]'
-    assert 10 < data[4]['value'] < 250
-    assert 10 < data[5]['value'] < 250
-
+    row = get_row('004_[RUNTIME]', 'custom_my_coolness', tc1)
+    row2 = get_row('004_[RUNTIME]', 'custom_my_coolness', tc2)
+    assert row['unit'] == row2['unit'] == 'gigacools'
+    assert 10 < row['value'] < 250
+    assert 10 < row2['value'] < 250
 
     # 005_Stress
-    assert data[6]['metric'] == 'custom_api_hits'
-    assert data[6]['unit'] == 'API Hits'
-    assert data[6]['detail_name'] == 'test-container'
-    assert data[6]['phase'] == '005_Stress'
-    assert 10 < data[6]['value'] < 250
+    row = get_row('005_Stress', 'custom_api_hits', tc1)
+    assert row['unit'] == 'API Hits'
+    assert 10 < row['value'] < 250
 
-    assert data[7]['metric'] == 'custom_api_hits_sci_global'
-    assert data[7]['unit'] == 'ugCO2e/API Hits'
-    assert data[7]['detail_name'] == 'test-container'
-    assert data[7]['phase'] == '005_Stress'
-    assert 10 < data[7]['value'] < 250
+    row = get_row('005_Stress', 'custom_api_hits_sci_global', tc1)
+    assert row['unit'] == 'ugCO2e/API Hits'
+    assert 10 < row['value'] < 250
 
-    assert data[8]['metric'] == 'custom_my_coolness'
-    assert data[8]['unit'] == 'gigacools'
-    assert data[8]['detail_name'] == 'test-container'
-    assert data[8]['phase'] == '005_Stress'
-    assert 10 < data[8]['value'] < 250
-
+    row = get_row('005_Stress', 'custom_my_coolness', tc1)
+    assert row['unit'] == 'gigacools'
+    assert 10 < row['value'] < 250
 
     # 006_Stress 2
-    assert data[9]['metric'] == 'custom_api_hits'
-    assert data[9]['unit'] == 'API Hits'
-    assert data[9]['detail_name'] == 'test-container-2'
-    assert data[9]['phase'] == '006_Stress 2'
-    assert 10 < data[9]['value'] < 250
+    row = get_row('006_Stress 2', 'custom_api_hits', tc2)
+    assert row['unit'] == 'API Hits'
+    assert 10 < row['value'] < 250
 
-    assert data[10]['metric'] == 'custom_api_hits_sci_global'
-    assert data[10]['unit'] == 'ugCO2e/API Hits'
-    assert data[10]['detail_name'] == 'test-container-2'
-    assert data[10]['phase'] == '006_Stress 2'
-    assert 10 < data[10]['value'] < 250
+    row = get_row('006_Stress 2', 'custom_api_hits_sci_global', tc2)
+    assert row['unit'] == 'ugCO2e/API Hits'
+    assert 10 < row['value'] < 250
 
-    assert data[11]['metric'] == 'custom_my_coolness'
-    assert data[11]['unit'] == 'gigacools'
-    assert data[11]['detail_name'] == 'test-container-2'
-    assert data[11]['phase'] == '006_Stress 2'
-    assert 10 < data[11]['value'] < 250
+    row = get_row('006_Stress 2', 'custom_my_coolness', tc2)
+    assert row['unit'] == 'gigacools'
+    assert 10 < row['value'] < 250
 
 
 def test_calculate_co2_intensity_uses_microgram_scale():
@@ -896,6 +903,117 @@ def test_calculate_co2_intensity_uses_microgram_scale():
     )
 
     assert derived_values == [(100,), (400,)]
+
+def test_phase_stats_runtime_max_min_reconstruction():
+    # reconstruct_runtime_phase() must take MAX(max_value)/MIN(min_value) across sub-phases
+    # (the true sample extremes recorded per sub-phase), not MAX(value)/MIN(value) (the
+    # sub-phases' own averaged "value" column, which can sit far away from the actual raw
+    # sample extremes).
+    phases = [
+        {"start": 0, "name": "[BASELINE]", "end": 100_000, "hidden": False},
+        {"start": 200_000, "name": "[RUNTIME]", "end": 3_200_000, "hidden": False},
+        {"start": 200_000, "name": "Sub1", "end": 1_700_000, "hidden": False},
+        {"start": 1_700_000, "name": "Sub2", "end": 3_200_000, "hidden": False},
+    ]
+    run_id = Tests.insert_run(phases)
+
+    import_custom_metric(
+        run_id,
+        'cpu_utilization_cgroup_container',
+        'Ratio',
+        [
+            (300_000, 40), (600_000, 40), (900_000, 40),        # Sub1: flat at 40
+            (1_900_000, 5), (2_500_000, 30), (3_100_000, 200),  # Sub2: true extremes 5 / 200
+        ],
+        detail_name='containerA',
+    )
+
+    build_and_store_phase_stats(run_id)
+
+    data = DB().fetch_all(
+        "SELECT value, max_value, min_value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = 'cpu_utilization_cgroup_container'",
+        params=(run_id, '001_[RUNTIME]'), fetch_mode='dict'
+    )
+    assert len(data) == 1
+    assert data[0]['max_value'] == 200, 'RUNTIME max_value must reflect the true sample max across sub-phases'
+    assert data[0]['min_value'] == 5, 'RUNTIME min_value must reflect the true sample min across sub-phases'
+    # sanity check that the averaged "value" column is unrelated to (and well inside) the true extremes
+    assert 5 < data[0]['value'] < 200
+
+
+def test_phase_stats_psu_cgroup_container_and_slice():
+    # Covers two fixes in the psu_*_cgroup_* surplus block:
+    # 1) psu_power_cgroup_slice/psu_power_cgroup_container must be stored as type MEAN (not TOTAL)
+    # 2) surplus_energy_runtime's exact formula, pinned here so any accidental change to it is caught
+    phases = [
+        {"start": 0, "name": "[BASELINE]", "end": 100_000, "hidden": False},
+        {"start": 200_000, "name": "[RUNTIME]", "end": 700_000, "hidden": False},
+        {"start": 200_000, "name": "Sub1", "end": 700_000, "hidden": False},
+    ]
+    run_id = Tests.insert_run(phases)
+
+    baseline_duration_us = Decimal(100_000)
+    baseline_energy_uj = 500_000
+    sub1_duration_us = Decimal(700_000 - 200_000)
+    sub1_energy_uj = 3_000_000
+
+    import_custom_metric(
+        run_id,
+        'psu_energy_ac_mcp_machine',
+        'uJ',
+        [
+            (50_000, baseline_energy_uj),  # inside [BASELINE]
+            (450_000, sub1_energy_uj),     # inside Sub1
+        ],
+        detail_name='[MACHINE]',
+    )
+    import_custom_metric(
+        run_id,
+        'cpu_utilization_procfs_system',
+        'Ratio',
+        [(450_000, 50)],
+        detail_name='[SYSTEM]',
+    )
+    import_custom_metric(
+        run_id,
+        'cpu_utilization_cgroup_container',
+        'Ratio',
+        [(450_000, 30)],
+        detail_name='containerA',
+    )
+
+    build_and_store_phase_stats(run_id)
+
+    data = DB().fetch_all(
+        "SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s AND phase = %s AND metric IN ('psu_power_cgroup_slice','psu_energy_cgroup_slice','psu_power_cgroup_container','psu_energy_cgroup_container')",
+        params=(run_id, '002_Sub1'), fetch_mode='dict'
+    )
+    by_metric = {row['metric']: row for row in data}
+    assert set(by_metric.keys()) == {'psu_power_cgroup_slice', 'psu_energy_cgroup_slice', 'psu_power_cgroup_container', 'psu_energy_cgroup_container'}
+    assert all(row['detail_name'] == 'containerA' for row in by_metric.values())
+
+    # single container -> splitting_ratio == 1, so slice/container values equal the machine-wide figures
+    assert by_metric['psu_power_cgroup_slice']['type'] == 'MEAN'
+    assert by_metric['psu_energy_cgroup_slice']['type'] == 'TOTAL'
+    assert by_metric['psu_power_cgroup_container']['type'] == 'MEAN'
+    assert by_metric['psu_energy_cgroup_container']['type'] == 'TOTAL'
+
+    machine_power_baseline_mw = Decimal(baseline_energy_uj) / baseline_duration_us * Decimal(1000)
+    machine_power_current_phase_mw = Decimal(sub1_energy_uj) / sub1_duration_us * Decimal(1000)
+
+    surplus_power_expected = machine_power_current_phase_mw - machine_power_baseline_mw
+    # baseline energy over the phase = power_mW * duration_us * 1e-3
+    # (mW * duration_s = mJ; duration_s = duration_us * 1e-6; mJ * 1000 = uJ -> combined factor 1e-3),
+    # matching production's Decimal(1e-3). round() mirrors generate_csv_line()'s own rounding on store.
+    surplus_energy_expected = round(Decimal(sub1_energy_uj) - (machine_power_baseline_mw * sub1_duration_us * Decimal(1e-3)))
+
+    assert by_metric['psu_power_cgroup_slice']['value'] == machine_power_current_phase_mw
+    assert by_metric['psu_energy_cgroup_slice']['value'] == sub1_energy_uj
+    assert by_metric['psu_power_cgroup_container']['value'] == surplus_power_expected
+    assert by_metric['psu_energy_cgroup_container']['value'] == surplus_energy_expected
+    # sanity check: baseline power (5W) over 0.5s phase = 2.5J = 2,500,000 uJ subtracted from 3,000,000 uJ used
+    assert surplus_energy_expected == 500_000
+
 
 def test_phase_stats_maps_elephant_machine_carbon():
     run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
