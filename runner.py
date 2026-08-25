@@ -84,7 +84,6 @@ if __name__ == '__main__':
     parser.add_argument('--measurement-phase-transition-time', type=int, default=1, help='Override measurement phase transition time')
     parser.add_argument('--measurement-wait-time-dependencies', type=int, default=60, help='Override measurement wait time for dependencies')
     parser.add_argument('--measurement-flow-process-duration', type=int, default=86400, help='Override measurement flow process duration')
-    parser.add_argument('--measurement-playwright-process-duration', type=int, default=None, help='Override the timeout for awaiting a Playwright function return. Defaults to the measurement flow process duration if not set')
     parser.add_argument('--measurement-total-duration', type=int, default=86400, help='Override measurement total duration')
 
     # intentionally not supported
@@ -218,7 +217,6 @@ if __name__ == '__main__':
                     measurement_phase_transition_time=args.measurement_phase_transition_time,
                     measurement_wait_time_dependencies=args.measurement_wait_time_dependencies,
                     measurement_flow_process_duration=args.measurement_flow_process_duration,
-                    measurement_playwright_process_duration=args.measurement_playwright_process_duration,
                     measurement_total_duration=args.measurement_total_duration,
 
                     # These switches do not alter proper measurements, but might result in data not being generated
