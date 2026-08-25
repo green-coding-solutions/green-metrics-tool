@@ -25,12 +25,24 @@ static int user_id = -1;
 static unsigned int msleep_time=1000;
 static struct timespec offset;
 
-static disk_io_t get_disk_cgroup(char* path, char* container_name) {
+// counted_rows reports how many device rows were actually ADDED to the returned
+// sums. It is not the same as the number of rows parsed: rows for skipped major
+// numbers are parsed and then dropped, so a file consisting only of skipped
+// devices parses fine and still contributes nothing.
+//
+// The caller needs this to tell "this container did zero I/O" apart from "we
+// could not read any usable I/O", because both otherwise return {0, 0}. Those
+// two are very different things for a CUMULATIVE counter: the first is a real
+// reading, the second silently rewinds the series to zero and makes every
+// downstream interval negative.
+static disk_io_t get_disk_cgroup(char* path, char* container_name, int* counted_rows) {
     unsigned long long int rbytes = 0;
     unsigned long long int wbytes = 0;
     unsigned int major_number;
     unsigned int minor_number;
     disk_io_t disk_io = {0};
+
+    *counted_rows = 0;
 
     FILE * fd = fopen(path, "r");
     if ( fd == NULL) {
@@ -94,6 +106,7 @@ static disk_io_t get_disk_cgroup(char* path, char* container_name) {
         }
         disk_io.rbytes += rbytes;
         disk_io.wbytes += wbytes;
+        (*counted_rows)++;
     }
 
     fclose(fd);
@@ -109,6 +122,11 @@ static disk_io_t get_disk_cgroup(char* path, char* container_name) {
     return disk_io;
 }
 
+// Last usable reading per container, and whether we ever got one. Kept here
+// rather than in container_t so that gmt-container-lib stays untouched.
+static disk_io_t *last_disk_io = NULL;
+static bool *have_last_disk_io = NULL;
+
 static void output_stats(container_t *containers, int length) {
 
     struct timeval now;
@@ -116,7 +134,37 @@ static void output_stats(container_t *containers, int length) {
 
     get_adjusted_time(&now, &offset);
     for(i=0; i<length; i++) {
-        disk_io_t disk_io = get_disk_cgroup(containers[i].path, containers[i].name);
+        int counted_rows = 0;
+        disk_io_t disk_io = get_disk_cgroup(containers[i].path, containers[i].name, &counted_rows);
+
+        // DO NOT REPORT A FABRICATED ZERO.
+        //
+        // io.stat is opened successfully but yields no usable rows every now and
+        // then - it can be empty, and it can list only devices this provider
+        // deliberately skips. Reporting the resulting {0, 0} is wrong, because
+        // rbytes/wbytes are CUMULATIVE: the series jumps back to zero, every
+        // interval after it is negative, and the parser then throws away an
+        // otherwise complete measurement at the very last step.
+        //
+        // Observed in the wild: a container whose own systemd accounting ended at
+        // 710.7M read / 1.8G written reported 0 for its last 2373 samples, having
+        // last read 356M. The measurement had already finished successfully.
+        //
+        // A container that has genuinely done no I/O yet has no previous reading,
+        // and for that case zero is the correct answer - that is the case the
+        // comment in get_disk_cgroup() is about, and it is preserved here.
+        if (counted_rows == 0 && have_last_disk_io[i]) {
+            fprintf(stderr,
+                    "Warning - io.stat for %s (%s) yielded no usable rows; keeping last known values (rbytes=%llu wbytes=%llu). "
+                    "Reporting 0 would corrupt the cumulative series.\n",
+                    containers[i].name, containers[i].path,
+                    last_disk_io[i].rbytes, last_disk_io[i].wbytes);
+            disk_io = last_disk_io[i];
+        } else if (counted_rows > 0) {
+            last_disk_io[i] = disk_io;
+            have_last_disk_io[i] = true;
+        }
+
         printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, disk_io.rbytes, disk_io.wbytes, containers[i].id);
     }
     usleep(msleep_time*1000);
@@ -182,6 +230,13 @@ int main(int argc, char **argv) {
     get_time_offset(&offset);
 
     int length = parse_containers("io.stat", user_id, &containers, containers_string, false);
+
+    last_disk_io = calloc(length, sizeof(disk_io_t));
+    have_last_disk_io = calloc(length, sizeof(bool));
+    if (last_disk_io == NULL || have_last_disk_io == NULL) {
+        fprintf(stderr, "Could not allocate memory for last disk io values\n");
+        exit(1);
+    }
 
     while(1) {
         output_stats(containers, length);
