@@ -972,6 +972,11 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
     except EncryptionConfigurationError as exc:
         raise HTTPException(status_code=422, detail='Cannot store URL credentials: encryption is not configured on this server') from exc
 
+    try:
+        software.usage_scenario_variables = utils.encrypt_secret_usage_scenario_variables(software.usage_scenario_variables)
+    except EncryptionConfigurationError as exc:
+        raise HTTPException(status_code=422, detail='Cannot store secret usage scenario variables: encryption is not configured on this server') from exc
+
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 
         last_marker = None

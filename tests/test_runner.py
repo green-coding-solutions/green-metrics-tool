@@ -14,6 +14,7 @@ import yaml
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 
+from lib.encryption import ENCRYPTED_VALUE_PREFIX, decrypt_data, encrypt_data
 from lib.log_types import LogType
 from lib.scenario_runner import ScenarioRunner
 from lib.secure_variable import SecureVariable, SecureVariableEncoder
@@ -515,6 +516,11 @@ def test_skip_and_allow_unsafe_both_true():
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, Tests.assertion_info('', str(e.value))
 
+@pytest.mark.parametrize('prune_option', ['docker_prune', 'full_docker_prune'])
+def test_docker_prune_is_not_allowed_in_test_runs(prune_option):
+    with pytest.raises(ValueError, match='Docker pruning must be disabled during test runs'):
+        ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='basic_stress.yml', **{prune_option: True})
+
 def test_debug(monkeypatch):
     monkeypatch.setattr('sys.stdin', io.StringIO('Enter'))
     ps = subprocess.run(
@@ -580,6 +586,65 @@ def test_usage_scenario_variable_replacement_done_correctly():
         context.run_until('setup_services')
 
     assert runner._usage_scenario_original['flow'][0]['commands'][0]['command'] == 'stress-ng -c 1 -t 1 -q'
+
+def test_usage_scenario_secret_variable_replaced_but_never_stored_in_plaintext():
+
+    secret_value = 'my-super-secret-password'
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_secret_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': secret_value}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    # the storable form the runner keeps around must be encrypted, but still resolve to the real value
+    encrypted_value = runner._usage_scenario_variables['__GMT_VAR_SECRET_PASSWORD__']
+    assert encrypted_value.startswith(ENCRYPTED_VALUE_PREFIX)
+    assert decrypt_data(encrypted_value) == secret_value
+    assert secret_value not in json.dumps(runner._arguments, cls=SecureVariableEncoder)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+
+    # the real value is what the measurement actually runs with ...
+    assert runner._usage_scenario_original['services']['test-container']['environment']['MY_SECRET'] == secret_value
+
+    # ... but what we persisted for that very run carries the encrypted variable and a redacted scenario
+    usage_scenario, usage_scenario_variables, runner_arguments = DB().fetch_one(
+        'SELECT usage_scenario, usage_scenario_variables, runner_arguments FROM runs WHERE id = %s', params=(runner._run_id,))
+
+    assert usage_scenario_variables['__GMT_VAR_SECRET_PASSWORD__'] == encrypted_value
+    assert usage_scenario['services']['test-container']['environment']['MY_SECRET'] == utils.REDACTED
+    assert secret_value not in json.dumps(usage_scenario)
+    assert secret_value not in json.dumps(runner_arguments)
+
+def test_usage_scenario_secret_variable_accepts_already_encrypted_value():
+
+    secret_value = 'my-super-secret-password'
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_secret_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': encrypt_data(secret_value)}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+
+    assert runner._usage_scenario_original['services']['test-container']['environment']['MY_SECRET'] == secret_value
+
+def test_usage_scenario_secret_variable_is_redacted_from_run_logs():
+
+    secret_value = 'my-super-secret-password'
+
+    # instantiating the runner registers the secret, so anything it logs afterwards gets scrubbed
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_secret_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': secret_value}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    runner._add_to_current_run_log(
+        container_name='test-container',
+        log_type=LogType.CONTAINER_EXECUTION,
+        log_id=1,
+        cmd=['echo', secret_value],
+        phase='[RUNTIME]',
+        stdout=secret_value,
+        stderr=f"could not authenticate with {secret_value}",
+    )
+
+    logged = json.dumps(runner._ScenarioRunner__current_run_logs)
+    assert secret_value not in logged
+    assert logged.count(utils.REDACTED) == 3
 
 ## Check if metrics provider are already running
 # Starts real metric providers with dev_no_system_checks=False, so it must never overlap with any

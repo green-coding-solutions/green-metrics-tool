@@ -66,14 +66,16 @@ def clear_file_system_caches():
     )
 
 
-def shell_command_argv(shell, command):
-    # cmd and powershell do not understand the POSIX '-ec' convention, so we must map to their native invocation syntax
+def shell_command_argv(shell, command, shell_options=()):
+    # cmd and powershell do not understand the POSIX '-c' convention, so we must map to their native invocation syntax.
+    # They also have no equivalent for the POSIX shell options GMT sets (see process_helpers.DEFAULT_SHELL_OPTIONS),
+    # so 'shell-options' from the usage_scenario only ever reaches a POSIX shell.
     shell_binary = Path(shell).name.lower().removesuffix('.exe')
     if shell_binary == 'cmd':
         return [shell, '/d', '/s', '/c', command]
     if shell_binary in ('powershell', 'pwsh'):
         return [shell, '-NoProfile', '-NonInteractive', '-Command', command]
-    return [shell, '-ec', command]
+    return [shell, *shell_options, '-c', command]
 
 
 def popen_process_group_kwargs():
