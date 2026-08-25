@@ -25,6 +25,9 @@
 - Do not casually reorder or remove cleanup / post-processing steps in `ScenarioRunner`; those steps guard persistence and cleanup after partial failures.
 - When adding arguments to `ScenarioRunner` beware that if they contain sensitive information they must be pruned from `self._arguments` at the end of the `__init__()``
 - When adding fields that must survive from API submission to execution, update `job/base.py`, `job/run.py`, and `runner.py` together.
+- Secret usage scenario variables (`__GMT_VAR_SECRET_*__`) only ever exist in plaintext inside
+  `ScenarioRunner.__usage_scenario_variables_resolved`. Anything that is persisted or printed must go
+  through `self._usage_scenario_variables` (encrypted) or `utils.filter_sensitive_data(_structure)`.
 - Tests override config through `tests/conftest.py`; avoid hard-coding production config assumptions.
 - `lib/c/` and `lib/sgx-software-enable/` contain native build artifacts and helpers. Only touch them if the change actually affects native behavior or installation.
 

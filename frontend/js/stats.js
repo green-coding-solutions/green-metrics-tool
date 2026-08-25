@@ -143,7 +143,7 @@ const fetchAndFillRunData = async (run_id) => {
             if (Object.keys(run_data[item]).length > 0) {
                 const container = document.querySelector("#usage-scenario-variables ul");
                 for (const key in run_data[item]) {
-                    container.insertAdjacentHTML('beforeend', `<li><span class="ui label">${escapeString(key)}=${escapeString(run_data[item][key])}</span></li>`)
+                    container.insertAdjacentHTML('beforeend', `<li><span class="ui label">${escapeString(key)}=${escapeString(displayUsageScenarioVariableValue(key, run_data[item][key]))}</span></li>`)
                 }
             } else {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)

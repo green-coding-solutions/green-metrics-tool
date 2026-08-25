@@ -30,3 +30,4 @@ This directory contains the FastAPI application and the product-specific routers
 - Global request validation and exception logging are centralized in `main.py`.
 - Reuse `HTTPException` for user-correctable API errors and reserve generic exceptions for real server failures.
 - Be careful with request logging and authentication tokens; existing middleware already obfuscates auth headers before logging.
+- Secrets submitted by users (URL credentials, `__GMT_VAR_SECRET_*__` usage scenario variables) are encrypted in the route before anything is inserted or echoed back. Keep that encryption ahead of any insert, notification, or logging of the request payload.

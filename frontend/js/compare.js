@@ -27,7 +27,7 @@ function createPythonDictTable(dataArray, labelPrefix = 'Item', keyHeader = 'Key
     allKeys.forEach(key => {
         tableContent += `<tr><td><strong>${escapeString(key)}</strong></td>`;
         parsedItems.forEach(item => {
-            tableContent += `<td style="text-align: center;">${escapeString(item[key] || '-')}</td>`;
+            tableContent += `<td style="text-align: center;">${escapeString(item[key] ? displayUsageScenarioVariableValue(key, item[key]) : '-')}</td>`;
         });
         tableContent += '</tr>';
     });
