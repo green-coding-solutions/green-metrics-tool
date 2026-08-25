@@ -876,7 +876,7 @@ class ScenarioRunner:
         if has_host_flows and not User(self._user_id).can_use_orchestrator('host'):
             raise PermissionError(f"The usage scenario contains flows that are configured to run directly on the host (container: null), but host execution is not permitted for your user (id: {self._user_id}). The user needs the 'host' orchestrator capability (measurement.orchestrators.host).")
         if has_host_flows:
-            print(TerminalColors.WARNING, arrows('Warning: Some flows will execute directly on the host system'), TerminalColors.ENDC)
+            self._append_and_print_warning('Some flows will execute directly on the host system (container: null) instead of inside a container. These commands are not sandboxed and the measurement data is not directly comparable to fully containerized runs.')
 
         if self.__usage_scenario.get('architecture') is not None and self._architecture != self.__usage_scenario['architecture'].lower():
             raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self.__usage_scenario.get('architecture')})")
