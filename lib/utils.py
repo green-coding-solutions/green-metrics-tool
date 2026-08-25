@@ -20,12 +20,51 @@ PRIVATE_KEY_RE = re.compile(r'-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [
 
 REDACTED = '*****GMT-REDACTED*****'
 
+# Usage scenario variables whose name matches this pattern carry secrets (passwords, tokens, ...).
+# They are stored and displayed in their encrypted form only and are decrypted just-in-time by the
+# ScenarioRunner when it replaces them into the usage_scenario. See encrypt_secret_usage_scenario_variables().
+SECRET_USAGE_SCENARIO_VARIABLE_RE = re.compile(r'__GMT_VAR_SECRET_[\w]+__')
+
+# Plaintext values registered at runtime (currently the decrypted secret usage scenario variables)
+# that filter_sensitive_data() must scrub out of everything we print or persist.
+_SENSITIVE_VALUES = set()
+
+def register_sensitive_values(values):
+    """
+    Register plaintext values that filter_sensitive_data() will redact from now on. Deliberately
+    never cleared implicitly: over-redacting a value that is no longer in use is harmless, while
+    dropping one too early would leak it into logs written during post-processing.
+    """
+    for value in values:
+        if isinstance(value, str) and value:
+            _SENSITIVE_VALUES.add(value)
+
+def clear_sensitive_values():
+    _SENSITIVE_VALUES.clear()
+
 def filter_sensitive_data(text):
     if not text:
         return text
     text = URI_CREDENTIALS_RE.sub(rf'\1{REDACTED}@', text)
     text = PRIVATE_KEY_RE.sub(REDACTED, text)
+    for sensitive_value in _SENSITIVE_VALUES:
+        text = text.replace(sensitive_value, REDACTED)
     return text
+
+def filter_sensitive_data_structure(data):
+    """
+    Recursively apply filter_sensitive_data() to every string in a nested structure. Used for data
+    that is serialized to JSON before being stored, where filtering the serialized string would miss
+    values that JSON escaping has altered. Returns plain dicts/lists, so frozen structures like
+    FrozenDict can be passed in.
+    """
+    if isinstance(data, str):
+        return filter_sensitive_data(data)
+    if isinstance(data, dict):
+        return {key: filter_sensitive_data_structure(value) for key, value in data.items()}
+    if isinstance(data, (list, tuple)):
+        return [filter_sensitive_data_structure(value) for value in data]
+    return data
 
 # The above are defined before this import as lib.error_helpers imports them back from here (circular import)
 from lib import error_helpers
@@ -197,6 +236,65 @@ def split_userinfo(userinfo):
         return '', ''
     username, _, password = userinfo.partition(':')
     return username, password
+
+def is_secret_usage_scenario_variable(key):
+    """
+    True if a usage scenario variable name marks the variable as holding a secret, i.e. it follows
+    the __GMT_VAR_SECRET_*__ convention.
+    """
+    return SECRET_USAGE_SCENARIO_VARIABLE_RE.fullmatch(key) is not None
+
+def encrypt_secret_usage_scenario_variables(usage_scenario_variables):
+    """
+    Return a copy of the usage scenario variables where every secret variable carries its encrypted
+    value, which is what gets stored in the DB and displayed in the frontend. Values that are already
+    encrypted are passed through unchanged, so a dict can be round-tripped (submit -> display ->
+    re-submit) without ever needing the plaintext again.
+    Raises EncryptionConfigurationError if a plaintext secret is present but no encryption key is
+    configured.
+    """
+    if not usage_scenario_variables:
+        return usage_scenario_variables
+
+    encrypted_variables = {}
+    for key, value in usage_scenario_variables.items():
+        if is_secret_usage_scenario_variable(key) and isinstance(value, str) and not value.startswith(ENCRYPTED_VALUE_PREFIX):
+            value = encrypt_data(value)
+        encrypted_variables[key] = value
+
+    return encrypted_variables
+
+def redact_secret_usage_scenario_variables(usage_scenario_variables):
+    """
+    Return a copy of the usage scenario variables where every secret variable value is replaced by
+    the redaction marker. Fallback for storing variables on machines that have no encryption key
+    configured, where the encrypted form is not available but the plaintext must never be persisted.
+    """
+    if not usage_scenario_variables:
+        return usage_scenario_variables
+
+    return {
+        key: REDACTED if is_secret_usage_scenario_variable(key) else value
+        for key, value in usage_scenario_variables.items()
+    }
+
+def decrypt_secret_usage_scenario_variables(usage_scenario_variables):
+    """
+    Return a copy of the usage scenario variables with the plaintext of every encrypted secret
+    variable. Secrets that are not encrypted (e.g. supplied directly on the CLI) are passed through
+    unchanged. The result must never be stored or printed - see register_sensitive_values().
+    Raises EncryptionConfigurationError if a secret is encrypted but cannot be decrypted here.
+    """
+    if not usage_scenario_variables:
+        return usage_scenario_variables
+
+    decrypted_variables = {}
+    for key, value in usage_scenario_variables.items():
+        if is_secret_usage_scenario_variable(key) and isinstance(value, str) and value.startswith(ENCRYPTED_VALUE_PREFIX):
+            value = decrypt_data(value)
+        decrypted_variables[key] = value
+
+    return decrypted_variables
 
 def get_git_api(parsed_url):
 

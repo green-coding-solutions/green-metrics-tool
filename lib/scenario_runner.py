@@ -53,6 +53,7 @@ from lib.notes import Notes
 from lib.machine import Machine
 from lib.container_compatibility import CompatibilityStatus
 from lib.log_types import LogType
+from lib.encryption import EncryptionConfigurationError
 from metric_providers.base import MetricProviderConfigurationError
 
 from energy_dependency_inspector import resolve_docker_dependencies_as_dict
@@ -71,6 +72,19 @@ def validate_usage_scenario_variables(usage_scenario_variables):
         if not re.fullmatch(r'__GMT_VAR_[\w]+__', key):
             raise ValueError(f"Usage Scenario variable ({key}) has invalid name. Format must be __GMT_VAR_[\\w]+__ - Example: __GMT_VAR_EXAMPLE__")
     return usage_scenario_variables
+
+def to_storable_usage_scenario_variables(usage_scenario_variables):
+    """
+    Bring the usage scenario variables into the form that may be persisted and displayed: secret
+    variables (__GMT_VAR_SECRET_*__) encrypted, everything else untouched.
+    """
+    try:
+        return utils.encrypt_secret_usage_scenario_variables(usage_scenario_variables)
+    except EncryptionConfigurationError:
+        # Typical for local CLI runs on machines that have no encryption key configured. We still
+        # must never persist the plaintext, so the secret is stored redacted instead of encrypted.
+        print(TerminalColors.WARNING, 'Warning: Secret usage scenario variables cannot be encrypted as no encryption key is configured. They will be stored redacted.', TerminalColors.ENDC)
+        return utils.redact_secret_usage_scenario_variables(usage_scenario_variables)
 
 class ScenarioRunner:
     def __init__(self,
@@ -187,7 +201,18 @@ class ScenarioRunner:
         self._docker_config_dir = self._tmp_folder.joinpath('docker_client_config')
 
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
-        self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
+
+        # Secret variables must never leave this process in plaintext. self._usage_scenario_variables
+        # holds the storable form (secrets encrypted) and is what ends up in the DB, while the
+        # resolved dict below carries the real values and is used for the usage_scenario replacement
+        # only. Registering the plaintexts makes filter_sensitive_data() scrub them from everything
+        # we log or persist, should the usage_scenario echo them back to us.
+        validated_usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
+        self._usage_scenario_variables = to_storable_usage_scenario_variables(validated_usage_scenario_variables)
+        self.__usage_scenario_variables_resolved = utils.decrypt_secret_usage_scenario_variables(validated_usage_scenario_variables)
+        utils.register_sensitive_values(
+            value for key, value in self.__usage_scenario_variables_resolved.items() if utils.is_secret_usage_scenario_variable(key)
+        )
         self._carbon_simulation = carbon_simulation
         self._category_ids = set(category_ids) if category_ids else None # deduplicate
         self._architecture = utils.get_architecture()
@@ -228,6 +253,7 @@ class ScenarioRunner:
         # security related keys we never want to log
         del self._arguments['ssh_private_key']
         del self._arguments['docker_credentials']
+        self._arguments['usage_scenario_variables'] = self._usage_scenario_variables # secrets only in their storable (encrypted) form
 
         self._safe_post_processing_steps = (
                 ('_end_measurement',  {'skip_on_already_ended': True}),
@@ -300,6 +326,7 @@ class ScenarioRunner:
                 raise ValueError(f"Cannot run flows due to configuration error. Measurement_total_duration must be >= {key}, otherwise the flow will run into a timeout in every case. Values are: {key}: {value} and measurement_total_duration: {self._measurement_total_duration}")
 
     def _append_and_print_warning(self, warning):
+        warning = utils.filter_sensitive_data(warning) # warnings quote usage_scenario content, which may carry secret variables
         print(TerminalColors.WARNING, '\n', warning, TerminalColors.ENDC, sep='')
         self.__warnings.append(warning)
 
@@ -677,7 +704,7 @@ class ScenarioRunner:
                 usage_scenario = uc_string_replace(usage_scenario, key, value)
 
             if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
-                raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches} \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
+                raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches} \n\n {utils.filter_sensitive_data(usage_scenario)}. \n\n Please add variables when submitting run.")
 
             return usage_scenario
 
@@ -754,11 +781,11 @@ class ScenarioRunner:
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as f:
             usage_scenario = f.read()
-            usage_scenario = replace_usage_scenario_variables(usage_scenario, self._usage_scenario_variables)
+            usage_scenario = replace_usage_scenario_variables(usage_scenario, self.__usage_scenario_variables_resolved)
 
             Loader = make_loader(
                 replacer=replace_usage_scenario_variables,
-                usage_scenario_variables=self._usage_scenario_variables,
+                usage_scenario_variables=self.__usage_scenario_variables_resolved,
                 usage_scenario_file=usage_scenario_file,
             )
 
@@ -771,7 +798,7 @@ class ScenarioRunner:
 
             #Check that all variables have been replaced
             if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
-                raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
+                raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. \n\n {utils.filter_sensitive_data(usage_scenario)}. \n\n Please add variables when submitting run.")
 
             if len(self.__usage_scenario_variables_used_buffer) > 0:
                 raise ValueError(f"Usage Scenario Variables '{self.__usage_scenario_variables_used_buffer}' was not used in usage scenario. Please remove it or add it to the usage scenario.")
@@ -1105,7 +1132,7 @@ class ScenarioRunner:
         params=(self._job_id, self._name, self.__clean_uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
                 self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                 json.dumps(machine_specs), json.dumps(measurement_config),
-                json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
+                json.dumps(utils.filter_sensitive_data_structure(self._usage_scenario_original)), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
                 gmt_hash,
                 GlobalConfig().config['machine']['id'], self._user_id,
         )

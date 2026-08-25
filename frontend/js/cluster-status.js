@@ -142,7 +142,7 @@ $(document).ready(function () {
                     data: 4,
                     title: 'Filename',
                     render: function(el, type, row) {
-                        const usage_scenario_variables = Object.entries(row[5]).map(([k, v]) => `<span class="ui label">${escapeString(k)}=${escapeString(v)}</span>`);
+                        const usage_scenario_variables = Object.entries(row[5]).map(([k, v]) => `<span class="ui label">${escapeString(k)}=${escapeString(displayUsageScenarioVariableValue(k, v))}</span>`);
                         return `${escapeString(el)} ${usage_scenario_variables.join(' ')}`
                     }},
                 { data: 6, title: 'Branch', render: (el) => escapeString(el)},
