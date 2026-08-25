@@ -222,18 +222,25 @@ function Add-HostsLine {
     }
 }
 
-function Invoke-ScaphandreProviderBuild {
-    $providerDir = Join-Path $Root "metric_providers\cpu\energy\rapl\scaphandre\component"
-    $sourceFile = "rapl_reader_cli.c"
+# Builds one native metric provider binary with MSVC. All Windows providers share
+# the same build shape, so they share this function - a fix here reaches all of them.
+function Invoke-NativeProviderBuild {
+    param(
+        [Parameter(Mandatory=$true)][string]$ProviderPath,
+        [Parameter(Mandatory=$true)][string]$SourceFile,
+        [Parameter(Mandatory=$true)][string]$Label
+    )
+
+    $providerDir = Join-Path $Root $ProviderPath
     $outputBinary = "metric-provider-binary"
 
-    Write-Step "Building scaphandre RAPL provider binary"
+    Write-Step "Building $Label binary"
 
     # Happy path: cl.exe already in PATH (Developer Command Prompt / Developer PowerShell)
     if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
         Push-Location $providerDir
         try {
-            & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
+            & cl.exe $SourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
             if ($LASTEXITCODE -ne 0) {
                 Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
             } else {
@@ -257,7 +264,7 @@ function Invoke-ScaphandreProviderBuild {
             $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
             if (Test-Path $vcvarsall) {
                 Write-Host "Found Visual Studio at: $vsInstallPath"
-                $absSource = Join-Path $providerDir $sourceFile
+                $absSource = Join-Path $providerDir $SourceFile
                 $absOutput = Join-Path $providerDir $outputBinary
                 # Outer quotes wrap the whole command so cmd.exe handles the inner quoted paths correctly.
                 $cmdLine = "`"`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib`""
@@ -272,104 +279,7 @@ function Invoke-ScaphandreProviderBuild {
         }
     }
 
-    Write-Error "MSVC compiler (cl.exe) not found. The scaphandre RAPL energy provider was not built.`nTo build it manually, open 'x64 Native Tools Command Prompt for VS 2022' and run build.bat in:`n  $providerDir"
-}
-function Invoke-CpuUtilizationSystemProviderBuild {
-    $providerDir = Join-Path $Root "metric_providers\cpu\utilization\win32\system"
-    $sourceFile = "source.c"
-    $outputBinary = "metric-provider-binary"
-
-    Write-Step "Building CPU utilization (system) provider binary"
-
-    if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
-        Push-Location $providerDir
-        try {
-            & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
-            if ($LASTEXITCODE -ne 0) {
-                Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
-            } else {
-                Write-Host "Successfully built metric-provider-binary.exe"
-            }
-        } finally {
-            Pop-Location
-        }
-        return
-    }
-
-    $vswherePath = @(
-        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
-        "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
-    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-    if ($vswherePath) {
-        $vsInstallPath = & $vswherePath -latest -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
-        if ($vsInstallPath) {
-            $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
-            if (Test-Path $vcvarsall) {
-                Write-Host "Found Visual Studio at: $vsInstallPath"
-                $absSource = Join-Path $providerDir $sourceFile
-                $absOutput = Join-Path $providerDir $outputBinary
-                $cmdLine = "`"`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib`""
-                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow -PassThru
-                if ($proc.ExitCode -ne 0) {
-                    Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
-                } else {
-                    Write-Host "Successfully built metric-provider-binary.exe"
-                }
-                return
-            }
-        }
-    }
-
-    Write-Error "MSVC compiler (cl.exe) not found. The CPU utilization (system) provider was not built.`nTo build it manually, open 'x64 Native Tools Command Prompt for VS 2022' and run build.bat in:`n  $providerDir"
-}
-
-function Invoke-CpuUtilizationCoreProviderBuild {
-    $providerDir = Join-Path $Root "metric_providers\cpu\utilization\ntapi\core"
-    $sourceFile = "source.c"
-    $outputBinary = "metric-provider-binary"
-
-    Write-Step "Building CPU utilization (per-core) provider binary"
-
-    if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
-        Push-Location $providerDir
-        try {
-            & cl.exe $sourceFile "/Fe:$outputBinary" /O2 /W3 /nologo /link winmm.lib
-            if ($LASTEXITCODE -ne 0) {
-                Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
-            } else {
-                Write-Host "Successfully built metric-provider-binary.exe"
-            }
-        } finally {
-            Pop-Location
-        }
-        return
-    }
-
-    $vswherePath = @(
-        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
-        "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
-    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-    if ($vswherePath) {
-        $vsInstallPath = & $vswherePath -latest -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
-        if ($vsInstallPath) {
-            $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
-            if (Test-Path $vcvarsall) {
-                Write-Host "Found Visual Studio at: $vsInstallPath"
-                $absSource = Join-Path $providerDir $sourceFile
-                $absOutput = Join-Path $providerDir $outputBinary
-                $cmdLine = "`"`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib`""
-                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow -PassThru
-                if ($proc.ExitCode -ne 0) {
-                    Write-Error "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
-                } else {
-                    Write-Host "Successfully built metric-provider-binary.exe"
-                }
-                return
-            }
-        }
-    }
-
-    Write-Error "MSVC compiler (cl.exe) not found. The CPU utilization (per-core) provider was not built.`nTo build it manually, open 'x64 Native Tools Command Prompt for VS 2022' and run build.bat in:`n  $providerDir"
+    Write-Error "MSVC compiler (cl.exe) not found. The $Label was not built.`nTo build it manually, open 'x64 Native Tools Command Prompt for VS 2022' and run build.bat in:`n  $providerDir"
 }
 
 function Send-TelemetryPing {
@@ -652,9 +562,9 @@ if ($installPythonPackages) {
     & $venvPython -m pip install --timeout 100 --retries 10 -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 }
 
-Invoke-ScaphandreProviderBuild
-Invoke-CpuUtilizationSystemProviderBuild
-Invoke-CpuUtilizationCoreProviderBuild
+Invoke-NativeProviderBuild -ProviderPath "metric_providers\cpu\energy\rapl\scaphandre\component" -SourceFile "rapl_reader_cli.c" -Label "scaphandre RAPL energy provider"
+Invoke-NativeProviderBuild -ProviderPath "metric_providers\cpu\utilization\win32\system" -SourceFile "source.c" -Label "CPU utilization (system) provider"
+Invoke-NativeProviderBuild -ProviderPath "metric_providers\cpu\utilization\ntapi\core" -SourceFile "source.c" -Label "CPU utilization (per-core) provider"
 
 if ($buildContainers -and -not $NoDocker) {
     Write-Step "Building / Updating docker containers"
