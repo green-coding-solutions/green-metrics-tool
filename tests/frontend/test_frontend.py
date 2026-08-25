@@ -10,7 +10,7 @@ GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
 from lib.global_config import GlobalConfig
 from lib.user import User
 from lib.db import DB
-from lib.encryption import ENCRYPTED_VALUE_PREFIX
+from lib.encryption import ENCRYPTED_VALUE_PREFIX, encrypt_data
 
 from tests import test_functions as Tests
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
@@ -953,6 +953,30 @@ class TestFrontendFunctionality:
 
         new_page.close()
 
+    def test_stats_secret_usage_scenario_variables_are_masked(self):
+        """Secret variables must never be readable in the frontend - not even as their stored ciphertext."""
+        run_id = str(uuid.uuid4())
+        encrypted_value = encrypt_data('my-super-secret-password')
+
+        DB().query("""
+        INSERT INTO runs (id, name, uri, branch, usage_scenario, usage_scenario_variables, filename, machine_id, user_id, failed, logs, created_at, updated_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        """, params=(
+            run_id, 'Secret Variables',
+            'https://github.com/org/demo-repo', 'main',
+            json.dumps({"name": "test", "flow": []}),
+            json.dumps({'__GMT_VAR_COMMAND__': 'stress-ng', '__GMT_VAR_SECRET_PASSWORD__': encrypted_value}),
+            'test.yml', 1, 1, False, '{}'
+        ))
+
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + f'/stats.html?id={run_id}')
+        page.wait_for_load_state("networkidle")
+
+        variables_text = page.locator('#usage-scenario-variables').text_content()
+        assert '__GMT_VAR_COMMAND__=stress-ng' in variables_text
+        assert '__GMT_VAR_SECRET_PASSWORD__=*****ENCRYPTED*****' in variables_text
+        assert encrypted_value not in variables_text
+
     def test_stats_commit_hash_display(self):
         """Verify commit_hash renders as link for HTTPS/SSH URIs, plain text for local paths."""
         github_run_id = str(uuid.uuid4())
@@ -1026,9 +1050,9 @@ class TestFrontendFunctionality:
         # Local path → plain text, no link
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + f'/stats.html?id={local_run_id}')
         page.wait_for_load_state("networkidle")
-        cell = page.locator('#run-data-top tr:has(td:has-text("commit_hash")) td:last-child')
-        assert cell.locator('a').count() == 0, "Local: expected no link"
-        assert cell.text_content().strip() == commit_hash
+        commit_hash_cell = page.locator('#run-data-top tr:has(td:has-text("commit_hash")) td:last-child')
+        assert commit_hash_cell.locator('a').count() == 0, "Local: expected no link"
+        assert commit_hash_cell.text_content().strip() == commit_hash
 
     def test_watchlist(self):
 

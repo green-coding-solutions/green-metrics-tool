@@ -37,6 +37,10 @@ The canonical local stack definition is `docker/compose.yml`.
 
 - Usage scenario syntax is enforced in `lib/schema_checker.py`.
 - The system distinguishes Git / URL measurements from local folder measurements via `uri_type`.
+- Usage scenario variables named `__GMT_VAR_SECRET_*__` hold secrets. They are encrypted on submission
+  (`lib/utils.py::encrypt_secret_usage_scenario_variables`), stored and displayed only in that encrypted
+  form, and decrypted just-in-time by the ScenarioRunner. Their plaintext must never reach the DB, the
+  API, or the frontend - see `lib/utils.py::register_sensitive_values` for the redaction safety net.
 - Many frontend tables consume positional SQL result arrays, so changing backend `SELECT` column order can silently break the UI.
 
 ## Cross-Directory Flows

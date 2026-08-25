@@ -335,7 +335,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         data: 6,
         title: '<i class="icon file alternate"></i>Filename',
         render: function(el, type, row) {
-            const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui small label">${escapeString(k)}=${escapeString(v)}</span>`);
+            const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui small label">${escapeString(k)}=${escapeString(displayUsageScenarioVariableValue(k, v))}</span>`);
             return `${escapeString(el)} <br> ${usage_scenario_variables.join(' ')}`
         }
     });
