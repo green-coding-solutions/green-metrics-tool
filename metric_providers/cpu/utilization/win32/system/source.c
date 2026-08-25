@@ -104,21 +104,77 @@ static void read_cpu_times(cpu_time_t *ct)
     ct->user   = filetime_to_u64(&user_ft);
 }
 
+/* ---- Minimum sampling interval ----
+ *
+ * Windows accounts CPU time by charging each system clock interrupt to whatever
+ * was running when it fired, so the idle/kernel/user counters only advance once
+ * per clock tick. GetSystemTimeAdjustment() reports that tick period as
+ * lpTimeIncrement in 100-nanosecond units:
+ * https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getsystemtimeadjustment
+ *
+ * Sampling faster than one tick means two consecutive reads can land inside the
+ * same tick and produce a zero delta. Even where they do not, averaging a
+ * sub-tick series maps a busy tick onto a shorter timeframe than it actually
+ * occupied and averages the utilization away. Same reasoning and same guard as
+ * on Linux, where lib/c/gmt-lib.c derives the floor from sysconf(_SC_CLK_TCK).
+ *
+ * Must be called after timeBeginPeriod(), because the increment reported here
+ * follows the timer resolution the process has requested: ~15.6 ms by default,
+ * ~1 ms once timeBeginPeriod(1) is in effect.
+ */
+static unsigned int get_min_sleep_time_ms(void)
+{
+    DWORD time_adjustment = 0;
+    DWORD time_increment = 0;
+    BOOL adjustment_disabled = FALSE;
+
+    if (!GetSystemTimeAdjustment(&time_adjustment, &time_increment, &adjustment_disabled) || time_increment == 0) {
+        fprintf(stderr, "Error - could not determine the system clock tick period via GetSystemTimeAdjustment: %lu\n", GetLastError());
+        exit(1);
+    }
+
+    /* 100ns units -> ms, rounded up so we never accept an interval that could
+       legitimately produce a zero-delta read */
+    return (unsigned int)((time_increment + 9999) / 10000);
+}
+
+static void validate_min_sleep_time(unsigned int msleep_time, unsigned int min_msleep_time_ms)
+{
+    if (msleep_time < min_msleep_time_ms) {
+        fprintf(stderr,
+            "Error - requested sampling interval (%u ms) is below the system clock tick period (%u ms). "
+            "The counters GetSystemTimes() reads only advance once per tick, so sampling faster than this "
+            "produces zero-delta reads and averages utilization away. Use -i %u or higher.\n",
+            msleep_time, min_msleep_time_ms, min_msleep_time_ms);
+        exit(1);
+    }
+}
+
 /* ---- main loop ---- */
 int main(int argc, char **argv)
 {
     unsigned int interval_ms = 1000;
+    unsigned int min_msleep_time_ms;
     int c;
     int check_system_flag = 0;
 
     setvbuf(stdout, NULL, _IONBF, 0);
+
+    /* before reading the tick period, so the floor reflects the resolution this
+       process actually samples at rather than the system default */
+    timeBeginPeriod(1);
+    min_msleep_time_ms = get_min_sleep_time_ms();
 
     for (c = 1; c < argc; c++) {
         if (strcmp(argv[c], "-h") == 0) {
             printf("Usage: %s [-i interval_ms] [-h] [-c]\n\n", argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : milliseconds between measurements\n");
+            printf("\t          (must be >= the system clock tick period, currently %u ms)\n", min_msleep_time_ms);
             printf("\t-c      : check system and exit\n");
+            printf("\n");
+            printf("\tSystemTickMS\t%u\n", min_msleep_time_ms);
+            timeEndPeriod(1);
             return 0;
         } else if (strcmp(argv[c], "-i") == 0 && c + 1 < argc) {
             interval_ms = parse_int(argv[++c]);
@@ -133,11 +189,13 @@ int main(int argc, char **argv)
             fprintf(stderr, "GetSystemTimes not available\n");
             exit(1);
         }
+        timeEndPeriod(1);
         exit(0);
     }
 
+    validate_min_sleep_time(interval_ms, min_msleep_time_ms);
+
     clock_state_t clock = clock_init();
-    timeBeginPeriod(1);
 
     cpu_time_t prev, curr;
     read_cpu_times(&prev);
