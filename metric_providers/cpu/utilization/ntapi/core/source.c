@@ -111,13 +111,6 @@ static uint64_t now_us(const clock_state_t *cs)
     return cs->wall_start_us + (uint64_t)elapsed_us;
 }
 
-static LONGLONG now_qpc(void)
-{
-    LARGE_INTEGER qpc;
-    QueryPerformanceCounter(&qpc);
-    return qpc.QuadPart;
-}
-
 /* ---- Per-core snapshot reading ---- */
 static unsigned int get_ncpus(void)
 {
@@ -227,6 +220,7 @@ int main(int argc, char **argv)
 
             uint64_t total_d = kernel_d + user_d;
             uint64_t busy_d  = (total_d > idle_d) ? (total_d - idle_d) : 0;
+            /* Deliberate integer conversion. Precision with 0.01% is good enough - same as procfs provider */
             long busy_value = (total_d > 0) ? (long)((busy_d  * 10000ULL) / total_d) : 0;
 
             printf("%llu %ld core_%u\n", (unsigned long long)ts_us, busy_value, i);

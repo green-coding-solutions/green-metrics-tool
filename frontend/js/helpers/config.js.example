@@ -582,6 +582,11 @@ METRIC_MAPPINGS = {
         "source": "ntapi",
         "explanation": "CPU Utilization per logical core"
     },
+    "memory_carbon_rapl_msr_component": {
+        "clean_name": "DRAM CO₂ (operational)",
+        "source": "RAPL",
+        "explanation": "RAPL based memory operational CO₂ of DRAM domain"
+    },
     "memory_energy_rapl_msr_component": {
         "clean_name": "DRAM Energy",
         "source": "RAPL",

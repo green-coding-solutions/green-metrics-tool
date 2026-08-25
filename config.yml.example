@@ -274,18 +274,17 @@ measurement:
       cpu_energy_rapl_scaphandre_component:
         sampling_rate: 99
     #--- Optionally disable individual RAPL domains (cpu_package, cpu_cores, cpu_gpu, dram, psys)
-#         domains:
-#           cpu_gpu: False
-#           dram: False
+#        domains:
+#          cpu_gpu: False
+#          dram: False
     #--- CPU Utilization - System-wide CPU load via GetSystemTimes()
       cpu_utilization_win32_system:
         sampling_rate: 99
-#--- CPU Utilization - Per-core, off by default. Set include_interrupt_dpc: True for DPC/interrupt breakdown per core.
+    #--- CPU Utilization - Per-core, off by default. Set include_interrupt_dpc: True for DPC/interrupt breakdown per core.
 #      cpu_utilization_ntapi_core:
-#        sampling_rate: 99  
-#        include_interrupt_dpc: True      
+#        sampling_rate: 99
+#        include_interrupt_dpc: True
     #--- Architecture - Common
-
     common:
 #      network_connections_proxy_container:
 ##        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails

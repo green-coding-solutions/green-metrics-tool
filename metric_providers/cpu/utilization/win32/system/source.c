@@ -68,14 +68,19 @@ static uint64_t now_us(const clock_state_t *cs)
     return cs->wall_start_us + (uint64_t)elapsed_us;
 }
 
-static LONGLONG now_qpc(void)
-{
-    LARGE_INTEGER qpc;
-    QueryPerformanceCounter(&qpc);
-    return qpc.QuadPart;
-}
-
-/* ---- CPU time reading (this replaces read_cpu_proc() from procfs) ---- */
+/* ---- CPU time reading (this replaces read_cpu_proc() from procfs) ----
+ *
+ * GetSystemTimes() is the only system-wide CPU time accounting the Win32 API
+ * exposes and it reports exactly three counters - idle, kernel and user:
+ * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getsystemtimes
+ *
+ * Per that documentation the kernel counter "includes all threads in all
+ * processes, in kernel mode" - and the idle thread runs in kernel mode, so
+ * kernel time already contains idle time. Windows has no separate
+ * "kernel-busy" counter the way /proc/stat separates system from idle on
+ * Linux, so busy time has to be derived as (kernel + user) - idle. psutil's
+ * Windows implementation applies the same correction.
+ */
 typedef struct {
     uint64_t idle;
     uint64_t kernel;   /* NOTE: kernel time INCLUDES idle time, same caveat as procfs system_time */
@@ -153,6 +158,7 @@ int main(int argc, char **argv)
         uint64_t busy_delta  = (total_delta > idle_delta) ? (total_delta - idle_delta) : 0;
 
         uint64_t ts_us = now_us(&clock);
+        /* Deliberate integer conversion. Precision with 0.01% is good enough - same as procfs provider */
         long value = (total_delta > 0) ? (long)((busy_delta * 10000ULL) / total_delta) : 0;
 
         printf("%llu %ld\n", (unsigned long long)ts_us, value);
