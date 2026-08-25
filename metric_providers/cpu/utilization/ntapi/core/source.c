@@ -1,5 +1,5 @@
 /*
- * cpu_utilization_windows_core - source.c
+ * cpu_utilization_ntapi_core - source.c
  *
  * Per-core CPU utilization on Windows via NtQuerySystemInformation
  * (SystemProcessorPerformanceInformation). Outputs busy%, and optionally
@@ -198,10 +198,6 @@ int main(int argc, char **argv)
     clock_state_t clock = clock_init();
     timeBeginPeriod(1);
 
-    LARGE_INTEGER qpc_freq;
-    QueryPerformanceFrequency(&qpc_freq);
-    double qpc_ticks_per_ms = (double)qpc_freq.QuadPart / 1000.0;
-
     SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION *prev =
         malloc(ncpus * sizeof(SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION));
     SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION *curr =
@@ -215,21 +211,22 @@ int main(int argc, char **argv)
     Sleep(interval_ms); /* wait one interval before the loop starts so the first emitted value already reflects a real interval, not a cold-start zero */
 
     while (1) {
-        LONGLONG deadline = now_qpc() + (LONGLONG)(interval_ms * qpc_ticks_per_ms);
-
         read_per_core_times(curr, ncpus);
         uint64_t ts_us = now_us(&clock);
 
         for (i = 0; i < ncpus; i++) {
-            uint64_t idle_d   = curr[i].IdleTime.QuadPart      - prev[i].IdleTime.QuadPart;
+            /* Windows' KernelTime already includes IdleTime (unlike Linux's separate
+             * idle/system counters), so kernel_d below still contains the idle
+             * portion. total_d is therefore "kernel (incl. idle) + user", and we
+             * subtract idle_d to arrive at the actual busy time. */
             uint64_t kernel_d = curr[i].KernelTime.QuadPart    - prev[i].KernelTime.QuadPart;
             uint64_t user_d   = curr[i].UserTime.QuadPart      - prev[i].UserTime.QuadPart;
+            uint64_t idle_d   = curr[i].IdleTime.QuadPart      - prev[i].IdleTime.QuadPart;
             uint64_t dpc_d    = curr[i].DpcTime.QuadPart       - prev[i].DpcTime.QuadPart;
             uint64_t intr_d   = curr[i].InterruptTime.QuadPart - prev[i].InterruptTime.QuadPart;
 
-            uint64_t total_d = user_d + kernel_d;
-            uint64_t busy_d  = (total_d > idle_d) ? (total_d - idle_d) : 0; /* kernel includes idle */
-
+            uint64_t total_d = kernel_d + user_d;
+            uint64_t busy_d  = (total_d > idle_d) ? (total_d - idle_d) : 0;
             long busy_value = (total_d > 0) ? (long)((busy_d  * 10000ULL) / total_d) : 0;
 
             printf("%llu %ld core_%u\n", (unsigned long long)ts_us, busy_value, i);
@@ -247,11 +244,7 @@ int main(int argc, char **argv)
         prev = curr;
         curr = tmp;
 
-        LONGLONG remaining_qpc = deadline - now_qpc();
-        double sleep_ms = (remaining_qpc > 0) ? (remaining_qpc / qpc_ticks_per_ms) : 0.0;
-        if (sleep_ms > 0) {
-            Sleep((DWORD)sleep_ms);
-        }
+        Sleep(interval_ms);
     }
 
     timeEndPeriod(1);

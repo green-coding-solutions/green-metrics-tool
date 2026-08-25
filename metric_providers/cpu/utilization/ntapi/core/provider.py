@@ -4,12 +4,12 @@ from lib import host_platform
 from metric_providers.base import BaseMetricProvider
 
 
-class CpuUtilizationWindowsCoreProvider(BaseMetricProvider):
+class CpuUtilizationNtapiCoreProvider(BaseMetricProvider):
     def __init__(self, sampling_rate, folder, skip_check=False, include_interrupt_dpc=False):
         self._include_interrupt_dpc = include_interrupt_dpc
         self._stdout_file = None
         super().__init__(
-            metric_name='cpu_utilization_windows_core',
+            metric_name='cpu_utilization_ntapi_core',
             metrics={'time': int, 'value': int, 'detail_name': str},
             sampling_rate=sampling_rate,
             unit='Ratio',

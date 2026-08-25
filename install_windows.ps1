@@ -275,7 +275,7 @@ function Invoke-ScaphandreProviderBuild {
     Write-Error "MSVC compiler (cl.exe) not found. The scaphandre RAPL energy provider was not built.`nTo build it manually, open 'x64 Native Tools Command Prompt for VS 2022' and run build.bat in:`n  $providerDir"
 }
 function Invoke-CpuUtilizationSystemProviderBuild {
-    $providerDir = Join-Path $Root "metric_providers\cpu\utilization\windows\system"
+    $providerDir = Join-Path $Root "metric_providers\cpu\utilization\win32\system"
     $sourceFile = "source.c"
     $outputBinary = "metric-provider-binary"
 
@@ -324,7 +324,7 @@ function Invoke-CpuUtilizationSystemProviderBuild {
 }
 
 function Invoke-CpuUtilizationCoreProviderBuild {
-    $providerDir = Join-Path $Root "metric_providers\cpu\utilization\windows\core"
+    $providerDir = Join-Path $Root "metric_providers\cpu\utilization\ntapi\core"
     $sourceFile = "source.c"
     $outputBinary = "metric-provider-binary"
 
