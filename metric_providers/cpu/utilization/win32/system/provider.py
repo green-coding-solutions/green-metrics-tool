@@ -16,6 +16,12 @@ class CpuUtilizationWin32SystemProvider(BaseMetricProvider):
             metric_provider_executable='metric-provider-binary.exe',
             skip_check=skip_check,
             folder=folder,
+            # no-op for this provider: disable_buffer is only honoured by
+            # BaseMetricProvider.start_profiling(), which wraps the call in the
+            # Linux-only stdbuf. Both Windows providers override start_profiling(),
+            # so unbuffered stdout is set in source.c via setvbuf(_IONBF) instead.
+            # Windows has no stdbuf equivalent - if a non-C collector is ever added
+            # here it has to unbuffer itself the same way.
             disable_buffer=False,
         )
 
