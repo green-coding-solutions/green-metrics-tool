@@ -2478,6 +2478,8 @@ class ScenarioRunner:
                     # this command will block until something is received
                     if cmd_obj['type'] == 'playwright':
                         print("Awaiting Playwright function return")
+                        if self._measurement_flow_process_duration:
+                            print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
                         try:
                             ps = subprocess.run(
                                 ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-ready'],
@@ -2486,7 +2488,7 @@ class ScenarioRunner:
                                 stderr=subprocess.PIPE,
                                 encoding='UTF-8',
                                 errors='replace',
-                                timeout=60, # 60 seconds should be reasonable for any playwright command we know
+                                timeout=self._measurement_flow_process_duration
                             )
                         except subprocess.TimeoutExpired as exc:
                             error_message = subprocess.check_output(

@@ -10,7 +10,6 @@ let page = null;
 const contextOptions = {
   viewport: { width: 1280, height: 800 },
   ignoreHTTPSErrors: true, // <--- disables SSL check as we funnel requests through proxy
-  timeout: 5000,
 };
 
 function logNote(message) {
