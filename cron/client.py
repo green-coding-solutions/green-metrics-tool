@@ -187,6 +187,7 @@ def do_measurement_control():
 
     except Exception as exc: # pylint: disable=broad-except
 
+        set_status('measurement_control_error')
         error_helpers.log_error('Workload Validation Failed: ',
             exception=exc,
             details=f"Please check under {config['cluster']['metrics_url']}/timeline.html?uri={cwl['uri']}&branch={cwl['branch']}&filename={cwl['filename']}&machine_id={config['machine']['id']}",
@@ -194,7 +195,10 @@ def do_measurement_control():
             machine=config['machine']['description'],
         )
 
-        set_status('measurement_control_error')
+        if isinstance(exc, ClientEnd):
+            # We want to abort processing and bubble up exception in case of restart
+            raise
+
         # the process will now go to sleep for 'time_between_control_workload_validations''
         # This is as long as the next validation is needed and thus it will loop
         # endlessly in validation until manually handled, which is what we want.
@@ -350,6 +354,11 @@ if __name__ == '__main__':
                             name='Measurement Job on Green Metrics Tool Cluster failed',
                             message=f"Run-ID: {job._run_id}\nName: {job._name}\nMachine: {job._machine_description}\n\nDetails can also be found in the log under: {config['cluster']['metrics_url']}/stats.html?id={job._run_id}\n\nError message: {exc.__context__}\n{exc}\n\nStdout:{exc.stdout if hasattr(exc, 'stdout') else None}\nStderr:{exc.stderr if hasattr(exc, 'stderr') else None}\n"
                         )
+
+                    if isinstance(exc, ClientEnd):
+                        # We want to abort processing and bubble up exception in case of restart
+                        raise
+
                 finally:
                     # run periodic maintenance between every run, but not if we are shutting down anyway
                     if not args.testing and not isinstance(sys.exc_info()[1], ClientEnd):
