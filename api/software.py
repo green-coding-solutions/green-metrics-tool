@@ -14,7 +14,7 @@ router = APIRouter()
 HOURS_STORAGE_12=43200
 
 @router.get('/v1/software/categories')
-async def get_software_categories(
+def get_software_categories(
     # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate), # pylint: disable=unused-argument
     ):
@@ -44,7 +44,7 @@ async def get_software_categories(
 
 
 @router.get('/v1/software')
-async def get_softwares(
+def get_softwares(
     category: str | None = None,
     page: int = 1,
     # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
@@ -95,7 +95,7 @@ async def get_softwares(
 
 
 @router.get('/v1/software/{software_id}/tasks')
-async def get_software_tasks(
+def get_software_tasks(
     software_id: int,
     user: User = Depends(authenticate),
     ):
@@ -197,7 +197,7 @@ async def get_software_tasks(
 
 
 @router.get('/v1/software/similar')
-async def get_similar_software(
+def get_similar_software(
     name: str,
     exclude_software_id: int | None = None,
     categories: str | None = None,
