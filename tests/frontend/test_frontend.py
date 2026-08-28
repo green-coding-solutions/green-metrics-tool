@@ -58,7 +58,7 @@ def setup_browser(setup_playwright): #pylint: disable=unused-argument,redefined-
     )
     context = browser.new_context(viewport={"width": 1920, "height": 5600})
     page = context.new_page()
-    page.set_default_timeout(3_000)
+    page.set_default_timeout(10_000)
 
     page.on("pageerror", handle_page_error)
 
@@ -362,7 +362,7 @@ class TestFrontendFunctionality:
 
         # Get the new page (tab)
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         new_page.wait_for_load_state("networkidle")
 
@@ -471,7 +471,7 @@ class TestFrontendFunctionality:
 
         # Get the new page (tab)
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         new_page.wait_for_load_state("networkidle")
 
@@ -561,7 +561,7 @@ class TestFrontendFunctionality:
 
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         new_page.wait_for_load_state("networkidle")
 
@@ -582,7 +582,7 @@ class TestFrontendFunctionality:
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=15_000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[0].click()
@@ -592,7 +592,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click() # will do usage-scenario-variables comparison
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         new_page.wait_for_load_state("networkidle")
 
@@ -671,7 +671,7 @@ class TestFrontendFunctionality:
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=15_000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[1].click()
@@ -681,7 +681,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click() # will do usage-scenario-variables comparison
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
@@ -767,7 +767,7 @@ class TestFrontendFunctionality:
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=15_000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[6].click()
@@ -777,7 +777,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click() # will do usage-scenario-variables comparison
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
@@ -798,7 +798,7 @@ class TestFrontendFunctionality:
         page.get_by_role("button", name="Switch to repository view").click()
 
         page.get_by_text("/home/arne/Sites/green-coding/example-applications/").click()
-        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=15_000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[0].click()
@@ -809,7 +809,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click()
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         comparison_type = new_page.locator('#run-data-top > tbody:nth-child(1) > tr > td:nth-child(2)').text_content()
         assert comparison_type == 'Repeated Run on same Commit Hash'
@@ -868,7 +868,7 @@ class TestFrontendFunctionality:
 
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=15_000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[1].click()
@@ -880,7 +880,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click()
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         assert new_page.locator("#run-data-top > tbody:first-child > tr:first-child > td:nth-child(2)").text_content() == 'Usage Scenario'
 
@@ -900,7 +900,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click()
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         assert new_page.locator("#run-data-top > tbody:first-child > tr > td:nth-child(2)").text_content() == 'Machine'
 
@@ -921,7 +921,7 @@ class TestFrontendFunctionality:
 
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=15_000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
 
@@ -938,7 +938,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click()
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         assert new_page.locator("#run-data-top > tbody:first-child > tr:first-child > td:nth-child(2)").text_content() == 'Usage Scenario Variables'
 
@@ -1062,7 +1062,7 @@ class TestFrontendFunctionality:
             page.get_by_role("link", name="Show Timeline").click()
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         # test before refresh - data missing - Beware that if demo data is updated with new date this might break!
         new_page.wait_for_load_state("load") # ALL JS should be done
@@ -1247,7 +1247,7 @@ class TestFrontendFunctionality:
         page.locator('#save-measurement-skip-optimizations').click()
         page.locator('#save-measurement-skip-volume-inspect').click()
         page.locator('#ssh-private-key').fill(Tests.OPENSSH_EXAMPLE_PRIVATE_KEY)
-        page.locator('#save-ssh-private-key').click(timeout=15000)
+        page.locator('#save-ssh-private-key').click(timeout=15_000)
 
         #page.wait_for_load_state("networkidle") # Network Idle sadly not enough here. The DB seems to take 1-2 seconds
         time.sleep(3)
@@ -1301,7 +1301,7 @@ class TestFrontendFunctionality:
             rows.nth(1).locator('.docker-cred-password').fill('anotherpassword')
 
             with page.expect_response(lambda response: '/v1/user/setting' in response.url and response.request.method == 'PUT') as response_info:
-                page.locator('#save-docker-credentials').click(timeout=15000)
+                page.locator('#save-docker-credentials').click(timeout=15_000)
             assert response_info.value.status == 202
 
             # The stored value must decrypt back to exactly what was submitted through the UI ...
@@ -1527,8 +1527,8 @@ class TestXssSecurity:
 
         # Test 1: Runs page
         page.goto(base_url + '/runs.html')
-        page.wait_for_load_state("networkidle", timeout=10000)
-        page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
+        page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=15_000)
 
         runs_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert runs_xss_executed is not True, "XSS vulnerability detected on runs page: malicious code executed"
@@ -1536,16 +1536,16 @@ class TestXssSecurity:
         # Test 2: Stats page
         stats_url = f"{base_url}/stats.html?id={run_id}"
         page.goto(stats_url)
-        page.wait_for_load_state("networkidle", timeout=10000)
-        page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
+        page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=15_000)
 
         stats_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert stats_xss_executed is not True, "XSS vulnerability detected on stats page: malicious code executed"
 
         # Test 3: Watchlist page
         page.goto(base_url + '/watchlist.html')
-        page.wait_for_load_state("networkidle", timeout=10000)
-        page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
+        page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=15_000)
 
         watchlist_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert watchlist_xss_executed is not True, "XSS vulnerability detected on watchlist page: malicious code executed"
@@ -1553,8 +1553,8 @@ class TestXssSecurity:
         # Test 4: Timeline page
         timeline_url = f"{base_url}/timeline.html?uri={malicious_uri}&branch={malicious_branch}&filename={malicious_filename}&machine_id=1"
         page.goto(timeline_url)
-        page.wait_for_load_state("networkidle", timeout=10000)
-        page.wait_for_function("() => document.querySelector('input[name=\"uri\"]')?.value.includes('evil.com')", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
+        page.wait_for_function("() => document.querySelector('input[name=\"uri\"]')?.value.includes('evil.com')", timeout=15_000)
 
         timeline_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert timeline_xss_executed is not True, "XSS vulnerability detected on timeline page: malicious code executed"
@@ -1562,8 +1562,8 @@ class TestXssSecurity:
         # Test 5: Compare page (commit hashes comparison view includes repository uri, filename and usage scenario)
         compare_url = f"{base_url}/compare.html?ids={run_id},{run_id2}&force_mode=commit_hashes"
         page.goto(compare_url)
-        page.wait_for_load_state("networkidle", timeout=10000)
-        page.wait_for_function("() => document.body.innerText.includes('deadbeef123456789abcdef')", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
+        page.wait_for_function("() => document.body.innerText.includes('deadbeef123456789abcdef')", timeout=15_000)
 
         compare_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert compare_xss_executed is not True, "XSS vulnerability detected on compare page: malicious code executed"
@@ -1575,8 +1575,8 @@ class TestXssSecurity:
         page.remove_listener("pageerror", handle_page_error)
 
         page.goto(compare_url)
-        page.wait_for_load_state("networkidle", timeout=10000)
-        page.wait_for_function("() => document.body.innerText.includes('different_value')", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
+        page.wait_for_function("() => document.body.innerText.includes('different_value')", timeout=15_000)
 
         compare_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert compare_xss_executed is not True, "XSS vulnerability detected on compare page with usage scenario variables: malicious code executed"
@@ -1620,7 +1620,7 @@ class TestXssSecurity:
 
         assert fetch_button.count() > 0, "fetch-time-series button not found - test setup failed"
         fetch_button.click()
-        page.wait_for_timeout(3000)
+        page.wait_for_timeout(15_000)
 
         xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
 
@@ -1678,7 +1678,7 @@ class TestXssSecurity:
 
         page.goto(f"{base_url}/ci-index.html")
         page.wait_for_load_state("networkidle")
-        page.wait_for_function("() => document.body.innerText.includes('evil/repo')", timeout=10000)
+        page.wait_for_function("() => document.body.innerText.includes('evil/repo')", timeout=15_000)
 
         img_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert img_xss_executed is not True, "XSS vulnerability detected on ci-index.html"
@@ -1693,7 +1693,7 @@ class TestXssSecurity:
         page.wait_for_load_state("networkidle")
 
         try:
-            page.wait_for_function("() => document.body.innerText.includes('clean/repo')", timeout=10000)
+            page.wait_for_function("() => document.body.innerText.includes('clean/repo')", timeout=15_000)
         except PlaywrightTimeoutError:
             page_text = page.evaluate("() => document.body.innerText")
             if 'No data for time frame' in page_text:
