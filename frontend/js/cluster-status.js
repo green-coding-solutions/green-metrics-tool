@@ -78,10 +78,14 @@ $(document).ready(function () {
                             case 'job_end': return `${escapeString(el)} <span data-inverted data-tooltip="Current job ended"></i></span>`;
                             case 'maintenance_start': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after job has started"><i class="ui question circle icon fluid"></i></span>`;
                             case 'maintenance_end': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after job has finished"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'maintenance_error': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after job has failed"><i class="ui question circle icon fluid"></i></span>`;
                             case 'measurement_control_start': return `${escapeString(el)} <span data-inverted data-tooltip="Periodic Measurement Control job has started"><i class="ui question circle icon fluid"></i></span>`;
                             case 'cooldown': return `${escapeString(el)} <span data-inverted data-tooltip="Machine is currently cooling down to base temperature"><i class="ui question circle icon fluid"></i></span>`;
                             case 'measurement_control_error': return `${escapeString(el)} <span data-inverted data-tooltip="Last periodic Measurement Control job has failed"><i class="ui question circle icon fluid"></i></span>`;
                             case 'measurement_control_end': return `${escapeString(el)} <span data-inverted data-tooltip="Periodic Measurement Control job has finished"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'reboot': return `${escapeString(el)} <span data-inverted data-tooltip="Machine is rebooting"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'suspend': return `${escapeString(el)} <span data-inverted data-tooltip="Machine is in suspend to save energy and will start when jobs are handed in"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'poweroff': return `${escapeString(el)} <span data-inverted data-tooltip="Machine is powered off to save energy and will start when jobs are handed in"><i class="ui question circle icon fluid"></i></span>`;
                             case undefined: // fallthrough
                             case null: return '-';
                     }
