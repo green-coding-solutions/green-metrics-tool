@@ -7,6 +7,7 @@ on:
 
 jobs:
   run-tests-main:
+    if: github.repository_owner == 'green-coding-solutions'
     runs-on: eco-ci-runner-tx1330-m4
     steps:
       - name: Eco CI Energy Estimation - Initialize

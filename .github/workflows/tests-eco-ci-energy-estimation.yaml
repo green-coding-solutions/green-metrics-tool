@@ -5,6 +5,7 @@ on:
 
 jobs:
   run-tests-main:
+    if: github.repository_owner == 'green-coding-solutions'
     runs-on: ubuntu-24.04
     permissions:
       packages: write
