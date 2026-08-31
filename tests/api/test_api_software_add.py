@@ -154,11 +154,11 @@ def test_post_run_add_gitlab_tag():
 
 def test_post_run_add_gitlab_custom_api_base():
     run_name = 'test_' + utils.randomword(12)
-    run = Software(name=run_name, repo_url='https://gitlab.rlp.net/green-software-engineering/oscar', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='commit')
+    run = Software(name=run_name, repo_url='https://invent.kde.org/kde-linux/kde-linux', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='commit')
     response = requests.post(f"{API_URL}/v1/runs/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    watchlist_item = utils.get_watchlist_item('https://gitlab.rlp.net/green-software-engineering/oscar')
+    watchlist_item = utils.get_watchlist_item('https://invent.kde.org/kde-linux/kde-linux')
     assert re.match(r'^[a-fA-F0-9]{40}$',watchlist_item['last_marker'])
     assert watchlist_item['schedule_mode'] == 'commit'
 
