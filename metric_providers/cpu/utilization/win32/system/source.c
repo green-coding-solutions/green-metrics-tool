@@ -123,13 +123,21 @@ int main(int argc, char **argv)
     }
 
     if (check_system_flag) {
-        FILETIME a, b, cc;
-        if (!GetSystemTimes(&a, &b, &cc)) {
-            fprintf(stderr, "GetSystemTimes not available\n");
-            exit(1);
-        }
-        exit(0);
+    FILETIME a, b, cc;
+    if (!GetSystemTimes(&a, &b, &cc)) {
+        fprintf(stderr, "GetSystemTimes not available\n");
+        exit(1);
     }
+    DWORD cpu_count = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+    if (cpu_count > 64) {
+        fprintf(stderr, "Error: System has %lu logical processors across all processor groups. "
+                        "GetSystemTimes() is unreliable on systems with more than 64 logical "
+                        "processors (multiple processor groups). Use cpu_utilization_ntapi_core "
+                        "instead.\n", (unsigned long)cpu_count);
+        exit(1);
+    }
+    exit(0);
+}
 
     clock_state_t clock = clock_init();
     timeBeginPeriod(1);
