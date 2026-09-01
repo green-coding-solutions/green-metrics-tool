@@ -44,7 +44,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 10940042.278068041,
+                                    "ci": 10940042.28,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 46769000,
@@ -75,7 +75,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 984.730867073488,
+                                    "ci": 984.73,
                                     "is_significant": null,
                                     "max": 12214,
                                     "max_mean": 8813,
@@ -106,7 +106,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 171.5337639418334,
+                                    "ci": 171.53,
                                     "is_significant": null,
                                     "max": 1282,
                                     "max_mean": 1233,
@@ -168,7 +168,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 952.9653552324078,
+                                    "ci": 952.97,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 7615,
@@ -199,7 +199,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 2610883.6554468046,
+                                    "ci": 2610883.66,
                                     "is_significant": null,
                                     "max": 12189696,
                                     "max_mean": 11530161,
@@ -230,7 +230,7 @@
                         "[FORMULA]": {
                             "data": {
                                 "1": {
-                                    "ci": 133.41514973253706,
+                                    "ci": 133.42,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 446,
@@ -261,7 +261,7 @@
                         "[FORMULA]": {
                             "data": {
                                 "1": {
-                                    "ci": 1062346.7187059836,
+                                    "ci": 1062346.72,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 3679245,
@@ -292,7 +292,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 11753.239381199695,
+                                    "ci": 11753.24,
                                     "is_significant": null,
                                     "max": 73589,
                                     "max_mean": 73058,
@@ -323,7 +323,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 111287.29418404057,
+                                    "ci": 111287.29,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 385425,
@@ -354,7 +354,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 661008.535901039,
+                                    "ci": 661008.54,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 5306934,
@@ -385,7 +385,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 1867.812096255519,
+                                    "ci": 1867.81,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 9511,
@@ -416,7 +416,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 15421558.807221852,
+                                    "ci": 15421558.81,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 78512974,
@@ -447,7 +447,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 15418979.447660357,
+                                    "ci": 15418979.45,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 78531000,
@@ -478,7 +478,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 15418979.447660357,
+                                    "ci": 15418979.45,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 78531000,
@@ -509,7 +509,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 2007.5803483562722,
+                                    "ci": 2007.58,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 11401,
@@ -540,7 +540,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 1086.3805049649447,
+                                    "ci": 1086.38,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 14798,
@@ -571,7 +571,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 1086.3805049649447,
+                                    "ci": 1086.38,
                                     "is_significant": null,
                                     "max": 21402,
                                     "max_mean": 14798,
@@ -607,7 +607,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 3322672.538576995,
+                                    "ci": 3322672.54,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 9688000,
@@ -638,7 +638,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 660.7226462944693,
+                                    "ci": 660.72,
                                     "is_significant": null,
                                     "max": 4399,
                                     "max_mean": 1937,
@@ -669,7 +669,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 95.29653552324078,
+                                    "ci": 95.3,
                                     "is_significant": null,
                                     "max": 750,
                                     "max_mean": 128,
@@ -731,7 +731,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 292.24270893793835,
+                                    "ci": 292.24,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 5000647,
@@ -762,7 +762,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 559.0730084030125,
+                                    "ci": 559.07,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 2145,
@@ -793,7 +793,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 4631411.626429501,
+                                    "ci": 4631411.63,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 17715000,
@@ -824,7 +824,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 927.5529457595435,
+                                    "ci": 927.55,
                                     "is_significant": null,
                                     "max": 11489,
                                     "max_mean": 3543,
@@ -860,7 +860,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 330361.3231472347,
+                                    "ci": 330361.32,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 3476000,
@@ -891,7 +891,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 82.59033078680866,
+                                    "ci": 82.59,
                                     "is_significant": null,
                                     "max": 14845,
                                     "max_mean": 11068,
@@ -922,7 +922,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 19.059307104648152,
+                                    "ci": 19.06,
                                     "is_significant": null,
                                     "max": 2727,
                                     "max_mean": 1681,
@@ -953,7 +953,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 44.47171657751236,
+                                    "ci": 44.47,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 451,
@@ -984,7 +984,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 27400.93051411583,
+                                    "ci": 27400.93,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 314045,
@@ -1015,7 +1015,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 120.70894499610498,
+                                    "ci": 120.71,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 824,
@@ -1046,7 +1046,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 984730.867073488,
+                                    "ci": 984730.87,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 6803000,
@@ -1077,7 +1077,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 1264.2673712749943,
+                                    "ci": 1264.27,
                                     "is_significant": null,
                                     "max": 27799,
                                     "max_mean": 21663,
@@ -1113,7 +1113,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 1791574.8678369264,
+                                    "ci": 1791574.87,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 8551000,
@@ -1144,7 +1144,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 355.7737326200989,
+                                    "ci": 355.77,
                                     "is_significant": null,
                                     "max": 3020,
                                     "max_mean": 1710,
@@ -1206,7 +1206,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 171.5337639418334,
+                                    "ci": 171.53,
                                     "is_significant": null,
                                     "max": 1282,
                                     "max_mean": 158,
@@ -1268,7 +1268,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 130111.53650106474,
+                                    "ci": 130111.54,
                                     "is_significant": null,
                                     "max": 540672,
                                     "max_mean": 540672,
@@ -1299,7 +1299,7 @@
                         "[FORMULA]": {
                             "data": {
                                 "1": {
-                                    "ci": 44.47171657751236,
+                                    "ci": 44.47,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 373,
@@ -1330,7 +1330,7 @@
                         "[FORMULA]": {
                             "data": {
                                 "1": {
-                                    "ci": 352717.89038098697,
+                                    "ci": 352717.89,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 3080819,
@@ -1361,7 +1361,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 4987.1853590496,
+                                    "ci": 4987.19,
                                     "is_significant": null,
                                     "max": 70395,
                                     "max_mean": 64534,
@@ -1392,7 +1392,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 36949.64337354455,
+                                    "ci": 36949.64,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 322736,
@@ -1423,7 +1423,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 1461.2135446896918,
+                                    "ci": 1461.21,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 5000775,
@@ -1454,7 +1454,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 756.0191818177101,
+                                    "ci": 756.02,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 1886,
@@ -1547,7 +1547,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 6219687.218483514,
+                                    "ci": 6219687.22,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 15569000,
@@ -1640,7 +1640,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 1238.85496180213,
+                                    "ci": 1238.85,
                                     "is_significant": null,
                                     "max": 7409,
                                     "max_mean": 3113,
@@ -1676,7 +1676,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 273183.40183329023,
+                                    "ci": 273183.4,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 187000,
@@ -1707,7 +1707,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 10342.850655455732,
+                                    "ci": 10342.85,
                                     "is_significant": null,
                                     "max": 9838,
                                     "max_mean": 9838,
@@ -1738,7 +1738,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 12.706204736432104,
+                                    "ci": 12.71,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 27,
@@ -1769,7 +1769,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 9320.001174172949,
+                                    "ci": 9320.0,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 19007,
@@ -1800,7 +1800,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 25.41240947286421,
+                                    "ci": 25.41,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 41,
@@ -1831,7 +1831,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 184239.9686782655,
+                                    "ci": 184239.97,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 335000,
@@ -1862,7 +1862,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 1137.205323910673,
+                                    "ci": 1137.21,
                                     "is_significant": null,
                                     "max": 17625,
                                     "max_mean": 17625,
@@ -1898,7 +1898,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 3430675.2788366675,
+                                    "ci": 3430675.28,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 1940000,
@@ -1929,7 +1929,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 3430.675278836668,
+                                    "ci": 3430.68,
                                     "is_significant": null,
                                     "max": 3788,
                                     "max_mean": 1939,
@@ -1991,7 +1991,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 2757.246427805766,
+                                    "ci": 2757.25,
                                     "is_significant": null,
                                     "max": 2179,
                                     "max_mean": 522,
@@ -2053,7 +2053,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 130111.53650106474,
+                                    "ci": 130111.54,
                                     "is_significant": null,
                                     "max": 843776,
                                     "max_mean": 843776,
@@ -2084,7 +2084,7 @@
                         "[FORMULA]": {
                             "data": {
                                 "1": {
-                                    "ci": 19.059307104648152,
+                                    "ci": 19.06,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 86,
@@ -2115,7 +2115,7 @@
                         "[FORMULA]": {
                             "data": {
                                 "1": {
-                                    "ci": 118866.54530932232,
+                                    "ci": 118866.55,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 707545,
@@ -2146,7 +2146,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 12757.029555377832,
+                                    "ci": 12757.03,
                                     "is_significant": null,
                                     "max": 74548,
                                     "max_mean": 74548,
@@ -2177,7 +2177,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 12452.080641703462,
+                                    "ci": 12452.08,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 74120,
@@ -2208,7 +2208,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 165.18066157361733,
+                                    "ci": 165.18,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 1000582,
@@ -2239,7 +2239,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 1334.1514973253709,
+                                    "ci": 1334.15,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 526,
@@ -2332,7 +2332,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 10997220.199381985,
+                                    "ci": 10997220.2,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 4342000,
@@ -2425,7 +2425,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 10984.513994645553,
+                                    "ci": 10984.51,
                                     "is_significant": null,
                                     "max": 10654,
                                     "max_mean": 4339,
@@ -2461,7 +2461,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 10940042.278068041,
+                                    "ci": 10940042.28,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 46769000,
@@ -2492,7 +2492,7 @@
                         "Package_0": {
                             "data": {
                                 "1": {
-                                    "ci": 984.730867073488,
+                                    "ci": 984.73,
                                     "is_significant": null,
                                     "max": 12212,
                                     "max_mean": 8811,
@@ -2523,7 +2523,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 171.5337639418334,
+                                    "ci": 171.53,
                                     "is_significant": null,
                                     "max": 1282,
                                     "max_mean": 1233,
@@ -2585,7 +2585,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 946.6122528641916,
+                                    "ci": 946.61,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 7616,
@@ -2616,7 +2616,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 2610883.6554468046,
+                                    "ci": 2610883.66,
                                     "is_significant": null,
                                     "max": 12189696,
                                     "max_mean": 11530161,
@@ -2647,7 +2647,7 @@
                         "[FORMULA]": {
                             "data": {
                                 "1": {
-                                    "ci": 133.41514973253706,
+                                    "ci": 133.42,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 446,
@@ -2678,7 +2678,7 @@
                         "[FORMULA]": {
                             "data": {
                                 "1": {
-                                    "ci": 1062346.7187059836,
+                                    "ci": 1062346.72,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 3679245,
@@ -2709,7 +2709,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 11753.239381199695,
+                                    "ci": 11753.24,
                                     "is_significant": null,
                                     "max": 73589,
                                     "max_mean": 73058,
@@ -2740,7 +2740,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 111287.29418404057,
+                                    "ci": 111287.29,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 385425,
@@ -2771,7 +2771,7 @@
                         "[SYSTEM]": {
                             "data": {
                                 "1": {
-                                    "ci": 660061.923648175,
+                                    "ci": 660061.92,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 5307804,
@@ -2802,7 +2802,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 1867.812096255519,
+                                    "ci": 1867.81,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 9511,
@@ -2833,7 +2833,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 15421558.807221852,
+                                    "ci": 15421558.81,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 78512971,
@@ -2864,7 +2864,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 15418979.447660357,
+                                    "ci": 15418979.45,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 78531000,
@@ -2895,7 +2895,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 15418979.447660357,
+                                    "ci": 15418979.45,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 78531000,
@@ -2926,7 +2926,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 2013.9334507244882,
+                                    "ci": 2013.93,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 11399,
@@ -2957,7 +2957,7 @@
                         "gcb-alpine-stress": {
                             "data": {
                                 "1": {
-                                    "ci": 1086.3805049649447,
+                                    "ci": 1086.38,
                                     "is_significant": null,
                                     "max": null,
                                     "max_mean": 14795,
@@ -2988,7 +2988,7 @@
                         "PSYS_0": {
                             "data": {
                                 "1": {
-                                    "ci": 1086.3805049649447,
+                                    "ci": 1086.38,
                                     "is_significant": null,
                                     "max": 21398,
                                     "max_mean": 14795,

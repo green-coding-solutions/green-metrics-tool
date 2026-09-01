@@ -762,7 +762,10 @@ def add_phase_stats_statistics(phase_stats_object):
                         if sr_95p_values_none_filtered:
                             key_obj['sr_95p_max'] = np.max(sr_95p_values_none_filtered).item()
 
-                        key_obj['ci'] = (key_obj['stddev']*t_stat).item()
+                        # rounded because scipy's t.ppf() used in get_t_stat() returns values that
+                        # differ in the ~10th significant digit across scipy versions, which broke
+                        # exact-equality fixture comparisons in tests on scipy upgrades
+                        key_obj['ci'] = round((key_obj['stddev']*t_stat).item(), 2)
 
                         if len(values_none_filtered) > 2:
                             data_c = values_none_filtered.copy()
