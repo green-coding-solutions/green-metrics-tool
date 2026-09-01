@@ -31,15 +31,17 @@ _SENSITIVE_VALUES = set()
 
 def register_sensitive_values(values):
     """
-    Register plaintext values that filter_sensitive_data() will redact from now on. Deliberately
-    never cleared implicitly: over-redacting a value that is no longer in use is harmless, while
-    dropping one too early would leak it into logs written during post-processing.
+    Register plaintext values that filter_sensitive_data() will redact from now on. Callers that
+    register values are responsible for calling clear_sensitive_values() once the values are no
+    longer needed (e.g. after a run's post-processing and error logging have both completed) -
+    over-redacting a value a moment too long is harmless, dropping it too early is a leak.
     """
     for value in values:
         if isinstance(value, str) and value:
             _SENSITIVE_VALUES.add(value)
 
 def clear_sensitive_values():
+    """Scrub registered plaintext secrets from process memory. Call once they are no longer needed."""
     _SENSITIVE_VALUES.clear()
 
 def filter_sensitive_data(text):
@@ -47,7 +49,9 @@ def filter_sensitive_data(text):
         return text
     text = URI_CREDENTIALS_RE.sub(rf'\1{REDACTED}@', text)
     text = PRIVATE_KEY_RE.sub(REDACTED, text)
-    for sensitive_value in _SENSITIVE_VALUES:
+    # Longest first: if a shorter registered secret is a substring of a longer one (e.g. "token" vs
+    # "token123"), redacting the shorter one first would leave the longer secret's remainder exposed.
+    for sensitive_value in sorted(_SENSITIVE_VALUES, key=len, reverse=True):
         text = text.replace(sensitive_value, REDACTED)
     return text
 
