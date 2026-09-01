@@ -202,6 +202,12 @@ class ScenarioRunner:
 
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
 
+
+        # We clear any values left registered by a previous ScenarioRunner before registering new ones for this run. This is far easier than clearing them after a run,
+        # because subsequent actions like optimizations and error handling in client.py / jobs.py may still write error logs or echo stuff which might need redacton
+        utils.clear_sensitive_values()
+
+
         # Secret variables must never leave this process in plaintext. self._usage_scenario_variables
         # holds the storable form (secrets encrypted) and is what ends up in the DB, while the
         # resolved dict below carries the real values and is used for the usage_scenario replacement
