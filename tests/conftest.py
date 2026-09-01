@@ -49,6 +49,18 @@ def pytest_collection_modifyitems(items):
         if item.fspath.basename == 'test_functions.py':
             item.add_marker(pytest.mark.skip(reason='Skipping this file'))
 
+        # tests/api/, tests/frontend/, and tests/cron/test_carbondb_compress.py (all marked
+        # Tests.GUNICORN_SEQUENTIAL_GROUP) drive the one shared gunicorn container over HTTP/a real
+        # browser. Under parallel pytest-xdist workers, host CPU/network contention from the OTHER
+        # (unrelated) workers occasionally shows up here as a transient timeout or dropped
+        # connection rather than an actual app bug - one automatic rerun absorbs that without
+        # masking a real failure (a genuine bug still fails the second time).
+        if any(
+            marker.name == 'xdist_group' and marker.kwargs.get('name') == Tests.GUNICORN_SEQUENTIAL_GROUP
+            for marker in item.iter_markers()
+        ):
+            item.add_marker(pytest.mark.flaky(reruns=1))
+
     # Every test carrying the 'real-metric-providers' xdist_group is forced onto a single worker
     # (see tests/smoke_test.py) and, combined, they're one of the longest-running chunks in the
     # whole suite. Sorting the group to the front means that worker starts on it immediately

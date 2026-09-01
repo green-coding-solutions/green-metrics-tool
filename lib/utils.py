@@ -9,7 +9,7 @@ from functools import cache
 from pathlib import Path
 
 from lib.global_config import GlobalConfig
-from lib.encryption import encrypt_data, decrypt_data, EncryptionConfigurationError, ENCRYPTED_VALUE_PREFIX
+from lib.encryption import encrypt_data, decrypt_data, is_encrypted_value, EncryptionConfigurationError
 
 # Matches the userinfo part of a URI that uses HTTP-AUTH, e.g. https://user:pass@host/path
 # Username is optional to also catch forms like https://:token@host/path
@@ -31,15 +31,17 @@ _SENSITIVE_VALUES = set()
 
 def register_sensitive_values(values):
     """
-    Register plaintext values that filter_sensitive_data() will redact from now on. Deliberately
-    never cleared implicitly: over-redacting a value that is no longer in use is harmless, while
-    dropping one too early would leak it into logs written during post-processing.
+    Register plaintext values that filter_sensitive_data() will redact from now on. See
+    ScenarioRunner.__init__, the only production caller: it clears any values left behind by a
+    previous run before registering its own (see clear_sensitive_values()), so plaintext secrets
+    never accumulate across runs of a long-lived worker process.
     """
     for value in values:
         if isinstance(value, str) and value:
             _SENSITIVE_VALUES.add(value)
 
 def clear_sensitive_values():
+    """Scrub registered plaintext secrets from process memory."""
     _SENSITIVE_VALUES.clear()
 
 def filter_sensitive_data(text):
@@ -47,7 +49,9 @@ def filter_sensitive_data(text):
         return text
     text = URI_CREDENTIALS_RE.sub(rf'\1{REDACTED}@', text)
     text = PRIVATE_KEY_RE.sub(REDACTED, text)
-    for sensitive_value in _SENSITIVE_VALUES:
+    # Longest first: if a shorter registered secret is a substring of a longer one (e.g. "token" vs
+    # "token123"), redacting the shorter one first would leave the longer secret's remainder exposed.
+    for sensitive_value in sorted(_SENSITIVE_VALUES, key=len, reverse=True):
         text = text.replace(sensitive_value, REDACTED)
     return text
 
@@ -222,7 +226,7 @@ def decrypt_userinfo(userinfo):
     """
     if not userinfo:
         return None
-    if userinfo.startswith(ENCRYPTED_VALUE_PREFIX):
+    if is_encrypted_value(userinfo):
         return decrypt_data(userinfo)
     return userinfo
 
@@ -258,7 +262,7 @@ def encrypt_secret_usage_scenario_variables(usage_scenario_variables):
 
     encrypted_variables = {}
     for key, value in usage_scenario_variables.items():
-        if is_secret_usage_scenario_variable(key) and isinstance(value, str) and not value.startswith(ENCRYPTED_VALUE_PREFIX):
+        if is_secret_usage_scenario_variable(key) and isinstance(value, str) and not is_encrypted_value(value):
             value = encrypt_data(value)
         encrypted_variables[key] = value
 
@@ -290,7 +294,7 @@ def decrypt_secret_usage_scenario_variables(usage_scenario_variables):
 
     decrypted_variables = {}
     for key, value in usage_scenario_variables.items():
-        if is_secret_usage_scenario_variable(key) and isinstance(value, str) and value.startswith(ENCRYPTED_VALUE_PREFIX):
+        if is_secret_usage_scenario_variable(key) and isinstance(value, str) and is_encrypted_value(value):
             value = decrypt_data(value)
         decrypted_variables[key] = value
 

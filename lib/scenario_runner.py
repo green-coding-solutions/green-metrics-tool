@@ -205,6 +205,12 @@ class ScenarioRunner:
 
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
 
+
+        # We clear any values left registered by a previous ScenarioRunner before registering new ones for this run. This is far easier than clearing them after a run,
+        # because subsequent actions like optimizations and error handling in client.py / jobs.py may still write error logs or echo stuff which might need redacton
+        utils.clear_sensitive_values()
+
+
         # Secret variables must never leave this process in plaintext. self._usage_scenario_variables
         # holds the storable form (secrets encrypted) and is what ends up in the DB, while the
         # resolved dict below carries the real values and is used for the usage_scenario replacement
@@ -2044,7 +2050,7 @@ class ScenarioRunner:
                     raise RuntimeError(f"Command in service '{service_name}' must be a string or a list but is: {type(service['command'])}")
 
             container_data['docker_run_cmd'] = docker_run_string
-            print(f"Calling docker with these parameters: {docker_run_string}")
+            print(f"Calling docker with these parameters: {utils.filter_sensitive_data(str(docker_run_string))}")
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
             # injection of unwanted params
@@ -2061,7 +2067,7 @@ class ScenarioRunner:
             if ps.returncode != 0:
                 # CalledProcessError only stringifies the command and the returncode, so the reason docker
                 # refused the container would never show up in the logs. We print it separately.
-                print(TerminalColors.FAIL, f"\nCould not start container '{container_name}'\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}", TerminalColors.ENDC, file=sys.stderr)
+                print(TerminalColors.FAIL, f"\nCould not start container '{container_name}'\n\n========== Stdout ==========\n{utils.filter_sensitive_data(ps.stdout)}\n\n========== Stderr ==========\n{utils.filter_sensitive_data(ps.stderr)}", TerminalColors.ENDC, file=sys.stderr)
                 raise subprocess.CalledProcessError(
                             ps.returncode,
                             docker_run_string,
@@ -2086,7 +2092,7 @@ class ScenarioRunner:
                 else:
                     d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'], posix=False)] # This must be a list!
 
-                print('Running command: ', ' '.join(d_command))
+                print('Running command: ', utils.filter_sensitive_data(' '.join(d_command)))
 
                 if cmd_obj.get('detach', False) is True:
                     print('Executing setup-commands process asynchronously and detaching ...')
@@ -2410,7 +2416,7 @@ class ScenarioRunner:
                         self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=resolved_flow_container, timestamp=int(time.time_ns() / 1_000))
 
                     print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on', resolved_flow_container, TerminalColors.ENDC)
-                    print(cmd_obj['command'])
+                    print(utils.filter_sensitive_data(cmd_obj['command']))
 
                     if runs_on_host:
                         exec_command = []
@@ -2507,6 +2513,8 @@ class ScenarioRunner:
                     # this command will block until something is received
                     if cmd_obj['type'] == 'playwright':
                         print("Awaiting Playwright function return")
+                        if self._measurement_flow_process_duration:
+                            print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
                         try:
                             ps = subprocess.run(
                                 ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-ready'],
@@ -2515,7 +2523,7 @@ class ScenarioRunner:
                                 stderr=subprocess.PIPE,
                                 encoding='UTF-8',
                                 errors='replace',
-                                timeout=60, # 60 seconds should be reasonable for any playwright command we know
+                                timeout=self._measurement_flow_process_duration
                             )
                         except subprocess.TimeoutExpired as exc:
                             error_message = subprocess.check_output(
