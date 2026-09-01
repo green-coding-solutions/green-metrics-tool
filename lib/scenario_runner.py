@@ -2027,7 +2027,7 @@ class ScenarioRunner:
                     raise RuntimeError(f"Command in service '{service_name}' must be a string or a list but is: {type(service['command'])}")
 
             container_data['docker_run_cmd'] = docker_run_string
-            print(f"Calling docker with these parameters: {docker_run_string}")
+            print(f"Calling docker with these parameters: {utils.filter_sensitive_data(str(docker_run_string))}")
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
             # injection of unwanted params
@@ -2044,7 +2044,7 @@ class ScenarioRunner:
             if ps.returncode != 0:
                 # CalledProcessError only stringifies the command and the returncode, so the reason docker
                 # refused the container would never show up in the logs. We print it separately.
-                print(TerminalColors.FAIL, f"\nCould not start container '{container_name}'\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}", TerminalColors.ENDC, file=sys.stderr)
+                print(TerminalColors.FAIL, f"\nCould not start container '{container_name}'\n\n========== Stdout ==========\n{utils.filter_sensitive_data(ps.stdout)}\n\n========== Stderr ==========\n{utils.filter_sensitive_data(ps.stderr)}", TerminalColors.ENDC, file=sys.stderr)
                 raise subprocess.CalledProcessError(
                             ps.returncode,
                             docker_run_string,
@@ -2069,7 +2069,7 @@ class ScenarioRunner:
                 else:
                     d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'], posix=False)] # This must be a list!
 
-                print('Running command: ', ' '.join(d_command))
+                print('Running command: ', utils.filter_sensitive_data(' '.join(d_command)))
 
                 if cmd_obj.get('detach', False) is True:
                     print('Executing setup-commands process asynchronously and detaching ...')
@@ -2389,7 +2389,7 @@ class ScenarioRunner:
                         self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=resolved_flow_container, timestamp=int(time.time_ns() / 1_000))
 
                     print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', resolved_flow_container, TerminalColors.ENDC)
-                    print(cmd_obj['command'])
+                    print(utils.filter_sensitive_data(cmd_obj['command']))
 
                     docker_exec_command = ['docker', 'exec']
                     docker_exec_command.append(resolved_flow_container)
