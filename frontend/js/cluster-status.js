@@ -76,6 +76,7 @@ $(document).ready(function () {
                             case 'job_error': return `${escapeString(el)} <span data-inverted data-tooltip="Last job failed"></i></span>`;
                             case 'job_interrupt': return `${escapeString(el)} <span data-inverted data-tooltip="Job was interrupted. This means the machine will be rebooted soon or is currently being serviced"><i class="ui question circle icon fluid"></i></span>`;
                             case 'job_end': return `${escapeString(el)} <span data-inverted data-tooltip="Current job ended"></i></span>`;
+                            case 'configuration_error': return `${escapeString(el)} <span data-inverted data-tooltip="An error with the configuration or configuration guards was encountered. This can resolve on it's own when machine cools down or becomes more idle but needs intervention when happens repeatedly"></i></span>`;
                             case 'maintenance_start': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after job has started"><i class="ui question circle icon fluid"></i></span>`;
                             case 'maintenance_end': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after job has finished"><i class="ui question circle icon fluid"></i></span>`;
                             case 'maintenance_error': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after job has failed"><i class="ui question circle icon fluid"></i></span>`;

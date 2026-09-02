@@ -26,6 +26,7 @@ from lib.configuration_check_error import ConfigurationCheckError, Status, Tempe
 STATUS_LIST = (
     'cooldown',
     'warmup',
+    'configuration_error',
     'job_no',
     'job_start',
     'job_error',
@@ -209,27 +210,29 @@ def handle_sigterm(signum, frame): # pylint: disable=unused-argument
     raise ClientEnd('SIGTERM received')
 
 if __name__ == '__main__':
-    signal.signal(signal.SIGTERM, handle_sigterm)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--testing', action='store_true', help='End after processing one run for testing')
+    parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
+
+    args = parser.parse_args()
+
+    if args.config_override is not None:
+        if args.config_override[-4:] != '.yml':
+            parser.print_help()
+            error_helpers.log_error('Config override file must be a yml file', machine=GlobalConfig().config['machine']['description'])
+            sys.exit(1)
+        GlobalConfig(config_location=args.config_override) # will create a singleton and subsequent calls will retrieve object with altered default config file
+
+    config = GlobalConfig().config
+
+    needs_revalidation = False
+    last_24h_maintenance = 0
+    temperature_errors = 0
+    temperature_cooldown_time = 0
+
     try:
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--testing', action='store_true', help='End after processing one run for testing')
-        parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
-
-        args = parser.parse_args()
-
-        if args.config_override is not None:
-            if args.config_override[-4:] != '.yml':
-                parser.print_help()
-                error_helpers.log_error('Config override file must be a yml file', machine=GlobalConfig().config['machine']['description'])
-                sys.exit(1)
-            GlobalConfig(config_location=args.config_override) # will create a singleton and subsequent calls will retrieve object with altered default config file
-
-        config = GlobalConfig().config
-
-        needs_revalidation = False
-        last_24h_maintenance = 0
-        temperature_errors = 0
-        temperature_cooldown_time = 0
+        signal.signal(signal.SIGTERM, handle_sigterm)
 
         result = DB().fetch_one('SELECT needs_revalidation FROM machines WHERE id = %s', params=(config['machine']['id'],), fetch_mode='dict')
         if result and result['needs_revalidation']:
@@ -284,45 +287,10 @@ if __name__ == '__main__':
                         subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
                         time.sleep(300)
                         subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
-                except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
-                    set_status('job_error', data=str(exc), run_id=job._run_id)
-                    if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
-                        sleep_duration=600 # seconds = 5 Min
-                        error_helpers.log_error('Job processing in cluster failed (client.py)',
-                            exception_context=exc.__context__,
-                            last_exception=exc,
-                            status=exc.status,
-                            run_id=job._run_id,
-                            name=job._name,
-                            url=job._url,
-                            filename=job._filename,
-                            usage_scenario_variables=job._usage_scenario_variables,
-                            branch=job._branch,
-                            machine=config['machine']['description'],
-                            user_id=job._user_id,
-                            sleep_duration=sleep_duration,
-                        )
-                        if not args.testing:
-                            time.sleep(sleep_duration)
-                    else: # Hard fails won't resolve on it's own. We sleep until next cluster validation
-                        sleep_duration=config['cluster']['client']['time_between_control_workload_validations']
-                        error_helpers.log_error('Job processing in cluster failed (client.py)',
-                            exception_context=exc.__context__,
-                            last_exception=exc,
-                            status=exc.status,
-                            run_id=job._run_id,
-                            name=job._name,
-                            url=job._url,
-                            filename=job._filename,
-                            usage_scenario_variables=job._usage_scenario_variables,
-                            branch=job._branch,
-                            machine=config['machine']['description'],
-                            user_id=job._user_id,
-                            sleep_duration=sleep_duration,
-                        )
-                        if not args.testing:
-                            time.sleep(sleep_duration)
-
+                except ConfigurationCheckError as exc:
+                    # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect.
+                    # So we soft-fail here with sleeps
+                    raise exc
                 except Exception as exc: # pylint: disable=broad-except
                     set_status('job_error', data=str(exc), run_id=job._run_id)
                     exc_stdout = None
@@ -382,8 +350,40 @@ if __name__ == '__main__':
             if args.testing:
                 print('Successfully ended testing run of client.py')
                 break
+
+
     except ClientEnd:
         print('Client.py shutting down')
+
+    except ConfigurationCheckError as exc:
+        # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect.
+        # This can also happen in workload validation control and is not job related per se. So we catch here
+        set_status('configuration_error', data=str(exc))
+
+        if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
+            sleep_duration=600 # seconds = 5 Min
+            error_helpers.log_error('Processing in cluster failed (client.py)',
+                exception_context=exc.__context__,
+                last_exception=exc,
+                status=exc.status,
+                machine=config['machine']['description'],
+                sleep_duration=sleep_duration,
+            )
+            if not args.testing:
+                time.sleep(sleep_duration)
+        else: # Hard fails won't resolve on it's own. We sleep until next cluster validation
+            sleep_duration=config['cluster']['client']['time_between_control_workload_validations']
+            error_helpers.log_error('Processing in cluster failed (client.py)',
+                exception_context=exc.__context__,
+                last_exception=exc,
+                status=exc.status,
+                machine=config['machine']['description'],
+                sleep_duration=sleep_duration,
+            )
+
+        if not args.testing:
+            time.sleep(sleep_duration)
+
     except BaseException as exc: # pylint: disable=broad-except
         exc_stdout = None
         if hasattr(exc, 'stdout'):
@@ -399,4 +399,5 @@ if __name__ == '__main__':
             stderr=(exc.stderr if hasattr(exc, 'stderr') else None),
         )
 
-    DB().shutdown()
+    finally:
+        DB().shutdown()
