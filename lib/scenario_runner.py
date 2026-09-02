@@ -1195,7 +1195,7 @@ class ScenarioRunner:
         # call sites we move the container bound metric providers to the disabled providers.
         if not self.__usage_scenario.get('services'):
             for metric_provider in metric_providers:
-                if (metric_provider.endswith('_container') or metric_provider == 'network_connections_tcpdump_system') and metric_provider not in self._disabled_metric_providers:
+                if metric_provider.endswith('_container') and metric_provider not in self._disabled_metric_providers:
                     self._append_and_print_warning(f"Disabling {metric_provider} as it needs containers and no containers are part of this run")
                     self._disabled_metric_providers.append(metric_provider)
 
@@ -2310,10 +2310,10 @@ class ScenarioRunner:
         # This includes tcpdump, which is only for debugging of the containers itself
         # If debugging of the tool itself is wanted tcpdump should be started adjacent to the tool and not inline
         for metric_provider in self.__metric_providers:
-            if (metric_provider._metric_name.endswith('_container') or metric_provider._metric_name == 'network_connections_tcpdump_system' ) and not allow_container:
+            if metric_provider._metric_name.endswith('_container') and not allow_container:
                 continue
 
-            if not metric_provider._metric_name.endswith('_container') and metric_provider._metric_name != 'network_connections_tcpdump_system' and not allow_other:
+            if not metric_provider._metric_name.endswith('_container') and not allow_other:
                 continue
 
             if metric_provider.has_started():
@@ -2331,10 +2331,10 @@ class ScenarioRunner:
         self._custom_sleep(2)
 
         for metric_provider in self.__metric_providers:
-            if (metric_provider._metric_name.endswith('_container') or metric_provider._metric_name == 'network_connections_tcpdump_system' ) and not allow_container:
+            if metric_provider._metric_name.endswith('_container') and not allow_container:
                 continue
 
-            if not metric_provider._metric_name.endswith('_container') and metric_provider._metric_name != 'network_connections_tcpdump_system' and not allow_other:
+            if not metric_provider._metric_name.endswith('_container') and not allow_other:
                 continue
 
             stderr_read = metric_provider.get_stderr()
@@ -2445,7 +2445,7 @@ class ScenarioRunner:
 
                         if shell := cmd_obj.get('shell', False):
                             if runs_on_host:
-                                exec_command.extend(host_platform.shell_command_argv(shell, cmd_obj['command'], process_helpers.get_shell_options(cmd_obj)))
+                                exec_command.extend(host_platform.shell_command_argv(shell, cmd_obj['command'], process_helpers.get_shell_options(cmd_obj, shell)))
                             else:
                                 exec_command.append(shell)
                                 exec_command.extend(process_helpers.get_shell_options(cmd_obj))

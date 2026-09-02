@@ -1,3 +1,5 @@
+import json
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -24,7 +26,6 @@ def setup_and_cleanup_test():
 def _main_args(**overrides):
     values = {
         "name": None,
-        "user_id": 1,
         "config_override": None,
         "file_cleanup": False,
         "verbose_provider_boot": False,
@@ -125,6 +126,26 @@ def test_main_passes_command_and_timeout_to_runner(monkeypatch, tmp_path):
     assert calls["init"]["shell_executable"] == "bash"
     assert calls["init"]["measurement_flow_process_duration"] == 1
     assert calls["init"]["dev_no_sleeps"] is False
+    assert calls["init"]["user_id"] == shell.LOCAL_USER_ID
+
+
+# --user-id would let the caller pick the user the 'host' capability is checked against, which makes the
+# capability no boundary at all on a CLI that has no authenticated caller
+def test_cli_cannot_select_the_authorization_subject(monkeypatch):
+    monkeypatch.setattr(sys, 'argv', ['shell.py', '--user-id', '2', '--', 'echo 1'])
+
+    with pytest.raises(SystemExit):
+        shell.parse_args()
+
+
+# the raw command may contain anything the user typed, so it must not be duplicated into
+# runs.runner_arguments where filter_sensitive_data() cannot redact it
+def test_shell_runner_does_not_persist_the_command_in_runner_arguments():
+    runner = _make_runner(shell_command='echo "hello host"')
+
+    assert 'shell_command' not in runner._arguments
+    assert 'shell_executable' not in runner._arguments
+    assert 'echo "hello host"' not in json.dumps(runner._arguments)
 
 
 def test_parse_args_passes_dev_no_sleeps(monkeypatch):
@@ -151,6 +172,24 @@ def test_parse_args_allows_flag_like_command_after_separator(monkeypatch):
     args = shell.parse_args()
 
     assert args.command == '--flag-like-command arg'
+
+
+# a single argument is a shell snippet and must reach the shell exactly as written
+def test_parse_args_takes_a_single_argument_verbatim(monkeypatch):
+    monkeypatch.setattr(sys, 'argv', ['shell.py', '--', 'echo "Hello" && sleep 10'])
+
+    args = shell.parse_args()
+
+    assert args.command == 'echo "Hello" && sleep 10'
+
+
+# several arguments must keep their boundaries instead of being blindly joined with spaces
+def test_parse_args_preserves_argument_boundaries(monkeypatch):
+    monkeypatch.setattr(sys, 'argv', ['shell.py', '--', 'python', '-c', 'print("hello world")'])
+
+    args = shell.parse_args()
+
+    assert shlex.split(args.command) == ['python', '-c', 'print("hello world")']
 
 
 @pytest.mark.parametrize(
@@ -184,6 +223,60 @@ def test_main_returns_nonzero_status_for_failures(
     monkeypatch.setattr(shell, "DB", type("FakeDB", (), {}))
 
     assert shell.main() == expected_status
+
+
+# ScenarioRunner.run() does not remove its temporary folder, so a failing run must not leak it either
+def test_main_cleans_tmp_folder_when_the_run_fails(monkeypatch, tmp_path):
+    tmp_folder = tmp_path / "gmt-tmp"
+    tmp_folder.mkdir()
+    (tmp_folder / "leftover").write_text("x", encoding="utf-8")
+
+    class FailingRunner:
+        def __init__(self, **_kwargs):
+            self._run_id = None
+            self._tmp_folder = tmp_folder
+
+        def run(self):
+            raise RuntimeError("runner failed")
+
+    monkeypatch.setattr(shell, "parse_args", lambda: _main_args(file_cleanup=True))
+    monkeypatch.setattr(shell, "ShellScenarioRunner", FailingRunner)
+    monkeypatch.setattr(shell, "_report_shell_error", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(shell, "DB", type("FakeDB", (), {}))
+
+    assert shell.main() == 1
+    assert not tmp_folder.exists()
+
+
+# a broken --config-override must go through the CLI error handling and not blow up with a traceback
+def test_main_reports_invalid_config_override_instead_of_raising(monkeypatch):
+    reported = []
+
+    monkeypatch.setattr(shell, "parse_args", lambda: _main_args(config_override="/does/not/exist.txt"))
+    monkeypatch.setattr(shell, "_report_shell_error", lambda *args, **kwargs: reported.append(kwargs))
+    monkeypatch.setattr(shell, "DB", type("FakeDB", (), {}))
+
+    assert shell.main() == 1
+    # without a valid config we do not know which DB we would be writing this error to
+    assert reported and reported[0]["persist"] is False
+
+
+# GlobalConfig is a singleton that does nothing when a config is already loaded, so a missing config file
+# can only be provoked in a fresh process
+@pytest.mark.parametrize("config_override", ["/does/not/exist.yml", "/does/not/exist.txt"])
+def test_shell_cli_reports_missing_config_override_without_traceback(config_override):
+    ps = subprocess.run(
+        ['python3', f'{GMT_DIR}/shell.py', '--config-override', config_override, '--dev-no-save', '--', 'echo 1'],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding='UTF-8',
+    )
+
+    assert ps.returncode == 1
+    # the message only exists on the handled path - an uncaught exception would just dump the traceback
+    assert 'Could not load the config override' in ps.stderr
+    assert 'MEASUREMENT SUCCESSFULLY COMPLETED' not in ps.stdout
 
 
 def test_shell_cli_end_to_end():

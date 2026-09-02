@@ -24,6 +24,7 @@ from lib.scenario_runner import ScenarioRunner
 from lib.terminal_colors import TerminalColors
 
 SHELL_FLOW_NAME = 'Shell Command'
+LOCAL_USER_ID = 1
 
 
 def print_shell_phase_stats_table(run_id):
@@ -68,8 +69,6 @@ class ShellScenarioRunner(ScenarioRunner):
         )
         self.__shell_command = shell_command
         self.__shell_executable = shell_executable
-        self._arguments['shell_command'] = shell_command
-        self._arguments['shell_executable'] = shell_executable
 
     def _checkout_repository(self):
         print('Skipping repository checkout in shell mode')
@@ -118,7 +117,6 @@ def parse_args():
     )
 
     parser.add_argument("--name", type=str, help="Optional run name stored in DB")
-    parser.add_argument("--user-id", type=int, default=1, help="User ID to map this run to (default: 1). The user needs the 'host' orchestrator capability.")
     parser.add_argument("--config-override", type=str, help="Override config file with the passed yml file (full path)")
     parser.add_argument("--file-cleanup", action="store_true", help="Delete GMT temporary files after the run")
     parser.add_argument("--verbose-provider-boot", action="store_true", help="Boot metric providers gradually")
@@ -148,7 +146,11 @@ def parse_args():
     if args.shell_executable is None:
         args.shell_executable = 'powershell' if host_platform.is_windows() else 'bash'
 
-    args.command = " ".join(command_parts)
+    if len(command_parts) == 1:
+        args.command = command_parts[0]
+    else:
+        args.command = host_platform.join_shell_arguments(command_parts)
+
     return args
 
 
@@ -165,15 +167,20 @@ def main():
     args = parse_args()
     runner = None
 
-    if args.config_override is not None:
-        if not args.config_override.endswith(".yml"):
-            raise ValueError("Config override file must be a yml file")
-        GlobalConfig(config_location=args.config_override)
-
     print(TerminalColors.WARNING, "\n####################################################################################")
     print("Please use the docker version for exact measurements on the cluster!")
+    print("The command is stored with the run. Use --dev-no-save if it contains secrets!")
     print("####################################################################################\n", TerminalColors.ENDC)
 
+
+    if args.config_override is not None:
+        try:
+            if not args.config_override.endswith(".yml"):
+                raise ValueError("Config override file must be a yml file")
+            GlobalConfig(config_location=args.config_override)
+        except Exception as exc: # pylint: disable=broad-exception-caught
+            _report_shell_error(f"Could not load the config override {args.config_override}", persist=False, exception_context=exc.__context__, final_exception=exc)
+            return 1
 
     try:
         runner = ShellScenarioRunner(
@@ -181,7 +188,7 @@ def main():
             shell_command=args.command,
             shell_executable=args.shell_executable,
             verbose_provider_boot=args.verbose_provider_boot,
-            user_id=args.user_id,
+            user_id=LOCAL_USER_ID,
             skip_optimizations=True,
             dev_no_metrics=args.dev_no_metrics,
             dev_no_phase_stats=args.dev_no_phase_stats,
@@ -198,9 +205,6 @@ def main():
         )
 
         run_id = runner.run()
-
-        if args.file_cleanup:
-            shutil.rmtree(runner._tmp_folder, ignore_errors=True)
 
         if args.dev_no_save:
             print(TerminalColors.OKGREEN, "\nRun finished | --dev-no-save was active and nothing was written to DB\n", TerminalColors.ENDC)
@@ -234,6 +238,9 @@ def main():
         _report_shell_error("Exception occurred in shell.py", persist=not args.dev_no_save, exception_context=exc.__context__, final_exception=exc, run_id=runner._run_id if runner else None)
         return 1
     finally:
+        if args.file_cleanup and runner is not None and getattr(runner, '_tmp_folder', None):
+            shutil.rmtree(runner._tmp_folder, ignore_errors=True)
+
         # Explicitly close the psycopg pool to avoid thread finalization warnings on interpreter shutdown.
         try:
             if hasattr(DB, "instance") and hasattr(DB.instance, "_pool"):
