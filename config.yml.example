@@ -270,9 +270,9 @@ measurement:
     #--- Architecture - Windows
     #--- Windows: Python runs natively, Docker Desktop runs Linux containers.
     windows:
-    #--- RAPL - Requires the ScaphandreDrv kernel driver to be installed and running.
-      cpu_energy_rapl_scaphandre_component:
-        sampling_rate: 99
+    #--- RAPL - Off by default. Requires the ScaphandreDrv kernel driver to be installed and running.
+#      cpu_energy_rapl_scaphandre_component:
+#        sampling_rate: 99
     #--- Optionally disable individual RAPL domains (cpu_package, cpu_cores, cpu_gpu, dram, psys)
 #        domains:
 #          cpu_gpu: False

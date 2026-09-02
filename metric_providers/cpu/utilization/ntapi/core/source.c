@@ -142,6 +142,21 @@ static void read_per_core_times(SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION *buf, u
                 (unsigned long)status, buffer_size, return_length);
         exit(1);
     }
+
+    /* The call succeeds with a short write when it cannot fill one entry per
+       processor we asked for - most notably on machines with more than 64
+       logical processors, where Windows splits them into processor groups and
+       this information class only reports the calling thread's group. Without
+       this check the loop below would read the tail of the buffer uninitialized
+       and emit garbage for the cores of every other group. */
+    if (return_length != buffer_size) {
+        fprintf(stderr, "Error - NtQuerySystemInformation returned %lu bytes but %lu were requested "
+                        "for %u logical processors. On machines with more than 64 logical processors "
+                        "Windows reports only the processor group of the calling thread, so this "
+                        "provider cannot measure the whole machine.\n",
+                return_length, buffer_size, ncpus);
+        exit(1);
+    }
 }
 
 /* ---- Minimum sampling interval ----

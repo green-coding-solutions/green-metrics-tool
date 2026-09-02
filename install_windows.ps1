@@ -490,7 +490,7 @@ Replace-RegexInFile "config.yml" "activate_scenario_runner:.*" ("activate_scenar
 Replace-RegexInFile "config.yml" "activate_eco_ci:.*" ("activate_eco_ci: " + $activateEcoCiValue)
 Replace-RegexInFile "config.yml" "activate_power_hog:.*" ("activate_power_hog: " + $activatePowerHogValue)
 Replace-RegexInFile "config.yml" "activate_carbon_db:.*" ("activate_carbon_db: " + $activateCarbonDbValue)
-Replace-RegexInFile "config.yml" "      cpu_energy_rapl_scaphandre_component:\r?\n        sampling_rate: 99" "#      cpu_energy_rapl_scaphandre_component:`r`n#        sampling_rate: 99"
+
 $hostMetricsUrl = Get-UrlHost $MetricsUrl
 $hostApiUrl = Get-UrlHost $ApiUrl
 
