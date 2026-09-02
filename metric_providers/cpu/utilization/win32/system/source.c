@@ -185,10 +185,27 @@ int main(int argc, char **argv)
 
     if (check_system_flag) {
         FILETIME a, b, cc;
+        DWORD cpu_count;
+
         if (!GetSystemTimes(&a, &b, &cc)) {
             fprintf(stderr, "GetSystemTimes not available\n");
             exit(1);
         }
+
+        /* GetSystemTimes() only ever reports the times of the processor group the
+           calling thread runs in, so on machines with more than 64 logical
+           processors - which Windows splits into multiple processor groups - it
+           silently measures a subset of the machine:
+           https://learn.microsoft.com/en-us/windows/win32/procthread/processor-groups */
+        cpu_count = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+        if (cpu_count > 64) {
+            fprintf(stderr,
+                "Error - system has %lu logical processors across all processor groups. "
+                "GetSystemTimes() only covers a single group, so it cannot measure this machine. "
+                "Use cpu_utilization_ntapi_core instead.\n", (unsigned long)cpu_count);
+            exit(1);
+        }
+
         timeEndPeriod(1);
         exit(0);
     }
