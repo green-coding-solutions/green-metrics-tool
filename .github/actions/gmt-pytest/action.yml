@@ -132,8 +132,19 @@ runs:
 
       run: |
         COMMIT_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
-        git fetch origin "$COMMIT_SHA"
-        COMMIT_MSG="$(git log -1 --pretty=%B "$COMMIT_SHA")"
+        # COMMIT_SHA belongs to the workflow's own repo (${{ github.repository }}), which is not
+        # necessarily the repo checked out here (e.g. when this action is borrowed to test a
+        # different repo, like example-applications does). Only hard-fail when GMT is testing
+        # itself, where origin is guaranteed to have the SHA; otherwise fall back gracefully.
+        if git fetch origin "$COMMIT_SHA" 2>/dev/null; then
+          COMMIT_MSG="$(git log -1 --pretty=%B "$COMMIT_SHA")"
+        elif [[ "$(git remote get-url origin)" == *"${{ github.repository }}"* ]]; then
+          echo "::error::Commit $COMMIT_SHA not found in origin, but this is ${{ github.repository }}'s own CI run - failing"
+          exit 1
+        else
+          echo "Commit $COMMIT_SHA not found in this repository's origin (borrowed repo), skipping test-path detection"
+          COMMIT_MSG=""
+        fi
         echo "Commit message:"
         echo "$COMMIT_MSG"
 
