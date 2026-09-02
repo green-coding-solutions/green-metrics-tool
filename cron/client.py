@@ -369,8 +369,6 @@ if __name__ == '__main__':
                 machine=config['machine']['description'],
                 sleep_duration=sleep_duration,
             )
-            if not args.testing:
-                time.sleep(sleep_duration)
         else: # Hard fails won't resolve on it's own. We sleep until next cluster validation
             sleep_duration=config['cluster']['client']['time_between_control_workload_validations']
             error_helpers.log_error('Processing in cluster failed (client.py)',
