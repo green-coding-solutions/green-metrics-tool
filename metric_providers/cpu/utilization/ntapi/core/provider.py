@@ -41,7 +41,8 @@ class CpuUtilizationNtapiCoreProvider(BaseMetricProvider):
         if self._include_interrupt_dpc:
             cmd.append('--with-interrupt-dpc')
         print(' '.join(cmd))
-        self._stdout_file = open(self._filename, 'w', encoding='utf-8')  # pylint: disable=consider-using-with
+        #pylint: disable=consider-using-with
+        self._stdout_file = open(self._filename, 'w', encoding='utf-8')
         self._ps = subprocess.Popen(
             cmd,
             stdout=self._stdout_file,

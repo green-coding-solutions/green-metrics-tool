@@ -40,7 +40,8 @@ class CpuUtilizationWin32SystemProvider(BaseMetricProvider):
         call_string = os.path.join(self._current_dir, self._metric_provider_executable)
         cmd = [call_string, '-i', str(self._sampling_rate)]
         print(' '.join(cmd))
-        self._stdout_file = open(self._filename, 'w', encoding='utf-8')  # pylint: disable=consider-using-with
+        #pylint: disable=consider-using-with
+        self._stdout_file = open(self._filename, 'w', encoding='utf-8')
         self._ps = subprocess.Popen(
             cmd,
             stdout=self._stdout_file,
