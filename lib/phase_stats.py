@@ -365,6 +365,9 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                     cpu_utilization_machine = metric_stats['value_avg']
                 if metric in ('cpu_utilization_cgroup_container', 'cpu_utilization_cgroup_system', ):
                     cpu_utilization_containers[detail_name] = metric_stats['value_avg']
+                if metric in ('cpu_throttling_thermal_msr_component', 'cpu_throttling_power_msr_component') and metric_stats['max_value']:
+                    throttle_kind = 'Thermal' if metric == 'cpu_throttling_thermal_msr_component' else 'Power limit'
+                    phase_warnings.add(f"{throttle_kind} throttling detected on {detail_name} during phase '{phase['name']}'. Measurements might be inaccurate.")
 
             elif metric in ['network_io_cgroup_system',
                             'network_io_cgroup_container',

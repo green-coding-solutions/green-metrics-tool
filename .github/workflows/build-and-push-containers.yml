@@ -17,6 +17,7 @@ on:
 
 jobs:
   build-and-push-containers:
+    if: github.repository_owner == 'green-coding-solutions'
     runs-on: ubuntu-latest
     permissions:
       packages: write

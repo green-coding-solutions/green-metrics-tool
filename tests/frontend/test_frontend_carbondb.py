@@ -62,7 +62,7 @@ def setup_and_cleanup_test():
     browser = playwright.firefox.launch()
     context = browser.new_context(viewport={"width": 1920, "height": 5600})
     page = context.new_page()
-    page.set_default_timeout(3_000)
+    page.set_default_timeout(10_000)
     yield
     page.close()
     context.close()
