@@ -32,7 +32,7 @@ if $check_system; then
     fi
 
     # This will try to capture one packet only. However since no network traffic might be happening we also limit to 5 seconds
-    first_line=$(timeout 3 tcpdump -tt --micro -n -v -c 1)
+    first_line=$(timeout 3 tcpdump -tt --micro -nn -v -c 1)
     # timeout will raise error code 124
     if [ $? -eq 1 ]; then
         echo "tcpdump could not be started. Missing sudo permissions?"
@@ -48,4 +48,4 @@ fi
 
 # $filter is intentionally unquoted: it is a pre-validated, space-separated BPF expression
 # ("ifname vethXXXXXXX or ifname vethYYYYYYY or ...") and must be split into separate tcpdump argv tokens.
-tcpdump -tt --micro -n -v -i any $filter
+tcpdump -tt --micro -nn -v -i any $filter
