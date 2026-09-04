@@ -135,7 +135,8 @@ VALUES (
             "orchestrators": {
                 "docker": {
                     "allowed_run_args": []
-                }
+                },
+                "host": {}
             },
             "disabled_metric_providers": []
         },
