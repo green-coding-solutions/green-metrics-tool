@@ -146,9 +146,8 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
     #   during this phase.
     #
     # - A sampled quantity (energy, utilization, network, ... - everything else): the sample at time t
-    #   describes the interval that ENDS at t. The first sample after phase_end may still contain
-    #   activity from the tail of the phase, e.g. the kernel reporting during the sleep of the sampler,
-    #   so it is folded in unless it already belongs to the next phase. This is the "phase padding".
+    #   describes the interval that ENDS at t. So the first sample after phase_end may still belong to
+    #   this phase and is folded in - the "phase_padding" mechanic, see the comment further down.
     if step_function and left > 0: # left == 0: provider only came up after phase_start, nothing to carry in
         combined_times.insert(0, phase_start)
         combined_values.insert(0, values[left - 1])
@@ -166,6 +165,13 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
             'sampling_rate_avg': None, 'sampling_rate_max': None, 'sampling_rate_95p': None,
         }
 
+    # This part is the revamped "phase_padding" mechanic. Due to sampling we might have data that
+    # technically should belong to this phase in the pause between phases as for instance kernel might report during
+    # the sleep of the sampler. Only exception is if it already belongs to another phase or we have no more samples to map.
+    #
+    # - right boundary is not at phase border. (can be at max len(times) ... so right != len(times) would also work)
+    # - AND not part of next phase
+    # - AND not a step function (see above)
     if not step_function and right < len(times) and times[right] < next_phase_start:
         combined_times.append(times[right])
         combined_values.append(values[right])
