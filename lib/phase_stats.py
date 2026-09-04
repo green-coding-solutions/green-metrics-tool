@@ -22,13 +22,17 @@ def _is_carbon_intensity_metric(metric, unit):
     # be used as the source for the SCI carbon math.
     return metric.startswith('carbon_intensity_') and metric.endswith('_machine') and unit == 'gCO2e/kWh'
 
-def _is_step_function_metric(metric):
-    # Carbon intensity providers do not sample anything. They emit a value that stays in effect until
-    # the next one and pad it onto a time grid (metric_providers/carbon/intensity/helpers.py) so it
-    # looks like a sampled metric. _compute_metric_phase_stats() must treat such a step function
-    # differently at the phase boundaries. Not gated on the unit, unlike _is_carbon_intensity_metric(),
-    # as carbon_intensitylevel_electricitymaps_machine (unit 'level') is padded the same way.
-    return metric.startswith('carbon_intensity') and metric.endswith('_machine')
+# Metrics whose providers do not sample anything but emit a value that stays in effect until the next
+# one, and pad it onto a time grid (metric_providers/carbon/intensity/helpers.py) so it looks like a
+# sampled metric. _compute_metric_phase_stats() must treat such a step function differently at the
+# phase boundaries. A new provider that pads this way must be registered here, just like every new
+# metric must be registered in the MEAN / TOTAL mapping in build_and_store_phase_stats().
+STEP_FUNCTION_METRICS = (
+    'carbon_intensity_static_machine',
+    'carbon_intensity_electricity_maps_machine',
+    'carbon_intensity_elephant_machine',
+    'carbon_intensitylevel_electricitymaps_machine',
+)
 
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
     # First we create averages for all types. This includes means and totals
@@ -134,7 +138,7 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
 
     # Which ONE sample from outside the phase boundaries may be used depends on what a sample means:
     #
-    # - A step function (see _is_step_function_metric()): the sample at time t is the value in effect
+    # - A step function (see STEP_FUNCTION_METRICS): the sample at time t is the value in effect
     #   FROM t onward. So the value at phase_start is the last sample at or before it. It belongs to
     #   this phase even if no padded grid point falls inside the boundaries, which is the case for
     #   phases shorter than the padding interval. We add it as a virtual sample at phase_start.
@@ -324,7 +328,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             times = metric_time_series[measurement_metric_id][0] # can fail if metric does not exist. This should never be. Thus we simply crash
             values = metric_time_series[measurement_metric_id][1] # can fail if metric does not exist. This should never be. Thus we simply crash
 
-            is_step_function_metric = _is_step_function_metric(metric)
+            is_step_function_metric = metric in STEP_FUNCTION_METRICS
 
             metric_stats = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start, duration, step_function=is_step_function_metric)
 
