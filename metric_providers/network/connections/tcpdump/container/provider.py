@@ -110,13 +110,13 @@ class NetworkConnectionsTcpdumpContainerProvider(BaseMetricProvider):
 
 
 def _resolve_veths(container_id):
-    pid = subprocess.check_output(
-        ['docker', 'inspect', '-f', '{{.State.Pid}}', container_id],
-        encoding='UTF-8', errors='replace',
-    ).strip()
-
+    # Docker does not expose the host-side veth name for a container anywhere in its API/inspect
+    # output - it's a kernel-level detail. We use 'docker exec' (rather than nsenter on the host)
+    # to read the container's own interfaces and their iflink (peer ifindex) from inside its
+    # network namespace, so the docker daemon - which already has the required privileges -
+    # performs the namespace entry for us, instead of requiring CAP_SYS_ADMIN/sudo on the host.
     container_ifaces = subprocess.check_output(
-        ['nsenter', '-t', pid, '-n', '--', 'ls', '/sys/class/net'],
+        ['docker', 'exec', container_id, 'ls', '/sys/class/net'],
         encoding='UTF-8', errors='replace',
     ).split()
 
@@ -126,7 +126,7 @@ def _resolve_veths(container_id):
             continue
 
         peer_index = subprocess.check_output(
-            ['nsenter', '-t', pid, '-n', '--', 'cat', f'/sys/class/net/{iface}/iflink'],
+            ['docker', 'exec', container_id, 'cat', f'/sys/class/net/{iface}/iflink'],
             encoding='UTF-8', errors='replace',
         ).strip()
 

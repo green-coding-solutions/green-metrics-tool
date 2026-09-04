@@ -279,13 +279,11 @@ def test_tcpdump_container_resolve_veths_multi_interface():
          patch('builtins.open') as mock_open:
 
         def check_output_side_effect(cmd, **_kwargs):
-            if cmd[:2] == ['docker', 'inspect']:
-                return '4242'
-            if cmd[-1] == '/sys/class/net' or cmd[-2:] == ['ls', '/sys/class/net']:
+            if cmd == ['docker', 'exec', 'deadbeef1234', 'ls', '/sys/class/net']:
                 return 'lo eth0 eth1'
-            if cmd[-1].endswith('/eth0/iflink'):
+            if cmd == ['docker', 'exec', 'deadbeef1234', 'cat', '/sys/class/net/eth0/iflink']:
                 return '101'
-            if cmd[-1].endswith('/eth1/iflink'):
+            if cmd == ['docker', 'exec', 'deadbeef1234', 'cat', '/sys/class/net/eth1/iflink']:
                 return '102'
             raise AssertionError(f'unexpected command: {cmd}')
 
@@ -311,11 +309,9 @@ def test_tcpdump_container_resolve_veths_not_found_raises():
          patch('os.listdir', return_value=['lo']):
 
         def check_output_side_effect(cmd, **_kwargs):
-            if cmd[:2] == ['docker', 'inspect']:
-                return '4242'
-            if cmd[-2:] == ['ls', '/sys/class/net']:
+            if cmd == ['docker', 'exec', 'deadbeef1234', 'ls', '/sys/class/net']:
                 return 'lo eth0'
-            if cmd[-1].endswith('/eth0/iflink'):
+            if cmd == ['docker', 'exec', 'deadbeef1234', 'cat', '/sys/class/net/eth0/iflink']:
                 return '999'
             raise AssertionError(f'unexpected command: {cmd}')
 

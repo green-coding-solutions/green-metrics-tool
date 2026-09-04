@@ -16,12 +16,6 @@ done
 
 
 if $check_system; then
-    # nsenter (util-linux) is required to resolve container veth interfaces
-    if ! command -v nsenter >/dev/null 2>&1; then
-        echo "nsenter (util-linux) is required but was not found in PATH."
-        exit 1
-    fi
-
     # the 'ifname' BPF filter and per-line interface tagging for '-i any' captures need
     # tcpdump >= 4.99 / libpcap >= 1.9 (LINUX_SLL2)
     required_version="4.99.0"
