@@ -21,6 +21,8 @@ from metric_providers.psu.energy.ac.mcp.machine.provider import PsuEnergyAcMcpMa
 from metric_providers.cpu.energy.rapl.msr.component.provider import CpuEnergyRaplMsrComponentProvider
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
 from metric_providers.network.io.cgroup.container.provider import NetworkIoCgroupContainerProvider
+from metric_providers.network.connections.tcpdump.system.provider import NetworkConnectionsTcpdumpSystemProvider
+from metric_providers.network.connections.tcpdump.container.provider import NetworkConnectionsTcpdumpContainerProvider
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -201,6 +203,32 @@ def import_network_io_cgroup_container(run_id):
     df = obj.read_metrics()
 
     metric_importer.import_measurements(df, 'network_io_cgroup_container', run_id)
+
+    return df
+
+def import_tcpdump_system(run_id, filename='network_connections_tcpdump_system_linux.log'):
+
+    obj = NetworkConnectionsTcpdumpSystemProvider(folder=GMT_METRICS_DIR, skip_check=True)
+
+    obj._filename = os.path.join(CURRENT_DIR, f'data/metrics/{filename}')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'network_connections_tcpdump_system', run_id)
+
+    return df
+
+def import_tcpdump_container(run_id, filename='network_connections_tcpdump_container_linux.log'):
+
+    obj = NetworkConnectionsTcpdumpContainerProvider(folder=GMT_METRICS_DIR, skip_check=True)
+    obj._interface_to_detail_name = {
+        'veth1111aaaa': 'container-a',
+        'veth2222bbbb': 'container-b',
+    }
+
+    obj._filename = os.path.join(CURRENT_DIR, f'data/metrics/{filename}')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'network_connections_tcpdump_container', run_id)
 
     return df
 
