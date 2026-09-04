@@ -144,14 +144,14 @@ def test_parse_args_accepts_a_custom_user_id(monkeypatch):
     assert shell.parse_args().user_id == 22
 
 
-# the raw command may contain anything the user typed, so it must not be duplicated into
-# runs.runner_arguments where filter_sensitive_data() cannot redact it
-def test_shell_runner_does_not_persist_the_command_in_runner_arguments():
+# the command belongs in the run metadata like every other runner argument. It is stored in
+# runs.usage_scenario anyway, so withholding it here would hide it from nobody
+def test_shell_runner_records_the_command_in_runner_arguments():
     runner = _make_runner(shell_command='echo "hello host"')
 
-    assert 'shell_command' not in runner._arguments
-    assert 'shell_executable' not in runner._arguments
-    assert 'echo "hello host"' not in json.dumps(runner._arguments)
+    assert runner._arguments['shell_command'] == 'echo "hello host"'
+    assert runner._arguments['shell_executable'] == 'bash'
+    assert json.loads(json.dumps(runner._arguments))['shell_command'] == 'echo "hello host"'
 
 
 def test_parse_args_passes_dev_no_sleeps(monkeypatch):

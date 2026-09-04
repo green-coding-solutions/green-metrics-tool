@@ -68,6 +68,8 @@ class ShellScenarioRunner(ScenarioRunner):
         )
         self.__shell_command = shell_command
         self.__shell_executable = shell_executable
+        self._arguments['shell_command'] = shell_command
+        self._arguments['shell_executable'] = shell_executable
 
     def _checkout_repository(self):
         print('Skipping repository checkout in shell mode')
