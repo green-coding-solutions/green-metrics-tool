@@ -1,5 +1,7 @@
 import shlex
 
+import pytest
+
 from lib import host_platform
 from lib.process_helpers import DEFAULT_SHELL_OPTIONS, DEFAULT_SHELL_OPTIONS_POWERSHELL
 
@@ -19,10 +21,17 @@ def test_shell_command_argv_cmd():
     assert host_platform.shell_command_argv('cmd.exe', 'echo 1') == ['cmd.exe', '/d', '/s', '/c', 'echo 1']
 
 
-# cmd has no equivalent for the shell options at all, so nothing may leak into its invocation syntax.
-# process_helpers.get_shell_options() is what makes sure none are ever handed down for cmd.
-def test_shell_command_argv_cmd_never_gets_shell_options():
-    assert host_platform.shell_command_argv('cmd.exe', 'echo 1', DEFAULT_SHELL_OPTIONS) == ['cmd.exe', '/d', '/s', '/c', 'echo 1']
+# cmd has no equivalent for the shell options and no place in its invocation syntax to put them. Dropping
+# them here would make GMT look like it applied them, so applying non-empty options must be an error.
+def test_shell_command_argv_cmd_rejects_shell_options():
+    with pytest.raises(RuntimeError) as exc:
+        host_platform.shell_command_argv('cmd.exe', 'echo 1', DEFAULT_SHELL_OPTIONS)
+
+    assert 'cmd has no equivalent' in str(exc.value)
+
+
+def test_shell_command_argv_cmd_accepts_empty_shell_options():
+    assert host_platform.shell_command_argv('cmd.exe', 'echo 1', []) == ['cmd.exe', '/d', '/s', '/c', 'echo 1']
 
 
 def test_shell_command_argv_powershell():

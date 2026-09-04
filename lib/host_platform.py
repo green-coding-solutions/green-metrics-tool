@@ -88,9 +88,17 @@ def shell_command_argv(shell, command, shell_options=()):
     family = shell_family(shell)
 
     if family == 'cmd':
-        # cmd cannot express the strictness the POSIX options express. process_helpers.get_shell_options()
-        # therefore never returns options for cmd and raises if the user set some explicitly, so that they
-        # are never silently dropped here.
+        # cmd cannot express the strictness the POSIX options express and has no place in its invocation
+        # syntax to put them. process_helpers.get_shell_options() therefore returns none for cmd by default.
+        # Anything the user configured explicitly would have to be dropped right here, which would make GMT
+        # look like it applied them, so we refuse loudly instead.
+        if shell_options:
+            raise RuntimeError(
+                f"`shell-options` were configured for a command that runs in '{shell}', but cmd has no equivalent "
+                "for them and they would therefore not be applied at all. Please either remove `shell-options` for "
+                "this command, set them to an empty list ('shell-options: []') to state explicitly that no "
+                "strictness is wanted, or use a shell that supports them (for instance 'shell: pwsh')."
+            )
         return [shell, '/d', '/s', '/c', command]
 
     if family == 'powershell':

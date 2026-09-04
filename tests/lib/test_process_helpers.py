@@ -1,5 +1,3 @@
-import pytest
-
 from lib.process_helpers import (
     DEFAULT_SHELL_OPTIONS,
     DEFAULT_SHELL_OPTIONS_POWERSHELL,
@@ -37,10 +35,7 @@ def test_get_shell_options_cmd_has_no_defaults():
     assert not get_shell_options({'command': 'echo 1', 'shell-options': []}, 'cmd.exe')
 
 
-# cmd cannot express the options at all. Silently ignoring what the user configured would make GMT look
-# like it applied them, so this must be an error instead.
-def test_get_shell_options_cmd_rejects_explicit_options():
-    with pytest.raises(RuntimeError) as exc:
-        get_shell_options({'command': 'echo 1', 'shell-options': ['-o', 'errexit']}, 'cmd.exe')
-
-    assert 'cmd has no equivalent' in str(exc.value)
+# what the user configured is returned unchanged. Whether a shell can apply it is decided where it is
+# applied - see test_host_platform.test_shell_command_argv_cmd_rejects_shell_options
+def test_get_shell_options_cmd_returns_explicit_options_unchanged():
+    assert get_shell_options({'command': 'echo 1', 'shell-options': ['-o', 'errexit']}, 'cmd.exe') == ['-o', 'errexit']

@@ -13,8 +13,8 @@ DEFAULT_SHELL_OPTIONS = ('-o', 'errexit', '-o', 'nounset', '-o', 'pipefail')
 # There is no equivalent for 'pipefail', PowerShell has no pipeline exit status to inspect.
 DEFAULT_SHELL_OPTIONS_POWERSHELL = ("$ErrorActionPreference = 'Stop'", 'Set-StrictMode -Version Latest')
 
-# cmd has no way at all to express this. We therefore set nothing and rather tell the user about it
-# in get_shell_options() than silently dropping what they configured.
+# cmd has no way at all to express this. We therefore set nothing and let host_platform.shell_command_argv()
+# reject explicitly configured options where they would have to be dropped.
 DEFAULT_SHELL_OPTIONS_BY_FAMILY = {
     'posix': DEFAULT_SHELL_OPTIONS,
     'powershell': DEFAULT_SHELL_OPTIONS_POWERSHELL,
@@ -41,17 +41,7 @@ def get_shell_options(cmd_obj, shell=None):
         # would tear it apart at every space.
         shell_options = shlex.split(shell_options) if family == 'posix' else [shell_options]
 
-    shell_options = list(shell_options)
-
-    if shell_options and family == 'cmd':
-        raise RuntimeError(
-            f"`shell-options` were configured for a command that runs in '{shell}', but cmd has no equivalent "
-            "for them and they would therefore not be applied at all. Please either remove `shell-options` for "
-            "this command, set them to an empty list ('shell-options: []') to state explicitly that no "
-            "strictness is wanted, or use a shell that supports them (for instance 'shell: pwsh')."
-        )
-
-    return shell_options
+    return list(shell_options)
 
 def get_shell_options_error(cmd, stderr):
     # Some shells (busybox ash for instance) even exit with returncode 0 when an option is unknown and then
