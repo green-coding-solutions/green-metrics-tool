@@ -9,13 +9,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..', '..'))
 LIB_C_DIR = os.path.join(REPO_DIR, 'lib', 'c')
 PROVIDER_DIR = os.path.join(REPO_DIR, 'metric_providers', 'disk', 'io', 'cgroup', 'container')
-
-# Major 900 is used for the "this row counts" cases on purpose: it is not on the
-# provider's skip list and /sys/dev/block/900:* exists nowhere, so
-# is_partition_sysfs() stays false and the expectations do not depend on which
-# block devices the test machine happens to have. Major 252 is device-mapper and
-# is dropped before any sysfs lookup happens.
-COMPLETE_ROW = '900:0 rbytes=1000 wbytes=2000 rios=1 wios=2 dbytes=0 dios=0\n'
+FIXTURE_DIR = os.path.join(REPO_DIR, 'tests', 'data', 'metrics', 'io_stat')
 
 
 @pytest.fixture(name='harness', scope='module')
@@ -41,60 +35,64 @@ def harness_fixture(tmp_path_factory):
     return binary
 
 
-def parse(harness, content):
-    result = subprocess.run([harness], input=content, capture_output=True, text=True, check=True)
+def parse(harness, fixture):
+    """Runs the provider's own parser over tests/data/metrics/io_stat/<fixture>.
+
+    See the README in that directory for what each file is and, for the two
+    kernel captures, how they were recorded.
+    """
+    with open(os.path.join(FIXTURE_DIR, fixture), 'rb') as file_handle:
+        content = file_handle.read()
+
+    result = subprocess.run([harness], input=content, capture_output=True, check=True)
     rbytes, wbytes, torn = result.stdout.split()
-    return int(rbytes), int(wbytes), torn == '1'
+    return int(rbytes), int(wbytes), torn == b'1'
 
 
-def test_complete_row_is_summed(harness):
-    assert parse(harness, COMPLETE_ROW) == (1000, 2000, False)
+def test_healthy_file_is_summed(harness):
+    # 259:0 counts, 252:0 is device-mapper and is skipped.
+    assert parse(harness, 'healthy.io.stat') == (1449984, 3145728, False)
 
 
 def test_rows_are_summed_across_devices(harness):
-    content = COMPLETE_ROW + '901:0 rbytes=7 wbytes=8 rios=1 wios=1 dbytes=0 dios=0\n'
-    assert parse(harness, content) == (1007, 2008, False)
+    assert parse(harness, 'two_devices.io.stat') == (1030, 2040, False)
 
 
 def test_skipped_majors_contribute_nothing(harness):
-    content = '252:0 rbytes=99 wbytes=99 rios=1 wios=1 dbytes=0 dios=0\n'
-    assert parse(harness, content) == (0, 0, False)
+    assert parse(harness, 'skipped_majors_only.io.stat') == (0, 0, False)
 
 
 def test_empty_file_is_a_real_zero_not_a_torn_read(harness):
     # A container that has not touched a disk yet has an empty io.stat. Zero is
     # the correct answer and must not be flagged as unusable.
-    assert parse(harness, '') == (0, 0, False)
+    assert parse(harness, 'empty.io.stat') == (0, 0, False)
 
 
 def test_rows_without_discard_counters_are_still_read(harness):
-    # The discard counters were added to io.stat later than the rest of the row.
-    # The previous fscanf format required them, matched the head of the first
-    # row, left the stream mid-row and silently dropped every device after it.
-    content = (
-        '900:0 rbytes=1000 wbytes=2000 rios=1 wios=2\n'
-        '901:0 rbytes=30 wbytes=40 rios=1 wios=1\n'
-    )
-    assert parse(harness, content) == (1030, 2040, False)
+    # dbytes/dios were added to io.stat later than the rest of the row. The
+    # previous fscanf format required them: it matched the head of the first
+    # row, returned 4 because all four assignments had happened, then left the
+    # stream mid-row and silently dropped every device after it. Reading this
+    # file the old way yields 1000/2000 instead of 1030/2040.
+    assert parse(harness, 'no_discard_counters.io.stat') == (1030, 2040, False)
 
 
 def test_unknown_trailing_fields_do_not_drop_later_rows(harness):
-    content = (
-        '900:0 rbytes=1000 wbytes=2000 rios=1 wios=2 dbytes=0 dios=0 somethingnew=5\n'
-        '901:0 rbytes=30 wbytes=40 rios=1 wios=1 dbytes=0 dios=0\n'
-    )
-    assert parse(harness, content) == (1030, 2040, False)
+    assert parse(harness, 'unknown_trailing_field.io.stat') == (1030, 2040, False)
 
 
 def test_torn_row_is_flagged(harness):
-    # The kernel emits a bare device prefix while a cgroup is being set up.
-    # Reading that as zero is what rewound the cumulative series.
-    assert parse(harness, '252:0 \n')[2] is True
+    # torn.io.stat is a verbatim kernel capture: the six bytes "252:0 " and then
+    # EOF, read from a cgroup that was halfway through being created. The old
+    # parser got 2 conversions instead of 4, exited its loop and returned a
+    # fabricated {0, 0} - which rewound the cumulative series.
+    rbytes, wbytes, torn = parse(harness, 'torn.io.stat')
+    assert torn is True, 'a device prefix with no counters must be reported as unusable'
+    assert (rbytes, wbytes) == (0, 0)
 
 
 def test_torn_row_does_not_hide_the_other_rows(harness):
-    content = COMPLETE_ROW + '901:0 \n'
-    rbytes, wbytes, torn = parse(harness, content)
+    rbytes, wbytes, torn = parse(harness, 'torn_with_other_rows.io.stat')
     assert (rbytes, wbytes) == (1000, 2000)
     assert torn is True
 
