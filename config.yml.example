@@ -325,6 +325,8 @@ measurement:
 ###### DEBUG
 #      network_connections_tcpdump_system:
 #        split_ports: True
+#      network_connections_tcpdump_container:
+#        split_ports: True
 #--- END
 
 

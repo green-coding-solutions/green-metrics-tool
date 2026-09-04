@@ -4,6 +4,7 @@ import pytest
 import shutil
 import tempfile
 
+from io import StringIO
 from pathlib import Path
 
 GMT_ROOT_DIR = Path(__file__).parent.parent.parent.as_posix()
@@ -13,6 +14,8 @@ from tests import test_functions as Tests
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
 from metric_providers.cpu.energy.rapl.msr.component.provider import CpuEnergyRaplMsrComponentProvider
 from metric_providers.network.connections.tcpdump.system.provider import NetworkConnectionsTcpdumpSystemProvider, generate_stats_string
+from metric_providers.network.connections.tcpdump.container.provider import NetworkConnectionsTcpdumpContainerProvider, _resolve_veths
+from metric_providers.base import MetricProviderConfigurationError
 from metric_providers.powermetrics.provider import PowermetricsProvider
 from metric_providers.psu.energy.ac.xgboost.machine.provider import PsuEnergyAcXgboostMachineProvider
 from metric_providers.cpu.utilization.cgroup.system.provider import CpuUtilizationCgroupSystemProvider
@@ -210,6 +213,116 @@ def test_tcpdump_macos():
     443/UDP: 4 packets, 320 bytes''' in stats
 
     assert DB().fetch_one('SELECT COUNT(*) FROM system_logs')[0] == 0, 'system_logs must be empty - tcpdump parser emitted unexpected errors'
+
+
+def test_tcpdump_container_parse_metrics_groups_by_interface():
+    obj = NetworkConnectionsTcpdumpContainerProvider(folder=GMT_METRICS_DIR, skip_check=True)
+    obj._interface_to_detail_name = {
+        'veth1111aaaa': 'container-a',
+        'veth2222bbbb': 'container-b',
+    }
+
+    lines = [
+        # container-a: single-line-header + indented continuation (2 packets, same TCP flow)
+        '1735295414.719551 veth1111aaaa In  IP (tos 0x10, ttl 64, id 12590, offset 0, flags [DF], proto TCP (6), length 176)\n',
+        '    5.75.242.14.22 > 79.224.127.251.59979: Flags [P.], cksum 0xc7d7 (incorrect -> 0xa394), seq 458946148:458946272, ack 3869229696, win 501, options [nop,nop,TS val 4068070828 ecr 4289544055], length 124\n',
+        '1735295414.740639 veth1111aaaa Out IP (tos 0x0, ttl 55, id 0, offset 0, flags [none], proto TCP (6), length 52)\n',
+        '    79.224.127.251.59979 > 5.75.242.14.22: Flags [.], cksum 0xfa28 (correct), ack 124, win 2046, options [nop,nop,TS val 4289544143 ecr 4068070828], length 0\n',
+        # container-b: different flow entirely
+        '1735295414.806828 veth2222bbbb In  IP (tos 0x10, ttl 64, id 12591, offset 0, flags [DF], proto TCP (6), length 192)\n',
+        '    10.0.0.5.443 > 10.0.0.6.51000: Flags [P.], cksum 0xc7e7 (incorrect -> 0x45be), seq 124:264, ack 1, win 501, options [nop,nop,TS val 4068070915 ecr 4289544143], length 140\n',
+        # traffic on an interface we did not ask to monitor - must be dropped entirely, including its continuation line
+        '1735295414.900000 vethUNMONITORED In  IP (tos 0x10, ttl 64, id 1, offset 0, flags [DF], proto TCP (6), length 100)\n',
+        '    1.2.3.4.1 > 1.2.3.5.2: Flags [P.], cksum 0x0000 (correct), seq 1:2, ack 1, win 1, options [nop], length 1\n',
+    ]
+
+    result = obj._parse_metrics(lines)
+
+    assert set(result.keys()) == {'container-a', 'container-b'}
+
+    stats_a = generate_stats_string(result['container-a'])
+    # both packets involve port 22/TCP on 5.75.242.14 (once as sender, once as receiver),
+    # so packets/bytes accumulate across both of them: 176 + 52 = 228
+    assert '''IP: 5.75.242.14 (as sender or receiver. aggregated)
+  Total transmitted data: 228 bytes
+  Ports:
+    22/TCP: 2 packets, 228 bytes''' in stats_a
+    assert '79.224.127.251' in stats_a
+
+    stats_b = generate_stats_string(result['container-b'])
+    assert 'IP: 10.0.0.5 (as sender or receiver. aggregated)' in stats_b
+    assert '10.0.0.6' in stats_b
+
+    # traffic from the unmonitored interface must not leak into either container
+    assert '1.2.3.4' not in stats_a and '1.2.3.4' not in stats_b
+    assert '1.2.3.5' not in stats_a and '1.2.3.5' not in stats_b
+
+
+def test_tcpdump_container_add_extra_switches_requires_containers():
+    obj = NetworkConnectionsTcpdumpContainerProvider(folder=GMT_METRICS_DIR, skip_check=True)
+    with pytest.raises(MetricProviderConfigurationError):
+        obj._add_extra_switches('tcpdump.sh')
+
+
+def test_tcpdump_container_add_extra_switches_builds_ifname_filter():
+    obj = NetworkConnectionsTcpdumpContainerProvider(folder=GMT_METRICS_DIR, skip_check=True)
+    obj._interface_to_detail_name = {'veth1111aaaa': 'container-a', 'veth2222bbbb': 'container-b'}
+
+    call_string = obj._add_extra_switches('tcpdump.sh')
+
+    assert call_string == "tcpdump.sh -f 'ifname veth1111aaaa or ifname veth2222bbbb'"
+
+
+def test_tcpdump_container_resolve_veths_multi_interface():
+    with patch('subprocess.check_output') as mock_check_output, \
+         patch('os.listdir') as mock_listdir, \
+         patch('builtins.open') as mock_open:
+
+        def check_output_side_effect(cmd, **_kwargs):
+            if cmd[:2] == ['docker', 'inspect']:
+                return '4242'
+            if cmd[-1] == '/sys/class/net' or cmd[-2:] == ['ls', '/sys/class/net']:
+                return 'lo eth0 eth1'
+            if cmd[-1].endswith('/eth0/iflink'):
+                return '101'
+            if cmd[-1].endswith('/eth1/iflink'):
+                return '102'
+            raise AssertionError(f'unexpected command: {cmd}')
+
+        mock_check_output.side_effect = check_output_side_effect
+        mock_listdir.return_value = ['lo', 'veth1111aaaa', 'veth2222bbbb', 'eth0']
+
+        def open_side_effect(path, *_args, **_kwargs):
+            if path == '/sys/class/net/veth1111aaaa/ifindex':
+                return StringIO('101\n')
+            if path == '/sys/class/net/veth2222bbbb/ifindex':
+                return StringIO('102\n')
+            raise AssertionError(f'unexpected open: {path}')
+
+        mock_open.side_effect = open_side_effect
+
+        veths = _resolve_veths('deadbeef1234')
+
+        assert sorted(veths) == ['veth1111aaaa', 'veth2222bbbb']
+
+
+def test_tcpdump_container_resolve_veths_not_found_raises():
+    with patch('subprocess.check_output') as mock_check_output, \
+         patch('os.listdir', return_value=['lo']):
+
+        def check_output_side_effect(cmd, **_kwargs):
+            if cmd[:2] == ['docker', 'inspect']:
+                return '4242'
+            if cmd[-2:] == ['ls', '/sys/class/net']:
+                return 'lo eth0'
+            if cmd[-1].endswith('/eth0/iflink'):
+                return '999'
+            raise AssertionError(f'unexpected command: {cmd}')
+
+        mock_check_output.side_effect = check_output_side_effect
+
+        with pytest.raises(MetricProviderConfigurationError):
+            _resolve_veths('deadbeef1234')
 
 def test_powermetrics():
     obj = PowermetricsProvider(499, folder=GMT_METRICS_DIR, skip_check=True)
