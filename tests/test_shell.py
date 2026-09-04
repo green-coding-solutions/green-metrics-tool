@@ -30,6 +30,7 @@ def _main_args(**overrides):
         "file_cleanup": False,
         "verbose_provider_boot": False,
         "shell_executable": "bash",
+        "user_id": 1,
         "dev_no_metrics": True,
         "dev_no_phase_stats": True,
         "dev_no_save": True,
@@ -126,16 +127,21 @@ def test_main_passes_command_and_timeout_to_runner(monkeypatch, tmp_path):
     assert calls["init"]["shell_executable"] == "bash"
     assert calls["init"]["measurement_flow_process_duration"] == 1
     assert calls["init"]["dev_no_sleeps"] is False
-    assert calls["init"]["user_id"] == shell.LOCAL_USER_ID
+    assert calls["init"]["user_id"] == 1
 
 
-# --user-id would let the caller pick the user the 'host' capability is checked against, which makes the
-# capability no boundary at all on a CLI that has no authenticated caller
-def test_cli_cannot_select_the_authorization_subject(monkeypatch):
-    monkeypatch.setattr(sys, 'argv', ['shell.py', '--user-id', '2', '--', 'echo 1'])
+# shell.py is a local operator tool. Running as a non-default user (a hidden cluster user for instance)
+# must stay possible, so the user the 'host' capability is checked against is selectable.
+def test_parse_args_user_id_defaults_to_the_default_user(monkeypatch):
+    monkeypatch.setattr(sys, 'argv', ['shell.py', '--', 'echo 1'])
 
-    with pytest.raises(SystemExit):
-        shell.parse_args()
+    assert shell.parse_args().user_id == 1
+
+
+def test_parse_args_accepts_a_custom_user_id(monkeypatch):
+    monkeypatch.setattr(sys, 'argv', ['shell.py', '--user-id', '22', '--', 'echo 1'])
+
+    assert shell.parse_args().user_id == 22
 
 
 # the raw command may contain anything the user typed, so it must not be duplicated into

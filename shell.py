@@ -24,7 +24,6 @@ from lib.scenario_runner import ScenarioRunner
 from lib.terminal_colors import TerminalColors
 
 SHELL_FLOW_NAME = 'Shell Command'
-LOCAL_USER_ID = 1
 
 
 def print_shell_phase_stats_table(run_id):
@@ -117,6 +116,7 @@ def parse_args():
     )
 
     parser.add_argument("--name", type=str, help="Optional run name stored in DB")
+    parser.add_argument("--user-id", type=int, default=1, help="User ID to map this run to (default: 1). The user needs the 'host' orchestrator capability.")
     parser.add_argument("--config-override", type=str, help="Override config file with the passed yml file (full path)")
     parser.add_argument("--file-cleanup", action="store_true", help="Delete GMT temporary files after the run")
     parser.add_argument("--verbose-provider-boot", action="store_true", help="Boot metric providers gradually")
@@ -188,7 +188,7 @@ def main():
             shell_command=args.command,
             shell_executable=args.shell_executable,
             verbose_provider_boot=args.verbose_provider_boot,
-            user_id=LOCAL_USER_ID,
+            user_id=args.user_id,
             skip_optimizations=True,
             dev_no_metrics=args.dev_no_metrics,
             dev_no_phase_stats=args.dev_no_phase_stats,
