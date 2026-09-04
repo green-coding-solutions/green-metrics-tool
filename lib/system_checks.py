@@ -287,6 +287,13 @@ def check_steal_time(*_, **__):
         return NOT_IMPLEMENTED
     return math.isclose(getattr(psutil.cpu_times(), 'steal', 0.0), 0.0, abs_tol=1e-6) # safe check for float == 0.0
 
+def check_guest_time(*_, **__):
+    if host_platform.is_windows():
+        return NOT_IMPLEMENTED
+    cpu_times = psutil.cpu_times()
+    guest_time = getattr(cpu_times, 'guest', 0.0) + getattr(cpu_times, 'guest_nice', 0.0)
+    return math.isclose(guest_time, 0.0, abs_tol=1e-6) # safe check for float == 0.0
+
 
 @functools.cache
 def _get_sudo_check_results():
@@ -689,6 +696,7 @@ start_checks = (
 end_checks = (
     (check_suspend, Status.ERROR, 'system suspend', 'System has gone into suspend during measurement. This will skew all measurement data. If GMT shall ever be able to correctly account for suspend states please note that metric providers must support CLOCK_BOOTIME. See https://github.com/green-coding-solutions/green-metrics-tool/pull/1229 for discussion.'),
     (check_steal_time, Status.ERROR, 'cpu steal time', 'The CPU has accounted steal time. This means the measurement could have been interrupted and / or the VM that you are running in halted. This will lead to broken measurement data as time jumps can occur.'),
+    (check_guest_time, Status.ERROR, 'cpu guest time', 'The CPU has accounted guest time. This means this machine itself ran a virtual CPU for a guest OS during the measurement, which can steal CPU cycles from GMT and lead to broken measurement data as time jumps can occur.'),
     (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
 
 )

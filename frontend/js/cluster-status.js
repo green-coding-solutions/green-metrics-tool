@@ -72,15 +72,21 @@ $(document).ready(function () {
                 { data: 3, title: 'State', render: function(el) {
                     switch (el) {
                             case 'job_no': return `${escapeString(el)} <span data-inverted data-tooltip="No job currently in queue"><i class="ui question circle icon fluid"></i></span>`;
-                            case 'job_start': return `${escapeString(el)} <span data-inverted data-tooltip="Current Job has started running"><i class="ui question circle icon fluid"></i></span>`;
-                            case 'job_error': return `${escapeString(el)} <span data-inverted data-tooltip="Last job failed"></i></span>`;
-                            case 'job_end': return `${escapeString(el)} <span data-inverted data-tooltip="Current job ended"></i></span>`;
-                            case 'maintenance_start': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after job has started"><i class="ui question circle icon fluid"></i></span>`;
-                            case 'maintenance_end': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after job has finished"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'job_start': return `${escapeString(el)} <span data-inverted data-tooltip="Current job has started"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'job_error': return `${escapeString(el)} <span data-inverted data-tooltip="Last job failed"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'job_interrupt': return `${escapeString(el)} <span data-inverted data-tooltip="Job was interrupted. This means the machine will be rebooted soon or is currently being serviced"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'job_end': return `${escapeString(el)} <span data-inverted data-tooltip="Current job ended"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'configuration_error': return `${escapeString(el)} <span data-inverted data-tooltip="An error with the configuration or configuration guards was encountered. This can resolve on its own when machine cools down or becomes more idle but needs intervention when happens repeatedly"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'maintenance_start': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after the job has started"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'maintenance_end': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after the job has finished"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'maintenance_error': return `${escapeString(el)} <span data-inverted data-tooltip="Maintenance after the job has failed"><i class="ui question circle icon fluid"></i></span>`;
                             case 'measurement_control_start': return `${escapeString(el)} <span data-inverted data-tooltip="Periodic Measurement Control job has started"><i class="ui question circle icon fluid"></i></span>`;
                             case 'cooldown': return `${escapeString(el)} <span data-inverted data-tooltip="Machine is currently cooling down to base temperature"><i class="ui question circle icon fluid"></i></span>`;
                             case 'measurement_control_error': return `${escapeString(el)} <span data-inverted data-tooltip="Last periodic Measurement Control job has failed"><i class="ui question circle icon fluid"></i></span>`;
                             case 'measurement_control_end': return `${escapeString(el)} <span data-inverted data-tooltip="Periodic Measurement Control job has finished"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'reboot': return `${escapeString(el)} <span data-inverted data-tooltip="Machine is rebooting"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'suspend': return `${escapeString(el)} <span data-inverted data-tooltip="Machine is in suspend to save energy and will start when jobs are submitted"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'poweroff': return `${escapeString(el)} <span data-inverted data-tooltip="Machine is powered off to save energy and will start when jobs are submitted"><i class="ui question circle icon fluid"></i></span>`;
                             case undefined: // fallthrough
                             case null: return '-';
                     }
@@ -141,7 +147,7 @@ $(document).ready(function () {
                     data: 4,
                     title: 'Filename',
                     render: function(el, type, row) {
-                        const usage_scenario_variables = Object.entries(row[5]).map(([k, v]) => `<span class="ui label">${escapeString(k)}=${escapeString(v)}</span>`);
+                        const usage_scenario_variables = Object.entries(row[5]).map(([k, v]) => `<span class="ui label">${escapeString(k)}=${escapeString(displayUsageScenarioVariableValue(k, v))}</span>`);
                         return `${escapeString(el)} ${usage_scenario_variables.join(' ')}`
                     }},
                 { data: 6, title: 'Branch', render: (el) => escapeString(el)},

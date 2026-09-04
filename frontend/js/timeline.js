@@ -138,9 +138,9 @@ const getUsageScenarioVariablesFromForm = () => {
 const stringifyUsageScenarioVariables = (usageScenarioVariables, joiner=', ', escape=false) => {
     let pairs = null;
     if (escape) {
-        pairs = Object.entries(usageScenarioVariables).map(([key, value]) => escapeString(`${key}=${value}`) );
+        pairs = Object.entries(usageScenarioVariables).map(([key, value]) => escapeString(`${key}=${displayUsageScenarioVariableValue(key, value)}`) );
     } else {
-        pairs = Object.entries(usageScenarioVariables).map(([key, value]) => `${key}=${value}`);
+        pairs = Object.entries(usageScenarioVariables).map(([key, value]) => `${key}=${displayUsageScenarioVariableValue(key, value)}`);
     }
     return pairs.length > 0 ? pairs.join(joiner) : '-';
 }
