@@ -23,13 +23,11 @@ def _is_carbon_intensity_metric(metric, unit):
     return metric.startswith('carbon_intensity_') and metric.endswith('_machine') and unit == 'gCO2e/kWh'
 
 def _is_step_function_metric(metric):
-    # Metrics whose providers do not sample a physical quantity but emit a step function that is
-    # padded onto a grid by metric_providers/carbon/intensity/helpers.py::expand_to_sampling_rate().
-    # Their value is the one *in effect* over an interval rather than an instantaneous reading at the
-    # sample timestamp, which is what allows the carry-forward in _compute_metric_phase_stats().
-    # Matched by naming convention, just like _is_carbon_intensity_metric() above, so a newly added
-    # provider is picked up automatically. Deliberately not gated on the unit, as this also has to
-    # cover carbon_intensitylevel_electricitymaps_machine (unit 'level'), which is padded the same way.
+    # Carbon intensity providers do not sample anything. They emit a value that stays in effect until
+    # the next one and pad it onto a time grid (metric_providers/carbon/intensity/helpers.py) so it
+    # looks like a sampled metric. _compute_metric_phase_stats() must treat such a step function
+    # differently at the phase boundaries. Not gated on the unit, unlike _is_carbon_intensity_metric(),
+    # as carbon_intensitylevel_electricitymaps_machine (unit 'level') is padded the same way.
     return metric.startswith('carbon_intensity') and metric.endswith('_machine')
 
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
@@ -114,7 +112,7 @@ def _percentile_cont(sorted_values, p):
     return float(sorted_values[lower] + frac * (sorted_values[upper] - sorted_values[lower]))
 
 
-def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phase_start, duration, carry_forward=False):
+def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phase_start, duration, step_function=False):
     # Re-implements in Python what used to be a per (metric, phase) SQL query against
     # measurement_values: sum/max/min/avg over the phase, a time-weighted average and
     # a derivative (both based on a LAG-style diff to the previous sample), plus the
@@ -134,49 +132,37 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
     combined_times = list(times[left:right])
     combined_values = list(values[left:right])
 
-    if len(combined_values) == 0:
-        # if we do not have at least one sample, we simply return.
-        # This is a design change to the previous version where we would still calculate but then set in_phase = 0
-        # However we did never use that value
-        # Technically it would be interesting to still pad the phase with one sample
-        # if possible, but it would give a very distorted picture as you would get the same amount of energy
-        # when using a 100 ms sampling rate for 10ms and 1ms windows. As simply the next value is taken
-        # Here we believe it is better to not show a value at all as the relative error margin then then is smaller
-        # The error when actually having seen one sample and then adding another is still substantial in case of only
-        # one measurement (100 ms  + 10 ms => 2 samples @ 100ms sampling rate ==> energy of 200 ms window instead of 110 ms)
-        # This code can be improved in the future by maybe deciding when to bring the value in for energy measurements
-        # or by forcing a sample tick in the provider.
+    # Which ONE sample from outside the phase boundaries may be used depends on what a sample means:
+    #
+    # - A step function (see _is_step_function_metric()): the sample at time t is the value in effect
+    #   FROM t onward. So the value at phase_start is the last sample at or before it. It belongs to
+    #   this phase even if no padded grid point falls inside the boundaries, which is the case for
+    #   phases shorter than the padding interval. We add it as a virtual sample at phase_start.
+    #   The sample after phase_end is never used, it may already hold a value that was not in effect
+    #   during this phase.
+    #
+    # - A sampled quantity (energy, utilization, network, ... - everything else): the sample at time t
+    #   describes the interval that ENDS at t. The first sample after phase_end may still contain
+    #   activity from the tail of the phase, e.g. the kernel reporting during the sleep of the sampler,
+    #   so it is folded in unless it already belongs to the next phase. This is the "phase padding".
+    if step_function and left > 0: # left == 0: provider only came up after phase_start, nothing to carry in
+        combined_times.insert(0, phase_start)
+        combined_values.insert(0, values[left - 1])
+
+    if not combined_values:
+        # No sample at all -> no value. We deliberately do not pad an empty phase with the next sample,
+        # as that would report the same energy for a 10ms and a 1ms window at a 100ms sampling rate.
+        # Even with one real sample the error of the padding is still substantial
+        # (100 ms + 10 ms => 2 samples @ 100ms sampling rate ==> energy of a 200 ms window instead of 110 ms),
+        # but here we at least have seen something. This could be improved by forcing a sample tick
+        # in the provider at the phase boundaries.
         return {
             'value_sum': None, 'max_value': None, 'min_value': None, 'value_avg': None,
             'derivative_avg': None, 'derivative_max': None, 'derivative_min': None, 'value_count': 0,
             'sampling_rate_avg': None, 'sampling_rate_max': None, 'sampling_rate_95p': None,
         }
 
-    if carry_forward and left > 0:
-        # For step function metrics (see _is_step_function_metric()) the padding grid starts at the
-        # providers own start time, so it is not aligned to the phase boundaries at all. A phase that
-        # is shorter than the padding interval - or any phase if padding is turned off entirely by
-        # omitting sampling_rate - can therefore fall completely between two grid points. The value
-        # in effect during such a phase is still perfectly known though: it is the last one emitted
-        # at or before the phase start. We carry it forward as a virtual sample at phase_start
-        # instead of leaving the phase without any value, which would make the caller drop the
-        # metric for this phase and report a configured carbon intensity provider as missing.
-        # We deliberately do not use the sample after phase_end here (the 'next_one' fold-in below),
-        # as for a step function that one may already carry a changed value that was never in effect
-        # during this phase.
-        # left > 0 keeps the intent of the in_phase guard intact: a provider that only came up after
-        # the phase had already ended must not have values mapped backwards into it.
-        combined_times = [phase_start]
-        combined_values = [values[left - 1]]
-
-
-    # This parts is the revamped "phase_padding" mechanic. Due to sampling we might have data that
-    # technically should belong to this phase in the pause between phases as for instance kernel might report during
-    # the sleep of the sampler. Only exception is if it already belongs to another phase or we have nor mor samples to map.
-    #
-    # - right boundary is not at phase border. (can be at max len(times) ... so right != len(times) would also work)
-    # - AND not part of next phase
-    elif right < len(times) and times[right] < next_phase_start:
+    if not step_function and right < len(times) and times[right] < next_phase_start:
         combined_times.append(times[right])
         combined_values.append(values[right])
 
@@ -340,7 +326,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
             is_step_function_metric = _is_step_function_metric(metric)
 
-            metric_stats = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start, duration, carry_forward=is_step_function_metric)
+            metric_stats = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start, duration, step_function=is_step_function_metric)
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
@@ -355,9 +341,8 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
             # Dynamic undersampling warning: flag when actual samples < 50% of what the observed
             # sampling rate implies we should have received over the phase duration.
-            # Some metrics should not be flagged as they are custom.
-            # Step function metrics are exempt as well: their value is padded and holds for the whole
-            # interval, so a low sample count says nothing about how accurate the MEAN is.
+            # Custom metrics are not flagged. Neither are step functions: their value holds for the whole
+            # interval by definition, so the sample count says nothing about the accuracy of the MEAN.
             if not metric.startswith('custom_') and not is_step_function_metric:
                 if metric_stats['sampling_rate_avg'] is not None and metric_stats['sampling_rate_avg'] > 0:
                     # sampling_rate_avg and duration are both in microseconds

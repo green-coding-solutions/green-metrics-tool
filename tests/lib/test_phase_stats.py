@@ -1106,10 +1106,10 @@ def test_phase_stats_maps_elephant_machine_carbon():
 # (99 ms in all shipped configs), so its sample positions are completely unrelated to the phase
 # boundaries. A phase that is shorter than that interval can therefore end up with zero padded
 # samples inside it, while every other provider (started a few ms earlier/later, so on a differently
-# offset grid) does have one. Without the carry-forward in _compute_metric_phase_stats() the
-# 'in_phase' guard then drops the carbon intensity for that phase, carbon_intensity stays None and
-# the network / SCI carbon calculation reports that no carbon intensity provider data was found -
-# even though the intensity for that interval is perfectly well known.
+# offset grid) does have one. Without the step function handling in _compute_metric_phase_stats()
+# the phase then has no carbon intensity at all, carbon_intensity stays None and the network / SCI
+# carbon calculation reports that no carbon intensity provider data was found - even though the
+# intensity for that interval is perfectly well known.
 
 SHORT_PHASE_PROVIDER_START = 1_759_592_247_000_000
 SHORT_PHASE_PADDING_INTERVAL = 99_000 # what sampling_rate: 99 pads to
@@ -1148,32 +1148,42 @@ def test_compute_metric_phase_stats_carries_padded_value_into_short_phase():
             **kwargs,
         )
 
-    # without the carry-forward the phase has no sample at all: none inside its boundaries and the
+    # treated as a sampled quantity the phase has no sample at all: none inside its boundaries and the
     # next grid point already belongs to the following phase, so it cannot be folded in either
     plain_stats = stats_for(short_phase, long_phase)
-    assert plain_stats['in_phase'] is None
     assert plain_stats['value_count'] == 0
     assert plain_stats['value_avg'] is None
 
-    # with it, the value that was in effect during the phase is carried forward from the last grid
-    # point before it and counts as being in the phase
-    carried_stats = stats_for(short_phase, long_phase, carry_forward=True)
-    assert carried_stats['in_phase'] == 1
-    assert carried_stats['value_count'] == 1
-    assert carried_stats['value_avg'] == 436
-    assert carried_stats['max_value'] == 436
-    assert carried_stats['min_value'] == 436
+    # treated as a step function, the value in effect at phase start (= the last grid point before it)
+    # is the value of the phase
+    step_stats = stats_for(short_phase, long_phase, step_function=True)
+    assert step_stats['value_count'] == 1
+    assert step_stats['value_avg'] == 436
+    assert step_stats['max_value'] == 436
+    assert step_stats['min_value'] == 436
 
-    # a phase that does contain grid points is unaffected by the carry-forward
-    long_phase_stats = stats_for(long_phase, SHORT_PHASE_PHASES[4])
-    assert long_phase_stats['in_phase'] > 1
-    assert long_phase_stats['value_avg'] == 436
-    assert stats_for(long_phase, SHORT_PHASE_PHASES[4], carry_forward=True) == long_phase_stats
+    # a phase that does contain grid points keeps its own samples and just gets the value at phase
+    # start instead of the sample after phase end
+    long_phase_step_stats = stats_for(long_phase, SHORT_PHASE_PHASES[4], step_function=True)
+    assert long_phase_step_stats['value_count'] > 1
+    assert long_phase_step_stats['value_avg'] == 436
 
 
-def test_compute_metric_phase_stats_does_not_carry_forward_before_first_sample():
-    # The carry-forward must not undermine what the in_phase guard was introduced for: a provider that
-    # only came up after a phase had already ended must not get values mapped backwards into it.
+def test_compute_metric_phase_stats_step_function_keeps_samples_inside_the_phase():
+    # the value at phase start is added to the samples inside the phase, it must never replace them
+    times = [0, 99_000]
+    values = [400, 500]
+
+    stats = _compute_metric_phase_stats(times, values, 90_000, 110_000, 200_000, Decimal(20_000), step_function=True)
+
+    assert stats['value_count'] == 2
+    assert stats['min_value'] == 400 # carried in from before the phase
+    assert stats['max_value'] == 500 # the real sample inside the phase
+
+
+def test_compute_metric_phase_stats_step_function_has_no_value_before_first_sample():
+    # a provider that only came up after a phase had already ended must not get values mapped
+    # backwards into it
     carbon_series = padding_grid(0, 436)
     times = [time for time, _ in carbon_series]
     values = [value for _, value in carbon_series]
@@ -1187,7 +1197,7 @@ def test_compute_metric_phase_stats_does_not_carry_forward_before_first_sample()
         times, values,
         phase_before_provider_start['start'], phase_before_provider_start['end'], SHORT_PHASE_PROVIDER_START,
         Decimal(phase_before_provider_start['end'] - phase_before_provider_start['start']),
-        carry_forward=True,
+        step_function=True,
     )
 
     assert stats['value_count'] == 0
