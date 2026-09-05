@@ -22,6 +22,18 @@ def _is_carbon_intensity_metric(metric, unit):
     # be used as the source for the SCI carbon math.
     return metric.startswith('carbon_intensity_') and metric.endswith('_machine') and unit == 'gCO2e/kWh'
 
+# Metrics whose providers do not sample anything but emit a value that stays in effect until the next
+# one, and pad it onto a time grid (metric_providers/carbon/intensity/helpers.py) so it looks like a
+# sampled metric. _compute_metric_phase_stats() must treat such a step function differently at the
+# phase boundaries. A new provider that pads this way must be registered here, just like every new
+# metric must be registered in the MEAN / TOTAL mapping in build_and_store_phase_stats().
+STEP_FUNCTION_METRICS = (
+    'carbon_intensity_static_machine',
+    'carbon_intensity_electricity_maps_machine',
+    'carbon_intensity_elephant_machine',
+    'carbon_intensitylevel_electricitymaps_machine',
+)
+
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
     # First we create averages for all types. This includes means and totals
     DB().query('''
@@ -104,7 +116,7 @@ def _percentile_cont(sorted_values, p):
     return float(sorted_values[lower] + frac * (sorted_values[upper] - sorted_values[lower]))
 
 
-def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phase_start, duration):
+def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phase_start, duration, step_function=False):
     # Re-implements in Python what used to be a per (metric, phase) SQL query against
     # measurement_values: sum/max/min/avg over the phase, a time-weighted average and
     # a derivative (both based on a LAG-style diff to the previous sample), plus the
@@ -118,37 +130,54 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
     # and for _io_ providers or any other that outputs increments instead of totals
     # using the derivative for other providers makes no sense atm
 
+    # this results in phase_start < times < phase_end
+    # Note that we do not do phase_start =< times < phase_end which is a design decision. We deem
+    # a sample not to be included if it accumulated no data from the phase yet when it hits exactly on the timestamp
     left = bisect.bisect_right(times, phase_start)
     right = bisect.bisect_left(times, phase_end)
 
     combined_times = list(times[left:right])
     combined_values = list(values[left:right])
 
-    if len(combined_values) == 0:
-        # if we do not have at least one sample, we simply return.
-        # This is a design change to the previous version where we would still calculate but then set in_phase = 0
-        # However we did never use that value
-        # Technically it would be interesting to still pad the phase with one sample
-        # if possible, but it would give a very distorted picture as you would get the same amount of energy
-        # when using a 100 ms sampling rate for 10ms and 1ms windows. As simply the next value is taken
-        # Here we believe it is better to not show a value at all as the relative error margin then then is smaller
-        # The error when actually having seen one sample and then adding another is still substantial in case of only
-        # one measurement (100 ms  + 10 ms => 2 samples @ 100ms sampling rate ==> energy of 200 ms window instead of 110 ms)
-        # This code can be improved in the future by maybe deciding when to bring the value in for energy measurements
-        # or by forcing a sample tick in the provider.
+    # Which ONE sample from outside the phase boundaries may be used depends on what a sample means:
+    #
+    # - A step function (see STEP_FUNCTION_METRICS): the sample at time t is the value in effect
+    #   FROM t onward. So the value at phase_start is the last sample at or before it. It belongs to
+    #   this phase even if no padded grid point falls inside the boundaries, which is the case for
+    #   phases shorter than the padding interval. We add it as a virtual sample at phase_start.
+    #   The sample after phase_end is never used, it may already hold a value that was not in effect
+    #   during this phase.
+    #
+    # - A sampled quantity (energy, utilization, network, ... - everything else): the sample at time t
+    #   describes the interval that ENDS at t. So the first sample after phase_end may still belong to
+    #   this phase and is folded in - the "phase_padding" mechanic, see the comment further down.
+    if step_function and left > 0: # left == 0: provider only came up after phase_start, nothing to carry in
+        # this effectively emulates phase_start <= times < phase_end, which is fine to do, as we excluded it
+        # from the normal time range above. If we ever change this design decision we cannot use this "hack" here.
+        combined_times.insert(0, phase_start)
+        combined_values.insert(0, values[left - 1])
+
+    if not combined_values:
+        # No sample at all -> no value. We deliberately do not pad an empty phase with the next sample,
+        # as that would report the same energy for a 10ms and a 1ms window at a 100ms sampling rate.
+        # Even with one real sample the error of the padding is still substantial
+        # (100 ms + 10 ms => 2 samples @ 100ms sampling rate ==> energy of a 200 ms window instead of 110 ms),
+        # but here we at least have seen something. This could be improved by forcing a sample tick
+        # in the provider at the phase boundaries.
         return {
             'value_sum': None, 'max_value': None, 'min_value': None, 'value_avg': None,
             'derivative_avg': None, 'derivative_max': None, 'derivative_min': None, 'value_count': 0,
             'sampling_rate_avg': None, 'sampling_rate_max': None, 'sampling_rate_95p': None,
         }
 
-    # This parts is the revamped "phase_padding" mechanic. Due to sampling we might have data that
+    # This part is the revamped "phase_padding" mechanic. Due to sampling we might have data that
     # technically should belong to this phase in the pause between phases as for instance kernel might report during
-    # the sleep of the sampler. Only exception is if it already belongs to another phase or we have nor mor samples to map.
+    # the sleep of the sampler. Only exception is if it already belongs to another phase or we have no more samples to map.
     #
     # - right boundary is not at phase border. (can be at max len(times) ... so right != len(times) would also work)
     # - AND not part of next phase
-    if right < len(times) and times[right] < next_phase_start:
+    # - AND not a step function (see above)
+    if not step_function and right < len(times) and times[right] < next_phase_start:
         combined_times.append(times[right])
         combined_values.append(values[right])
 
@@ -310,7 +339,9 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             times = metric_time_series[measurement_metric_id][0] # can fail if metric does not exist. This should never be. Thus we simply crash
             values = metric_time_series[measurement_metric_id][1] # can fail if metric does not exist. This should never be. Thus we simply crash
 
-            metric_stats = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start, duration)
+            is_step_function_metric = metric in STEP_FUNCTION_METRICS
+
+            metric_stats = _compute_metric_phase_stats(times, values, phase['start'], phase['end'], next_phase_start, duration, step_function=is_step_function_metric)
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
@@ -325,8 +356,9 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
 
             # Dynamic undersampling warning: flag when actual samples < 50% of what the observed
             # sampling rate implies we should have received over the phase duration.
-            # Some metrics should not be flagged as they are custom.
-            if not metric.startswith('custom_'):
+            # Custom metrics are not flagged. Neither are step functions: their value holds for the whole
+            # interval by definition, so the sample count says nothing about the accuracy of the MEAN.
+            if not metric.startswith('custom_') and not is_step_function_metric:
                 if metric_stats['sampling_rate_avg'] is not None and metric_stats['sampling_rate_avg'] > 0:
                     # sampling_rate_avg and duration are both in microseconds
                     expected_samples = duration / Decimal(metric_stats['sampling_rate_avg'])
