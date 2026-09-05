@@ -130,6 +130,9 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
     # and for _io_ providers or any other that outputs increments instead of totals
     # using the derivative for other providers makes no sense atm
 
+    # this results in phase_start < times < phase_end
+    # Note that we do not do phase_start =< times < phase_end which is a design decision. We deem
+    # a sample not to be included if it accumulated no data from the phase yet when it hits exactly on the timestamp
     left = bisect.bisect_right(times, phase_start)
     right = bisect.bisect_left(times, phase_end)
 
@@ -149,6 +152,8 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
     #   describes the interval that ENDS at t. So the first sample after phase_end may still belong to
     #   this phase and is folded in - the "phase_padding" mechanic, see the comment further down.
     if step_function and left > 0: # left == 0: provider only came up after phase_start, nothing to carry in
+        # this effectively emulates phase_start <= times < phase_end, which is fine to do, as we excluded it
+        # from the normal time range above. If we ever change this design decision we cannot use this "hack" here.
         combined_times.insert(0, phase_start)
         combined_values.insert(0, values[left - 1])
 
