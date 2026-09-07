@@ -303,6 +303,11 @@ class SchemaChecker():
                 raise SchemaError(f"The 'name' field in 'flow' must be unique. '{flow['name']}' was already used.")
             known_flow_names.append(flow['name'])
 
+            if flow['container'] is not None and flow['container'] not in known_container_names:
+                raise SchemaError(
+                    f"Flow '{flow['name']}' references unknown container '{flow['container']}'."
+                )
+
             for command in flow['commands']:
                 if command.get('read-sci-stdout', False) and not command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
                     raise SchemaError(f"You have specified `read-sci-stdout` in flow {flow['name']} but set `log-stdout` to False, which prevents log capturing.")

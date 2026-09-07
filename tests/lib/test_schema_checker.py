@@ -18,6 +18,28 @@ def test_schema_checker_valid():
     schema_checker = SchemaChecker(validate_compose_flag=True)
     schema_checker.check_usage_scenario(usage_scenario)
 
+
+def test_schema_checker_invalid_unknown_flow_container():
+    """Reject a flow target that does not name a resolved container."""
+    usage_scenario_name = 'schema_checker_valid.yml'
+    usage_scenario_path = os.path.join(
+        CURRENT_DIR,
+        '../data/usage_scenarios/schema_checker/',
+        usage_scenario_name,
+    )
+    with open(usage_scenario_path, encoding='utf8') as file:
+        usage_scenario = yaml.safe_load(file)
+    usage_scenario['flow'][0]['container'] = 'missing-container'
+
+    schema_checker = SchemaChecker(validate_compose_flag=True)
+    with pytest.raises(SchemaError) as error:
+        schema_checker.check_usage_scenario(usage_scenario)
+
+    expected_exception = "Flow 'Stress' references unknown container 'missing-container'."
+    assert expected_exception in str(error.value), \
+        Tests.assertion_info(f"Exception: {expected_exception}", str(error.value))
+
+
 def test_schema_checker_both_network_types_valid():
     ## Check first that it works in case a, with the network listed as keys
     usage_scenario_name_a = 'schema_checker_valid_network_as_keys.yml'
