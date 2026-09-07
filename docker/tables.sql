@@ -539,6 +539,8 @@ CREATE TABLE softwares (
     updated_at timestamp with time zone
 );
 
+CREATE UNIQUE INDEX softwares_name_unique ON softwares(name text_ops);
+
 CREATE TRIGGER softwares_moddatetime
     BEFORE UPDATE ON softwares
     FOR EACH ROW
@@ -563,8 +565,9 @@ CREATE INDEX software_tasks_name_idx ON software_tasks(name);
 CREATE INDEX software_tasks_machine_id_idx ON software_tasks(machine_id);
 
 CREATE UNIQUE INDEX software_tasks_unique_task ON software_tasks(
-    software_id, name, uri, branch, filename, machine_id, phase
+    name, uri, branch, filename, machine_id, phase
 );
+
 
 
 CREATE TRIGGER software_tasks_moddatetime
