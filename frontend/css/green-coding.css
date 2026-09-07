@@ -576,6 +576,19 @@ a,
     color: rgba(0,0,0,0.8);
 }
 
+#network-stats .ui.segment.stdout {
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: #f8f8f9;
+}
+
+#network-stats .ui.segment > div:last-child {
+    font-family: monospace;
+    font-size: 0.9em;
+    white-space: pre-wrap;
+    color: rgba(0,0,0,0.8);
+}
+
 #logs h4.ui.header {
     text-transform: uppercase;
 }

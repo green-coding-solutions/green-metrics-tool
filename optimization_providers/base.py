@@ -9,7 +9,7 @@ import orjson
 from lib.global_config import GlobalConfig
 from lib import utils
 from lib.user import User
-from api.scenario_runner import get_run, get_measurements_single, get_network, get_notes, get_phase_stats_single
+from api.scenario_runner import get_run, get_measurements_single, get_network_connections_proxy, get_notes, get_phase_stats_single
 
 class Criticality(Enum):
     HIGH = 'red'
@@ -72,7 +72,7 @@ async def fetch_all_data(run_id):
     urls = [
         f"{GlobalConfig().config['cluster']['api_url']}/v2/run/{run_id}",
         f"{GlobalConfig().config['cluster']['api_url']}/v1/measurements/single/{run_id}",
-        f"{GlobalConfig().config['cluster']['api_url']}/v1/network/{run_id}",
+        f"{GlobalConfig().config['cluster']['api_url']}/v1/network/connections/proxy/{run_id}",
         f"{GlobalConfig().config['cluster']['api_url']}/v1/notes/{run_id}",
         f"{GlobalConfig().config['cluster']['api_url']}/v1/phase_stats/single/{run_id}",
     ]
@@ -101,7 +101,7 @@ async def query_all_data(user_id, run_id):
     function_calls = [
         get_run(run_id, user),
         get_measurements_single(run_id, user),
-        get_network(run_id, user),
+        get_network_connections_proxy(run_id, user),
         get_notes(run_id, user),
         get_phase_stats_single(run_id, user)
     ]

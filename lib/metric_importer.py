@@ -1,8 +1,6 @@
-import json
 from io import StringIO
 
 from lib.db import DB
-from lib.log_types import LogType
 from metric_providers.network.connections.tcpdump.system.provider import generate_stats_string
 
 
@@ -12,27 +10,20 @@ def import_measurements(df, metric_name, run_id):
 
         df['run_id'] = run_id
         f = StringIO(df.to_csv(index=False, header=False))
-        DB().copy_from(file=f, table='network_intercepts', columns=df.columns, sep=',')
+        DB().copy_from(file=f, table='network_connections_proxy', columns=df.columns, sep=',')
         f.close()
 
-    elif metric_name == 'network_connections_tcpdump_system':
-        stats_string = generate_stats_string(df)
+    elif metric_name in ('network_connections_tcpdump_system', 'network_connections_tcpdump_container'):
+        # system provider: df is a flat {ip: stats} dict for the whole run -> single '[SYSTEM]' group
+        # container provider: df is {container_name: {ip: stats}} -> one group per container
+        groups = df if metric_name == 'network_connections_tcpdump_container' else {'[SYSTEM]': df}
 
-        log_entry = {
-            '[SYSTEM]': [{
-                'type': LogType.NETWORK_STATS.value,
-                'id': str(id(stats_string)),
-                'cmd': None,
-                'phase': '[MULTIPLE]',
-                'stdout': stats_string
-            }]
-        }
-
-        DB().query("""
-            UPDATE runs
-            SET logs = COALESCE(logs, '{}'::jsonb) || %s::jsonb
-            WHERE id = %s
-            """, params=(json.dumps(log_entry), run_id))
+        for detail_name, ip_stats in groups.items():
+            stats_string = generate_stats_string(ip_stats)
+            DB().query(
+                "INSERT INTO network_connections_tcpdump (run_id, detail_name, metric, stats) VALUES (%s, %s, %s, %s)",
+                params=(run_id, detail_name, metric_name, stats_string),
+            )
 
     else:
 
