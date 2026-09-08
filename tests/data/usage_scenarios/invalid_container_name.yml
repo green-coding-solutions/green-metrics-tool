@@ -9,7 +9,7 @@ services:
 
 flow:
   - name: Small-Stress
-    container: highload-api-cont
+    container: highload-api-:cont
     commands:
       - type: console
         command: echo "asd"

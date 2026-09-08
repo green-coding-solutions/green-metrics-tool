@@ -2,3 +2,7 @@
 name: Name as is
 author: Author as is
 description: Description as is
+
+services:
+  test-container-1:
+    image: alpine
