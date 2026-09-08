@@ -188,6 +188,30 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
     min_value = Decimal(min(combined_values))
     classic_value_avg = Decimal(value_sum) / Decimal(value_count)
 
+    # The MEAN of a step function is a time weighted average, but weighted differently than the one for
+    # a sampled quantity further down: the value of a sample is in effect FROM its timestamp onward, so
+    # every interval must be weighted with the value at its LEFT edge. The generic weighting below uses
+    # the right edge, which is only correct if a sample describes the interval that ENDS at it. On top of
+    # that the interval from the last sample to phase_end must be closed here, as that value is still in
+    # effect until the phase ends - the generic weighting has no such interval, because there its last
+    # sample already terminates the last interval.
+    # We deliberately also use this for value_count in (1,2), where the generic path falls back to the
+    # classic average: for a step function the timing of the value change is known exactly, so there is
+    # no reason to throw it away, and it is exactly the short phases that have so few samples.
+    # All of this only makes a difference if the value actually changes inside the phase - a constant
+    # step function comes out as that constant either way.
+    #
+    # The averaging window starts at combined_times[0], which is phase_start whenever we know the value
+    # in effect there, and the first sample inside the phase otherwise (provider came up mid-phase, see
+    # above). Weighting over the full duration in that case would silently treat the unknown part of the
+    # phase as zero.
+    if step_function:
+        step_num = Decimal(0)
+        for i in range(1, len(combined_values)):
+            step_num += Decimal(combined_values[i - 1]) * (combined_times[i] - combined_times[i - 1])
+        step_num += Decimal(combined_values[-1]) * (phase_end - combined_times[-1])
+        step_value_avg = step_num / Decimal(phase_end - combined_times[0])
+
     # sampling rate is derivable as soon as there is at least one diff between two samples,
     # independent of whether that diff is trusted enough to build the weighted average from
     # (see the value_count <= 2 case below) - this matches the original query, where the LAG-based
@@ -231,6 +255,12 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
         derivative_avg = weighted_derivative_avg # pylint: disable=possibly-used-before-assignment
         derivative_max = weighted_derivative_max # pylint: disable=possibly-used-before-assignment
         derivative_min = weighted_derivative_min # pylint: disable=possibly-used-before-assignment
+
+    if step_function: # neither of the two averages above fits a step function, see step_value_avg above
+        value_avg = step_value_avg # pylint: disable=possibly-used-before-assignment
+        # the derivatives are left as they are: they are meaningless for a step function, which is not an
+        # accumulating counter, and no step function metric is mapped to a derivative in
+        # build_and_store_phase_stats() - they all go to the MEAN branch, which only reads value_avg.
 
 
     return {

@@ -1130,6 +1130,16 @@ SHORT_PHASE_PHASES = [
 def padding_grid(offset, value, samples=40, step=SHORT_PHASE_PADDING_INTERVAL):
     return [(SHORT_PHASE_PROVIDER_START + offset + idx*step, value) for idx in range(samples)]
 
+def padding_grid_with_change(offset, value_before, value_after, change_offset, samples=40, step=SHORT_PHASE_PADDING_INTERVAL):
+    # what expand_to_sampling_rate() emits when the provider value changes during the run: the padding
+    # grid points, plus an additional sample at the exact time of the change
+    series = [
+        (SHORT_PHASE_PROVIDER_START + offset + idx*step, value_before if offset + idx*step < change_offset else value_after)
+        for idx in range(samples)
+    ]
+    series.append((SHORT_PHASE_PROVIDER_START + change_offset, value_after))
+    return sorted(series)
+
 def test_compute_metric_phase_stats_carries_padded_value_into_short_phase():
     carbon_series = padding_grid(0, 436)
     times = [time for time, _ in carbon_series]
@@ -1179,6 +1189,10 @@ def test_compute_metric_phase_stats_step_function_keeps_samples_inside_the_phase
     assert stats['value_count'] == 2
     assert stats['min_value'] == 400 # carried in from before the phase
     assert stats['max_value'] == 500 # the real sample inside the phase
+    # 400 is in effect for the first 9ms of the phase, 500 for the remaining 11ms. The classic average
+    # of (400+500)/2 = 450 that a sampled quantity gets for two samples would throw that timing away
+    assert stats['value_avg'] == (400*9_000 + 500*11_000) / Decimal(20_000)
+    assert stats['value_avg'] == 455
 
 
 def test_compute_metric_phase_stats_step_function_has_no_value_before_first_sample():
@@ -1202,6 +1216,87 @@ def test_compute_metric_phase_stats_step_function_has_no_value_before_first_samp
 
     assert stats['value_count'] == 0
     assert stats['value_avg'] is None
+
+
+def test_compute_metric_phase_stats_step_function_weights_each_interval_with_its_starting_value():
+    # A sample of a step function is the value in effect FROM its timestamp until the next one, so an
+    # interval has to be weighted with the value at its start. Weighting it with the value at its end -
+    # correct for a sampled quantity, where a sample describes the interval that ends at it - would
+    # report 266.67 here, as it shifts every value one interval to the left.
+    times = [0, 100, 200]
+    values = [100, 200, 300]
+
+    stats = _compute_metric_phase_stats(times, values, 50, 250, 400, Decimal(200), step_function=True)
+
+    # 100 is in effect from 50 to 100, 200 from 100 to 200 and 300 from 200 to the phase end at 250
+    assert stats['value_count'] == 3
+    assert stats['value_avg'] == (100*50 + 200*100 + 300*50) / Decimal(200)
+    assert stats['value_avg'] == 200
+
+
+def test_compute_metric_phase_stats_step_function_closes_the_last_interval_at_phase_end():
+    # the last sample of a phase is not terminated by a following sample like all the ones before it,
+    # its value stays in effect until the phase ends - so that interval must be weighted in as well
+    times = [0, 100_000]
+    values = [400, 500]
+
+    stats = _compute_metric_phase_stats(times, values, 50_000, 300_000, 400_000, Decimal(250_000), step_function=True)
+
+    # 400 from the phase start at 50_000 to 100_000, 500 from there to the phase end at 300_000
+    assert stats['value_count'] == 2
+    assert stats['value_avg'] == (400*50_000 + 500*200_000) / Decimal(250_000)
+    assert stats['value_avg'] == 480
+
+
+def test_compute_metric_phase_stats_step_function_mean_is_exact_on_a_padded_grid():
+    # The real providers do not only pad onto the grid, expand_to_sampling_rate() also emits an extra
+    # sample at the exact time the value changes. Together with the interval weighting above that makes
+    # the MEAN exact, not just an approximation limited by the padding interval.
+    carbon_series = padding_grid_with_change(0, 436, 512, 2_000_000)
+    times = [time for time, _ in carbon_series]
+    values = [value for _, value in carbon_series]
+
+    long_phase = SHORT_PHASE_PHASES[3]
+    change = SHORT_PHASE_PROVIDER_START + 2_000_000
+    assert long_phase['start'] < change < long_phase['end'], 'test setup broken - the change must fall inside the phase'
+
+    stats = _compute_metric_phase_stats(
+        times, values,
+        long_phase['start'], long_phase['end'], SHORT_PHASE_PHASES[4]['start'],
+        Decimal(long_phase['end'] - long_phase['start']),
+        step_function=True,
+    )
+
+    expected = (
+        Decimal(436) * (change - long_phase['start']) + Decimal(512) * (long_phase['end'] - change)
+    ) / Decimal(long_phase['end'] - long_phase['start'])
+    assert stats['value_avg'] == expected
+
+
+def test_compute_metric_phase_stats_step_function_mean_in_phase_shorter_than_the_padding_interval():
+    # the case this whole step function handling exists for: a phase too short to contain a grid point,
+    # but the value does change inside it - so it has exactly the carried in value plus the change
+    # sample, and the classic average of the two would place the change in the middle of the phase
+    short_phase = SHORT_PHASE_PHASES[2]
+    change = SHORT_PHASE_PROVIDER_START + 1_120_000
+
+    carbon_series = padding_grid_with_change(0, 436, 512, 1_120_000)
+    times = [time for time, _ in carbon_series]
+    values = [value for _, value in carbon_series]
+
+    assert short_phase['end'] - short_phase['start'] < SHORT_PHASE_PADDING_INTERVAL
+    assert short_phase['start'] < change < short_phase['end']
+
+    stats = _compute_metric_phase_stats(
+        times, values,
+        short_phase['start'], short_phase['end'], SHORT_PHASE_PHASES[3]['start'],
+        Decimal(short_phase['end'] - short_phase['start']),
+        step_function=True,
+    )
+
+    # 436 for the first 20ms of the phase, 512 for the remaining 40ms - not (436+512)/2 = 474
+    assert stats['value_count'] == 2
+    assert stats['value_avg'] == (436*20_000 + 512*40_000) / Decimal(60_000)
 
 
 def test_phase_stats_carbon_intensity_survives_short_phase():
