@@ -1,5 +1,6 @@
 import os
 import platform
+import shlex
 import signal
 import subprocess
 import tempfile
@@ -64,6 +65,56 @@ def clear_file_system_caches():
         encoding='UTF-8',
         errors='replace',
     )
+
+
+# PowerShell has no argv switches for its strictness settings, they are statements that must run before
+# the actual command. We therefore prepend them, separated the same way PowerShell separates statements.
+POWERSHELL_STATEMENT_SEPARATOR = '; '
+
+
+def shell_family(shell):
+    # cmd and powershell do not understand the POSIX '-c' convention and also do not express their
+    # strictness settings as argv options. Everything else is treated as a POSIX shell.
+    # process_helpers.get_shell_options() derives the matching default options from this family.
+    shell_binary = Path(shell).name.lower().removesuffix('.exe')
+    if shell_binary == 'cmd':
+        return 'cmd'
+    if shell_binary in ('powershell', 'pwsh'):
+        return 'powershell'
+    return 'posix'
+
+
+def shell_command_argv(shell, command, shell_options=()):
+    family = shell_family(shell)
+
+    if family == 'cmd':
+        # cmd cannot express the strictness the POSIX options express and has no place in its invocation
+        # syntax to put them. process_helpers.get_shell_options() therefore returns none for cmd by default.
+        # Anything the user configured explicitly would have to be dropped right here, which would make GMT
+        # look like it applied them, so we refuse loudly instead.
+        if shell_options:
+            raise RuntimeError(
+                f"`shell-options` were configured for a command that runs in '{shell}', but cmd has no equivalent "
+                "for them and they would therefore not be applied at all. Please either remove `shell-options` for "
+                "this command, set them to an empty list ('shell-options: []') to state explicitly that no "
+                "strictness is wanted, or use a shell that supports them (for instance 'shell: pwsh')."
+            )
+        return [shell, '/d', '/s', '/c', command]
+
+    if family == 'powershell':
+        # For PowerShell the options are statements (see process_helpers.DEFAULT_SHELL_OPTIONS_POWERSHELL),
+        # so they are prepended to the command instead of being passed as argv.
+        if shell_options:
+            command = POWERSHELL_STATEMENT_SEPARATOR.join([*shell_options, command])
+        return [shell, '-NoProfile', '-NonInteractive', '-Command', command]
+
+    return [shell, *shell_options, '-c', command]
+
+
+def join_shell_arguments(parts):
+    if is_windows():
+        return subprocess.list2cmdline(parts)
+    return shlex.join(parts)
 
 
 def popen_process_group_kwargs():

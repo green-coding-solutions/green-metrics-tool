@@ -1,0 +1,23 @@
+---
+name: Host Execution Mixed
+author: Didi Hoffmann
+description: One flow runs in a container and one directly on the host
+
+services:
+  test-container:
+    image: gcb_stress
+    build:
+      context: ../stress-application
+
+flow:
+  - name: Container Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+
+  - name: Host Echo
+    container: null
+    commands:
+      - type: console
+        command: echo "hello from the host"

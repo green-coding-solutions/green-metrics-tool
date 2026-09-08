@@ -85,6 +85,10 @@ class User():
     def can_use_machine(self, machine_id: int):
         return machine_id in self._capabilities['machines']
 
+    def can_use_orchestrator(self, orchestrator: str):
+        # 'host' grants execution of flow commands directly on the host (container: null). Security sensitive - grant with care!
+        return orchestrator in self._capabilities['measurement'].get('orchestrators', {})
+
     def can_use_route(self, route: str):
         return route in self._capabilities['api']['routes']
 

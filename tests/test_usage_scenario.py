@@ -497,8 +497,8 @@ def test_flow_addresses_container_by_custom_container_name():
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
 
-    assert f"command on container {container_name('gmt-totally-different-name')}" in out.getvalue(), \
-        Tests.assertion_info(f"command on container {container_name('gmt-totally-different-name')}", out.getvalue())
+    assert f"command on {container_name('gmt-totally-different-name')}" in out.getvalue(), \
+        Tests.assertion_info(f"command on {container_name('gmt-totally-different-name')}", out.getvalue())
     assert container_name('gmt-flow-alias-service') not in out.getvalue(), \
         Tests.assertion_info('service key should never be used as a docker container name', out.getvalue())
 
