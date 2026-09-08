@@ -15,7 +15,7 @@ from contextlib import redirect_stdout, redirect_stderr
 
 from tests import test_functions as Tests
 from lib.db import DB
-from lib.phase_stats import build_and_store_phase_stats
+from lib.phase_stats import build_and_store_phase_stats, _compute_metric_phase_stats
 from lib.post_metric_providers.calculate_co2_intensity import calculate_co2_intensity
 from lib import metric_importer
 from lib.scenario_runner import ScenarioRunner
@@ -1096,3 +1096,181 @@ def test_phase_stats_maps_elephant_machine_carbon():
     assert data['unit'] == 'ugCO2e'
     assert data['value'] == 1200
     assert data['type'] == 'TOTAL'
+
+
+# --- Carbon intensity in phases shorter than the provider's padding interval ---
+#
+# The carbon intensity providers do not really measure per sample, they pad a step function over the
+# run via metric_providers/carbon/intensity/helpers.py::expand_to_sampling_rate(). That padding grid
+# starts at the provider's own start_profiling() time and steps by the configured sampling_rate
+# (99 ms in all shipped configs), so its sample positions are completely unrelated to the phase
+# boundaries. A phase that is shorter than that interval can therefore end up with zero padded
+# samples inside it, while every other provider (started a few ms earlier/later, so on a differently
+# offset grid) does have one. Without the step function handling in _compute_metric_phase_stats()
+# the phase then has no carbon intensity at all, carbon_intensity stays None and the network / SCI
+# carbon calculation reports that no carbon intensity provider data was found - even though the
+# intensity for that interval is perfectly well known.
+
+SHORT_PHASE_PROVIDER_START = 1_759_592_247_000_000
+SHORT_PHASE_PADDING_INTERVAL = 99_000 # what sampling_rate: 99 pads to
+
+# 'Quick command' is 60ms long, i.e. shorter than the 99ms padding interval, and is positioned
+# between two carbon padding grid points (offset +1_089_000 and +1_188_000 relative to the provider
+# start) so that not a single padded carbon sample falls inside it. The gap to the next phase is
+# ~300us, as it is in real runs, so the next grid point already belongs to 'Long command' and cannot
+# be folded in either - the phase has no carbon sample associated with it whatsoever.
+SHORT_PHASE_PHASES = [
+    {'start': SHORT_PHASE_PROVIDER_START +    50_000, 'name': '[BASELINE]',    'end': SHORT_PHASE_PROVIDER_START + 1_050_000, 'hidden': False},
+    {'start': SHORT_PHASE_PROVIDER_START + 1_060_000, 'name': '[RUNTIME]',     'end': SHORT_PHASE_PROVIDER_START + 3_000_000, 'hidden': False},
+    {'start': SHORT_PHASE_PROVIDER_START + 1_100_000, 'name': 'Quick command', 'end': SHORT_PHASE_PROVIDER_START + 1_160_000, 'hidden': False},
+    {'start': SHORT_PHASE_PROVIDER_START + 1_160_300, 'name': 'Long command',  'end': SHORT_PHASE_PROVIDER_START + 2_900_000, 'hidden': False},
+    {'start': SHORT_PHASE_PROVIDER_START + 3_010_000, 'name': '[REMOVE]',      'end': SHORT_PHASE_PROVIDER_START + 3_500_000, 'hidden': False},
+]
+
+def padding_grid(offset, value, samples=40, step=SHORT_PHASE_PADDING_INTERVAL):
+    return [(SHORT_PHASE_PROVIDER_START + offset + idx*step, value) for idx in range(samples)]
+
+def test_compute_metric_phase_stats_carries_padded_value_into_short_phase():
+    carbon_series = padding_grid(0, 436)
+    times = [time for time, _ in carbon_series]
+    values = [value for _, value in carbon_series]
+
+    short_phase = SHORT_PHASE_PHASES[2]
+    long_phase = SHORT_PHASE_PHASES[3]
+
+    assert short_phase['end'] - short_phase['start'] < SHORT_PHASE_PADDING_INTERVAL
+
+    def stats_for(phase, next_phase, **kwargs):
+        return _compute_metric_phase_stats(
+            times, values,
+            phase['start'], phase['end'], next_phase['start'],
+            Decimal(phase['end'] - phase['start']),
+            **kwargs,
+        )
+
+    # treated as a sampled quantity the phase has no sample at all: none inside its boundaries and the
+    # next grid point already belongs to the following phase, so it cannot be folded in either
+    plain_stats = stats_for(short_phase, long_phase)
+    assert plain_stats['value_count'] == 0
+    assert plain_stats['value_avg'] is None
+
+    # treated as a step function, the value in effect at phase start (= the last grid point before it)
+    # is the value of the phase
+    step_stats = stats_for(short_phase, long_phase, step_function=True)
+    assert step_stats['value_count'] == 1
+    assert step_stats['value_avg'] == 436
+    assert step_stats['max_value'] == 436
+    assert step_stats['min_value'] == 436
+
+    # a phase that does contain grid points keeps its own samples and just gets the value at phase
+    # start instead of the sample after phase end
+    long_phase_step_stats = stats_for(long_phase, SHORT_PHASE_PHASES[4], step_function=True)
+    assert long_phase_step_stats['value_count'] > 1
+    assert long_phase_step_stats['value_avg'] == 436
+
+
+def test_compute_metric_phase_stats_step_function_keeps_samples_inside_the_phase():
+    # the value at phase start is added to the samples inside the phase, it must never replace them
+    times = [0, 99_000]
+    values = [400, 500]
+
+    stats = _compute_metric_phase_stats(times, values, 90_000, 110_000, 200_000, Decimal(20_000), step_function=True)
+
+    assert stats['value_count'] == 2
+    assert stats['min_value'] == 400 # carried in from before the phase
+    assert stats['max_value'] == 500 # the real sample inside the phase
+
+
+def test_compute_metric_phase_stats_step_function_has_no_value_before_first_sample():
+    # a provider that only came up after a phase had already ended must not get values mapped
+    # backwards into it
+    carbon_series = padding_grid(0, 436)
+    times = [time for time, _ in carbon_series]
+    values = [value for _, value in carbon_series]
+
+    phase_before_provider_start = {
+        'start': SHORT_PHASE_PROVIDER_START - 500_000,
+        'end': SHORT_PHASE_PROVIDER_START - 440_000,
+    }
+
+    stats = _compute_metric_phase_stats(
+        times, values,
+        phase_before_provider_start['start'], phase_before_provider_start['end'], SHORT_PHASE_PROVIDER_START,
+        Decimal(phase_before_provider_start['end'] - phase_before_provider_start['start']),
+        step_function=True,
+    )
+
+    assert stats['value_count'] == 0
+    assert stats['value_avg'] is None
+
+
+def test_phase_stats_carbon_intensity_survives_short_phase():
+    run_id = Tests.insert_run(SHORT_PHASE_PHASES)
+
+    # carbon intensity as the provider actually stores it: a padded step function on a 99ms grid
+    # starting at the provider's own start time
+    import_custom_metric(
+        run_id,
+        'carbon_intensity_static_machine',
+        'gCO2e/kWh',
+        padding_grid(0, 436),
+        detail_name='static',
+    )
+
+    # the network provider runs on the same 99ms rate, but was started ~31ms later, so its grid is
+    # offset against the carbon grid and it does hit the short phase
+    import_custom_metric(
+        run_id,
+        'network_io_cgroup_container',
+        'bytes',
+        padding_grid(31_000, 1_000_000),
+        detail_name='test-container',
+    )
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        build_and_store_phase_stats(run_id, sci={'N': 0.001})
+
+    # the phase has network traffic, so the network carbon calculation runs for it
+    assert DB().fetch_one(
+        'SELECT value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = %s',
+        params=(run_id, '002_Quick command', 'network_total_cgroup_container'),
+    ) is not None, 'test setup broken - the short phase must have network data'
+
+    carbon_intensity = DB().fetch_one(
+        'SELECT value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = %s',
+        params=(run_id, '002_Quick command', 'carbon_intensity_static_machine'),
+    )
+    assert carbon_intensity is not None, 'carbon intensity was dropped for the short phase'
+    assert carbon_intensity[0] == 436
+
+    network_carbon = DB().fetch_one(
+        'SELECT value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = %s',
+        params=(run_id, '002_Quick command', 'network_carbon_formula_global'),
+    )
+    assert network_carbon is not None, 'network carbon was not calculated for the short phase'
+
+    # the reconstructed runtime phase sums its sub-phases, so a dropped sub-phase would silently make
+    # the total network carbon of the run too low rather than fail visibly
+    runtime_network_carbon = DB().fetch_one(
+        'SELECT value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = %s',
+        params=(run_id, '001_[RUNTIME]', 'network_carbon_formula_global'),
+    )
+    long_phase_network_carbon = DB().fetch_one(
+        'SELECT value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = %s',
+        params=(run_id, '003_Long command', 'network_carbon_formula_global'),
+    )
+    assert runtime_network_carbon[0] == network_carbon[0] + long_phase_network_carbon[0]
+
+    assert 'No carbon intensity provider data was found' not in err.getvalue()
+
+    logged_errors = DB().fetch_all("SELECT message FROM system_logs WHERE level = 'error'")
+    assert not [row for row in logged_errors if 'No carbon intensity provider data was found' in row[0]], \
+        'a configured carbon intensity provider must not be reported as missing'
+
+    # a padded step function has no undersampling problem - its value holds for the whole interval,
+    # so the low sample count in the short phase must not produce a MEAN accuracy warning either
+    warnings = DB().fetch_all('SELECT message FROM warnings WHERE run_id = %s', params=(run_id, ))
+    assert not [row for row in warnings if 'carbon_intensity_static_machine' in row[0]], \
+        f"expected no undersampling warning for the padded carbon intensity, got {warnings}"
