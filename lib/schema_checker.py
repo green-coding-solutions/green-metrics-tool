@@ -311,6 +311,11 @@ class SchemaChecker():
 
             runs_on_host = flow_runs_on_host(flow)
 
+            if not runs_on_host and flow['container'] not in known_container_names:
+                raise SchemaError(
+                    f"Flow '{flow['name']}' references unknown container '{flow['container']}'."
+                )
+
             for command in flow['commands']:
                 if runs_on_host and command['type'] != 'console':
                     raise SchemaError(f"Flow '{flow['name']}' runs directly on the host (container: null) and only supports 'console' commands. Found command type: '{command['type']}'")
