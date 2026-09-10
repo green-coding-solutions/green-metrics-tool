@@ -40,12 +40,6 @@ static disk_io_t get_disk_cgroup(char* path, char* container_name) {
         exit(1);
     }
 
-    // Parse per line and only require the two fields we use. A device the cgroup is associated with
-    // but never had a read or write accounted to is printed by the kernel as a bare "251:0 " with no
-    // counters at all (blkcg_print_one_stat() in block/blk-cgroup.c). That is a lasting state, it means
-    // zero for that device, and newly registered devices are listed first. The previous fscanf() format
-    // had to match a complete row, stopped at such a line and dropped every row after it, so the
-    // cumulative total fell to zero and disk_io_parse.py rejected the run for negative intervals.
     while (getline(&line, &line_cap, fd) != -1) {
         if (sscanf(line, "%u:%u", &major_number, &minor_number) != 2) continue;
         const char *rbytes_p = strstr(line, "rbytes=");
