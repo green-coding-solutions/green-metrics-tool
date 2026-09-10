@@ -41,12 +41,8 @@ static disk_io_t get_disk_cgroup(char* path, char* container_name) {
     }
 
     while (getline(&line, &line_cap, fd) != -1) {
-        if (sscanf(line, "%u:%u", &major_number, &minor_number) != 2) continue;
-        const char *rbytes_p = strstr(line, "rbytes=");
-        const char *wbytes_p = strstr(line, "wbytes=");
-        if (rbytes_p == NULL || wbytes_p == NULL) continue; // nothing accounted for this device yet
-        rbytes = strtoull(rbytes_p + strlen("rbytes="), NULL, 10);
-        wbytes = strtoull(wbytes_p + strlen("wbytes="), NULL, 10);
+        // a device with no read or write accounted to it yet is listed without counters, skip it
+        if (sscanf(line, "%u:%u rbytes=%llu wbytes=%llu", &major_number, &minor_number, &rbytes, &wbytes) != 4) continue;
 
         // 1    Memory devices (e.g., /dev/mem, /dev/null)
         // 2    Floppy disk controller
