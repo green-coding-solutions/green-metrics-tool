@@ -149,9 +149,10 @@ async def get_software_tasks(
             AND regexp_replace(p.phase, '^[0-9]+_', '') = tr.phase
             AND p.hidden = false
             AND (
-                p.metric LIKE '%%power%%'
-                OR p.metric LIKE '%%energy%%'
-                OR p.metric LIKE '%%carbon%%'
+                p.metric LIKE '%%_power_%%'
+                OR p.metric LIKE '%%_energy_%%'
+                OR p.metric LIKE '%%_carbon_%%'
+                OR p.metric LIKE 'custom_%%'
                 OR p.metric LIKE 'network_%%'
                 OR p.metric = 'phase_time_syscall_system'
             )
