@@ -25,7 +25,7 @@ static int user_id = -1;
 static unsigned int msleep_time=1000;
 static struct timespec offset;
 
-static disk_io_t parse_io_stat(FILE *fd) {
+static disk_io_t get_disk_cgroup(char* path, char* container_name) {
     unsigned long long int rbytes = 0;
     unsigned long long int wbytes = 0;
     unsigned int major_number;
@@ -34,16 +34,23 @@ static disk_io_t parse_io_stat(FILE *fd) {
     char *line = NULL;
     size_t line_cap = 0;
 
-    while (getline(&line, &line_cap, fd) != -1) {
-        if (sscanf(line, "%u:%u", &major_number, &minor_number) != 2) {
-            continue;
-        }
+    FILE * fd = fopen(path, "r");
+    if ( fd == NULL) {
+        fprintf(stderr, "Error - Could not open path %s (%s) for reading. Maybe the container is not running anymore? Errno: %d\n", path, container_name, errno);
+        exit(1);
+    }
 
+    // Parse per line and only require the two fields we use. A device the cgroup is associated with
+    // but never had a read or write accounted to is printed by the kernel as a bare "251:0 " with no
+    // counters at all (blkcg_print_one_stat() in block/blk-cgroup.c). That is a lasting state, it means
+    // zero for that device, and newly registered devices are listed first. The previous fscanf() format
+    // had to match a complete row, stopped at such a line and dropped every row after it, so the
+    // cumulative total fell to zero and disk_io_parse.py rejected the run for negative intervals.
+    while (getline(&line, &line_cap, fd) != -1) {
+        if (sscanf(line, "%u:%u", &major_number, &minor_number) != 2) continue;
         const char *rbytes_p = strstr(line, "rbytes=");
         const char *wbytes_p = strstr(line, "wbytes=");
-        if (rbytes_p == NULL || wbytes_p == NULL) {
-            continue; // device registered, nothing accounted: contributes zero
-        }
+        if (rbytes_p == NULL || wbytes_p == NULL) continue; // nothing accounted for this device yet
         rbytes = strtoull(rbytes_p + strlen("rbytes="), NULL, 10);
         wbytes = strtoull(wbytes_p + strlen("wbytes="), NULL, 10);
 
@@ -104,18 +111,15 @@ static disk_io_t parse_io_stat(FILE *fd) {
     }
 
     free(line);
-    return disk_io;
-}
-
-static disk_io_t get_disk_cgroup(char* path, char* container_name) {
-    FILE * fd = fopen(path, "r");
-    if ( fd == NULL) {
-        fprintf(stderr, "Error - Could not open path %s (%s) for reading. Maybe the container is not running anymore? Errno: %d\n", path, container_name, errno);
-        exit(1);
-    }
-
-    disk_io_t disk_io = parse_io_stat(fd);
     fclose(fd);
+
+    // we initially had this check in the provider, but it very often happens that no io.stat file is produced if
+    // the container has not written to disk so far.
+    // erroring here thus seems to be the wrong way. Code left uncommented because we are still monitoring if this design choice is apt.
+    //if(rbytes < 0 || wbytes < 0) {
+    //    fprintf(stderr, "Error - io.stat could not be read or was < 0.");
+    //    exit(1);
+    //}
 
     return disk_io;
 }
