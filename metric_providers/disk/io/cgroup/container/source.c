@@ -31,6 +31,8 @@ static disk_io_t get_disk_cgroup(char* path, char* container_name) {
     unsigned int major_number;
     unsigned int minor_number;
     disk_io_t disk_io = {0};
+    char *line = NULL;
+    size_t line_cap = 0;
 
     FILE * fd = fopen(path, "r");
     if ( fd == NULL) {
@@ -38,7 +40,9 @@ static disk_io_t get_disk_cgroup(char* path, char* container_name) {
         exit(1);
     }
 
-    while (fscanf(fd, "%u:%u rbytes=%llu wbytes=%llu rios=%*u wios=%*u dbytes=%*u dios=%*u", &major_number, &minor_number, &rbytes, &wbytes) == 4) {
+    while (getline(&line, &line_cap, fd) != -1) {
+        // a device with no read or write accounted to it yet is listed without counters, skip it
+        if (sscanf(line, "%u:%u rbytes=%llu wbytes=%llu", &major_number, &minor_number, &rbytes, &wbytes) != 4) continue;
 
         // 1    Memory devices (e.g., /dev/mem, /dev/null)
         // 2    Floppy disk controller
@@ -96,6 +100,7 @@ static disk_io_t get_disk_cgroup(char* path, char* container_name) {
         disk_io.wbytes += wbytes;
     }
 
+    free(line);
     fclose(fd);
 
     // we initially had this check in the provider, but it very often happens that no io.stat file is produced if
