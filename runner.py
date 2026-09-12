@@ -92,6 +92,7 @@ if __name__ == '__main__':
     # parser.add_argument('--allowed-run-args', nargs='+', help='Override allowed run arguments to be passed to the docker container') # user can just go into --allow-unsafe and using another args="+" for parsing CLI is flaky
 
     runner = None
+    args = None
 
     try:
         args = parser.parse_args()
@@ -294,7 +295,7 @@ if __name__ == '__main__':
         # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
         error_helpers.log_error('Base exception occured in runner.py', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
     finally:
-        if args.print_logs and runner:
+        if args and args.print_logs and runner:
             logs = runner._get_all_run_logs()
             if logs:
                 print("Container logs:")
