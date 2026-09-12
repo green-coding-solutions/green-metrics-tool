@@ -1,3 +1,4 @@
+"use strict";
 class CO2Tangible extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `

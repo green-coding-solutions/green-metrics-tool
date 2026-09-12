@@ -1,3 +1,4 @@
+"use strict";
 const AVAILABLE_YEARS = [2021, 2022, 2023, 2024, 2025];
 
 const DEFAULT_NUM_RUNS = 1000;

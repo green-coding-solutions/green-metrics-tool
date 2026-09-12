@@ -1,3 +1,4 @@
+"use strict";
 async function getRepositories(sort_by = 'date') {
     try {
         var api_data = await makeAPICall(`/v1/ci/repositories?sort_by=${sort_by}`)

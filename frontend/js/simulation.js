@@ -1,3 +1,4 @@
+"use strict";
 
 const MINI_CHART_COLORS = {
     provider: '#6ea9c9',

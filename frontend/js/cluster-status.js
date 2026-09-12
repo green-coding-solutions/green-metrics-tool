@@ -1,3 +1,4 @@
+"use strict";
 
 async function deleteSystemLog(e){
     e.preventDefault()
