@@ -1,3 +1,4 @@
+"use strict";
 const populateFieldsFromURL = () => {
     const urlParams = new URLSearchParams(window.location.search);
 

@@ -1,3 +1,4 @@
+"use strict";
 let chart_instances = [];
 let repository_uri = null; // Store unescaped URI for URL construction
 

@@ -1,3 +1,4 @@
+"use strict";
 const createChartContainer = (container, el) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");

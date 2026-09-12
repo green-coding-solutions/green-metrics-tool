@@ -1,3 +1,4 @@
+"use strict";
 (() => {
     const token_field = $("#authentication-token");
 
