@@ -93,6 +93,7 @@ if __name__ == '__main__':
 
     runner = None
     args = None
+    exit_code = 0
 
     try:
         args = parser.parse_args()
@@ -284,16 +285,20 @@ if __name__ == '__main__':
                 print('####################################################################################\n\n', TerminalColors.ENDC)
 
     except KeyboardInterrupt:
-        pass
+        exit_code = 1
     except FileNotFoundError as e:
         error_helpers.log_error('File or executable not found', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
+        exit_code = 1
     except subprocess.CalledProcessError as e:
         error_helpers.log_error(str(e), stdout=e.stdout, stderr=e.stderr, exception_context=e.__context__, run_id=runner._run_id if runner else None)
+        exit_code = 1
     except RuntimeError as e:
         error_helpers.log_error('RuntimeError occured in runner.py', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
+        exit_code = 1
     except BaseException as e: #pylint: disable=broad-except
         # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
         error_helpers.log_error('Base exception occured in runner.py', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
+        exit_code = 1
     finally:
         if args and args.print_logs and runner:
             logs = runner._get_all_run_logs()
@@ -319,3 +324,4 @@ if __name__ == '__main__':
 
         # Last thing before we exit is to shutdown the DB Pool
         DB().shutdown()
+        sys.exit(exit_code)
