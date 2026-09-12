@@ -384,7 +384,7 @@ def test_runner_filename_pattern_no_match_error():
     )
 
     assert ps.returncode == 1, "Runner should fail when no files match pattern"
-    assert 'No valid files found for --filename pattern' in ps.stdout
+    assert 'No valid files found for --filename pattern' in ps.stderr
 
     # if file does not exist and ScenarioRunner is called directly
 def test_different_filename_missing():
