@@ -474,8 +474,13 @@ const loadCharts = async () => {
 
     let prun_id = null
 
+    const includeArchived = $('input[name="show_archived"]:checked').val() === 'true';
+
     phase_stats_data.forEach( (data) => {
         let [run_id, run_name, usage_scenario_variables, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash, archived] = data
+
+        // Hide archived runs unless the user explicitly enables "show archived"
+        if (archived && !includeArchived) return;
 
         const [transformed_value, transformed_unit] = convertValue(value, unit)
 
