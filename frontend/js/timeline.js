@@ -293,12 +293,12 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     if (skip_dates) return api_url;
 
     if ($('input[name="start_date"]').val() != '') {
-        let start_date = dateToYMD(new Date($('input[name="start_date"]').val()), short=true);
+        let start_date = dateToYMD(new Date($('input[name="start_date"]').val()), true);
         api_url += `${ampersand}start_date=${encodeURIComponent(start_date)}`
     }
 
     if ($('input[name="end_date"]').val() != '') {
-        let end_date = dateToYMD(new Date($('input[name="end_date"]').val()), short=true);
+        let end_date = dateToYMD(new Date($('input[name="end_date"]').val()), true);
         api_url += `${ampersand}end_date=${encodeURIComponent(end_date)}`
     }
     return api_url;

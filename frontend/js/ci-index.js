@@ -21,7 +21,7 @@ async function getRepositories(sort_by = 'date') {
                 <div class="ui accordion" style="width: 100%;">
                   <div class="title">
                     <i class="dropdown icon"></i> ${getRepoLink(repo, source)} <!-- raw values: function handles escaping internally -->
-                    <span class="ui label right icon" style="float: right;">${dateToYMD(new Date(last_run), short=true)}<i class="clock icon"></i></span>
+                    <span class="ui label right icon" style="float: right;">${dateToYMD(new Date(last_run), true)}<i class="clock icon"></i></span>
                   </div>
 
                   <div class="content" data-uri="${escapeString(repo)}">
@@ -90,7 +90,7 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
 
         {
             data: 4, title: 'Last Run', render: function(el, type, row) {
-                return `<span title=${el}>${dateToYMD(new Date(el), short=true)}</span>`;
+                return `<span title=${el}>${dateToYMD(new Date(el), true)}</span>`;
             }
         },
         {

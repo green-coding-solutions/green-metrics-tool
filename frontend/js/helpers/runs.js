@@ -219,7 +219,7 @@ async function getRepositories(sort_by = 'date') {
                 <div class="ui accordion repositories" style="width: 100%;">
                   <div class="title">
                     <i class="dropdown icon"></i> ${uri_link}
-                    <span class="ui label float-right"><i class="clock icon"></i> ${dateToYMD(new Date(last_run), short=true)}</span>
+                    <span class="ui label float-right"><i class="clock icon"></i> ${dateToYMD(new Date(last_run), true)}</span>
                   </div>
                   <div class="content" data-uri="${escapeString(uri)}">
                       <table class="ui celled striped table"></table>

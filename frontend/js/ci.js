@@ -312,8 +312,8 @@ const getMeasurementsAndStats = async (repo, branch, workflow_id, start_date, en
 
 const refreshView = async (repo, branch, workflow_id, chart_instance) => {
 
-    const start_date = dateToYMD(new Date($('#rangestart input').val()), short=true);
-    const end_date = dateToYMD(new Date($('#rangeend input').val()), short=true);
+    const start_date = dateToYMD(new Date($('#rangestart input').val()), true);
+    const end_date = dateToYMD(new Date($('#rangeend input').val()), true);
 
     let measurements = null;
     let stats = null;
