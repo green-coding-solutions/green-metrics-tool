@@ -204,7 +204,7 @@ const fetchAndFillRunData = async (run_id) => {
             // skip
         }  else if(item == 'relations') {
             if (run_data[item] == null) continue; // can be empty
-            for (relation in run_data[item]) {
+            for (const relation in run_data[item]) {
                 const url = run_data[item][relation]['url'];
                 const httpsUrl = toHttpsUri(url);
                 const relationHash = run_data[item][relation]['commit_hash'];
