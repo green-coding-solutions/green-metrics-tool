@@ -2,7 +2,11 @@
 
 Green Metrics Tool is built on the shoulders of open-source projects. This page is a shout-out to libraries, tools, and platforms we rely on. It is not exhaustive—if something is missing, please open a PR.
 
-## Runtime & language
+## Operating systems
+
+GMT runs on and is often packaged with Linux distributions including **Alpine**, **Ubuntu**, and **Fedora**.
+
+## Runtime & infrastructure
 
 | Project | Role |
 |---------|------|
@@ -12,6 +16,9 @@ Green Metrics Tool is built on the shoulders of open-source projects. This page 
 | [Redis](https://redis.io/) | Caching / coordination where used |
 | [NGINX](https://nginx.org/) | Frontend and reverse proxy |
 | [Gunicorn](https://gunicorn.org/) | WSGI application server |
+| [Squid](http://www.squid-cache.org/) | Proxy support in measurement environments |
+| [tcpdump](https://www.tcpdump.org/) | Packet capture for network-related metrics |
+| [Scaphandre](https://github.com/hubblo-org/scaphandre) | Power metrics provider |
 
 ## Frontend
 
@@ -21,22 +28,36 @@ Green Metrics Tool is built on the shoulders of open-source projects. This page 
 | [jQuery](https://jquery.com/) | DOM helpers (legacy UI paths) |
 | [Fomantic UI](https://fomantic-ui.com/) / Semantic UI styles | Layout and components |
 | [DataTables](https://datatables.net/) | Tabular views |
+| [diff2html](https://diff2html.rtfpessoa.xyz/) | Diff rendering |
+| [jquery-tablesort](https://github.com/tristen/tablesort) | Table sorting helpers |
+| [json2yaml](https://github.com/jeffsoy/json2yaml) | JSON ↔ YAML utilities in the UI tooling path |
 
-## Python ecosystem (examples)
+## Python packages
 
-Packages evolve with `requirements` / install scripts; commonly involved areas include HTTP APIs, DB drivers, YAML/JSON tooling, and scientific utilities used by metric providers. See the repository dependency files and container definitions for the exact pinned set on a given release.
+Pinned application and development dependencies live in the repository requirement files rather than being listed one-by-one here:
+
+- `requirements.txt`
+- `docker/requirements.txt`
+- `requirements-dev.txt`
+
+Thanks to every package maintainer represented in those files.
 
 ## Docs & project tooling
 
 | Project | Role |
 |---------|------|
 | [Hugo](https://gohugo.io/) | Project documentation site (docs.green-coding.io) |
+| [Thulite](https://www.thulite.io/) | Documentation theme |
 | [Git](https://git-scm.com/) / [GitHub Actions](https://github.com/features/actions) | Version control and CI |
+
+## Testing
+
+| Project | Role |
+|---------|------|
+| [pytest](https://pytest.org/) | Python test runner |
+| [Playwright](https://playwright.dev/) | Frontend / browser tests |
+| [pylint](https://pylint.pycqa.org/) | Python static analysis |
 
 ## Standards & protocols
 
 We also depend on open specifications such as Linux power interfaces (e.g. RAPL), IPMI where applicable, and the broader container ecosystem.
-
----
-
-*Maintained as a living thank-you note ([#953](https://github.com/green-coding-solutions/green-metrics-tool/issues/953)).*
