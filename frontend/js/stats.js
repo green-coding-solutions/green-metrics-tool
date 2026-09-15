@@ -1,8 +1,13 @@
 
-/** Remove ANSI SGR / CSI sequences so container logs are readable in the web UI. */
+/** Remove ANSI escape sequences (CSI/OSC/SGR and common variants) for readable web logs. */
 const stripAnsi = (text) => {
     if (text == null) return '';
-    return String(text).replace(/\u001b\[[0-9;]*[A-Za-z]/g, '').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+    // OSC (ESC] ... BEL/ST), CSI (ESC[ ...), other ESC Fe, and 8-bit CSI
+    return String(text)
+        .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)?/g, '')
+        .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
+        .replace(/\u001b[@-Z\\-_]/g, '')
+        .replace(/\u009b[0-9;?]*[ -/]*[@-~]/g, '');
 };
 
 class CO2Tangible extends HTMLElement {
