@@ -10,6 +10,6 @@ aiohttp==3.14.3
 energy-dependency-inspector==0.5.1
 
 # calibration script dep
-tqdm==4.70.0
+tqdm==4.70.1
 plotext==6.1.0
 docker==7.2.0
