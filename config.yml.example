@@ -17,11 +17,6 @@ security:
   encryption_public_key_file: null
   encryption_private_key_file: null
 
-  # Token sent as Bearer auth to api.github.com when validating repositories and polling the watchlist.
-  # Raises the GitHub rate limit from 60 to 5000 requests per hour. A fine-grained token without any
-  # extra permissions is enough for public repositories. Leave null to send unauthenticated requests.
-  github_api_token: null
-
 smtp:
   server: SMTP_SERVER
   sender: SMTP_SENDER
@@ -46,6 +41,10 @@ cluster:
   cors_allowed_origins:
       - __API_URL__
       - __METRICS_URL__
+  # Token sent as Bearer auth to api.github.com when validating repositories and polling the watchlist.
+  # Raises the GitHub rate limit from 60 to 5000 requests per hour. A fine-grained token without any
+  # extra permissions is enough for public repositories. Leave null to send unauthenticated requests.
+  github_api_token: null
   client:
     sleep_time_no_job: 300
     jobs_processing: "random"

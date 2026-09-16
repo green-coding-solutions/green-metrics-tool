@@ -337,7 +337,7 @@ def get_git_api_headers(git_api):
     if git_api != 'github':
         return {}
 
-    token = GlobalConfig().config.get('security', {}).get('github_api_token')
+    token = GlobalConfig().config.get('cluster', {}).get('github_api_token')
     if not token:
         return {}
 
@@ -368,7 +368,7 @@ def check_repo(repo_url, branch='main'):
 
     # ---- Rate limit detection (works even on 403) ----
     if response.status_code == 403 and isinstance(message, str) and message.startswith("API rate limit exceeded"):
-        error_helpers.log_error(f"{git_api} rate limit exceeded while accessing {repo_url}. Skipping repo validation - Consider setting security.github_api_token in config.yml.")
+        error_helpers.log_error(f"{git_api} rate limit exceeded while accessing {repo_url}. Skipping repo validation - Consider setting cluster.github_api_token in config.yml.")
         return
 
     # We early return here in case of custom API and only do a warning,
@@ -509,6 +509,7 @@ SENSITIVE_CONFIG_KEYS = frozenset({
     'secret',
     'api_key',
     'auth_token',
+    'github_api_token',
 })
 
 def sanitize_config(value, _redacted='__REDACTED__'):

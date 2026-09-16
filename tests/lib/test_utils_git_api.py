@@ -31,7 +31,7 @@ def set_github_api_token(tmp_path, token):
     with open(BASE_CONFIG_PATH, encoding='utf-8') as file:
         config = yaml.safe_load(file)
 
-    config.setdefault('security', {})['github_api_token'] = token
+    config['cluster']['github_api_token'] = token
 
     tmp_config = tmp_path / 'test-config-github-api-token.yml'
     tmp_config.write_text(yaml.safe_dump(config), encoding='utf-8')
