@@ -42,6 +42,10 @@ inputs:
     description: 'Enable SSH connection for debugging purposes'
     required: false
     default: 'false'
+  run-serial-tests:
+    description: 'Whether to run the extra @pytest.mark.serial pass after the parallel run. Only meaningful when tests-command targets a suite that registers the "serial" marker (GMTs own tests/ directory) - disable when overriding tests-command to run a different test file/suite, otherwise that pass always selects 0 tests and pytest exits non-zero.'
+    required: false
+    default: 'true'
 
 
 runs:
@@ -166,9 +170,12 @@ runs:
         set +e
         python3 -m ${{ inputs.tests-command }} -n "$WORKERS" --dist=loadgroup ${TEST_PATH} -rA | tee /tmp/test-results.txt
         PARALLEL_EXIT_CODE=${PIPESTATUS[0]}
-        # these marked tests must run sequentially after, as it restarts the DB which will collide with other parallel tests running
-        python3 -m ${{ inputs.tests-command }} -m serial -rA | tee -a /tmp/test-results.txt
-        SERIAL_EXIT_CODE=${PIPESTATUS[0]}
+        SERIAL_EXIT_CODE=0
+        if ${{ inputs.run-serial-tests }}; then
+          # these marked tests must run sequentially after, as it restarts the DB which will collide with other parallel tests running
+          python3 -m ${{ inputs.tests-command }} -m serial -rA | tee -a /tmp/test-results.txt
+          SERIAL_EXIT_CODE=${PIPESTATUS[0]}
+        fi
         set -e
 
         if [ "$PARALLEL_EXIT_CODE" -ne 0 ] || [ "$SERIAL_EXIT_CODE" -ne 0 ]; then
