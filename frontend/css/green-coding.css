@@ -695,6 +695,12 @@ a {
   max-width: 400px;
 }
 
+/* compare-simple.html: wide tables scroll inside the card. The body has overflow-x:hidden (Semantic UI),
+   so without this the columns past the window edge are cut off with no scrollbar. */
+#compare-simple-table_wrapper div.dt-layout-table > div {
+    overflow-x: auto;
+}
+
 /* Compare Mode Buttons */
 #compare-button {
     margin-right: 0px;
