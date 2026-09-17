@@ -76,6 +76,21 @@ if [[ $(uname) == "Linux" ]]; then
     fi
 fi
 
-current_dir=$(pwd)
-cd ..
-rm -fR $current_dir
+# Resolve the physical path of this script, following symlinks.
+script_path="$(readlink -f -- "${BASH_SOURCE[0]}")"
+script_dir="$(dirname -- "$script_path")"
+
+# Safety checks before recursive deletion.
+if [[ -z "$script_dir" || "$script_dir" == "/" || "$script_dir" == "." ]]; then
+    echo "Refusing to delete unsafe directory: '$script_dir'" >&2
+    exit 1
+fi
+
+# Optional: require the directory to actually contain this script.
+if [[ ! -f "$script_path" ]]; then
+    echo "Script path does not exist: '$script_path'" >&2
+    exit 1
+fi
+
+echo "Removing: $script_dir"
+rm -rf -- "$script_dir"
