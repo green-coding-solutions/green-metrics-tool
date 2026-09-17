@@ -839,7 +839,7 @@ const fetchAndFillPhaseStatsData = async (run_id) => {
 const fetchAndFillNetworkIntercepts = async (run_id) => {
     let network = null;
     try {
-        network = await makeAPICall('/v1/network/' + run_id)
+        network = await makeAPICall('/v1/network/connections/proxy/' + run_id)
     } catch (err) {
         if (err instanceof APIHTTPError && err.status === 204) {
             console.log('No network intercepts present in API response. Skipping error as this is allowed case.')
@@ -858,6 +858,47 @@ const fetchAndFillNetworkIntercepts = async (run_id) => {
             node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(date)}</strong></td><td>${escapeString(item[3])}</td><td>${escapeString(item[4])}</td></tr>`)
         }
     }
+}
+
+const fetchAndFillNetworkStats = async (run_id) => {
+    let networkStats = null;
+    try {
+        networkStats = await makeAPICall('/v1/network/connections/tcpdump/' + run_id)
+    } catch (err) {
+        if (err instanceof APIHTTPError && err.status === 204) {
+            console.log('No network stats (tcpdump) present in API response. Skipping error as this is allowed case.')
+        } else {
+            showNotification('Could not get network stats data from API', err);
+        }
+        return
+    }
+
+    const node = document.querySelector("#network-stats");
+    if (networkStats.data.length === 0) {
+        node.insertAdjacentHTML('beforeend', '<p>No tcpdump network stats were recorded for this run.</p>')
+        return
+    }
+
+    // columns: id, run_id, detail_name, metric, stats, created_at, updated_at
+    let accordionHTML = '<div class="ui styled accordion">';
+    for (const item of networkStats.data) {
+        const detailName = item[2];
+        const metric = item[3];
+        const stats = item[4];
+
+        accordionHTML += `
+            <div class="title"><i class="dropdown icon"></i>${escapeString(detailName)} <span style="color: grey;">(${escapeString(metric)})</span></div>
+            <div class="content">
+                <div class="ui segment stdout">
+                    <div>${escapeString(stats)}</div>
+                </div>
+            </div>
+        `;
+    }
+    accordionHTML += '</div>';
+
+    node.insertAdjacentHTML('beforeend', accordionHTML);
+    $(node).find('.ui.accordion').accordion();
 }
 
 const fetchAndFillOptimizationsData = async (run_id) => {
@@ -1256,6 +1297,7 @@ $(document).ready( () => {
 
         // run all without await, as they have no blocking visuals or depended upon changes
         fetchAndFillNetworkIntercepts(run_id);
+        fetchAndFillNetworkStats(run_id);
         fetchAndFillOptimizationsData(run_id);
         fetchAndFillAIData(run_id);
         fetchAndFillWarnings(run_id);
