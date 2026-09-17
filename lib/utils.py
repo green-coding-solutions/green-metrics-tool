@@ -332,6 +332,17 @@ def get_git_api(parsed_url):
         api_host = f"{userinfo}@{api_host}"
     return [f"https://{api_host}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'custom']
 
+def get_git_api_headers(git_api):
+    # The token is only ever sent to api.github.com. GitLab and custom hosts must never receive it.
+    if git_api != 'github':
+        return {}
+
+    token = GlobalConfig().config.get('cluster', {}).get('github_api_token')
+    if not token:
+        return {}
+
+    return {'Authorization': f"Bearer {token}"}
+
 
 def check_repo(repo_url, branch='main'):
     parsed_url = urlparse(repo_url)
@@ -345,7 +356,7 @@ def check_repo(repo_url, branch='main'):
         return
 
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers=get_git_api_headers(git_api), timeout=10)
     except Exception as exc:
         error_helpers.log_error(f"Request to {git_api} API failed",url=url,exception=str(exc))
         raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?") from exc
@@ -357,7 +368,7 @@ def check_repo(repo_url, branch='main'):
 
     # ---- Rate limit detection (works even on 403) ----
     if response.status_code == 403 and isinstance(message, str) and message.startswith("API rate limit exceeded"):
-        error_helpers.log_error(f"{git_api} rate limit exceeded while accessing {repo_url}. Skipping repo validation - Consider authenticating future requests.")
+        error_helpers.log_error(f"{git_api} rate limit exceeded while accessing {repo_url}. Skipping repo validation - Consider setting cluster.github_api_token in config.yml.")
         return
 
     # We early return here in case of custom API and only do a warning,
@@ -408,7 +419,7 @@ def get_repo_last_marker(repo_url, marker, branch=None):
             url += f"&ref_name={branch}"
 
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers=get_git_api_headers(git_api), timeout=10)
     except Exception as exc:
         error_helpers.log_error('Request to GitHub API failed',url=url,exception=str(exc))
         raise RuntimeError(f"Could not find repository {repo_url}. Is the repository publicly accessible and not empty?") from exc
@@ -498,6 +509,7 @@ SENSITIVE_CONFIG_KEYS = frozenset({
     'secret',
     'api_key',
     'auth_token',
+    'github_api_token',
 })
 
 def sanitize_config(value, _redacted='__REDACTED__'):
