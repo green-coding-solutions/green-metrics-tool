@@ -90,11 +90,5 @@ if [[ -z "$script_dir" || "$script_dir" == "/" || "$script_dir" == "." ]]; then
     exit 1
 fi
 
-# Optional: require the directory to actually contain this script.
-if [[ ! -f "$script_path" ]]; then
-    echo "Script path does not exist: '$script_path'" >&2
-    exit 1
-fi
-
 echo "Removing: $script_dir"
 rm -rf -- "$script_dir"
