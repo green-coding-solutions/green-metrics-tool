@@ -77,7 +77,7 @@ if [[ $(uname) == "Linux" ]]; then
 fi
 
 # Resolve the physical path of this script, following symlinks.
-script_path="$(readlink -f -- "${BASH_SOURCE[0]}")"
+script_path="$(realpath -- "${BASH_SOURCE[0]}")"
 script_dir="$(dirname -- "$script_path")"
 
 # Safety checks before recursive deletion.
