@@ -10,6 +10,13 @@ function uninstall_python() {
     python3 -m pip uninstall -y -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 }
 
+# Resolve the physical path of this script, following symlinks.
+script_path="$(realpath -- "${BASH_SOURCE[0]}")"
+script_dir="$(dirname -- "$script_path")"
+
+# Move into the GMT main directory if this script is called from somewhere else
+cd "$script_dir"
+
 source venv/bin/activate
 
 uninstall_python
@@ -76,6 +83,12 @@ if [[ $(uname) == "Linux" ]]; then
     fi
 fi
 
-current_dir=$(pwd)
-cd ..
-rm -fR $current_dir
+
+# Safety checks before recursive deletion.
+if [[ -z "$script_dir" || "$script_dir" == "/" || "$script_dir" == "." ]]; then
+    echo "Refusing to delete unsafe directory: '$script_dir'" >&2
+    exit 1
+fi
+
+echo "Removing: $script_dir"
+rm -rf -- "$script_dir"
