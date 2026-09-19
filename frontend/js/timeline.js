@@ -12,7 +12,7 @@ window.onresize = function() { // set callback when ever the user changes the vi
 }
 
 function* colorIterator() {
-    colors = [
+    const colors = [
         '#88a788',
         '#e5786d',
         '#baa5c3',
@@ -49,7 +49,7 @@ const populateMachines = async () => {
     try {
         const machines_select = document.querySelector('select[name="machine_id"]');
 
-        machines_data = (await makeAPICall('/v1/machines'))
+        const machines_data = (await makeAPICall('/v1/machines'))
         machines_data.data.forEach(machine => {
             let newOption = new Option(machine[1],machine[0]);
             machines_select.add(newOption,undefined);
