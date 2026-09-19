@@ -1,3 +1,4 @@
+"use strict";
 function createPythonDictTable(dataArray, labelPrefix = 'Item', keyHeader = 'Key') {
     // Parse Python dictionary data into a comparison table
     const items = Array.isArray(dataArray) ? dataArray : [dataArray];

@@ -1,3 +1,4 @@
+"use strict";
 const updateSetting = async (el) => {
     const left_el = el.parentElement.previousElementSibling.querySelector('input, select, textarea');
     const name = left_el.getAttribute('data-setting');
