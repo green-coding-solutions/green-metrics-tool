@@ -18,7 +18,6 @@ GMT runs on and is often packaged with Linux distributions including **Alpine**,
 | [Gunicorn](https://gunicorn.org/) | WSGI application server |
 | [Squid](http://www.squid-cache.org/) | Proxy support in measurement environments |
 | [tcpdump](https://www.tcpdump.org/) | Packet capture for network-related metrics |
-| [Scaphandre](https://github.com/hubblo-org/scaphandre) | Power metrics provider |
 
 ## Frontend
 
@@ -47,7 +46,7 @@ Thanks to every package maintainer represented in those files.
 | Project | Role |
 |---------|------|
 | [Hugo](https://gohugo.io/) | Project documentation site (docs.green-coding.io) |
-| [Thulite](https://www.thulite.io/) | Documentation theme |
+| [Doks](https://getdoks.org/) | Documentation theme (Doks / Hugo docs template used by the site) |
 | [Git](https://git-scm.com/) / [GitHub Actions](https://github.com/features/actions) | Version control and CI |
 
 ## Testing
