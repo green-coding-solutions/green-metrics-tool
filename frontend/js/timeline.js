@@ -44,7 +44,7 @@ const generateColoredValues = (values, key) => {
     })
 }
 
-const populateMachines = () => {
+const populateMachines = async () => {
 
     try {
         const machines_select = document.querySelector('select[name="machine_id"]');
@@ -668,7 +668,7 @@ $(document).ready( (e) => {
         });
         addVariableField();
 
-        populateMachines();
+        await populateMachines();
 
         $('#submit').on('click', function() {
             loadCharts();
