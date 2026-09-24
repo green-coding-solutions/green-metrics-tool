@@ -1,5 +1,5 @@
 PyYAML==6.0.3
-pandas==3.0.5
+pandas==3.0.6
 cryptography==50.0.1
 psycopg_pool==3.3.2
 psycopg[binary]==3.3.6
