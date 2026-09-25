@@ -1,0 +1,6 @@
+1735295414.719551 veth1111aaaa In  IP (tos 0x10, ttl 64, id 12590, offset 0, flags [DF], proto TCP (6), length 176)
+    5.75.242.14.22 > 79.224.127.251.59979: Flags [P.], cksum 0xc7d7 (incorrect -> 0xa394), seq 458946148:458946272, ack 3869229696, win 501, options [nop,nop,TS val 4068070828 ecr 4289544055], length 124
+1735295414.740639 veth1111aaaa Out IP (tos 0x0, ttl 55, id 0, offset 0, flags [none], proto TCP (6), length 52)
+    79.224.127.251.59979 > 5.75.242.14.22: Flags [.], cksum 0xfa28 (correct), ack 124, win 2046, options [nop,nop,TS val 4289544143 ecr 4068070828], length 0
+1735295414.806828 veth2222bbbb In  IP (tos 0x10, ttl 64, id 12591, offset 0, flags [DF], proto TCP (6), length 192)
+    10.0.0.5.443 > 10.0.0.6.51000: Flags [P.], cksum 0xc7e7 (incorrect -> 0x45be), seq 124:264, ack 1, win 501, options [nop,nop,TS val 4068070915 ecr 4289544143], length 140
