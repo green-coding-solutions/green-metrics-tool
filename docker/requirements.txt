@@ -1,5 +1,5 @@
 gunicorn==26.2.0
-psycopg_pool==3.3.2
+psycopg_pool==3.3.3
 psycopg[binary]==3.3.6
 uvicorn[standard]==0.53.0
 fastapi[standard]==0.141.1
