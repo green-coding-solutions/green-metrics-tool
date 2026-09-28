@@ -95,109 +95,110 @@ if __name__ == '__main__':
     args = None
     exit_code = 0
 
-    try:
-        args = parser.parse_args()
+    args = parser.parse_args()
 
-        if args.uri is None:
+    if args.uri is None:
+        parser.print_help()
+        raise ValueError('Please supply --uri to get usage_scenario.yml from')
+
+    if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://' or args.uri[0:6] == 'ssh://' or args.uri[0:4] == 'git@':
+        print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', utils.filter_sensitive_data(args.uri), TerminalColors.ENDC)
+        run_type = 'URL'
+    elif Path(args.uri).is_dir():
+        print(TerminalColors.OKBLUE, '\nDetected supplied folder: ', args.uri, TerminalColors.ENDC)
+        run_type = 'folder'
+    else:
+        parser.print_help()
+        raise ValueError(f"Could not detect correct URI. Please use a local folder path or URL http(s):// : ; URI: {args.uri}")
+
+    variables_dict = {}
+    if args.variable:
+        for var in args.variable:
+            if not re.fullmatch(r'__GMT_VAR_[\w]+__=.*', var):
+                raise ValueError(f"Usage Scenario variable ({var}) has invalid name. Format must be __GMT_VAR_[\\w]+__. Example: __GMT_VAR_EXAMPLE__")
+            key, value = var.split('=', maxsplit=1)
+            variables_dict[key] = value
+
+    if args.config_override is not None:
+        if args.config_override[-4:] != '.yml':
             parser.print_help()
-            raise ValueError('Please supply --uri to get usage_scenario.yml from')
+            raise ValueError('Config override file must be a yml file')
+        GlobalConfig(config_location=args.config_override)
 
-        if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://' or args.uri[0:6] == 'ssh://' or args.uri[0:4] == 'git@':
-            print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', utils.filter_sensitive_data(args.uri), TerminalColors.ENDC)
-            run_type = 'URL'
-        elif Path(args.uri).is_dir():
-            print(TerminalColors.OKBLUE, '\nDetected supplied folder: ', args.uri, TerminalColors.ENDC)
-            run_type = 'folder'
-        else:
-            parser.print_help()
-            raise ValueError(f"Could not detect correct URI. Please use a local folder path or URL http(s):// : ; URI: {args.uri}")
-
-        variables_dict = {}
-        if args.variable:
-            for var in args.variable:
-                if not re.fullmatch(r'__GMT_VAR_[\w]+__=.*', var):
-                    raise ValueError(f"Usage Scenario variable ({var}) has invalid name. Format must be __GMT_VAR_[\\w]+__. Example: __GMT_VAR_EXAMPLE__")
-                key, value = var.split('=', maxsplit=1)
-                variables_dict[key] = value
-
-        if args.config_override is not None:
-            if args.config_override[-4:] != '.yml':
-                parser.print_help()
-                raise ValueError('Config override file must be a yml file')
-            GlobalConfig(config_location=args.config_override)
-
-        carbon_simulation_to_pass = None
-        if args.carbon_simulation is not None:
+    carbon_simulation_to_pass = None
+    if args.carbon_simulation is not None:
+        try:
+            carbon_simulation_value = json.loads(args.carbon_simulation) # this will catch number and [...] lists
+            if isinstance(carbon_simulation_value, int) and not isinstance(carbon_simulation_value, bool):
+                carbon_simulation_value = [carbon_simulation_value]
+            elif not (
+                isinstance(carbon_simulation_value, list)
+                and all(isinstance(v, int) and not isinstance(v, bool) for v in carbon_simulation_value)
+            ):
+                raise TypeError
+            carbon_simulation_to_pass = carbon_simulation_value
+        except (json.JSONDecodeError, TypeError):
             try:
-                carbon_simulation_value = json.loads(args.carbon_simulation) # this will catch number and [...] lists
-                if isinstance(carbon_simulation_value, int) and not isinstance(carbon_simulation_value, bool):
-                    carbon_simulation_value = [carbon_simulation_value]
-                elif not (
-                    isinstance(carbon_simulation_value, list)
-                    and all(isinstance(v, int) and not isinstance(v, bool) for v in carbon_simulation_value)
-                ):
-                    raise TypeError
-                carbon_simulation_to_pass = carbon_simulation_value
-            except (json.JSONDecodeError, TypeError):
-                try:
-                    carbon_simulation_to_pass = str(uuid.UUID(args.carbon_simulation))
-                except ValueError as exc:  # not a valid uuid
-                    raise ValueError('Could not parse --carbon-simulation value. Please provide either an integer, a list of integers or a uuid string.') from exc
+                carbon_simulation_to_pass = str(uuid.UUID(args.carbon_simulation))
+            except ValueError as exc:  # not a valid uuid
+                raise ValueError('Could not parse --carbon-simulation value. Please provide either an integer, a list of integers or a uuid string.') from exc
 
-        if args.dev_cache_repos and args.file_cleanup:
-            raise ValueError('Cannot set both --dev-cache-repos and --file-cleanup as the latter will delete the cached file. Please choose one option.')
+    if args.dev_cache_repos and args.file_cleanup:
+        raise ValueError('Cannot set both --dev-cache-repos and --file-cleanup as the latter will delete the cached file. Please choose one option.')
 
-        # Use default filename if none provided
-        filename_patterns = args.filename if args.filename else ['usage_scenario.yml']
-        using_default_filename = not args.filename
+    # Use default filename if none provided
+    filename_patterns = args.filename if args.filename else ['usage_scenario.yml']
+    using_default_filename = not args.filename
 
-        filenames = []
-        for pattern in filename_patterns:
-            if run_type == 'folder':
-                # For local directories, look for files relative to the URI path
-                search_pattern = os.path.join(args.uri, pattern)
-                matches = glob.glob(search_pattern)
-                # Convert absolute paths back to relative paths for ScenarioRunner
-                valid_files = []
-                for match in matches:
-                    if os.path.isfile(match):
-                        # Convert absolute path back to relative path
-                        relative_path = os.path.relpath(match, args.uri)
-                        valid_files.append(relative_path)
+    filenames = []
+    for pattern in filename_patterns:
+        if run_type == 'folder':
+            # For local directories, look for files relative to the URI path
+            search_pattern = os.path.join(args.uri, pattern)
+            matches = glob.glob(search_pattern)
+            # Convert absolute paths back to relative paths for ScenarioRunner
+            valid_files = []
+            for match in matches:
+                if os.path.isfile(match):
+                    # Convert absolute path back to relative path
+                    relative_path = os.path.relpath(match, args.uri)
+                    valid_files.append(relative_path)
 
-                if not valid_files:
-                    if using_default_filename:
-                        raise ValueError(f"Error: Default file not found: {pattern}. Search pattern: {search_pattern}\nPlease create the file or specify a different file with --filename")
-                    else:
-                        raise ValueError(f"Error: No valid files found for --filename pattern: {pattern}. Search pattern: {search_pattern}")
+            if not valid_files:
+                if using_default_filename:
+                    raise ValueError(f"Error: Default file not found: {pattern}. Search pattern: {search_pattern}\nPlease create the file or specify a different file with --filename")
+                else:
+                    raise ValueError(f"Error: No valid files found for --filename pattern: {pattern}. Search pattern: {search_pattern}")
 
-                filenames.extend(valid_files)
-            else:
-                # For URLs, file validation will happen after checkout in ScenarioRunner
-                # Just pass the pattern as-is since we can't validate files that don't exist locally yet
-                filenames.append(pattern)
-
-        # Execute the given usage scenarios multiple times (if iterations > 1)
-        filenames = filenames * args.iterations
-
-        if args.ssh_private_key:
-            with open(args.ssh_private_key, 'r', encoding='UTF-8') as f:
-                ssh_private_key_contents = SecureVariable(f.read())
+            filenames.extend(valid_files)
         else:
-            ssh_private_key_contents = None
+            # For URLs, file validation will happen after checkout in ScenarioRunner
+            # Just pass the pattern as-is since we can't validate files that don't exist locally yet
+            filenames.append(pattern)
 
-        if args.docker_credentials:
-            with open(args.docker_credentials, 'r', encoding='UTF-8') as f:
-                raw_creds = json.load(f)
-            if not isinstance(raw_creds, list):
-                raise ValueError('--docker-credentials file must contain a JSON array of credential objects')
-            docker_credentials_to_pass = [
-                {'registry': c['registry'], 'username': c['username'], 'password': SecureVariable(c['password'])}
-                for c in raw_creds
-            ]
-        else:
-            docker_credentials_to_pass = None
+    # Execute the given usage scenarios multiple times (if iterations > 1)
+    filenames = filenames * args.iterations
 
+    if args.ssh_private_key:
+        with open(args.ssh_private_key, 'r', encoding='UTF-8') as f:
+            ssh_private_key_contents = SecureVariable(f.read())
+    else:
+        ssh_private_key_contents = None
+
+    if args.docker_credentials:
+        with open(args.docker_credentials, 'r', encoding='UTF-8') as f:
+            raw_creds = json.load(f)
+        if not isinstance(raw_creds, list):
+            raise ValueError('--docker-credentials file must contain a JSON array of credential objects')
+        docker_credentials_to_pass = [
+            {'registry': c['registry'], 'username': c['username'], 'password': SecureVariable(c['password'])}
+            for c in raw_creds
+        ]
+    else:
+        docker_credentials_to_pass = None
+
+
+    try:
         # Create ScenarioRunner once and reuse it for all files
         runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filenames[0],
                         branch=args.branch, commit_hash=args.commit_hash, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
