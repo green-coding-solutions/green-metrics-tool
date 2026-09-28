@@ -1,7 +1,14 @@
 # This file handles the checking of the system
 # There is a list of checks that is made up of tuples structured the following way:
-# - the function to call to check. This will return True or None for success and False for failure
-# - What severity the False return value has. If the Status is Error we raise and exit the GMT
+# - the function to call to check. This returns True or None for success, NOT_CONFIGURED /
+#   NOT_IMPLEMENTED for a skip, and for failure either False or a string.
+#   When a check fails for a reason that has a concrete offending value (e.g. a byte count,
+#   a percentage, a sampling rate) it should return that value formatted as a string instead
+#   of False. system_check() then appends this value inline to the pre-labeled message from
+#   the tuple below, so the WARN/ERROR output and the raised ConfigurationCheckError carry the
+#   actual measured value instead of just the generic static text. Checks that do this should
+#   also write the offending values to error_helpers.log_error() before returning.
+# - What severity the failure has. If the Status is Error we raise and exit the GMT
 # - A string what is being checked
 # - A string to output on WARN or INFO
 # It is possible for one of the checkers or metric providers to raise an exception if something should fail specifically
@@ -68,7 +75,14 @@ def check_docker_host_env(*_, **__):
 def check_one_energy_and_scope_machine_provider(*_, **__):
     metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
     energy_machine_providers = [provider for provider in metric_providers if "_energy_" in provider and "_machine" in provider]
-    return len(energy_machine_providers) <= 1
+    if len(energy_machine_providers) <= 1:
+        return True
+
+    error_helpers.log_error(
+        'check_one_energy_and_scope_machine_provider failed',
+        energy_machine_providers=energy_machine_providers,
+    )
+    return f"energy_machine_providers={energy_machine_providers}"
 
 def check_tmpfs_mount(*_, **__):
     if host_platform.is_windows():
@@ -90,17 +104,41 @@ def check_largest_sampling_rate(*_, **__):
     if not metric_providers: # no provider provider configured passes this check
         return True
 
-    return max(
-        metric_providers.values(),
-        key=lambda x: x.get('sampling_rate', 0) if x else 0
-    ).get('sampling_rate', 0) <= 1000
+    provider_name, provider_config = max(
+        metric_providers.items(),
+        key=lambda item: item[1].get('sampling_rate', 0) if item[1] else 0
+    )
+    sampling_rate = provider_config.get('sampling_rate', 0) if provider_config else 0
+
+    if sampling_rate <= 1000:
+        return True
+
+    error_helpers.log_error(
+        'check_largest_sampling_rate failed',
+        provider=provider_name,
+        sampling_rate_ms=sampling_rate,
+    )
+    return f"provider={provider_name}, sampling_rate_ms={sampling_rate}"
 
 def check_cpu_utilization(*_, **__):
-    return psutil.cpu_percent(0.1) < 5.0
+    utilization = psutil.cpu_percent(0.1)
+    if utilization < 5.0:
+        return True
+
+    error_helpers.log_error('check_cpu_utilization failed', cpu_utilization_percent=utilization)
+    return f"cpu_utilization_percent={utilization}"
 
 def check_free_disk(*_, **__):
     free_space_bytes = psutil.disk_usage(os.path.dirname(os.path.abspath(__file__))).free
-    return free_space_bytes >= GMT_RESOURCES['free_disk']
+    if free_space_bytes >= GMT_RESOURCES['free_disk']:
+        return True
+
+    error_helpers.log_error(
+        'check_free_disk failed',
+        free_disk_bytes=free_space_bytes,
+        required_free_disk_bytes=GMT_RESOURCES['free_disk'],
+    )
+    return f"free_disk_bytes={free_space_bytes}"
 
 def check_available_cpus(*_, **__): # GMT min system requirement
     return os.cpu_count() >= GMT_RESOURCES['min_cpus']
@@ -108,20 +146,46 @@ def check_available_cpus(*_, **__): # GMT min system requirement
 def check_docker_cpu_availability(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
         return NOT_IMPLEMENTED # no checks as Docker runs in a VM here with custom CPU configuration
-    return os.cpu_count() == resource_limits.get_docker_available_cpus()
+
+    host_cpus = os.cpu_count()
+    docker_cpus = resource_limits.get_docker_available_cpus()
+    if host_cpus == docker_cpus:
+        return True
+
+    error_helpers.log_error('check_docker_cpu_availability failed', host_cpus=host_cpus, docker_cpus=docker_cpus)
+    return f"host_cpus={host_cpus}, docker_cpus={docker_cpus}"
 
 def check_assignable_cpus(*_, **__):
     return resource_limits.get_assignable_cpus() > 0
 
 def check_free_memory(*_, **__):
     # Here we explicitely check on the host and not how much docker has assigned, as memory is not blocked exclusively by Docker
-    return psutil.virtual_memory().available >= GMT_RESOURCES['free_memory']
+    available_bytes = psutil.virtual_memory().available
+    if available_bytes >= GMT_RESOURCES['free_memory']:
+        return True
+
+    error_helpers.log_error(
+        'check_free_memory failed',
+        available_memory_bytes=available_bytes,
+        required_free_memory_bytes=GMT_RESOURCES['free_memory'],
+    )
+    return f"available_memory_bytes={available_bytes}"
 
 def check_assignable_memory(*_, **__):
     return resource_limits.get_assignable_memory() >= 0
 
 def check_assignable_memory_oom(*_, **__):
-    return resource_limits.get_assignable_memory() <= psutil.virtual_memory().available
+    assignable_bytes = resource_limits.get_assignable_memory()
+    available_bytes = psutil.virtual_memory().available
+    if assignable_bytes <= available_bytes:
+        return True
+
+    error_helpers.log_error(
+        'check_assignable_memory_oom failed',
+        assignable_memory_bytes=assignable_bytes,
+        available_memory_bytes=available_bytes,
+    )
+    return f"assignable_memory_bytes={assignable_bytes}, available_memory_bytes={available_bytes}"
 
 def check_containers_running(*_, **__):
     result = subprocess.check_output(['docker', 'ps', '--format', '{{.Names}}'], encoding='UTF-8', errors='replace')
@@ -753,7 +817,7 @@ def system_check(mode='start', system_check_threshold=3, disabled_checks=None, r
     elif mode == 'end':
         checks = end_checks
     else:
-        raise RuntimeError('Unknown mode for system check:', mode)
+        raise ValueError('Unknown mode for system check:', mode)
 
     if disabled_checks:
         # Names are already validated against the full check registry by normalize_disabled_checks()
@@ -773,18 +837,27 @@ def system_check(mode='start', system_check_threshold=3, disabled_checks=None, r
             raise exp
         finally:
             formatted_key = check[2].ljust(max_key_length)
+
+            # A check fails either by returning False (no concrete offending value to report)
+            # or by returning that value as a string (anything except the NOT_CONFIGURED /
+            # NOT_IMPLEMENTED sentinels, which are also strings but are handled as skips below).
+            failed = retval is False or (
+                isinstance(retval, str) and retval not in (NOT_CONFIGURED, NOT_IMPLEMENTED)
+            )
+            message = f"{check[3]} (Value: {retval})" if failed and isinstance(retval, str) else check[3]
+
             if retval is NOT_CONFIGURED:
                 output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} (Skipped: not configured in config.yml)"
             elif retval is NOT_IMPLEMENTED:
                 output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} (Skipped: not implemented on this platform. Switch to Linux, if possible, to enable this check.)"
-            elif retval or retval is None:
+            elif not failed:
                 output = f"{TerminalColors.OKGREEN}OK{TerminalColors.ENDC}"
             else:
                 if check[1] == Status.WARN:
-                    output = f"{TerminalColors.WARNING}WARN{TerminalColors.ENDC} ({check[3]})"
-                    warnings.append(check[3])
+                    output = f"{TerminalColors.WARNING}WARN{TerminalColors.ENDC} ({message})"
+                    warnings.append(message)
                 elif check[1] == Status.INFO:
-                    output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} ({check[3]})"
+                    output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} ({message})"
                 else:
                     output = f"{TerminalColors.FAIL}ERROR{TerminalColors.ENDC}"
 
@@ -794,7 +867,7 @@ def system_check(mode='start', system_check_threshold=3, disabled_checks=None, r
 
             print(f"Checking {formatted_key} : {output}")
 
-            if retval is False and check[1].value >= system_check_threshold:
+            if failed and check[1].value >= system_check_threshold:
                 # Error needs to raise
                 raise ConfigurationCheckError(message, check[1], check[0].__name__)
 
