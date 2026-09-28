@@ -22,6 +22,7 @@ import shutil
 import math
 import yaml
 import platform
+import psutil
 
 from pathlib import Path
 from copy import deepcopy
@@ -508,6 +509,9 @@ class ScenarioRunner:
             return # Nothing to do, but also no hard error needed
 
         self.__notes_helper.save_to_db(self._run_id)
+
+    def _log_free_memory(self):
+        print(TerminalColors.HEADER, f"\nFree memory at run start: {round(psutil.virtual_memory().available / 1024 / 1024,2)} MB", TerminalColors.ENDC)
 
     def _clear_caches(self):
         host_platform.clear_file_system_caches()
@@ -3075,6 +3079,7 @@ class ScenarioRunner:
             self._delete_docker_config_dir()
             self._delete_ssh_private_key_file()
 
+            self._log_free_memory()
             self._create_folders()
             self._start_measurement() # we start as early as possible to include initialization overhead
             self._clear_caches()
