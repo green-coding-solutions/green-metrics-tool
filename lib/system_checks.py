@@ -796,6 +796,6 @@ def system_check(mode='start', system_check_threshold=3, disabled_checks=None, r
 
             if retval is False and check[1].value >= system_check_threshold:
                 # Error needs to raise
-                raise ConfigurationCheckError(check[3], check[1])
+                raise ConfigurationCheckError(message, check[1], check[0].__name__)
 
     return warnings

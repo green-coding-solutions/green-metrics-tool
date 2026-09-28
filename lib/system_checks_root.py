@@ -26,10 +26,18 @@ Status = Enum('Status', ['INFO', 'WARN', 'ERROR'])
 # Reimplemented here, as we do not want to include user space libraries which
 # is a security risk in a sudo enabled file
 class ConfigurationCheckError(Exception):
-    def __init__(self, m, s=Status.INFO):
+    def __init__(self, m, s=Status.INFO, e=None):
         super().__init__(m)
+        self.message = m
         self.status = s
+        self.error_key = e
 
+    def __str__(self):
+        error = f"[{self.status.name}] {self.message}"
+        if self.error_key:
+            return f"{error} - Disable this system check with --dev-no-system-checks={self.error_key} if running on CLI. Multiple checks can be disabled by comma separating them"
+        else:
+            return error
 
 def _parse_timers(data):
     '''Parse systemctl list-timers output; returns list of found timer entries (empty = OK).'''
@@ -180,7 +188,7 @@ if __name__ == '__main__':
                     if retval is False and status.value >= system_check_threshold:
                         raise ConfigurationCheckError(message, status)
         except ConfigurationCheckError as exc:
-            results['_check_error'] = {'message': str(exc), 'status': exc.status.name}
+            results['_check_error'] = {'message': str(exc), 'status': exc.status.name, 'error_key': exc.error_key}
             print(json.dumps(results))
             sys.exit(1)
 
