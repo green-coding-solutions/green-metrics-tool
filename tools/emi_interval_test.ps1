@@ -54,7 +54,11 @@ foreach ($interval in $intervals) {
         $sampleCount  = $values.Count
         $uniqueCount  = ($values | Sort-Object -Unique).Count
         $zeroCount    = ($values | Where-Object { $_ -eq 0 }).Count
-        $repeatRatio  = if ($sampleCount -gt 0) { [math]::Round(1 - ($uniqueCount / $sampleCount), 3) } else { 1.0 }
+        $consecutiveRepeats = 0
+        for ($i = 1; $i -lt $values.Count; $i++) {
+            if ($values[$i] -eq $values[$i - 1]) { $consecutiveRepeats++ }
+        }
+        $repeatRatio  = if ($sampleCount -gt 1) { [math]::Round($consecutiveRepeats / ($sampleCount - 1), 3) } else { 0.0 }
         $minVal       = if ($values.Count -gt 0) { ($values | Measure-Object -Minimum).Minimum } else { $null }
         $maxVal       = if ($values.Count -gt 0) { ($values | Measure-Object -Maximum).Maximum } else { $null }
         $meanVal      = if ($values.Count -gt 0) { [math]::Round(($values | Measure-Object -Average).Average, 1) } else { $null }
