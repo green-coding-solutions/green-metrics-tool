@@ -719,7 +719,7 @@ def test_runner_dirty_dir(delete_and_create_temp_file): #pylint: disable=unused-
     with redirect_stdout(out), redirect_stderr(err), Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
 
-    assert 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir.' in out.getvalue()
+    assert 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir' in out.getvalue()
 
 def test_runner_run_invalidated():
 
