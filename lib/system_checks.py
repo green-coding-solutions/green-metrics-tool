@@ -6,8 +6,11 @@
 #   a percentage, a sampling rate) it should return that value formatted as a string instead
 #   of False. system_check() then appends this value inline to the pre-labeled message from
 #   the tuple below, so the WARN/ERROR output and the raised ConfigurationCheckError carry the
-#   actual measured value instead of just the generic static text. Checks that do this should
-#   also write the offending values to error_helpers.log_error() before returning.
+#   actual measured value instead of just the generic static text. Do NOT call
+#   error_helpers.log_error() from within a check for this: it performs a real DB insert and
+#   requires config['admin']['error_file'] to exist, both of which are inappropriate for
+#   routine/expected WARN conditions (e.g. high CPU utilization during a busy CI run) and will
+#   break configs/tests that don't set up an admin section or a live error log.
 # - What severity the failure has. If the Status is Error we raise and exit the GMT
 # - A string what is being checked
 # - A string to output on WARN or INFO
@@ -78,10 +81,6 @@ def check_one_energy_and_scope_machine_provider(*_, **__):
     if len(energy_machine_providers) <= 1:
         return True
 
-    error_helpers.log_error(
-        'check_one_energy_and_scope_machine_provider failed',
-        energy_machine_providers=energy_machine_providers,
-    )
     return f"energy_machine_providers={energy_machine_providers}"
 
 def check_tmpfs_mount(*_, **__):
@@ -113,11 +112,6 @@ def check_largest_sampling_rate(*_, **__):
     if sampling_rate <= 1000:
         return True
 
-    error_helpers.log_error(
-        'check_largest_sampling_rate failed',
-        provider=provider_name,
-        sampling_rate_ms=sampling_rate,
-    )
     return f"provider={provider_name}, sampling_rate_ms={sampling_rate}"
 
 def check_cpu_utilization(*_, **__):
@@ -125,7 +119,6 @@ def check_cpu_utilization(*_, **__):
     if utilization < 5.0:
         return True
 
-    error_helpers.log_error('check_cpu_utilization failed', cpu_utilization_percent=utilization)
     return f"cpu_utilization_percent={utilization}"
 
 def check_free_disk(*_, **__):
@@ -133,11 +126,6 @@ def check_free_disk(*_, **__):
     if free_space_bytes >= GMT_RESOURCES['free_disk']:
         return True
 
-    error_helpers.log_error(
-        'check_free_disk failed',
-        free_disk_bytes=free_space_bytes,
-        required_free_disk_bytes=GMT_RESOURCES['free_disk'],
-    )
     return f"free_disk_bytes={free_space_bytes}"
 
 def check_available_cpus(*_, **__): # GMT min system requirement
@@ -152,7 +140,6 @@ def check_docker_cpu_availability(*_, **__):
     if host_cpus == docker_cpus:
         return True
 
-    error_helpers.log_error('check_docker_cpu_availability failed', host_cpus=host_cpus, docker_cpus=docker_cpus)
     return f"host_cpus={host_cpus}, docker_cpus={docker_cpus}"
 
 def check_assignable_cpus(*_, **__):
@@ -164,11 +151,6 @@ def check_free_memory(*_, **__):
     if available_bytes >= GMT_RESOURCES['free_memory']:
         return True
 
-    error_helpers.log_error(
-        'check_free_memory failed',
-        available_memory_bytes=available_bytes,
-        required_free_memory_bytes=GMT_RESOURCES['free_memory'],
-    )
     return f"available_memory_bytes={available_bytes}"
 
 def check_assignable_memory(*_, **__):
@@ -180,11 +162,6 @@ def check_assignable_memory_oom(*_, **__):
     if assignable_bytes <= available_bytes:
         return True
 
-    error_helpers.log_error(
-        'check_assignable_memory_oom failed',
-        assignable_memory_bytes=assignable_bytes,
-        available_memory_bytes=available_bytes,
-    )
     return f"assignable_memory_bytes={assignable_bytes}, available_memory_bytes={available_bytes}"
 
 def check_containers_running(*_, **__):
