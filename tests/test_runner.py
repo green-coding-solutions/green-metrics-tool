@@ -665,7 +665,7 @@ def test_reporters_still_running():
             with pytest.raises(Exception) as e:
                 context2.run_until('import_metric_providers')
 
-            expected_error = r'Another instance of the \w+ metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.'
+            expected_error = r'\[ERROR\] Another instance of the \w+ metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.'
             assert re.match(expected_error, str(e.value)), Tests.assertion_info(expected_error, str(e.value))
 
 ## Using template
