@@ -355,7 +355,7 @@ def _get_sudo_check_results():
 
     if '_check_error' in data:
         err = data['_check_error']
-        raise ConfigurationCheckError(err['message'], Status[err['status']])
+        raise ConfigurationCheckError(err['message'], Status[err['status']], err['error_key'])
 
     if result.returncode != 0:
         return {}
@@ -381,7 +381,7 @@ def check_systemd_timers(*_, **__):
     data = _get_sudo_check_results()
     if not data:
         return None  # sudo script not installed or failed — skip
-    timers = data.get('systemd_timers', {})
+    timers = data.get('check_systemd_timers', {})
     if 'error' in timers and not timers.get('system_timers'):
         return None  # systemctl unavailable — skip
     if timers.get('system_timers'):
@@ -403,7 +403,7 @@ def check_cron_files(*_, **__):
     data = _get_sudo_check_results()
     if not data:
         return None  # sudo script not installed or failed — skip
-    cron = data.get('cron_files', {})
+    cron = data.get('check_cron_files', {})
 
     return not cron.get('files_found')
 
@@ -430,7 +430,7 @@ def _check_rapl_domain(domain_key):
         return NOT_CONFIGURED  # this specific domain not configured — skip
     data = _get_sudo_check_results()
 
-    rapl_limits = data.get('rapl_power_limits', {})
+    rapl_limits = data.get('read_rapl_power_limits', {})
 
     domain_entries = rapl_limits.get(domain_key, [])
 
