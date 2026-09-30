@@ -4,7 +4,7 @@ import string
 import subprocess
 import os
 import requests
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse, quote
 from functools import cache
 from pathlib import Path
 
@@ -348,7 +348,7 @@ def check_repo(repo_url, branch='main'):
     parsed_url = urlparse(repo_url)
     [url, git_api] = get_git_api(parsed_url)
     if git_api == 'github':
-        url = f"{url}/commits?per_page=1&sha={branch}"
+        url = f"{url}/commits?per_page=1&sha={quote(branch, safe='')}"
     elif git_api in ('gitlab', 'custom'):
         url = f"{url}/commits?per_page=1"
     else:
@@ -414,9 +414,9 @@ def get_repo_last_marker(repo_url, marker, branch=None):
     url = f"{url}/{marker}?per_page=1"
     if branch:
         if git_api == 'github':
-            url += f"&sha={branch}"
+            url += f"&sha={quote(branch, safe='')}"
         elif git_api in ('gitlab', 'custom'):
-            url += f"&ref_name={branch}"
+            url += f"&ref_name={quote(branch, safe='')}"
 
     try:
         response = requests.get(url, headers=get_git_api_headers(git_api), timeout=10)
