@@ -6,11 +6,10 @@
 #   a percentage, a sampling rate) it should return that value formatted as a string instead
 #   of False. system_check() then appends this value inline to the pre-labeled message from
 #   the tuple below, so the WARN/ERROR output and the raised ConfigurationCheckError carry the
-#   actual measured value instead of just the generic static text. Do NOT call
-#   error_helpers.log_error() from within a check for this: it performs a real DB insert and
-#   requires config['admin']['error_file'] to exist, both of which are inappropriate for
-#   routine/expected WARN conditions (e.g. high CPU utilization during a busy CI run) and will
-#   break configs/tests that don't set up an admin section or a live error log.
+#   actual measured value instead of just the generic static text.
+#   Do NOT call error_helpers.log_error() manually from within a check for this as errors are collected
+#   separately later and captured with error_helpers.log_error if they are above the thresshold.
+#   Manual triggers will pollute CLI output. Howver you can save a warning instead if needed.
 # - What severity the failure has. If the Status is Error we raise and exit the GMT
 # - A string what is being checked
 # - A string to output on WARN or INFO
