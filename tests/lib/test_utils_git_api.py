@@ -1,4 +1,5 @@
 import os
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 import yaml
@@ -12,7 +13,7 @@ class FakeResponse:
     status_code = 200
 
     def json(self):
-        return [{'sha': 'abc123'}]
+        return [{'sha': 'abc123', 'id': 'abc123'}]
 
 @pytest.fixture(name='captured_requests')
 def fixture_captured_requests(monkeypatch):
@@ -72,3 +73,27 @@ def test_check_repo_does_not_send_token_to_gitlab(tmp_path, captured_requests):
     utils.check_repo('https://gitlab.com/green-coding-solutions/green-metrics-tool', 'main')
 
     assert captured_requests[0]['headers'] == {}
+
+@pytest.mark.parametrize('branch', ['feature/#123-add-feature', 'feature/foo bar', 'release/1.0?x=1', 'a&b'])
+def test_check_repo_url_encodes_branch(captured_requests, branch):
+    utils.check_repo('https://github.com/example-org/example-repo', branch)
+
+    parsed = urlparse(captured_requests[0]['url'])
+    assert parsed.fragment == ''
+    assert parse_qs(parsed.query)['sha'] == [branch]
+
+@pytest.mark.parametrize('branch', ['feature/#123-add-feature', 'feature/foo bar', 'release/1.0?x=1', 'a&b'])
+def test_get_repo_last_marker_url_encodes_github_branch(captured_requests, branch):
+    utils.get_repo_last_marker('https://github.com/example-org/example-repo', 'commits', branch)
+
+    parsed = urlparse(captured_requests[0]['url'])
+    assert parsed.fragment == ''
+    assert parse_qs(parsed.query)['sha'] == [branch]
+
+@pytest.mark.parametrize('branch', ['feature/#123-add-feature', 'feature/foo bar', 'release/1.0?x=1', 'a&b'])
+def test_get_repo_last_marker_url_encodes_gitlab_branch(captured_requests, branch):
+    utils.get_repo_last_marker('https://gitlab.com/green-coding-solutions/green-metrics-tool', 'commits', branch)
+
+    parsed = urlparse(captured_requests[0]['url'])
+    assert parsed.fragment == ''
+    assert parse_qs(parsed.query)['ref_name'] == [branch]
