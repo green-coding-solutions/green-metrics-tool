@@ -665,7 +665,7 @@ def test_reporters_still_running():
             with pytest.raises(Exception) as e:
                 context2.run_until('import_metric_providers')
 
-            expected_error = r'Another instance of the \w+ metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.'
+            expected_error = r'\[ERROR\] Another instance of the \w+ metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.'
             assert re.match(expected_error, str(e.value)), Tests.assertion_info(expected_error, str(e.value))
 
 ## Using template
@@ -719,7 +719,7 @@ def test_runner_dirty_dir(delete_and_create_temp_file): #pylint: disable=unused-
     with redirect_stdout(out), redirect_stderr(err), Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
 
-    assert 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir.' in out.getvalue()
+    assert 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir' in out.getvalue()
 
 def test_runner_run_invalidated():
 
