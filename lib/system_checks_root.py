@@ -23,13 +23,14 @@ from enum import Enum
 # Mirrors lib/configuration_check_error.py — inlined because this script is stdlib-only.
 Status = Enum('Status', ['INFO', 'WARN', 'ERROR'])
 
-# Reimplemented here, as we do not want to include user space libraries which
-# is a security risk in a sudo enabled file
-class ConfigurationCheckError(Exception):
-    def __init__(self, m, s=Status.INFO):
+# Internal control-flow signal only: raised to unwind the root_checks loop below
+# Not importing ConfigurationCheckError as we do not want to import user editable files
+class RootCheckFailure(Exception):
+    def __init__(self, m, s=Status.INFO, e=None):
         super().__init__(m)
+        self.message = m
         self.status = s
-
+        self.error_key = e
 
 def _parse_timers(data):
     '''Parse systemctl list-timers output; returns list of found timer entries (empty = OK).'''
@@ -144,16 +145,24 @@ def read_rapl_power_limits():
     return result
 
 
-# Each entry: (result_key, check_function, Status, check_name, warn_message)
-# Mirrors the start_checks / end_checks tuple pattern in system_checks.py.
+# Each entry: (check_function, Status, check_name, warn_message)
+# Mirrors the start_checks / end_checks tuple pattern in system_checks.py. Results are stored
+# under check_function.__name__ (same as system_check()'s own check[0].__name__ convention),
+# so there is no separate result_key to keep in sync with the function.
 root_checks = (
-    ('systemd_timers', check_systemd_timers, Status.WARN, 'systemd timers',
+    (check_systemd_timers, Status.WARN, 'systemd timers',
      'Unexpected system timers found. Disable them for reliable cluster benchmarks.'),
-    ('cron_files', check_cron_files, Status.WARN, 'cron files',
+    (check_cron_files, Status.WARN, 'cron files',
      'Active cron files found. Disable them for reliable cluster benchmarks.'),
-    ('rapl_power_limits', read_rapl_power_limits, Status.WARN, 'rapl power limits',
+    (read_rapl_power_limits, Status.WARN, 'rapl power limits',
      'Failed to read RAPL power limits.'),
 )
+
+# Functions above whose __name__ is itself a valid --dev-no-system-checks value, i.e. that map
+# 1:1 to a same-named check_* function in system_checks.py. read_rapl_power_limits is deliberately
+# excluded: it fans out into three separate checks there (check_rapl_power_capping_package/dram/psys),
+# so no single disable key applies to it.
+FUNCS_WITH_DIRECT_CHECK_MAPPING = {check_systemd_timers, check_cron_files}
 
 
 if __name__ == '__main__':
@@ -167,20 +176,25 @@ if __name__ == '__main__':
         system_check_threshold = Status.ERROR.value
 
         try:
-            for result_key, check_fn, status, _name, message in root_checks:
+            for check_fn, status, _name, message in root_checks:
                 retval = None
                 try:
                     retval = check_fn()
-                    results[result_key] = retval
-                except ConfigurationCheckError as exc:
+                    results[check_fn.__name__] = retval
+                except RootCheckFailure as exc:
                     raise exc
                 except Exception as exc:  # pylint: disable=broad-except
-                    results[result_key] = {'error': str(exc)}
+                    results[check_fn.__name__] = {'error': str(exc)}
                 finally:
                     if retval is False and status.value >= system_check_threshold:
-                        raise ConfigurationCheckError(message, status)
-        except ConfigurationCheckError as exc:
-            results['_check_error'] = {'message': str(exc), 'status': exc.status.name}
+                        error_key = check_fn.__name__ if check_fn in FUNCS_WITH_DIRECT_CHECK_MAPPING else None
+                        raise RootCheckFailure(message, status, error_key)
+        except RootCheckFailure as exc:
+            # The receiving side (system_checks.py) reconstructs a real
+            # lib.configuration_check_error.ConfigurationCheckError from these raw fields and
+            # formats it (adds the "[STATUS] ... - Disable this system check with ..." wrapping)
+            # itself - so pass the plain values here, not a pre-formatted string.
+            results['_check_error'] = {'message': exc.message, 'status': exc.status.name, 'error_key': exc.error_key}
             print(json.dumps(results))
             sys.exit(1)
 

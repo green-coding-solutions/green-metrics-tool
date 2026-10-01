@@ -1,7 +1,16 @@
 # This file handles the checking of the system
 # There is a list of checks that is made up of tuples structured the following way:
-# - the function to call to check. This will return True or None for success and False for failure
-# - What severity the False return value has. If the Status is Error we raise and exit the GMT
+# - the function to call to check. This returns True or None for success, NOT_CONFIGURED /
+#   NOT_IMPLEMENTED for a skip, and for failure either False or a string.
+#   When a check fails for a reason that has a concrete offending value (e.g. a byte count,
+#   a percentage, a sampling rate) it should return that value formatted as a string instead
+#   of False. system_check() then appends this value inline to the pre-labeled message from
+#   the tuple below, so the WARN/ERROR output and the raised ConfigurationCheckError carry the
+#   actual measured value instead of just the generic static text.
+#   Do NOT call error_helpers.log_error() manually from within a check for this as errors are collected
+#   separately later and captured with error_helpers.log_error if they are above the thresshold.
+#   Manual triggers will pollute CLI output. Howver you can save a warning instead if needed.
+# - What severity the failure has. If the Status is Error we raise and exit the GMT
 # - A string what is being checked
 # - A string to output on WARN or INFO
 # It is possible for one of the checkers or metric providers to raise an exception if something should fail specifically
@@ -68,7 +77,10 @@ def check_docker_host_env(*_, **__):
 def check_one_energy_and_scope_machine_provider(*_, **__):
     metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
     energy_machine_providers = [provider for provider in metric_providers if "_energy_" in provider and "_machine" in provider]
-    return len(energy_machine_providers) <= 1
+    if len(energy_machine_providers) <= 1:
+        return True
+
+    return f"energy_machine_providers={energy_machine_providers}"
 
 def check_tmpfs_mount(*_, **__):
     if host_platform.is_windows():
@@ -90,17 +102,30 @@ def check_largest_sampling_rate(*_, **__):
     if not metric_providers: # no provider provider configured passes this check
         return True
 
-    return max(
-        metric_providers.values(),
-        key=lambda x: x.get('sampling_rate', 0) if x else 0
-    ).get('sampling_rate', 0) <= 1000
+    provider_name, provider_config = max(
+        metric_providers.items(),
+        key=lambda item: item[1].get('sampling_rate', 0) if item[1] else 0
+    )
+    sampling_rate = provider_config.get('sampling_rate', 0) if provider_config else 0
+
+    if sampling_rate <= 1000:
+        return True
+
+    return f"provider={provider_name}, sampling_rate_ms={sampling_rate}"
 
 def check_cpu_utilization(*_, **__):
-    return psutil.cpu_percent(0.1) < 5.0
+    utilization = psutil.cpu_percent(0.1)
+    if utilization < 5.0:
+        return True
+
+    return f"cpu_utilization_percent={utilization}"
 
 def check_free_disk(*_, **__):
     free_space_bytes = psutil.disk_usage(os.path.dirname(os.path.abspath(__file__))).free
-    return free_space_bytes >= GMT_RESOURCES['free_disk']
+    if free_space_bytes >= GMT_RESOURCES['free_disk']:
+        return True
+
+    return f"free_disk_bytes={free_space_bytes}"
 
 def check_available_cpus(*_, **__): # GMT min system requirement
     return os.cpu_count() >= GMT_RESOURCES['min_cpus']
@@ -108,20 +133,35 @@ def check_available_cpus(*_, **__): # GMT min system requirement
 def check_docker_cpu_availability(*_, **__):
     if platform.system() in ('Darwin', 'Windows'):
         return NOT_IMPLEMENTED # no checks as Docker runs in a VM here with custom CPU configuration
-    return os.cpu_count() == resource_limits.get_docker_available_cpus()
+
+    host_cpus = os.cpu_count()
+    docker_cpus = resource_limits.get_docker_available_cpus()
+    if host_cpus == docker_cpus:
+        return True
+
+    return f"host_cpus={host_cpus}, docker_cpus={docker_cpus}"
 
 def check_assignable_cpus(*_, **__):
     return resource_limits.get_assignable_cpus() > 0
 
 def check_free_memory(*_, **__):
     # Here we explicitely check on the host and not how much docker has assigned, as memory is not blocked exclusively by Docker
-    return psutil.virtual_memory().available >= GMT_RESOURCES['free_memory']
+    available_bytes = psutil.virtual_memory().available
+    if available_bytes >= GMT_RESOURCES['free_memory']:
+        return True
+
+    return f"available_memory_bytes={available_bytes}"
 
 def check_assignable_memory(*_, **__):
     return resource_limits.get_assignable_memory() >= 0
 
 def check_assignable_memory_oom(*_, **__):
-    return resource_limits.get_assignable_memory() <= psutil.virtual_memory().available
+    assignable_bytes = resource_limits.get_assignable_memory()
+    available_bytes = psutil.virtual_memory().available
+    if assignable_bytes <= available_bytes:
+        return True
+
+    return f"assignable_memory_bytes={assignable_bytes}, available_memory_bytes={available_bytes}"
 
 def check_containers_running(*_, **__):
     result = subprocess.check_output(['docker', 'ps', '--format', '{{.Names}}'], encoding='UTF-8', errors='replace')
@@ -314,7 +354,7 @@ def _get_sudo_check_results():
 
     if '_check_error' in data:
         err = data['_check_error']
-        raise ConfigurationCheckError(err['message'], Status[err['status']])
+        raise ConfigurationCheckError(err['message'], Status[err['status']], err['error_key'])
 
     if result.returncode != 0:
         return {}
@@ -340,7 +380,7 @@ def check_systemd_timers(*_, **__):
     data = _get_sudo_check_results()
     if not data:
         return None  # sudo script not installed or failed — skip
-    timers = data.get('systemd_timers', {})
+    timers = data.get('check_systemd_timers', {})
     if 'error' in timers and not timers.get('system_timers'):
         return None  # systemctl unavailable — skip
     if timers.get('system_timers'):
@@ -362,7 +402,7 @@ def check_cron_files(*_, **__):
     data = _get_sudo_check_results()
     if not data:
         return None  # sudo script not installed or failed — skip
-    cron = data.get('cron_files', {})
+    cron = data.get('check_cron_files', {})
 
     return not cron.get('files_found')
 
@@ -389,7 +429,7 @@ def _check_rapl_domain(domain_key):
         return NOT_CONFIGURED  # this specific domain not configured — skip
     data = _get_sudo_check_results()
 
-    rapl_limits = data.get('rapl_power_limits', {})
+    rapl_limits = data.get('read_rapl_power_limits', {})
 
     domain_entries = rapl_limits.get(domain_key, [])
 
@@ -653,51 +693,51 @@ def check_temperature(*_, **__):
 ######## END CHECK FUNCTIONS ########
 
 start_checks = (
-    (check_temperature, Status.WARN, 'base temperature', 'Machine temperature is out of range. Waiting for temperature to stabilize.'),
+    (check_temperature, Status.WARN, 'base temperature', 'Machine temperature is out of range. Waiting for temperature to stabilize'),
     (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
-    (check_gmt_dir_dirty, Status.WARN, 'gmt directory dirty', 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir.'),
+    (check_gmt_dir_dirty, Status.WARN, 'gmt directory dirty', 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir'),
     (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
-    (check_ntp, Status.WARN, 'ntp', 'You have NTP time syncing active. This can create noise in runs and should be deactivated.'),
-    (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement.'),
-    (check_largest_sampling_rate, Status.WARN, 'high sampling rate', 'You have chosen at least one provider with a sampling rate > 1000 ms. That is not recommended and might lead also to longer benchmarking times due to internal extra sleeps to adjust measurement frames.'),
+    (check_ntp, Status.WARN, 'ntp', 'You have NTP time syncing active. This can create noise in runs and should be deactivated'),
+    (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement'),
+    (check_largest_sampling_rate, Status.WARN, 'high sampling rate', 'You have chosen at least one provider with a sampling rate > 1000 ms. That is not recommended and might lead also to longer benchmarking times due to internal extra sleeps to adjust measurement frames'),
     (check_available_cpus, Status.ERROR, '< 2 CPUs', 'You need at least 2 CPU cores on the system (and assigned to Docker in case of macOS) to run GMT'),
-    (check_docker_cpu_availability, Status.WARN, 'Docker CPU reporting', 'Docker reports a different amount of available CPUs than the host sytem itself - This is expected when Docker is running in VM. In all other cases this will lead to inaccurate cgroup metrics reported.'),
-    (check_assignable_cpus, Status.ERROR, 'No assignable cpus', 'GMT does not have any assignable CPUs for the docker containers available. Reserve less CPUs in the config.yml for GMT, increase the CPU count of the Docker VM (in case of macOS) or migrate to a bigger machine.'),
+    (check_docker_cpu_availability, Status.WARN, 'Docker CPU reporting', 'Docker reports a different amount of available CPUs than the host sytem itself - This is expected when Docker is running in VM. In all other cases this will lead to inaccurate cgroup metrics reported'),
+    (check_assignable_cpus, Status.ERROR, 'No assignable cpus', 'GMT does not have any assignable CPUs for the docker containers available. Reserve less CPUs in the config.yml for GMT, increase the CPU count of the Docker VM (in case of macOS) or migrate to a bigger machine'),
     (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'You need to free up some disk space to run GMT reliably (< 1 GiB available)'),
     (check_free_memory, Status.ERROR, '2 GiB free memory', 'No free memory! Please kill some programs (< 2 GiB available)'),
-    (check_assignable_memory, Status.ERROR, 'No assignable memory', 'GMT does not have any assignable memory for the docker containers available. Reserve less memory in the config.yml for GMT, increase the memory amount of the Docker VM (in case of macOS) or migrate to a bigger machine.'),
-    (check_assignable_memory_oom, Status.WARN, 'OOM risk', 'Your system available memory is less than what can be assigned to the docker containers. This can lead to the system running into OOM. For development this is fine, but for reliable measurements you should reserve more memory to the host system via "host_reserved_memory" in config.yml.'),
+    (check_assignable_memory, Status.ERROR, 'No assignable memory', 'GMT does not have any assignable memory for the docker containers available. Reserve less memory in the config.yml for GMT, increase the memory amount of the Docker VM (in case of macOS) or migrate to a bigger machine'),
+    (check_assignable_memory_oom, Status.WARN, 'OOM risk', 'Your system available memory is less than what can be assigned to the docker containers. This can lead to the system running into OOM. For development this is fine, but for reliable measurements you should reserve more memory to the host system via "host_reserved_memory" in config.yml'),
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),
     (check_docker_host_env, Status.ERROR, 'docker host env', 'You seem to be running a rootless docker and in this case you must set the DOCKER_HOST environment variable so that the docker library we use can find the docker agent. Typically this should be DOCKER_HOST=unix:///$XDG_RUNTIME_DIR/docker.sock'),
-    (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
-    (check_systemd_timers, Status.WARN, 'systemd timers', 'Unexpected systemd timers are active. These can create interference during measurements. Disable or remove them for reliable cluster benchmarks.'),
-    (check_cron_files, Status.WARN, 'cron files', 'Active cron files found in /var/spool/cron or /etc/cron*. These can create interference during measurements. Disable or remove them for reliable cluster benchmarks.'),
-    (check_rapl_power_capping_package, Status.WARN, 'rapl power capping (package)', 'RAPL package domain power limit does not match the value configured in machine.rapl_power_capping.package. Verify that the system power cap is set correctly.'),
-    (check_rapl_power_capping_dram, Status.WARN, 'rapl power capping (dram)', 'RAPL DRAM domain power limit does not match the value configured in machine.rapl_power_capping.dram. Verify that the system power cap is set correctly.'),
-    (check_rapl_power_capping_psys, Status.WARN, 'rapl power capping (psys)', 'RAPL psys domain power limit does not match the value configured in machine.rapl_power_capping.psys. Verify that the system power cap is set correctly.'),
-    (check_docker_registry_url, Status.WARN, 'docker registry url', 'Docker registry mirror configuration does not match machine.docker_registry_url (set to false to require that no mirror is configured). Verify the Docker daemon registry-mirrors configuration.'),
-    (check_cpu_cores, Status.WARN, 'cpu core count', 'CPU core count does not match machine.cpu_cores. Check for hot-plug events or unexpected SMT/HT state changes.'),
-    (check_dram, Status.WARN, 'dram size', 'Total RAM does not match machine.dram_gb. A DIMM may have failed or been removed/added.'),
-    (check_usb_devices, Status.WARN, 'usb devices', 'An unexpected USB device is connected. Review the machine.usb_devices allowlist and remove or account for the new device.'),
-    (check_pci_devices, Status.WARN, 'pci devices', 'An unexpected PCI device is present. Review the machine.pci_devices allowlist and remove or account for the new card.'),
-    (check_cpu_governor, Status.WARN, 'cpu governor', 'At least one CPU core is not using the expected scaling governor set in machine.cpu_governor (set to false to require that no scaling governor is active). This can cause significant measurement variance.'),
-    (check_cpu_smt, Status.WARN, 'cpu smt', 'Hyper-Threading / SMT state does not match machine.cpu_smt. This affects core count and benchmark reproducibility.'),
-    (check_cpu_turbo_boost, Status.WARN, 'cpu turbo boost', 'CPU turbo boost state does not match machine.cpu_turbo_boost. Unexpected boost can cause power and timing variance in measurements.'),
-    (check_cpu_frequency, Status.WARN, 'cpu frequency', 'At least one CPU core is running outside ±10 MHz of the frequency set in machine.cpu_frequency_mhz. Verify that CPU frequency scaling is locked correctly.'),
-    (check_cpu_scaling_driver, Status.WARN, 'cpu scaling driver', 'CPU scaling driver does not match machine.cpu_scaling_driver (set to false to require that no scaling driver is active). A different driver may apply different power and frequency policies.'),
-    (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
-    (check_swap_disabled, Status.WARN, 'swap disabled', 'Your system uses a swap filesystem. This can lead to very instable measurements. Please disable swap.'),
-    (check_kernel_watchdog, Status.WARN, 'kernel watchdog disabled', 'A kernel lockup watchdog (kernel.watchdog / nmi_watchdog / soft_watchdog) is active. These periodically fire NMIs/interrupts and can create noise in measurements. Disable via sysctl for reliable benchmarking.'),
-    (check_tty_attached, Status.WARN, 'tty attached', 'GMT runs with a TTY attached. This will create relevant overhead. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
-    (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
+    (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/]'),
+    (check_systemd_timers, Status.WARN, 'systemd timers', 'Unexpected systemd timers are active. These can create interference during measurements. Disable or remove them for reliable cluster benchmarks'),
+    (check_cron_files, Status.WARN, 'cron files', 'Active cron files found in /var/spool/cron or /etc/cron*. These can create interference during measurements. Disable or remove them for reliable cluster benchmarks'),
+    (check_rapl_power_capping_package, Status.WARN, 'rapl power capping (package)', 'RAPL package domain power limit does not match the value configured in machine.rapl_power_capping.package. Verify that the system power cap is set correctly'),
+    (check_rapl_power_capping_dram, Status.WARN, 'rapl power capping (dram)', 'RAPL DRAM domain power limit does not match the value configured in machine.rapl_power_capping.dram. Verify that the system power cap is set correctly'),
+    (check_rapl_power_capping_psys, Status.WARN, 'rapl power capping (psys)', 'RAPL psys domain power limit does not match the value configured in machine.rapl_power_capping.psys. Verify that the system power cap is set correctly'),
+    (check_docker_registry_url, Status.WARN, 'docker registry url', 'Docker registry mirror configuration does not match machine.docker_registry_url (set to false to require that no mirror is configured). Verify the Docker daemon registry-mirrors configuration'),
+    (check_cpu_cores, Status.WARN, 'cpu core count', 'CPU core count does not match machine.cpu_cores. Check for hot-plug events or unexpected SMT/HT state changes'),
+    (check_dram, Status.WARN, 'dram size', 'Total RAM does not match machine.dram_gb. A DIMM may have failed or been removed/added'),
+    (check_usb_devices, Status.WARN, 'usb devices', 'An unexpected USB device is connected. Review the machine.usb_devices allowlist and remove or account for the new device'),
+    (check_pci_devices, Status.WARN, 'pci devices', 'An unexpected PCI device is present. Review the machine.pci_devices allowlist and remove or account for the new card'),
+    (check_cpu_governor, Status.WARN, 'cpu governor', 'At least one CPU core is not using the expected scaling governor set in machine.cpu_governor (set to false to require that no scaling governor is active). This can cause significant measurement variance'),
+    (check_cpu_smt, Status.WARN, 'cpu smt', 'Hyper-Threading / SMT state does not match machine.cpu_smt. This affects core count and benchmark reproducibility'),
+    (check_cpu_turbo_boost, Status.WARN, 'cpu turbo boost', 'CPU turbo boost state does not match machine.cpu_turbo_boost. Unexpected boost can cause power and timing variance in measurements'),
+    (check_cpu_frequency, Status.WARN, 'cpu frequency', 'At least one CPU core is running outside ±10 MHz of the frequency set in machine.cpu_frequency_mhz. Verify that CPU frequency scaling is locked correctly'),
+    (check_cpu_scaling_driver, Status.WARN, 'cpu scaling driver', 'CPU scaling driver does not match machine.cpu_scaling_driver (set to false to require that no scaling driver is active). A different driver may apply different power and frequency policies'),
+    (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output'),
+    (check_swap_disabled, Status.WARN, 'swap disabled', 'Your system uses a swap filesystem. This can lead to very instable measurements. Please disable swap'),
+    (check_kernel_watchdog, Status.WARN, 'kernel watchdog disabled', 'A kernel lockup watchdog (kernel.watchdog / nmi_watchdog / soft_watchdog) is active. These periodically fire NMIs/interrupts and can create noise in measurements. Disable via sysctl for reliable benchmarking'),
+    (check_tty_attached, Status.WARN, 'tty attached', 'GMT runs with a TTY attached. This will create relevant overhead. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/]'),
+    (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/]'),
 )
 
 end_checks = (
-    (check_suspend, Status.ERROR, 'system suspend', 'System has gone into suspend during measurement. This will skew all measurement data. If GMT shall ever be able to correctly account for suspend states please note that metric providers must support CLOCK_BOOTIME. See https://github.com/green-coding-solutions/green-metrics-tool/pull/1229 for discussion.'),
-    (check_steal_time, Status.ERROR, 'cpu steal time', 'The CPU has accounted steal time. This means the measurement could have been interrupted and / or the VM that you are running in halted. This will lead to broken measurement data as time jumps can occur.'),
-    (check_guest_time, Status.ERROR, 'cpu guest time', 'The CPU has accounted guest time. This means this machine itself ran a virtual CPU for a guest OS during the measurement, which can steal CPU cycles from GMT and lead to broken measurement data as time jumps can occur.'),
-    (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
+    (check_suspend, Status.ERROR, 'system suspend', 'System has gone into suspend during measurement. This will skew all measurement data. If GMT shall ever be able to correctly account for suspend states please note that metric providers must support CLOCK_BOOTIME. See https://github.com/green-coding-solutions/green-metrics-tool/pull/1229 for discussion'),
+    (check_steal_time, Status.ERROR, 'cpu steal time', 'The CPU has accounted steal time. This means the measurement could have been interrupted and / or the VM that you are running in halted. This will lead to broken measurement data as time jumps can occur'),
+    (check_guest_time, Status.ERROR, 'cpu guest time', 'The CPU has accounted guest time. This means this machine itself ran a virtual CPU for a guest OS during the measurement, which can steal CPU cycles from GMT and lead to broken measurement data as time jumps can occur'),
+    (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/]'),
 
 )
 
@@ -753,7 +793,7 @@ def system_check(mode='start', system_check_threshold=3, disabled_checks=None, r
     elif mode == 'end':
         checks = end_checks
     else:
-        raise RuntimeError('Unknown mode for system check:', mode)
+        raise ValueError('Unknown mode for system check:', mode)
 
     if disabled_checks:
         # Names are already validated against the full check registry by normalize_disabled_checks()
@@ -773,18 +813,27 @@ def system_check(mode='start', system_check_threshold=3, disabled_checks=None, r
             raise exp
         finally:
             formatted_key = check[2].ljust(max_key_length)
+
+            # A check fails either by returning False (no concrete offending value to report)
+            # or by returning that value as a string (anything except the NOT_CONFIGURED /
+            # NOT_IMPLEMENTED sentinels, which are also strings but are handled as skips below).
+            failed = retval is False or (
+                isinstance(retval, str) and retval not in (NOT_CONFIGURED, NOT_IMPLEMENTED)
+            )
+            message = f"{check[3]} (Value: {retval})" if failed and isinstance(retval, str) else check[3]
+
             if retval is NOT_CONFIGURED:
                 output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} (Skipped: not configured in config.yml)"
             elif retval is NOT_IMPLEMENTED:
                 output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} (Skipped: not implemented on this platform. Switch to Linux, if possible, to enable this check.)"
-            elif retval or retval is None:
+            elif not failed:
                 output = f"{TerminalColors.OKGREEN}OK{TerminalColors.ENDC}"
             else:
                 if check[1] == Status.WARN:
-                    output = f"{TerminalColors.WARNING}WARN{TerminalColors.ENDC} ({check[3]})"
-                    warnings.append(check[3])
+                    output = f"{TerminalColors.WARNING}WARN{TerminalColors.ENDC} ({message})"
+                    warnings.append(message)
                 elif check[1] == Status.INFO:
-                    output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} ({check[3]})"
+                    output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} ({message})"
                 else:
                     output = f"{TerminalColors.FAIL}ERROR{TerminalColors.ENDC}"
 
@@ -794,8 +843,8 @@ def system_check(mode='start', system_check_threshold=3, disabled_checks=None, r
 
             print(f"Checking {formatted_key} : {output}")
 
-            if retval is False and check[1].value >= system_check_threshold:
+            if failed and check[1].value >= system_check_threshold:
                 # Error needs to raise
-                raise ConfigurationCheckError(check[3], check[1])
+                raise ConfigurationCheckError(message, check[1], check[0].__name__)
 
     return warnings

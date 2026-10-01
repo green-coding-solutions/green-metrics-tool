@@ -6,11 +6,12 @@ from io import StringIO
 import pandas
 from typing import final
 
-from lib.system_checks import ConfigurationCheckError
+from lib.system_checks import ConfigurationCheckError, Status
 from lib import process_helpers
 
 class MetricProviderConfigurationError(ConfigurationCheckError):
-    pass
+    def __init__(self, message, status=Status.ERROR, error_key=None):
+        super().__init__(message, status, error_key)
 
 class BaseMetricProvider:
 
