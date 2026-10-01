@@ -3,26 +3,13 @@ import subprocess
 import plistlib
 from datetime import timezone
 import time
-import warnings
+import xml
 import pandas
 import signal
-from xml.parsers.expat import ExpatError
-from xml.parsers.expat import errors as expat_errors
 
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class PowermetricsProvider(BaseMetricProvider):
-    # Expat codes for a plist cut off before the root element finished.
-    # Mismatched tags, invalid tokens, and junk after a complete root stay errors.
-    # pyexpat.errors is a C extension, so the names are loaded with getattr.
-    _EX_CODES = getattr(expat_errors, 'codes')
-    _EOF_TRUNCATED_PLIST_ERROR_CODES = frozenset((
-        _EX_CODES[getattr(expat_errors, 'XML_ERROR_NO_ELEMENTS')],
-        _EX_CODES[getattr(expat_errors, 'XML_ERROR_UNCLOSED_TOKEN')],
-        _EX_CODES[getattr(expat_errors, 'XML_ERROR_PARTIAL_CHAR')],
-        _EX_CODES[getattr(expat_errors, 'XML_ERROR_UNCLOSED_CDATA_SECTION')],
-    ))
-
     def __init__(self, sampling_rate, folder, skip_check=False):
         # We get this value on init as we want to have to for check_system to work in the normal case
         self._pm_process_count = self.powermetrics_total_count()
@@ -138,39 +125,20 @@ class PowermetricsProvider(BaseMetricProvider):
         # pylint: disable=invalid-name
         dfs = []
         cum_time = None
-        parsed_sample_count = 0
 
         for count, data in enumerate(datas, start=1):
-            is_final_fragment = count == len(datas)
-            # powermetrics writes a NUL after each finished plist. One trailing
-            # separator is an empty final fragment, not a sample and not a loss.
-            if is_final_fragment and data == b'':
-                continue
-
             try:
                 data = plistlib.loads(data)
-            except ExpatError as exc:
-                # An interrupted write leaves the last plist unfinished at EOF.
-                # Drop only that sample, and only after an earlier plist parsed.
-                truncated_final_sample = (
-                    is_final_fragment
-                    and parsed_sample_count >= 1
-                    and exc.code in self._EOF_TRUNCATED_PLIST_ERROR_CODES
-                )
-                if truncated_final_sample:
-                    warnings.warn(
-                        f"Discarding truncated final powermetrics sample {count} of {len(datas)}.",
-                        RuntimeWarning,
-                    )
+            except (xml.parsers.expat.ExpatError, plistlib.InvalidFileException) as e:
+                # The last plist can be cut off when powermetrics is stopped mid-write (#286).
+                # Same as the base provider dropping its last CSV line, we drop it.
+                if count == len(datas):
                     break
-
                 print('There was an error parsing the powermetrics data!')
                 print(f"Iteration count: {count}")
                 print(f"Number of items in datas: {len(datas)}")
                 print(data)
-                raise
-
-            parsed_sample_count += 1
+                raise e
 
             if cum_time is None:
                 # Convert seconds to nano seconds

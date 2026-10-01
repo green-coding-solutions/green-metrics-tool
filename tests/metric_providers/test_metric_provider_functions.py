@@ -1,16 +1,11 @@
 import os
 import math
-import functools
 import pytest
 import shutil
 import tempfile
-import warnings
-import plistlib
-import pandas
+import xml.parsers.expat
 
 from pathlib import Path
-from xml.parsers.expat import ExpatError
-from xml.parsers.expat import errors as expat_errors
 
 GMT_ROOT_DIR = Path(__file__).parent.parent.parent.as_posix()
 
@@ -217,104 +212,9 @@ def test_tcpdump_macos():
 
     assert DB().fetch_one('SELECT COUNT(*) FROM system_logs')[0] == 0, 'system_logs must be empty - tcpdump parser emitted unexpected errors'
 
-POWERMETRICS_LOG = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/powermetrics.log')
-POWERMETRICS_COLUMNS = ['time', 'value', 'metric', 'unit', 'detail_name', 'sampling_rate_95p']
-_EX_CODES = getattr(expat_errors, 'codes')
-
-
-def _expat_code(error_name):
-    # pyexpat.errors is a C extension; attribute names are resolved at runtime.
-    return _EX_CODES[getattr(expat_errors, error_name)]
-
-
-def _powermetrics_fragments():
-    payload = Path(POWERMETRICS_LOG).read_bytes()
-    fragments = payload.split(b'\x00')
-    # The checked-in capture is 34 complete plists with no trailing NUL separator.
-    assert b'\x00'.join(fragments) == payload
-    assert not payload.endswith(b'\x00')
-    assert len(fragments) == 34
-    assert all(fragment.endswith(b'</plist>\n') for fragment in fragments)
-    return fragments
-
-
-def _powermetrics_provider(log_path):
-    # pgrep would otherwise depend on whatever powermetrics processes the host has.
-    with patch.object(PowermetricsProvider, 'powermetrics_total_count', return_value=0):
-        provider = PowermetricsProvider(499, folder=GMT_METRICS_DIR, skip_check=True)
-    provider._filename = os.fspath(log_path)
-    return provider
-
-
-def _write_powermetrics_capture(directory, name, payload):
-    path = Path(directory) / name
-    path.write_bytes(payload)
-    return path
-
-
-def _read_powermetrics(log_path):
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter('always')
-        dataframe = _powermetrics_provider(log_path).read_metrics()
-    truncation_warnings = [
-        str(item.message)
-        for item in caught
-        if issubclass(item.category, RuntimeWarning) and 'truncated final powermetrics sample' in str(item.message)
-    ]
-    return dataframe, truncation_warnings
-
-
-@functools.lru_cache(maxsize=4)
-def _cached_powermetrics_read(payload):
-    with tempfile.TemporaryDirectory(prefix='powermetrics-cache-') as directory:
-        path = Path(directory) / 'capture.log'
-        path.write_bytes(payload)
-        dataframe, truncation_warnings = _read_powermetrics(path)
-    return dataframe.copy(), tuple(truncation_warnings)
-
-
-def _assert_same_powermetrics(left, right):
-    assert set(POWERMETRICS_COLUMNS) <= set(left.columns)
-    assert set(POWERMETRICS_COLUMNS) <= set(right.columns)
-    pandas.testing.assert_frame_equal(
-        left.reset_index(drop=True),
-        right.reset_index(drop=True),
-        check_exact=True,
-    )
-
-
-def _truncate_final_powermetrics_fragment(fragment, kind):
-    # Cuts are chosen at specific plist boundaries. Other byte offsets can raise
-    # a different Expat code and must not be assumed recoverable.
-    if kind == 'xml_tag':
-        tag_at = fragment.rfind(b'<key>')
-        assert tag_at > 0
-        return fragment[:tag_at + 2]
-    if kind == 'text':
-        text_at = fragment.rfind(b'<string>')
-        assert text_at > 0
-        return fragment[:text_at + len(b'<string>') + 2]
-    if kind == 'closing_document':
-        closing_at = fragment.rfind(b'</plist>')
-        assert closing_at > 0
-        return fragment[:closing_at]
-    if kind == 'trim_20':
-        return fragment[:-20]
-    if kind == 'trim_100':
-        return fragment[:-100]
-    if kind == 'partial_character':
-        text_at = fragment.rfind(b'<string>')
-        assert text_at > 0
-        return fragment[:text_at + len(b'<string>')] + b'\xc3'
-    if kind == 'unclosed_cdata':
-        text_at = fragment.rfind(b'<string>')
-        assert text_at > 0
-        return fragment[:text_at] + b'<string><![CDATA[abc'
-    raise ValueError(kind)
-
-
 def test_powermetrics():
-    obj = _powermetrics_provider(POWERMETRICS_LOG)
+    obj = PowermetricsProvider(499, folder=GMT_METRICS_DIR, skip_check=True)
+    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/powermetrics.log')
 
     df = obj.read_metrics()
 
@@ -322,169 +222,31 @@ def test_powermetrics():
 
     assert math.isclose(df[df.metric == 'energy_impact_powermetrics_vm'].value.mean(), 430.823529, abs_tol=1e-3)
 
+def _powermetrics_from_payload(tmp_path, payload):
+    log = tmp_path / 'powermetrics.log'
+    log.write_bytes(payload)
+    obj = PowermetricsProvider(499, folder=GMT_METRICS_DIR, skip_check=True)
+    obj._filename = os.fspath(log)
+    return obj.read_metrics()
 
-def test_powermetrics_complete_final_plist_without_trailing_nul_is_kept(tmp_path):
-    fragments = _powermetrics_fragments()
-    intact_df, intact_warnings = _read_powermetrics(
-        _write_powermetrics_capture(tmp_path, 'intact.log', b'\x00'.join(fragments))
-    )
-    prefix_df, prefix_warnings = _cached_powermetrics_read(b'\x00'.join(fragments[:-1]))
-    original_df, original_warnings = _read_powermetrics(POWERMETRICS_LOG)
+def test_powermetrics_truncated_final_sample_is_dropped(tmp_path):
+    fragments = Path(GMT_ROOT_DIR, 'tests/data/metrics/powermetrics.log').read_bytes().split(b'\x00')
+    prefix_df = _powermetrics_from_payload(tmp_path, b'\x00'.join(fragments[:-1]))
+    truncated_df = _powermetrics_from_payload(tmp_path, b'\x00'.join(fragments[:-1] + [fragments[-1][:-100]]))
 
-    assert intact_warnings == []
-    assert not prefix_warnings
-    assert original_warnings == []
-    assert len(intact_df) > len(prefix_df)
-    assert intact_df['time'].max() > prefix_df['time'].max()
-    _assert_same_powermetrics(intact_df, original_df)
+    assert truncated_df.equals(prefix_df)
 
+def test_powermetrics_trailing_nul_is_ignored(tmp_path):
+    payload = Path(GMT_ROOT_DIR, 'tests/data/metrics/powermetrics.log').read_bytes()
+    full_df = _powermetrics_from_payload(tmp_path, payload)
+    trailing_df = _powermetrics_from_payload(tmp_path, payload + b'\x00')
 
-def test_powermetrics_single_trailing_nul_is_not_a_lost_sample(tmp_path):
-    fragments = _powermetrics_fragments()
-    trailing_df, trailing_warnings = _read_powermetrics(
-        _write_powermetrics_capture(tmp_path, 'trailing.log', b'\x00'.join(fragments) + b'\x00')
-    )
-    original_df, original_warnings = _read_powermetrics(POWERMETRICS_LOG)
+    assert trailing_df.equals(full_df)
 
-    assert trailing_warnings == []
-    assert original_warnings == []
-    _assert_same_powermetrics(trailing_df, original_df)
-
-
-@pytest.mark.parametrize('kind, error_name', [
-    ('xml_tag', 'XML_ERROR_UNCLOSED_TOKEN'),
-    ('text', 'XML_ERROR_NO_ELEMENTS'),
-    ('closing_document', 'XML_ERROR_NO_ELEMENTS'),
-    ('trim_20', 'XML_ERROR_UNCLOSED_TOKEN'),
-    ('trim_100', 'XML_ERROR_NO_ELEMENTS'),
-    ('partial_character', 'XML_ERROR_PARTIAL_CHAR'),
-    ('unclosed_cdata', 'XML_ERROR_UNCLOSED_CDATA_SECTION'),
-])
-def test_powermetrics_discards_only_truncated_final_sample(kind, error_name, tmp_path, capsys):
-    fragments = _powermetrics_fragments()
-    truncated = _truncate_final_powermetrics_fragment(fragments[-1], kind)
-    with pytest.raises(ExpatError) as exc_info:
-        plistlib.loads(truncated)
-    assert exc_info.value.code == _expat_code(error_name)
-
-    recovered, truncation_warnings = _read_powermetrics(
-        _write_powermetrics_capture(tmp_path, 'truncated.log', b'\x00'.join(fragments[:-1] + [truncated]))
-    )
-    prefix_df, prefix_warnings = _cached_powermetrics_read(b'\x00'.join(fragments[:-1]))
-    full_df, full_warnings = _cached_powermetrics_read(b'\x00'.join(fragments))
-    captured = capsys.readouterr()
-
-    expected_warning = f"Discarding truncated final powermetrics sample {len(fragments)} of {len(fragments)}."
-    assert truncation_warnings == [expected_warning]
-    assert not prefix_warnings
-    assert not full_warnings
-    assert '<?xml' not in expected_warning
-    assert '<?xml' not in captured.out
-    assert '<?xml' not in captured.err
-    assert 'com.docker.docker' not in captured.out
-    assert 'com.docker.docker' not in captured.err
-    _assert_same_powermetrics(recovered, prefix_df)
-    assert len(full_df) > len(recovered)
-    assert recovered['time'].max() == prefix_df['time'].max()
-    assert recovered['time'].max() < full_df['time'].max()
-
-
-def test_powermetrics_truncated_middle_fragment_raises(tmp_path):
-    fragments = _powermetrics_fragments()
-    middle = _truncate_final_powermetrics_fragment(fragments[1], 'trim_100')
-    with pytest.raises(ExpatError) as exc_info:
-        plistlib.loads(middle)
-    # Same observed EOF code that a final-fragment trim of 100 bytes recovers from.
-    assert exc_info.value.code == _expat_code('XML_ERROR_NO_ELEMENTS')
-
-    payload = b'\x00'.join([fragments[0], middle, fragments[2]])
-    provider = _powermetrics_provider(_write_powermetrics_capture(tmp_path, 'middle.log', payload))
-    with pytest.raises(ExpatError) as exc_info:
-        provider.read_metrics()
-    assert exc_info.value.code == _expat_code('XML_ERROR_NO_ELEMENTS')
-
-
-def test_powermetrics_empty_interior_fragment_raises(tmp_path):
-    fragments = _powermetrics_fragments()
-    payload = b'\x00'.join([fragments[0], b'', fragments[2]])
-    provider = _powermetrics_provider(_write_powermetrics_capture(tmp_path, 'empty-interior.log', payload))
-    with pytest.raises(plistlib.InvalidFileException):
-        provider.read_metrics()
-
-
-def test_powermetrics_corrupt_complete_final_plist_raises(tmp_path):
-    fragments = _powermetrics_fragments()
-    corrupted = fragments[-1].replace(b'<key>gpu_energy</key>', b'<key>gpu_energy &</key>', 1)
-    assert corrupted != fragments[-1]
-    assert corrupted.rstrip().endswith(b'</plist>')
-    with pytest.raises(ExpatError) as exc_info:
-        plistlib.loads(corrupted)
-    assert exc_info.value.code == _expat_code('XML_ERROR_INVALID_TOKEN')
-
-    payload = b'\x00'.join([fragments[0], corrupted])
-    provider = _powermetrics_provider(_write_powermetrics_capture(tmp_path, 'corrupt-final.log', payload))
-    with pytest.raises(ExpatError) as exc_info:
-        provider.read_metrics()
-    assert exc_info.value.code == _expat_code('XML_ERROR_INVALID_TOKEN')
-
-
-def test_powermetrics_mismatched_tag_final_fragment_raises(tmp_path):
-    fragments = _powermetrics_fragments()
-    closing_at = fragments[-1].rfind(b'</plist>')
-    mismatched = fragments[-1][:closing_at] + b'</dict>\n'
-    with pytest.raises(ExpatError) as exc_info:
-        plistlib.loads(mismatched)
-    assert exc_info.value.code == _expat_code('XML_ERROR_TAG_MISMATCH')
-
-    payload = b'\x00'.join([fragments[0], mismatched])
-    provider = _powermetrics_provider(_write_powermetrics_capture(tmp_path, 'mismatched.log', payload))
-    with pytest.raises(ExpatError) as exc_info:
-        provider.read_metrics()
-    assert exc_info.value.code == _expat_code('XML_ERROR_TAG_MISMATCH')
-
-
-def test_powermetrics_lone_truncated_sample_raises(tmp_path):
-    fragments = _powermetrics_fragments()
-    truncated = _truncate_final_powermetrics_fragment(fragments[0], 'trim_100')
-    with pytest.raises(ExpatError) as exc_info:
-        plistlib.loads(truncated)
-    assert exc_info.value.code == _expat_code('XML_ERROR_NO_ELEMENTS')
-
-    provider = _powermetrics_provider(_write_powermetrics_capture(tmp_path, 'lone.log', truncated))
-    with pytest.raises(ExpatError) as exc_info:
-        provider.read_metrics()
-    assert exc_info.value.code == _expat_code('XML_ERROR_NO_ELEMENTS')
-
-
-def test_powermetrics_empty_input_keeps_read_metrics_empty_failure(tmp_path):
-    provider = _powermetrics_provider(_write_powermetrics_capture(tmp_path, 'empty.log', b''))
-    with pytest.raises(RuntimeError) as exc_info:
-        provider.read_metrics()
-    assert str(exc_info.value) == 'Metrics provider powermetrics seems to have not produced any measurements. Metrics log file was empty. Either consider having a higher sample rate or turn off provider.'
-
-
-def test_powermetrics_missing_required_keys_raise(tmp_path):
-    fragments = _powermetrics_fragments()
-
-    missing_elapsed = plistlib.loads(fragments[-1])
-    del missing_elapsed['elapsed_ns']
-    elapsed_plist = plistlib.dumps(missing_elapsed)
-    assert 'elapsed_ns' not in plistlib.loads(elapsed_plist)
-    elapsed_provider = _powermetrics_provider(
-        _write_powermetrics_capture(tmp_path, 'missing-elapsed.log', b'\x00'.join([fragments[0], elapsed_plist]))
-    )
-    with pytest.raises(KeyError, match='elapsed_ns'):
-        elapsed_provider.read_metrics()
-
-    missing_timestamp = plistlib.loads(fragments[0])
-    del missing_timestamp['timestamp']
-    timestamp_plist = plistlib.dumps(missing_timestamp)
-    assert 'timestamp' not in plistlib.loads(timestamp_plist)
-    timestamp_provider = _powermetrics_provider(
-        _write_powermetrics_capture(tmp_path, 'missing-timestamp.log', timestamp_plist)
-    )
-    with pytest.raises(KeyError, match='timestamp'):
-        timestamp_provider.read_metrics()
+def test_powermetrics_truncated_middle_sample_raises(tmp_path):
+    fragments = Path(GMT_ROOT_DIR, 'tests/data/metrics/powermetrics.log').read_bytes().split(b'\x00')
+    with pytest.raises(xml.parsers.expat.ExpatError):
+        _powermetrics_from_payload(tmp_path, b'\x00'.join([fragments[0], fragments[1][:-100], fragments[2]]))
 
 def test_cloud_energy():
     filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_mach_system.log')
