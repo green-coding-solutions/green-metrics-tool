@@ -19,6 +19,9 @@ This directory contains the integration and unit-style test harness for the repo
 - Never run the full test suite, but always run targeted tests or files:
   - e.g. for single test `cd tests && pytest test_usage_scenario.py::test_labels_allow_unsafe_true`
   - e.g. for full test `cd tests && pytest test_usage_scenario.py`
+- Benchmark scripts (e.g. `api/benchmark_api_concurrency.py`) are named without the `test_`/`_test`
+  prefix on purpose, so a bare `pytest` run never collects them. Run them explicitly by path:
+  `cd tests && pytest api/benchmark_api_concurrency.py -v -s`.
 
 ## Working rules
 

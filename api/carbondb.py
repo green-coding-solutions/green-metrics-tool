@@ -12,11 +12,11 @@ from lib.db import DB
 router = APIRouter()
 
 @router.post('/v1/carbondb/add')
-async def add_carbondb_deprecated():
+def add_carbondb_deprecated():
     return Response("This endpoint is not supported anymore. Please migrate to /v2/carbondb/add !", status_code=410)
 
 @router.post('/v2/carbondb/add')
-async def add_carbondb(
+def add_carbondb(
     request: Request,
     energydata: EnergyData,
     user: User = Depends(authenticate) # pylint: disable=unused-argument
@@ -31,11 +31,11 @@ async def add_carbondb(
 
 
 @router.get('/v1/carbondb/')
-async def get_carbondb_deprecated():
+def get_carbondb_deprecated():
     return Response("This endpoint is not supported anymore. Please migrate to /v2/carbondb/ !", status_code=410)
 
 @router.get('/v2/carbondb')
-async def carbondb_get(
+def carbondb_get(
     user: User = Depends(authenticate),
     start_date: date | None = None, end_date: date | None = None,
     tags_include: str | None = None, tags_exclude: str | None = None,
@@ -173,7 +173,7 @@ async def carbondb_get(
 
 
 @router.get('/v2/carbondb/filters')
-async def carbondb_get_filters(
+def carbondb_get_filters(
     user: User = Depends(authenticate)
     ):
 
@@ -191,7 +191,7 @@ async def carbondb_get_filters(
     return CustomORJSONResponse({'success': True, 'data': {'types': results['types'], 'tags': results['tags'], 'machines': results['machines'], 'projects': results['projects'], 'sources': results['sources'], 'users': visible_users}})
 
 @router.get('/v1/carbondb/insights')
-async def get_insights(user: User = Depends(authenticate)):
+def get_insights(user: User = Depends(authenticate)):
 
     query = '''
             SELECT COUNT(id), DATE(MIN(date))
