@@ -474,7 +474,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                         machine_energy_current_phase = metric_stats['value_sum']
                         machine_power_current_phase = power_avg_mW
 
-            elif '_carbon_' in metric and unit in ('ug', 'ugCO2e'):
+            elif '_carbon_' in metric and unit == 'ugCO2e':
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', None, None, metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
 
                 if metric.endswith('_machine') and chosen_carbon_metric_name is not None and chosen_carbon_metric_name in detail_name:
@@ -505,7 +505,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 # co2 calculations
                 if carbon_intensity is not None:
                     network_io_carbon_in_ug = network_io_in_kWh * Decimal(carbon_intensity) * 1_000_000
-                    csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
+                    csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ugCO2e'))
                 else:
                     error_helpers.log_error('Cannot calculate the total network carbon consumption. No carbon intensity provider data was found. Configure a carbon_intensity_*_machine provider (e.g. carbon_intensity_static_machine) in the config.', run_id=run_id)
                     network_io_carbon_in_ug = 0
@@ -520,7 +520,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
             embodied_carbon_share_g = (duration_in_years / Decimal(sci['EL']) ) * Decimal(sci['TE']) * Decimal(sci['RS'])
             embodied_carbon_share_ug = Decimal(embodied_carbon_share_g * 1_000_000)
             sci_phase_data['embodied_carbon_share_ug'] = sci_phase_data.get('embodied_carbon_share_ug', 0) + embodied_carbon_share_ug
-            csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, None, None, None, 'ug'))
+            csv_buffer.write(generate_csv_line(phase['hidden'], run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, None, None, None, 'ugCO2e'))
 
 
         if machine_power_current_phase and machine_power_baseline and cpu_utilization_machine and cpu_utilization_containers:

@@ -296,7 +296,7 @@ def test_phase_embodied_and_operational_carbon():
 
     embodied_carbon_share_machine = next(d for d in data if d['metric'] == 'embodied_carbon_share_machine')
     assert embodied_carbon_share_machine['detail_name'] == '[SYSTEM]'
-    assert embodied_carbon_share_machine['unit'] == 'ug'
+    assert embodied_carbon_share_machine['unit'] == 'ugCO2e'
     assert embodied_carbon_share_machine['value'] == embodied_carbon_expected
     assert embodied_carbon_share_machine['type'] == 'TOTAL'
 
@@ -636,7 +636,7 @@ def test_phase_stats_network_data():
 
     assert network_carbon_entry['metric'] == 'network_carbon_formula_global'
     assert network_carbon_entry['detail_name'] == '[FORMULA]'
-    assert network_carbon_entry['unit'] == 'ug'
+    assert network_carbon_entry['unit'] == 'ugCO2e'
     assert network_carbon_entry['type'] == 'TOTAL'
     assert network_carbon_entry['value'] == 6 # due to multiple rounding steps the current data actually gives 7 when calculated directly, but the rounding gets it down to 6
 
