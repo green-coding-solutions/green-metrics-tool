@@ -156,18 +156,18 @@ def test_insert_and_compress_gmt_with_two_users():
         ''', params=(f"00000000-0000-0000-0000-00000000000{i}", ))
         DB().query('''INSERT INTO phase_stats(run_id, metric, detail_name, phase, value, type, unit, sampling_rate_avg, sampling_rate_max, sampling_rate_95p)
                     VALUES
-                    (%s,'embodied_carbon_share_machine','[MACHINE]','MY_CUSTOM_PHASE',14610, 'TOTAL', 'ug', 0, 0, 0)
+                    (%s,'embodied_carbon_share_machine','[MACHINE]','MY_CUSTOM_PHASE',14610, 'TOTAL', 'ugCO2e', 0, 0, 0)
         ''', params=(f"00000000-0000-0000-0000-00000000000{i}", ))
 
     # Add another phase just for testing purposes is group works correctly
     DB().query('''INSERT INTO phase_stats(run_id, metric, detail_name, phase, value, type, unit, sampling_rate_avg, sampling_rate_max, sampling_rate_95p)
                 VALUES
-                (%s,'other_carbon_share_machine','[MACHINE]','001_[BASELINE]',14610, 'TOTAL', 'ug', 0, 0, 0)
+                (%s,'other_carbon_share_machine','[MACHINE]','001_[BASELINE]',14610, 'TOTAL', 'ugCO2e', 0, 0, 0)
     ''', params=('00000000-0000-0000-0000-000000000004', ))
 
     DB().query('''INSERT INTO phase_stats(run_id, metric, detail_name, phase, value, type, unit, sampling_rate_avg, sampling_rate_max, sampling_rate_95p)
                 VALUES
-                (%s,'another_carbon_share_machine','[MACHINE]','001_[BASELINE]',14610, 'TOTAL', 'ug', 0, 0, 0)
+                (%s,'another_carbon_share_machine','[MACHINE]','001_[BASELINE]',14610, 'TOTAL', 'ugCO2e', 0, 0, 0)
     ''', params=('00000000-0000-0000-0000-000000000004', ))
 
     DB().query('''INSERT INTO phase_stats(run_id, metric, detail_name, phase, value, type, unit, sampling_rate_avg, sampling_rate_max, sampling_rate_95p)

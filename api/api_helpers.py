@@ -67,7 +67,7 @@ def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
 def convert_value(value, unit, display_in_joules=False):
     compare_unit = unit.split('/', 1)[0]
 
-    if compare_unit == 'ugCO2e':
+    if compare_unit in ('ug', 'ugCO2e'):
         return [value / 1_000_000, unit[1:]]
     elif compare_unit == 'mJ':
         if display_in_joules:
@@ -90,8 +90,6 @@ def convert_value(value, unit, display_in_joules=False):
     elif compare_unit == 'ns':
         return [value / 1_000_000_000, unit[1:]]
     elif compare_unit == 'us':
-        return [value / 1_000_000, unit[1:]]
-    elif compare_unit == 'ug':
         return [value / 1_000_000, unit[1:]]
     elif compare_unit == 'Bytes':
         return [value / 1_000_000, f"MB{unit[5:]}"]

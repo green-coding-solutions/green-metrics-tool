@@ -74,7 +74,7 @@ class EmailReportJob(EmailJob):
         #         measurement_data['CPU_POWER'] += phase_stat['value']/1000
         #         measurement_data['CPU_ENERGY'] += phase_stat['value']/1000
         #     elif metric == 'network_carbon_formula_global': # for every CPU Package
-        #         if unit != 'ug':
+        #         if unit != 'ugCO2e':
         #             raise ValueError(f"Unexpected unit: {unit} for {metric} in run {self._run_id}")
         #         measurement_data['NETWORK_CARBON_10K'] += phase_stat['value']/1_000_0 # /1e9 for kg * 1e5 for 10k visitors
         #     elif metric == 'network_total_cgroup_container': # for every CPU Package

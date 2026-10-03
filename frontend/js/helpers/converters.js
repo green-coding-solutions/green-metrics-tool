@@ -16,6 +16,7 @@ const convertValue = (value, unit) => {
 
     switch (compare_unit) {
         case 'ugCO2e':
+        case 'ug':
             return [transformIfNotNull(value, 1_000_000), unit.slice(1)]
         case 'mJ':
             if (display_in_joules)
@@ -44,8 +45,6 @@ const convertValue = (value, unit) => {
             return [transformIfNotNull(value, 1_000_000_000), unit.slice(1)];
         case 'us':
             return [transformIfNotNull(value, 1_000_000), unit.slice(1)];
-        case 'ug':
-            return [transformIfNotNull(value, 1_000_000), unit.slice(1)]
         case 'Bytes':
             return [transformIfNotNull(value, 1_000_000), `MB${unit.slice(5)}`];
         case 'Wh':

@@ -124,7 +124,7 @@ def insert_demo_run_with_custom_sci_phase_stats():
         INSERT INTO phase_stats ("run_id","metric","detail_name","phase","value","type","max_value","min_value","sampling_rate_avg","sampling_rate_max","sampling_rate_95p","unit","hidden","created_at","updated_at")
         VALUES
         (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',1000000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',FALSE,NOW(),NULL),
-        (%s,E'embodied_carbon_share_machine',E'[SYSTEM]',E'000_[BASELINE]',10000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ug',FALSE,NOW(),NULL),
+        (%s,E'embodied_carbon_share_machine',E'[SYSTEM]',E'000_[BASELINE]',10000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ugCO2e',FALSE,NOW(),NULL),
         (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_Hit Generator',5000000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',FALSE,NOW(),NULL),
         (%s,E'custom_hits',E'test-container',E'001_Hit Generator',1000,E'TOTAL',1000,1000,100000,100000,100000,E'Hits',FALSE,NOW(),NULL),
         (%s,E'custom_hits_sci_global',E'test-container',E'001_Hit Generator',120000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ugCO2e/Hits',FALSE,NOW(),NULL),
@@ -440,8 +440,8 @@ class TestFrontendFunctionality:
         # Network Transmission CO₂
         assert cell(table, 13, 1).text_content().strip() == "Network Transmission CO₂"
         assert cell(table, 13, 6).inner_html().strip() == (
-            '<span title="425 ug">0.00</span> '
-            '<span data-tooltip="Value is lower than rounding. Unrounded value is 425 ug" '
+            '<span title="425 ugCO2e">0.00</span> '
+            '<span data-tooltip="Value is lower than rounding. Unrounded value is 425 ugCO2e" '
             'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
         )
         assert cell(table, 13, 7).text_content().strip() == "g"
@@ -544,8 +544,8 @@ class TestFrontendFunctionality:
         # Network Transmission CO₂
         assert cell(table, 15, 1).text_content().strip() == "Network Transmission CO₂"
         assert cell(table, 15, 6).inner_html().strip() == (
-            '<span title="425 ug">0.00</span> '
-            '<span data-tooltip="Value is lower than rounding. Unrounded value is 425 ug" '
+            '<span title="425 ugCO2e">0.00</span> '
+            '<span data-tooltip="Value is lower than rounding. Unrounded value is 425 ugCO2e" '
             'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
         )
         assert cell(table, 15, 7).text_content().strip() == "g"
@@ -748,14 +748,14 @@ class TestFrontendFunctionality:
         assert cell(table, 15, 1).text_content().strip() == "Network Transmission CO₂"
 
         assert cell(table, 15, 6).inner_html().strip() == (
-            '<span title="409 ug">0.00</span> '
-            '<span data-tooltip="Value is lower than rounding. Unrounded value is 409 ug" '
+            '<span title="409 ugCO2e">0.00</span> '
+            '<span data-tooltip="Value is lower than rounding. Unrounded value is 409 ugCO2e" '
             'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
         )
 
         assert cell(table, 15, 7).inner_html().strip() == (
-            '<span title="446 ug">0.00</span> '
-            '<span data-tooltip="Value is lower than rounding. Unrounded value is 446 ug" '
+            '<span title="446 ugCO2e">0.00</span> '
+            '<span data-tooltip="Value is lower than rounding. Unrounded value is 446 ugCO2e" '
             'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
         )
 
@@ -838,7 +838,7 @@ class TestFrontendFunctionality:
         assert first_stddev.strip() == '± 2.85%'
 
 
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(6)").inner_html() == '<span title="435.5 ug">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 435.5 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
+        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(6)").inner_html() == '<span title="435.5 ugCO2e">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 435.5 ugCO2e" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
 
         assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(8)").inner_html() == '± 3.41%'
 
