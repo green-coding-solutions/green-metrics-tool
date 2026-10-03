@@ -82,7 +82,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 # source of truth for both spellings so neither side can drift out of sync with the other.
 GMT_TMP_IMAGE_SUFFIX_RUN = 'gmt_run_tmp'
 GMT_TMP_IMAGE_SUFFIX_TEST = 'gmt_test_tmp'
-GMT_KANIKO_BUILD_CACHE_VOLUME = 'gmt_kaniko_build_cache'
+GMT_KANIKO_BUILD_CACHE_VOLUME = 'green-metrics-tool_kaniko-build-cache'
 
 # Marker container_name() below mixes into every test container/network name, together with the
 # pytest-xdist worker id when there is one. A plain worker-id suffix ('-gw0') is not distinctive
