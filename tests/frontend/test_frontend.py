@@ -444,7 +444,7 @@ class TestFrontendFunctionality:
             '<span data-tooltip="Value is lower than rounding. Unrounded value is 425 ugCO2e" '
             'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
         )
-        assert cell(table, 13, 7).text_content().strip() == "g"
+        assert cell(table, 13, 7).text_content().strip() == 'gCO2e'
 
 
         # click on baseline
@@ -458,7 +458,7 @@ class TestFrontendFunctionality:
         assert first_value.strip() == '0.01'
 
         first_unit = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(8) > td:nth-child(7)").text_content()
-        assert first_unit.strip() == 'g'
+        assert first_unit.strip() == 'gCO2e'
 
     def test_stats_multi_network(self):
 
@@ -548,7 +548,7 @@ class TestFrontendFunctionality:
             '<span data-tooltip="Value is lower than rounding. Unrounded value is 425 ugCO2e" '
             'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
         )
-        assert cell(table, 15, 7).text_content().strip() == "g"
+        assert cell(table, 15, 7).text_content().strip() == 'gCO2e'
 
     def test_stats_hidden_run(self):
 
@@ -759,7 +759,7 @@ class TestFrontendFunctionality:
             'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
         )
 
-        assert cell(table, 15, 8).inner_html().strip() == "g"
+        assert cell(table, 15, 8).inner_html().strip() == 'gCO2e'
         assert cell(table, 15, 9).inner_html().strip() == "+ 9.05 %"
 
     def test_repositories_compare_not_comparable_on_aggregate(self):
