@@ -1257,12 +1257,23 @@ class ScenarioRunner:
             context = service['build']
             dockerfile = 'Dockerfile'
             args = {}
+            target = None
         else:
             context =  service['build'].get('context', '.')
             dockerfile = service['build'].get('dockerfile', 'Dockerfile')
             args = service['build'].get('args', {})
+            target = service['build'].get('target', None)
 
-        return context, dockerfile, args
+        return context, dockerfile, args, target
+
+    def _remove_kaniko_build_cache_volume(self):
+        if self._dev_cache_build:
+            print('Skipping removing of kaniko build cache volume due to --dev-cache-build')
+            return
+
+        print('Removing kaniko build cache volume')
+        # no check=True, as the volume might not exist. We do not want to fail here
+        subprocess.run(['docker', 'volume', 'rm', '-f', utils.kaniko_build_cache_volume_name()], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
 
     def _clean_image_name(self, name):
         # clean up image name for problematic characters
@@ -1302,7 +1313,7 @@ class ScenarioRunner:
                 pass
 
             if 'build' in service:
-                context, dockerfile, args = self._get_build_info(service)
+                context, dockerfile, args, target = self._get_build_info(service)
                 print(f"Building {service['image']}")
                 self.__notes_helper.add_note( note=f"Building {service['image']}", detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
 
@@ -1318,6 +1329,9 @@ class ScenarioRunner:
 
                 docker_build_command.extend(
                     ['--mount', 'type=volume,dst=/workspace',
+                    # named volume shared by all builds of this run, so multi-stage builds and services sharing base layers can re-use cached layers
+                    # It is removed in cleanup() to not leak cached state into subsequent runs
+                    '--mount', f"type=volume,source={utils.kaniko_build_cache_volume_name()},target=/cache",
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
                     '--mount', f"type=bind,source={self._repo_folder.as_posix()},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
                     '--mount', f"type=bind,source={self._build_dir.as_posix()},target=/output"]
@@ -1346,8 +1360,14 @@ class ScenarioRunner:
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--cleanup=true',
+                    '--cache=true',
+                    '--cache-dir=/cache/base-images',
+                    '--cache-repo=oci:/cache/layers',
                     '--no-push']
                 )
+
+                if target:
+                    docker_build_command.append(f"--target={target}")
 
                 for arg_dict in args:
                     for arg_key, arg_value in arg_dict.items():
@@ -3022,6 +3042,8 @@ class ScenarioRunner:
 
         self._remove_docker_images()
 
+        self._remove_kaniko_build_cache_volume()
+
         for ps in self.__ps_to_kill:
             try:
                 process_helpers.kill_pg(ps['ps'], ps['cmd'])
@@ -3078,6 +3100,7 @@ class ScenarioRunner:
             # Remove any stale config left by a previously crashed run
             self._delete_docker_config_dir()
             self._delete_ssh_private_key_file()
+            self._remove_kaniko_build_cache_volume()
 
             self._log_free_memory()
             self._create_folders()

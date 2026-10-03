@@ -82,6 +82,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 # source of truth for both spellings so neither side can drift out of sync with the other.
 GMT_TMP_IMAGE_SUFFIX_RUN = 'gmt_run_tmp'
 GMT_TMP_IMAGE_SUFFIX_TEST = 'gmt_test_tmp'
+GMT_KANIKO_BUILD_CACHE_VOLUME = 'gmt_kaniko_build_cache'
 
 # Marker container_name() below mixes into every test container/network name, together with the
 # pytest-xdist worker id when there is one. A plain worker-id suffix ('-gw0') is not distinctive
@@ -157,6 +158,12 @@ def gmt_tmp_image_name(cleaned_base_name):
     suffix = GMT_TMP_IMAGE_SUFFIX_TEST if is_test_run() else GMT_TMP_IMAGE_SUFFIX_RUN
     name = f"{cleaned_base_name}_{suffix}"
     return f"{name}_{worker_id}" if worker_id else name
+
+def kaniko_build_cache_volume_name():
+    # Docker volume mounted into the kaniko builder to cache layers / stages across all builds of one run.
+    # Suffixed with the pytest-xdist worker id so parallel test workers never share or delete each other's cache.
+    worker_id = get_test_worker_id()
+    return f"{GMT_KANIKO_BUILD_CACHE_VOLUME}_{worker_id}" if worker_id else GMT_KANIKO_BUILD_CACHE_VOLUME
 
 def remove_git_suffix(url):
     if url.endswith('.git'):
