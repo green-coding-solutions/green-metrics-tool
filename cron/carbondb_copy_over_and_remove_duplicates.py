@@ -82,7 +82,7 @@ def copy_over_scenario_runner(interval=60): # 30 days is the merge window. Until
 
                 -- we do these two queries as subselects as if they were left joins they will blow up the table whenever we relax the condition that only one metric with same name may exist
                 COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p WHERE p.run_id = r.id AND p.unit = 'uJ' AND p.phase != '004_[RUNTIME]' AND p.metric LIKE '%%_energy_%%_machine')/1e6/3600/1000, 0) as energy_kwh,
-                COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p2 WHERE p2.run_id = r.id AND p2.unit = 'ug' AND p2.phase != '004_[RUNTIME]' AND p2.metric LIKE '%%_carbon_%%_machine')/1e9, 0) as carbon_kg,
+                COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p2 WHERE p2.run_id = r.id AND p2.unit = 'ugCO2e' AND p2.phase != '004_[RUNTIME]' AND p2.metric LIKE '%%_carbon_%%_machine')/1e9, 0) as carbon_kg,
 
                 NULL, -- there simply is no carbon intensity atm
                 NULL, -- there simply is no latitude as no IP is present
