@@ -175,18 +175,23 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
     tooltip: {
         trigger: 'axis',
         formatter: function (params) {
-
-          const series1 = params[0];
-          const series2 = params[1];
-          const candlestick = params[2];          // candlestick series
-          const [open, close, low, high] = candlestick.data;
-          return `
-            ${series1.axisValue}<br/>
-            ${series1.marker} ${series1.seriesName}: ${numberFormatter.format(series1.value)} s<br>
-            ${series2.marker} ${series2.seriesName}: ${numberFormatter.format(series2.value)} s<br>
-            ${candlestick.marker} ${candlestick.seriesName}: ${numberFormatter.format(candlestick.value[2])} s<br>
-
-          `;
+          // Disjoint runs can omit series at some axes — never assume fixed indices
+          if (!params || params.length === 0) return '';
+          let html = `${params[0].axisValueLabel ?? params[0].axisValue ?? ''}<br/>`;
+          for (const p of params) {
+            if (!p) continue;
+            if (p.seriesType === 'candlestick') {
+              const data = Array.isArray(p.data) ? p.data : p.value;
+              const low = Array.isArray(data) ? data[2] : data;
+              if (low == null || Number.isNaN(Number(low))) continue;
+              html += `${p.marker} ${p.seriesName}: ${numberFormatter.format(low)} s<br>`;
+            } else {
+              const v = Array.isArray(p.value) ? p.value[1] ?? p.value[0] : p.value;
+              if (v == null || Number.isNaN(Number(v))) continue;
+              html += `${p.marker} ${p.seriesName}: ${numberFormatter.format(v)} s<br>`;
+            }
+          }
+          return html;
         }
       },
       legend: {
