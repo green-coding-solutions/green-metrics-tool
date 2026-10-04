@@ -486,6 +486,7 @@ class RunUntilManager:
         try:
             self.__runner._delete_docker_config_dir()
             self.__runner._delete_ssh_private_key_file()
+            self.__runner._remove_kaniko_build_cache_volume()
             self.__runner._log_free_memory()
             self.__runner._create_folders()
             self.__runner._start_measurement()

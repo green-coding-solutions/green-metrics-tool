@@ -17,8 +17,8 @@ import pytest
 
 from tests import test_functions as Tests
 from lib.scenario_runner import ScenarioRunner
-from lib.schema_checker import SchemaError
-from lib.utils import container_name, gmt_tmp_image_name
+from lib.schema_checker import SchemaError, SchemaChecker
+from lib.utils import container_name, gmt_tmp_image_name, kaniko_build_cache_volume_name
 
 ## Note:
 # Always do asserts after try:finally: blocks
@@ -1054,6 +1054,36 @@ def test_folder_destination_with_build():
 
     assert 'Repository mounted at custom path' in build_output, \
         Tests.assertion_info('Repository files should be accessible at folder-destination path during runtime', build_output)
+
+
+def test_build_target_multi_stage():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/multi_stage_target/usage_scenario.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+
+    output = out.getvalue()
+
+    assert '--target=final' in output, Tests.assertion_info('--target=final passed to kaniko', output)
+    assert f"type=volume,source={kaniko_build_cache_volume_name()},target=/cache" in output, Tests.assertion_info('kaniko build cache volume mounted', output)
+    assert 'stage-final' in output, Tests.assertion_info('stage-final', output)
+    assert 'stage-other' not in output, Tests.assertion_info('stage-other must not be built as final stage', output)
+    assert 'built-in-builder' in output, Tests.assertion_info('artifact copied from builder stage', output)
+
+    ps = subprocess.run(['docker', 'volume', 'inspect', kaniko_build_cache_volume_name()], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    assert ps.returncode != 0, 'kaniko build cache volume must be removed after the run'
+
+def test_build_target_invalid():
+    usage_scenario = {
+        'name': 'Test', 'author': 'Test', 'description': 'Test',
+        'services': {'test-container': {'build': {'context': '.', 'target': 'final,other'}, 'image': 'test'}},
+        'flow': [{'name': 'x', 'container': 'test-container', 'commands': [{'type': 'console', 'command': 'true'}]}],
+    }
+    with pytest.raises(SchemaError):
+        SchemaChecker(validate_compose_flag=True).check_usage_scenario(usage_scenario)
 
 
 @pytest.mark.skipif(platform.system() == "Darwin", reason="Skipped on macOS")

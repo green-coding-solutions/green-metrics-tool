@@ -152,6 +152,7 @@ class SchemaChecker():
                         {
                             Optional('context'): And(str, Use(self.not_empty)),
                             Optional('dockerfile'): And(str, Use(self.not_empty)),
+                            Optional('target'): And(str, Use(self.not_empty), Regex(r'^[A-Za-z0-9][A-Za-z0-9_.-]*$')),
                             Optional('args'): Or(
                                 {And(str, Use(self.not_empty)): Or(str, int, float, bool, None)},
                                 [
