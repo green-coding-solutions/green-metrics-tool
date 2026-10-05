@@ -37,7 +37,7 @@ from lib import resource_limits
 from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
-from lib.configuration_check_error import ConfigurationCheckError, Status, TemperatureException
+from lib.configuration_check_error import ConfigurationCheckError, Status
 from lib.temperature import get_temperature
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -670,22 +670,12 @@ def check_temperature(*_, **__):
         return NOT_CONFIGURED
 
     current_temp = get_temperature(chip, feature)
-    DB().query('UPDATE machines SET current_temperature=%s WHERE id = %s',
-               params=(current_temp, config['machine']['id']))
 
     if current_temp > base_value:
-        raise TemperatureException(
-            f"Machine too hot: {current_temp}° (base: {base_value}°)",
-            direction='hot',
-            temperature=current_temp,
-        )
+        return f"Machine too hot: {current_temp}° (base: {base_value}°)"
 
     if current_temp <= (base_value - 10):
-        raise TemperatureException(
-            f"Machine too cold: {current_temp}° (base: {base_value}°)",
-            direction='cold',
-            temperature=current_temp,
-        )
+        return f"Machine too cold: {current_temp}° (base: {base_value}°)"
 
     return True
 
@@ -693,7 +683,7 @@ def check_temperature(*_, **__):
 ######## END CHECK FUNCTIONS ########
 
 start_checks = (
-    (check_temperature, Status.WARN, 'base temperature', 'Machine temperature is out of range. Waiting for temperature to stabilize'),
+    (check_temperature, Status.INFO, 'base temperature', 'Machine temperature is out of range. Consider warming up / cooling down'),
     (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
     (check_gmt_dir_dirty, Status.WARN, 'gmt directory dirty', 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir'),
     (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
