@@ -14,11 +14,14 @@ from metric_providers.base import MetricProviderConfigurationError, BaseMetricPr
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
+    # The proxy must already be listening when the containers boot, as they get the proxy env vars injected
+    starts_before_containers = True
+
     def __init__(self, *, folder, host_ip=None, skip_check=False):
         tinyproxy_path = subprocess.getoutput('which tinyproxy')
 
         super().__init__(
-            metric_name='network_connections_proxy_container_dockerproxy',
+            metric_name='network_connections_proxy_container',
             metrics={},
             sampling_rate=None,
             unit=None,
