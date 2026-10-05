@@ -25,6 +25,7 @@ import platform
 import psutil
 
 from pathlib import Path
+from urllib.parse import urlparse
 from copy import deepcopy
 from collections import OrderedDict
 from datetime import datetime
@@ -429,8 +430,43 @@ class ScenarioRunner:
                 f"{cred['username']}:{cred['password'].get_value()}".encode()
             ).decode()
             auths[cred['registry']] = {'auth': token}
-        config_file = self._docker_config_dir / 'config.json'
-        self._write_secret_file(config_file, json.dumps({'auths': auths}, separators=(',', ':')))
+
+        # Kaniko executes the user supplied Dockerfile in the same container where the config is mounted. RUN steps can thus read it.
+        # Therefore it must only ever contain the credentials of this run and never the ones from the host docker config
+        self._write_secret_file(self._docker_config_dir / 'kaniko_config.json', json.dumps({'auths': auths}, separators=(',', ':')))
+
+        # The docker CLI is pointed to our config dir via DOCKER_CONFIG. To not lose the other settings of the host config
+        # like currentContext, proxies or auths for other registries we load it and only replace the auth entries we bring
+        host_docker_config_dir = Path(os.environ.get('DOCKER_CONFIG', Path.home() / '.docker'))
+        docker_config = {}
+        host_docker_config_file = host_docker_config_dir / 'config.json'
+        if host_docker_config_file.is_file():
+            try:
+                docker_config = json.loads(host_docker_config_file.read_text(encoding='utf-8'))
+            except (OSError, json.JSONDecodeError) as exc:
+                print(TerminalColors.WARNING, f"Could not parse docker config {host_docker_config_file}. Using only the supplied docker credentials. Error: {exc}", TerminalColors.ENDC)
+            if not isinstance(docker_config, dict):
+                docker_config = {}
+
+        if not isinstance(docker_config.get('auths'), dict):
+            docker_config['auths'] = {}
+        docker_config['auths'].update(auths)
+
+        # A credential helper / store takes precedence over the inline auths. So we must remove it for the registries we supply,
+        # as otherwise our credentials would be silently ignored. credsStore applies to all registries and thus has to go completely
+        docker_config.pop('credsStore', None)
+        if isinstance(docker_config.get('credHelpers'), dict):
+            for registry in auths:
+                docker_config['credHelpers'].pop(registry, None)
+                docker_config['credHelpers'].pop(urlparse(registry).netloc, None) # helpers are keyed by hostname, while registry might be supplied as URL
+
+        self._write_secret_file(self._docker_config_dir / 'config.json', json.dumps(docker_config, separators=(',', ':')))
+
+        # currentContext only references a context. The metadata itself lives in the contexts folder of the config dir
+        host_contexts_dir = host_docker_config_dir / 'contexts'
+        contexts_link = self._docker_config_dir / 'contexts'
+        if host_contexts_dir.is_dir() and not contexts_link.exists():
+            contexts_link.symlink_to(host_contexts_dir.resolve(), target_is_directory=True)
 
     def _delete_docker_config_dir(self):
         if self._docker_config_dir.exists():
@@ -1340,7 +1376,7 @@ class ScenarioRunner:
                 if self._docker_credentials:
                     docker_build_command.extend([
                         '--mount',
-                        f"type=bind,source={self._docker_config_dir.joinpath('config.json').as_posix()},target=/kaniko/.docker/config.json,readonly",
+                        f"type=bind,source={self._docker_config_dir.joinpath('kaniko_config.json').as_posix()},target=/kaniko/.docker/config.json,readonly",
                     ])
 
                 for relation_key, relation in self.__relations.items():
