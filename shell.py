@@ -107,6 +107,9 @@ class ShellScenarioRunner(ScenarioRunner):
     def _remove_docker_images(self):
         print('Skipping Docker image cleanup in shell mode')
 
+    def _remove_kaniko_build_cache_volume(self):
+        pass
+
     def _setup_networks(self):
         print('Skipping network setup in shell mode')
 
