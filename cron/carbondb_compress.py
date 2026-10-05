@@ -7,9 +7,9 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
 
-# We copy over a larger timespan than the merge window in case server errors happend or the job did not run for a couple of days
-# Since data is always deduplicated in a typical timeframe we can never double count
-from cron.carbondb_copy_over_and_remove_duplicates import COPY_OVER_LOOKBACK_DAYS
+# Only days within the copy over lookback can still receive or change rows in carbondb_data_raw. Older days are final
+# and do not need to be re-aggregated
+from cron.carbondb_copy_over_and_remove_duplicates import COPY_OVER_LOOKBACK_DAYS, check_config
 
 # The main job of the compress script is to take all the data from the carbondb_data_raw table
 # and compress it to daily sums.
@@ -172,6 +172,7 @@ def compress_carbondb_raw(full_history=False):
 if __name__ == '__main__':
     try:
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
+        check_config()
         compress_carbondb_raw()
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])

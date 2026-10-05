@@ -13,6 +13,18 @@ COPY_OVER_LOOKBACK_DAYS = round(GlobalConfig().config['cluster']['carbondb_merge
 # Must be larger than the copy over lookback to not leave duplicates behind. In case this is reduced choose at least merge window + 1 days to avoid race conditions
 CLEANUP_LOOKBACK_DAYS = GlobalConfig().config['cluster']['carbondb_merge_window_days'] * 2
 
+def check_config():
+    merge_window = GlobalConfig().config['cluster']['carbondb_merge_window_days']
+    if not isinstance(merge_window, int) or isinstance(merge_window, bool) or merge_window < 1:
+        raise ValueError(f"carbondb_merge_window_days must be a positive integer, but is {merge_window}. Please check your settings for carbondb_merge_window_days in the config.yml")
+
+    # Data may arrive up to the merge window late, so copy over must reach further back or late data is never copied
+    if COPY_OVER_LOOKBACK_DAYS <= merge_window:
+        raise ValueError(f"Copy over timeframe ({COPY_OVER_LOOKBACK_DAYS} days) must be strictly larger than merge window ({merge_window} days). Please check your settings for carbondb_merge_window_days in the config.yml")
+
+    if COPY_OVER_LOOKBACK_DAYS >= CLEANUP_LOOKBACK_DAYS:
+        raise ValueError(f"Copy over timeframe ({COPY_OVER_LOOKBACK_DAYS} days) must be strictly smaller than cleanup timeframe ({CLEANUP_LOOKBACK_DAYS} days). Please check your settings for carbondb_merge_window_days in the config.yml")
+
 def copy_over_power_hog(full_history=False):
     query = '''
         INSERT INTO carbondb_data_raw
@@ -34,7 +46,9 @@ def copy_over_power_hog(full_history=False):
                 user_id,
                 NOW()
             FROM hog_simplified_measurements
-            WHERE %s OR created_at > CURRENT_DATE - make_interval(days => %s)
+            -- filter on the measurement timestamp and not on created_at, as Power HOG data may arrive up to the merge window late.
+            -- This aligns the copy over with remove_duplicates and compress, which both filter on carbondb_data_raw.time
+            WHERE %s OR "timestamp" > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e3 -- timestamp is in milliseconds
     '''
 
     DB().query(query, params=(full_history, COPY_OVER_LOOKBACK_DAYS))
@@ -109,10 +123,6 @@ def copy_over_scenario_runner(full_history=False):
 
 
 def validate_table_constraints():
-
-    if COPY_OVER_LOOKBACK_DAYS >= CLEANUP_LOOKBACK_DAYS:
-        raise ValueError(f"Copy over timeframe ({COPY_OVER_LOOKBACK_DAYS} days) must be strictly smaller than cleanup timeframe ({CLEANUP_LOOKBACK_DAYS} days). Please check your settings for carbondb_merge_window_days in the config.yml")
-
     data = DB().fetch_all('''
         SELECT id
         FROM
@@ -157,6 +167,8 @@ def remove_duplicates(full_history=False):
 if __name__ == '__main__':
     try:
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
+        print('check_config')
+        check_config()
         print('copy_over_eco_ci')
         copy_over_eco_ci()
         print('copy_over_scenario_runner')
