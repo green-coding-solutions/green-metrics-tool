@@ -205,6 +205,29 @@ def do_measurement_control():
         # endlessly in validation until manually handled, which is what we want.
         time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
 
+def handle_temperature_exception(exc, temperature_errors, temperature_cooldown_time): # pylint: disable=redefined-outer-name
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
+
+    if temperature_errors >= 10:
+        error_helpers.log_error('Temperature could not be stabilized in time. Please check logs ...', current_temperature=exc.temperature, base_temperature=config['machine']['base_temperature_value'], machine=config['machine']['description'])
+        temperature_errors = 0 # reset counter, so logs don't pollute
+
+    if exc.direction == 'hot':
+        print(f"Machine is still too hot: {exc.temperature}°. Sleeping for 1 minute")
+        set_status('cooldown', data=str(exc))
+        temperature_cooldown_time += 60
+        temperature_errors += 1
+        time.sleep(60)
+    else:
+        print(f"Machine is too cool: {exc.temperature}°. Warming up and retrying")
+        set_status('warmup', data=str(exc))
+        temperature_errors += 1
+        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
+        time.sleep(300)
+        subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
+
+    return temperature_errors, temperature_cooldown_time
+
 def handle_sigterm(signum, frame): # pylint: disable=unused-argument
     # systemd sends SIGTERM on stop/restart.
     raise ClientEnd('SIGTERM received')
@@ -250,17 +273,23 @@ if __name__ == '__main__':
                 last_24h_maintenance = time.time()
 
             if not args.testing and (needs_revalidation or validate.is_validation_needed(config['machine']['id'], config['cluster']['client']['time_between_control_workload_validations'])):
-                do_measurement_control()
-                DB().query('UPDATE machines SET needs_revalidation = false WHERE id = %s', params=(config['machine']['id'],))
-                needs_revalidation = False # reset as measurement control has run. even if failed
-                continue # re-do temperature checks
+                try:
+                    do_measurement_control()
+                    DB().query('UPDATE machines SET needs_revalidation = false WHERE id = %s', params=(config['machine']['id'],))
+                    needs_revalidation = False # reset as measurement control has run. even if failed
+                    temperature_errors = 0
+                    temperature_cooldown_time = 0
+                except TemperatureException as exc:
+                    temperature_errors, temperature_cooldown_time = handle_temperature_exception(exc, temperature_errors, temperature_cooldown_time)
+
+                continue # restart loop to see if other periodic checks are now necessary
 
             job = RunJob.get_job() # assigned as late as possible so an interrupt during maintenance/measurement-control above isn't misattributed to a job that hasn't started yet
             if job and job.check_job_running():
                 error_helpers.log_error('Job is still running. This is usually an error case! Continuing for now ...', machine=config['machine']['description'])
                 if not args.testing:
                     time.sleep(config['cluster']['client']['sleep_time_no_job'])
-                continue
+                continue # restart loop to see if other periodic checks are now necessary
 
             if job:
                 set_status('job_start', run_id=job._run_id)
@@ -272,21 +301,7 @@ if __name__ == '__main__':
                     temperature_cooldown_time = 0
                     set_status('job_end', run_id=job._run_id)
                 except TemperatureException as exc:
-                    if temperature_errors >= 10:
-                        raise RuntimeError(f"Temperature could not be stabilized in time. Was {exc.temperature} but should be {config['machine']['base_temperature_value']}. Please check logs ...") from exc
-                    if exc.direction == 'hot':
-                        print(f"Machine is still too hot: {exc.temperature}°. Sleeping for 1 minute")
-                        set_status('cooldown', data=str(exc), run_id=job._run_id)
-                        temperature_cooldown_time += 60
-                        temperature_errors += 1
-                        time.sleep(60)
-                    else:
-                        print(f"Machine is too cool: {exc.temperature}°. Warming up and retrying")
-                        set_status('warmup', data=str(exc), run_id=job._run_id)
-                        temperature_errors += 1
-                        subprocess.check_output('for i in $(seq $(nproc)); do yes > /dev/null & done', shell=True, encoding='UTF-8', errors='replace')
-                        time.sleep(300)
-                        subprocess.check_output(['killall', 'yes'], encoding='UTF-8', errors='replace')
+                    temperature_errors, temperature_cooldown_time = handle_temperature_exception(exc, temperature_errors, temperature_cooldown_time)
                 except ConfigurationCheckError as exc:
                     # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect.
                     # So we soft-fail here with sleeps
