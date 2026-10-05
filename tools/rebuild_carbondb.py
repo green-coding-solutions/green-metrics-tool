@@ -23,11 +23,11 @@ if __name__ == '__main__':
         DB().query("DELETE FROM carbondb_data_raw WHERE source IN ('ScenarioRunner', 'Eco CI')")
 
         print('Copying Eco CI and ScenarioRunner data over to carbondb_data_raw without any lookback date restriction...')
-        copy_over_eco_ci(interval=None)
-        copy_over_scenario_runner(interval=None)
-        remove_duplicates()
+        copy_over_eco_ci(full_history=True)
+        copy_over_scenario_runner(full_history=True)
+        remove_duplicates(full_history=True)
 
         print('Running compress on carbondb ...')
-        compress_carbondb_raw()
+        compress_carbondb_raw(full_history=True)
 
         print('Done')

@@ -7,9 +7,13 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
 
+# We copy over a larger timespan than the merge window in case server errors happend or the job did not run for a couple of days
+COPY_OVER_LOOKBACK_DAYS = round(GlobalConfig().config['cluster']['carbondb_merge_window_days'] * 1.5)
 
-def copy_over_power_hog(interval=60): # 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days
-    params = []
+# Must be larger than the copy over lookback to not leave duplicates behind. In case this is reduced choose at least merge window + 1 days to avoid race conditions
+CLEANUP_LOOKBACK_DAYS = GlobalConfig().config['cluster']['carbondb_merge_window_days'] * 2
+
+def copy_over_power_hog(full_history=False):
     query = '''
         INSERT INTO carbondb_data_raw
             ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
@@ -30,16 +34,13 @@ def copy_over_power_hog(interval=60): # 30 days is the merge window. Until then 
                 user_id,
                 NOW()
             FROM hog_simplified_measurements
+            WHERE %s OR created_at > CURRENT_DATE - make_interval(days => %s)
     '''
-    if interval:
-        query = f"{query} WHERE created_at > CURRENT_DATE - make_interval(days => %s)"
-        params.append(interval)
 
-    DB().query(query, params=params)
+    DB().query(query, params=(full_history, COPY_OVER_LOOKBACK_DAYS))
 
 
-def copy_over_eco_ci(interval=60): # 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days
-    params = []
+def copy_over_eco_ci(full_history=False):
     query = '''
         INSERT INTO carbondb_data_raw
             ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
@@ -60,18 +61,15 @@ def copy_over_eco_ci(interval=60): # 30 days is the merge window. Until then we 
                 user_id,
                 NOW()
             FROM ci_measurements
+            WHERE %s OR created_at > CURRENT_DATE - make_interval(days => %s)
     '''
-    if interval:
-        query = f"{query} WHERE created_at > CURRENT_DATE - make_interval(days => %s)"
-        params.append(interval)
 
-    DB().query(query, params=params)
+    DB().query(query, params=(full_history, COPY_OVER_LOOKBACK_DAYS))
 
-def copy_over_scenario_runner(interval=60): # 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days
-    params = []
+def copy_over_scenario_runner(full_history=False):
     query = '''
         INSERT INTO carbondb_data_raw
-            ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+            ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","run_id","created_at")
             SELECT
                 'machine.server' as type,
                 'ScenarioRunner' as project,
@@ -89,21 +87,32 @@ def copy_over_scenario_runner(interval=60): # 30 days is the merge window. Until
                 NULL, -- there simply is no longitude as no IP is present
                 NULL, -- no connecting IP was used to transmit the data
                 r.user_id,
+                r.id,
                 NOW()
             FROM runs as r
             -- we do LEFT JOIN as we do not want to silent skip data. If a column gets NULL it will fail
             LEFT JOIN machines as m ON m.id = r.machine_id
+            WHERE %s OR r.created_at > CURRENT_DATE - make_interval(days => %s)
+            GROUP BY r.id, m.description
+            -- runs are keyed so that changed values (e.g. run finished after previous copy over or phase_stats got recalculated) replace the old row instead of creating a second one
+            ON CONFLICT (run_id) DO UPDATE SET
+                machine = EXCLUDED.machine,
+                time = EXCLUDED.time,
+                energy_kwh = EXCLUDED.energy_kwh,
+                carbon_kg = EXCLUDED.carbon_kg,
+                user_id = EXCLUDED.user_id
+            WHERE (carbondb_data_raw.machine, carbondb_data_raw.time, carbondb_data_raw.energy_kwh, carbondb_data_raw.carbon_kg, carbondb_data_raw.user_id)
+                IS DISTINCT FROM (EXCLUDED.machine, EXCLUDED.time, EXCLUDED.energy_kwh, EXCLUDED.carbon_kg, EXCLUDED.user_id) -- avoid needless writes and updated_at bumps
     '''
-    if interval:
-        query = f"{query} WHERE r.created_at > CURRENT_DATE - make_interval(days => %s)"
-        params.append(interval)
 
-    query = f"{query} GROUP BY r.id, m.description"
-
-    DB().query(query, params=params)
+    DB().query(query, params=(full_history, COPY_OVER_LOOKBACK_DAYS))
 
 
 def validate_table_constraints():
+
+    if COPY_OVER_LOOKBACK_DAYS >= CLEANUP_LOOKBACK_DAYS:
+        raise ValueError(f"Copy over timeframe ({COPY_OVER_LOOKBACK_DAYS} days) must be strictly smaller than cleanup timeframe ({CLEANUP_LOOKBACK_DAYS} days). Please check your settings for carbondb_merge_window_days in the config.yml")
+
     data = DB().fetch_all('''
         SELECT id
         FROM
@@ -118,14 +127,14 @@ def validate_table_constraints():
             OR machine IS NULL -- null by design. only guard for broken schema
             OR source IS NULL -- null by design. only guard for broken schema
             OR tags IS NULL) -- null by design. only guard for broken schema
-            AND created_at > NOW() - INTERVAL '60 DAYS' -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions
+            AND created_at > NOW() - make_interval(days => %s)
             AND created_at < NOW() - INTERVAL '30 MINUTES' -- data just arrived can be null, before it is backfilled
-     ''')
+     ''', params=(CLEANUP_LOOKBACK_DAYS, ))
 
     if data:
         raise RuntimeError(f"NULL values found `carbondb_data_raw` - {data}")
 
-def remove_duplicates():
+def remove_duplicates(full_history=False):
     DB().query('''
         DELETE FROM carbondb_data_raw a
         USING carbondb_data_raw b
@@ -140,8 +149,9 @@ def remove_duplicates():
             AND a.energy_kwh = b.energy_kwh
             AND a.carbon_kg = b.carbon_kg -- if this column is null the rows will simply not match. so not problematic. we check later with validate_table_constraints
             AND a.user_id = b.user_id
-            AND a.time > EXTRACT(EPOCH FROM ((NOW() - INTERVAL '60 days')::date::timestamp))*1e6 -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions - Time filter must be starting from midnight and not include elapsed minutes in the day to work with copy over which cuts off time info
-    ''')
+            AND a.run_id IS NOT DISTINCT FROM b.run_id -- rows of different ScenarioRunner runs are never duplicates. Same run cannot occur twice due to unique index
+            AND (%s OR a.time > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e6) -- Time filter must be starting from midnight and not include elapsed minutes in the day to work with copy over which cuts off time info
+    ''', params=(full_history, CLEANUP_LOOKBACK_DAYS))
 
 
 if __name__ == '__main__':

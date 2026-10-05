@@ -182,14 +182,14 @@ def test_insert_and_compress_gmt_with_two_users():
 
     assert DB().fetch_one('SELECT COUNT(id) FROM carbondb_data_raw')[0] == AMOUNT_OF_GMT_RUNS, 'LEFT JOIN expanded the rows! Should be no more than 10'
 
-    for j in range(2,5):
+    for _ in range(2,5):
         copy_over_scenario_runner()
 
-    assert DB().fetch_one('SELECT COUNT(id) FROM carbondb_data_raw')[0] == AMOUNT_OF_GMT_RUNS * j, 'Copy did not results in identical rows'
+    assert DB().fetch_one('SELECT COUNT(id) FROM carbondb_data_raw')[0] == AMOUNT_OF_GMT_RUNS, 'Copy over was not keyed on run_id and created duplicate rows'
 
     remove_duplicates()
 
-    assert DB().fetch_one('SELECT COUNT(id) FROM carbondb_data_raw')[0] == AMOUNT_OF_GMT_RUNS, 'Remove duplicates did not remove identical rows'
+    assert DB().fetch_one('SELECT COUNT(id) FROM carbondb_data_raw')[0] == AMOUNT_OF_GMT_RUNS, 'Remove duplicates removed rows of distinct runs'
 
 
     data = DB().fetch_one("SELECT id, source, type, machine, project FROM carbondb_data_raw WHERE user_id = 345 AND machine = 'Machine 101'", fetch_mode='dict')
@@ -357,3 +357,34 @@ def test_carbondb_filter_mapped_to_same_id():
     response = requests.get(f"{API_URL}/v2/carbondb/filters", timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER-CARBONDB'}) # ID 345
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert response.text == '{"success":true,"data":{"types":{"1":"machine.ci"},"tags":{"1":"cool","2":"mystery"},"machines":{"1":"my-machine"},"projects":{"1":"my-project"},"sources":{"1":"CUSTOM"},"users":{"345":"ALTERNATIVE-USER-CARBONDB"}}}'
+
+def test_scenario_runner_changed_values_replace_row():
+    DB().query("INSERT INTO machines (id, description) VALUES(100, 'Machine 100')")
+    DB().query("INSERT INTO runs(id, uri, branch, filename, machine_id, user_id, created_at) VALUES('00000000-0000-0000-0000-000000000000','-', '-', '-', 100, 1, NOW())")
+
+    # Run is copied over while it is still running and has no phase_stats yet
+    copy_over_scenario_runner()
+
+    data = DB().fetch_all('SELECT energy_kwh, carbon_kg FROM carbondb_data_raw')
+    assert data == [(0, 0)]
+
+    DB().query('''INSERT INTO phase_stats(run_id, metric, detail_name, phase, value, type, unit, sampling_rate_avg, sampling_rate_max, sampling_rate_95p)
+                VALUES
+                ('00000000-0000-0000-0000-000000000000','psu_energy_ac_mcp_machine','[MACHINE]','MY_CUSTOM_PHASE',5434523, 'TOTAL', 'uJ', 0, 0, 0),
+                ('00000000-0000-0000-0000-000000000000','embodied_carbon_share_machine','[MACHINE]','MY_CUSTOM_PHASE',14610, 'TOTAL', 'ugCO2e', 0, 0, 0)
+    ''')
+
+    copy_over_scenario_runner()
+    remove_duplicates()
+
+    data = DB().fetch_all('SELECT energy_kwh, carbon_kg, run_id::text FROM carbondb_data_raw')
+    assert len(data) == 1, 'Changed values of a run created a second row'
+    assert math.isclose(data[0][0], 5434523 / FROM_UJ_TO_J / FROM_J_TO_KWH, rel_tol=1e-6)
+    assert math.isclose(data[0][1], 14610 / FROM_UG_TO_KG, rel_tol=1e-6)
+    assert data[0][2] == '00000000-0000-0000-0000-000000000000'
+
+    compress_carbondb_raw()
+
+    data = DB().fetch_one('SELECT energy_kwh_sum, record_count FROM carbondb_data WHERE date = CURRENT_DATE AND user_id = 1', fetch_mode='dict')
+    assert data['record_count'] == 1
+    assert math.isclose(data['energy_kwh_sum'], 5434523 / FROM_UJ_TO_J / FROM_J_TO_KWH, rel_tol=1e-6)

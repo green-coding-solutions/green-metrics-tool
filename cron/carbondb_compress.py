@@ -7,6 +7,10 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
 
+# We copy over a larger timespan than the merge window in case server errors happend or the job did not run for a couple of days
+# Since data is always deduplicated in a typical timeframe we can never double count
+from cron.carbondb_copy_over_and_remove_duplicates import COPY_OVER_LOOKBACK_DAYS
+
 # The main job of the compress script is to take all the data from the carbondb_data_raw table
 # and compress it to daily sums.
 # During this process we also transform all text fields and transform them to integers and drop them into normalized
@@ -18,8 +22,9 @@ from lib import error_helpers
 # WHERE array_position(tags, NULL) IS NOT NULL;
 
 
-def compress_carbondb_raw():
-    query = '''
+def compress_carbondb_raw(full_history=False):
+    # Query contains multiple statements, which psycopg cannot run with server-side bound params. Thus values are inlined
+    query = f'''
 
         INSERT INTO carbondb_types (type, user_ids)
         SELECT type, ARRAY_AGG(DISTINCT user_id)
@@ -86,7 +91,7 @@ def compress_carbondb_raw():
         SELECT *
         FROM carbondb_data_raw
         WHERE
-            time > EXTRACT(EPOCH FROM ((NOW() - INTERVAL '60 days')::date::timestamp))*1e6 -- Time filter must be starting from midnight and not include elapsed minutes in the day to work with select later which cuts off time info
+            ({'TRUE' if full_history else 'FALSE'} OR time > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => {int(COPY_OVER_LOOKBACK_DAYS)}))::date::timestamp))*1e6) -- Time filter must be starting from midnight and not include elapsed minutes in the day to work with select later which cuts off time info
             AND carbon_kg IS NOT NULL; -- guarded in carbondb_copy_over that we do not miss rows continuously;
 
         UPDATE carbondb_data_raw_tmp AS cdrt

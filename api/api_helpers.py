@@ -894,8 +894,7 @@ def check_int_field_api(field, name, max_value):
     return True
 
 def carbondb_add(connecting_ip, data, source, user_id):
-
-    merge_window_max = 30 # merge window hardcoded for now. Might be a user setting later. This entails also that carbondb_copy_over_and_remove_duplicates.py makes queries PER USER
+    merge_window_max = GlobalConfig().config['cluster']['carbondb_merge_window_days']
     current_time_us = int(time.time_ns()  / 1e3)
     if data['time'] < current_time_us - merge_window_max * 24 * 60 * 60 * 1e6 : # microseconds
         raise ValueError(f"CarbonDB is configured to not accept values older than {merge_window_max} days. Your timestamp was: {data['time']}")

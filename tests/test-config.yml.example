@@ -32,6 +32,7 @@ cluster:
   cors_allowed_origins:
     - http://api.green-coding.internal:9143
     - http://metrics.green-coding.internal:9143
+  carbondb_merge_window_days: 30
   client:
     sleep_time_no_job: 300
     jobs_processing: random
