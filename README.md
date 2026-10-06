@@ -15,7 +15,7 @@ Key features are:
 - [Low overhead](https://docs.green-coding.io/docs/measuring/metric-providers/overhead-of-measurement-providers/)
 - Statististical frontend with charts - [DEMO](https://metrics.green-coding.io/stats.html?id=7169e39e-6938-4636-907b-68aa421994b2)
 - API - [DEMO](https://api.green-coding.io)
-- [Cluster setup](https://docs.green-coding.io/docs/installation/installation-cluster/)
+- [Cluster setup](https://docs.green-coding.io/docs/cluster/installation/)
 - [Free Hosted service for more precise measurements](https://docs.green-coding.io/docs/measuring/measurement-cluster/)
 - Timeline-View: Monitor software projects over time - [DEMO for Wagtail](https://metrics.green-coding.io/timeline.html?uri=https://github.com/green-coding-solutions/bakerydemo-gold-benchmark&filename=usage_scenario_warm.yml&branch=&machine_id=7) / [DEMO Overview](https://metrics.green-coding.io/watchlist.html)
 - [Energy ID Score-Cards](https://www.green-coding.io/products/energy-id/) for software (Also see below)

@@ -313,7 +313,7 @@ const updateKeyMetric = (
     } else if (gpu_power_metric_condition(metric_name)) {
         selector = '.gpu-power';
     } else if (disk_carbon_metric_condition(metric_name)) {
-        selector = '.disk-carbon';
+        selector = '.disk-co2';
     } else if (disk_energy_metric_condition(metric_name)) {
         selector = '.disk-energy';
     } else if (disk_power_metric_condition(metric_name)) {

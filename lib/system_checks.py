@@ -414,9 +414,9 @@ def _check_rapl_domain(domain_key):
     Checks that both the long_term and short_term power limits (whichever are present on
     the domain) are exactly equal to the configured value — this also transitively catches
     long_term/short_term disagreeing with each other, without needing a separate check.
-    Returns True (all limits match), False (at least one domain's limit is missing or does
-    not match the configured cap), or None (check skipped — not configured, sudo
-    unavailable, or RAPL not present).
+    Returns True (all limits match), False (no matching RAPL domain could be read, e.g.
+    because system_checks_root.py is not installed, or at least one domain's limit is missing
+    or does not match the configured cap), NOT_CONFIGURED or NOT_IMPLEMENTED.
     '''
     if platform.system() in ('Darwin', 'Windows'):
         return NOT_IMPLEMENTED
@@ -432,6 +432,8 @@ def _check_rapl_domain(domain_key):
     rapl_limits = data.get('read_rapl_power_limits', {})
 
     domain_entries = rapl_limits.get(domain_key, [])
+    if not domain_entries:
+        return False  # configured in config but no matching RAPL domain could be read on this machine
 
     expected_uw = int(expected_watts) * 1_000_000
     for entry in domain_entries:
@@ -710,7 +712,7 @@ start_checks = (
     (check_assignable_memory_oom, Status.WARN, 'OOM risk', 'Your system available memory is less than what can be assigned to the docker containers. This can lead to the system running into OOM. For development this is fine, but for reliable measurements you should reserve more memory to the host system via "host_reserved_memory" in config.yml'),
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),
     (check_docker_host_env, Status.ERROR, 'docker host env', 'You seem to be running a rootless docker and in this case you must set the DOCKER_HOST environment variable so that the docker library we use can find the docker agent. Typically this should be DOCKER_HOST=unix:///$XDG_RUNTIME_DIR/docker.sock'),
-    (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/]'),
+    (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/cluster/installation/]'),
     (check_systemd_timers, Status.WARN, 'systemd timers', 'Unexpected systemd timers are active. These can create interference during measurements. Disable or remove them for reliable cluster benchmarks'),
     (check_cron_files, Status.WARN, 'cron files', 'Active cron files found in /var/spool/cron or /etc/cron*. These can create interference during measurements. Disable or remove them for reliable cluster benchmarks'),
     (check_rapl_power_capping_package, Status.WARN, 'rapl power capping (package)', 'RAPL package domain power limit does not match the value configured in machine.rapl_power_capping.package. Verify that the system power cap is set correctly'),
@@ -729,15 +731,15 @@ start_checks = (
     (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output'),
     (check_swap_disabled, Status.WARN, 'swap disabled', 'Your system uses a swap filesystem. This can lead to very instable measurements. Please disable swap'),
     (check_kernel_watchdog, Status.WARN, 'kernel watchdog disabled', 'A kernel lockup watchdog (kernel.watchdog / nmi_watchdog / soft_watchdog) is active. These periodically fire NMIs/interrupts and can create noise in measurements. Disable via sysctl for reliable benchmarking'),
-    (check_tty_attached, Status.WARN, 'tty attached', 'GMT runs with a TTY attached. This will create relevant overhead. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/]'),
-    (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/]'),
+    (check_tty_attached, Status.WARN, 'tty attached', 'GMT runs with a TTY attached. This will create relevant overhead. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/cluster/installation/]'),
+    (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/cluster/installation/]'),
 )
 
 end_checks = (
     (check_suspend, Status.ERROR, 'system suspend', 'System has gone into suspend during measurement. This will skew all measurement data. If GMT shall ever be able to correctly account for suspend states please note that metric providers must support CLOCK_BOOTIME. See https://github.com/green-coding-solutions/green-metrics-tool/pull/1229 for discussion'),
     (check_steal_time, Status.ERROR, 'cpu steal time', 'The CPU has accounted steal time. This means the measurement could have been interrupted and / or the VM that you are running in halted. This will lead to broken measurement data as time jumps can occur'),
     (check_guest_time, Status.ERROR, 'cpu guest time', 'The CPU has accounted guest time. This means this machine itself ran a virtual CPU for a guest OS during the measurement, which can steal CPU cycles from GMT and lead to broken measurement data as time jumps can occur'),
-    (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/]'),
+    (check_ssh_session, Status.WARN, 'ssh session active', 'An active SSH session was detected on this machine. Remote sessions can add CPU/network noise and scheduler interference to measurements. This is usually fine in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/cluster/installation/]'),
 
 )
 

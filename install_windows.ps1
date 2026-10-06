@@ -500,6 +500,7 @@ Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_SCENARIO_RUNNER__" $a
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_ECO_CI__" $activateEcoCiValue.ToString().ToLowerInvariant()
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_POWER_HOG__" $activatePowerHogValue.ToString().ToLowerInvariant()
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_CARBON_DB__" $activateCarbonDbValue.ToString().ToLowerInvariant()
+Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_SOFTWARE_VIEW__" "false"
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_AI_OPTIMISATIONS__" "false"
 
 if ($enableSsl) {
