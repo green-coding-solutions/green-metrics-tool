@@ -1,6 +1,8 @@
 from metric_providers.base import BaseMetricProvider
 
 class ContainerMetricProvider(BaseMetricProvider):
+    starts_before_containers = False
+
     def __init__(self, *,
             metric_name,
             metrics,

@@ -14,6 +14,9 @@ class MetricProviderConfigurationError(ConfigurationCheckError):
         super().__init__(message, status, error_key)
 
 class BaseMetricProvider:
+    # Providers that need the containers of the run (e.g. their IDs / cgroups) or that should only capture
+    # traffic once the containers are up set this to False and are started after the [BOOT] phase.
+    starts_before_containers = True
 
     def __init__(self, *,
         metric_name,

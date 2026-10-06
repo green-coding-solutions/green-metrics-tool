@@ -8,6 +8,9 @@ from metric_providers.base import BaseMetricProvider
 from lib import error_helpers
 
 class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
+    # tcpdump is only for debugging the containers itself and thus started together with the container providers
+    starts_before_containers = False
+
     def __init__(self, *, folder, split_ports=True, skip_check=False):
         super().__init__(
             metric_name='network_connections_tcpdump_system',

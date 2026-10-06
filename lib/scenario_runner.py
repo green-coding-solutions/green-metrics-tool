@@ -57,6 +57,7 @@ from lib.log_types import LogType
 from lib.user import User
 from lib.encryption import EncryptionConfigurationError
 from metric_providers.base import MetricProviderConfigurationError
+from metric_providers.container import ContainerMetricProvider
 
 from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
@@ -2319,7 +2320,7 @@ class ScenarioRunner:
 
     def _add_containers_to_metric_providers(self):
         for metric_provider in self.__metric_providers:
-            if metric_provider._metric_name.endswith('_container'):
+            if isinstance(metric_provider, ContainerMetricProvider):
                 metric_provider.add_containers(self.__containers)
 
     def _start_metric_providers(self, allow_container=True, allow_other=True):
@@ -2334,10 +2335,10 @@ class ScenarioRunner:
         # This includes tcpdump, which is only for debugging of the containers itself
         # If debugging of the tool itself is wanted tcpdump should be started adjacent to the tool and not inline
         for metric_provider in self.__metric_providers:
-            if (metric_provider._metric_name.endswith('_container') or metric_provider._metric_name == 'network_connections_tcpdump_system' ) and not allow_container:
+            if not metric_provider.starts_before_containers and not allow_container:
                 continue
 
-            if not metric_provider._metric_name.endswith('_container') and metric_provider._metric_name != 'network_connections_tcpdump_system' and not allow_other:
+            if metric_provider.starts_before_containers and not allow_other:
                 continue
 
             if metric_provider.has_started():
@@ -2355,10 +2356,10 @@ class ScenarioRunner:
         self._custom_sleep(2)
 
         for metric_provider in self.__metric_providers:
-            if (metric_provider._metric_name.endswith('_container') or metric_provider._metric_name == 'network_connections_tcpdump_system' ) and not allow_container:
+            if not metric_provider.starts_before_containers and not allow_container:
                 continue
 
-            if not metric_provider._metric_name.endswith('_container') and metric_provider._metric_name != 'network_connections_tcpdump_system' and not allow_other:
+            if metric_provider.starts_before_containers and not allow_other:
                 continue
 
             stderr_read = metric_provider.get_stderr()
