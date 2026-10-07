@@ -115,7 +115,7 @@ runs:
     # for debugging purposes you can setup a ssh connection by setting 'inputs.enable-ssh' to true
     - name: Setup upterm session
       if: (inputs.task == 'setup' || inputs.task == 'all') && inputs.enable-ssh == 'true'
-      uses: owenthereal/action-upterm@41ec120391a17f0dbc38ba074d19245e925855bf
+      uses: owenthereal/action-upterm@4d9cc09ee511b59cd5fd26a4dc3e7552665fa51f
       with:
         limit-access-to-actor: true # Restrict to the user who triggered the workflow
 
