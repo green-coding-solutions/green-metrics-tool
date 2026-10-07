@@ -20,7 +20,7 @@ if __name__ == '__main__':
         DB().query('TRUNCATE carbondb_data')
 
         print('Deleting Eco CI and ScenarioRunner data from carbondb_data_raw ...')
-        DB().query("DELETE FROM carbondb_data_raw WHERE source IN ('ScenarioRunner', 'Eco CI')")
+        DB().query("DELETE FROM carbondb_data_raw WHERE source IN ('ScenarioRunner', 'Eco CI', 'Power HOG')")
 
         print('Copying Eco CI and ScenarioRunner data over to carbondb_data_raw without any lookback date restriction...')
         copy_over_eco_ci(None)
