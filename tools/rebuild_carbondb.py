@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
         print('Copying Eco CI data over to carbondb_data_raw without any lookback date restriction...')
         copy_over_eco_ci(None)
-        print('Copying Eco CI data over to carbondb_data_raw without any lookback date restriction...')
+        print('Copying ScenarioRunner data over to carbondb_data_raw without any lookback date restriction...')
         copy_over_scenario_runner(None)
         print('Copying PowerHOG data over to carbondb_data_raw without any lookback date restriction...')
         copy_over_power_hog(None)
