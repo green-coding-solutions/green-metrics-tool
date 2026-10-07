@@ -7,25 +7,30 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
 
-# We copy over a larger timespan than the merge window in case server errors happend or the job did not run for a couple of days
-COPY_OVER_LOOKBACK_DAYS = round(GlobalConfig().config['cluster']['carbondb_merge_window_days'] * 1.5)
+# All functions taking a *_lookback_limit (in days) process the full history when None is passed
 
-# Must be larger than the copy over lookback to not leave duplicates behind. In case this is reduced choose at least merge window + 1 days to avoid race conditions
-CLEANUP_LOOKBACK_DAYS = GlobalConfig().config['cluster']['carbondb_merge_window_days'] * 2
-
-def check_config():
+def evaluate_config():
     merge_window = GlobalConfig().config['cluster']['carbondb_merge_window_days']
+
     if not isinstance(merge_window, int) or isinstance(merge_window, bool) or merge_window < 1:
         raise ValueError(f"carbondb_merge_window_days must be a positive integer, but is {merge_window}. Please check your settings for carbondb_merge_window_days in the config.yml")
 
+    # We copy over a larger timespan than the merge window in case server errors happend or the job did not run for a couple of days
+    copy_over_lookback_limit = round(merge_window * 1.5)
+
+    # Must be larger than the copy over lookback to not leave duplicates behind. In case this is reduced choose at least merge window + 1 days to avoid race conditions
+    cleanup_lookback_limit = merge_window * 2
+
     # Data may arrive up to the merge window late, so copy over must reach further back or late data is never copied
-    if COPY_OVER_LOOKBACK_DAYS <= merge_window:
-        raise ValueError(f"Copy over timeframe ({COPY_OVER_LOOKBACK_DAYS} days) must be strictly larger than merge window ({merge_window} days). Please check your settings for carbondb_merge_window_days in the config.yml")
+    if copy_over_lookback_limit <= merge_window:
+        raise ValueError(f"Copy over timeframe ({copy_over_lookback_limit} days) must be strictly larger than merge window ({merge_window} days). Please check your settings for carbondb_merge_window_days in the config.yml")
 
-    if COPY_OVER_LOOKBACK_DAYS >= CLEANUP_LOOKBACK_DAYS:
-        raise ValueError(f"Copy over timeframe ({COPY_OVER_LOOKBACK_DAYS} days) must be strictly smaller than cleanup timeframe ({CLEANUP_LOOKBACK_DAYS} days). Please check your settings for carbondb_merge_window_days in the config.yml")
+    if copy_over_lookback_limit >= cleanup_lookback_limit:
+        raise ValueError(f"Copy over timeframe ({copy_over_lookback_limit} days) must be strictly smaller than cleanup timeframe ({cleanup_lookback_limit} days). Please check your settings for carbondb_merge_window_days in the config.yml")
 
-def copy_over_power_hog(full_history=False):
+    return copy_over_lookback_limit, cleanup_lookback_limit
+
+def copy_over_power_hog(copy_over_lookback_limit):
     query = '''
         INSERT INTO carbondb_data_raw
             ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
@@ -51,10 +56,10 @@ def copy_over_power_hog(full_history=False):
             WHERE %s OR "timestamp" > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e3 -- timestamp is in milliseconds
     '''
 
-    DB().query(query, params=(full_history, COPY_OVER_LOOKBACK_DAYS))
+    DB().query(query, params=(copy_over_lookback_limit is None, copy_over_lookback_limit))
 
 
-def copy_over_eco_ci(full_history=False):
+def copy_over_eco_ci(copy_over_lookback_limit):
     query = '''
         INSERT INTO carbondb_data_raw
             ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
@@ -78,9 +83,9 @@ def copy_over_eco_ci(full_history=False):
             WHERE %s OR created_at > CURRENT_DATE - make_interval(days => %s)
     '''
 
-    DB().query(query, params=(full_history, COPY_OVER_LOOKBACK_DAYS))
+    DB().query(query, params=(copy_over_lookback_limit is None, copy_over_lookback_limit))
 
-def copy_over_scenario_runner(full_history=False):
+def copy_over_scenario_runner(copy_over_lookback_limit):
     query = '''
         INSERT INTO carbondb_data_raw
             ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","run_id","created_at")
@@ -119,10 +124,10 @@ def copy_over_scenario_runner(full_history=False):
                 IS DISTINCT FROM (EXCLUDED.machine, EXCLUDED.time, EXCLUDED.energy_kwh, EXCLUDED.carbon_kg, EXCLUDED.user_id) -- avoid needless writes and updated_at bumps
     '''
 
-    DB().query(query, params=(full_history, COPY_OVER_LOOKBACK_DAYS))
+    DB().query(query, params=(copy_over_lookback_limit is None, copy_over_lookback_limit))
 
 
-def validate_table_constraints():
+def validate_table_constraints(cleanup_lookback_limit):
     data = DB().fetch_all('''
         SELECT id
         FROM
@@ -137,14 +142,14 @@ def validate_table_constraints():
             OR machine IS NULL -- null by design. only guard for broken schema
             OR source IS NULL -- null by design. only guard for broken schema
             OR tags IS NULL) -- null by design. only guard for broken schema
-            AND created_at > NOW() - make_interval(days => %s)
+            AND (%s OR created_at > NOW() - make_interval(days => %s))
             AND created_at < NOW() - INTERVAL '30 MINUTES' -- data just arrived can be null, before it is backfilled
-     ''', params=(CLEANUP_LOOKBACK_DAYS, ))
+     ''', params=(cleanup_lookback_limit is None, cleanup_lookback_limit))
 
     if data:
         raise RuntimeError(f"NULL values found `carbondb_data_raw` - {data}")
 
-def remove_duplicates(full_history=False):
+def remove_duplicates(cleanup_lookback_limit):
     DB().query('''
         DELETE FROM carbondb_data_raw a
         USING carbondb_data_raw b
@@ -161,24 +166,25 @@ def remove_duplicates(full_history=False):
             AND a.user_id = b.user_id
             AND a.run_id IS NOT DISTINCT FROM b.run_id -- rows of different ScenarioRunner runs are never duplicates. Same run cannot occur twice due to unique index
             AND (%s OR a.time > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e6) -- Time filter must be starting from midnight and not include elapsed minutes in the day to work with copy over which cuts off time info
-    ''', params=(full_history, CLEANUP_LOOKBACK_DAYS))
+    ''', params=(cleanup_lookback_limit is None, cleanup_lookback_limit))
 
 
 if __name__ == '__main__':
     try:
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
-        print('check_config')
-        check_config()
+
+        print('evaluate_config')
+        COPY_OVER_LOOKBACK_LIMIT, CLEANUP_LOOKBACK_LIMIT = evaluate_config()
         print('copy_over_eco_ci')
-        copy_over_eco_ci()
+        copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
         print('copy_over_scenario_runner')
-        copy_over_scenario_runner()
+        copy_over_scenario_runner(COPY_OVER_LOOKBACK_LIMIT)
         print('copy_over_power_hog')
-        copy_over_power_hog()
+        copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
         print('remove_duplicates')
-        remove_duplicates()
+        remove_duplicates(CLEANUP_LOOKBACK_LIMIT)
         print('validate_table_constraints against ')
-        validate_table_constraints()
+        validate_table_constraints(CLEANUP_LOOKBACK_LIMIT)
 
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])

@@ -7,9 +7,7 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
 
-# Only days within the copy over lookback can still receive or change rows in carbondb_data_raw. Older days are final
-# and do not need to be re-aggregated
-from cron.carbondb_copy_over_and_remove_duplicates import COPY_OVER_LOOKBACK_DAYS, check_config
+from cron.carbondb_copy_over_and_remove_duplicates import evaluate_config
 
 # The main job of the compress script is to take all the data from the carbondb_data_raw table
 # and compress it to daily sums.
@@ -22,7 +20,16 @@ from cron.carbondb_copy_over_and_remove_duplicates import COPY_OVER_LOOKBACK_DAY
 # WHERE array_position(tags, NULL) IS NOT NULL;
 
 
-def compress_carbondb_raw(full_history=False):
+# None for copy_over_lookback_limit compresses the full history
+def compress_carbondb_raw(copy_over_lookback_limit):
+    # Only days within the copy over lookback can still receive or change rows in carbondb_data_raw. Older days are final
+    # and do not need to be re-aggregated.
+    # Time filter must be starting from midnight and not include elapsed minutes in the day to work with select later which cuts off time info
+    if copy_over_lookback_limit is None:
+        time_filter = 'TRUE'
+    else:
+        time_filter = f"time > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => {int(copy_over_lookback_limit)}))::date::timestamp))*1e6"
+
     # Query contains multiple statements, which psycopg cannot run with server-side bound params. Thus values are inlined
     query = f'''
 
@@ -91,7 +98,7 @@ def compress_carbondb_raw(full_history=False):
         SELECT *
         FROM carbondb_data_raw
         WHERE
-            ({'TRUE' if full_history else 'FALSE'} OR time > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => {int(COPY_OVER_LOOKBACK_DAYS)}))::date::timestamp))*1e6) -- Time filter must be starting from midnight and not include elapsed minutes in the day to work with select later which cuts off time info
+            {time_filter}
             AND carbon_kg IS NOT NULL; -- guarded in carbondb_copy_over that we do not miss rows continuously;
 
         UPDATE carbondb_data_raw_tmp AS cdrt
@@ -172,7 +179,8 @@ def compress_carbondb_raw(full_history=False):
 if __name__ == '__main__':
     try:
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
-        check_config()
-        compress_carbondb_raw()
+
+        COPY_OVER_LOOKBACK_LIMIT, _ = evaluate_config()
+        compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])
