@@ -281,8 +281,8 @@ async def get_warnings(run_id, user: User = Depends(authenticate)):
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 
-@router.get('/v1/network/{run_id}')
-async def get_network(run_id: str, user: User = Depends(authenticate)):
+@router.get('/v1/network/connections/proxy/{run_id}')
+async def get_network_connections_proxy(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
         return ORJSONResponseObjKeep({'success': False, 'data': 'Run ID is not a valid UUID or empty'}, status_code=422)
 
@@ -294,13 +294,43 @@ async def get_network(run_id: str, user: User = Depends(authenticate)):
         return ORJSONResponseObjKeep({'success': False, 'data': 'Run not found'}, status_code=404)
 
     query = '''
-            SELECT ni.*
-            FROM network_intercepts as ni
-            JOIN runs as r on r.id = ni.run_id
+            SELECT ncp.*
+            FROM network_connections_proxy as ncp
+            JOIN runs as r on r.id = ncp.run_id
             WHERE
                 (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
-                AND ni.run_id = %s
-            ORDER BY ni.time
+                AND ncp.run_id = %s
+            ORDER BY ncp.time
+        '''
+    params = (user.is_super_user(), user.visible_users(), run_id)
+    data = DB().fetch_all(query, params=params)
+
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    return ORJSONResponseObjKeep({'success': True, 'data': data})
+
+
+@router.get('/v1/network/connections/tcpdump/{run_id}')
+async def get_network_connections_tcpdump(run_id: str, user: User = Depends(authenticate)):
+    if run_id is None or not is_valid_uuid(run_id):
+        return ORJSONResponseObjKeep({'success': False, 'data': 'Run ID is not a valid UUID or empty'}, status_code=422)
+
+    run_exists = DB().fetch_one(
+        "SELECT 1 FROM runs WHERE id = %s",
+        params=(run_id,)
+    )
+    if not run_exists:
+        return ORJSONResponseObjKeep({'success': False, 'data': 'Run not found'}, status_code=404)
+
+    query = '''
+            SELECT nct.*
+            FROM network_connections_tcpdump as nct
+            JOIN runs as r on r.id = nct.run_id
+            WHERE
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
+                AND nct.run_id = %s
+            ORDER BY nct.detail_name
         '''
     params = (user.is_super_user(), user.visible_users(), run_id)
     data = DB().fetch_all(query, params=params)
