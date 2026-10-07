@@ -7,9 +7,30 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
 
+# All functions taking a *_lookback_limit (in days) process the full history when None is passed
 
-def copy_over_power_hog(interval=60): # 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days
-    params = []
+def evaluate_config():
+    merge_window = GlobalConfig().config['cluster']['carbondb_merge_window_days']
+
+    if not isinstance(merge_window, int) or isinstance(merge_window, bool) or merge_window < 1:
+        raise ValueError(f"carbondb_merge_window_days must be a positive integer, but is {merge_window}. Please check your settings for carbondb_merge_window_days in the config.yml")
+
+    # We copy over a larger timespan than the merge window in case server errors happend or the job did not run for a couple of days
+    copy_over_lookback_limit = round(merge_window * 1.5)
+
+    # Must be larger than the copy over lookback to not leave duplicates behind. In case this is reduced choose at least merge window + 1 days to avoid race conditions
+    cleanup_lookback_limit = merge_window * 2
+
+    # Data may arrive up to the merge window late, so copy over must reach further back or late data is never copied
+    if copy_over_lookback_limit <= merge_window:
+        raise ValueError(f"Copy over timeframe ({copy_over_lookback_limit} days) must be strictly larger than merge window ({merge_window} days). Please check your settings for carbondb_merge_window_days in the config.yml")
+
+    if copy_over_lookback_limit >= cleanup_lookback_limit:
+        raise ValueError(f"Copy over timeframe ({copy_over_lookback_limit} days) must be strictly smaller than cleanup timeframe ({cleanup_lookback_limit} days). Please check your settings for carbondb_merge_window_days in the config.yml")
+
+    return copy_over_lookback_limit, cleanup_lookback_limit
+
+def copy_over_power_hog(copy_over_lookback_limit):
     query = '''
         INSERT INTO carbondb_data_raw
             ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
@@ -30,16 +51,15 @@ def copy_over_power_hog(interval=60): # 30 days is the merge window. Until then 
                 user_id,
                 NOW()
             FROM hog_simplified_measurements
+            -- filter on the measurement timestamp and not on created_at, as Power HOG data may arrive up to the merge window late.
+            -- This aligns the copy over with remove_duplicates and compress, which both filter on carbondb_data_raw.time
+            WHERE %s OR "timestamp" > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e3 -- timestamp is in milliseconds
     '''
-    if interval:
-        query = f"{query} WHERE created_at > CURRENT_DATE - make_interval(days => %s)"
-        params.append(interval)
 
-    DB().query(query, params=params)
+    DB().query(query, params=(copy_over_lookback_limit is None, copy_over_lookback_limit))
 
 
-def copy_over_eco_ci(interval=60): # 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days
-    params = []
+def copy_over_eco_ci(copy_over_lookback_limit):
     query = '''
         INSERT INTO carbondb_data_raw
             ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
@@ -60,18 +80,15 @@ def copy_over_eco_ci(interval=60): # 30 days is the merge window. Until then we 
                 user_id,
                 NOW()
             FROM ci_measurements
+            WHERE %s OR created_at > CURRENT_DATE - make_interval(days => %s)
     '''
-    if interval:
-        query = f"{query} WHERE created_at > CURRENT_DATE - make_interval(days => %s)"
-        params.append(interval)
 
-    DB().query(query, params=params)
+    DB().query(query, params=(copy_over_lookback_limit is None, copy_over_lookback_limit))
 
-def copy_over_scenario_runner(interval=60): # 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days
-    params = []
+def copy_over_scenario_runner(copy_over_lookback_limit):
     query = '''
         INSERT INTO carbondb_data_raw
-            ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+            ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","run_id","created_at")
             SELECT
                 'machine.server' as type,
                 'ScenarioRunner' as project,
@@ -89,21 +106,28 @@ def copy_over_scenario_runner(interval=60): # 30 days is the merge window. Until
                 NULL, -- there simply is no longitude as no IP is present
                 NULL, -- no connecting IP was used to transmit the data
                 r.user_id,
+                r.id,
                 NOW()
             FROM runs as r
             -- we do LEFT JOIN as we do not want to silent skip data. If a column gets NULL it will fail
             LEFT JOIN machines as m ON m.id = r.machine_id
+            WHERE %s OR r.created_at > CURRENT_DATE - make_interval(days => %s)
+            GROUP BY r.id, m.description
+            -- runs are keyed so that changed values (e.g. run finished after previous copy over or phase_stats got recalculated) replace the old row instead of creating a second one
+            ON CONFLICT (run_id) DO UPDATE SET
+                machine = EXCLUDED.machine,
+                time = EXCLUDED.time,
+                energy_kwh = EXCLUDED.energy_kwh,
+                carbon_kg = EXCLUDED.carbon_kg,
+                user_id = EXCLUDED.user_id
+            WHERE (carbondb_data_raw.machine, carbondb_data_raw.time, carbondb_data_raw.energy_kwh, carbondb_data_raw.carbon_kg, carbondb_data_raw.user_id)
+                IS DISTINCT FROM (EXCLUDED.machine, EXCLUDED.time, EXCLUDED.energy_kwh, EXCLUDED.carbon_kg, EXCLUDED.user_id) -- avoid needless writes and updated_at bumps
     '''
-    if interval:
-        query = f"{query} WHERE r.created_at > CURRENT_DATE - make_interval(days => %s)"
-        params.append(interval)
 
-    query = f"{query} GROUP BY r.id, m.description"
-
-    DB().query(query, params=params)
+    DB().query(query, params=(copy_over_lookback_limit is None, copy_over_lookback_limit))
 
 
-def validate_table_constraints():
+def validate_table_constraints(cleanup_lookback_limit):
     data = DB().fetch_all('''
         SELECT id
         FROM
@@ -118,14 +142,14 @@ def validate_table_constraints():
             OR machine IS NULL -- null by design. only guard for broken schema
             OR source IS NULL -- null by design. only guard for broken schema
             OR tags IS NULL) -- null by design. only guard for broken schema
-            AND created_at > NOW() - INTERVAL '60 DAYS' -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions
+            AND (%s OR created_at > NOW() - make_interval(days => %s))
             AND created_at < NOW() - INTERVAL '30 MINUTES' -- data just arrived can be null, before it is backfilled
-     ''')
+     ''', params=(cleanup_lookback_limit is None, cleanup_lookback_limit))
 
     if data:
         raise RuntimeError(f"NULL values found `carbondb_data_raw` - {data}")
 
-def remove_duplicates():
+def remove_duplicates(cleanup_lookback_limit):
     DB().query('''
         DELETE FROM carbondb_data_raw a
         USING carbondb_data_raw b
@@ -140,23 +164,27 @@ def remove_duplicates():
             AND a.energy_kwh = b.energy_kwh
             AND a.carbon_kg = b.carbon_kg -- if this column is null the rows will simply not match. so not problematic. we check later with validate_table_constraints
             AND a.user_id = b.user_id
-            AND a.time > EXTRACT(EPOCH FROM ((NOW() - INTERVAL '60 days')::date::timestamp))*1e6 -- 30 days is the merge window. Until then we allow old data to arrive. But we copy a larger timespan in case server errors happend or the job did not run for a couple of days. In case this is reduced choose at least 31 days to avoid race conditions - Time filter must be starting from midnight and not include elapsed minutes in the day to work with copy over which cuts off time info
-    ''')
+            AND a.run_id IS NOT DISTINCT FROM b.run_id -- rows of different ScenarioRunner runs are never duplicates. Same run cannot occur twice due to unique index
+            AND (%s OR a.time > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e6) -- Time filter must be starting from midnight and not include elapsed minutes in the day to work with copy over which cuts off time info
+    ''', params=(cleanup_lookback_limit is None, cleanup_lookback_limit))
 
 
 if __name__ == '__main__':
     try:
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
+
+        print('evaluate_config')
+        COPY_OVER_LOOKBACK_LIMIT, CLEANUP_LOOKBACK_LIMIT = evaluate_config()
         print('copy_over_eco_ci')
-        copy_over_eco_ci()
+        copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
         print('copy_over_scenario_runner')
-        copy_over_scenario_runner()
+        copy_over_scenario_runner(COPY_OVER_LOOKBACK_LIMIT)
         print('copy_over_power_hog')
-        copy_over_power_hog()
+        copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
         print('remove_duplicates')
-        remove_duplicates()
+        remove_duplicates(CLEANUP_LOOKBACK_LIMIT)
         print('validate_table_constraints against ')
-        validate_table_constraints()
+        validate_table_constraints(CLEANUP_LOOKBACK_LIMIT)
 
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])

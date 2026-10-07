@@ -45,6 +45,9 @@ cluster:
   # Raises the GitHub rate limit from 60 to 5000 requests per hour. A fine-grained token without any
   # extra permissions is enough for public repositories. Leave null to send unauthenticated requests.
   github_api_token: null
+  # CarbonDB and Power HOG reject values older than this many days.
+  # The CarbonDB cron jobs derive their lookback windows from it
+  carbondb_merge_window_days: 30
   client:
     sleep_time_no_job: 300
     jobs_processing: "random"

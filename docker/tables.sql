@@ -448,10 +448,12 @@ CREATE TABLE carbondb_data_raw (
     longitude DOUBLE PRECISION,
     ip_address INET,
     user_id int NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    run_id uuid, -- only set for ScenarioRunner. No FK as data must persist in CarbonDB when runs are deleted
     created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 
+CREATE UNIQUE INDEX carbondb_data_raw_run_id_unique ON carbondb_data_raw (run_id); -- NULLs are distinct, so only ScenarioRunner rows are constrained
 CREATE INDEX carbondb_data_raw_time_type_user_idx ON carbondb_data_raw (time, type, user_id);
 CREATE INDEX "carbondb_data_raw_backfill_geo" ON "carbondb_data_raw"("latitude","longitude","carbon_intensity_g","created_at");
 

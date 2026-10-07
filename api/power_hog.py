@@ -13,8 +13,7 @@ from api.object_specifications import HogMeasurement, SimplifiedMeasurement
 
 from lib.user import User
 from lib.db import DB
-
-MERGE_WINDOW_MAX = 30 # merge window hardcoded for now, kept in sync with CarbonDB's (api_helpers.carbondb_add)
+from lib.global_config import GlobalConfig
 
 router = APIRouter()
 
@@ -53,8 +52,9 @@ async def add_hog(
                 # print(f"Errors are: {exc.errors()}")
                 raise HTTPException(status_code=422, detail=f"Invalid measurement data: {str(exc)}") from exc
 
-            if validated_measurement.timestamp < current_time_ms - MERGE_WINDOW_MAX * 24 * 60 * 60 * 1000:
-                raise HTTPException(status_code=422, detail=f"Power Hog is configured to not accept values older than {MERGE_WINDOW_MAX} days. Your timestamp was: {validated_measurement.timestamp}")
+            merge_window = GlobalConfig().config['cluster']['carbondb_merge_window_days']
+            if validated_measurement.timestamp < current_time_ms - merge_window * 24 * 60 * 60 * 1000:
+                raise HTTPException(status_code=422, detail=f"Power Hog is configured to not accept values older than {merge_window} days. Your timestamp was: {validated_measurement.timestamp}")
             if validated_measurement.timestamp > current_time_ms:
                 raise HTTPException(status_code=422, detail=f"Power Hog does not accept timestamps in the future. Your timestamp was: {validated_measurement.timestamp}")
 

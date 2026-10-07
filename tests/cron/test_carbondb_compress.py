@@ -12,7 +12,7 @@ from tests import test_functions as Tests
 from cron import backfill_carbon_intensity
 from cron import backfill_geo
 from cron.carbondb_compress import compress_carbondb_raw
-from cron.carbondb_copy_over_and_remove_duplicates import copy_over_scenario_runner, copy_over_eco_ci, remove_duplicates
+from cron.carbondb_copy_over_and_remove_duplicates import copy_over_scenario_runner, copy_over_eco_ci, remove_duplicates, evaluate_config
 
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
@@ -28,6 +28,8 @@ from tests.api.test_api_carbondb import ENERGY_DATA
 
 FROM_J_TO_KWH = 3_600 * 1_000
 FROM_UJ_TO_J = FROM_UG_TO_G = 1_000_000
+
+COPY_OVER_LOOKBACK_LIMIT, CLEANUP_LOOKBACK_LIMIT = evaluate_config()
 FROM_G_TO_KG = 1_000
 FROM_UG_TO_KG = 1_000_000_000
 
@@ -53,8 +55,8 @@ def test_insert_and_compress_eco_ci_with_two_users():
         response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=eco_ci_data_2, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER'})
         assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    copy_over_eco_ci()
-    compress_carbondb_raw()
+    copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
+    compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data WHERE date = CURRENT_DATE AND user_id = 1', fetch_mode='dict')
 
@@ -100,7 +102,7 @@ def test_insert_and_compress_carbondb_with_two_users():
         response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data_2, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER'})
         assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    compress_carbondb_raw()
+    compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data WHERE date = CURRENT_DATE and user_id = 1', fetch_mode='dict')
     energy_kWh = energy_data['energy_uj'] * RANGE_AMOUNT / FROM_UJ_TO_J / FROM_J_TO_KWH
@@ -178,18 +180,18 @@ def test_insert_and_compress_gmt_with_two_users():
     assert DB().fetch_one('SELECT COUNT(id) FROM phase_stats')[0] == AMOUNT_OF_GMT_RUNS*2+3, 'Unexpected amount of row. Maybe demo data present?'
 
 
-    copy_over_scenario_runner()
+    copy_over_scenario_runner(COPY_OVER_LOOKBACK_LIMIT)
 
     assert DB().fetch_one('SELECT COUNT(id) FROM carbondb_data_raw')[0] == AMOUNT_OF_GMT_RUNS, 'LEFT JOIN expanded the rows! Should be no more than 10'
 
-    for j in range(2,5):
-        copy_over_scenario_runner()
+    for _ in range(2,5):
+        copy_over_scenario_runner(COPY_OVER_LOOKBACK_LIMIT)
 
-    assert DB().fetch_one('SELECT COUNT(id) FROM carbondb_data_raw')[0] == AMOUNT_OF_GMT_RUNS * j, 'Copy did not results in identical rows'
+    assert DB().fetch_one('SELECT COUNT(id) FROM carbondb_data_raw')[0] == AMOUNT_OF_GMT_RUNS, 'Copy over was not keyed on run_id and created duplicate rows'
 
-    remove_duplicates()
+    remove_duplicates(CLEANUP_LOOKBACK_LIMIT)
 
-    assert DB().fetch_one('SELECT COUNT(id) FROM carbondb_data_raw')[0] == AMOUNT_OF_GMT_RUNS, 'Remove duplicates did not remove identical rows'
+    assert DB().fetch_one('SELECT COUNT(id) FROM carbondb_data_raw')[0] == AMOUNT_OF_GMT_RUNS, 'Remove duplicates removed rows of distinct runs'
 
 
     data = DB().fetch_one("SELECT id, source, type, machine, project FROM carbondb_data_raw WHERE user_id = 345 AND machine = 'Machine 101'", fetch_mode='dict')
@@ -199,7 +201,7 @@ def test_insert_and_compress_gmt_with_two_users():
     assert data['source'] == 'ScenarioRunner'
     assert data['project'] == 'ScenarioRunner'
 
-    compress_carbondb_raw()
+    compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
 
     assert DB().fetch_one('SELECT COUNT(id) FROM carbondb_data_raw')[0] == AMOUNT_OF_GMT_RUNS, 'Compress mingled with raw data. This should not happen'
 
@@ -270,7 +272,7 @@ def test_big_values():
         response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data, timeout=15)
         assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    compress_carbondb_raw()
+    compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data WHERE date = CURRENT_DATE and user_id = 1', fetch_mode='dict')
     energy_kWh = (energy_data['energy_uj']*RANGE_AMOUNT)/(1_000_000*3_600*1_000)
@@ -292,7 +294,7 @@ def test_carbondb_backfill():
     backfill_carbon_intensity.process('carbondb_data_raw')
     backfill_carbon_intensity.update_carbondb_data_raw_carbon()
 
-    compress_carbondb_raw()
+    compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data WHERE date = CURRENT_DATE and user_id = 1', fetch_mode='dict')
     energy_kWh = (energy_data['energy_uj'])/(1_000_000*3_600*1_000)
@@ -315,7 +317,7 @@ def test_carbondb_filter_mapped_to_same_id():
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER-CARBONDB'}) # Insert ID 345
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    compress_carbondb_raw()
+    compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
 
     # User 1 can see all users and tags, bc super user by default
     response = requests.get(f"{API_URL}/v2/carbondb/filters", timeout=15) # ID 1
@@ -340,7 +342,7 @@ def test_carbondb_filter_mapped_to_same_id():
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=exp_data, timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    compress_carbondb_raw()
+    compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
 
     # Tag is mapped to only one users
     types = DB().fetch_all('SELECT user_ids FROM carbondb_types WHERE type = %s', params=(exp_data['type'],))
@@ -357,3 +359,34 @@ def test_carbondb_filter_mapped_to_same_id():
     response = requests.get(f"{API_URL}/v2/carbondb/filters", timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER-CARBONDB'}) # ID 345
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert response.text == '{"success":true,"data":{"types":{"1":"machine.ci"},"tags":{"1":"cool","2":"mystery"},"machines":{"1":"my-machine"},"projects":{"1":"my-project"},"sources":{"1":"CUSTOM"},"users":{"345":"ALTERNATIVE-USER-CARBONDB"}}}'
+
+def test_scenario_runner_changed_values_replace_row():
+    DB().query("INSERT INTO machines (id, description) VALUES(100, 'Machine 100')")
+    DB().query("INSERT INTO runs(id, uri, branch, filename, machine_id, user_id, created_at) VALUES('00000000-0000-0000-0000-000000000000','-', '-', '-', 100, 1, NOW())")
+
+    # Run is copied over while it is still running and has no phase_stats yet
+    copy_over_scenario_runner(COPY_OVER_LOOKBACK_LIMIT)
+
+    data = DB().fetch_all('SELECT energy_kwh, carbon_kg FROM carbondb_data_raw')
+    assert data == [(0, 0)]
+
+    DB().query('''INSERT INTO phase_stats(run_id, metric, detail_name, phase, value, type, unit, sampling_rate_avg, sampling_rate_max, sampling_rate_95p)
+                VALUES
+                ('00000000-0000-0000-0000-000000000000','psu_energy_ac_mcp_machine','[MACHINE]','MY_CUSTOM_PHASE',5434523, 'TOTAL', 'uJ', 0, 0, 0),
+                ('00000000-0000-0000-0000-000000000000','embodied_carbon_share_machine','[MACHINE]','MY_CUSTOM_PHASE',14610, 'TOTAL', 'ugCO2e', 0, 0, 0)
+    ''')
+
+    copy_over_scenario_runner(COPY_OVER_LOOKBACK_LIMIT)
+    remove_duplicates(CLEANUP_LOOKBACK_LIMIT)
+
+    data = DB().fetch_all('SELECT energy_kwh, carbon_kg, run_id::text FROM carbondb_data_raw')
+    assert len(data) == 1, 'Changed values of a run created a second row'
+    assert math.isclose(data[0][0], 5434523 / FROM_UJ_TO_J / FROM_J_TO_KWH, rel_tol=1e-6)
+    assert math.isclose(data[0][1], 14610 / FROM_UG_TO_KG, rel_tol=1e-6)
+    assert data[0][2] == '00000000-0000-0000-0000-000000000000'
+
+    compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
+
+    data = DB().fetch_one('SELECT energy_kwh_sum, record_count FROM carbondb_data WHERE date = CURRENT_DATE AND user_id = 1', fetch_mode='dict')
+    assert data['record_count'] == 1
+    assert math.isclose(data['energy_kwh_sum'], 5434523 / FROM_UJ_TO_J / FROM_J_TO_KWH, rel_tol=1e-6)
