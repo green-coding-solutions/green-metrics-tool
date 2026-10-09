@@ -540,6 +540,20 @@ Container health of dependent service 'test-container-2': healthy
 """
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
+def test_depends_on_healthcheck_exec_form_quoting():
+    # Test setup: Healthcheck uses the exec form (CMD) with an argument containing spaces, quotes and a semicolon.
+    # Every list element must be passed as exactly one argument, so the container becomes healthy.
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_exec_form_quoting.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    message = 'Container health of dependent service \'test-container-2\': healthy'
+    assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
+
 def test_depends_on_healthcheck_missing_start_period():
     # Test setup: Container would be healthy after 3 seconds, however, no start_period is set (default 0s), therefore start_interval is not used.
     # Because max waiting time is configured to be 5s, exception is raised after 5s.

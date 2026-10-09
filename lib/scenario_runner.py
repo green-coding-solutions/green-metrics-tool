@@ -1948,7 +1948,12 @@ class ScenarioRunner:
                             health_string_command = health_string_copy.pop(0)
                             if health_string_command not in ['CMD', 'CMD-SHELL']:
                                 raise RuntimeError(f"Healthcheck starts with {health_string_command}. Please use 'CMD' or 'CMD-SHELL' when supplying as list. For disabling do not use 'NONE' but the disable argument.")
-                            health_string = ' '.join(health_string_copy)
+                            # --health-cmd is always executed through a shell. For the exec form (CMD) we
+                            # quote every argument so the shell splits it back into exactly the given argv
+                            if health_string_command == 'CMD':
+                                health_string = shlex.join(health_string_copy)
+                            else:
+                                health_string = ' '.join(health_string_copy)
                         docker_run_string.append(health_string)
                     if 'interval' in service['healthcheck']:
                         docker_run_string.append('--health-interval')

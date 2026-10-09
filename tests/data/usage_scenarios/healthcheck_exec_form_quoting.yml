@@ -1,0 +1,27 @@
+---
+name: Test Healthcheck
+author: Arne Tarara
+description: Exec form (CMD) healthcheck whose arguments contain spaces, quotes and shell metacharacters
+
+services:
+  test-container-1:
+    image: alpine
+    depends_on:
+      test-container-2:
+        condition: service_healthy
+  test-container-2:
+    build:
+      context: ../slow-start-application
+    healthcheck:
+      # Each list element must reach the container as exactly one argument.
+      # Naively joining with spaces would run `sh -c pgrep tail` and never become healthy
+      test: ["CMD", "sh", "-c", "pgrep 'tail' > /dev/null; exit $?"]
+      start_interval: 1s
+      start_period: 10s
+
+flow:
+  - name: dummy
+    container: test-container-1
+    commands:
+      - type: console
+        command: pwd
