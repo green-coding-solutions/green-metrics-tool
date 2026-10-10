@@ -2582,8 +2582,14 @@ class ScenarioRunner:
                         if self._measurement_flow_process_duration:
                             print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
                         try:
+                            # /tmp/playwright-ipc-ready is a FIFO: reading it blocks until the Playwright
+                            # command has finished. /tmp/playwright-ipc-error is a plain file that the IPC
+                            # writes before signalling, so it is safe to read once the FIFO unblocks
+                            # (and empty when the command succeeded). The "ready" marker itself is
+                            # discarded, keeping stdout for the error message only.
                             ps = subprocess.run(
-                                ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-ready'],
+                                ['docker', 'exec', resolved_flow_container, 'sh', '-c',
+                                 'cat /tmp/playwright-ipc-ready > /dev/null; cat /tmp/playwright-ipc-error'],
                                 check=True,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
@@ -2591,6 +2597,12 @@ class ScenarioRunner:
                                 errors='replace',
                                 timeout=self._measurement_flow_process_duration
                             )
+                            if ps.stdout.strip():
+                                error_message = ps.stdout.strip()
+                                raise RuntimeError(
+                                    f"Error: {error_message}.\n"
+                                    f"Executed command that produced error: {cmd_obj['command']}"
+                                )
                         except subprocess.TimeoutExpired as exc:
                             error_message = subprocess.check_output(
                                 ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-error'],
