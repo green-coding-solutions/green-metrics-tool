@@ -16,7 +16,7 @@ redis==8.1.0
 hiredis==3.4.2
 requests==2.34.2
 uvicorn-worker==0.4.0
-cachetools==7.2.0
+cachetools==7.2.1
 cryptography==50.0.2
 energy-dependency-inspector==0.5.1
 
