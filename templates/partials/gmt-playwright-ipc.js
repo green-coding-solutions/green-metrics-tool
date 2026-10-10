@@ -28,7 +28,8 @@ async function gmtPlaywrightResetContext() {
 }
 
 async function gmtPlaywrightCache(url, sleep_duration) {
-    await page.goto(url);
+    const page_result = await page.goto(url);
+    if (!page_result.ok()) throw `Page was not accessible. HTTP Return code ${page_result.status()}`;
     await sleep(sleep_duration*1000);
     await gmtPlaywrightResetContext();
 }
@@ -45,7 +46,16 @@ async function gmtRunScriptB64(script_b64) {
 async function startFifoReader(fifoPath, callback) {
   function openStream() {
     const stream = fs.createReadStream(fifoPath, { encoding: "utf-8" });
-    stream.on("data", (chunk) => callback(chunk.trim()));
+    stream.on("data", async (chunk) => {
+      try {
+        await callback(chunk.trim());
+      } catch (err) {
+        // Report the failure and unblock the runner's ready-read, so it fails immediately instead of
+        // waiting for the process timeout. scenario_runner.py reads this error file after the ready signal.
+        fs.writeFileSync("/tmp/playwright-ipc-error", err.message || String(err), "utf-8");
+        fs.writeFileSync("/tmp/playwright-ipc-ready", "ready", "utf-8");
+      }
+    });
     stream.on("end", () => {
       // Writer closed FIFO, reopen it
       openStream();
@@ -90,12 +100,7 @@ async function run(browserName, headless, proxy) {
           process.exit(0)
       } else {
           console.log('Evaluating', gmt_internal_data);
-          try {
-              await eval(`(async () => { ${gmt_internal_data} })()`);
-          } catch (err) {
-              fs.writeFileSync("/tmp/playwright-ipc-error", err.message || String(err), "utf-8");
-              throw err
-          }
+          await eval(`(async () => { ${gmt_internal_data} })()`);
           fs.writeFileSync("/tmp/playwright-ipc-ready", "ready", "utf-8");   // signal that browser is ready for next command
       }
   });
