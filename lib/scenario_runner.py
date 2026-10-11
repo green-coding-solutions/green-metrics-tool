@@ -2582,8 +2582,11 @@ class ScenarioRunner:
                         if self._measurement_flow_process_duration:
                             print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
                         try:
+                            # /tmp/playwright-ipc-status is a FIFO: reading it blocks until the Playwright
+                            # command has finished and yields "ok" or "error: <message>". An empty read
+                            # means the IPC process died without reporting a status.
                             ps = subprocess.run(
-                                ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-ready'],
+                                ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-status'],
                                 check=True,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
@@ -2591,13 +2594,22 @@ class ScenarioRunner:
                                 errors='replace',
                                 timeout=self._measurement_flow_process_duration
                             )
+                            status = ps.stdout.strip()
+                            if status != 'ok':
+                                if status.startswith('error:'):
+                                    error_message = status[len('error:'):].strip()
+                                else:
+                                    error_message = 'Playwright IPC did not report a status (process likely crashed)'
+                                raise RuntimeError(
+                                    f"Error: {error_message}.\n"
+                                    f"Executed command that produced error: {cmd_obj['command']}"
+                                )
                         except subprocess.TimeoutExpired as exc:
-                            error_message = subprocess.check_output(
-                                ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-error'],
-                                encoding='UTF-8',
-                                errors='replace',
-                            )
-                            raise RuntimeError(f"Error: {error_message}.\nExecuted command that produced error: {cmd_obj['command']}") from exc
+                            raise RuntimeError(
+                                f"Error: Playwright command did not return a status within "
+                                f"{self._measurement_flow_process_duration}s.\n"
+                                f"Executed command that produced error: {cmd_obj['command']}"
+                            ) from exc
 
 
                     if self._debugger.active:
