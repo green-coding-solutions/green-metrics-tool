@@ -50,4 +50,4 @@ flow:
         command: await gmtRunScriptB64("__GMT_VAR_SCRIPT_B64__");
       - type: console
         command: echo $(date +%s%N) website_user_journey=1
-        shell: sh
+        shell: bash
