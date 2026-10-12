@@ -2582,9 +2582,7 @@ class ScenarioRunner:
                         if self._measurement_flow_process_duration:
                             print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
                         try:
-                            # /tmp/playwright-ipc-status is a FIFO: reading it blocks until the Playwright
-                            # command has finished and yields "ok" or "error: <message>". An empty read
-                            # means the IPC process died without reporting a status.
+                            # /tmp/playwright-ipc-status is a blocking FIFO
                             ps = subprocess.run(
                                 ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-status'],
                                 check=True,
