@@ -27,8 +27,10 @@ async function gmtPlaywrightResetContext() {
     page = await context.newPage();
 }
 
-async function gmtPlaywrightCache(url, sleep_duration) {
-    await page.goto(url);
+// statuscode_check: a non-2xx warmup means nothing was cached, so fail the run; pass false to benchmark error pages.
+async function gmtPlaywrightCache(url, sleep_duration, statuscode_check = true) {
+    const page_result = await page.goto(url);
+    if (statuscode_check && page_result && !page_result.ok()) throw `Page was not accessible. HTTP Return code ${page_result.status()}`;
     await sleep(sleep_duration*1000);
     await gmtPlaywrightResetContext();
 }
