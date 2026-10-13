@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request, Response, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -101,6 +102,11 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
+# Compresses JSON bodies over the wire (compare/timeline/phase_stats responses can run into the
+# hundreds of KB). Below minimum_size the gzip framing overhead outweighs any savings, so small
+# responses (e.g. Depends-only 202/204s) pass through uncompressed.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 def obfuscate_authentication_token(headers: StarletteHeaders):
     headers_mut = headers.mutablecopy()
     if 'x-authentication' in headers_mut:
@@ -153,11 +159,11 @@ async def robots_txt():
 
 # Read your own authentication token. Used by AJAX requests to test if token is valid and save it in local storage
 @app.get('/v1/user/settings')
-async def get_user_settings(user: User = Depends(authenticate)):
+def get_user_settings(user: User = Depends(authenticate)):
     return CustomORJSONResponse({'success': True, 'data': user.to_dict()})
 
 @app.put('/v1/user/setting')
-async def update_user_setting(setting: UserSetting, user: User = Depends(authenticate)):
+def update_user_setting(setting: UserSetting, user: User = Depends(authenticate)):
 
     try:
         user.change_setting(setting.name, setting.value)
@@ -167,7 +173,7 @@ async def update_user_setting(setting: UserSetting, user: User = Depends(authent
     return Response(status_code=202) # No-Content
 
 @app.get('/v1/cluster/status')
-async def get_cluster_status(
+def get_cluster_status(
     # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
@@ -187,7 +193,7 @@ async def get_cluster_status(
 
 
 @app.get('/v1/cluster/status/history')
-async def get_cluster_status_history(
+def get_cluster_status_history(
     # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
@@ -205,7 +211,7 @@ async def get_cluster_status_history(
     return CustomORJSONResponse({'success': True, 'data': data})
 
 @app.get('/v1/cluster/changelog')
-async def get_cluster_changelog(
+def get_cluster_changelog(
     machine_id: int | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
@@ -256,7 +262,7 @@ async def get_cluster_changelog(
     return CustomORJSONResponse({'success': True, 'data': data})
 
 @app.get('/v1/system-logs')
-async def get_system_logs(
+def get_system_logs(
     # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
@@ -270,7 +276,7 @@ async def get_system_logs(
     return CustomORJSONResponse({'success': True, 'data': data})
 
 @app.put('/v1/system-log')
-async def update_system_log(
+def update_system_log(
     log: SystemLogDelete,
     # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate), # pylint: disable=unused-argument
