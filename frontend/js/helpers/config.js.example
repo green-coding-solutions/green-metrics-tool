@@ -562,6 +562,16 @@ METRIC_MAPPINGS = {
         "source": "Formula (RAPL)",
         "explanation": "Derived RAPL based CPU operational CO₂ via formula of package domain"
     },
+    "cpu_energy_rapl_scaphandre_component": {
+        "clean_name": "CPU Energy",
+        "source": "RAPL (Scaphandre)",
+        "explanation": "RAPL based CPU energy per domain, read on Windows via the ScaphandreDrv driver"
+    },
+    "cpu_power_rapl_scaphandre_component": {
+        "clean_name": "CPU Power",
+        "source": "RAPL (Scaphandre)",
+        "explanation": "Derived RAPL based CPU power per domain, read on Windows via the ScaphandreDrv driver"
+    },
     "cpu_utilization_procfs_system": {
         "clean_name": "CPU %",
         "source": "procfs",
