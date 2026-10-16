@@ -1,4 +1,11 @@
 "use strict";
+
+/** Strip ANSI/VT escape sequences for readable browser log display. */
+const stripAnsi = (text) => String(text ?? '').replace(
+    /\u001b(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)|[()#][0-9A-Za-z]|[=>@-Z\\-_])/g,
+    '',
+);
+
 class CO2Tangible extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
@@ -380,7 +387,7 @@ const fillRunTab = async (selector, data, parent = '') => {
 
 const displayLegacyLogs = (logData) => {
     const logsElement = document.querySelector("#logs");
-    logsElement.innerHTML = `<pre>${escapeString(logData)}</pre>`;
+    logsElement.innerHTML = `<pre>${escapeString(stripAnsi(logData))}</pre>`;
 };
 
 const renderLegacyLogsFromJson = (logsData) => {
@@ -402,7 +409,7 @@ const renderLegacyLogsFromJson = (logsData) => {
             if (logEntry.stdout) {
                 contentHTML += legacyLogTemplate
                     .replace('{{containerName}}', escapeString(containerName))
-                    .replace('{{stdout}}', escapeString(logEntry.stdout));
+                    .replace('{{stdout}}', escapeString(stripAnsi(logEntry.stdout)));
             }
         });
     });
@@ -527,10 +534,10 @@ const renderLogsInterface = (logsData) => {
             const idLabel = `<div class="ui label" data-tooltip="Unique identifier for this log entry" data-position="top center"><i class="hashtag icon"></i> ID: ${escapeString(logEntry.id)}</div>`;
 
             const stdoutContent = logEntry.stdout ?
-                stdoutTemplate.replace('{{stdout}}', escapeString(logEntry.stdout)) : '';
+                stdoutTemplate.replace('{{stdout}}', escapeString(stripAnsi(logEntry.stdout))) : '';
 
             const stderrContent = logEntry.stderr ?
-                stderrTemplate.replace('{{stderr}}', escapeString(logEntry.stderr)) : '';
+                stderrTemplate.replace('{{stderr}}', escapeString(stripAnsi(logEntry.stderr))) : '';
 
             // Show different information if the type is exception
             let operationLabel = '';
