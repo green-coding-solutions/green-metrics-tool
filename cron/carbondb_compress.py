@@ -184,3 +184,5 @@ if __name__ == '__main__':
         compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])
+    finally:
+        DB().shutdown()
