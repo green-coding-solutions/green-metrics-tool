@@ -1,6 +1,7 @@
 import re
 
 from lib.db import DB
+from lib.utils import filter_sensitive_data
 
 class Notes():
 
@@ -20,7 +21,7 @@ class Notes():
                     VALUES
                     (%s, %s, %s, %s, NOW())
                     """,
-                       params=(run_id, note['detail_name'], note['note'], int(note['timestamp']))
+                       params=(run_id, note['detail_name'], filter_sensitive_data(note['note']), int(note['timestamp']))
                        )
     def parse_and_add_notes(self, detail_name, data):
         for match in re.findall(r'^(\d{16}) (.+)$', data, re.MULTILINE):

@@ -17,6 +17,21 @@ from lib import resource_limits
 from lib.scenario_runner import ScenarioRunner
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
 
+# This file asserts precise cpu_utilization percentages (e.g. stress-container must sit >90% of its
+# pinned cores) which only hold if it has the whole machine's CPUs to itself. Under -n/xdist, every
+# worker computes its own '--cpuset-cpus' from resource_limits.get_assignable_cpus() independently -
+# that function is host-wide, not worker-aware - so concurrent workers all pin their containers to the
+# *same* physical cores and fight each other for cycles, which is what made these assertions flaky.
+# So, like test_database_reconnection_during_run (tests/test_runner.py), this whole module is excluded
+# from -n runs entirely (skipif below) and runs only in the separate, non-parallel 'pytest -m serial'
+# pass (tests/run-tests.sh / the gmt-pytest action run this after the parallel pass finishes) - which
+# also means setup_module's real-metric-provider run never overlaps in time with the real-metric-
+# providers group in tests/smoke_test.py etc., so xdist_group is no longer needed here for that either.
+pytestmark = [
+    pytest.mark.serial,
+    pytest.mark.skipif(bool(os.environ.get('PYTEST_XDIST_WORKER')), reason="needs the whole machine's CPUs uncontended for accurate cpu_utilization assertions - run this outside of -n/xdist, on its own"),
+]
+
 #pylint: disable=unused-argument
 @pytest.fixture(autouse=True, scope='module') # override by setting scope to module only
 def setup_and_cleanup_test():
@@ -213,14 +228,14 @@ def test_cpu_time_carbon_providers():
         max_value = metric_provider['max_value']
 
 
-        if metric == 'cpu_utilization_cgroup_container' and metric_provider['detail_name'] == 'curl-container':
+        if metric == 'cpu_utilization_cgroup_container' and metric_provider['detail_name'] == utils.container_name('curl-container'):
             assert val < 1_00, f"cpu_utilization_cgroup_container for idle curl container not below 1% but {val} {metric_provider['unit']}"
             assert max_value < 1_00, f"cpu_utilization_cgroup_container for idle curl container not below 1% but {max_value} {metric_provider['unit']}"
 
             seen_cpu_utilization_cgroup_container_curl = True
 
 
-        elif metric == 'cpu_utilization_cgroup_container' and metric_provider['detail_name'] == 'stress-container':
+        elif metric == 'cpu_utilization_cgroup_container' and metric_provider['detail_name'] == utils.container_name('stress-container'):
             assert 90_00 * cgroup_cpu_ratio < val <= 100_00 * cgroup_cpu_ratio, f"cpu_utilization_cgroup_container is not between 90_00 * {cgroup_cpu_ratio} and 100_00 * {cgroup_cpu_ratio} but {val} {metric_provider['unit']}"
             assert 95_00 * cgroup_cpu_ratio < max_value <= 105_00 * cgroup_cpu_ratio, f"cpu_utilization_cgroup_container max is not between 95_00 * {cgroup_cpu_ratio} and 105_00 * {cgroup_cpu_ratio} but {max_value} {metric_provider['unit']}"
 
@@ -253,7 +268,7 @@ def test_cpu_time_carbon_providers():
             seen_phase_time_syscall_system = True
             phase_time = val
 
-            assert 5*MICROSECONDS < val < 6*MICROSECONDS , f"phase_time_syscall_system is not between 5 and 6 s but {val} {metric_provider['unit']}"
+            assert 10*MICROSECONDS < val < 11*MICROSECONDS , f"phase_time_syscall_system is not between 10 and 11 s but {val} {metric_provider['unit']}"
 
         elif metric == 'embodied_carbon_share_machine':
             # we have the phase time value as we sort by metric DESC

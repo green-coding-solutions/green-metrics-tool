@@ -1,3 +1,4 @@
+"use strict";
 (async () => {
     if (ACTIVATE_SCENARIO_RUNNER === true) {
         document.querySelectorAll('.scenario-runner').forEach(el => el.style.setProperty("display", "block", "important"))

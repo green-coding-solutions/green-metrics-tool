@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-sudo apt update
-sudo apt install acl -y
+sudo timeout 180 apt update
+sudo apt -o Acquire::http::ConnectTimeout=10 -o Acquire::https::ConnectTimeout=10 install acl -y
 
 sudo setfacl -bk /tmp
 

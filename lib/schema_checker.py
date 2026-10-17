@@ -11,6 +11,11 @@ VALID_CHARS = set(string.ascii_letters + string.digits + '_' + '-')
 VALID_CHARS_SPACE = VALID_CHARS.copy()
 VALID_CHARS_SPACE.add(' ')
 
+def flow_runs_on_host(flow):
+    # An omitted value or YAML null (container: null / container:) requests host execution.
+    # The literal string 'None' is deliberately not accepted as it is a valid container name.
+    return flow.get('container') is None
+
 class SchemaChecker():
     def __init__(self, validate_compose_flag):
         self._validate_compose_flag = validate_compose_flag
@@ -147,6 +152,7 @@ class SchemaChecker():
                         {
                             Optional('context'): And(str, Use(self.not_empty)),
                             Optional('dockerfile'): And(str, Use(self.not_empty)),
+                            Optional('target'): And(str, Use(self.not_empty), Regex(r'^[A-Za-z0-9][A-Za-z0-9_.-]*$')),
                             Optional('args'): Or(
                                 {And(str, Use(self.not_empty)): Or(str, int, float, bool, None)},
                                 [
@@ -209,6 +215,7 @@ class SchemaChecker():
                         'command': And(str, Use(self.not_empty)),
                         Optional('detach'): bool,
                         Optional('shell'): And(str, Use(self.not_empty)),
+                        Optional('shell-options'): Or(And(str, Use(self.not_empty)), [And(str, Use(self.not_empty))]), # empty list is allowed and disables all options
                     }],
                     Optional('volumes'): [And(str, Use(self.not_empty))],
                     Optional('folder-destination'):And(str, Use(self.not_empty)),
@@ -225,7 +232,8 @@ class SchemaChecker():
 
              'flow': [{
                 'name': And(str, Use(self.not_empty), Regex(r'^[\.\s0-9a-zA-Z_\(\)-]+$')),
-                'container': And(str, Use(self.not_empty), Use(self.contains_no_invalid_chars)),
+                # container: null (YAML null) requests host execution, which is permission-gated in the ScenarioRunner
+                'container': Or(None, And(str, Use(self.not_empty), Use(self.contains_no_invalid_chars))),
                 Optional('hidden'): bool,
                 'commands': [{
                     'type': Or('console', 'playwright'),
@@ -236,6 +244,7 @@ class SchemaChecker():
                     Optional('read-sci-stdout'): bool,
                     Optional('ignore-errors'): bool,
                     Optional('shell'): And(str, Use(self.not_empty)),
+                    Optional('shell-options'): Or(And(str, Use(self.not_empty)), [And(str, Use(self.not_empty))]), # empty list is allowed and disables all options
                     Optional('log-stdout'): bool,
                     Optional('log-stderr'): bool,
                 }],
@@ -283,6 +292,10 @@ class SchemaChecker():
                 raise SchemaError(f"The 'cmd' key for service '{service_name}' is not supported anymore. Please migrate to 'command'")
 
 
+            for setup_command in service.get('setup-commands', []):
+                if 'shell-options' in setup_command and 'shell' not in setup_command:
+                    raise SchemaError(f"You have specified `shell-options` in a setup-command of service '{service_name}' but no `shell`. Options can only be passed when a shell is used.")
+
             if (cpus := service.get('cpus')) and (cpus_deploy := service.get('deploy', {}).get('resources', {}).get('limits', {}).get('cpus')):
                 if cpus != cpus_deploy:
                     raise SchemaError('cpus service top level key and deploy.resources.limits.cpus must be identical')
@@ -297,12 +310,28 @@ class SchemaChecker():
                 raise SchemaError(f"The 'name' field in 'flow' must be unique. '{flow['name']}' was already used.")
             known_flow_names.append(flow['name'])
 
+            runs_on_host = flow_runs_on_host(flow)
+
+            if not runs_on_host and flow['container'] not in known_container_names:
+                raise SchemaError(
+                    f"Flow '{flow['name']}' references unknown container '{flow['container']}'."
+                )
+
             for command in flow['commands']:
+                if runs_on_host and command['type'] != 'console':
+                    raise SchemaError(f"Flow '{flow['name']}' runs directly on the host (container: null) and only supports 'console' commands. Found command type: '{command['type']}'")
+
                 if command.get('read-sci-stdout', False) and not command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
                     raise SchemaError(f"You have specified `read-sci-stdout` in flow {flow['name']} but set `log-stdout` to False, which prevents log capturing.")
 
                 if command.get('read-notes-stdout', False) and not command.get('log-stdout', True): # log-stdout is by default always on. This is why we set default to True
                     raise SchemaError(f"You have specified `read-notes-stdout` in flow {flow['name']} but set `log-stdout` to False, which prevents log capturing.")
+
+                if 'shell-options' in command:
+                    if command['type'] != 'console':
+                        raise SchemaError(f"You have specified `shell-options` in flow {flow['name']} for a command of type '{command['type']}'. This is only supported for commands of type 'console'.")
+                    if 'shell' not in command:
+                        raise SchemaError(f"You have specified `shell-options` in flow {flow['name']} but no `shell`. Options can only be passed when a shell is used.")
 
 
 # if __name__ == '__main__':

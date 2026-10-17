@@ -302,7 +302,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         default_color = 'orange'
     elif metric == 'carbon':
         metric = 'carbon_ug'
-        metric_unit = 'ug'
+        metric_unit = 'ugCO2e'
         label = 'carbon emitted'
         default_color = 'black'
     # Do not easily add values like cpu_util or carbon_intensity_g here. They need a weighted average in the SQL query later!

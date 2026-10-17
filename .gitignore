@@ -23,7 +23,6 @@ static-binary
 /manager-config.yml
 /venv/
 /docker/test-compose.yml
-/tests/structure.sql
 tools/sgx_enable
 /tests/test-config.yml
 /tests/.testmondata

@@ -41,6 +41,13 @@ cluster:
   cors_allowed_origins:
       - __API_URL__
       - __METRICS_URL__
+  # Token sent as Bearer auth to api.github.com when validating repositories and polling the watchlist.
+  # Raises the GitHub rate limit from 60 to 5000 requests per hour. A fine-grained token without any
+  # extra permissions is enough for public repositories. Leave null to send unauthenticated requests.
+  github_api_token: null
+  # CarbonDB and Power HOG reject values older than this many days.
+  # The CarbonDB cron jobs derive their lookback windows from it
+  carbondb_merge_window_days: 30
   client:
     sleep_time_no_job: 300
     jobs_processing: "random"
@@ -326,7 +333,7 @@ measurement:
         # The number 445 is global 2024 (https://www.iea.org/reports/electricity-2025/emissions)
         value: 445
         sampling_rate: 99
-#      carbon_intensity_level_electricitymaps_machine:
+#      carbon_intensitylevel_electricitymaps_machine:
 #        region: 'DE'
 #        token: 'XXXX'
 #        sampling_rate: 99 # Remove if you don't want value padding

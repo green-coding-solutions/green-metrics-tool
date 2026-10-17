@@ -6,6 +6,20 @@ if [[ $(uname) != "Linux" ]]; then
   exit 1
 fi
 
+# Refreshing repo metadata (apt/dnf update) must never hang indefinitely, so we cap it hard at 3 minutes.
+# Installs are not capped overall, as they can legitimately take a while,
+# but we still bound how long connecting to the repo may take.
+repo_metadata_refresh_timeout_s=180
+apt_connect_timeout_opts=(-o Acquire::http::ConnectTimeout=10 -o Acquire::https::ConnectTimeout=10)
+
+# dnf's 'timeout' setting is applied per mirror connection attempt (like apt's ConnectTimeout),
+# not to the overall download/install, so this is safe to use unconditionally.
+dnf_connect_timeout_opts=(--setopt=timeout=10)
+
+# zypper has no CLI flag for a connection-only timeout, so as a fallback we cap the whole
+# invocation. Kept generous since it also covers the actual package install.
+zypper_timeout_s=300
+
 source lib/install_shared.sh # will parse opts immediately
 
 prepare_config
@@ -19,22 +33,22 @@ build_containers
 if [[ $activate_scenario_runner == true ]] ; then
     print_message "Installing needed binaries for building ..."
     if cat /etc/os-release | grep -q "Fedora"; then
-        sudo dnf -y install tinyproxy stress-ng lshw libcurl-devel
+        sudo dnf "${dnf_connect_timeout_opts[@]}" -y install tinyproxy stress-ng lshw libcurl-devel
     elif cat /etc/os-release | grep -q "openSUSE"; then
-        sudo zypper -n in stress-ng lshw libcurl-devel
+        sudo timeout "$zypper_timeout_s" zypper -n in stress-ng lshw libcurl-devel
     else
-        sudo apt-get update
-        sudo apt-get install -y  libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw libcurl4-openssl-dev
+        sudo timeout "$repo_metadata_refresh_timeout_s" apt-get update
+        sudo apt-get "${apt_connect_timeout_opts[@]}" install -y  libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw libcurl4-openssl-dev
     fi
 
     if [[ $install_tinyproxy == true ]] ; then
         if cat /etc/os-release | grep -q "Fedora"; then
-            sudo dnf -y install tinyproxy
+            sudo dnf "${dnf_connect_timeout_opts[@]}" -y install tinyproxy
         elif cat /etc/os-release | grep -q "openSUSE"; then
-            sudo zypper -n in tinyproxy
+            sudo timeout "$zypper_timeout_s" zypper -n in tinyproxy
         else
-            sudo apt-get update
-            sudo apt-get install -y tinyproxy
+            sudo timeout "$repo_metadata_refresh_timeout_s" apt-get update
+            sudo apt-get "${apt_connect_timeout_opts[@]}" install -y tinyproxy
         fi
         sudo systemctl stop tinyproxy
         sudo systemctl disable tinyproxy
@@ -46,17 +60,17 @@ if [[ $activate_scenario_runner == true ]] ; then
 
     if [[ $install_sensors == true ]] ; then
         if cat /etc/os-release | grep -q "Fedora"; then
-            if ! sudo dnf -y install glib2 glib2-devel lm_sensors lm_sensors-devel; then
+            if ! sudo dnf "${dnf_connect_timeout_opts[@]}" -y install glib2 glib2-devel lm_sensors lm_sensors-devel; then
                 print_message "Failed to install lm_sensors lm_sensors-devel;" >&2
                 print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
                 exit 1
             fi
         elif cat /etc/os-release | grep -q "openSUSE"; then
-            if ! sudo zypper -n in glib2-tools glib2-devel sensors libsensors4-devel; then
+            if ! sudo timeout "$zypper_timeout_s" zypper -n in glib2-tools glib2-devel sensors libsensors4-devel; then
                 print_message "Failed to install sensors libsensors4-devel; continuing without Sensors."
             fi
         else
-            if ! sudo apt-get install -y lm-sensors libsensors-dev; then
+            if ! sudo apt-get "${apt_connect_timeout_opts[@]}" install -y lm-sensors libsensors-dev; then
                 print_message "Failed to install libglib2.0-0 libglib2.0-dev lm-sensors libsensors-dev;" >&2
                 print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
                exit 1
@@ -67,17 +81,17 @@ if [[ $activate_scenario_runner == true ]] ; then
     if [[ $install_nvidia_toolkit_headers == true ]] ; then
         print_message "Installing nvidia toolkit headers"
         if cat /etc/os-release | grep -q "Fedora"; then
-            curl -O https://developer.download.nvidia.com/compute/cuda/repos/fedora$(rpm -E %fedora)/x86_64/cuda-fedora$(rpm -E %fedora).repo
+            curl --connect-timeout 10 -O https://developer.download.nvidia.com/compute/cuda/repos/fedora$(rpm -E %fedora)/x86_64/cuda-fedora$(rpm -E %fedora).repo
             sudo mv cuda-fedora$(rpm -E %fedora).repo /etc/yum.repos.d/
-            sudo dnf makecache
-            if ! sudo dnf -y install libnvidia-ml cuda-nvml-devel-12-9; then
+            sudo timeout "$repo_metadata_refresh_timeout_s" dnf "${dnf_connect_timeout_opts[@]}" makecache
+            if ! sudo dnf "${dnf_connect_timeout_opts[@]}" -y install libnvidia-ml cuda-nvml-devel-12-9; then
                 print_message "Failed to install nvidia toolkit headers; Please remove --nvidia-gpu flag and install manually" >&2
                 exit 1
             else
                 sudo ln -s /usr/lib64/libnvidia-ml.so.1 /usr/lib64/libnvidia-ml.so
             fi
         else
-            if ! sudo apt-get install -y libnvidia-ml-dev; then
+            if ! sudo apt-get "${apt_connect_timeout_opts[@]}" install -y libnvidia-ml-dev; then
                 print_message "Failed to install nvidia toolkit headers; Please remove --nvidia-gpu flag and install manually" >&2
                 exit 1
             fi
@@ -101,7 +115,7 @@ if [[ $activate_scenario_runner == true ]] ; then
     sysctl_path=$(realpath "/usr/sbin/sysctl")
     check_file_permissions "$sysctl_path"
     echo "${USER} ALL=(ALL) NOPASSWD:${sysctl_path} -w vm.drop_caches=3" | sudo tee /etc/sudoers.d/green-coding-drop-caches
-    sudo chmod 500 /etc/sudoers.d/green-coding-drop-caches
+    sudo chmod 400 /etc/sudoers.d/green-coding-drop-caches
 
     print_message "Setting the cluster maintenance.py file to be owned by root"
     check_file_permissions $(realpath "/usr/bin/python3") # since it will be called later with this interpreter, we need to check if that is ok
@@ -119,16 +133,16 @@ if [[ $activate_scenario_runner == true ]] ; then
         print_message "Important: If this step fails it means msr-tools is not available on you system"
         print_message ""
         if cat /etc/os-release | grep -q "Fedora"; then
-            if ! sudo dnf -y install msr-tools; then
+            if ! sudo dnf "${dnf_connect_timeout_opts[@]}" -y install msr-tools; then
                 print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-R'" >&2
                 exit 1
             fi
         elif cat /etc/os-release | grep -q "openSUSE"; then
-            if ! sudo zypper -n in msr-tools; then
+            if ! sudo timeout "$zypper_timeout_s" zypper -n in msr-tools; then
                 print_message "Failed to install msr-tools; continuing without RAPL."
             fi
         else
-            if ! sudo apt-get install -y msr-tools; then
+            if ! sudo apt-get "${apt_connect_timeout_opts[@]}" install -y msr-tools; then
                 print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-R'" >&2
                 exit 1
             fi
@@ -140,17 +154,17 @@ if [[ $activate_scenario_runner == true ]] ; then
         print_message "Important: If this step fails it means ipmitool is not available on you system"
         {
             if cat /etc/os-release | grep -q "Fedora"; then
-                sudo dnf -y install freeipmi ipmitool
+                sudo dnf "${dnf_connect_timeout_opts[@]}" -y install freeipmi ipmitool
             elif cat /etc/os-release | grep -q "openSUSE"; then
-                sudo zypper -n in freeipmi ipmitool
+                sudo timeout "$zypper_timeout_s" zypper -n in freeipmi ipmitool
             else
-                sudo apt-get install -y freeipmi-tools ipmitool
+                sudo apt-get "${apt_connect_timeout_opts[@]}" install -y freeipmi-tools ipmitool
             fi
             print_message "Adding IPMI to sudoers file"
             ipmi_dcmi_path=$(realpath "/usr/sbin/ipmi-dcmi")
             check_file_permissions "$ipmi_dcmi_path"
             echo "${USER} ALL=(ALL) NOPASSWD:${ipmi_dcmi_path} --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
-            sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+            sudo chmod 400 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
             # remove old file name
             sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
         } || {

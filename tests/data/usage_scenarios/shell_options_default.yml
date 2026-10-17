@@ -1,0 +1,18 @@
+---
+name: Shell Options Default
+author: Didi Hoffmann
+description: Checks that the default shell options make a failing command in a pipe fail the whole command
+
+services:
+  test-container:
+    image: alpine
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sleep infinity"]
+
+flow:
+  - name: Flow Name
+    container: test-container
+    commands:
+      - type: console
+        command: "false | cat"
+        shell: /bin/sh

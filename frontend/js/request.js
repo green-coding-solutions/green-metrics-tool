@@ -1,3 +1,4 @@
+"use strict";
 const populateFieldsFromURL = () => {
     const urlParams = new URLSearchParams(window.location.search);
 
@@ -85,7 +86,18 @@ const addVariableField = (keyPart = '', value = '') => {
     divider.classList.add('ui', 'divider', 'custom-mobile-divider');
     variablesContainer.appendChild(divider);
 
+    updateVariableValueInputType(newVariableRow);
     updateRemoveButtonsVisibility();
+};
+
+// Values of __GMT_VAR_SECRET_*__ variables are passwords / tokens, so we hide them from shoulder
+// surfing while they are typed. They are encrypted by the API before they are stored anywhere.
+const updateVariableValueInputType = (variableRow) => {
+    const keyInput = variableRow.querySelector('.variable-key');
+    const valueInput = variableRow.querySelector('.variable-value');
+    const isSecret = isSecretUsageScenarioVariable(`__GMT_VAR_${keyInput.value.trim()}__`);
+    valueInput.setAttribute('type', isSecret ? 'password' : 'text');
+    valueInput.setAttribute('autocomplete', isSecret ? 'new-password' : 'on');
 };
 
 const updateRemoveButtonsVisibility = () => {
@@ -103,6 +115,10 @@ const updateRemoveButtonsVisibility = () => {
 
     $('#add-variable').on('click', () => addVariableField());
     addVariableField() // always add one empty row
+
+    $('#variables-container').on('input', '.variable-key', function (e) {
+        updateVariableValueInputType($(this).closest('.variable-row')[0]);
+    });
 
     $('#variables-container').on('click', '.remove-variable', function (e) {
         $(this).closest('.variable-row').remove();

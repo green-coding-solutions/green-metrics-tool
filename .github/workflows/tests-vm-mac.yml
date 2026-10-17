@@ -7,6 +7,7 @@ on:
 
 jobs:
   run-tests-main:
+    if: github.repository_owner == 'green-coding-solutions'
     runs-on: macos-latest
     timeout-minutes: 30
     steps:

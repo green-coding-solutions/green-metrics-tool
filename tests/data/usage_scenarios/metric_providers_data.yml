@@ -37,4 +37,4 @@ flow:
     container: stress-container
     commands:
       - type: console
-        command: stress-ng --cpu 0 -t 5 -q
+        command: stress-ng --cpu 0 -t 10 --cpu-method matrixprod -q

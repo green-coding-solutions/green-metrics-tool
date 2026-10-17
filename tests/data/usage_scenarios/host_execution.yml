@@ -1,0 +1,19 @@
+---
+name: Host Execution
+author: Didi Hoffmann
+description: Runs flow commands directly on the host instead of inside a container
+
+flow:
+  - name: Host Echo
+    container: null
+    commands:
+      - type: console
+        command: echo "hello from the host"
+        note: Running echo on the host
+
+  - name: Host Shell
+    container: null
+    commands:
+      - type: console
+        command: echo "hello" && echo "world"
+        shell: bash

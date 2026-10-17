@@ -91,6 +91,11 @@ def test_provider_disabling_working():
     # or check bc in linux / macos there is a different result set of configured providers
     assert providers == ['psu_energy_ac_sdia_machine', 'cpu_utilization_mach_system', 'psu_energy_ac_xgboost_machine', 'carbon_intensity_static_machine'] or providers == ['disk_used_statvfs_system', 'network_io_procfs_system', 'memory_used_procfs_system', 'psu_energy_ac_sdia_machine', 'cpu_utilization_procfs_system', 'psu_energy_ac_xgboost_machine', 'carbon_intensity_static_machine'], 'Network Connections provider still in configured_metric_providers' #pylint: disable=consider-using-in
 
+# Runs a full runner.run() with real metric providers (dev_no_metrics excluded from
+# filtered_options below) - must never overlap with another test that also starts real metric
+# providers. See the comment on pytestmark in tests/smoke_test.py for why xdist_group is what
+# actually prevents that under -n.
+@pytest.mark.xdist_group(name="real-metric-providers")
 def test_phase_padding():
     out = io.StringIO()
     err = io.StringIO()

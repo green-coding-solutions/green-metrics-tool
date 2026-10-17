@@ -320,7 +320,7 @@
                 },
                 "psu_carbon_dc_rapl_msr_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "PSYS_0": {
                             "name": "PSYS_0",
@@ -367,7 +367,7 @@
                 },
                 "embodied_carbon_share_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "[SYSTEM]": {
                             "name": "[SYSTEM]",
@@ -654,7 +654,7 @@
                 },
                 "psu_carbon_dc_rapl_msr_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "PSYS_0": {
                             "name": "PSYS_0",
@@ -701,7 +701,7 @@
                 },
                 "embodied_carbon_share_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "[SYSTEM]": {
                             "name": "[SYSTEM]",
@@ -1035,7 +1035,7 @@
                 },
                 "psu_carbon_dc_rapl_msr_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "PSYS_0": {
                             "name": "PSYS_0",
@@ -1082,7 +1082,7 @@
                 },
                 "embodied_carbon_share_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "[SYSTEM]": {
                             "name": "[SYSTEM]",
@@ -1604,7 +1604,7 @@
                 },
                 "psu_carbon_dc_rapl_msr_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "PSYS_0": {
                             "name": "PSYS_0",
@@ -1698,7 +1698,7 @@
                 },
                 "network_carbon_formula_global": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "[FORMULA]": {
                             "name": "[FORMULA]",
@@ -1745,7 +1745,7 @@
                 },
                 "embodied_carbon_share_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "[SYSTEM]": {
                             "name": "[SYSTEM]",
@@ -2455,7 +2455,7 @@
                 },
                 "psu_carbon_dc_rapl_msr_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "PSYS_0": {
                             "name": "PSYS_0",
@@ -2549,7 +2549,7 @@
                 },
                 "network_carbon_formula_global": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "[FORMULA]": {
                             "name": "[FORMULA]",
@@ -2596,7 +2596,7 @@
                 },
                 "embodied_carbon_share_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "[SYSTEM]": {
                             "name": "[SYSTEM]",
@@ -3306,7 +3306,7 @@
                 },
                 "psu_carbon_dc_rapl_msr_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "PSYS_0": {
                             "name": "PSYS_0",
@@ -3400,7 +3400,7 @@
                 },
                 "network_carbon_formula_global": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "[FORMULA]": {
                             "name": "[FORMULA]",
@@ -3447,7 +3447,7 @@
                 },
                 "embodied_carbon_share_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "[SYSTEM]": {
                             "name": "[SYSTEM]",
@@ -4157,7 +4157,7 @@
                 },
                 "psu_carbon_dc_rapl_msr_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "PSYS_0": {
                             "name": "PSYS_0",
@@ -4251,7 +4251,7 @@
                 },
                 "network_carbon_formula_global": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "[FORMULA]": {
                             "name": "[FORMULA]",
@@ -4298,7 +4298,7 @@
                 },
                 "embodied_carbon_share_machine": {
                     "type": "TOTAL",
-                    "unit": "ug",
+                    "unit": "ugCO2e",
                     "data": {
                         "[SYSTEM]": {
                             "name": "[SYSTEM]",

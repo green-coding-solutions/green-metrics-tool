@@ -95,7 +95,7 @@ class CI_MeasurementBase(BaseModel):
     @classmethod
     def check_not_empty(cls, value, data):
         if not value or value == '':
-            raise ValueError(f"{data.field_name} must be set an non-empty")
+            raise ValueError(f"{data.field_name} must be set and non-empty")
         return value
 
     @field_validator('filter_type', 'filter_project', 'filter_machine', 'ip')

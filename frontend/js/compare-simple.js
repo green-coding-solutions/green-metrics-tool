@@ -461,6 +461,11 @@ $(document).ready(() => {
 
         document.querySelector('#loader-compare-simple').remove();
 
+        if (url_params?.redirect_from_auto == 'true') {
+            document.querySelector('#compare-mode-auto').classList.remove('hidden');
+        }
+
+
         if (url_params['phase']) {
             if (compareSimpleState.availablePhases.has(url_params['phase'])) {
                 compareSimpleState.selectedPhase = url_params['phase'];

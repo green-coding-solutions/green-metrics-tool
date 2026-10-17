@@ -1,6 +1,7 @@
 import os
 import requests
 import subprocess
+import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -9,6 +10,8 @@ from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
+
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
 
 def test_ci_deprecated_endpoint():
     response = requests.post(f"{API_URL}/v1/ci/measurement/add", json={}, timeout=15)

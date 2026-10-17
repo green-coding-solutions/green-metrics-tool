@@ -18,6 +18,16 @@ server {
         try_files $uri $uri/ =404;
     }
 
+    # Vendored, non-hashed third-party assets. These only change when a task
+    # explicitly updates dist/ (see frontend/AGENTS.md). No build step versions
+    # these filenames, so a change needs a manual cache-bust (e.g. renaming the
+    # file) to reach clients before the 7d cache naturally expires.
+    location ^~ /dist/ {
+        root   /var/www/green-metrics-tool/frontend;
+        add_header Cache-Control "public, max-age=604800" always;
+        expires 7d;
+    }
+
     location ~* \.html$ {
         root   /var/www/green-metrics-tool/frontend;
         add_header Cache-Control "public, max-age=0, must-revalidate" always;

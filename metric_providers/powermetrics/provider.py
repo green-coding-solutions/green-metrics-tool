@@ -129,7 +129,11 @@ class PowermetricsProvider(BaseMetricProvider):
         for count, data in enumerate(datas, start=1):
             try:
                 data = plistlib.loads(data)
-            except xml.parsers.expat.ExpatError as e:
+            except (xml.parsers.expat.ExpatError, plistlib.InvalidFileException) as e:
+                # The last plist can be cut off when powermetrics is stopped mid-write (#286).
+                # Same as the base provider dropping its last CSV line, we drop it.
+                if count == len(datas):
+                    break
                 print('There was an error parsing the powermetrics data!')
                 print(f"Iteration count: {count}")
                 print(f"Number of items in datas: {len(datas)}")

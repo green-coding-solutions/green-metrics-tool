@@ -4,6 +4,10 @@ author: Author overwritten
 
 compose-file: !include include_example.yml
 
+services:
+  test-container-1:
+    image: alpine
+
 flow:
   - name: dummy
     container: test-container-1

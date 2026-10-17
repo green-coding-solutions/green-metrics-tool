@@ -20,6 +20,7 @@ GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 from lib.scenario_runner import ScenarioRunner
 from lib import error_helpers
 from lib import utils
+from lib import system_checks
 from lib.terminal_colors import TerminalColors
 from lib.db import DB
 from lib.global_config import GlobalConfig
@@ -35,7 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
     parser.add_argument('--commit-hash', type=str, help='Optionally specify a git commit hash to check out when using a remote repository to clone from')
     parser.add_argument('--filename', type=str, action='append', help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported. Duplicate filenames are allowed and will be processed multiple times.')
-    parser.add_argument('--variable', action='append', help='Variable that will be replaced into the usage_scenario.yml file. Use multiple times for multiple variables.')
+    parser.add_argument('--variable', action='append', help='Variable that will be replaced into the usage_scenario.yml file. Use multiple times for multiple variables. Variables named __GMT_VAR_SECRET_*__ are treated as secrets and are never stored or displayed in plaintext.')
     parser.add_argument('--carbon-simulation', type=str, help='The grid intensity when running the job. Can be an int which will be applied to the whole run, a list which will be sent to elephant or a uuid which will be used as simulation id for elephant.')
     parser.add_argument('--category', action='append', type=int, help='Category to store for this run. Use multiple times for multiple categories.')
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     parser.add_argument('--skip-optimizations', action='store_true', help='Skip analysis after run to find possible optimizations.')
 
     # These switches may break or skew proper measurements or make them uncomparable due to missing info
-    parser.add_argument('--dev-no-system-checks', action='store_true', help='Do not check the system if the GMT can run properly')
+    parser.add_argument('--dev-no-system-checks', nargs='?', const=system_checks.ALL_CHECKS_SENTINEL, default=False, help='Do not check the system if the GMT can run properly. Pass no argument to disable ALL checks, or a comma-separated list of check names (e.g. check_steal_time,check_utf_encoding) to disable only those.')
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
@@ -72,6 +73,7 @@ if __name__ == '__main__':
 
     # Output settings
     parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
+    parser.add_argument('--print-phase-stats-table', type=str, nargs='?', const='[RUNTIME]', help='Same as --print-phase-stats, but renders the stats as an aligned table including max and min values. Defaults to the "[RUNTIME]" phase when supplied without a value. Pass an empty string to print all phases.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
     # Measurement settings
@@ -89,12 +91,15 @@ if __name__ == '__main__':
     # parser.add_argument('--disabled-metric-providers', nargs='+', help='Override disabled metric providers') # user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
     # parser.add_argument('--allowed-run-args', nargs='+', help='Override allowed run arguments to be passed to the docker container') # user can just go into --allow-unsafe and using another args="+" for parsing CLI is flaky
 
+    runner = None
+    args = None
+    exit_code = 0
+
     args = parser.parse_args()
 
     if args.uri is None:
         parser.print_help()
-        error_helpers.log_error('Please supply --uri to get usage_scenario.yml from')
-        sys.exit(1)
+        raise ValueError('Please supply --uri to get usage_scenario.yml from')
 
     if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://' or args.uri[0:6] == 'ssh://' or args.uri[0:4] == 'git@':
         print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', utils.filter_sensitive_data(args.uri), TerminalColors.ENDC)
@@ -104,8 +109,7 @@ if __name__ == '__main__':
         run_type = 'folder'
     else:
         parser.print_help()
-        error_helpers.log_error('Could not detect correct URI. Please use a local folder path or URL http(s):// : ', uri=args.uri)
-        sys.exit(1)
+        raise ValueError(f"Could not detect correct URI. Please use a local folder path or URL http(s):// : ; URI: {args.uri}")
 
     variables_dict = {}
     if args.variable:
@@ -118,8 +122,7 @@ if __name__ == '__main__':
     if args.config_override is not None:
         if args.config_override[-4:] != '.yml':
             parser.print_help()
-            error_helpers.log_error('Config override file must be a yml file')
-            sys.exit(1)
+            raise ValueError('Config override file must be a yml file')
         GlobalConfig(config_location=args.config_override)
 
     carbon_simulation_to_pass = None
@@ -137,9 +140,8 @@ if __name__ == '__main__':
         except (json.JSONDecodeError, TypeError):
             try:
                 carbon_simulation_to_pass = str(uuid.UUID(args.carbon_simulation))
-            except ValueError:  # not a valid uuid
-                error_helpers.log_error('Could not parse --carbon-simulation value. Please provide either an integer, a list of integers or a uuid string.')
-                sys.exit(1)
+            except ValueError as exc:  # not a valid uuid
+                raise ValueError('Could not parse --carbon-simulation value. Please provide either an integer, a list of integers or a uuid string.') from exc
 
     if args.dev_cache_repos and args.file_cleanup:
         raise ValueError('Cannot set both --dev-cache-repos and --file-cleanup as the latter will delete the cached file. Please choose one option.')
@@ -164,11 +166,10 @@ if __name__ == '__main__':
 
             if not valid_files:
                 if using_default_filename:
-                    print(TerminalColors.FAIL, f'Error: Default file not found: {pattern}. Search pattern: {search_pattern}', TerminalColors.ENDC)
-                    print('Please create the file or specify a different file with --filename')
+                    raise ValueError(f"Error: Default file not found: {pattern}. Search pattern: {search_pattern}\nPlease create the file or specify a different file with --filename")
                 else:
-                    print(TerminalColors.FAIL, f'Error: No valid files found for --filename pattern: {pattern}. Search pattern: {search_pattern}', TerminalColors.ENDC)
-                sys.exit(1)
+                    raise ValueError(f"Error: No valid files found for --filename pattern: {pattern}. Search pattern: {search_pattern}")
+
             filenames.extend(valid_files)
         else:
             # For URLs, file validation will happen after checkout in ScenarioRunner
@@ -188,8 +189,7 @@ if __name__ == '__main__':
         with open(args.docker_credentials, 'r', encoding='UTF-8') as f:
             raw_creds = json.load(f)
         if not isinstance(raw_creds, list):
-            error_helpers.log_error('--docker-credentials file must contain a JSON array of credential objects')
-            sys.exit(1)
+            raise ValueError('--docker-credentials file must contain a JSON array of credential objects')
         docker_credentials_to_pass = [
             {'registry': c['registry'], 'username': c['username'], 'password': SecureVariable(c['password'])}
             for c in raw_creds
@@ -197,51 +197,50 @@ if __name__ == '__main__':
     else:
         docker_credentials_to_pass = None
 
-    # Create ScenarioRunner once and reuse it for all files
-    runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filenames[0],
-                    branch=args.branch, commit_hash=args.commit_hash, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
-                    full_docker_prune=args.full_docker_prune, docker_prune=args.docker_prune,
-                    verbose_provider_boot=args.verbose_provider_boot,
-                    user_id=args.user_id, ssh_private_key=ssh_private_key_contents,
-                    docker_credentials=docker_credentials_to_pass,
-                    commit_hash_folder=args.commit_hash_folder,
-                    usage_scenario_variables=variables_dict, category_ids=args.category,
-                    carbon_simulation=carbon_simulation_to_pass,
 
-                    measurement_system_check_threshold=args.measurement_system_check_threshold,
-                    measurement_pre_test_sleep=args.measurement_pre_test_sleep,
-                    measurement_idle_duration=args.measurement_idle_duration,
-                    measurement_baseline_duration=args.measurement_baseline_duration,
-                    measurement_post_test_sleep=args.measurement_post_test_sleep,
-                    measurement_phase_transition_time=args.measurement_phase_transition_time,
-                    measurement_wait_time_dependencies=args.measurement_wait_time_dependencies,
-                    measurement_flow_process_duration=args.measurement_flow_process_duration,
-                    measurement_total_duration=args.measurement_total_duration,
-
-                    # These switches do not alter proper measurements, but might result in data not being generated
-                    skip_download_dependencies=args.skip_download_dependencies, skip_optimizations=args.skip_optimizations,
-                    skip_unsafe=args.skip_unsafe, skip_volume_inspect=args.skip_volume_inspect,
-
-                    # These switches may break or skew proper measurements if set
-                    dev_no_sleeps=args.dev_no_sleeps, dev_stream_outputs=args.dev_stream_outputs, dev_cache_repos=args.dev_cache_repos,
-                    dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics, dev_no_save=args.dev_no_save,
-                    dev_flow_timetravel=args.dev_flow_timetravel, dev_no_system_checks=args.dev_no_system_checks,
-                    dev_no_phase_stats=args.dev_no_phase_stats, dev_no_container_dependency_collection=args.dev_no_container_dependency_collection,
-                    dev_no_resource_limits=args.dev_no_resource_limits,
-
-                    #disabled_metric_providers # this is intentionally not supported as the user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
-                    #allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] # this is intentionally not supported as the user can just enter --allow-unsafe in CLI mode and using another args="+" for parsing CLI is flaky
-                    )
-    if not runner._skip_optimizations and not runner._dev_no_save and not runner._dev_no_metrics:
-        # We cannot import this at the top of the as we need the correct config file
-        # Config file is replaced through args.config_override sometimes
-        import optimization_providers.base
-        print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
-        optimization_providers.base.import_reporters()
-
-    # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
-    #pylint: disable=broad-except
     try:
+        # Create ScenarioRunner once and reuse it for all files
+        runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filenames[0],
+                        branch=args.branch, commit_hash=args.commit_hash, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
+                        full_docker_prune=args.full_docker_prune, docker_prune=args.docker_prune,
+                        verbose_provider_boot=args.verbose_provider_boot,
+                        user_id=args.user_id, ssh_private_key=ssh_private_key_contents,
+                        docker_credentials=docker_credentials_to_pass,
+                        commit_hash_folder=args.commit_hash_folder,
+                        usage_scenario_variables=variables_dict, category_ids=args.category,
+                        carbon_simulation=carbon_simulation_to_pass,
+
+                        measurement_system_check_threshold=args.measurement_system_check_threshold,
+                        measurement_pre_test_sleep=args.measurement_pre_test_sleep,
+                        measurement_idle_duration=args.measurement_idle_duration,
+                        measurement_baseline_duration=args.measurement_baseline_duration,
+                        measurement_post_test_sleep=args.measurement_post_test_sleep,
+                        measurement_phase_transition_time=args.measurement_phase_transition_time,
+                        measurement_wait_time_dependencies=args.measurement_wait_time_dependencies,
+                        measurement_flow_process_duration=args.measurement_flow_process_duration,
+                        measurement_total_duration=args.measurement_total_duration,
+
+                        # These switches do not alter proper measurements, but might result in data not being generated
+                        skip_download_dependencies=args.skip_download_dependencies, skip_optimizations=args.skip_optimizations,
+                        skip_unsafe=args.skip_unsafe, skip_volume_inspect=args.skip_volume_inspect,
+
+                        # These switches may break or skew proper measurements if set
+                        dev_no_sleeps=args.dev_no_sleeps, dev_stream_outputs=args.dev_stream_outputs, dev_cache_repos=args.dev_cache_repos,
+                        dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics, dev_no_save=args.dev_no_save,
+                        dev_flow_timetravel=args.dev_flow_timetravel, dev_no_system_checks=args.dev_no_system_checks,
+                        dev_no_phase_stats=args.dev_no_phase_stats, dev_no_container_dependency_collection=args.dev_no_container_dependency_collection,
+                        dev_no_resource_limits=args.dev_no_resource_limits,
+
+                        #disabled_metric_providers # this is intentionally not supported as the user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
+                        #allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] # this is intentionally not supported as the user can just enter --allow-unsafe in CLI mode and using another args="+" for parsing CLI is flaky
+                        )
+        if not runner._skip_optimizations and not runner._dev_no_save and not runner._dev_no_metrics:
+            # We cannot import this at the top of the as we need the correct config file
+            # Config file is replaced through args.config_override sometimes
+            import optimization_providers.base
+            print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
+            optimization_providers.base.import_reporters()
+
         for filename in filenames:
             print(TerminalColors.OKBLUE, '\nRunning: ', filename, TerminalColors.ENDC)
 
@@ -275,23 +274,34 @@ if __name__ == '__main__':
                     for el in phase_stats:
                         print(el)
                     print('')
+
+                if args.print_phase_stats_table is not None:
+                    phase_stats = DB().fetch_all('SELECT metric, detail_name, type, value, unit, max_value, min_value FROM phase_stats WHERE run_id = %s and phase LIKE %s ORDER BY metric ASC, detail_name ASC, type ASC', params=(runner._run_id, f"%{args.print_phase_stats_table}"))
+                    print(f"Data for phase {args.print_phase_stats_table}")
+                    utils.print_simple_table(['metric', 'detail', 'type', 'value', 'unit', 'max', 'min'], phase_stats)
+                    print('')
             else:
                 print(TerminalColors.OKGREEN,'\n\n####################################################################################')
                 print('Run finished | --dev-no-save was active and nothing was written to DB')
                 print('####################################################################################\n\n', TerminalColors.ENDC)
 
     except KeyboardInterrupt:
-        pass
+        exit_code = 1
     except FileNotFoundError as e:
         error_helpers.log_error('File or executable not found', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
+        exit_code = 1
     except subprocess.CalledProcessError as e:
         error_helpers.log_error(str(e), stdout=e.stdout, stderr=e.stderr, exception_context=e.__context__, run_id=runner._run_id if runner else None)
+        exit_code = 1
     except RuntimeError as e:
         error_helpers.log_error('RuntimeError occured in runner.py', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
-    except BaseException as e:
+        exit_code = 1
+    except BaseException as e: #pylint: disable=broad-except
+        # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
         error_helpers.log_error('Base exception occured in runner.py', exception_context=e.__context__, final_exception=e, run_id=runner._run_id if runner else None)
+        exit_code = 1
     finally:
-        if args.print_logs and runner:
+        if args and args.print_logs and runner:
             logs = runner._get_all_run_logs()
             if logs:
                 print("Container logs:")
@@ -315,3 +325,4 @@ if __name__ == '__main__':
 
         # Last thing before we exit is to shutdown the DB Pool
         DB().shutdown()
+        sys.exit(exit_code)

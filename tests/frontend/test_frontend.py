@@ -10,7 +10,7 @@ GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
 from lib.global_config import GlobalConfig
 from lib.user import User
 from lib.db import DB
-from lib.encryption import ENCRYPTED_VALUE_PREFIX
+from lib.encryption import ENCRYPTED_VALUE_PREFIX, encrypt_data
 
 from tests import test_functions as Tests
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
@@ -25,6 +25,8 @@ playwright = None
 browser = None
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
+
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
 
 ## Shared Playwright setup for all tests
 @pytest.fixture(autouse=True, scope='module')
@@ -56,7 +58,7 @@ def setup_browser(setup_playwright): #pylint: disable=unused-argument,redefined-
     )
     context = browser.new_context(viewport={"width": 1920, "height": 5600})
     page = context.new_page()
-    page.set_default_timeout(3_000)
+    page.set_default_timeout(10_000)
 
     page.on("pageerror", handle_page_error)
 
@@ -122,7 +124,7 @@ def insert_demo_run_with_custom_sci_phase_stats():
         INSERT INTO phase_stats ("run_id","metric","detail_name","phase","value","type","max_value","min_value","sampling_rate_avg","sampling_rate_max","sampling_rate_95p","unit","hidden","created_at","updated_at")
         VALUES
         (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'000_[BASELINE]',1000000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',FALSE,NOW(),NULL),
-        (%s,E'embodied_carbon_share_machine',E'[SYSTEM]',E'000_[BASELINE]',10000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ug',FALSE,NOW(),NULL),
+        (%s,E'embodied_carbon_share_machine',E'[SYSTEM]',E'000_[BASELINE]',10000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ugCO2e',FALSE,NOW(),NULL),
         (%s,E'phase_time_syscall_system',E'[SYSTEM]',E'001_Hit Generator',5000000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'us',FALSE,NOW(),NULL),
         (%s,E'custom_hits',E'test-container',E'001_Hit Generator',1000,E'TOTAL',1000,1000,100000,100000,100000,E'Hits',FALSE,NOW(),NULL),
         (%s,E'custom_hits_sci_global',E'test-container',E'001_Hit Generator',120000,E'TOTAL',NULL,NULL,NULL,NULL,NULL,E'ugCO2e/Hits',FALSE,NOW(),NULL),
@@ -360,7 +362,7 @@ class TestFrontendFunctionality:
 
         # Get the new page (tab)
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         new_page.wait_for_load_state("networkidle")
 
@@ -438,11 +440,11 @@ class TestFrontendFunctionality:
         # Network Transmission CO₂
         assert cell(table, 13, 1).text_content().strip() == "Network Transmission CO₂"
         assert cell(table, 13, 6).inner_html().strip() == (
-            '<span title="425 ug">0.00</span> '
-            '<span data-tooltip="Value is lower than rounding. Unrounded value is 425 ug" '
+            '<span title="425 ugCO2e">0.00</span> '
+            '<span data-tooltip="Value is lower than rounding. Unrounded value is 425 ugCO2e" '
             'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
         )
-        assert cell(table, 13, 7).text_content().strip() == "g"
+        assert cell(table, 13, 7).text_content().strip() == 'gCO2e'
 
 
         # click on baseline
@@ -456,7 +458,7 @@ class TestFrontendFunctionality:
         assert first_value.strip() == '0.01'
 
         first_unit = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(8) > td:nth-child(7)").text_content()
-        assert first_unit.strip() == 'g'
+        assert first_unit.strip() == 'gCO2e'
 
     def test_stats_multi_network(self):
 
@@ -469,7 +471,7 @@ class TestFrontendFunctionality:
 
         # Get the new page (tab)
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         new_page.wait_for_load_state("networkidle")
 
@@ -542,11 +544,11 @@ class TestFrontendFunctionality:
         # Network Transmission CO₂
         assert cell(table, 15, 1).text_content().strip() == "Network Transmission CO₂"
         assert cell(table, 15, 6).inner_html().strip() == (
-            '<span title="425 ug">0.00</span> '
-            '<span data-tooltip="Value is lower than rounding. Unrounded value is 425 ug" '
+            '<span title="425 ugCO2e">0.00</span> '
+            '<span data-tooltip="Value is lower than rounding. Unrounded value is 425 ugCO2e" '
             'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
         )
-        assert cell(table, 15, 7).text_content().strip() == "g"
+        assert cell(table, 15, 7).text_content().strip() == 'gCO2e'
 
     def test_stats_hidden_run(self):
 
@@ -559,7 +561,7 @@ class TestFrontendFunctionality:
 
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         new_page.wait_for_load_state("networkidle")
 
@@ -580,7 +582,7 @@ class TestFrontendFunctionality:
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=15_000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[0].click()
@@ -590,7 +592,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click() # will do usage-scenario-variables comparison
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         new_page.wait_for_load_state("networkidle")
 
@@ -669,7 +671,7 @@ class TestFrontendFunctionality:
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=15_000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[1].click()
@@ -679,7 +681,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click() # will do usage-scenario-variables comparison
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
@@ -746,18 +748,18 @@ class TestFrontendFunctionality:
         assert cell(table, 15, 1).text_content().strip() == "Network Transmission CO₂"
 
         assert cell(table, 15, 6).inner_html().strip() == (
-            '<span title="409 ug">0.00</span> '
-            '<span data-tooltip="Value is lower than rounding. Unrounded value is 409 ug" '
+            '<span title="409 ugCO2e">0.00</span> '
+            '<span data-tooltip="Value is lower than rounding. Unrounded value is 409 ugCO2e" '
             'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
         )
 
         assert cell(table, 15, 7).inner_html().strip() == (
-            '<span title="446 ug">0.00</span> '
-            '<span data-tooltip="Value is lower than rounding. Unrounded value is 446 ug" '
+            '<span title="446 ugCO2e">0.00</span> '
+            '<span data-tooltip="Value is lower than rounding. Unrounded value is 446 ugCO2e" '
             'data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
         )
 
-        assert cell(table, 15, 8).inner_html().strip() == "g"
+        assert cell(table, 15, 8).inner_html().strip() == 'gCO2e'
         assert cell(table, 15, 9).inner_html().strip() == "+ 9.05 %"
 
     def test_repositories_compare_not_comparable_on_aggregate(self):
@@ -765,7 +767,7 @@ class TestFrontendFunctionality:
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=15_000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[6].click()
@@ -775,7 +777,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click() # will do usage-scenario-variables comparison
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
@@ -796,7 +798,7 @@ class TestFrontendFunctionality:
         page.get_by_role("button", name="Switch to repository view").click()
 
         page.get_by_text("/home/arne/Sites/green-coding/example-applications/").click()
-        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=15_000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[0].click()
@@ -807,7 +809,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click()
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         comparison_type = new_page.locator('#run-data-top > tbody:nth-child(1) > tr > td:nth-child(2)').text_content()
         assert comparison_type == 'Repeated Run on same Commit Hash'
@@ -836,7 +838,7 @@ class TestFrontendFunctionality:
         assert first_stddev.strip() == '± 2.85%'
 
 
-        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(6)").inner_html() == '<span title="435.5 ug">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 435.5 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
+        assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(6)").inner_html() == '<span title="435.5 ugCO2e">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 435.5 ugCO2e" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
 
         assert new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(8)").inner_html() == '± 3.41%'
 
@@ -866,7 +868,7 @@ class TestFrontendFunctionality:
 
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=15_000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
         elements[1].click()
@@ -878,7 +880,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click()
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         assert new_page.locator("#run-data-top > tbody:first-child > tr:first-child > td:nth-child(2)").text_content() == 'Usage Scenario'
 
@@ -898,7 +900,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click()
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         assert new_page.locator("#run-data-top > tbody:first-child > tr > td:nth-child(2)").text_content() == 'Machine'
 
@@ -919,7 +921,7 @@ class TestFrontendFunctionality:
 
         page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
-        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=5000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
+        page.locator("#DataTables_Table_0 input[type=checkbox]").first.wait_for(timeout=15_000) # wait for accordion to fetch XHR and display first checkboxes. otherwise query_selector_all might be empty
 
         elements = page.query_selector_all("input[type=checkbox]")
 
@@ -936,7 +938,7 @@ class TestFrontendFunctionality:
             page.locator('#compare-button').click()
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         assert new_page.locator("#run-data-top > tbody:first-child > tr:first-child > td:nth-child(2)").text_content() == 'Usage Scenario Variables'
 
@@ -951,6 +953,107 @@ class TestFrontendFunctionality:
 
         new_page.close()
 
+    def test_stats_secret_usage_scenario_variables_are_masked(self):
+        """Secret variables must never be readable in the frontend - not even as their stored ciphertext."""
+        run_id = str(uuid.uuid4())
+        encrypted_value = encrypt_data('my-super-secret-password')
+
+        DB().query("""
+        INSERT INTO runs (id, name, uri, branch, usage_scenario, usage_scenario_variables, filename, machine_id, user_id, failed, logs, created_at, updated_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        """, params=(
+            run_id, 'Secret Variables',
+            'https://github.com/org/demo-repo', 'main',
+            json.dumps({"name": "test", "flow": []}),
+            json.dumps({'__GMT_VAR_COMMAND__': 'stress-ng', '__GMT_VAR_SECRET_PASSWORD__': encrypted_value}),
+            'test.yml', 1, 1, False, '{}'
+        ))
+
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + f'/stats.html?id={run_id}')
+        page.wait_for_load_state("networkidle")
+
+        variables_text = page.locator('#usage-scenario-variables').text_content()
+        assert '__GMT_VAR_COMMAND__=stress-ng' in variables_text
+        assert '__GMT_VAR_SECRET_PASSWORD__=*****ENCRYPTED*****' in variables_text
+        assert encrypted_value not in variables_text
+
+    def test_stats_commit_hash_display(self):
+        """Verify commit_hash renders as link for HTTPS/SSH URIs, plain text for local paths."""
+        github_run_id = str(uuid.uuid4())
+        github_ssh_run_id = str(uuid.uuid4())
+        github_dotgit_run_id = str(uuid.uuid4())
+        gitlab_run_id = str(uuid.uuid4())
+        gitlab_ssh_run_id = str(uuid.uuid4())
+        bitbucket_run_id = str(uuid.uuid4())
+        local_run_id = str(uuid.uuid4())
+
+        base_insert = """
+        INSERT INTO runs (id, name, uri, branch, commit_hash, usage_scenario, filename, machine_id, user_id, failed, logs, created_at, updated_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        """
+        empty_scenario = json.dumps({"name": "test", "flow": []})
+        commit_hash = 'aabbccddee0011223344'
+
+        DB().query(base_insert, params=(
+            github_run_id, 'GitHub HTTPS',
+            'https://github.com/org/demo-repo', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            github_ssh_run_id, 'GitHub SSH',
+            'git@github.com:org/demo-repo.git', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            github_dotgit_run_id, 'GitHub HTTPS .git',
+            'https://github.com/org/demo-repo.git', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            gitlab_run_id, 'GitLab HTTPS',
+            'https://gitlab.com/org/demo-repo', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            gitlab_ssh_run_id, 'GitLab SSH',
+            'git@gitlab.com:org/demo-repo.git', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            bitbucket_run_id, 'Bitbucket HTTPS',
+            'https://bitbucket.org/org/demo-repo', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+        DB().query(base_insert, params=(
+            local_run_id, 'Local',
+            '/home/user/local-project', 'main',
+            commit_hash, empty_scenario, 'test.yml', 1, 1, False, '{}'
+        ))
+
+        cases = [
+            (github_run_id, 'https://github.com/org/demo-repo/tree/', 'GitHub HTTPS'),
+            (github_ssh_run_id, 'https://github.com/org/demo-repo/tree/', 'GitHub SSH'),
+            (github_dotgit_run_id, 'https://github.com/org/demo-repo/tree/', 'GitHub HTTPS .git'),
+            (gitlab_run_id, 'https://gitlab.com/org/demo-repo/-/tree/', 'GitLab HTTPS'),
+            (gitlab_ssh_run_id, 'https://gitlab.com/org/demo-repo/-/tree/', 'GitLab SSH'),
+            (bitbucket_run_id, 'https://bitbucket.org/org/demo-repo/src/', 'Bitbucket HTTPS'),
+        ]
+
+        for run_id, expected_base, label in cases:
+            page.goto(GlobalConfig().config['cluster']['metrics_url'] + f'/stats.html?id={run_id}')
+            page.wait_for_load_state("networkidle")
+            link = page.locator('#run-data-top tr:has(td:has-text("commit_hash")) td:last-child a')
+            assert link.count() == 1, f"{label}: expected a link"
+            assert link.get_attribute('href') == f'{expected_base}{commit_hash}', f"{label}: href mismatch"
+            assert link.text_content() == commit_hash, f"{label}: text mismatch"
+
+        # Local path → plain text, no link
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + f'/stats.html?id={local_run_id}')
+        page.wait_for_load_state("networkidle")
+        commit_hash_cell = page.locator('#run-data-top tr:has(td:has-text("commit_hash")) td:last-child')
+        assert commit_hash_cell.locator('a').count() == 0, "Local: expected no link"
+        assert commit_hash_cell.text_content().strip() == commit_hash
+
     def test_watchlist(self):
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
@@ -959,7 +1062,7 @@ class TestFrontendFunctionality:
             page.get_by_role("link", name="Show Timeline").click()
 
         new_page = new_page_info.value
-        new_page.set_default_timeout(3_000)
+        new_page.set_default_timeout(10_000)
 
         # test before refresh - data missing - Beware that if demo data is updated with new date this might break!
         new_page.wait_for_load_state("load") # ALL JS should be done
@@ -1144,7 +1247,7 @@ class TestFrontendFunctionality:
         page.locator('#save-measurement-skip-optimizations').click()
         page.locator('#save-measurement-skip-volume-inspect').click()
         page.locator('#ssh-private-key').fill(Tests.OPENSSH_EXAMPLE_PRIVATE_KEY)
-        page.locator('#save-ssh-private-key').click(timeout=15000)
+        page.locator('#save-ssh-private-key').click(timeout=15_000)
 
         #page.wait_for_load_state("networkidle") # Network Idle sadly not enough here. The DB seems to take 1-2 seconds
         time.sleep(3)
@@ -1198,7 +1301,7 @@ class TestFrontendFunctionality:
             rows.nth(1).locator('.docker-cred-password').fill('anotherpassword')
 
             with page.expect_response(lambda response: '/v1/user/setting' in response.url and response.request.method == 'PUT') as response_info:
-                page.locator('#save-docker-credentials').click(timeout=15000)
+                page.locator('#save-docker-credentials').click(timeout=15_000)
             assert response_info.value.status == 202
 
             # The stored value must decrypt back to exactly what was submitted through the UI ...
@@ -1264,11 +1367,19 @@ class TestXssSecurity:
         Tests run name, branch, filename, URI, usage_scenario, usage_scenario_variables, and logs for XSS vulnerabilities
         on runs, stats (including logs view), watchlist, and compare pages.
         This test should FAIL when vulnerabilities exist and PASS when they're fixed.
+
+        The payload is prefixed with `">` so it breaks out of BOTH HTML text context AND a double-quoted
+        attribute value (e.g. href="..."). Without the `">` prefix, a payload interpolated into a href
+        attribute value cannot close the surrounding start tag, so the onerror handler never fires and
+        href-attribute XSS goes undetected. The `">` prefix ensures the same payload exercises every
+        context the value may be interpolated into.
         """
         base_url = GlobalConfig().config['cluster']['metrics_url']
 
-        # Create malicious payloads using IMG_XSS_EXECUTED approach for all user-provided fields
-        xss_payload = '<img src=x onerror="window.IMG_XSS_EXECUTED=true">'
+        # Create malicious payloads using IMG_XSS_EXECUTED approach for all user-provided fields.
+        # The leading `">` closes any double-quoted attribute value and the surrounding start tag,
+        # so the same payload fires in text context AND inside href="...".
+        xss_payload = '"><img src=x onerror="window.IMG_XSS_EXECUTED=true">'
         malicious_name = f'{xss_payload}Safe Name'
         malicious_branch = f'{xss_payload}main'
         malicious_filename = f'{xss_payload}test.yml'
@@ -1312,9 +1423,20 @@ class TestXssSecurity:
 
         # Insert malicious run data
         run_query = """
-        INSERT INTO "runs"("id","name","uri","branch","commit_hash","commit_timestamp","usage_scenario","usage_scenario_variables","filename","machine_id","user_id","failed","logs","created_at","updated_at")
-        VALUES (%s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        INSERT INTO "runs"("id","name","uri","branch","commit_hash","commit_timestamp","usage_scenario","usage_scenario_variables","filename","machine_id","user_id","failed","logs","relations","created_at","updated_at")
+        VALUES (%s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
         """
+
+        malicious_relations = {
+            "helpers": {
+                "url": f'http://evil.com{xss_payload}/helpers.git',
+                "commit_hash": "deadbeef"
+            },
+            "lib": {
+                "url": f'git@github.com:evil{xss_payload}/lib.git',
+                "commit_hash": "cafebabe"
+            }
+        }
 
         DB().query(run_query, params=(
             run_id,
@@ -1328,7 +1450,8 @@ class TestXssSecurity:
             1,
             1,
             False,
-            malicious_logs
+            malicious_logs,
+            json.dumps(malicious_relations)
         ))
 
         # Insert second run for compare functionality (same params except name and usage scenario variables)
@@ -1344,7 +1467,8 @@ class TestXssSecurity:
             1,
             1,
             False,
-            malicious_logs
+            malicious_logs,
+            json.dumps(malicious_relations)
         ))
 
         # Insert phase_stats for the two runs (needed for the compare view)
@@ -1403,8 +1527,8 @@ class TestXssSecurity:
 
         # Test 1: Runs page
         page.goto(base_url + '/runs.html')
-        page.wait_for_load_state("networkidle", timeout=10000)
-        page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
+        page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=15_000)
 
         runs_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert runs_xss_executed is not True, "XSS vulnerability detected on runs page: malicious code executed"
@@ -1412,16 +1536,16 @@ class TestXssSecurity:
         # Test 2: Stats page
         stats_url = f"{base_url}/stats.html?id={run_id}"
         page.goto(stats_url)
-        page.wait_for_load_state("networkidle", timeout=10000)
-        page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
+        page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=15_000)
 
         stats_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert stats_xss_executed is not True, "XSS vulnerability detected on stats page: malicious code executed"
 
         # Test 3: Watchlist page
         page.goto(base_url + '/watchlist.html')
-        page.wait_for_load_state("networkidle", timeout=10000)
-        page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
+        page.wait_for_function("() => document.body.innerText.includes('Safe Name')", timeout=15_000)
 
         watchlist_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert watchlist_xss_executed is not True, "XSS vulnerability detected on watchlist page: malicious code executed"
@@ -1429,8 +1553,8 @@ class TestXssSecurity:
         # Test 4: Timeline page
         timeline_url = f"{base_url}/timeline.html?uri={malicious_uri}&branch={malicious_branch}&filename={malicious_filename}&machine_id=1"
         page.goto(timeline_url)
-        page.wait_for_load_state("networkidle", timeout=10000)
-        page.wait_for_function("() => document.querySelector('input[name=\"uri\"]')?.value.includes('evil.com')", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
+        page.wait_for_function("() => document.querySelector('input[name=\"uri\"]')?.value.includes('evil.com')", timeout=15_000)
 
         timeline_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert timeline_xss_executed is not True, "XSS vulnerability detected on timeline page: malicious code executed"
@@ -1438,8 +1562,8 @@ class TestXssSecurity:
         # Test 5: Compare page (commit hashes comparison view includes repository uri, filename and usage scenario)
         compare_url = f"{base_url}/compare.html?ids={run_id},{run_id2}&force_mode=commit_hashes"
         page.goto(compare_url)
-        page.wait_for_load_state("networkidle", timeout=10000)
-        page.wait_for_function("() => document.body.innerText.includes('deadbeef123456789abcdef')", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
+        page.wait_for_function("() => document.body.innerText.includes('deadbeef123456789abcdef')", timeout=15_000)
 
         compare_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert compare_xss_executed is not True, "XSS vulnerability detected on compare page: malicious code executed"
@@ -1451,8 +1575,8 @@ class TestXssSecurity:
         page.remove_listener("pageerror", handle_page_error)
 
         page.goto(compare_url)
-        page.wait_for_load_state("networkidle", timeout=10000)
-        page.wait_for_function("() => document.body.innerText.includes('different_value')", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
+        page.wait_for_function("() => document.body.innerText.includes('different_value')", timeout=15_000)
 
         compare_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert compare_xss_executed is not True, "XSS vulnerability detected on compare page with usage scenario variables: malicious code executed"
@@ -1496,7 +1620,7 @@ class TestXssSecurity:
 
         assert fetch_button.count() > 0, "fetch-time-series button not found - test setup failed"
         fetch_button.click()
-        page.wait_for_timeout(3000)
+        page.wait_for_timeout(15_000)
 
         xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
 
@@ -1554,7 +1678,7 @@ class TestXssSecurity:
 
         page.goto(f"{base_url}/ci-index.html")
         page.wait_for_load_state("networkidle")
-        page.wait_for_function("() => document.body.innerText.includes('evil/repo')", timeout=10000)
+        page.wait_for_function("() => document.body.innerText.includes('evil/repo')", timeout=15_000)
 
         img_xss_executed = page.evaluate("window.IMG_XSS_EXECUTED")
         assert img_xss_executed is not True, "XSS vulnerability detected on ci-index.html"
@@ -1569,7 +1693,7 @@ class TestXssSecurity:
         page.wait_for_load_state("networkidle")
 
         try:
-            page.wait_for_function("() => document.body.innerText.includes('clean/repo')", timeout=10000)
+            page.wait_for_function("() => document.body.innerText.includes('clean/repo')", timeout=15_000)
         except PlaywrightTimeoutError:
             page_text = page.evaluate("() => document.body.innerText")
             if 'No data for time frame' in page_text:

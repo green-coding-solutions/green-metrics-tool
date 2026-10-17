@@ -274,7 +274,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "memory_used_cgroup_container": {
                     "data": {
@@ -368,7 +368,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "network_energy_formula_global": {
                     "data": {
@@ -603,7 +603,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "psu_energy_cgroup_container": {
                     "data": {
@@ -1078,7 +1078,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "phase_time_syscall_system": {
                     "data": {
@@ -1172,7 +1172,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "psu_energy_dc_rapl_msr_machine": {
                     "data": {
@@ -1459,7 +1459,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "phase_time_syscall_system": {
                     "data": {
@@ -1553,7 +1553,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "psu_energy_dc_rapl_msr_machine": {
                     "data": {
@@ -1887,7 +1887,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "memory_used_cgroup_container": {
                     "data": {
@@ -1981,7 +1981,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "network_energy_formula_global": {
                     "data": {
@@ -2216,7 +2216,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "psu_energy_cgroup_container": {
                     "data": {
@@ -2644,7 +2644,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "phase_time_syscall_system": {
                     "data": {
@@ -2738,7 +2738,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "psu_energy_dc_rapl_msr_machine": {
                     "data": {
@@ -3072,7 +3072,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "memory_used_cgroup_container": {
                     "data": {
@@ -3166,7 +3166,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "network_energy_formula_global": {
                     "data": {
@@ -3401,7 +3401,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "psu_energy_cgroup_container": {
                     "data": {
@@ -3923,7 +3923,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "memory_used_cgroup_container": {
                     "data": {
@@ -4017,7 +4017,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "network_energy_formula_global": {
                     "data": {
@@ -4252,7 +4252,7 @@
                         }
                     },
                     "type": "TOTAL",
-                    "unit": "ug"
+                    "unit": "ugCO2e"
                 },
                 "psu_energy_cgroup_container": {
                     "data": {

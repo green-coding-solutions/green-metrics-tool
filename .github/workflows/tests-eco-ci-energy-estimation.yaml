@@ -5,6 +5,7 @@ on:
 
 jobs:
   run-tests-main:
+    if: github.repository_owner == 'green-coding-solutions'
     runs-on: ubuntu-24.04
     permissions:
       packages: write
@@ -24,7 +25,7 @@ jobs:
           machine: "ubuntu-latest"
           tags: "CI/CD, Test-Eco-CI-Workflow"
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
-          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+          electricitymaps-api-token: ${{ secrets.ELECTRICITY_MAPS_ALT_TOKEN_INFO_AT_GCS }}
 
 
       - name: Measuring idle cost 10 s

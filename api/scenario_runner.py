@@ -9,7 +9,6 @@ from datetime import date, datetime, timedelta
 import pprint
 
 from fastapi import APIRouter, Response, Depends, HTTPException, Request
-
 import anybadge
 
 from api.object_specifications import Software, JobChange, WatchlistChange, RunChange, ArtifactType
@@ -488,6 +487,7 @@ async def get_runs(
 async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = Depends(authenticate)):
     if ids is None or not ids.strip():
         raise HTTPException(status_code=422, detail='run_id is empty')
+
     ids = ids.split(',')
     if not all(is_valid_uuid(id) for id in ids):
         raise HTTPException(status_code=422, detail='One of Run IDs is not a valid UUID or empty')
@@ -501,6 +501,13 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
         case, comparison_db_key = determine_comparison_case(user, ids, force_mode=force_mode)
     except (RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    if case == 'Table':
+        return Response(
+            content='Compare endpoint cannot handle this set of IDs directly. Please redirect to compare-simple.html',
+            status_code=409,
+            media_type="text/plain",
+        )
 
     comparison_details = get_comparison_details(user, ids, comparison_db_key)
 
@@ -964,6 +971,11 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
         software.repo_url = utils.encrypt_uri_credentials(software.repo_url)
     except EncryptionConfigurationError as exc:
         raise HTTPException(status_code=422, detail='Cannot store URL credentials: encryption is not configured on this server') from exc
+
+    try:
+        software.usage_scenario_variables = utils.encrypt_secret_usage_scenario_variables(software.usage_scenario_variables)
+    except EncryptionConfigurationError as exc:
+        raise HTTPException(status_code=422, detail='Cannot store secret usage scenario variables: encryption is not configured on this server') from exc
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 

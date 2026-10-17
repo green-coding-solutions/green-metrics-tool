@@ -1,0 +1,23 @@
+---
+name: Test multi-stage build with target
+author: Arne Tarara
+description: Builds a multi-stage Dockerfile and selects a non-final stage via the target key
+
+services:
+  test-container:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: final
+    image: multi_stage_target
+    container_name: test-container
+    command: sh
+
+flow:
+  - name: Check built stage
+    container: test-container
+    commands:
+      - type: console
+        command: cat /stage.txt /artifact.txt
+        shell: sh
+        log-stdout: true

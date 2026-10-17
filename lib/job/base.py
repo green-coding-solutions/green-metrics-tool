@@ -26,7 +26,6 @@ from lib.configuration_check_error import ConfigurationCheckError
 
 class Job(ABC):
     # Concrete subclasses must set this to the exact value stored in jobs.type (e.g. 'run', 'email-simple'),
-    # or to a SQL LIKE pattern ending in '%' to match a family of types (e.g. 'email-%').
     # get_job() and insert() rely on it to know which rows they are responsible for.
     JOB_TYPE = None
 
@@ -131,10 +130,7 @@ class Job(ABC):
         params = []
         config = GlobalConfig().config
 
-        if cls.JOB_TYPE.endswith('%'):
-            query = f"{query} j.type LIKE %s AND j.state = 'WAITING'"
-        else:
-            query = f"{query} j.type = %s AND j.state = 'WAITING'"
+        query = f"{query} j.type = %s AND j.state = 'WAITING'"
         params.append(cls.JOB_TYPE)
 
         if cls.JOB_TYPE == 'run':
@@ -182,7 +178,5 @@ class Job(ABC):
             DELETE FROM jobs
             WHERE
                 (state IN ('FINISHED', 'CANCELLED', 'FAILED') AND updated_at < NOW() - INTERVAL '14 DAYS')
-                OR
-                (state = 'RUNNING' AND type LIKE 'email-%' AND updated_at < NOW() - INTERVAL '5 MINUTES')
             '''
         DB().query(query)

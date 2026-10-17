@@ -153,3 +153,10 @@ def test_token_is_not_persisted_in_machine_configuration():
     assert TOKEN_SENTINEL not in json.dumps(machine_row, default=str), (
         'Electricity Maps token leaked into the machines.configuration column'
     )
+
+
+def test_sanitize_config_redacts_github_api_token():
+    # ScenarioRunner stores the cluster section in runs.measurement_config, which the stats page displays
+    sanitized = utils.sanitize_config({'api_url': 'https://api.example.com', 'github_api_token': TOKEN_SENTINEL})
+    assert TOKEN_SENTINEL not in json.dumps(sanitized)
+    assert sanitized['api_url'] == 'https://api.example.com'

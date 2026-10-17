@@ -20,7 +20,7 @@ flow:
         log-stderr: True
 
   - name: Testing SHM 2
-    container: test-container-2
+    container: test-container
     commands:
       - type: console
         command: 'echo "SHM size is: $(df -h /dev/shm)"'

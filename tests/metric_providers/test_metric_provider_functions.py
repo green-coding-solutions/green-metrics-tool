@@ -3,6 +3,7 @@ import math
 import pytest
 import shutil
 import tempfile
+import xml.parsers.expat
 
 from pathlib import Path
 
@@ -220,6 +221,32 @@ def test_powermetrics():
     assert list(df.metric.unique()) == ['cpu_time_powermetrics_vm', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm', 'energy_impact_powermetrics_vm', 'cores_energy_powermetrics_component', 'gpu_energy_powermetrics_component', 'ane_energy_powermetrics_component']
 
     assert math.isclose(df[df.metric == 'energy_impact_powermetrics_vm'].value.mean(), 430.823529, abs_tol=1e-3)
+
+def _powermetrics_from_payload(tmp_path, payload):
+    log = tmp_path / 'powermetrics.log'
+    log.write_bytes(payload)
+    obj = PowermetricsProvider(499, folder=GMT_METRICS_DIR, skip_check=True)
+    obj._filename = os.fspath(log)
+    return obj.read_metrics()
+
+def test_powermetrics_truncated_final_sample_is_dropped(tmp_path):
+    fragments = Path(GMT_ROOT_DIR, 'tests/data/metrics/powermetrics.log').read_bytes().split(b'\x00')
+    prefix_df = _powermetrics_from_payload(tmp_path, b'\x00'.join(fragments[:-1]))
+    truncated_df = _powermetrics_from_payload(tmp_path, b'\x00'.join(fragments[:-1] + [fragments[-1][:-100]]))
+
+    assert truncated_df.equals(prefix_df)
+
+def test_powermetrics_trailing_nul_is_ignored(tmp_path):
+    payload = Path(GMT_ROOT_DIR, 'tests/data/metrics/powermetrics.log').read_bytes()
+    full_df = _powermetrics_from_payload(tmp_path, payload)
+    trailing_df = _powermetrics_from_payload(tmp_path, payload + b'\x00')
+
+    assert trailing_df.equals(full_df)
+
+def test_powermetrics_truncated_middle_sample_raises(tmp_path):
+    fragments = Path(GMT_ROOT_DIR, 'tests/data/metrics/powermetrics.log').read_bytes().split(b'\x00')
+    with pytest.raises(xml.parsers.expat.ExpatError):
+        _powermetrics_from_payload(tmp_path, b'\x00'.join([fragments[0], fragments[1][:-100], fragments[2]]))
 
 def test_cloud_energy():
     filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_mach_system.log')

@@ -11,12 +11,11 @@ from lib.utils import filter_sensitive_data
 
 
 class EmailJob(Job):
-    # Matches any of the concrete 'email-*' types (email-simple, email-report, ...)
-    JOB_TYPE = 'email-%'
+    JOB_TYPE = None
 
     def check_job_running(self):
-        query = "SELECT id FROM jobs WHERE type LIKE 'email-%' AND state = 'RUNNING'"
-        return DB().fetch_one(query)
+        query = "SELECT id FROM jobs WHERE type = %s AND state = 'RUNNING'"
+        return DB().fetch_one(query, params=(self.JOB_TYPE, ))
 
     #pylint: disable=arguments-differ
     def _process(self):

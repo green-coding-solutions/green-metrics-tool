@@ -67,7 +67,7 @@ def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
 def convert_value(value, unit, display_in_joules=False):
     compare_unit = unit.split('/', 1)[0]
 
-    if compare_unit == 'ugCO2e':
+    if compare_unit in ('ug', 'ugCO2e'):
         return [value / 1_000_000, unit[1:]]
     elif compare_unit == 'mJ':
         if display_in_joules:
@@ -90,8 +90,6 @@ def convert_value(value, unit, display_in_joules=False):
     elif compare_unit == 'ns':
         return [value / 1_000_000_000, unit[1:]]
     elif compare_unit == 'us':
-        return [value / 1_000_000, unit[1:]]
-    elif compare_unit == 'ug':
         return [value / 1_000_000, unit[1:]]
     elif compare_unit == 'Bytes':
         return [value / 1_000_000, f"MB{unit[5:]}"]
@@ -456,17 +454,23 @@ def determine_comparison_case(user, ids, force_mode=None):
         if usage_scenario_variables == 1:
             return ('Repeated Run on same Commit Hash', 'commit_hash')  # Case A - Everything is identical and just repeating runs
 
-    except RuntimeError as exc:
+        raise RuntimeError('Could not determine comparison case after checking all conditions')
+
+    except RuntimeError:
+        # Although the check appears also couple of lines above we need it here again
+        # Reason being is that two scenarios with two repos and two machines for instance will get into here
+        # We then want to show this fallback
         if len(ids) == 2:
             ### DUO Case ####
             # In case we only encounter two IDs we can try to short circuit.
             # Before we would fail here. However for two scenarios we can ALWAYS
             # show a comparison case as it is guaranteed that we will encounter only two different cases somewhere.
             return ('IDs', 'id')
-        else:
-            raise exc
 
-    raise RuntimeError('Could not determine comparison case after checking all conditions')
+        ### TABLE / IDs Case ####
+        # If auto mode cannot find a single differing attribute to compare on we fall back to
+        # a generic per-run table view. This always works, as every run has a unique id.
+        return ('Table', 'simple_table')
 
 def check_run_failed(user, ids):
     query = """
@@ -756,7 +760,10 @@ def add_phase_stats_statistics(phase_stats_object):
                         if sr_95p_values_none_filtered:
                             key_obj['sr_95p_max'] = np.max(sr_95p_values_none_filtered).item()
 
-                        key_obj['ci'] = (key_obj['stddev']*t_stat).item()
+                        # rounded because scipy's t.ppf() used in get_t_stat() returns values that
+                        # differ in the ~10th significant digit across scipy versions, which broke
+                        # exact-equality fixture comparisons in tests on scipy upgrades
+                        key_obj['ci'] = round((key_obj['stddev']*t_stat).item(), 2)
 
                         if len(values_none_filtered) > 2:
                             data_c = values_none_filtered.copy()
@@ -887,8 +894,7 @@ def check_int_field_api(field, name, max_value):
     return True
 
 def carbondb_add(connecting_ip, data, source, user_id):
-
-    merge_window_max = 30 # merge window hardcoded for now. Might be a user setting later. This entails also that carbondb_copy_over_and_remove_duplicates.py makes queries PER USER
+    merge_window_max = GlobalConfig().config['cluster']['carbondb_merge_window_days']
     current_time_us = int(time.time_ns()  / 1e3)
     if data['time'] < current_time_us - merge_window_max * 24 * 60 * 60 * 1e6 : # microseconds
         raise ValueError(f"CarbonDB is configured to not accept values older than {merge_window_max} days. Your timestamp was: {data['time']}")

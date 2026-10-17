@@ -219,7 +219,7 @@ async function getRepositories(sort_by = 'date') {
                 <div class="ui accordion repositories" style="width: 100%;">
                   <div class="title">
                     <i class="dropdown icon"></i> ${uri_link}
-                    <span class="ui label float-right"><i class="clock icon"></i> ${dateToYMD(new Date(last_run), short=true)}</span>
+                    <span class="ui label float-right"><i class="clock icon"></i> ${dateToYMD(new Date(last_run), true)}</span>
                   </div>
                   <div class="content" data-uri="${escapeString(uri)}">
                       <table class="ui celled striped table"></table>
@@ -335,7 +335,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         data: 6,
         title: '<i class="icon file alternate"></i>Filename',
         render: function(el, type, row) {
-            const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui small label">${escapeString(k)}=${escapeString(v)}</span>`);
+            const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui small label">${escapeString(k)}=${escapeString(displayUsageScenarioVariableValue(k, v))}</span>`);
             return `${escapeString(el)} <br> ${usage_scenario_variables.join(' ')}`
         }
     });

@@ -1,3 +1,4 @@
+"use strict";
 function createPythonDictTable(dataArray, labelPrefix = 'Item', keyHeader = 'Key') {
     // Parse Python dictionary data into a comparison table
     const items = Array.isArray(dataArray) ? dataArray : [dataArray];
@@ -27,7 +28,7 @@ function createPythonDictTable(dataArray, labelPrefix = 'Item', keyHeader = 'Key
     allKeys.forEach(key => {
         tableContent += `<tr><td><strong>${escapeString(key)}</strong></td>`;
         parsedItems.forEach(item => {
-            tableContent += `<td style="text-align: center;">${escapeString(item[key] || '-')}</td>`;
+            tableContent += `<td style="text-align: center;">${escapeString(item[key] ? displayUsageScenarioVariableValue(key, item[key]) : '-')}</td>`;
         });
         tableContent += '</tr>';
     });
@@ -313,6 +314,12 @@ $(document).ready( () => {
             }
             phase_stats_data = (await makeAPICall(url)).data
         } catch (err) {
+            if (err instanceof APIHTTPError && err.status === 409) {
+                console.log('Endpoint cannot handle request. Will redirect to simple table.')
+                window.location.href = `/compare-simple.html?ids=${run_ids}&redirect_from_auto=true`;
+                return
+            }
+
             showNotification('Could not get compare in-repo data from API', err);
             return
         }

@@ -1,0 +1,27 @@
+---
+name: Shell Options Override
+author: Didi Hoffmann
+description: Checks that the default shell options can be overridden per command
+
+services:
+  test-container:
+    image: alpine
+    setup-commands:
+      - command: "false | cat"
+        shell: /bin/sh
+        shell-options: []
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sleep infinity"]
+
+flow:
+  - name: Flow Name
+    container: test-container
+    commands:
+      - type: console
+        command: "false | cat; echo 'command was not aborted'"
+        shell: /bin/sh
+        shell-options: []
+      - type: console
+        command: "echo 'unset variable did not abort:'$GMT_UNSET_VARIABLE"
+        shell: /bin/sh
+        shell-options: -o errexit

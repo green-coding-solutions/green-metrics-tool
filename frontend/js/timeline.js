@@ -1,3 +1,4 @@
+"use strict";
 let chart_instances = [];
 let repository_uri = null; // Store unescaped URI for URL construction
 
@@ -11,7 +12,7 @@ window.onresize = function() { // set callback when ever the user changes the vi
 }
 
 function* colorIterator() {
-    colors = [
+    const colors = [
         '#88a788',
         '#e5786d',
         '#baa5c3',
@@ -48,7 +49,7 @@ const populateMachines = async () => {
     try {
         const machines_select = document.querySelector('select[name="machine_id"]');
 
-        machines_data = (await makeAPICall('/v1/machines'))
+        const machines_data = (await makeAPICall('/v1/machines'))
         machines_data.data.forEach(machine => {
             let newOption = new Option(machine[1],machine[0]);
             machines_select.add(newOption,undefined);
@@ -138,9 +139,9 @@ const getUsageScenarioVariablesFromForm = () => {
 const stringifyUsageScenarioVariables = (usageScenarioVariables, joiner=', ', escape=false) => {
     let pairs = null;
     if (escape) {
-        pairs = Object.entries(usageScenarioVariables).map(([key, value]) => escapeString(`${key}=${value}`) );
+        pairs = Object.entries(usageScenarioVariables).map(([key, value]) => escapeString(`${key}=${displayUsageScenarioVariableValue(key, value)}`) );
     } else {
-        pairs = Object.entries(usageScenarioVariables).map(([key, value]) => `${key}=${value}`);
+        pairs = Object.entries(usageScenarioVariables).map(([key, value]) => `${key}=${displayUsageScenarioVariableValue(key, value)}`);
     }
     return pairs.length > 0 ? pairs.join(joiner) : '-';
 }
@@ -292,12 +293,12 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     if (skip_dates) return api_url;
 
     if ($('input[name="start_date"]').val() != '') {
-        let start_date = dateToYMD(new Date($('input[name="start_date"]').val()), short=true);
+        let start_date = dateToYMD(new Date($('input[name="start_date"]').val()), true);
         api_url += `${ampersand}start_date=${encodeURIComponent(start_date)}`
     }
 
     if ($('input[name="end_date"]').val() != '') {
-        let end_date = dateToYMD(new Date($('input[name="end_date"]').val()), short=true);
+        let end_date = dateToYMD(new Date($('input[name="end_date"]').val()), true);
         api_url += `${ampersand}end_date=${encodeURIComponent(end_date)}`
     }
     return api_url;
@@ -587,7 +588,13 @@ const loadCharts = async () => {
                         const container = document.createElement('div');
                         container.innerHTML = html_content;
                         // adding as href will not trigger any XSS problems which might come from user input here
-                        container.querySelector('.commit-hash-link').href = `${toHttpsUri(repository_uri)}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}`
+                        const commitHashLink = container.querySelector('.commit-hash-link');
+                        const commitLink = getRepoRefUrl(repository_uri, 'commit');
+                        if (commitLink) {
+                            commitHashLink.href = `${commitLink}${series[params.seriesName].notes[params.dataIndex].commit_hash}`;
+                        } else {
+                            commitHashLink.replaceWith(commitHashLink.textContent);
+                        }
                         return container;
 
 

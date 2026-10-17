@@ -1,6 +1,8 @@
 import io
 import math
+import os
 import shutil
+import tempfile
 
 from decimal import Decimal
 from pathlib import Path
@@ -13,14 +15,15 @@ from contextlib import redirect_stdout, redirect_stderr
 
 from tests import test_functions as Tests
 from lib.db import DB
-from lib.phase_stats import build_and_store_phase_stats
+from lib.phase_stats import build_and_store_phase_stats, _compute_metric_phase_stats
 from lib.post_metric_providers.calculate_co2_intensity import calculate_co2_intensity
 from lib import metric_importer
 from lib.scenario_runner import ScenarioRunner
+from lib.utils import container_name
 
 MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
 
-GMT_METRICS_DIR = Path('/tmp/green-metrics-tool/metrics')
+GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-phase-stats-'))
 
 ## Create a tmp folder only for this run
 @pytest.fixture(autouse=True, scope='module')
@@ -293,7 +296,7 @@ def test_phase_embodied_and_operational_carbon():
 
     embodied_carbon_share_machine = next(d for d in data if d['metric'] == 'embodied_carbon_share_machine')
     assert embodied_carbon_share_machine['detail_name'] == '[SYSTEM]'
-    assert embodied_carbon_share_machine['unit'] == 'ug'
+    assert embodied_carbon_share_machine['unit'] == 'ugCO2e'
     assert embodied_carbon_share_machine['value'] == embodied_carbon_expected
     assert embodied_carbon_share_machine['type'] == 'TOTAL'
 
@@ -633,7 +636,7 @@ def test_phase_stats_network_data():
 
     assert network_carbon_entry['metric'] == 'network_carbon_formula_global'
     assert network_carbon_entry['detail_name'] == '[FORMULA]'
-    assert network_carbon_entry['unit'] == 'ug'
+    assert network_carbon_entry['unit'] == 'ugCO2e'
     assert network_carbon_entry['type'] == 'TOTAL'
     assert network_carbon_entry['value'] == 6 # due to multiple rounding steps the current data actually gives 7 when calculated directly, but the rounding gets it down to 6
 
@@ -762,6 +765,19 @@ def test_phase_stats_process_user_custom_metrics():
     assert runtime_data['value'] == 42
     assert runtime_data['type'] == 'TOTAL'
 
+# Starts the full default set of real metric providers from test-config.yml (dev_no_metrics=False)
+# for real and asserts a narrow numeric range on the resulting real energy/SCI measurements
+# (custom_api_hits_sci_global etc.) - same class of flakiness as test_metric_providers.py's
+# cpu_utilization assertions: under -n/xdist every worker pins its containers to the same
+# '--cpuset-cpus' range (resource_limits.get_assignable_cpus() is host-wide, not worker-aware), so
+# concurrent workers contend for the same physical cores and skew the real measurements this test
+# checks. So, like test_database_reconnection_during_run (tests/test_runner.py) and the whole of
+# tests/metric_providers/test_metric_providers.py, this test is excluded from -n runs entirely and
+# only runs in the separate, non-parallel 'pytest -m serial' pass - which also means it no longer
+# overlaps in time with the rest of the real-metric-providers xdist_group, so that marker is no
+# longer needed here either.
+@pytest.mark.serial
+@pytest.mark.skipif(bool(os.environ.get('PYTEST_XDIST_WORKER')), reason="needs the whole machine's CPUs uncontended for accurate real energy/SCI assertions - run this outside of -n/xdist, on its own")
 def test_custom_metric_sci_run():
     runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_custom_metrics.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
 
@@ -774,72 +790,63 @@ def test_custom_metric_sci_run():
 
     assert len(data) == 12
 
+    # The query's 'ORDER BY ... detail_name ASC' isn't safe to index into positionally once
+    # detail_name is worker-suffixed (container_name() appends '-<worker_id>', e.g. '-gw0'): that
+    # suffix makes 'test-container-2-gw0' sort *before* 'test-container-gw0' ('2' < 'g'), the
+    # opposite of the unsuffixed 'test-container' < 'test-container-2' order these indices used to
+    # assume. Look rows up by (phase, metric, detail_name) instead so the assertions hold either way.
+    tc1 = container_name('test-container')
+    tc2 = container_name('test-container-2')
+
+    def get_row(phase, metric, detail_name):
+        matches = [d for d in data if d['phase'] == phase and d['metric'] == metric and d['detail_name'] == detail_name]
+        assert len(matches) == 1, f"Expected exactly one row for phase={phase}, metric={metric}, detail_name={detail_name}, got {len(matches)}"
+        return matches[0]
+
     # 004_[RUNTIME]
-    assert data[0]['metric'] == data[1]['metric'] == 'custom_api_hits'
-    assert data[0]['unit'] == data[1]['unit'] == 'API Hits'
-    assert data[0]['detail_name'] == 'test-container'
-    assert data[1]['detail_name'] == 'test-container-2'
-    assert data[0]['phase'] == data[1]['phase'] == '004_[RUNTIME]'
-    assert 10 < data[0]['value'] < 250
-    assert 10 < data[1]['value'] < 250
+    row = get_row('004_[RUNTIME]', 'custom_api_hits', tc1)
+    row2 = get_row('004_[RUNTIME]', 'custom_api_hits', tc2)
+    assert row['unit'] == row2['unit'] == 'API Hits'
+    assert 10 < row['value'] < 250
+    assert 10 < row2['value'] < 250
 
+    row = get_row('004_[RUNTIME]', 'custom_api_hits_sci_global', tc1)
+    row2 = get_row('004_[RUNTIME]', 'custom_api_hits_sci_global', tc2)
+    assert row['unit'] == row2['unit'] == 'ugCO2e/API Hits'
+    assert 10 < row['value'] < 250
+    assert 10 < row2['value'] < 250
 
-    assert data[2]['metric'] == data[3]['metric'] == 'custom_api_hits_sci_global'
-    assert data[2]['unit'] == data[3]['unit'] == 'ugCO2e/API Hits'
-    assert data[2]['detail_name'] == 'test-container'
-    assert data[3]['detail_name'] == 'test-container-2'
-    assert data[2]['phase'] == data[3]['phase'] == '004_[RUNTIME]'
-    assert 10 < data[2]['value'] < 250
-    assert 10 < data[3]['value'] < 250
-
-
-    assert data[4]['metric'] == data[5]['metric'] == 'custom_my_coolness'
-    assert data[4]['unit'] == data[5]['unit'] == 'gigacools'
-    assert data[4]['detail_name'] == 'test-container'
-    assert data[5]['detail_name'] == 'test-container-2'
-    assert data[4]['phase'] == data[5]['phase'] == '004_[RUNTIME]'
-    assert 10 < data[4]['value'] < 250
-    assert 10 < data[5]['value'] < 250
-
+    row = get_row('004_[RUNTIME]', 'custom_my_coolness', tc1)
+    row2 = get_row('004_[RUNTIME]', 'custom_my_coolness', tc2)
+    assert row['unit'] == row2['unit'] == 'gigacools'
+    assert 10 < row['value'] < 250
+    assert 10 < row2['value'] < 250
 
     # 005_Stress
-    assert data[6]['metric'] == 'custom_api_hits'
-    assert data[6]['unit'] == 'API Hits'
-    assert data[6]['detail_name'] == 'test-container'
-    assert data[6]['phase'] == '005_Stress'
-    assert 10 < data[6]['value'] < 250
+    row = get_row('005_Stress', 'custom_api_hits', tc1)
+    assert row['unit'] == 'API Hits'
+    assert 10 < row['value'] < 250
 
-    assert data[7]['metric'] == 'custom_api_hits_sci_global'
-    assert data[7]['unit'] == 'ugCO2e/API Hits'
-    assert data[7]['detail_name'] == 'test-container'
-    assert data[7]['phase'] == '005_Stress'
-    assert 10 < data[7]['value'] < 250
+    row = get_row('005_Stress', 'custom_api_hits_sci_global', tc1)
+    assert row['unit'] == 'ugCO2e/API Hits'
+    assert 10 < row['value'] < 250
 
-    assert data[8]['metric'] == 'custom_my_coolness'
-    assert data[8]['unit'] == 'gigacools'
-    assert data[8]['detail_name'] == 'test-container'
-    assert data[8]['phase'] == '005_Stress'
-    assert 10 < data[8]['value'] < 250
-
+    row = get_row('005_Stress', 'custom_my_coolness', tc1)
+    assert row['unit'] == 'gigacools'
+    assert 10 < row['value'] < 250
 
     # 006_Stress 2
-    assert data[9]['metric'] == 'custom_api_hits'
-    assert data[9]['unit'] == 'API Hits'
-    assert data[9]['detail_name'] == 'test-container-2'
-    assert data[9]['phase'] == '006_Stress 2'
-    assert 10 < data[9]['value'] < 250
+    row = get_row('006_Stress 2', 'custom_api_hits', tc2)
+    assert row['unit'] == 'API Hits'
+    assert 10 < row['value'] < 250
 
-    assert data[10]['metric'] == 'custom_api_hits_sci_global'
-    assert data[10]['unit'] == 'ugCO2e/API Hits'
-    assert data[10]['detail_name'] == 'test-container-2'
-    assert data[10]['phase'] == '006_Stress 2'
-    assert 10 < data[10]['value'] < 250
+    row = get_row('006_Stress 2', 'custom_api_hits_sci_global', tc2)
+    assert row['unit'] == 'ugCO2e/API Hits'
+    assert 10 < row['value'] < 250
 
-    assert data[11]['metric'] == 'custom_my_coolness'
-    assert data[11]['unit'] == 'gigacools'
-    assert data[11]['detail_name'] == 'test-container-2'
-    assert data[11]['phase'] == '006_Stress 2'
-    assert 10 < data[11]['value'] < 250
+    row = get_row('006_Stress 2', 'custom_my_coolness', tc2)
+    assert row['unit'] == 'gigacools'
+    assert 10 < row['value'] < 250
 
 
 def test_calculate_co2_intensity_uses_microgram_scale():
@@ -896,6 +903,117 @@ def test_calculate_co2_intensity_uses_microgram_scale():
     )
 
     assert derived_values == [(100,), (400,)]
+
+def test_phase_stats_runtime_max_min_reconstruction():
+    # reconstruct_runtime_phase() must take MAX(max_value)/MIN(min_value) across sub-phases
+    # (the true sample extremes recorded per sub-phase), not MAX(value)/MIN(value) (the
+    # sub-phases' own averaged "value" column, which can sit far away from the actual raw
+    # sample extremes).
+    phases = [
+        {"start": 0, "name": "[BASELINE]", "end": 100_000, "hidden": False},
+        {"start": 200_000, "name": "[RUNTIME]", "end": 3_200_000, "hidden": False},
+        {"start": 200_000, "name": "Sub1", "end": 1_700_000, "hidden": False},
+        {"start": 1_700_000, "name": "Sub2", "end": 3_200_000, "hidden": False},
+    ]
+    run_id = Tests.insert_run(phases)
+
+    import_custom_metric(
+        run_id,
+        'cpu_utilization_cgroup_container',
+        'Ratio',
+        [
+            (300_000, 40), (600_000, 40), (900_000, 40),        # Sub1: flat at 40
+            (1_900_000, 5), (2_500_000, 30), (3_100_000, 200),  # Sub2: true extremes 5 / 200
+        ],
+        detail_name='containerA',
+    )
+
+    build_and_store_phase_stats(run_id)
+
+    data = DB().fetch_all(
+        "SELECT value, max_value, min_value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = 'cpu_utilization_cgroup_container'",
+        params=(run_id, '001_[RUNTIME]'), fetch_mode='dict'
+    )
+    assert len(data) == 1
+    assert data[0]['max_value'] == 200, 'RUNTIME max_value must reflect the true sample max across sub-phases'
+    assert data[0]['min_value'] == 5, 'RUNTIME min_value must reflect the true sample min across sub-phases'
+    # sanity check that the averaged "value" column is unrelated to (and well inside) the true extremes
+    assert 5 < data[0]['value'] < 200
+
+
+def test_phase_stats_psu_cgroup_container_and_slice():
+    # Covers two fixes in the psu_*_cgroup_* surplus block:
+    # 1) psu_power_cgroup_slice/psu_power_cgroup_container must be stored as type MEAN (not TOTAL)
+    # 2) surplus_energy_runtime's exact formula, pinned here so any accidental change to it is caught
+    phases = [
+        {"start": 0, "name": "[BASELINE]", "end": 100_000, "hidden": False},
+        {"start": 200_000, "name": "[RUNTIME]", "end": 700_000, "hidden": False},
+        {"start": 200_000, "name": "Sub1", "end": 700_000, "hidden": False},
+    ]
+    run_id = Tests.insert_run(phases)
+
+    baseline_duration_us = Decimal(100_000)
+    baseline_energy_uj = 500_000
+    sub1_duration_us = Decimal(700_000 - 200_000)
+    sub1_energy_uj = 3_000_000
+
+    import_custom_metric(
+        run_id,
+        'psu_energy_ac_mcp_machine',
+        'uJ',
+        [
+            (50_000, baseline_energy_uj),  # inside [BASELINE]
+            (450_000, sub1_energy_uj),     # inside Sub1
+        ],
+        detail_name='[MACHINE]',
+    )
+    import_custom_metric(
+        run_id,
+        'cpu_utilization_procfs_system',
+        'Ratio',
+        [(450_000, 50)],
+        detail_name='[SYSTEM]',
+    )
+    import_custom_metric(
+        run_id,
+        'cpu_utilization_cgroup_container',
+        'Ratio',
+        [(450_000, 30)],
+        detail_name='containerA',
+    )
+
+    build_and_store_phase_stats(run_id)
+
+    data = DB().fetch_all(
+        "SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s AND phase = %s AND metric IN ('psu_power_cgroup_slice','psu_energy_cgroup_slice','psu_power_cgroup_container','psu_energy_cgroup_container')",
+        params=(run_id, '002_Sub1'), fetch_mode='dict'
+    )
+    by_metric = {row['metric']: row for row in data}
+    assert set(by_metric.keys()) == {'psu_power_cgroup_slice', 'psu_energy_cgroup_slice', 'psu_power_cgroup_container', 'psu_energy_cgroup_container'}
+    assert all(row['detail_name'] == 'containerA' for row in by_metric.values())
+
+    # single container -> splitting_ratio == 1, so slice/container values equal the machine-wide figures
+    assert by_metric['psu_power_cgroup_slice']['type'] == 'MEAN'
+    assert by_metric['psu_energy_cgroup_slice']['type'] == 'TOTAL'
+    assert by_metric['psu_power_cgroup_container']['type'] == 'MEAN'
+    assert by_metric['psu_energy_cgroup_container']['type'] == 'TOTAL'
+
+    machine_power_baseline_mw = Decimal(baseline_energy_uj) / baseline_duration_us * Decimal(1000)
+    machine_power_current_phase_mw = Decimal(sub1_energy_uj) / sub1_duration_us * Decimal(1000)
+
+    surplus_power_expected = machine_power_current_phase_mw - machine_power_baseline_mw
+    # baseline energy over the phase = power_mW * duration_us * 1e-3
+    # (mW * duration_s = mJ; duration_s = duration_us * 1e-6; mJ * 1000 = uJ -> combined factor 1e-3),
+    # matching production's Decimal(1e-3). round() mirrors generate_csv_line()'s own rounding on store.
+    surplus_energy_expected = round(Decimal(sub1_energy_uj) - (machine_power_baseline_mw * sub1_duration_us * Decimal(1e-3)))
+
+    assert by_metric['psu_power_cgroup_slice']['value'] == machine_power_current_phase_mw
+    assert by_metric['psu_energy_cgroup_slice']['value'] == sub1_energy_uj
+    assert by_metric['psu_power_cgroup_container']['value'] == surplus_power_expected
+    assert by_metric['psu_energy_cgroup_container']['value'] == surplus_energy_expected
+    # sanity check: baseline power (5W) over 0.5s phase = 2.5J = 2,500,000 uJ subtracted from 3,000,000 uJ used
+    assert surplus_energy_expected == 500_000
+
 
 def test_phase_stats_maps_elephant_machine_carbon():
     run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
@@ -978,3 +1096,276 @@ def test_phase_stats_maps_elephant_machine_carbon():
     assert data['unit'] == 'ugCO2e'
     assert data['value'] == 1200
     assert data['type'] == 'TOTAL'
+
+
+# --- Carbon intensity in phases shorter than the provider's padding interval ---
+#
+# The carbon intensity providers do not really measure per sample, they pad a step function over the
+# run via metric_providers/carbon/intensity/helpers.py::expand_to_sampling_rate(). That padding grid
+# starts at the provider's own start_profiling() time and steps by the configured sampling_rate
+# (99 ms in all shipped configs), so its sample positions are completely unrelated to the phase
+# boundaries. A phase that is shorter than that interval can therefore end up with zero padded
+# samples inside it, while every other provider (started a few ms earlier/later, so on a differently
+# offset grid) does have one. Without the step function handling in _compute_metric_phase_stats()
+# the phase then has no carbon intensity at all, carbon_intensity stays None and the network / SCI
+# carbon calculation reports that no carbon intensity provider data was found - even though the
+# intensity for that interval is perfectly well known.
+
+SHORT_PHASE_PROVIDER_START = 1_759_592_247_000_000
+SHORT_PHASE_PADDING_INTERVAL = 99_000 # what sampling_rate: 99 pads to
+
+# 'Quick command' is 60ms long, i.e. shorter than the 99ms padding interval, and is positioned
+# between two carbon padding grid points (offset +1_089_000 and +1_188_000 relative to the provider
+# start) so that not a single padded carbon sample falls inside it. The gap to the next phase is
+# ~300us, as it is in real runs, so the next grid point already belongs to 'Long command' and cannot
+# be folded in either - the phase has no carbon sample associated with it whatsoever.
+SHORT_PHASE_PHASES = [
+    {'start': SHORT_PHASE_PROVIDER_START +    50_000, 'name': '[BASELINE]',    'end': SHORT_PHASE_PROVIDER_START + 1_050_000, 'hidden': False},
+    {'start': SHORT_PHASE_PROVIDER_START + 1_060_000, 'name': '[RUNTIME]',     'end': SHORT_PHASE_PROVIDER_START + 3_000_000, 'hidden': False},
+    {'start': SHORT_PHASE_PROVIDER_START + 1_100_000, 'name': 'Quick command', 'end': SHORT_PHASE_PROVIDER_START + 1_160_000, 'hidden': False},
+    {'start': SHORT_PHASE_PROVIDER_START + 1_160_300, 'name': 'Long command',  'end': SHORT_PHASE_PROVIDER_START + 2_900_000, 'hidden': False},
+    {'start': SHORT_PHASE_PROVIDER_START + 3_010_000, 'name': '[REMOVE]',      'end': SHORT_PHASE_PROVIDER_START + 3_500_000, 'hidden': False},
+]
+
+def padding_grid(offset, value, samples=40, step=SHORT_PHASE_PADDING_INTERVAL):
+    return [(SHORT_PHASE_PROVIDER_START + offset + idx*step, value) for idx in range(samples)]
+
+def padding_grid_with_change(offset, value_before, value_after, change_offset, samples=40, step=SHORT_PHASE_PADDING_INTERVAL):
+    # what expand_to_sampling_rate() emits when the provider value changes during the run: the padding
+    # grid points, plus an additional sample at the exact time of the change
+    series = [
+        (SHORT_PHASE_PROVIDER_START + offset + idx*step, value_before if offset + idx*step < change_offset else value_after)
+        for idx in range(samples)
+    ]
+    series.append((SHORT_PHASE_PROVIDER_START + change_offset, value_after))
+    return sorted(series)
+
+def test_compute_metric_phase_stats_carries_padded_value_into_short_phase():
+    carbon_series = padding_grid(0, 436)
+    times = [time for time, _ in carbon_series]
+    values = [value for _, value in carbon_series]
+
+    short_phase = SHORT_PHASE_PHASES[2]
+    long_phase = SHORT_PHASE_PHASES[3]
+
+    assert short_phase['end'] - short_phase['start'] < SHORT_PHASE_PADDING_INTERVAL
+
+    def stats_for(phase, next_phase, **kwargs):
+        return _compute_metric_phase_stats(
+            times, values,
+            phase['start'], phase['end'], next_phase['start'],
+            Decimal(phase['end'] - phase['start']),
+            **kwargs,
+        )
+
+    # treated as a sampled quantity the phase has no sample at all: none inside its boundaries and the
+    # next grid point already belongs to the following phase, so it cannot be folded in either
+    plain_stats = stats_for(short_phase, long_phase)
+    assert plain_stats['value_count'] == 0
+    assert plain_stats['value_avg'] is None
+
+    # treated as a step function, the value in effect at phase start (= the last grid point before it)
+    # is the value of the phase
+    step_stats = stats_for(short_phase, long_phase, step_function=True)
+    assert step_stats['value_count'] == 1
+    assert step_stats['value_avg'] == 436
+    assert step_stats['max_value'] == 436
+    assert step_stats['min_value'] == 436
+
+    # a phase that does contain grid points keeps its own samples and just gets the value at phase
+    # start instead of the sample after phase end
+    long_phase_step_stats = stats_for(long_phase, SHORT_PHASE_PHASES[4], step_function=True)
+    assert long_phase_step_stats['value_count'] > 1
+    assert long_phase_step_stats['value_avg'] == 436
+
+
+def test_compute_metric_phase_stats_step_function_keeps_samples_inside_the_phase():
+    # the value at phase start is added to the samples inside the phase, it must never replace them
+    times = [0, 99_000]
+    values = [400, 500]
+
+    stats = _compute_metric_phase_stats(times, values, 90_000, 110_000, 200_000, Decimal(20_000), step_function=True)
+
+    assert stats['value_count'] == 2
+    assert stats['min_value'] == 400 # carried in from before the phase
+    assert stats['max_value'] == 500 # the real sample inside the phase
+    # 400 is in effect for the first 9ms of the phase, 500 for the remaining 11ms. The classic average
+    # of (400+500)/2 = 450 that a sampled quantity gets for two samples would throw that timing away
+    assert stats['value_avg'] == (400*9_000 + 500*11_000) / Decimal(20_000)
+    assert stats['value_avg'] == 455
+
+
+def test_compute_metric_phase_stats_step_function_has_no_value_before_first_sample():
+    # a provider that only came up after a phase had already ended must not get values mapped
+    # backwards into it
+    carbon_series = padding_grid(0, 436)
+    times = [time for time, _ in carbon_series]
+    values = [value for _, value in carbon_series]
+
+    phase_before_provider_start = {
+        'start': SHORT_PHASE_PROVIDER_START - 500_000,
+        'end': SHORT_PHASE_PROVIDER_START - 440_000,
+    }
+
+    stats = _compute_metric_phase_stats(
+        times, values,
+        phase_before_provider_start['start'], phase_before_provider_start['end'], SHORT_PHASE_PROVIDER_START,
+        Decimal(phase_before_provider_start['end'] - phase_before_provider_start['start']),
+        step_function=True,
+    )
+
+    assert stats['value_count'] == 0
+    assert stats['value_avg'] is None
+
+
+def test_compute_metric_phase_stats_step_function_weights_each_interval_with_its_starting_value():
+    # A sample of a step function is the value in effect FROM its timestamp until the next one, so an
+    # interval has to be weighted with the value at its start. Weighting it with the value at its end -
+    # correct for a sampled quantity, where a sample describes the interval that ends at it - would
+    # report 266.67 here, as it shifts every value one interval to the left.
+    times = [0, 100, 200]
+    values = [100, 200, 300]
+
+    stats = _compute_metric_phase_stats(times, values, 50, 250, 400, Decimal(200), step_function=True)
+
+    # 100 is in effect from 50 to 100, 200 from 100 to 200 and 300 from 200 to the phase end at 250
+    assert stats['value_count'] == 3
+    assert stats['value_avg'] == (100*50 + 200*100 + 300*50) / Decimal(200)
+    assert stats['value_avg'] == 200
+
+
+def test_compute_metric_phase_stats_step_function_closes_the_last_interval_at_phase_end():
+    # the last sample of a phase is not terminated by a following sample like all the ones before it,
+    # its value stays in effect until the phase ends - so that interval must be weighted in as well
+    times = [0, 100_000]
+    values = [400, 500]
+
+    stats = _compute_metric_phase_stats(times, values, 50_000, 300_000, 400_000, Decimal(250_000), step_function=True)
+
+    # 400 from the phase start at 50_000 to 100_000, 500 from there to the phase end at 300_000
+    assert stats['value_count'] == 2
+    assert stats['value_avg'] == (400*50_000 + 500*200_000) / Decimal(250_000)
+    assert stats['value_avg'] == 480
+
+
+def test_compute_metric_phase_stats_step_function_mean_is_exact_on_a_padded_grid():
+    # The real providers do not only pad onto the grid, expand_to_sampling_rate() also emits an extra
+    # sample at the exact time the value changes. Together with the interval weighting above that makes
+    # the MEAN exact, not just an approximation limited by the padding interval.
+    carbon_series = padding_grid_with_change(0, 436, 512, 2_000_000)
+    times = [time for time, _ in carbon_series]
+    values = [value for _, value in carbon_series]
+
+    long_phase = SHORT_PHASE_PHASES[3]
+    change = SHORT_PHASE_PROVIDER_START + 2_000_000
+    assert long_phase['start'] < change < long_phase['end'], 'test setup broken - the change must fall inside the phase'
+
+    stats = _compute_metric_phase_stats(
+        times, values,
+        long_phase['start'], long_phase['end'], SHORT_PHASE_PHASES[4]['start'],
+        Decimal(long_phase['end'] - long_phase['start']),
+        step_function=True,
+    )
+
+    expected = (
+        Decimal(436) * (change - long_phase['start']) + Decimal(512) * (long_phase['end'] - change)
+    ) / Decimal(long_phase['end'] - long_phase['start'])
+    assert stats['value_avg'] == expected
+
+
+def test_compute_metric_phase_stats_step_function_mean_in_phase_shorter_than_the_padding_interval():
+    # the case this whole step function handling exists for: a phase too short to contain a grid point,
+    # but the value does change inside it - so it has exactly the carried in value plus the change
+    # sample, and the classic average of the two would place the change in the middle of the phase
+    short_phase = SHORT_PHASE_PHASES[2]
+    change = SHORT_PHASE_PROVIDER_START + 1_120_000
+
+    carbon_series = padding_grid_with_change(0, 436, 512, 1_120_000)
+    times = [time for time, _ in carbon_series]
+    values = [value for _, value in carbon_series]
+
+    assert short_phase['end'] - short_phase['start'] < SHORT_PHASE_PADDING_INTERVAL
+    assert short_phase['start'] < change < short_phase['end']
+
+    stats = _compute_metric_phase_stats(
+        times, values,
+        short_phase['start'], short_phase['end'], SHORT_PHASE_PHASES[3]['start'],
+        Decimal(short_phase['end'] - short_phase['start']),
+        step_function=True,
+    )
+
+    # 436 for the first 20ms of the phase, 512 for the remaining 40ms - not (436+512)/2 = 474
+    assert stats['value_count'] == 2
+    assert stats['value_avg'] == (436*20_000 + 512*40_000) / Decimal(60_000)
+
+
+def test_phase_stats_carbon_intensity_survives_short_phase():
+    run_id = Tests.insert_run(SHORT_PHASE_PHASES)
+
+    # carbon intensity as the provider actually stores it: a padded step function on a 99ms grid
+    # starting at the provider's own start time
+    import_custom_metric(
+        run_id,
+        'carbon_intensity_static_machine',
+        'gCO2e/kWh',
+        padding_grid(0, 436),
+        detail_name='static',
+    )
+
+    # the network provider runs on the same 99ms rate, but was started ~31ms later, so its grid is
+    # offset against the carbon grid and it does hit the short phase
+    import_custom_metric(
+        run_id,
+        'network_io_cgroup_container',
+        'bytes',
+        padding_grid(31_000, 1_000_000),
+        detail_name='test-container',
+    )
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        build_and_store_phase_stats(run_id, sci={'N': 0.001})
+
+    # the phase has network traffic, so the network carbon calculation runs for it
+    assert DB().fetch_one(
+        'SELECT value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = %s',
+        params=(run_id, '002_Quick command', 'network_total_cgroup_container'),
+    ) is not None, 'test setup broken - the short phase must have network data'
+
+    carbon_intensity = DB().fetch_one(
+        'SELECT value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = %s',
+        params=(run_id, '002_Quick command', 'carbon_intensity_static_machine'),
+    )
+    assert carbon_intensity is not None, 'carbon intensity was dropped for the short phase'
+    assert carbon_intensity[0] == 436
+
+    network_carbon = DB().fetch_one(
+        'SELECT value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = %s',
+        params=(run_id, '002_Quick command', 'network_carbon_formula_global'),
+    )
+    assert network_carbon is not None, 'network carbon was not calculated for the short phase'
+
+    # the reconstructed runtime phase sums its sub-phases, so a dropped sub-phase would silently make
+    # the total network carbon of the run too low rather than fail visibly
+    runtime_network_carbon = DB().fetch_one(
+        'SELECT value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = %s',
+        params=(run_id, '001_[RUNTIME]', 'network_carbon_formula_global'),
+    )
+    long_phase_network_carbon = DB().fetch_one(
+        'SELECT value FROM phase_stats WHERE run_id = %s AND phase = %s AND metric = %s',
+        params=(run_id, '003_Long command', 'network_carbon_formula_global'),
+    )
+    assert runtime_network_carbon[0] == network_carbon[0] + long_phase_network_carbon[0]
+
+    assert 'No carbon intensity provider data was found' not in err.getvalue()
+
+    logged_errors = DB().fetch_all("SELECT message FROM system_logs WHERE level = 'error'")
+    assert not [row for row in logged_errors if 'No carbon intensity provider data was found' in row[0]], \
+        'a configured carbon intensity provider must not be reported as missing'
+
+    # a padded step function has no undersampling problem - its value holds for the whole interval,
+    # so the low sample count in the short phase must not produce a MEAN accuracy warning either
+    warnings = DB().fetch_all('SELECT message FROM warnings WHERE run_id = %s', params=(run_id, ))
+    assert not [row for row in warnings if 'carbon_intensity_static_machine' in row[0]], \
+        f"expected no undersampling warning for the padded carbon intensity, got {warnings}"

@@ -4,11 +4,12 @@ import string
 import subprocess
 import os
 import requests
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse, quote
 from functools import cache
 from pathlib import Path
 
-from lib.encryption import encrypt_data, decrypt_data, EncryptionConfigurationError, ENCRYPTED_VALUE_PREFIX
+from lib.global_config import GlobalConfig
+from lib.encryption import encrypt_data, decrypt_data, is_encrypted_value, EncryptionConfigurationError
 
 # Matches the userinfo part of a URI that uses HTTP-AUTH, e.g. https://user:pass@host/path
 # Username is optional to also catch forms like https://:token@host/path
@@ -19,12 +20,55 @@ PRIVATE_KEY_RE = re.compile(r'-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [
 
 REDACTED = '*****GMT-REDACTED*****'
 
+# Usage scenario variables whose name matches this pattern carry secrets (passwords, tokens, ...).
+# They are stored and displayed in their encrypted form only and are decrypted just-in-time by the
+# ScenarioRunner when it replaces them into the usage_scenario. See encrypt_secret_usage_scenario_variables().
+SECRET_USAGE_SCENARIO_VARIABLE_RE = re.compile(r'__GMT_VAR_SECRET_[\w]+__')
+
+# Plaintext values registered at runtime (currently the decrypted secret usage scenario variables)
+# that filter_sensitive_data() must scrub out of everything we print or persist.
+_SENSITIVE_VALUES = set()
+
+def register_sensitive_values(values):
+    """
+    Register plaintext values that filter_sensitive_data() will redact from now on. See
+    ScenarioRunner.__init__, the only production caller: it clears any values left behind by a
+    previous run before registering its own (see clear_sensitive_values()), so plaintext secrets
+    never accumulate across runs of a long-lived worker process.
+    """
+    for value in values:
+        if isinstance(value, str) and value:
+            _SENSITIVE_VALUES.add(value)
+
+def clear_sensitive_values():
+    """Scrub registered plaintext secrets from process memory."""
+    _SENSITIVE_VALUES.clear()
+
 def filter_sensitive_data(text):
     if not text:
         return text
     text = URI_CREDENTIALS_RE.sub(rf'\1{REDACTED}@', text)
     text = PRIVATE_KEY_RE.sub(REDACTED, text)
+    # Longest first: if a shorter registered secret is a substring of a longer one (e.g. "token" vs
+    # "token123"), redacting the shorter one first would leave the longer secret's remainder exposed.
+    for sensitive_value in sorted(_SENSITIVE_VALUES, key=len, reverse=True):
+        text = text.replace(sensitive_value, REDACTED)
     return text
+
+def filter_sensitive_data_structure(data):
+    """
+    Recursively apply filter_sensitive_data() to every string in a nested structure. Used for data
+    that is serialized to JSON before being stored, where filtering the serialized string would miss
+    values that JSON escaping has altered. Returns plain dicts/lists, so frozen structures like
+    FrozenDict can be passed in.
+    """
+    if isinstance(data, str):
+        return filter_sensitive_data(data)
+    if isinstance(data, dict):
+        return {key: filter_sensitive_data_structure(value) for key, value in data.items()}
+    if isinstance(data, (list, tuple)):
+        return [filter_sensitive_data_structure(value) for value in data]
+    return data
 
 # The above are defined before this import as lib.error_helpers imports them back from here (circular import)
 from lib import error_helpers
@@ -32,6 +76,94 @@ from lib import host_platform
 from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# The two tag namespaces gmt_tmp_image_name() builds '<image>_<suffix>[_<worker>]' tags from, and
+# host_platform.remove_gmt_tmp_images() matches its cleanup sweep against - kept as the single
+# source of truth for both spellings so neither side can drift out of sync with the other.
+GMT_TMP_IMAGE_SUFFIX_RUN = 'gmt_run_tmp'
+GMT_TMP_IMAGE_SUFFIX_TEST = 'gmt_test_tmp'
+GMT_KANIKO_BUILD_CACHE_VOLUME = 'green-metrics-tool_kaniko-build-cache'
+
+# Marker container_name() below mixes into every test container/network name, together with the
+# pytest-xdist worker id when there is one. A plain worker-id suffix ('-gw0') is not distinctive
+# enough on its own - tests/conftest.py::_initial_container_cleanup() force-removes anything on the
+# host ending in the current worker's suffix, and without this marker that match isn't scoped to
+# this project at all, so on a shared dev machine or CI host it could catch an unrelated
+# container that merely happens to end in the same worker-id-shaped string. Single source of truth
+# shared by container_name() and that cleanup fixture, so both sides always agree.
+GMT_TEST_CONTAINER_MARKER = 'gmt-test'
+
+def get_test_worker_id():
+    # pytest-xdist sets this to 'gw0', 'gw1', ... in each worker process, and leaves it
+    # unset when pytest is run without -n (or when not running under pytest at all).
+    worker = os.environ.get('PYTEST_XDIST_WORKER')
+    if not worker:
+        return None
+    # Zero-pad the numeric part ('gw1' -> 'gw001') so every worker id this session hands out is
+    # the same fixed width. This is the single source of truth every worker-suffixed name
+    # (containers, networks, schemas, docker image tags, ...) is built from, so padding it here -
+    # once - means none of those downstream consumers can suffer a numeric-prefix collision
+    # (e.g. plain substring/prefix matching 'gw1' against 'gw10'..'gw19') without each of them
+    # needing their own anchoring logic. 3 digits comfortably covers any realistic worker count.
+    match = re.fullmatch(r'gw(\d+)', worker)
+    if not match:
+        return worker
+    return f'gw{int(match.group(1)):03d}'
+
+def get_test_worker_count():
+    # pytest-xdist sets this alongside PYTEST_XDIST_WORKER (see get_test_worker_id() above) in every
+    # worker process, to the total number of workers in the session. Unset when pytest runs without
+    # -n, or when not running under pytest at all - in which case there is exactly one process
+    # competing for the host, so returning 1 lets callers divide by this unconditionally.
+    count = os.environ.get('PYTEST_XDIST_WORKER_COUNT')
+    if not count or not count.isdigit() or int(count) < 1:
+        return 1
+    return int(count)
+
+def is_test_run():
+    # pytest sets this for the duration of every test (setup/call/teardown, inherited by any
+    # subprocess spawned meanwhile), regardless of whether -n/xdist is in use - unlike
+    # get_test_worker_id() above, which is only non-None under -n. Used by container_name() and
+    # gmt_tmp_image_name() below (and host_platform.remove_gmt_tmp_images()) to keep test-built
+    # names/tags in a namespace entirely separate from production ones, so cleanup sweeps can
+    # never cross-match between the two - which they previously could whenever a test ran without
+    # -n, since both then produced the exact same unsuffixed production name/tag.
+    # We need to also check the GlobalConfig as tests can also make a subprocess call and clear the env()
+    return bool(os.environ.get('PYTEST_CURRENT_TEST')) or GlobalConfig().config['postgresql']['host'] == 'test-green-coding-postgres-container'
+
+def container_name(base_name):
+    # Suffixed with GMT_TEST_CONTAINER_MARKER (plus the pytest-xdist worker id, when running under
+    # -n, so that parallel test workers never fight over the same container/network name) whenever
+    # this is a test run; unsuffixed in production. Single source of truth shared by ScenarioRunner
+    # (production naming, lib/scenario_runner.py), the test suite's own assertions
+    # (tests/test_functions.py), and tests/conftest.py::_initial_container_cleanup(), so all three
+    # always agree.
+    if not is_test_run():
+        return base_name
+    worker_id = get_test_worker_id()
+    suffix = f'{GMT_TEST_CONTAINER_MARKER}-{worker_id}' if worker_id else GMT_TEST_CONTAINER_MARKER
+    return f"{base_name}-{suffix}"
+
+def gmt_tmp_image_name(cleaned_base_name):
+    # Same worker-id suffixing as container_name(), but for the '<image>_<suffix>' docker image
+    # tags ScenarioRunner._clean_image_name() builds - a machine-wide, cross-run cache/build-cache
+    # resource (unlike containers/networks, it's deliberately reused between separate runs), so
+    # without a worker suffix, concurrent workers building the same base image would race on the
+    # exact same tag, and host_platform.remove_gmt_tmp_images()'s cache-clearing sweep could rm -f
+    # an image another worker is still mid-build/mid-use on. cleaned_base_name must already be
+    # through _clean_image_name()'s own charset/lowercase cleanup (or, for test assertions, be a
+    # literal that's already known to be clean, e.g. 'alpine'). Single source of truth shared by
+    # ScenarioRunner and the test suite's own assertions, so both sides always agree.
+    worker_id = get_test_worker_id()
+    suffix = GMT_TMP_IMAGE_SUFFIX_TEST if is_test_run() else GMT_TMP_IMAGE_SUFFIX_RUN
+    name = f"{cleaned_base_name}_{suffix}"
+    return f"{name}_{worker_id}" if worker_id else name
+
+def kaniko_build_cache_volume_name():
+    # Docker volume mounted into the kaniko builder to cache layers / stages across all builds of one run.
+    # Suffixed with the pytest-xdist worker id so parallel test workers never share or delete each other's cache.
+    worker_id = get_test_worker_id()
+    return f"{GMT_KANIKO_BUILD_CACHE_VOLUME}_{worker_id}" if worker_id else GMT_KANIKO_BUILD_CACHE_VOLUME
 
 def remove_git_suffix(url):
     if url.endswith('.git'):
@@ -101,7 +233,7 @@ def decrypt_userinfo(userinfo):
     """
     if not userinfo:
         return None
-    if userinfo.startswith(ENCRYPTED_VALUE_PREFIX):
+    if is_encrypted_value(userinfo):
         return decrypt_data(userinfo)
     return userinfo
 
@@ -115,6 +247,65 @@ def split_userinfo(userinfo):
         return '', ''
     username, _, password = userinfo.partition(':')
     return username, password
+
+def is_secret_usage_scenario_variable(key):
+    """
+    True if a usage scenario variable name marks the variable as holding a secret, i.e. it follows
+    the __GMT_VAR_SECRET_*__ convention.
+    """
+    return SECRET_USAGE_SCENARIO_VARIABLE_RE.fullmatch(key) is not None
+
+def encrypt_secret_usage_scenario_variables(usage_scenario_variables):
+    """
+    Return a copy of the usage scenario variables where every secret variable carries its encrypted
+    value, which is what gets stored in the DB and displayed in the frontend. Values that are already
+    encrypted are passed through unchanged, so a dict can be round-tripped (submit -> display ->
+    re-submit) without ever needing the plaintext again.
+    Raises EncryptionConfigurationError if a plaintext secret is present but no encryption key is
+    configured.
+    """
+    if not usage_scenario_variables:
+        return usage_scenario_variables
+
+    encrypted_variables = {}
+    for key, value in usage_scenario_variables.items():
+        if is_secret_usage_scenario_variable(key) and isinstance(value, str) and not is_encrypted_value(value):
+            value = encrypt_data(value)
+        encrypted_variables[key] = value
+
+    return encrypted_variables
+
+def redact_secret_usage_scenario_variables(usage_scenario_variables):
+    """
+    Return a copy of the usage scenario variables where every secret variable value is replaced by
+    the redaction marker. Fallback for storing variables on machines that have no encryption key
+    configured, where the encrypted form is not available but the plaintext must never be persisted.
+    """
+    if not usage_scenario_variables:
+        return usage_scenario_variables
+
+    return {
+        key: REDACTED if is_secret_usage_scenario_variable(key) else value
+        for key, value in usage_scenario_variables.items()
+    }
+
+def decrypt_secret_usage_scenario_variables(usage_scenario_variables):
+    """
+    Return a copy of the usage scenario variables with the plaintext of every encrypted secret
+    variable. Secrets that are not encrypted (e.g. supplied directly on the CLI) are passed through
+    unchanged. The result must never be stored or printed - see register_sensitive_values().
+    Raises EncryptionConfigurationError if a secret is encrypted but cannot be decrypted here.
+    """
+    if not usage_scenario_variables:
+        return usage_scenario_variables
+
+    decrypted_variables = {}
+    for key, value in usage_scenario_variables.items():
+        if is_secret_usage_scenario_variable(key) and isinstance(value, str) and is_encrypted_value(value):
+            value = decrypt_data(value)
+        decrypted_variables[key] = value
+
+    return decrypted_variables
 
 def get_git_api(parsed_url):
 
@@ -148,12 +339,23 @@ def get_git_api(parsed_url):
         api_host = f"{userinfo}@{api_host}"
     return [f"https://{api_host}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'custom']
 
+def get_git_api_headers(git_api):
+    # The token is only ever sent to api.github.com. GitLab and custom hosts must never receive it.
+    if git_api != 'github':
+        return {}
+
+    token = GlobalConfig().config.get('cluster', {}).get('github_api_token')
+    if not token:
+        return {}
+
+    return {'Authorization': f"Bearer {token}"}
+
 
 def check_repo(repo_url, branch='main'):
     parsed_url = urlparse(repo_url)
     [url, git_api] = get_git_api(parsed_url)
     if git_api == 'github':
-        url = f"{url}/commits?per_page=1&sha={branch}"
+        url = f"{url}/commits?per_page=1&sha={quote(branch, safe='')}"
     elif git_api in ('gitlab', 'custom'):
         url = f"{url}/commits?per_page=1"
     else:
@@ -161,7 +363,7 @@ def check_repo(repo_url, branch='main'):
         return
 
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers=get_git_api_headers(git_api), timeout=10)
     except Exception as exc:
         error_helpers.log_error(f"Request to {git_api} API failed",url=url,exception=str(exc))
         raise RuntimeError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?") from exc
@@ -173,7 +375,7 @@ def check_repo(repo_url, branch='main'):
 
     # ---- Rate limit detection (works even on 403) ----
     if response.status_code == 403 and isinstance(message, str) and message.startswith("API rate limit exceeded"):
-        error_helpers.log_error(f"{git_api} rate limit exceeded while accessing {repo_url}. Skipping repo validation - Consider authenticating future requests.")
+        error_helpers.log_error(f"{git_api} rate limit exceeded while accessing {repo_url}. Skipping repo validation - Consider setting cluster.github_api_token in config.yml.")
         return
 
     # We early return here in case of custom API and only do a warning,
@@ -219,12 +421,12 @@ def get_repo_last_marker(repo_url, marker, branch=None):
     url = f"{url}/{marker}?per_page=1"
     if branch:
         if git_api == 'github':
-            url += f"&sha={branch}"
+            url += f"&sha={quote(branch, safe='')}"
         elif git_api in ('gitlab', 'custom'):
-            url += f"&ref_name={branch}"
+            url += f"&ref_name={quote(branch, safe='')}"
 
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers=get_git_api_headers(git_api), timeout=10)
     except Exception as exc:
         error_helpers.log_error('Request to GitHub API failed',url=url,exception=str(exc))
         raise RuntimeError(f"Could not find repository {repo_url}. Is the repository publicly accessible and not empty?") from exc
@@ -314,6 +516,7 @@ SENSITIVE_CONFIG_KEYS = frozenset({
     'secret',
     'api_key',
     'auth_token',
+    'github_api_token',
 })
 
 def sanitize_config(value, _redacted='__REDACTED__'):
@@ -412,3 +615,31 @@ def runtime_dir():
         return run_user
 
     return "/tmp"
+
+
+def _trim_cell(value, width):
+    text = '' if value is None else str(value)
+    if len(text) <= width:
+        return text
+    if width <= 3:
+        return text[:width]
+    return text[:width - 3] + '...'
+
+
+def print_simple_table(headers, rows, max_column_width=60):
+    if not rows:
+        print('No rows to display')
+        return
+
+    widths = [len(header) for header in headers]
+    for row in rows:
+        for idx, cell in enumerate(row):
+            widths[idx] = min(max(widths[idx], len('' if cell is None else str(cell))), max_column_width)
+
+    def fmt(row):
+        return ' | '.join(_trim_cell(cell, widths[idx]).ljust(widths[idx]) for idx, cell in enumerate(row))
+
+    print(fmt(headers))
+    print('-+-'.join('-' * width for width in widths))
+    for row in rows:
+        print(fmt(row))

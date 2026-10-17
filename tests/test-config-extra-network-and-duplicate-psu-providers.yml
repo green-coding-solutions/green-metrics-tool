@@ -9,6 +9,12 @@ redis:
   host: test-green-coding-redis-container
   port: 6380
 
+admin:
+  notification_email: False
+  error_file: False
+  error_email: False
+  email_bcc: False
+
 
 machine:
   id: 1

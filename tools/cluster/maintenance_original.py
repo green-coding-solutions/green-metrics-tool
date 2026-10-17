@@ -56,14 +56,18 @@ def sync_ntp():
 def update_os_packages():
     ## Do APT last, as we want to insert the Changelog
     apt_packages_upgrade = None
-    ps = subprocess.run(
-        ['/usr/bin/sudo', '/usr/bin/apt', 'update'],
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT, # put both in one stream
-        encoding='UTF-8',
-        errors='replace'
-    )
+    try:
+        ps = subprocess.run(
+            ['/usr/bin/sudo', '/usr/bin/apt', 'update'],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, # put both in one stream
+            encoding='UTF-8',
+            errors='replace',
+            timeout=180, # apt update must never hang indefinitely
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"/usr/bin/sudo apt update timed out after 180s: {exc.stdout}") from exc
     if ps.returncode != 0:
         raise RuntimeError(f"/usr/bin/sudo apt update failed: {ps.stdout}")
 
@@ -80,6 +84,8 @@ def update_os_packages():
                 '-o', 'Dpkg::Options::=--force-confdef',
                 '-o', 'Dpkg::Options::=--force-confold',
                 '-o', 'Acquire::Retries=3',
+                '-o', 'Acquire::http::ConnectTimeout=10',
+                '-o', 'Acquire::https::ConnectTimeout=10',
                 'full-upgrade', '-y'
             ],
             check=False,

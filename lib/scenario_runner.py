@@ -22,8 +22,10 @@ import shutil
 import math
 import yaml
 import platform
+import psutil
 
 from pathlib import Path
+from urllib.parse import urlparse
 from copy import deepcopy
 from collections import OrderedDict
 from datetime import datetime
@@ -46,25 +48,49 @@ from lib import container_compatibility
 from lib.repo_info import get_repo_info
 from lib.debug_helper import DebugHelper
 from lib.terminal_colors import TerminalColors
-from lib.schema_checker import SchemaChecker
+from lib.schema_checker import SchemaChecker, flow_runs_on_host
 from lib.db import DB
 from lib.global_config import GlobalConfig, freeze_dict, FrozenDict
 from lib.notes import Notes
 from lib.machine import Machine
 from lib.container_compatibility import CompatibilityStatus
 from lib.log_types import LogType
+from lib.user import User
+from lib.encryption import EncryptionConfigurationError
 from metric_providers.base import MetricProviderConfigurationError
+from metric_providers.container import ContainerMetricProvider
 
 from energy_dependency_inspector import resolve_docker_dependencies_as_dict
 
+# Reported as the state of a depends_on dependency whose container 'docker container inspect' cannot
+# find at all. Deliberately not a real docker state ('created', 'running', 'exited', ...) so it can
+# never be mistaken for one, and phrased to read naturally in the 'is not running but <state>'
+# RuntimeError _setup_services() raises when a dependency never comes up.
+MISSING_CONTAINER_STATE = 'missing (container not found)'
+
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
+
+HOST_EXECUTION_DETAIL_NAME = '[HOST]'
 
 def validate_usage_scenario_variables(usage_scenario_variables):
     for key, _ in usage_scenario_variables.items():
         if not re.fullmatch(r'__GMT_VAR_[\w]+__', key):
             raise ValueError(f"Usage Scenario variable ({key}) has invalid name. Format must be __GMT_VAR_[\\w]+__ - Example: __GMT_VAR_EXAMPLE__")
     return usage_scenario_variables
+
+def to_storable_usage_scenario_variables(usage_scenario_variables):
+    """
+    Bring the usage scenario variables into the form that may be persisted and displayed: secret
+    variables (__GMT_VAR_SECRET_*__) encrypted, everything else untouched.
+    """
+    try:
+        return utils.encrypt_secret_usage_scenario_variables(usage_scenario_variables)
+    except EncryptionConfigurationError:
+        # Typical for local CLI runs on machines that have no encryption key configured. We still
+        # must never persist the plaintext, so the secret is stored redacted instead of encrypted.
+        print(TerminalColors.WARNING, 'Warning: Secret usage scenario variables cannot be encrypted as no encryption key is configured. They will be stored redacted.', TerminalColors.ENDC)
+        return utils.redact_secret_usage_scenario_variables(usage_scenario_variables)
 
 class ScenarioRunner:
     def __init__(self,
@@ -103,6 +129,9 @@ class ScenarioRunner:
         if dev_cache_build and (docker_prune or full_docker_prune):
             raise ValueError('--dev-cache-build blocks pruning docker images. Combination is not allowed')
 
+        if utils.is_test_run() and (docker_prune or full_docker_prune):
+            raise ValueError('Docker pruning must be disabled during test runs because docker system prune is host-global')
+
         if full_docker_prune and \
             config['postgresql']['host'] in ('green-coding-postgres-container', 'test-green-coding-postgres-container') :
             raise ValueError('--full-docker-prune is set while your database host is "(test)-green-coding-postgres-container".\nThe switch is only for remote measuring machines. It would stop the GMT images itself when running locally')
@@ -132,7 +161,11 @@ class ScenarioRunner:
         self._dev_no_save = dev_no_save
         self._dev_stream_outputs = dev_stream_outputs
         self._dev_cache_repos = dev_cache_repos
-        self._dev_no_system_checks = dev_no_system_checks
+        # Normalizes True/False (disable all/nothing) as well as a comma-separated string (CLI) or
+        # an iterable of check names (direct kwarg) into True/False/a set of names - see
+        # lib/system_checks.py::normalize_disabled_checks(). self._arguments (above) already
+        # captured the raw, unnormalized value for run-invalidation/logging purposes.
+        self._dev_no_system_checks = system_checks.normalize_disabled_checks(dev_no_system_checks)
         self._dev_no_resource_limits = dev_no_resource_limits
 
         self._uri = uri
@@ -142,7 +175,11 @@ class ScenarioRunner:
         self._original_branch = branch  # Track original branch value to distinguish user-specified from auto-detected
         self._requested_commit_hash = commit_hash
 
-        self._tmp_folder = host_platform.get_tmp_root().joinpath('green-metrics-tool')
+        # Suffixed with the pytest-xdist worker id (when running under -n) so parallel test
+        # workers never share the same working directory. Empty outside of pytest-xdist.
+        worker_id = utils.get_test_worker_id()
+        tmp_folder_name = f'green-metrics-tool-{worker_id}' if worker_id else 'green-metrics-tool'
+        self._tmp_folder = host_platform.get_tmp_root().joinpath(tmp_folder_name)
 
         if isinstance(ssh_private_key, SecureVariable):
             self._ssh_private_key = ssh_private_key
@@ -170,7 +207,24 @@ class ScenarioRunner:
         self._docker_config_dir = self._tmp_folder.joinpath('docker_client_config')
 
         self._usage_scenario_original = FrozenDict() # exposed to outside to read from only though
-        self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
+
+
+        # We clear any values left registered by a previous ScenarioRunner before registering new ones for this run. This is far easier than clearing them after a run,
+        # because subsequent actions like optimizations and error handling in client.py / jobs.py may still write error logs or echo stuff which might need redacton
+        utils.clear_sensitive_values()
+
+
+        # Secret variables must never leave this process in plaintext. self._usage_scenario_variables
+        # holds the storable form (secrets encrypted) and is what ends up in the DB, while the
+        # resolved dict below carries the real values and is used for the usage_scenario replacement
+        # only. Registering the plaintexts makes filter_sensitive_data() scrub them from everything
+        # we log or persist, should the usage_scenario echo them back to us.
+        validated_usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
+        self._usage_scenario_variables = to_storable_usage_scenario_variables(validated_usage_scenario_variables)
+        self.__usage_scenario_variables_resolved = utils.decrypt_secret_usage_scenario_variables(validated_usage_scenario_variables)
+        utils.register_sensitive_values(
+            value for key, value in self.__usage_scenario_variables_resolved.items() if utils.is_secret_usage_scenario_variable(key)
+        )
         self._carbon_simulation = carbon_simulation
         self._category_ids = set(category_ids) if category_ids else None # deduplicate
         self._architecture = utils.get_architecture()
@@ -211,6 +265,7 @@ class ScenarioRunner:
         # security related keys we never want to log
         del self._arguments['ssh_private_key']
         del self._arguments['docker_credentials']
+        self._arguments['usage_scenario_variables'] = self._usage_scenario_variables # secrets only in their storable (encrypted) form
 
         self._safe_post_processing_steps = (
                 ('_end_measurement',  {'skip_on_already_ended': True}),
@@ -234,6 +289,7 @@ class ScenarioRunner:
         self.__all_runs_logs = []  # List of runs, each containing iteration, filename, and containers with their logs
         self.__containers = {}
         self.__networks = []
+        self.__network_name_map = {} # raw YAML network name -> actual (worker-suffixed) docker network name
         self.__ps_to_kill = []
         self.__ps_to_read = []
         self.__metric_providers = []
@@ -282,6 +338,7 @@ class ScenarioRunner:
                 raise ValueError(f"Cannot run flows due to configuration error. Measurement_total_duration must be >= {key}, otherwise the flow will run into a timeout in every case. Values are: {key}: {value} and measurement_total_duration: {self._measurement_total_duration}")
 
     def _append_and_print_warning(self, warning):
+        warning = utils.filter_sensitive_data(warning) # warnings quote usage_scenario content, which may carry secret variables
         print(TerminalColors.WARNING, '\n', warning, TerminalColors.ENDC, sep='')
         self.__warnings.append(warning)
 
@@ -374,8 +431,43 @@ class ScenarioRunner:
                 f"{cred['username']}:{cred['password'].get_value()}".encode()
             ).decode()
             auths[cred['registry']] = {'auth': token}
-        config_file = self._docker_config_dir / 'config.json'
-        self._write_secret_file(config_file, json.dumps({'auths': auths}, separators=(',', ':')))
+
+        # Kaniko executes the user supplied Dockerfile in the same container where the config is mounted. RUN steps can thus read it.
+        # Therefore it must only ever contain the credentials of this run and never the ones from the host docker config
+        self._write_secret_file(self._docker_config_dir / 'kaniko_config.json', json.dumps({'auths': auths}, separators=(',', ':')))
+
+        # The docker CLI is pointed to our config dir via DOCKER_CONFIG. To not lose the other settings of the host config
+        # like currentContext, proxies or auths for other registries we load it and only replace the auth entries we bring
+        host_docker_config_dir = Path(os.environ.get('DOCKER_CONFIG', Path.home() / '.docker'))
+        docker_config = {}
+        host_docker_config_file = host_docker_config_dir / 'config.json'
+        if host_docker_config_file.is_file():
+            try:
+                docker_config = json.loads(host_docker_config_file.read_text(encoding='utf-8'))
+            except (OSError, json.JSONDecodeError) as exc:
+                print(TerminalColors.WARNING, f"Could not parse docker config {host_docker_config_file}. Using only the supplied docker credentials. Error: {exc}", TerminalColors.ENDC)
+            if not isinstance(docker_config, dict):
+                docker_config = {}
+
+        if not isinstance(docker_config.get('auths'), dict):
+            docker_config['auths'] = {}
+        docker_config['auths'].update(auths)
+
+        # A credential helper / store takes precedence over the inline auths. So we must remove it for the registries we supply,
+        # as otherwise our credentials would be silently ignored. credsStore applies to all registries and thus has to go completely
+        docker_config.pop('credsStore', None)
+        if isinstance(docker_config.get('credHelpers'), dict):
+            for registry in auths:
+                docker_config['credHelpers'].pop(registry, None)
+                docker_config['credHelpers'].pop(urlparse(registry).netloc, None) # helpers are keyed by hostname, while registry might be supplied as URL
+
+        self._write_secret_file(self._docker_config_dir / 'config.json', json.dumps(docker_config, separators=(',', ':')))
+
+        # currentContext only references a context. The metadata itself lives in the contexts folder of the config dir
+        host_contexts_dir = host_docker_config_dir / 'contexts'
+        contexts_link = self._docker_config_dir / 'contexts'
+        if host_contexts_dir.is_dir() and not contexts_link.exists():
+            contexts_link.symlink_to(host_contexts_dir.resolve(), target_is_directory=True)
 
     def _delete_docker_config_dir(self):
         if self._docker_config_dir.exists():
@@ -455,16 +547,26 @@ class ScenarioRunner:
 
         self.__notes_helper.save_to_db(self._run_id)
 
+    def _log_free_memory(self):
+        print(TerminalColors.HEADER, f"\nFree memory at run start: {round(psutil.virtual_memory().available / 1024 / 1024,2)} MB", TerminalColors.ENDC)
+
     def _clear_caches(self):
         host_platform.clear_file_system_caches()
 
     def _check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
-        if self._dev_no_system_checks:
-            print('Skipping check system due to --dev-no-system-checks')
+        if self._dev_no_system_checks is True:
+            print('Skipping all system checks due to --dev-no-system-checks')
             return
 
-        warnings = system_checks.system_check(mode, self._measurement_system_check_threshold, run_duration=self._last_measurement_duration)
+        if self._dev_no_system_checks:
+            print(f"Skipping system checks due to --dev-no-system-checks: {', '.join(sorted(self._dev_no_system_checks))}")
+
+        warnings = system_checks.system_check(
+            mode, self._measurement_system_check_threshold,
+            disabled_checks=self._dev_no_system_checks or None,
+            run_duration=self._last_measurement_duration,
+        )
         for warn in warnings:
             self.__warnings.append(warn) # are already printed via system_checks
 
@@ -652,7 +754,7 @@ class ScenarioRunner:
                 usage_scenario = uc_string_replace(usage_scenario, key, value)
 
             if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
-                raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches} \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
+                raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches} \n\n {utils.filter_sensitive_data(usage_scenario)}. \n\n Please add variables when submitting run.")
 
             return usage_scenario
 
@@ -729,11 +831,11 @@ class ScenarioRunner:
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as f:
             usage_scenario = f.read()
-            usage_scenario = replace_usage_scenario_variables(usage_scenario, self._usage_scenario_variables)
+            usage_scenario = replace_usage_scenario_variables(usage_scenario, self.__usage_scenario_variables_resolved)
 
             Loader = make_loader(
                 replacer=replace_usage_scenario_variables,
-                usage_scenario_variables=self._usage_scenario_variables,
+                usage_scenario_variables=self.__usage_scenario_variables_resolved,
                 usage_scenario_file=usage_scenario_file,
             )
 
@@ -746,7 +848,7 @@ class ScenarioRunner:
 
             #Check that all variables have been replaced
             if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
-                raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. \n\n {usage_scenario}. \n\n Please add variables when submitting run.")
+                raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. \n\n {utils.filter_sensitive_data(usage_scenario)}. \n\n Please add variables when submitting run.")
 
             if len(self.__usage_scenario_variables_used_buffer) > 0:
                 raise ValueError(f"Usage Scenario Variables '{self.__usage_scenario_variables_used_buffer}' was not used in usage scenario. Please remove it or add it to the usage scenario.")
@@ -817,6 +919,12 @@ class ScenarioRunner:
         if self._allow_unsafe:
             print(TerminalColors.WARNING, arrows('Warning: Runner is running in unsafe mode'), TerminalColors.ENDC)
 
+        has_host_flows = any(flow_runs_on_host(flow) for flow in self.__usage_scenario.get('flow', []))
+        if has_host_flows and not User(self._user_id).can_use_orchestrator('host'):
+            raise PermissionError(f"The usage scenario contains flows that are configured to run directly on the host (container: null), but host execution is not permitted for your user (id: {self._user_id}). The user needs the 'host' orchestrator capability (measurement.orchestrators.host).")
+        if has_host_flows:
+            self._append_and_print_warning('Some flows will execute directly on the host system (container: null) instead of inside a container. These commands are not sandboxed and the measurement data is not directly comparable to fully containerized runs.')
+
         if self.__usage_scenario.get('architecture') is not None and self._architecture != self.__usage_scenario['architecture'].lower():
             raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self.__usage_scenario.get('architecture')})")
 
@@ -835,6 +943,10 @@ class ScenarioRunner:
         # Disable Docker CLI hints (e.g. "What's Next? ...")
         os.environ['DOCKER_CLI_HINTS'] = 'false'
 
+    def _resolve_container_name(self, service_name, service_config):
+        base_name = service_config.get('container_name', service_name)
+        return utils.container_name(base_name), base_name
+
     def _check_running_containers_before_start(self):
         result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
                                 stdout=subprocess.PIPE,
@@ -843,10 +955,7 @@ class ScenarioRunner:
         for line in result.stdout.splitlines():
             for running_container in line.split(','): # if docker container has multiple tags, they will be split by comma, so we only want to
                 for service_name in self.__usage_scenario.get('services', {}):
-                    if 'container_name' in self.__usage_scenario['services'][service_name]:
-                        container_name = self.__usage_scenario['services'][service_name]['container_name']
-                    else:
-                        container_name = service_name
+                    container_name, _ = self._resolve_container_name(service_name, self.__usage_scenario['services'][service_name])
 
                     if running_container == container_name:
                         raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
@@ -1068,7 +1177,7 @@ class ScenarioRunner:
 
         measurement_config['measurement_settings'] = utils.sanitize_config({k: v for k, v in config['measurement'].items() if k != 'metric_providers'}) # filter out static metric providers which might not be relevant for platform we are running on
         measurement_config['configured_metric_providers'] = utils.sanitize_config(utils.get_metric_providers(config, self._disabled_metric_providers)) # get only the providers relevant to our platform
-        measurement_config['cluster_settings'] = config.get('cluster', {}) # untypical that it is empty, but it does not necessarily need to exist
+        measurement_config['cluster_settings'] = utils.sanitize_config(config.get('cluster', {})) # untypical that it is empty, but it does not necessarily need to exist
         measurement_config['machine_settings'] = config['machine']
         measurement_config['allowed_run_args'] = self._allowed_run_args
         measurement_config['sci'] = self._sci
@@ -1079,7 +1188,7 @@ class ScenarioRunner:
         params=(self._job_id, self._name, self.__clean_uri, self._branch, self._original_filename.as_posix(), json.dumps(self.__relations),
                 self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
                 json.dumps(machine_specs), json.dumps(measurement_config),
-                json.dumps(self._usage_scenario_original), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
+                json.dumps(utils.filter_sensitive_data_structure(self._usage_scenario_original)), json.dumps(self._usage_scenario_variables), list(self._category_ids) if self._category_ids else None,
                 gmt_hash,
                 GlobalConfig().config['machine']['id'], self._user_id,
         )
@@ -1123,6 +1232,14 @@ class ScenarioRunner:
             print(TerminalColors.WARNING, arrows('No metric providers were configured in config.yml. Was this intentional?'), TerminalColors.ENDC)
             return
 
+        # A usage scenario without services will never have containers. Instead of guarding all
+        # call sites we move the container bound metric providers to the disabled providers.
+        if not self.__usage_scenario.get('services'):
+            for metric_provider in metric_providers:
+                if metric_provider.endswith('_container') and metric_provider not in self._disabled_metric_providers:
+                    self._append_and_print_warning(f"Disabling {metric_provider} as it needs containers and no containers are part of this run")
+                    self._disabled_metric_providers.append(metric_provider)
+
         self._initialize_folder(self._metrics_folder) # should be cleared for a new run, bc we otherwise do not understand which files are new
 
         for metric_provider in metric_providers: # will iterate over keys
@@ -1140,7 +1257,9 @@ class ScenarioRunner:
                 if metric_provider == 'carbon_intensity_elephant_machine':
                     optional_conf['simulation_uuid'] = str(self.__carbon_simulation_uuid)
 
-            if self._dev_no_system_checks:
+            # To be Implemented: Currently there is no way of disabling metric provider checks separately with --dev-no-system-checks arguments
+            # Currently I believe there is no valid use case. Implement this once we have one. Otherwise using the full switch seems sufficient for now
+            if self._dev_no_system_checks is True:
                 optional_conf['skip_check'] = True
 
             print(f"Importing {class_name} from {module_path}")
@@ -1175,20 +1294,33 @@ class ScenarioRunner:
             context = service['build']
             dockerfile = 'Dockerfile'
             args = {}
+            target = None
         else:
             context =  service['build'].get('context', '.')
             dockerfile = service['build'].get('dockerfile', 'Dockerfile')
             args = service['build'].get('args', {})
+            target = service['build'].get('target', None)
 
-        return context, dockerfile, args
+        return context, dockerfile, args, target
+
+    def _remove_kaniko_build_cache_volume(self):
+        if self._dev_cache_build:
+            print('Skipping removing of kaniko build cache volume due to --dev-cache-build')
+            return
+
+        print('Removing kaniko build cache volume')
+        # no check=True, as the volume might not exist. We do not want to fail here
+        subprocess.run(['docker', 'volume', 'rm', '-f', utils.kaniko_build_cache_volume_name()], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
 
     def _clean_image_name(self, name):
         # clean up image name for problematic characters
         name = re.sub(r'[^A-Za-z0-9_]', '_', name)
         # only lowercase letters are allowed for tags
         name = name.lower()
-        name = f"{name}_gmt_run_tmp"
-        return name
+        # utils.gmt_tmp_image_name() appends the pytest-xdist worker suffix (see its own docstring
+        # for why this machine-wide, cross-run cache tag needs one) - the same helper is used by
+        # host_platform.remove_gmt_tmp_images() and by test assertions, so all three stay in sync.
+        return utils.gmt_tmp_image_name(name)
 
     def _build_docker_images(self):
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
@@ -1218,7 +1350,7 @@ class ScenarioRunner:
                 pass
 
             if 'build' in service:
-                context, dockerfile, args = self._get_build_info(service)
+                context, dockerfile, args, target = self._get_build_info(service)
                 print(f"Building {service['image']}")
                 self.__notes_helper.add_note( note=f"Building {service['image']}", detail_name='[NOTES]', timestamp=int(time.time_ns() / 1_000))
 
@@ -1234,6 +1366,9 @@ class ScenarioRunner:
 
                 docker_build_command.extend(
                     ['--mount', 'type=volume,dst=/workspace',
+                    # named volume shared by all builds of this run, so multi-stage builds and services sharing base layers can re-use cached layers
+                    # It is removed in cleanup() to not leak cached state into subsequent runs
+                    '--mount', f"type=volume,source={utils.kaniko_build_cache_volume_name()},target=/cache",
                     # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
                     '--mount', f"type=bind,source={self._repo_folder.as_posix()},target={repo_mount_path},readonly", # this is the folder where the usage_scenario is!
                     '--mount', f"type=bind,source={self._build_dir.as_posix()},target=/output"]
@@ -1242,7 +1377,7 @@ class ScenarioRunner:
                 if self._docker_credentials:
                     docker_build_command.extend([
                         '--mount',
-                        f"type=bind,source={self._docker_config_dir.joinpath('config.json').as_posix()},target=/kaniko/.docker/config.json,readonly",
+                        f"type=bind,source={self._docker_config_dir.joinpath('kaniko_config.json').as_posix()},target=/kaniko/.docker/config.json,readonly",
                     ])
 
                 for relation_key, relation in self.__relations.items():
@@ -1262,8 +1397,14 @@ class ScenarioRunner:
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--cleanup=true',
+                    '--cache=true',
+                    '--cache-dir=/cache/base-images',
+                    '--cache-repo=oci:/cache/layers',
                     '--no-push']
                 )
+
+                if target:
+                    docker_build_command.append(f"--target={target}")
 
                 for arg_dict in args:
                     for arg_key, arg_value in arg_dict.items():
@@ -1434,19 +1575,28 @@ class ScenarioRunner:
             for network in self.__usage_scenario['networks']:
                 if network in ('host', 'bridge', 'none'):
                     raise ValueError('Pre-defined networks like host, none and bridge cannot be created with Docker orchestrator. They already exist and can only be joined.')
-                print('Creating network: ', network)
+                # utils.container_name() is generic worker-id suffixing, not container-specific;
+                # reused as-is here for network names.
+                resolved_network = utils.container_name(network)
+                print('Creating network: ', resolved_network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
-                subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
+                subprocess.run(['docker', 'network', 'rm', resolved_network], stderr=subprocess.DEVNULL, check=False)
 
                 if self.__usage_scenario['networks'][network] and self.__usage_scenario['networks'][network].get('internal', False):
-                    subprocess.check_output(['docker', 'network', 'create', '--internal', network], encoding='UTF-8', errors='replace')
+                    subprocess.check_output(['docker', 'network', 'create', '--internal', resolved_network], encoding='UTF-8', errors='replace')
                 else:
-                    subprocess.check_output(['docker', 'network', 'create', network], encoding='UTF-8', errors='replace')
+                    subprocess.check_output(['docker', 'network', 'create', resolved_network], encoding='UTF-8', errors='replace')
 
-                self.__networks.append(network)
+                self.__networks.append(resolved_network)
+                self.__network_name_map[network] = resolved_network
         else:
             print(TerminalColors.HEADER, '\nNo network found. Creating default network', TerminalColors.ENDC)
-            network = f"GMT_default_tmp_network_{random.randint(500000,10000000)}"
+            # utils.container_name() appends the pytest-xdist worker id under test runs (same as the
+            # explicit-networks branch above). Without it, two concurrent runs could roll the same
+            # random int and collide - the second run's "remove first if present" rm below would then
+            # delete the first run's live network out from under it, right before its containers
+            # attach, surfacing as a spurious "network ... not found" on docker run.
+            network = utils.container_name(f"GMT_default_tmp_network_{random.randint(500000,10000000)}")
             print('Creating network: ', network)
             # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
             subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
@@ -1492,10 +1642,7 @@ class ScenarioRunner:
         services_ordered = self._order_services(services)
         for service_name, service in services_ordered.items():
 
-            if 'container_name' in service:
-                container_name = service['container_name']
-            else:
-                container_name = service_name
+            container_name, base_container_name = self._resolve_container_name(service_name, service)
 
             container_data = {
                 'name': container_name,
@@ -1540,7 +1687,7 @@ class ScenarioRunner:
 
             # this is a special feature container with a reserved name.
             # we only want to do the replacement when a magic include code was set, which is guaranteed via self.__include_playwright_ipc == True
-            if self.__include_playwright_ipc and container_name == 'gmt-playwright-nodejs':
+            if self.__include_playwright_ipc and base_container_name == 'gmt-playwright-nodejs':
                 docker_run_string.append('--mount')
                 docker_run_string.append(f"type=bind,source={GMT_ROOT_DIR}/templates/partials/gmt-playwright-ipc.js,target=/tmp/gmt-utils/gmt-playwright-ipc.js,readonly")
 
@@ -1730,12 +1877,21 @@ class ScenarioRunner:
                 if labels_check_errors:
                     raise RuntimeError('Docker container labels that have problems:\n\n'.join(labels_check_errors))
 
+            # Always alias the container under its plain, unsuffixed service name (base_container_name),
+            # in addition to its real worker-suffixed name (container_name) - this matches normal
+            # docker-compose semantics, where the service name is itself the resolvable hostname on the
+            # compose network. Without this, any scenario where one service hardcodes another's service
+            # name (e.g. a Django app configured with DB HOST="db") breaks under -n, since the real
+            # container is actually named e.g. 'db-gw000' and the plain 'db' hostname would otherwise
+            # never resolve.
             if 'networks' in service:
                 for network in service['networks']:
                     if network == 'host' and not self._allow_unsafe:
                         raise ValueError('Docker network host is restricted in GMT and cannot be joined. If running in CLI mode or if you have cluster capabilities try again with --allow-unsafe.')
                     docker_run_string.append('--net')
-                    docker_run_string.append(network)
+                    docker_run_string.append(self.__network_name_map.get(network, network))
+                    docker_run_string.append('--network-alias')
+                    docker_run_string.append(base_container_name)
                     if isinstance(service['networks'], dict) and service['networks'][network]:
                         if service['networks'][network].get('aliases', None):
                             for alias in service['networks'][network]['aliases']:
@@ -1750,6 +1906,8 @@ class ScenarioRunner:
                 # if this is true only one entry is in self.__networks
                 docker_run_string.append('--net')
                 docker_run_string.append(self.__networks[0])
+                docker_run_string.append('--network-alias')
+                docker_run_string.append(base_container_name)
 
 
             if 'pause-after-phase' in service:
@@ -1790,7 +1948,12 @@ class ScenarioRunner:
                             health_string_command = health_string_copy.pop(0)
                             if health_string_command not in ['CMD', 'CMD-SHELL']:
                                 raise RuntimeError(f"Healthcheck starts with {health_string_command}. Please use 'CMD' or 'CMD-SHELL' when supplying as list. For disabling do not use 'NONE' but the disable argument.")
-                            health_string = ' '.join(health_string_copy)
+                            # --health-cmd is always executed through a shell. For the exec form (CMD) we
+                            # quote every argument so the shell splits it back into exactly the given argv
+                            if health_string_command == 'CMD':
+                                health_string = shlex.join(health_string_copy)
+                            else:
+                                health_string = ' '.join(health_string_copy)
                         docker_run_string.append(health_string)
                     if 'interval' in service['healthcheck']:
                         docker_run_string.append('--health-interval')
@@ -1872,22 +2035,35 @@ class ScenarioRunner:
             # If no healthcheck is defined, the container state "running" is sufficient.
             if 'depends_on' in service:
                 for dependent_service in service['depends_on']:
-                    dependent_container_name = dependent_service
-                    if 'container_name' in services[dependent_service]:
-                        dependent_container_name = services[dependent_service]["container_name"]
+                    dependent_container_name, _ = self._resolve_container_name(dependent_service, services[dependent_service])
 
                     time_waited = 0
                     state = ''
                     health = 'healthy' # default because some containers have no health
                     max_waiting_time = self._measurement_wait_time_dependencies
                     while time_waited < max_waiting_time:
-                        status_output = subprocess.check_output(
+                        # check=False rather than check_output(): a container that is not there at all
+                        # makes 'docker container inspect' exit non-zero, and letting that surface as a
+                        # bare CalledProcessError buries the actual problem under a stack trace about
+                        # subprocess internals. The dependency genuinely being gone is a legitimate
+                        # state to report - _order_services() guarantees it was started before we get
+                        # here, so it either died and was removed, or something outside this run removed
+                        # it - and reporting it as the state lets the 'state != running' check below
+                        # raise the same descriptive RuntimeError every other failed dependency gets.
+                        status_ps = subprocess.run(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
-                            stderr=subprocess.STDOUT,
+                            check=False,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, # put both in one stream
                             encoding='UTF-8',
                             errors='replace'
                         )
-                        state = status_output.strip()
+                        if status_ps.returncode == 0:
+                            state = status_ps.stdout.strip()
+                        else:
+                            state = MISSING_CONTAINER_STATE
+                            if time_waited == 0: # only once, the loop below already reports the state every iteration
+                                print(f"Could not inspect dependent service '{dependent_service}': {status_ps.stdout.strip()}")
                         if time_waited == 0 or state != "running":
                             print(f"Container state of dependent service '{dependent_service}': {state}")
 
@@ -1940,7 +2116,7 @@ class ScenarioRunner:
                     raise RuntimeError(f"Command in service '{service_name}' must be a string or a list but is: {type(service['command'])}")
 
             container_data['docker_run_cmd'] = docker_run_string
-            print(f"Calling docker with these parameters: {docker_run_string}")
+            print(f"Calling docker with these parameters: {utils.filter_sensitive_data(str(docker_run_string))}")
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
             # injection of unwanted params
@@ -1955,6 +2131,9 @@ class ScenarioRunner:
             )
 
             if ps.returncode != 0:
+                # CalledProcessError only stringifies the command and the returncode, so the reason docker
+                # refused the container would never show up in the logs. We print it separately.
+                print(TerminalColors.FAIL, f"\nCould not start container '{container_name}'\n\n========== Stdout ==========\n{utils.filter_sensitive_data(ps.stdout)}\n\n========== Stderr ==========\n{utils.filter_sensitive_data(ps.stderr)}", TerminalColors.ENDC, file=sys.stderr)
                 raise subprocess.CalledProcessError(
                             ps.returncode,
                             docker_run_string,
@@ -1975,11 +2154,11 @@ class ScenarioRunner:
             print('Running commands')
             for cmd_obj in service.get('setup-commands', []):
                 if shell := cmd_obj.get('shell', False):
-                    d_command = ['docker', 'exec', container_name, shell, '-ec', cmd_obj['command']] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, shell, *process_helpers.get_shell_options(cmd_obj), '-c', cmd_obj['command']] # This must be a list!
                 else:
                     d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'], posix=False)] # This must be a list!
 
-                print('Running command: ', ' '.join(d_command))
+                print('Running command: ', utils.filter_sensitive_data(' '.join(d_command)))
 
                 if cmd_obj.get('detach', False) is True:
                     print('Executing setup-commands process asynchronously and detaching ...')
@@ -2016,6 +2195,8 @@ class ScenarioRunner:
 
                     if ps.returncode == 137:
                         raise MemoryError(f"Your process {d_command} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                    elif shell_options_error := process_helpers.get_shell_options_error(d_command, ps.stderr):
+                        raise RuntimeError(f"Process {d_command} could not be run. {shell_options_error}\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
                     elif ps.returncode != 0:
                         raise RuntimeError(f"Process {d_command} failed with return code {ps.returncode}.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
 
@@ -2180,7 +2361,7 @@ class ScenarioRunner:
 
     def _add_containers_to_metric_providers(self):
         for metric_provider in self.__metric_providers:
-            if metric_provider._metric_name.endswith('_container'):
+            if isinstance(metric_provider, ContainerMetricProvider):
                 metric_provider.add_containers(self.__containers)
 
     def _start_metric_providers(self, allow_container=True, allow_other=True):
@@ -2195,10 +2376,10 @@ class ScenarioRunner:
         # This includes tcpdump, which is only for debugging of the containers itself
         # If debugging of the tool itself is wanted tcpdump should be started adjacent to the tool and not inline
         for metric_provider in self.__metric_providers:
-            if (metric_provider._metric_name.endswith('_container') or metric_provider._metric_name == 'network_connections_tcpdump_system' ) and not allow_container:
+            if not metric_provider.starts_before_containers and not allow_container:
                 continue
 
-            if not metric_provider._metric_name.endswith('_container') and metric_provider._metric_name != 'network_connections_tcpdump_system' and not allow_other:
+            if metric_provider.starts_before_containers and not allow_other:
                 continue
 
             if metric_provider.has_started():
@@ -2216,10 +2397,10 @@ class ScenarioRunner:
         self._custom_sleep(2)
 
         for metric_provider in self.__metric_providers:
-            if (metric_provider._metric_name.endswith('_container') or metric_provider._metric_name == 'network_connections_tcpdump_system' ) and not allow_container:
+            if not metric_provider.starts_before_containers and not allow_container:
                 continue
 
-            if not metric_provider._metric_name.endswith('_container') and metric_provider._metric_name != 'network_connections_tcpdump_system' and not allow_other:
+            if metric_provider.starts_before_containers and not allow_other:
                 continue
 
             stderr_read = metric_provider.get_stderr()
@@ -2285,6 +2466,12 @@ class ScenarioRunner:
 
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
+            # utils.container_name() appends this worker's xdist suffix under test runs, exactly as
+            # _setup_services() did when it created the container. Every docker command below must
+            # target that same suffixed name, or it 404s the moment a worker suffix is in play.
+            runs_on_host = flow_runs_on_host(flow)
+            resolved_flow_container = HOST_EXECUTION_DETAIL_NAME if runs_on_host else utils.container_name(flow['container'])
+
             try:
                 self._start_phase(flow['name'], hidden=flow.get('hidden', False), transition=False)
 
@@ -2292,13 +2479,15 @@ class ScenarioRunner:
                     self._check_total_runtime_exceeded()
 
                     if 'note' in cmd_obj:
-                        self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=flow['container'], timestamp=int(time.time_ns() / 1_000))
+                        self.__notes_helper.add_note( note=cmd_obj['note'], detail_name=resolved_flow_container, timestamp=int(time.time_ns() / 1_000))
 
-                    print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on container', flow['container'], TerminalColors.ENDC)
-                    print(cmd_obj['command'])
+                    print(TerminalColors.HEADER, '\nExecuting ', cmd_obj['type'], 'command on', resolved_flow_container, TerminalColors.ENDC)
+                    print(utils.filter_sensitive_data(cmd_obj['command']))
 
-                    docker_exec_command = ['docker', 'exec']
-                    docker_exec_command.append(flow['container'])
+                    if runs_on_host:
+                        exec_command = []
+                    else:
+                        exec_command = ['docker', 'exec', resolved_flow_container]
 
                     stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
 
@@ -2313,19 +2502,26 @@ class ScenarioRunner:
                         print(TerminalColors.WARNING, arrows('Process output is streamed. Please note that this disallows capturing of errors and build outputs in logs and error messages.'), TerminalColors.ENDC)
 
                     if cmd_obj['type'] == 'playwright':
-                        docker_exec_command.append(cmd_obj.get('shell', 'sh'))
-                        docker_exec_command.append('-ec')
+                        exec_command.append(cmd_obj.get('shell', 'sh'))
+                        exec_command.append('-ec')
                         escaped_command = cmd_obj['command'].replace("'", "\\'")
-                        docker_exec_command.append(f"echo '{escaped_command}' > /tmp/playwright-ipc-commands")
+                        exec_command.append(f"echo '{escaped_command}' > /tmp/playwright-ipc-commands")
 
                     elif cmd_obj['type'] == 'console':
 
                         if shell := cmd_obj.get('shell', False):
-                            docker_exec_command.append(shell)
-                            docker_exec_command.append('-ec')
-                            docker_exec_command.append(cmd_obj['command'])
+                            if runs_on_host:
+                                exec_command.extend(host_platform.shell_command_argv(shell, cmd_obj['command'], process_helpers.get_shell_options(cmd_obj, shell)))
+                            else:
+                                exec_command.append(shell)
+                                exec_command.extend(process_helpers.get_shell_options(cmd_obj))
+                                exec_command.append('-c')
+                                exec_command.append(cmd_obj['command'])
+                        elif runs_on_host:
+                            # posix=False would keep quote characters on POSIX systems; on Windows path syntax (backslashes) demands posix=False
+                            exec_command.extend(shlex.split(cmd_obj['command'], posix=not host_platform.is_windows()))
                         else:
-                            docker_exec_command.extend(shlex.split(cmd_obj['command'], posix=False))
+                            exec_command.extend(shlex.split(cmd_obj['command'], posix=False))
                     else:
                         raise RuntimeError('Unknown command type in flow: ', cmd_obj['type'])
 
@@ -2340,7 +2536,7 @@ class ScenarioRunner:
 
                         #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
                         ps = subprocess.Popen(
-                            docker_exec_command,
+                            exec_command,
                             stderr=stderr_behaviour,
                             stdout=stdout_behaviour,
                             encoding='UTF-8',
@@ -2359,7 +2555,7 @@ class ScenarioRunner:
                             print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
 
                         ps = subprocess.run(
-                            docker_exec_command,
+                            exec_command,
                             stderr=stderr_behaviour,
                             stdout=stdout_behaviour,
                             encoding='UTF-8',
@@ -2369,12 +2565,12 @@ class ScenarioRunner:
                         )
 
                     ps_to_read_tmp.append({
-                        'cmd': docker_exec_command,
+                        'cmd': exec_command,
                         'ps': ps,
-                        'container_name': flow['container'],
+                        'container_name': resolved_flow_container,
                         'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
                         'ignore-errors': cmd_obj.get('ignore-errors', False),
-                        'detail_name': flow['container'],
+                        'detail_name': resolved_flow_container,
                         'detach': cmd_obj.get('detach', False),
                         'flow_name': flow['name'],
                     })
@@ -2383,23 +2579,35 @@ class ScenarioRunner:
                     # this command will block until something is received
                     if cmd_obj['type'] == 'playwright':
                         print("Awaiting Playwright function return")
+                        if self._measurement_flow_process_duration:
+                            print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
                         try:
+                            # /tmp/playwright-ipc-status is a blocking FIFO
                             ps = subprocess.run(
-                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-ready'],
+                                ['docker', 'exec', resolved_flow_container, 'cat', '/tmp/playwright-ipc-status'],
                                 check=True,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
                                 encoding='UTF-8',
                                 errors='replace',
-                                timeout=60, # 60 seconds should be reasonable for any playwright command we know
+                                timeout=self._measurement_flow_process_duration
                             )
+                            status = ps.stdout.strip()
+                            if status != 'ok':
+                                if status.startswith('error:'):
+                                    error_message = status[len('error:'):].strip()
+                                else:
+                                    error_message = 'Playwright IPC did not report a status (process likely crashed)'
+                                raise RuntimeError(
+                                    f"Error: {error_message}.\n"
+                                    f"Executed command that produced error: {cmd_obj['command']}"
+                                )
                         except subprocess.TimeoutExpired as exc:
-                            error_message = subprocess.check_output(
-                                ['docker', 'exec', flow['container'], 'cat', '/tmp/playwright-ipc-error'],
-                                encoding='UTF-8',
-                                errors='replace',
-                            )
-                            raise RuntimeError(f"Error: {error_message}.\nExecuted command that produced error: {cmd_obj['command']}") from exc
+                            raise RuntimeError(
+                                f"Error: Playwright command did not return a status within "
+                                f"{self._measurement_flow_process_duration}s.\n"
+                                f"Executed command that produced error: {cmd_obj['command']}"
+                            ) from exc
 
 
                     if self._debugger.active:
@@ -2613,6 +2821,9 @@ class ScenarioRunner:
                         stderr = ps['ps'].stderr
                 except subprocess.TimeoutExpired:
                     stderr = 'Could not read due to timeout'
+
+                if shell_options_error := process_helpers.get_shell_options_error(ps['cmd'], stderr):
+                    raise RuntimeError(f"Process '{ps['cmd']}' could not be run. {shell_options_error}\n\n========== Stderr ==========\n{stderr}")
 
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
                     if ps['ps'].returncode == 137:
@@ -2875,12 +3086,15 @@ class ScenarioRunner:
         self.__containers.clear()
 
         print('Removing network')
-        for network_name in self.__networks:
+        for network in self.__networks:
             # no check=True, as the network might already be gone. We do not want to fail here
-            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
+            subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
         self.__networks.clear()
+        self.__network_name_map.clear()
 
         self._remove_docker_images()
+
+        self._remove_kaniko_build_cache_volume()
 
         for ps in self.__ps_to_kill:
             try:
@@ -2898,7 +3112,6 @@ class ScenarioRunner:
         self.__current_run_logs.clear()
         self.__phases.clear()
         self.__end_measurement = None
-        self.__join_default_network = False
         self.__services_to_pause_phase.clear()
         self.__join_default_network = False
         self.__docker_params.clear()
@@ -2939,7 +3152,9 @@ class ScenarioRunner:
             # Remove any stale config left by a previously crashed run
             self._delete_docker_config_dir()
             self._delete_ssh_private_key_file()
+            self._remove_kaniko_build_cache_volume()
 
+            self._log_free_memory()
             self._create_folders()
             self._start_measurement() # we start as early as possible to include initialization overhead
             self._clear_caches()

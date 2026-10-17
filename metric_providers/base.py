@@ -6,13 +6,17 @@ from io import StringIO
 import pandas
 from typing import final
 
-from lib.system_checks import ConfigurationCheckError
+from lib.system_checks import ConfigurationCheckError, Status
 from lib import process_helpers
 
 class MetricProviderConfigurationError(ConfigurationCheckError):
-    pass
+    def __init__(self, message, status=Status.ERROR, error_key=None):
+        super().__init__(message, status, error_key)
 
 class BaseMetricProvider:
+    # Providers that need the containers of the run (e.g. their IDs / cgroups) or that should only capture
+    # traffic once the containers are up set this to False and are started after the [BOOT] phase.
+    starts_before_containers = True
 
     def __init__(self, *,
         metric_name,

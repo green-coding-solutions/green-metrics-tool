@@ -4,8 +4,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install dependencies
 RUN \
-    apt-get update && \
-    apt-get install -y curl git make gcc python3 python3-pip python3-venv sudo && \
+    timeout 180 apt-get update && \
+    apt-get -o Acquire::http::ConnectTimeout=10 -o Acquire::https::ConnectTimeout=10 install -y curl git make gcc python3 python3-pip python3-venv sudo && \
     rm -rf /var/lib/apt/lists/*
 
 ENV USER=root
