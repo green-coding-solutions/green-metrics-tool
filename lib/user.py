@@ -5,12 +5,10 @@ from lib.secure_variable import SecureVariable
 from lib.db import DB
 from lib.encryption import EncryptionConfigurationError, ENCRYPTED_VALUE_PREFIX, decrypt_data, encrypt_data, is_valid_openssh_private_key
 
-def get_nested_value(dictionary, path):
-    keys = path.split('.', 1)
-    key = keys[0]
-    if len(keys) == 1:
-        return (dictionary, key, dictionary[key])
-    return get_nested_value(dictionary[key], keys[1])
+def set_nested_value(dictionary, keys, value):
+    for key in keys[:-1]:
+        dictionary = dictionary[key]
+    dictionary[keys[-1]] = value
 
 class User():
 
@@ -51,12 +49,32 @@ class User():
     def __repr__(self):
         return str(self.to_dict())
 
-    def update(self):
+    # Capabilities are only ever written path-wise and never as a whole object.
+    # A User object can live for hours (e.g. during a measurement job) and writing back the full
+    # in-memory copy would overwrite changes that happened in the DB in the meantime
+    def set_capability(self, path: str, value):
+        keys = path.split('.')
+
         DB().query("""
             UPDATE users
-            SET capabilities = %s
+            SET capabilities = jsonb_set(capabilities, %s::text[], %s::jsonb)
             WHERE id = %s
-            """, params=(json.dumps(self._capabilities), self._id, ))
+            """, params=(keys, json.dumps(value), self._id, ))
+
+        set_nested_value(self._capabilities, keys, value)
+
+    # Decrement is done atomically in the DB. If the key does not exist in the DB (anymore) nothing is changed
+    # Note: Quotas can become negative as deductions happen after usage. Checks are always for > 0 though
+    def _decrement_capability(self, keys: list, amount: int):
+        new_value = DB().fetch_one("""
+            UPDATE users
+            SET capabilities = jsonb_set(capabilities, %s::text[], to_jsonb((capabilities #>> %s::text[])::bigint - %s))
+            WHERE id = %s AND capabilities #> %s::text[] IS NOT NULL
+            RETURNING capabilities #> %s::text[]
+            """, params=(keys, keys, amount, self._id, keys, keys))
+
+        if new_value is not None:
+            set_nested_value(self._capabilities, keys, new_value[0])
 
 
     def _save_key_to_db(self, encrypted_value):
@@ -130,9 +148,7 @@ class User():
             case _:
                 raise ValueError(f'The setting {name} is unknown')
 
-        (element, last_key, _) = get_nested_value(self._capabilities, name)
-        element[last_key] = value
-        self.update()
+        self.set_capability(name, value)
 
     def has_ssh_private_key(self):
         return bool(self.__encrypted_ssh_private_key)
@@ -235,9 +251,7 @@ class User():
         return True # None means infinite amounts
 
     def deduct_api_quota(self, route: str, amount: int):
-        if route in self._capabilities['api']['quotas']:
-            self._capabilities['api']['quotas'][route] -= amount
-            self.update()
+        self._decrement_capability(['api', 'quotas', route], amount)
 
     def has_measurement_quota(self, machine_id: int):
         machine_id = str(machine_id) # json does not support integer keys
@@ -247,9 +261,7 @@ class User():
 
     def deduct_measurement_quota(self, machine_id: int, amount: int):
         machine_id = str(machine_id)  # json does not support integer keys
-        if machine_id in self._capabilities['measurement']['quotas']:
-            self._capabilities['measurement']['quotas'][machine_id] -= amount
-            self.update()
+        self._decrement_capability(['measurement', 'quotas', machine_id], amount)
 
     @classmethod
     def authenticate(cls, token: SecureVariable | None):

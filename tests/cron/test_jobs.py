@@ -36,9 +36,7 @@ def get_job(job_id):
     return data
 
 def test_no_run_job():
-    user = User(1)
-    user._capabilities['measurement']['dev_no_system_checks'] = ['check_steal_time']
-    user.update()
+    User(1).set_capability('measurement.dev_no_system_checks', ['check_steal_time'])
 
     ps = subprocess.run(
             ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
@@ -86,9 +84,7 @@ def test_simple_run_job_no_quota():
 
     RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
 
-    user = User(1)
-    user._capabilities['measurement']['dev_no_system_checks'] = ['check_steal_time']
-    user.update()
+    User(1).set_capability('measurement.dev_no_system_checks', ['check_steal_time'])
 
     ps = subprocess.run(
             ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
@@ -117,9 +113,8 @@ def test_simple_run_job_quota_gets_deducted():
     RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
 
     user = User(1)
-    user._capabilities['measurement']['quotas'] = {'1': 10_000 * 60} # typical quota is 10.000 minutes
-    user._capabilities['measurement']['dev_no_system_checks'] = ['check_steal_time']
-    user.update()
+    user.set_capability('measurement.quotas', {'1': 10_000 * 60}) # typical quota is 10.000 minutes
+    user.set_capability('measurement.dev_no_system_checks', ['check_steal_time'])
 
     ps = subprocess.run(
             ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
@@ -149,9 +144,7 @@ def test_simple_run_job_with_variables():
 
     RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id, usage_scenario_variables=usage_scenario_variables)
 
-    user = User(1)
-    user._capabilities['measurement']['dev_no_system_checks'] = ['check_steal_time']
-    user.update()
+    User(1).set_capability('measurement.dev_no_system_checks', ['check_steal_time'])
 
     ps = subprocess.run(
             ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
@@ -187,9 +180,8 @@ def test_measurement_quota_exhausted():
     RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
 
     user = User(1)
-    user._capabilities['measurement']['quotas'] = {'1': 2678400}
-    user._capabilities['measurement']['dev_no_system_checks'] = ['check_steal_time']
-    user.update()
+    user.set_capability('measurement.quotas', {'1': 2678400})
+    user.set_capability('measurement.dev_no_system_checks', ['check_steal_time'])
     user.deduct_measurement_quota(machine_id=machine_id, amount=2678400)
 
     ps = subprocess.run(
@@ -211,9 +203,8 @@ def test_machine_not_allowed():
     RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
 
     user = User(1)
-    user._capabilities['machines'] = []
-    user._capabilities['measurement']['dev_no_system_checks'] = ['check_steal_time']
-    user.update()
+    user.set_capability('machines', [])
+    user.set_capability('measurement.dev_no_system_checks', ['check_steal_time'])
 
     ps = subprocess.run(
         ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
@@ -280,9 +271,7 @@ def test_docker_pull_private_image_via_db_credentials():
         'password': os.getenv('GMT_TESTING_DOCKER_PAT'),
     }])
 
-    user = User(1)
-    user._capabilities['measurement']['dev_no_system_checks'] = ['check_steal_time']
-    user.update()
+    User(1).set_capability('measurement.dev_no_system_checks', ['check_steal_time'])
 
     ps = subprocess.run(
         ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],

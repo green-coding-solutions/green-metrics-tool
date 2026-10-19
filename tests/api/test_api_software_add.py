@@ -164,9 +164,7 @@ def test_post_run_add_gitlab_custom_api_base():
 
 
 def test_post_run_add_no_permissions():
-    user = User(1)
-    user._capabilities['machines'] = []
-    user.update()
+    User(1).set_capability('machines', [])
 
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='eisen')

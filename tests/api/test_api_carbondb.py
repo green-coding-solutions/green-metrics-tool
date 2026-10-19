@@ -27,9 +27,7 @@ ENERGY_DATA = {
 }
 
 def test_carbondb_add_unauthenticated():
-    user = User(1)
-    user._capabilities['api']['routes'] = []
-    user.update()
+    User(1).set_capability('api.routes', [])
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15)
     assert response.status_code == 401, Tests.assertion_info('success', response.text)

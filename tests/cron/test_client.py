@@ -30,9 +30,7 @@ def test_simple_cluster_run():
 
     RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
 
-    user = User(1)
-    user._capabilities['measurement']['dev_no_system_checks'] = ['check_steal_time']
-    user.update()
+    User(1).set_capability('measurement.dev_no_system_checks', ['check_steal_time'])
 
     ps = subprocess.run(
             ['python3', '../cron/client.py', '--testing', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
