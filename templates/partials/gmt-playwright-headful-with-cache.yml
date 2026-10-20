@@ -1,6 +1,7 @@
 services:
     gmt-playwright-nodejs:
         image: mcr.microsoft.com/playwright:v1.64.1-noble
+        entrypoint: tail -f /dev/null
 #        volumes:
 #            - /tmp/.X11-unix:/tmp/.X11-unix # for debugging in non-headless mode
 #        environment:

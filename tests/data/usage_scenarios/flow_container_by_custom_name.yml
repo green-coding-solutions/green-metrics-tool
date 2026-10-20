@@ -6,6 +6,7 @@ description: test
 services:
   gmt-flow-alias-service:
     image: alpine
+    entrypoint: tail -f /dev/null
     container_name: gmt-totally-different-name
 
 flow:

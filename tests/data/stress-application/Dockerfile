@@ -8,3 +8,5 @@ ARG https_proxy
 ARG no_proxy
 
 RUN apk add stress-ng coreutils
+
+CMD ["tail", "-f", "/dev/null"]

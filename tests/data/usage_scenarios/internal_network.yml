@@ -12,7 +12,7 @@ services:
     image: alpine/curl
     networks: 
       - gmt-test-network
-    command: sh # keep container running
+    entrypoint: tail -f /dev/null # keep container running
 flow:
   - name: External network should fail
     container: test-container

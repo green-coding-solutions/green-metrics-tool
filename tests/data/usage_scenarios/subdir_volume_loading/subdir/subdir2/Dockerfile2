@@ -9,4 +9,4 @@ ARG no_proxy
 
 RUN apk add stress-ng
 
-CMD ["sh"]
+CMD ["tail", "-f", "/dev/null"]

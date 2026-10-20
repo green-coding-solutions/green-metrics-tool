@@ -1,3 +1,3 @@
 FROM alpine
 
-CMD ["sh"]
+CMD ["tail", "-f", "/dev/null"]
