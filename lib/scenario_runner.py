@@ -1661,14 +1661,10 @@ class ScenarioRunner:
             subprocess.run(['docker', 'rm', '-f', container_name], stderr=subprocess.DEVNULL, check=True)
 
             print('Creating container')
-            # We are attaching the -it option here to keep STDIN open and a terminal attached.
-            # This helps to keep an excecutable-only container open, which would otherwise exit
-            # This MAY break in the future, as some docker CLI implementation do not allow this and require
-            # the command args to be passed on run only
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
             # injection of unwawnted params
-            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
+            docker_run_string = ['docker', 'run', '-d', '--name', container_name]
 
 
             repo_mount_path = service.get('folder-destination', '/tmp/repo')
