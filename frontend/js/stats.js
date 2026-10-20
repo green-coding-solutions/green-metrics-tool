@@ -387,7 +387,7 @@ const renderLegacyLogsFromJson = (logsData) => {
     const legacyLogTemplate = `
         <div class="ui segment">
             <h4 class="ui header">{{containerName}}</h4>
-            <pre>{{stdout}}</pre>
+            <pre>{{combinedOut}}</pre>
         </div>
     `;
 
@@ -399,10 +399,12 @@ const renderLegacyLogsFromJson = (logsData) => {
     Object.keys(logsData).forEach(containerName => {
         const containerLogs = logsData[containerName];
         containerLogs.forEach(logEntry => {
+            // legacy logs do not have separate stdout and stderr but only a combined output
+            // still it is funneled in the data structure through the stdout variable. This is just legacy naming. No stderr got lost :)
             if (logEntry.stdout) {
                 contentHTML += legacyLogTemplate
                     .replace('{{containerName}}', escapeString(containerName))
-                    .replace('{{stdout}}', escapeString(logEntry.stdout));
+                    .replace('{{combinedOut}}', escapeString(logEntry.stdout));
             }
         });
     });
