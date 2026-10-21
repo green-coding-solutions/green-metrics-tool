@@ -8,7 +8,6 @@ ignore-unsupported-compose: True
 services:
   highload-api-cont:
     image: alpine
-    entrypoint: tail -f /dev/null
     blkio_config:
       weight: 300
 

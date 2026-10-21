@@ -10,6 +10,7 @@ services:
 
   stress-container:
     image: gcb_stress
+    entrypoint: tail -f /dev/null
     build:
       context: ../stress-application
 

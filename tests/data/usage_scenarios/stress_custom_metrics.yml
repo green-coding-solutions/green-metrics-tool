@@ -14,11 +14,13 @@ custom_metrics:
 services:
   test-container:
     image: gcb_stress
+    entrypoint: tail -f /dev/null
     build:
       context: ../stress-application
 
   test-container-2:
     image: gcb_stress
+    entrypoint: tail -f /dev/null
     build:
       context: ../stress-application
 

@@ -281,7 +281,7 @@ def test_setup_commands_one_command():
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
     assert f"Running command:  docker exec {container_name('test-container')} sh -o errexit -o nounset -o pipefail -c ps -a" in out.getvalue()
-    assert '1 root      0:00 /bin/sh' in out.getvalue(), 'Expected container stdout showing /bin/sh as process 1'
+    assert '1 root      0:00 tail -f /dev/null' in out.getvalue(), 'Expected container stdout showing tail -f /dev/null as process 1'
 
 # shell-options: [array|str] (optional)
 # Options that are passed to the shell before the -c flag. Defaults to errexit, nounset and pipefail
