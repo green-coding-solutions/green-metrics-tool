@@ -6,10 +6,11 @@ description: Test Metric Provider Data accuracy
 services:
   curl-container:
     image: curlimages/curl:8.10.1
-    command: sh
+    entrypoint: tail -f /dev/null # keep container running
 
   stress-container:
     image: gcb_stress
+    entrypoint: tail -f /dev/null
     build:
       context: ../stress-application
 

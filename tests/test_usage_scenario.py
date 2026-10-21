@@ -281,7 +281,7 @@ def test_setup_commands_one_command():
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
     assert f"Running command:  docker exec {container_name('test-container')} sh -o errexit -o nounset -o pipefail -c ps -a" in out.getvalue()
-    assert '1 root      0:00 /bin/sh' in out.getvalue(), 'Expected container stdout showing /bin/sh as process 1'
+    assert '1 root      0:00 tail -f /dev/null' in out.getvalue(), 'Expected container stdout showing tail -f /dev/null as process 1'
 
 # shell-options: [array|str] (optional)
 # Options that are passed to the shell before the -c flag. Defaults to errexit, nounset and pipefail
@@ -683,7 +683,7 @@ def test_cmd_entrypoint():
     assert re.search(rf"{alpine_tag}[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*-c", str(o))
     assert re.search(rf"{alpine_tag}[\s,\[\]\"']*sleep[\s,\[\]\"']*infinity", str(o))
     assert re.search(rf"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*infinity", str(o))
-    assert re.search(rf"--entrypoint[\s,\[\]\"']*cat[\s,\[\]\"']*{alpine_tag}", str(o))
+    assert re.search(rf"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*3600", str(o))
     assert re.search(rf"--entrypoint[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*-c[\s,\[\]\"']*echo \'A \$0\' && echo \'B \$0\'", str(o))
     assert re.search(rf"{alpine_tag}[\s,\[\]\"']*ash[\s,\[\]\"']*-c[\s,\[\]\"']*echo[\s,\[\]\"']*\'Using Alpine ash shell\'", str(o))
     assert re.search(rf"{alpine_tag}[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*-c[\s,\[\]\"']*echo[\s,\[\]\"']*\'Variable test: \$\$0\'", str(o))
@@ -734,7 +734,7 @@ def test_cmd_ran():
             encoding='UTF-8'
         )
         docker_ps_out = ps.stdout
-    assert '1 root      0:00 sh' in docker_ps_out, Tests.assertion_info('1 root      0:00 sh', docker_ps_out)
+    assert '1 root      0:00 tail -f /dev/null' in docker_ps_out, Tests.assertion_info('1 root      0:00 tail -f /dev/null', docker_ps_out)
 
 # entrypoint: [str] (optional)
 #    entrypoint declares the default entrypoint for the service container.
@@ -834,7 +834,7 @@ def test_invalid_container_name():
         runner.run()
 
     exc_str = str(e.value)
-    assert exc_str.startswith(f"Command '['docker', 'run', '-it', '-d', '--name', '{container_name('highload-api-:cont')}'")
+    assert exc_str.startswith(f"Command '['docker', 'run', '-d', '--name', '{container_name('highload-api-:cont')}'")
     assert exc_str.endswith('returned non-zero exit status 125.')
 
     assert e.value.stderr.startswith(f"docker: Error response from daemon: Invalid container name ({container_name('highload-api-:cont')}), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed")
@@ -848,7 +848,7 @@ def test_invalid_container_name_2():
         runner.run()
 
     exc_str = str(e.value)
-    assert exc_str.startswith(f"Command '['docker', 'run', '-it', '-d', '--name', '{container_name('8zhfiuw:-3tjfuehuis')}'")
+    assert exc_str.startswith(f"Command '['docker', 'run', '-d', '--name', '{container_name('8zhfiuw:-3tjfuehuis')}'")
     assert exc_str.endswith('returned non-zero exit status 125.')
 
     assert e.value.stderr.startswith(f"docker: Error response from daemon: Invalid container name ({container_name('8zhfiuw:-3tjfuehuis')}), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed")
@@ -978,7 +978,7 @@ def test_good_arg():
 
     docker_run_command = re.search(r"Calling docker with these parameters: ([^\r\n]+)", str(out.getvalue()))
     assert docker_run_command, f"Docker run command not found in output: {out.getvalue()}"
-    assert "'docker', 'run', '-it', '-d'" in docker_run_command.group(1), f"docker run prefix not found in docker run command: {docker_run_command.group(1)}"
+    assert "'docker', 'run', '-d'" in docker_run_command.group(1), f"docker run prefix not found in docker run command: {docker_run_command.group(1)}"
     assert "'--label', 'test=true'" in docker_run_command.group(1), f"--label test=true not found in docker run command: {docker_run_command.group(1)}"
 
 def test_restart_no_error():

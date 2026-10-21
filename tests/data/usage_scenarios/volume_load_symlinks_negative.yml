@@ -8,6 +8,7 @@ services:
     build:
       context: ../stress-application
     image: gcb_stress
+    entrypoint: tail -f /dev/null
     container_name: test-container
     volumes:
       - ../tmp/symlink:/tmp/hosts:ro

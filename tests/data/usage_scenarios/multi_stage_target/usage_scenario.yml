@@ -11,7 +11,7 @@ services:
       target: final
     image: multi_stage_target
     container_name: test-container
-    command: sh
+    entrypoint: tail -f /dev/null # keep container running
 
 flow:
   - name: Check built stage
