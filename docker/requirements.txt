@@ -2,7 +2,7 @@ gunicorn==26.2.0
 psycopg_pool==3.3.3
 psycopg[binary]==3.3.6
 uvicorn[standard]==0.54.0
-fastapi[standard]==0.143.3
+fastapi[standard]==0.150.0
 starlette>=1.8.0
 pandas==3.0.6
 PyYAML==6.0.3
