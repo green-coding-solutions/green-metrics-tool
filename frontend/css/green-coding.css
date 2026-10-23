@@ -576,6 +576,22 @@ a,
     color: rgba(0,0,0,0.8);
 }
 
+#logs h5.ui.header,
+#logs h4.ui.header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+}
+
+#logs h5.ui.header .ui.button,
+#logs h4.ui.header .ui.button {
+    margin: 0;
+    text-transform: none;
+    font-weight: normal;
+}
+
 #logs h4.ui.header {
     text-transform: uppercase;
 }
