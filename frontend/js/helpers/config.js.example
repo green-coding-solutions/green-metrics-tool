@@ -582,6 +582,11 @@ METRIC_MAPPINGS = {
         "source": "mach",
         "explanation": "CPU Utilization of total system"
     },
+    "memory_carbon_rapl_msr_component": {
+        "clean_name": "DRAM CO₂ (operational)",
+        "source": "RAPL",
+        "explanation": "RAPL based memory operational CO₂ of DRAM domain"
+    },
     "cpu_utilization_win32_system": {
         "clean_name": "CPU %",
         "source": "win32",
