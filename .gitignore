@@ -21,7 +21,8 @@ static-binary
 /lib/c/*.o
 /tools/backup
 /manager-config.yml
-/venv/
+venv/
+.venv/
 /docker/test-compose.yml
 tools/sgx_enable
 /tests/test-config.yml

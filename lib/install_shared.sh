@@ -58,8 +58,8 @@ function generate_random_password() {
 }
 
 function check_python_version() {
-    if ! python3 -c "import sys; exit(1) if (sys.version_info.major, sys.version_info.minor) < (3, 10) else exit(0)"; then
-        echo 'Python version is NOT greater than or equal to 3.10. GMT requires Python 3.10 at least. Please upgrade your Python version.'
+    if ! python3 -c "import sys; exit(1) if (sys.version_info.major, sys.version_info.minor) < (3, 11) else exit(0)"; then
+        echo 'Python version is NOT greater than or equal to 3.11. GMT requires Python 3.11 at least. Please upgrade your Python version.'
         exit 1
     fi
 }
@@ -333,14 +333,14 @@ function prepare_config() {
 function setup_python() {
     print_message "Setting up python venv"
     if [[ $use_system_site_packages == true ]] ; then
-        python3 -m venv venv --system-site-packages
+        python3 -m venv .venv --system-site-packages
     else
-        python3 -m venv venv
+        python3 -m venv .venv
     fi
-    source venv/bin/activate
+    source .venv/bin/activate
 
     print_message "Setting GMT in include path for python via .pth file"
-    find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
+    find .venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
     print_message "Adding python3 hardware_info_root.py to sudoers file"
     local python_path=$(realpath "/usr/bin/python3")
@@ -466,7 +466,7 @@ function finalize() {
 
     echo ""
     echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
-    echo -e "Please remember to always activate your venv when using the GMT with 'source venv/bin/activate'"
+    echo -e "Please remember to always activate your venv when using the GMT with 'source .venv/bin/activate'"
 
     if $reboot_echo_flag; then
         echo -e "${GREEN}If you have newly requested to mount /tmp as tmpfs please reboot your system now.${NC}"

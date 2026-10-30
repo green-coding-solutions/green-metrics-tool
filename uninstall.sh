@@ -17,7 +17,7 @@ script_dir="$(dirname -- "$script_path")"
 # Move into the GMT main directory if this script is called from somewhere else
 cd "$script_dir"
 
-source venv/bin/activate
+source .venv/bin/activate
 
 uninstall_python
 
