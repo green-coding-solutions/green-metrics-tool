@@ -18,5 +18,6 @@ flow:
     commands:
       - type: console
         shell: sh
-        command: echo '__GMT_VAR_TEXT__|quote'
+        command: >-
+          echo '__GMT_VAR_TEXT__|quote'
         note: Echoing quoted variable
