@@ -255,6 +255,15 @@ def is_secret_usage_scenario_variable(key):
     """
     return SECRET_USAGE_SCENARIO_VARIABLE_RE.fullmatch(key) is not None
 
+def quote_for_single_quotes(value):
+    """
+    Escape a value so it can be placed inside a single-quoted POSIX shell string, as done by the
+    __GMT_VAR_*__|quote modifier in a usage_scenario: '__GMT_VAR_PROMPT__|quote'.
+    Each ' closes the quoted string, adds a double-quoted ' and reopens it, like shlex.quote() does.
+    The surrounding single quotes must be put in the usage_scenario itself.
+    """
+    return value.replace("'", "'\"'\"'")
+
 def encrypt_secret_usage_scenario_variables(usage_scenario_variables):
     """
     Return a copy of the usage scenario variables where every secret variable carries its encrypted
