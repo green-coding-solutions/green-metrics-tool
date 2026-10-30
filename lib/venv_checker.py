@@ -3,8 +3,8 @@ import sys
 import platform
 
 def check_venv():
-    if (sys.version_info.major, sys.version_info.minor) < (3, 11):
-        print('Python version is NOT greater than or equal to 3.11. GMT requires Python 3.11 at least. Please upgrade your Python version.')
+    if (sys.version_info.major, sys.version_info.minor) < (3, 12):
+        print('Python version is NOT greater than or equal to 3.12. GMT requires Python 3.12 at least. Please upgrade your Python version.')
         sys.exit(1)
 
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))

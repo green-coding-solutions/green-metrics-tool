@@ -115,7 +115,7 @@ function Get-CommandPath {
 function Get-PythonCommand {
     $python = Get-CommandPath @("py.exe", "python.exe", "python3.exe")
     if (-not $python) {
-        Write-Error "Python 3.11+ was not found in PATH. Please install Python and rerun this script."
+        Write-Error "Python 3.12+ was not found in PATH. Please install Python and rerun this script."
     }
 
     if ((Split-Path -Leaf $python) -ieq "py.exe") {
@@ -137,9 +137,9 @@ function Invoke-Python {
 }
 
 function Assert-PythonVersion {
-    Invoke-Python @("-c", "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)")
+    Invoke-Python @("-c", "import sys; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)")
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Python version is NOT greater than or equal to 3.11. GMT requires Python 3.11 at least."
+        Write-Error "Python version is NOT greater than or equal to 3.12. GMT requires Python 3.12 at least."
     }
 }
 
