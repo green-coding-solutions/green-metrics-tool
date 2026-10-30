@@ -222,9 +222,14 @@ class ScenarioRunner:
         validated_usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
         self._usage_scenario_variables = to_storable_usage_scenario_variables(validated_usage_scenario_variables)
         self.__usage_scenario_variables_resolved = utils.decrypt_secret_usage_scenario_variables(validated_usage_scenario_variables)
-        utils.register_sensitive_values(
-            value for key, value in self.__usage_scenario_variables_resolved.items() if utils.is_secret_usage_scenario_variable(key)
-        )
+        sensitive_values = []
+        for key, value in self.__usage_scenario_variables_resolved.items():
+            if not utils.is_secret_usage_scenario_variable(key):
+                continue
+            sensitive_values.append(value)
+            # The |quote modifier puts an escaped form of the value into the usage_scenario, which must be redacted as well
+            sensitive_values.append(utils.quote_for_single_quotes(value))
+        utils.register_sensitive_values(sensitive_values)
         self._carbon_simulation = carbon_simulation
         self._category_ids = set(category_ids) if category_ids else None # deduplicate
         self._architecture = utils.get_architecture()
@@ -741,17 +746,19 @@ class ScenarioRunner:
         runner_join_paths = self._join_paths
         usage_scenario_file = self._join_paths(self._repo_folder, self._original_filename)
 
-        def uc_string_replace(uc_string, old, new):
+        def uc_string_replace(uc_string, old, new, key):
             new_uc = uc_string.replace(old, new)
             if new_uc != uc_string:
-                if old in self.__usage_scenario_variables_used_buffer:
-                    self.__usage_scenario_variables_used_buffer.remove(old)
+                if key in self.__usage_scenario_variables_used_buffer:
+                    self.__usage_scenario_variables_used_buffer.remove(key)
 
             return new_uc
 
         def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
             for key, value in usage_scenario_variables.items():
-                usage_scenario = uc_string_replace(usage_scenario, key, value)
+                # The |quote modifier must be replaced first, as otherwise the plain replacement would leave a dangling |quote behind
+                usage_scenario = uc_string_replace(usage_scenario, f"{key}|quote", utils.quote_for_single_quotes(value), key)
+                usage_scenario = uc_string_replace(usage_scenario, key, value, key)
 
             if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
                 raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches} \n\n {utils.filter_sensitive_data(usage_scenario)}. \n\n Please add variables when submitting run.")

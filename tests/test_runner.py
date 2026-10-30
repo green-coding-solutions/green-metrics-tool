@@ -587,6 +587,32 @@ def test_usage_scenario_variable_replacement_done_correctly():
 
     assert runner._usage_scenario_original['flow'][0]['commands'][0]['command'] == 'stress-ng -c 1 -t 1 -q'
 
+def test_usage_scenario_variable_quote_modifier():
+
+    value = '''This is a "string for ' me to know.'''
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_quoted_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_TEXT__': value}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+
+    # the plain variable is replaced as is ...
+    assert runner._usage_scenario_original['services']['test-container']['environment']['MY_TEXT'] == value
+
+    # ... and the |quote one is escaped so that the shell gets back the original value as one argument
+    command = runner._usage_scenario_original['flow'][0]['commands'][0]['command']
+    assert command == '''echo 'This is a "string for '"'"' me to know.\''''
+    assert subprocess.check_output(['sh', '-c', command], encoding='UTF-8') == f"{value}\n"
+
+def test_usage_scenario_secret_variable_quoted_form_is_redacted():
+
+    secret_value = "my-super-secret-pass'word"
+
+    # instantiating the runner registers the secret, so anything it logs afterwards gets scrubbed
+    ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_secret_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': secret_value}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+
+    assert utils.filter_sensitive_data(f"echo '{utils.quote_for_single_quotes(secret_value)}'") == f"echo '{utils.REDACTED}'"
+
 def test_usage_scenario_secret_variable_replaced_but_never_stored_in_plaintext():
 
     secret_value = 'my-super-secret-password'
