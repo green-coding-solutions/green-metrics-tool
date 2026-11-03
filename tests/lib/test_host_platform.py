@@ -1,4 +1,5 @@
 import shlex
+import subprocess
 
 import pytest
 
@@ -80,3 +81,41 @@ def test_join_shell_arguments_keeps_argument_boundaries():
 
 def test_join_shell_arguments_leaves_simple_arguments_readable():
     assert host_platform.join_shell_arguments(['sleep', '5']) == 'sleep 5'
+
+
+# Images pulled by digest have no tag. They must be addressed as repo@digest, because `repo:<none>`
+# is an invalid reference that `docker rmi` rejects - which made --full-docker-prune silently keep them.
+def test_parse_docker_image_references():
+    output = (
+        'martizih/kaniko\tslim\tsha256:aaa\n'
+        'mariadb\t<none>\tsha256:dd9b303aed4f\n'
+        'postgres\t16\t<none>\n'
+        '<none>\t<none>\t<none>\n'
+        'ribalba/benchbase\t<none>\tsha256:85c175561d83\n'
+        'ribalba/benchbase\t<none>\tsha256:f7a0f21e8bfc\n'
+        '\n'
+    )
+
+    assert host_platform._parse_docker_image_references(output) == [ # pylint: disable=protected-access
+        'martizih/kaniko:slim',
+        'mariadb@sha256:dd9b303aed4f',
+        'postgres:16',
+        'ribalba/benchbase@sha256:85c175561d83',
+        'ribalba/benchbase@sha256:f7a0f21e8bfc',
+    ]
+
+
+def test_remove_docker_images_except_removes_digest_pulled_images(monkeypatch):
+    calls = []
+
+    def fake_run(args, **_kwargs):
+        calls.append(args)
+        stdout = 'martizih/kaniko\tslim\tsha256:aaa\nmariadb\t<none>\tsha256:dd9b\npostgres\t16\tsha256:bbb\n'
+        return subprocess.CompletedProcess(args, 0, stdout=stdout if args[:2] == ['docker', 'images'] else '', stderr='')
+
+    monkeypatch.setattr(host_platform.subprocess, 'run', fake_run)
+
+    host_platform.remove_docker_images_except(['martizih/kaniko:slim'])
+
+    assert calls[0][:3] == ['docker', 'images', '--digests']
+    assert calls[1] == ['docker', 'rmi', '-f', 'mariadb@sha256:dd9b', 'postgres:16']
