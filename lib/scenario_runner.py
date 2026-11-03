@@ -222,9 +222,14 @@ class ScenarioRunner:
         validated_usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
         self._usage_scenario_variables = to_storable_usage_scenario_variables(validated_usage_scenario_variables)
         self.__usage_scenario_variables_resolved = utils.decrypt_secret_usage_scenario_variables(validated_usage_scenario_variables)
-        utils.register_sensitive_values(
-            value for key, value in self.__usage_scenario_variables_resolved.items() if utils.is_secret_usage_scenario_variable(key)
-        )
+        sensitive_values = []
+        for key, value in self.__usage_scenario_variables_resolved.items():
+            if not utils.is_secret_usage_scenario_variable(key):
+                continue
+            sensitive_values.append(value)
+            # The |quote modifier puts an escaped form of the value into the usage_scenario, which must be redacted as well
+            sensitive_values.append(utils.quote_for_single_quotes(value))
+        utils.register_sensitive_values(sensitive_values)
         self._carbon_simulation = carbon_simulation
         self._category_ids = set(category_ids) if category_ids else None # deduplicate
         self._architecture = utils.get_architecture()
@@ -741,17 +746,19 @@ class ScenarioRunner:
         runner_join_paths = self._join_paths
         usage_scenario_file = self._join_paths(self._repo_folder, self._original_filename)
 
-        def uc_string_replace(uc_string, old, new):
+        def uc_string_replace(uc_string, old, new, key):
             new_uc = uc_string.replace(old, new)
             if new_uc != uc_string:
-                if old in self.__usage_scenario_variables_used_buffer:
-                    self.__usage_scenario_variables_used_buffer.remove(old)
+                if key in self.__usage_scenario_variables_used_buffer:
+                    self.__usage_scenario_variables_used_buffer.remove(key)
 
             return new_uc
 
         def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
             for key, value in usage_scenario_variables.items():
-                usage_scenario = uc_string_replace(usage_scenario, key, value)
+                # The |quote modifier must be replaced first, as otherwise the plain replacement would leave a dangling |quote behind
+                usage_scenario = uc_string_replace(usage_scenario, f"{key}|quote", utils.quote_for_single_quotes(value), key)
+                usage_scenario = uc_string_replace(usage_scenario, key, value, key)
 
             if matches := re.findall(r'^(?![\s]*#).*__GMT_VAR_\w+__', usage_scenario, re.MULTILINE):
                 raise ValueError(f"Unreplaced leftover variables are still in usage_scenario: {matches} \n\n {utils.filter_sensitive_data(usage_scenario)}. \n\n Please add variables when submitting run.")
@@ -2112,7 +2119,7 @@ class ScenarioRunner:
                     raise RuntimeError(f"Command in service '{service_name}' must be a string or a list but is: {type(service['command'])}")
 
             container_data['docker_run_cmd'] = docker_run_string
-            print(f"Calling docker with these parameters: {utils.filter_sensitive_data(str(docker_run_string))}")
+            print(f"Calling docker with these parameters: {utils.filter_sensitive_data_structure(docker_run_string)}")
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
             # injection of unwanted params
@@ -2144,7 +2151,7 @@ class ScenarioRunner:
             print('Checking stderr ...')
             docker_run_stderr = ps.stderr.strip()
             if docker_run_stderr != '':
-                raise RuntimeError(f"Docker run command had non empty stderr: {docker_run_stderr}.\nCommand: {docker_run_string}")
+                raise RuntimeError(f"Docker run command had non empty stderr: {docker_run_stderr}.\nCommand: {utils.filter_sensitive_data_structure(docker_run_string)}")
 
 
             print('Running commands')
@@ -2190,11 +2197,11 @@ class ScenarioRunner:
                     )
 
                     if ps.returncode == 137:
-                        raise MemoryError(f"Your process {d_command} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                        raise MemoryError(f"Your process {utils.filter_sensitive_data_structure(d_command)} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
                     elif shell_options_error := process_helpers.get_shell_options_error(d_command, ps.stderr):
-                        raise RuntimeError(f"Process {d_command} could not be run. {shell_options_error}\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                        raise RuntimeError(f"Process {utils.filter_sensitive_data_structure(d_command)} could not be run. {shell_options_error}\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
                     elif ps.returncode != 0:
-                        raise RuntimeError(f"Process {d_command} failed with return code {ps.returncode}.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                        raise RuntimeError(f"Process {utils.filter_sensitive_data_structure(d_command)} failed with return code {ps.returncode}.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
 
                 self.__ps_to_read.append({
                     'cmd': d_command,
@@ -2614,8 +2621,7 @@ class ScenarioRunner:
                 self.__ps_to_read += ps_to_read_tmp # will otherwise be discarded, bc they confuse execption handling
                 self._check_process_returncodes()
 
-            # pylint: disable=broad-exception-caught
-            except BaseException as flow_exc:
+            except BaseException as flow_exc: # pylint: disable=broad-exception-caught
                 if not self._dev_flow_timetravel: # Exception handling only if explicitely wanted
                     raise flow_exc
                 if self.__phases[flow['name']].get('end', None) is None:
