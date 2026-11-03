@@ -10,6 +10,7 @@ from lib import email_helpers
 from lib.job.email import EmailJob
 
 class EmailSimpleJob(EmailJob):
+    JOB_TYPE = 'email-simple'
 
     #pylint: disable=arguments-differ
     def _process(self):

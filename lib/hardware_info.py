@@ -51,6 +51,7 @@ linux_info_list = [
     [rpwr, 'Kernel Modules', 'lsmod | sort', r'(?P<o>.*)', re.DOTALL],
     [rpwr, 'Environment Variables', 'printenv | sort', r'(?P<o>.*)', re.DOTALL],
     [rfwr, 'Kernel Boot Parameters', '/proc/cmdline', r'(?P<o>.*)'],
+    [rpwr, 'Sysctl', 'sysctl -a', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL], # Only use non sudo call to not expose for instance net.ipv4.tcp_fastopen_key
     [rpwr, 'Systemd Tmpfiles Rules', 'awk \'FNR==1 {print "== " FILENAME " =="} {print}\' /etc/tmpfiles.d/*', r'(?P<o>.*)', re.DOTALL],
     [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
     [cf, 'Available Memory', psutil.virtual_memory, [], 'available'],
@@ -69,7 +70,7 @@ linux_info_list = [
     [rpwr, 'Docker Virtual Machine', 'kata-runtime env', r'(?P<o>.*)', re.DOTALL],
     [rpwr, 'Installed System Packages', 'if [ -f /etc/lsb-release ]; then dpkg -l ; elif [ -f /etc/redhat-release ]; then dnf list --installed --assumeno; fi', r'(?P<o>.*)', re.DOTALL],
     [rpwr, 'Installed Python Packages', f"{sys.executable} -m pip freeze", r'(?P<o>.*)', re.DOTALL],
-    [rpwr, 'Processes', '/usr/bin/ps -aux', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Processes', 'ps -eo user,comm,args,%cpu,%mem | sort', r'(?P<o>.*)', re.DOTALL],
     [rpwrs, 'Scaling Governor', '/usr/bin/cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor', r'(?P<o>.*)', re.DOTALL],
     [rfwr, 'Hyper Threading', '/sys/devices/system/cpu/smt/active', r'(?P<o>.*)'],
     [rdr, 'CPU Complete Dump', '/sys/devices/system/cpu/'],
@@ -101,6 +102,7 @@ mac_info_list = [
     [rpwr, 'Build Version', 'sw_vers -buildVersion', r'(?P<o>.*)'],
     [rpwr, 'Kernel Version', 'uname -srv', r'(?P<o>.*)'],
     [rpwr, 'Kernel Modules', 'kextstat', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Sysctl', 'sysctl -a', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL], # Only use non sudo call to not expose senstive information
     [rpwr, 'Environment Variables', 'printenv | sort', r'(?P<o>.*)', re.DOTALL],
     [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
     [cf, 'Available Memory', psutil.virtual_memory, [], 'available'],
@@ -112,7 +114,7 @@ mac_info_list = [
     [rpwr, 'Docker Images', 'docker images', r'(?P<o>.*)', re.DOTALL],
     [rpwr, 'Docker Volumes', "docker system df -v --format '{{json .}}' | jq -r '.Volumes[] | \"\\(.Name)\t\\(.Size)\"'", r'(?P<o>.*)', re.DOTALL],
     [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],
-    [rpwr, 'Processes', '/bin/ps -ax', r'(?P<o>.*)', re.DOTALL],
+    [rpwr, 'Processes', 'ps -eo user,comm,args,%cpu,%mem | sort', r'(?P<o>.*)', re.DOTALL],
     [rpwr, 'Network Interfaces', 'ifconfig', r'(?P<o>.*)', re.DOTALL],
 
 ]

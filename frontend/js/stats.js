@@ -1,3 +1,4 @@
+"use strict";
 class CO2Tangible extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
@@ -143,7 +144,7 @@ const fetchAndFillRunData = async (run_id) => {
             if (Object.keys(run_data[item]).length > 0) {
                 const container = document.querySelector("#usage-scenario-variables ul");
                 for (const key in run_data[item]) {
-                    container.insertAdjacentHTML('beforeend', `<li><span class="ui label">${escapeString(key)}=${escapeString(run_data[item][key])}</span></li>`)
+                    container.insertAdjacentHTML('beforeend', `<li><span class="ui label">${escapeString(key)}=${escapeString(displayUsageScenarioVariableValue(key, run_data[item][key]))}</span></li>`)
                 }
             } else {
                 document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
@@ -203,13 +204,22 @@ const fetchAndFillRunData = async (run_id) => {
             // skip
         }  else if(item == 'relations') {
             if (run_data[item] == null) continue; // can be empty
-            for (relation in run_data[item]) {
-                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td><a href="${run_data[item][relation]['url']}" target="_blank">${escapeString(run_data[item][relation]['url'])} (${escapeString(run_data[item][relation]['commit_hash'])})</a></td></tr>`)
+            for (const relation in run_data[item]) {
+                const url = run_data[item][relation]['url'];
+                const httpsUrl = toHttpsUri(url);
+                const relationHash = run_data[item][relation]['commit_hash'];
+                const display = httpsUrl.startsWith('http')
+                    ? `<a href="${escapeString(httpsUrl)}" target="_blank">${escapeString(url)} (${relationHash})</a>`
+                    : `${escapeString(url)} (${relationHash})`;
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td>${display}</td></tr>`)
             }
         }  else if(item == 'commit_hash') {
             if (run_data[item] == null) continue; // some old runs did not save it
-            let commit_link = buildCommitLink(run_data);
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="${commit_link}" target="_blank">${escapeString(run_data[item])}</a></td></tr>`)
+            const commit_link = getRepoRefUrl(run_data['uri'], 'tree');
+            const display = commit_link
+                ? `<a href="${escapeString(commit_link + run_data['commit_hash'])}" target="_blank">${run_data[item]}</a>`
+                : run_data[item];
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${display}</td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
         } else if(item == 'failed' && run_data[item] == true) {
@@ -225,9 +235,10 @@ const fetchAndFillRunData = async (run_id) => {
         } else if(item == 'uri') {
             const uri = run_data[item];
             const httpsUri = toHttpsUri(uri);
-            // URI is safe for href: toHttpsUri normalises SSH/git@ to https://, absolute paths stay as text
+            // toHttpsUri only rewrites SSH/git@ prefixes; it does not strip HTML-attribute-breaking chars,
+            // so the href value still needs escapeString. Absolute paths stay as plain text.
             const uriDisplay = httpsUri.startsWith('http')
-                ? `<a href="${httpsUri}">${escapeString(uri)}</a>`
+                ? `<a href="${escapeString(httpsUri)}">${escapeString(uri)}</a>`
                 : escapeString(uri);
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${uriDisplay}</td></tr>`);
         } else if(item == 'note') {
@@ -352,18 +363,6 @@ const fetchAndFillRunData = async (run_id) => {
 
 }
 
-const buildCommitLink = (run_data) => {
-    let commit_link;
-    commit_link = run_data['uri'].endsWith('.git') ? run_data['uri'].slice(0, -4) : run_data['uri']
-    if (run_data['uri'].includes('github')) {
-        commit_link = commit_link + '/tree/' + run_data['commit_hash']
-    }
-    else if (run_data['uri'].includes('gitlab')) {
-        commit_link = commit_link + '/-/tree/' + run_data ['commit_hash']
-    }
-    return commit_link;
-}
-
 const fillRunTab = async (selector, data, parent = '') => {
     const node = document.querySelector(selector);
     for (const item in data) {
@@ -379,16 +378,59 @@ const fillRunTab = async (selector, data, parent = '') => {
     }
 }
 
+
+// Strip CSI / OSC / common ESC sequences. Used only on explicit user click (no pre-scan at render).
+const stripAnsi = (text) => String(text).replace(
+    // CSI (ESC[ ... or 8-bit CSI), OSC (ESC] ... BEL/ST), other 2-byte ESC Fe
+    /(?:\u001b\[|\u009b)[0-?]*[ -/]*[@-~]|\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)|\u001b[@-Z\\-_]/g,
+    ''
+);
+
+const bindAnsiStripButtons = (root) => {
+    if (!root) return;
+    root.querySelectorAll('[data-ansi-strip]').forEach((btn) => {
+        if (btn.dataset.ansiBound === '1') return;
+        btn.dataset.ansiBound = '1';
+        btn.addEventListener('click', () => {
+            const block = btn.closest('.content') || btn.closest('.ui.segment') || root;
+            const target = block.querySelector('[data-log-text]') || block.querySelector('pre');
+            if (!target) return;
+            target.textContent = stripAnsi(target.textContent || '');
+            btn.disabled = true;
+            btn.textContent = 'ANSI removed';
+        });
+    });
+};
+
 const displayLegacyLogs = (logData) => {
     const logsElement = document.querySelector("#logs");
-    logsElement.innerHTML = `<pre>${escapeString(logData)}</pre>`;
+    logsElement.innerHTML = `
+        <div class="content">
+            <h5 class="ui header">
+                <span>Logs</span>
+                <button type="button" class="ui mini compact basic button" data-ansi-strip
+                    title="Does the output look garbled? Try removing ANSI control codes.">
+                    Remove ANSI codes
+                </button>
+            </h5>
+            <div class="ui segment">
+                <pre data-log-text style="margin:0;white-space:pre-wrap;">${escapeString(logData)}</pre>
+            </div>
+        </div>`;
+    bindAnsiStripButtons(logsElement);
 };
 
 const renderLegacyLogsFromJson = (logsData) => {
     const legacyLogTemplate = `
         <div class="ui segment">
-            <h4 class="ui header">{{containerName}}</h4>
-            <pre>{{stdout}}</pre>
+            <h4 class="ui header">
+                <span>{{containerName}}</span>
+                <button type="button" class="ui mini compact basic button" data-ansi-strip
+                    title="Does the output look garbled? Try removing ANSI control codes.">
+                    Remove ANSI codes
+                </button>
+            </h4>
+            <pre data-log-text>{{combinedOut}}</pre>
         </div>
     `;
 
@@ -400,15 +442,18 @@ const renderLegacyLogsFromJson = (logsData) => {
     Object.keys(logsData).forEach(containerName => {
         const containerLogs = logsData[containerName];
         containerLogs.forEach(logEntry => {
+            // legacy logs do not have separate stdout and stderr but only a combined output
+            // still it is funneled in the data structure through the stdout variable. This is just legacy naming. No stderr got lost :)
             if (logEntry.stdout) {
                 contentHTML += legacyLogTemplate
                     .replace('{{containerName}}', escapeString(containerName))
-                    .replace('{{stdout}}', escapeString(logEntry.stdout));
+                    .replace('{{combinedOut}}', escapeString(logEntry.stdout));
             }
         });
     });
 
     logsElement.innerHTML = contentHTML;
+    bindAnsiStripButtons(logsElement);
 };
 
 const renderLogsInterface = (logsData) => {
@@ -455,18 +500,30 @@ const renderLogsInterface = (logsData) => {
 
     const stdoutTemplate = `
         <div class="content">
-            <h5 class="ui header"><i class="file text outline icon"></i> Standard Output</h5>
+            <h5 class="ui header">
+                <span><i class="file text outline icon"></i> Standard Output</span>
+                <button type="button" class="ui mini compact basic button" data-ansi-strip
+                    title="Does the output look garbled? Try removing ANSI control codes.">
+                    Remove ANSI codes
+                </button>
+            </h5>
             <div class="ui segment stdout">
-                <div>{{stdout}}</div>
+                <div data-log-text>{{stdout}}</div>
             </div>
         </div>
     `;
 
     const stderrTemplate = `
         <div class="content">
-            <h5 class="ui header"><i class="exclamation triangle icon"></i> Standard Error</h5>
+            <h5 class="ui header">
+                <span><i class="exclamation triangle icon"></i> Standard Error</span>
+                <button type="button" class="ui mini compact basic button" data-ansi-strip
+                    title="Does the output look garbled? Try removing ANSI control codes.">
+                    Remove ANSI codes
+                </button>
+            </h5>
             <div class="ui segment stderr">
-                <div>{{stderr}}</div>
+                <div data-log-text>{{stderr}}</div>
             </div>
         </div>
     `;
@@ -586,6 +643,7 @@ const renderLogsInterface = (logsData) => {
     accordionHTML += '</div>';
     logsElement.innerHTML = accordionHTML;
     $('.ui.accordion').accordion();
+    bindAnsiStripButtons(logsElement);
 }
 
 
@@ -843,7 +901,7 @@ const fetchAndFillNetworkIntercepts = async (run_id) => {
     try {
         network = await makeAPICall('/v1/network/' + run_id)
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             console.log('No network intercepts present in API response. Skipping error as this is allowed case.')
         } else {
             showNotification('Could not get network intercepts data from API', err);
@@ -1048,7 +1106,7 @@ const fetchAndFillWarnings = async (run_id) => {
     try {
         warnings = await makeAPICall('/v1/warnings/' + run_id)
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             console.log('No warnings where present in API response. Skipping error as this is allowed case.')
         } else {
             showNotification('Could not get warnings data from API', err);

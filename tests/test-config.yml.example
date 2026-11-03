@@ -32,13 +32,15 @@ cluster:
   cors_allowed_origins:
     - http://api.green-coding.internal:9143
     - http://metrics.green-coding.internal:9143
+  carbondb_merge_window_days: 30
   client:
     sleep_time_no_job: 300
     jobs_processing: random
     time_between_control_workload_validations: 21600
     send_control_workload_status_mail: false
     shutdown_on_job_no: false
-    docker_prune: True
+    # Must remain disabled: docker system prune is host-global and can disrupt concurrent test workers.
+    docker_prune: False
     full_docker_prune: False
     control_workload:
       name: Measurement control Workload
@@ -57,7 +59,7 @@ cluster:
 machine:
   id: 1
   description: Development machine for testing
-  base_temperature_value: 10
+  base_temperature_value: null
   base_temperature_chip: "asd"
   base_temperature_feature: "asd"
 

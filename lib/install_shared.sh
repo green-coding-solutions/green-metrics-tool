@@ -15,6 +15,8 @@ ask_eco_ci=true
 activate_eco_ci=false
 ask_power_hog=true
 activate_power_hog=false
+ask_software_view=true
+activate_software_view=false
 ask_carbon_db=true
 activate_carbon_db=false
 ask_ai_optimisations=true
@@ -56,8 +58,8 @@ function generate_random_password() {
 }
 
 function check_python_version() {
-    if ! python3 -c "import sys; exit(1) if (sys.version_info.major, sys.version_info.minor) < (3, 10) else exit(0)"; then
-        echo 'Python version is NOT greater than or equal to 3.10. GMT requires Python 3.10 at least. Please upgrade your Python version.'
+    if ! python3 -c "import sys; exit(1) if (sys.version_info.major, sys.version_info.minor) < (3, 12) else exit(0)"; then
+        echo 'Python version is NOT greater than or equal to 3.12. GMT requires Python 3.12 at least. Please upgrade your Python version.'
         exit 1
     fi
 }
@@ -144,28 +146,33 @@ function check_file_permissions() {
     return 0
 }
 
+BACKUP_DIR=".config_backups"
+
 function rotate_backup() {
     local file="$1"
     local max_backups=10
+    local backup_file="${BACKUP_DIR}/${file}.backup"
 
     print_message "Rotating backups for ${file}"
 
+    mkdir -p "$(dirname "$backup_file")"
+
     # Delete oldest
-    if [ -f "${file}.backup.${max_backups}" ]; then
+    if [ -f "${backup_file}.${max_backups}" ]; then
         echo "Removing file that exceeds max_backup of ${max_backups} ..."
-        rm -f "${file}.backup.${max_backups}"
+        rm -f "${backup_file}.${max_backups}"
     fi
 
     # Shift existing backups (9 -> 10, 8 -> 9, ..., 1 -> 2)
     for ((i=max_backups-1; i>=1; i--)); do
-        if [ -f "${file}.backup.${i}" ]; then
-            mv "${file}.backup.${i}" "${file}.backup.$((i+1))"
+        if [ -f "${backup_file}.${i}" ]; then
+            mv "${backup_file}.${i}" "${backup_file}.$((i+1))"
         fi
     done
 
     # Move current backup (if exists) to .1
-    if [ -f "${file}.backup" ]; then
-        mv "${file}.backup" "${file}.backup.1"
+    if [ -f "${backup_file}" ]; then
+        mv "${backup_file}" "${backup_file}.1"
     fi
 }
 
@@ -174,6 +181,7 @@ function copy_backup() {
     local file="$1"
     rotate_backup "$file"
     local example_file="${file}.example"
+    local backup_file="${BACKUP_DIR}/${file}.backup"
 
     if [[ ! -f "$example_file" ]]; then
         echo "Error: Example file ${example_file} does not exist"
@@ -181,8 +189,9 @@ function copy_backup() {
     fi
 
     if [[ -f "$file" ]]; then
-        print_message "Backing up existing ${file} to ${file}.backup"
-        cp "$file" "${file}.backup"
+        print_message "Backing up existing ${file} to ${backup_file}"
+        mkdir -p "$(dirname "$backup_file")"
+        cp "$file" "$backup_file"
     fi
 
     cp "$example_file" "$file"
@@ -190,17 +199,13 @@ function copy_backup() {
 
 function prepare_config() {
 
-    print_message "Clearing old api.conf and frontend.conf files"
-    rm -Rf docker/nginx/api.conf
-    rm -Rf docker/nginx/frontend.conf
-
     local sed_command="sed -i"
     if [[ $(uname) == "Darwin" ]]; then
         sed_command="sed -i ''"
     fi
 
     print_message "Updating compose.yml with current path ..."
-    cp docker/compose.yml.example docker/compose.yml
+    copy_backup docker/compose.yml
     eval "${sed_command} -e \"s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD|\" docker/compose.yml"
     eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS|$db_pw|\" docker/compose.yml"
     eval "${sed_command} -e \"s|__TZ__|$tz|g\" docker/compose.yml"
@@ -266,6 +271,15 @@ function prepare_config() {
     else
         eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
     fi
+
+    if [[ $activate_software_view == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_SOFTWARE_VIEW__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_software_view:.*$|activate_software_view: True|\" config.yml"
+    else
+        eval "${sed_command} -e \"s|__ACTIVATE_SOFTWARE_VIEW__|false|\" frontend/js/helpers/config.js"
+    fi
+
+
     # Activating AI Optimisations makes actually only sense in enterprise mode
     # but must run still, as we need to set the variables and replacements
     if [[ $activate_ai_optimisations == true ]]; then
@@ -319,14 +333,14 @@ function prepare_config() {
 function setup_python() {
     print_message "Setting up python venv"
     if [[ $use_system_site_packages == true ]] ; then
-        python3 -m venv venv --system-site-packages
+        python3 -m venv .venv --system-site-packages
     else
-        python3 -m venv venv
+        python3 -m venv .venv
     fi
-    source venv/bin/activate
+    source .venv/bin/activate
 
     print_message "Setting GMT in include path for python via .pth file"
-    find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
+    find .venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
     print_message "Adding python3 hardware_info_root.py to sudoers file"
     local python_path=$(realpath "/usr/bin/python3")
@@ -345,9 +359,18 @@ function setup_python() {
     print_message "Setting hardware_info_root.py sudoers entry"
     echo "${USER} ALL=(ALL) NOPASSWD:${python_path} -I -B -S ${gmt_root_bin_dir}/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
     echo "${USER} ALL=(ALL) NOPASSWD:${python_path} -I -B -S ${gmt_root_bin_dir}/hardware_info_root.py --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
-    sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
+    sudo chmod 400 /etc/sudoers.d/green-coding-hardware-info
     # remove old file name
     sudo rm -f /etc/sudoers.d/green_coding_hardware_info
+
+    print_message "Making system_checks_root.py to be owned by root"
+    sudo cp -f "${PWD}/lib/system_checks_root.py" "${gmt_root_bin_dir}/system_checks_root.py"
+    sudo chown 0:0 "${gmt_root_bin_dir}/system_checks_root.py"
+    sudo chmod 755 "${gmt_root_bin_dir}/system_checks_root.py"
+
+    print_message "Setting system_checks_root.py sudoers entry"
+    echo "${USER} ALL=(ALL) NOPASSWD:${python_path} -I -B -S ${gmt_root_bin_dir}/system_checks_root.py" | sudo tee /etc/sudoers.d/green-coding-system-checks
+    sudo chmod 400 /etc/sudoers.d/green-coding-system-checks
 
     if [[ $install_python_packages == true ]] ; then
         print_message "Updating python requirements"
@@ -367,15 +390,16 @@ function checkout_submodules() {
 
     print_message "Checking out further git submodules ..."
 
+    # these are small repos, so an overall timeout (rather than just a connect timeout) is fine here
     if [[ $(uname) != "Darwin" ]]; then
-        git submodule update --init lib/sgx-software-enable
+        timeout 120 git submodule update --init lib/sgx-software-enable
     fi
 
-    git submodule update --init metric_providers/psu/energy/ac/xgboost/machine/model
+    timeout 120 git submodule update --init metric_providers/psu/energy/ac/xgboost/machine/model
 
     if [[ $enterprise == true ]] ; then
         if [[ ! -d "ee" ]]; then
-            git clone git@github.com:green-coding-solutions/gmt-enterprise.git ee
+            timeout 120 git clone git@github.com:green-coding-solutions/gmt-enterprise.git ee
         fi
 
         if [[ ! -z $ee_branch ]]; then
@@ -442,7 +466,7 @@ function finalize() {
 
     echo ""
     echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
-    echo -e "Please remember to always activate your venv when using the GMT with 'source venv/bin/activate'"
+    echo -e "Please remember to always activate your venv when using the GMT with 'source .venv/bin/activate'"
 
     if $reboot_echo_flag; then
         echo -e "${GREEN}If you have newly requested to mount /tmp as tmpfs please reboot your system now.${NC}"
@@ -465,6 +489,7 @@ function send_ping() {
     local os_version=$(uname -r)
 
     curl -i -X POST https://plausible.io/api/event \
+        --connect-timeout 5 --max-time 10 \
         -H "User-Agent: ${random_hash}" \
         -H 'Content-Type: application/json' \
         --data "{\"name\":\"install\",\"url\":\"http://hello.green-coding.io/install\",\"domain\":\"hello.green-coding.io\",\"props\":{\"unique_hash\":\"${unique_hash}\",\"arch\":\"${arch}\",\"os\":\"${os}\",\"os_version\":\"${os_version}\"}}" > /dev/null
@@ -631,6 +656,16 @@ while [[ $# -gt 0 ]]; do
             ask_power_hog=false
             shift
             ;;
+        --no-software-view)
+            activate_software_view=false
+            ask_software_view=false
+            shift
+            ;;
+        --software-view)
+            activate_software_view=true
+            ask_software_view=false
+            shift
+            ;;
         -f)
             activate_scenario_runner=true
             ask_scenario_runner=false
@@ -693,6 +728,8 @@ while [[ $# -gt 0 ]]; do
             echo -e '  -F:\t\t\tDeactivate ScenarioRunner'
             echo -e '  -j:\t\t\tActivate Eco CI'
             echo -e '  -J:\t\t\tDeactivate Eco CI'
+            echo -e '  --software-view:\t\t\tActivate Software Category and Task View'
+            echo -e '  --no-software-view:\t\t\tDeactivate Software Category and Task View'
 
             exit 0
             ;;
@@ -714,6 +751,7 @@ done
 if [[ $enterprise == true ]] ; then
     echo "Validating enterprise token"
     curl --silent -X POST https://plausible.io/api/event \
+         --connect-timeout 5 --max-time 10 \
          -H 'Content-Type: application/json' \
          --data "{\"name\":\"api_test\",\"url\":\"https://www.green-coding.io/?utm_source=${ee_token}\",\"domain\":\"proxy.green-coding.io\"}" > /dev/null
 fi
@@ -834,6 +872,17 @@ if [[ $ask_power_hog == true ]]; then
         activate_power_hog=false
     fi
 fi
+
+if [[ $ask_software_view == true ]]; then
+    echo ""
+    read -p "Do you want to activate the software category and tasks view? (y/N) : " activate_software_view
+    if [[  "$activate_software_view" == "Y" || "$activate_software_view" == "y" ]] ; then
+        activate_software_view=true
+    else
+        activate_software_view=false
+    fi
+fi
+
 
 if [[ $enterprise == true && $ask_ai_optimisations == true ]]; then
     echo ""

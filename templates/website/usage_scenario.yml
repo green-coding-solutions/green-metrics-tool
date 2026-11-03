@@ -20,7 +20,7 @@ flow:
         command: sleep __GMT_VAR_SLEEP__
       - type: console
         command: echo $(date +%s%N) website_load=1
-        shell: sh
+        shell: bash
 
   - name: Check HTTP Status Code
     container: gmt-playwright-nodejs

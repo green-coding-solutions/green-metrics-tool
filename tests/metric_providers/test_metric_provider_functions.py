@@ -3,6 +3,7 @@ import math
 import pytest
 import shutil
 import tempfile
+import xml.parsers.expat
 
 from pathlib import Path
 
@@ -19,6 +20,8 @@ from metric_providers.cpu.utilization.cgroup.system.provider import CpuUtilizati
 from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtilizationCgroupContainerProvider
 
 from unittest.mock import patch
+
+from lib.db import DB
 
 GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-metrics-'))
 
@@ -133,6 +136,35 @@ def test_tcpdump_linux():
   Ports:
     1900/UDP: 8 packets, 2759 bytes''' in stats
 
+    assert DB().fetch_one('SELECT COUNT(*) FROM system_logs')[0] == 0, 'system_logs must be empty - tcpdump parser emitted unexpected errors'
+
+
+def test_tcpdump_linux_vlan():
+    obj = NetworkConnectionsTcpdumpSystemProvider(folder=GMT_METRICS_DIR, skip_check=True)
+    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/network_connections_tcpdump_system_linux_vlan.log')
+
+    data = obj.read_metrics()
+
+    stats = generate_stats_string(data)
+
+    assert DB().fetch_one('SELECT COUNT(*) FROM system_logs')[0] == 0, 'system_logs must be empty - tcpdump parser emitted unexpected errors'
+
+
+    # IPv4 match
+    assert '''IP: 192.168.30.17 (as sender or receiver. aggregated)
+  Total transmitted data: 3005 bytes
+  Ports:
+    56722/TCP: 9 packets, 2585 bytes
+    43387/UDP: 2 packets, 144 bytes
+    40932/UDP: 2 packets, 138 bytes
+    49483/UDP: 2 packets, 138 bytes''' in stats
+
+
+    # IPv6 match
+    assert '''IP: fe80::d2ea:11ff:fe0d:f2ae (as sender or receiver. aggregated)
+  Total transmitted data: 181 bytes
+  Ports:
+    5678/UDP: 1 packets, 181 bytes''' in stats
 
 def test_tcpdump_macos():
     obj = NetworkConnectionsTcpdumpSystemProvider(folder=GMT_METRICS_DIR, skip_check=True)
@@ -178,6 +210,8 @@ def test_tcpdump_macos():
   Ports:
     443/UDP: 4 packets, 320 bytes''' in stats
 
+    assert DB().fetch_one('SELECT COUNT(*) FROM system_logs')[0] == 0, 'system_logs must be empty - tcpdump parser emitted unexpected errors'
+
 def test_powermetrics():
     obj = PowermetricsProvider(499, folder=GMT_METRICS_DIR, skip_check=True)
     obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/powermetrics.log')
@@ -187,6 +221,32 @@ def test_powermetrics():
     assert list(df.metric.unique()) == ['cpu_time_powermetrics_vm', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm', 'energy_impact_powermetrics_vm', 'cores_energy_powermetrics_component', 'gpu_energy_powermetrics_component', 'ane_energy_powermetrics_component']
 
     assert math.isclose(df[df.metric == 'energy_impact_powermetrics_vm'].value.mean(), 430.823529, abs_tol=1e-3)
+
+def _powermetrics_from_payload(tmp_path, payload):
+    log = tmp_path / 'powermetrics.log'
+    log.write_bytes(payload)
+    obj = PowermetricsProvider(499, folder=GMT_METRICS_DIR, skip_check=True)
+    obj._filename = os.fspath(log)
+    return obj.read_metrics()
+
+def test_powermetrics_truncated_final_sample_is_dropped(tmp_path):
+    fragments = Path(GMT_ROOT_DIR, 'tests/data/metrics/powermetrics.log').read_bytes().split(b'\x00')
+    prefix_df = _powermetrics_from_payload(tmp_path, b'\x00'.join(fragments[:-1]))
+    truncated_df = _powermetrics_from_payload(tmp_path, b'\x00'.join(fragments[:-1] + [fragments[-1][:-100]]))
+
+    assert truncated_df.equals(prefix_df)
+
+def test_powermetrics_trailing_nul_is_ignored(tmp_path):
+    payload = Path(GMT_ROOT_DIR, 'tests/data/metrics/powermetrics.log').read_bytes()
+    full_df = _powermetrics_from_payload(tmp_path, payload)
+    trailing_df = _powermetrics_from_payload(tmp_path, payload + b'\x00')
+
+    assert trailing_df.equals(full_df)
+
+def test_powermetrics_truncated_middle_sample_raises(tmp_path):
+    fragments = Path(GMT_ROOT_DIR, 'tests/data/metrics/powermetrics.log').read_bytes().split(b'\x00')
+    with pytest.raises(xml.parsers.expat.ExpatError):
+        _powermetrics_from_payload(tmp_path, b'\x00'.join([fragments[0], fragments[1][:-100], fragments[2]]))
 
 def test_cloud_energy():
     filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_mach_system.log')

@@ -1,3 +1,4 @@
+"use strict";
 const createChartContainer = (container, el) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
@@ -311,8 +312,8 @@ const getMeasurementsAndStats = async (repo, branch, workflow_id, start_date, en
 
 const refreshView = async (repo, branch, workflow_id, chart_instance) => {
 
-    const start_date = dateToYMD(new Date($('#rangestart input').val()), short=true);
-    const end_date = dateToYMD(new Date($('#rangeend input').val()), short=true);
+    const start_date = dateToYMD(new Date($('#rangestart input').val()), true);
+    const end_date = dateToYMD(new Date($('#rangeend input').val()), true);
 
     let measurements = null;
     let stats = null;
@@ -322,7 +323,7 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
         document.querySelector('#message-no-data').style.display = 'none';
 
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             document.querySelectorAll('.container-no-data').forEach(el => el.style.display = 'none')
             document.querySelector('#message-no-data').style.display = '';
             return

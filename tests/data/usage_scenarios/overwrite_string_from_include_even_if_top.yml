@@ -4,6 +4,11 @@ compose-file: !include include_example.yml
 name: Name overwritten
 author: Author overwritten
 
+services:
+  test-container-1:
+    image: alpine
+    entrypoint: tail -f /dev/null
+
 flow:
   - name: dummy
     container: test-container-1

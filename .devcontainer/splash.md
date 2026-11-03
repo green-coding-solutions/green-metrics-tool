@@ -13,7 +13,7 @@ It will take about 3 minutes.
 Afterwards, load the python environment:
 
 ```sh
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 Do your first measurement run like this:

@@ -23,7 +23,7 @@ class CpuEnergyRaplScaphandreComponentProvider(BaseMetricProvider):
                     self._disabled_domains.append(domain)
 
         super().__init__(
-            metric_name='cpu_energy_rapl_msr_component',
+            metric_name='cpu_energy_rapl_scaphandre_component',
             metrics={'time': int, 'value': int, 'detail_name': str},
             sampling_rate=sampling_rate,
             unit='uJ',
@@ -55,7 +55,7 @@ class CpuEnergyRaplScaphandreComponentProvider(BaseMetricProvider):
         print(' '.join(cmd))
 
         self._stdout_file = open(self._filename, 'w', encoding='utf-8')  # pylint: disable=consider-using-with
-        self._ps = subprocess.Popen(
+        self._ps = subprocess.Popen(  # pylint: disable=consider-using-with
             cmd,
             stdout=self._stdout_file,
             stderr=subprocess.PIPE,

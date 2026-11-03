@@ -9,10 +9,9 @@ from datetime import date, datetime, timedelta
 import pprint
 
 from fastapi import APIRouter, Response, Depends, HTTPException, Request
-
 import anybadge
 
-from api.object_specifications import Software, JobChange, WatchlistChange, RunChange
+from api.object_specifications import Software, JobChange, WatchlistChange, RunChange, ArtifactType
 from api.api_helpers import (CustomORJSONResponse, ORJSONResponseObjKeep, add_phase_stats_statistics,
                          determine_comparison_case,get_comparison_details,
                          get_phase_stats, get_phase_stats_object, check_run_failed,
@@ -23,14 +22,14 @@ from api.api_helpers import (CustomORJSONResponse, ORJSONResponseObjKeep, add_ph
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.diff import get_diffable_rows, diff_rows
-from lib.job.base import Job
+from lib.job.run import RunJob
+from lib.job.email_simple import EmailSimpleJob
 from lib.user import User
 from lib.watchlist import Watchlist
 from lib import utils
 from lib import error_helpers
+from lib.encryption import EncryptionConfigurationError
 
-from enum import Enum
-ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -96,6 +95,7 @@ def parse_carbon_simulation(carbon_simulation):
 # Return a list of all known machines in the cluster
 @router.get('/v1/machines')
 async def get_machines(
+    # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate), # pylint: disable=unused-argument
     ):
 
@@ -115,7 +115,7 @@ async def get_jobs(
     machine_id: int | None = None,
     state: str | None = None,
     job_id: int | None = None,
-    user: User = Depends(authenticate), # pylint: disable=unused-argument
+    user: User = Depends(authenticate),
     ):
 
     params = [user.is_super_user(), user.visible_users()]
@@ -153,12 +153,16 @@ async def get_jobs(
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
+    # jobs.url is kept unredacted in the DB as the cluster worker needs the real
+    # credentials to clone the repo. Redact it here as it is never needed by the client.
+    data = [(*row[:3], utils.filter_sensitive_data(row[3]), *row[4:]) for row in data]
+
     return CustomORJSONResponse({'success': True, 'data': data})
 
 @router.put('/v1/job')
 async def update_job(
     job: JobChange,
-    user: User = Depends(authenticate), # pylint: disable=unused-argument
+    user: User = Depends(authenticate),
     ):
 
     params = [user.is_super_user(), user._id, job.job_id]
@@ -209,7 +213,8 @@ async def update_job(
 async def update_watchlist(
     change: WatchlistChange,
     user: User = Depends(authenticate),  # consistent with jobs
-):
+    ):
+
     if change.action != 'delete':
         raise HTTPException(status_code=422, detail=f"Unsupported action: {change.action}")
 
@@ -225,7 +230,7 @@ async def update_watchlist(
     if not deleted:
         raise HTTPException(status_code=404, detail='Watchlist entry not found or not owned by user')
 
-    return CustomORJSONResponse({'success': True, 'deleted_id': deleted['id']}, status_code=202)
+    return CustomORJSONResponse({'success': True, 'deleted_id': deleted[0]}, status_code=202)
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v1/notes/{run_id}')
@@ -307,7 +312,16 @@ async def get_network(run_id: str, user: User = Depends(authenticate)):
 
 
 @router.get('/v1/repositories')
-async def get_repositories(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, sort_by: str = 'name', user: User = Depends(authenticate)):
+async def get_repositories(
+    uri: str | None = None,
+    branch: str | None = None,
+    machine_id: int | None = None,
+    machine: str | None = None,
+    filename: str | None = None,
+    sort_by: str = 'name',
+    user: User = Depends(authenticate),
+    ):
+
     query = '''
             SELECT
                 r.uri,
@@ -360,7 +374,24 @@ def old_v1_runs_endpoint():
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v2/runs')
-async def get_runs(name: str | None = None, uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, usage_scenario_variables: str | None = None, job_id: int | None = None, failed: bool | None = None, show_archived: bool | None = None, show_other_users: bool | None = None, limit: int | None = 50, uri_mode = 'none', start_date: date | None = None, end_date: date | None = None, user: User = Depends(authenticate)):
+async def get_runs(
+    name: str | None = None,
+    uri: str | None = None,
+    branch: str | None = None,
+    machine_id: int | None = None,
+    machine: str | None = None,
+    filename: str | None = None,
+    usage_scenario_variables: str | None = None,
+    job_id: int | None = None,
+    failed: bool | None = None,
+    show_archived: bool | None = None,
+    show_other_users: bool | None = None,
+    limit: int | None = 50,
+    uri_mode = 'none',
+    start_date: date | None = None,
+    end_date: date | None = None,
+    user: User = Depends(authenticate)
+    ):
 
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at,
@@ -448,7 +479,6 @@ async def get_runs(name: str | None = None, uri: str | None = None, branch: str 
 
     return CustomORJSONResponse({'success': True, 'data': data})
 
-
 # Just copy and paste if we want to deprecate URLs
 # @router.get('/v1/measurements/uri', deprecated=True) # Here you can see, that URL is nevertheless accessible as variable
 # later if supplied. Also deprecation shall be used once we move to v2 for all v1 routesthrough
@@ -457,6 +487,7 @@ async def get_runs(name: str | None = None, uri: str | None = None, branch: str 
 async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = Depends(authenticate)):
     if ids is None or not ids.strip():
         raise HTTPException(status_code=422, detail='run_id is empty')
+
     ids = ids.split(',')
     if not all(is_valid_uuid(id) for id in ids):
         raise HTTPException(status_code=422, detail='One of Run IDs is not a valid UUID or empty')
@@ -470,6 +501,13 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
         case, comparison_db_key = determine_comparison_case(user, ids, force_mode=force_mode)
     except (RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    if case == 'Table':
+        return Response(
+            content='Compare endpoint cannot handle this set of IDs directly. Please redirect to compare-simple.html',
+            status_code=409,
+            media_type="text/plain",
+        )
 
     comparison_details = get_comparison_details(user, ids, comparison_db_key)
 
@@ -614,7 +652,8 @@ async def get_timeline_stats(
     show_archived: bool | None = None,
     start_date: date | None = None, end_date: date | None = None,  sorting: str | None = None,
     usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
-    user: User = Depends(authenticate)):
+    user: User = Depends(authenticate)
+    ):
 
     if uri is None or uri.strip() == '':
         raise HTTPException(status_code=422, detail='URI is empty')
@@ -639,7 +678,8 @@ async def get_timeline_stats_v2(
     show_archived: bool | None = None,
     start_date: date | None = None, end_date: date | None = None,  sorting: str | None = None,
     usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
-    user: User = Depends(authenticate)):
+    user: User = Depends(authenticate)
+    ):
 
     if uri is None or uri.strip() == '':
         raise HTTPException(status_code=422, detail='URI is empty')
@@ -666,12 +706,13 @@ async def get_timeline_stats_v2(
 ## You might get unexpected results, but generally it is desireable to have a regression of all CPU cores for instance forthe cpu energy reporter
 @router.get('/v1/badge/timeline')
 async def get_timeline_badge(
-        metric: str, uri: str,
-        unit: str = 'watt-hours',
-        detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None,
-        show_archived: bool | None = None,
-        usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
-        user: User = Depends(authenticate)):
+    metric: str, uri: str,
+    unit: str = 'watt-hours',
+    detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None,
+    show_archived: bool | None = None,
+    usage_scenario_variables: Annotated[dict[str, str] | str | None, Depends(parse_usage_scenario_variables)] = None,
+    user: User = Depends(authenticate),
+    ):
 
     if uri is None or uri.strip() == '':
         raise HTTPException(status_code=422, detail='URI is empty')
@@ -864,8 +905,8 @@ async def get_watchlist(user: User = Depends(authenticate)):
     return CustomORJSONResponse({'success': True, 'data': data})
 
 
-@router.post('/v1/software/add')
-async def software_add(software: Software, user: User = Depends(authenticate)):
+@router.post('/v1/runs/add')
+async def runs_add(software: Software, no_url_check: bool = False, user: User = Depends(authenticate)):
 
     if software.name is None or software.name.strip() == '':
         raise HTTPException(status_code=422, detail='Name is empty')
@@ -919,22 +960,35 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if not user.can_schedule_job(software.schedule_mode):
         raise HTTPException(status_code=422, detail='Your user does not have the permissions to use that schedule mode.')
 
+    if not no_url_check:
+        try:
+            utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=utils.filter_sensitive_data(str(exc))) from exc
+
+    unencrypted_repo_url = software.repo_url
     try:
-        utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
-    except Exception as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        software.repo_url = utils.encrypt_uri_credentials(software.repo_url)
+    except EncryptionConfigurationError as exc:
+        raise HTTPException(status_code=422, detail='Cannot store URL credentials: encryption is not configured on this server') from exc
+
+    try:
+        software.usage_scenario_variables = utils.encrypt_secret_usage_scenario_variables(software.usage_scenario_variables)
+    except EncryptionConfigurationError as exc:
+        raise HTTPException(status_code=422, detail='Cannot store secret usage scenario variables: encryption is not configured on this server') from exc
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 
         last_marker = None
-        try:
-            if 'tag' in software.schedule_mode:
-                last_marker = utils.get_repo_last_marker(software.repo_url, 'tags')
+        if not no_url_check:
+            try:
+                if 'tag' in software.schedule_mode:
+                    last_marker = utils.get_repo_last_marker(unencrypted_repo_url, 'tags')
 
-            if 'commit' in software.schedule_mode:
-                last_marker = utils.get_repo_last_marker(software.repo_url, 'commits')
-        except RuntimeError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+                if 'commit' in software.schedule_mode:
+                    last_marker = utils.get_repo_last_marker(unencrypted_repo_url, 'commits')
+            except RuntimeError as exc:
+                raise HTTPException(status_code=422, detail=utils.filter_sensitive_data(str(exc))) from exc
 
         Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
@@ -948,11 +1002,11 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         amount = 1
 
     for _ in range(0,amount):
-        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, commit_hash=software.commit_hash, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation))
+        job_ids_inserted.append(RunJob.insert(user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, commit_hash=software.commit_hash, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation))
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:
-        Job.insert('email-simple', user_id=user._id, name='New run added from Web Interface', message=pprint.pformat(software.model_dump(), width=60, indent=2), email=notification_email)
+        EmailSimpleJob.insert(user_id=user._id, name='New run added from Web Interface', message=pprint.pformat(software.model_dump(), width=60, indent=2), email=notification_email)
 
     return CustomORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
 
@@ -979,7 +1033,7 @@ async def get_run(run_id: str, user: User = Depends(authenticate)):
 def update_run(
     run_id: str,
     run: RunChange,
-    user: User = Depends(authenticate) # pylint: disable=unused-argument
+    user: User = Depends(authenticate),
     ):
 
     if run_id is None or not is_valid_uuid(run_id):

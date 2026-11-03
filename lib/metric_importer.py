@@ -8,7 +8,7 @@ from metric_providers.network.connections.tcpdump.system.provider import generat
 
 def import_measurements(df, metric_name, run_id):
 
-    if metric_name == 'network_connections_proxy_container_dockerproxy':
+    if metric_name == 'network_connections_proxy_container':
 
         df['run_id'] = run_id
         f = StringIO(df.to_csv(index=False, header=False))

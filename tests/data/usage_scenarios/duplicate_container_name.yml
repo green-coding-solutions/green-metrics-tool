@@ -6,9 +6,11 @@ description: Container name invalid test
 services:
   number-1:
     image: alpine
+    entrypoint: tail -f /dev/null
 
   highload-api-cont:
     image: alpine
+    entrypoint: tail -f /dev/null
     container_name: number-1
 
 

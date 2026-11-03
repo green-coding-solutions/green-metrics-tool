@@ -6,7 +6,7 @@ https://docs.green-coding.io/docs/declarations/export-formats/
 Documentation: https://docs.green-coding.io
 API Documentation: https://api.green-coding.io
     or for local installation: http://api.green-coding.internal:9142
-Source: https://github.com/green-coding-solu9ons/green-metrics-tool
+Source: https://github.com/green-coding-solutions/green-metrics-tool
 License: https://github.com/green-coding-solutions/green-metrics-tool/blob/main/LICENSE
 
 ## Updates

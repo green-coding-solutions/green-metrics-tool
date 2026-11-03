@@ -1,5 +1,9 @@
-from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
 from typing import List, Optional, Dict, Literal, Union
+
+from enum import Enum
+from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
+
+ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE', 'SOFTWARE'])
 
 ### Run
 class RunChange(BaseModel):
@@ -21,6 +25,14 @@ class JobChange(BaseModel):
 
 class WatchlistChange(BaseModel):
     watchlist_id: int
+    action: Literal['delete']
+
+    model_config = ConfigDict(extra='forbid')
+
+### System Logs
+
+class SystemLogDelete(BaseModel):
+    log_id: int
     action: Literal['delete']
 
     model_config = ConfigDict(extra='forbid')
@@ -83,7 +95,7 @@ class CI_MeasurementBase(BaseModel):
     @classmethod
     def check_not_empty(cls, value, data):
         if not value or value == '':
-            raise ValueError(f"{data.field_name} must be set an non-empty")
+            raise ValueError(f"{data.field_name} must be set and non-empty")
         return value
 
     @field_validator('filter_type', 'filter_project', 'filter_machine', 'ip')

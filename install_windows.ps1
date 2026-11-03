@@ -115,7 +115,7 @@ function Get-CommandPath {
 function Get-PythonCommand {
     $python = Get-CommandPath @("py.exe", "python.exe", "python3.exe")
     if (-not $python) {
-        Write-Error "Python 3.10+ was not found in PATH. Please install Python and rerun this script."
+        Write-Error "Python 3.12+ was not found in PATH. Please install Python and rerun this script."
     }
 
     if ((Split-Path -Leaf $python) -ieq "py.exe") {
@@ -137,9 +137,9 @@ function Invoke-Python {
 }
 
 function Assert-PythonVersion {
-    Invoke-Python @("-c", "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)")
+    Invoke-Python @("-c", "import sys; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)")
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Python version is NOT greater than or equal to 3.10. GMT requires Python 3.10 at least."
+        Write-Error "Python version is NOT greater than or equal to 3.12. GMT requires Python 3.12 at least."
     }
 }
 
@@ -500,6 +500,7 @@ Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_SCENARIO_RUNNER__" $a
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_ECO_CI__" $activateEcoCiValue.ToString().ToLowerInvariant()
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_POWER_HOG__" $activatePowerHogValue.ToString().ToLowerInvariant()
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_CARBON_DB__" $activateCarbonDbValue.ToString().ToLowerInvariant()
+Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_SOFTWARE_VIEW__" "false"
 Replace-InFile "frontend/js/helpers/config.js" "__ACTIVATE_AI_OPTIMISATIONS__" "false"
 
 if ($enableSsl) {
@@ -531,8 +532,8 @@ if ($activateScenarioRunnerValue) {
 }
 
 Write-Step "Setting up Python venv"
-Invoke-Python @("-m", "venv", "venv")
-$venvPython = Join-Path $Root "venv\Scripts\python.exe"
+Invoke-Python @("-m", "venv", ".venv")
+$venvPython = Join-Path $Root ".venv\Scripts\python.exe"
 if (-not (Test-Path $venvPython)) {
     Write-Error "Could not find venv Python at $venvPython"
 }
@@ -568,4 +569,4 @@ Write-Host "Registered scheduled task 'GreenMetricsClearFSCache' (runs as SYSTEM
 Write-Host ""
 Write-Host "Successfully installed Green Metrics Tool!" -ForegroundColor Green
 Write-Host "Please remember to activate your venv when using GMT:"
-Write-Host "  .\venv\Scripts\Activate.ps1"
+Write-Host "  .\.venv\Scripts\Activate.ps1"

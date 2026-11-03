@@ -6,10 +6,11 @@ description: Container name invalid test
 services:
   highload-api-:cont:
     image: alpine
+    entrypoint: tail -f /dev/null
 
 flow:
   - name: Small-Stress
-    container: highload-api-cont
+    container: highload-api-:cont
     commands:
       - type: console
         command: echo "asd"

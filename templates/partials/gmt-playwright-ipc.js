@@ -10,7 +10,6 @@ let page = null;
 const contextOptions = {
   viewport: { width: 1280, height: 800 },
   ignoreHTTPSErrors: true, // <--- disables SSL check as we funnel requests through proxy
-  timeout: 5000,
 };
 
 function logNote(message) {
@@ -22,12 +21,27 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function gmtPlaywrightCache(url, sleep_duration) {
-    await page.goto(url);
-    await sleep(sleep_duration*1000);
+async function gmtPlaywrightResetContext() {
     await context.close();
     context = await browser.newContext(contextOptions);
     page = await context.newPage();
+}
+
+// statuscode_check: a non-2xx warmup means nothing was cached, so fail the run; pass false to benchmark error pages.
+async function gmtPlaywrightCache(url, sleep_duration, statuscode_check = true) {
+    const page_result = await page.goto(url);
+    if (statuscode_check && page_result && !page_result.ok()) throw `Page was not accessible. HTTP Return code ${page_result.status()}`;
+    await sleep(sleep_duration*1000);
+    await gmtPlaywrightResetContext();
+}
+
+// Runs a base64 encoded user supplied script body.
+// We transport it encoded, because the raw command is string replaced into the usage_scenario.yml before it is
+// parsed as YAML and is then passed through `sh -ec "echo '<command>' > <fifo>"` in lib/scenario_runner.py.
+// Neither of these two steps survives arbitrary newlines and quotes, but the base64 alphabet passes both untouched.
+async function gmtRunScriptB64(script_b64) {
+    const script = Buffer.from(script_b64, 'base64').toString('utf-8');
+    await eval(`(async () => { ${script} })()`);
 }
 
 async function startFifoReader(fifoPath, callback) {
@@ -67,26 +81,26 @@ async function run(browserName, headless, proxy) {
   await context.clearCookies();
   page = await context.newPage()
 
-  execSync(`mkfifo /tmp/playwright-ipc-ready`); // signal that browser is launched
+  execSync(`mkfifo /tmp/playwright-ipc-status`); // signal that browser is launched and carry the per-command status
   execSync(`mkfifo /tmp/playwright-ipc-commands`); // create pipe to get commands
-  execSync(`touch /tmp/playwright-ipc-error`); // create empty file
 
-  await startFifoReader("/tmp/playwright-ipc-commands", async (gmt_internal_data) => {
-      if (gmt_internal_data == 'end') {
-          await browser.close()
-          fs.writeFileSync("/tmp/playwright-ipc-ready", "ready", "utf-8");   // signal that browser is ready although
-          process.exit(0)
-      } else {
-          console.log('Evaluating', gmt_internal_data);
-          try {
-              await eval(`(async () => { ${gmt_internal_data} })()`);
-          } catch (err) {
-              fs.writeFileSync("/tmp/playwright-ipc-error", err.message || String(err), "utf-8");
-              throw err
+  async function handleCommand(gmt_internal_data) {
+      try {
+          if (gmt_internal_data == 'end') {
+              await browser.close()
+              fs.writeFileSync("/tmp/playwright-ipc-status", "ok", "utf-8");   // signal that browser is ready although
+              process.exit(0)
           }
-          fs.writeFileSync("/tmp/playwright-ipc-ready", "ready", "utf-8");   // signal that browser is ready for next command
+          console.log('Evaluating', gmt_internal_data);
+          await eval(`(async () => { ${gmt_internal_data} })()`);
+          fs.writeFileSync("/tmp/playwright-ipc-status", "ok", "utf-8");   // signal that browser is ready for next command
+      } catch (err) {
+          // Report the failure on the status FIFO so the runner fails immediately instead of waiting for the process timeout.
+          fs.writeFileSync("/tmp/playwright-ipc-status", `error: ${err.message || String(err)}`, "utf-8");
       }
-  });
+  }
+
+  await startFifoReader("/tmp/playwright-ipc-commands", handleCommand);
 
 };
 

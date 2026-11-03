@@ -1,3 +1,4 @@
+"use strict";
 $(document).ready(function () {
     (async () => {
 
@@ -6,7 +7,7 @@ $(document).ready(function () {
         try {
             cluster_changelog = await makeAPICall('/v1/cluster/changelog')
         } catch (err) {
-            if (err instanceof APIEmptyResponse204) { // empty data is an OK response
+            if (err instanceof APIHTTPError && err.status === 204) { // empty data is an OK response
                 return
             } else {
                 showNotification('Could not get cluster changelog data from API', err);

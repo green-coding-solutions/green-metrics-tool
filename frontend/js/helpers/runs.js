@@ -211,7 +211,7 @@ async function getRepositories(sort_by = 'date') {
         const last_run = el[1];
         let uri_link = replaceRepoIcon(uri);
 
-        uri_link = `${uri_link} ${createExternalIconLink(uri)}`;
+        uri_link = `<span class="left-side-ellipsis long-ellipsis" title="${escapeString(uri)}">${uri_link}</span> ${createExternalIconLink(uri)}`;
 
         let row = table_body.insertRow()
         row.innerHTML = `
@@ -219,7 +219,7 @@ async function getRepositories(sort_by = 'date') {
                 <div class="ui accordion repositories" style="width: 100%;">
                   <div class="title">
                     <i class="dropdown icon"></i> ${uri_link}
-                    <span class="ui label float-right"><i class="clock icon"></i> ${dateToYMD(new Date(last_run), short=true)}</span>
+                    <span class="ui label float-right"><i class="clock icon"></i> ${dateToYMD(new Date(last_run), true)}</span>
                   </div>
                   <div class="content" data-uri="${escapeString(uri)}">
                       <table class="ui celled striped table"></table>
@@ -292,8 +292,9 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 title: '(<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.) Repo',
                 render: function(el, type, row) {
                     let uri_link = replaceRepoIcon(el);
+                    const ext_link = createExternalIconLink(el);
 
-                    uri_link = `${uri_link} ${createExternalIconLink(el)}`;
+                    uri_link = `<span class="left-side-ellipsis long-ellipsis" title="${escapeString(el)}">${uri_link}</span> ${ext_link}`;
                     const relations = parseRelations(row[13]);
                     const relationLinks = Object.values(relations)
                         .map((relation) => relation?.url)
@@ -334,7 +335,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         data: 6,
         title: '<i class="icon file alternate"></i>Filename',
         render: function(el, type, row) {
-            const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui small label">${escapeString(k)}=${escapeString(v)}</span>`);
+            const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui small label">${escapeString(k)}=${escapeString(displayUsageScenarioVariableValue(k, v))}</span>`);
             return `${escapeString(el)} <br> ${usage_scenario_variables.join(' ')}`
         }
     });

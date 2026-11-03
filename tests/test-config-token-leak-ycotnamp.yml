@@ -1,0 +1,108 @@
+activate_ai_optimisations: false
+activate_carbon_db: true
+activate_eco_ci: true
+activate_power_hog: true
+activate_scenario_runner: true
+admin:
+  email_bcc: false
+  error_email: false
+  error_file: false
+  notification_email: false
+cluster:
+  api_url: http://api.green-coding.internal:9143
+  client:
+    control_workload:
+      branch: main
+      comparison_window: 5
+      filename: usage_scenario.yml
+      metrics:
+      - psu_energy_ac_mcp_machine
+      - psu_power_ac_mcp_machine
+      - cpu_power_rapl_msr_component
+      - cpu_energy_rapl_msr_component
+      name: Measurement control Workload
+      phase: 004_[RUNTIME]
+      threshold: 0.01
+      uri: https://github.com/green-coding-solutions/measurement-control-workload
+    docker_prune: true
+    full_docker_prune: false
+    jobs_processing: random
+    send_control_workload_status_mail: false
+    shutdown_on_job_no: false
+    sleep_time_no_job: 300
+    time_between_control_workload_validations: 21600
+  cors_allowed_origins:
+  - http://api.green-coding.internal:9143
+  - http://metrics.green-coding.internal:9143
+  metrics_url: http://metrics.green-coding.internal:9143
+electricity_maps_token: testing
+machine:
+  base_temperature_chip: asd
+  base_temperature_feature: asd
+  base_temperature_value: null
+  description: Development machine for testing
+  host_reserved_cpus: 1
+  host_reserved_memory: 2147483648
+  id: 1
+measurement:
+  metric_providers:
+    common:
+      carbon_intensity_electricitymaps_machine:
+        region: DE
+        token: SUPER_SECRET_TOKEN_END_TO_END_DO_NOT_LEAK
+      carbon_intensity_static_machine:
+        sampling_rate: 99
+        value: 436
+      psu_energy_ac_xgboost_machine:
+        CPUChips: 1
+        CPUCores: 4
+        CPUThreads: 4
+        HW_CPUFreq: 3200
+        HW_MemAmountGB: 16
+        Hardware_Availability_Year: 2011
+        TDP: 65
+    linux:
+      cpu_utilization_cgroup_container:
+        sampling_rate: 99
+      cpu_utilization_procfs_system:
+        sampling_rate: 99
+      disk_used_statvfs_system:
+        sampling_rate: 99
+      memory_used_cgroup_container:
+        sampling_rate: 99
+      memory_used_procfs_system:
+        sampling_rate: 99
+      network_io_cgroup_container:
+        sampling_rate: 99
+      network_io_procfs_system:
+        remove_virtual_interfaces: true
+        sampling_rate: 99
+    macos:
+      cpu_utilization_mach_system:
+        sampling_rate: 99
+optimization:
+  ignore:
+  - example_optimization_test
+postgresql:
+  dbname: test-green-coding
+  host: test-green-coding-postgres-container
+  password: testpw
+  port: 9574
+  user: postgres
+redis:
+  host: test-green-coding-redis-container
+  port: 6380
+sci:
+  EL: 4
+  N: 0.001875
+  RS: 1
+  TE: 181000
+security:
+  encryption_private_key_file: /Users/arne/Sites/green-coding/green-metrics-tool/tests/data/encryption_private_key.pem
+  encryption_public_key_file: /Users/arne/Sites/green-coding/green-metrics-tool/tests/data/encryption_public_key.pem
+smtp:
+  password: null
+  port: null
+  sender: null
+  server: null
+  user: null

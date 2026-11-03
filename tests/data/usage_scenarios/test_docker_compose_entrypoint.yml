@@ -8,6 +8,7 @@ compose-file: !include test_docker_entry_command.yml
 services:
   test-container:
     image: alpine
+    entrypoint: tail -f /dev/null
 
 flow:
    - name: Stress

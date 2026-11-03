@@ -7,6 +7,7 @@ import subprocess
 from functools import cache
 
 from lib.global_config import GlobalConfig
+from lib.utils import get_test_worker_count
 
 CURRENT_PATH = os.path.dirname(__file__)
 
@@ -24,6 +25,12 @@ def get_assignable_cpus():
     assignable_cpus = SYSTEM_ASSIGNABLE_CPU_COUNT - host_reserved_cpus
     if assignable_cpus <= 0:
         raise RuntimeError(f"Cannot assign docker containers to any CPU as no more CPUs are available to Docker. System available CPU count for Docker: {SYSTEM_ASSIGNABLE_CPU_COUNT}. Reserved for GMT exclusively: {GMT_CONFIG['machine']['host_reserved_cpus']}")
+    # Deliberately *not* divided by get_test_worker_count() the way get_assignable_memory() below is.
+    # CPU oversubscription between parallel pytest-xdist workers degrades gracefully - the scheduler
+    # time-slices the shared cores and everything just runs slower - whereas splitting the cpuset
+    # would pin each worker's containers to a single core on a typical CI runner and make the
+    # measurement workloads slower still, which is the opposite of what we want. Memory has no such
+    # graceful degradation, hence the asymmetry.
     return assignable_cpus
 
 @cache
@@ -33,7 +40,18 @@ def get_assignable_memory():
     available_memory = SYSTEM_ASSIGNABLE_MEMORY - int(GMT_CONFIG['machine']['host_reserved_memory'])
     if available_memory <= 0:
         raise RuntimeError(f"Cannot assign docker containers to any memory as no more memory are available to Docker. System available memory for Docker: {SYSTEM_ASSIGNABLE_MEMORY}. Reserved for GMT exclusively: {GMT_CONFIG['machine']['host_reserved_memory']} Bytes")
-    return available_memory
+
+    # Under pytest-xdist every worker is a separate process running its own ScenarioRunner against the
+    # same host, and each one would otherwise hand the *entire* remaining host memory to its own
+    # containers - on an 8 vCPU / 31 GiB CI runner with 6 workers that is ~174 GiB of limits promised
+    # against 31 GiB of RAM, with swap explicitly turned off by the CI job. These are caps rather than
+    # reservations, so it does not fail on the spot, but it voids the guarantee host_reserved_memory
+    # exists to give: nothing then stops the workers' containers from collectively exhausting the host
+    # and taking unrelated processes (dockerd, the test postgres, pytest itself) down with them.
+    # Splitting the pool evenly restores the invariant that the sum of all limits handed out across
+    # concurrently running workers stays within what the host actually has. Outside a parallel test
+    # session get_test_worker_count() is 1 and this changes nothing.
+    return available_memory // get_test_worker_count()
 
 
 

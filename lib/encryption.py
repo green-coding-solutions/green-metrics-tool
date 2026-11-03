@@ -98,6 +98,30 @@ def is_valid_openssh_private_key(data: str) -> bool:
     except Exception: # pylint: disable=broad-exception-caught
         return False
 
+def is_encrypted_value(data):
+    """
+    True if data is a complete, well-formed encrypted envelope as produced by encrypt_data() - not
+    just a string that happens to start with ENCRYPTED_VALUE_PREFIX. Callers use this to decide
+    whether a value needs encrypting/decrypting; a naive prefix check would let plaintext that
+    collides with the prefix bypass encryption and then fail to decrypt later.
+    Does not require a configured key: envelope shape is independent of our ability to decrypt it.
+    """
+    if not isinstance(data, str) or not data.startswith(ENCRYPTED_VALUE_PREFIX):
+        return False
+
+    try:
+        envelope = json.loads(_base64_decode(data.removeprefix(ENCRYPTED_VALUE_PREFIX)).decode('utf-8'))
+    except (binascii.Error, UnicodeDecodeError, ValueError):
+        return False
+
+    return (
+        isinstance(envelope, dict)
+        and envelope.get('alg') == ENCRYPTION_ALGORITHM
+        and isinstance(envelope.get('encrypted_key'), str)
+        and isinstance(envelope.get('nonce'), str)
+        and isinstance(envelope.get('ciphertext'), str)
+    )
+
 def encrypt_data(data):
     if data is None:
         return None

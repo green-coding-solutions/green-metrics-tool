@@ -638,7 +638,7 @@ if __name__ == '__main__':
     parser.add_argument('-st', '--stress-time', type=int, default=60*2, help='The seconds the system should stress the system. Defaults to 2 minutes')
     parser.add_argument('-ct', '--cooldown-time', type=int, default=60*5, help='The seconds the system should wait to be back to normal temperature. Defaults to 5 minutes')
 
-    parser.add_argument('-pi', '--provider-interval', type=int, default=2000, help='The interval in milliseconds for the providers . Defaults to 5000')
+    parser.add_argument('-pi', '--provider-interval', type=int, default=2000, help='The interval in milliseconds for the providers . Defaults to 2000')
     parser.add_argument('-ti', '--temperature-increase', type=int, default=1000, help='The delta the temperature must increase. Defaults to 1000')
 
     parser.add_argument('-s', '--stress-command', type=str, help='The command to stress the system with. Defaults to stress-ng')

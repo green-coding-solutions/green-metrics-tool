@@ -75,6 +75,37 @@ double parse_double(char *argument) {
     return number;
 }
 
+// Minimum allowed sampling interval, derived from the kernel's clock tick rate.
+// /proc/stat counters are only updated once per tick (USER_HZ, typically 100Hz
+// on Linux == 10ms per tick). Sampling faster than this can result in two reads
+// landing within the same tick, producing a zero delta and a division by zero
+// (SIGFPE) in providers that compute a ratio from consecutive /proc/stat reads.
+unsigned int get_min_sleep_time_ms(void) {
+    long ticks_per_sec = sysconf(_SC_CLK_TCK);
+    if (ticks_per_sec <= 0) {
+        fprintf(stderr, "Error - could not determine kernel clock tick rate via sysconf(_SC_CLK_TCK)\n");
+        exit(1);
+    }
+    // ms per tick, rounded up so we never accept an interval that could
+    // legitimately produce a zero-delta read
+    return (unsigned int)((1000 + ticks_per_sec - 1) / ticks_per_sec);
+}
+
+// Rejects sampling intervals faster than the kernel updates /proc/stat.
+// Otherwise two consecutive reads can land in the same tick, producing a
+// zero total delta and a division-by-zero (SIGFPE) further down the line.
+void validate_min_sleep_time(unsigned int msleep_time, unsigned int min_msleep_time_ms) {
+    if (msleep_time < min_msleep_time_ms) {
+        fprintf(stderr,
+            "Error - requested sampling interval (%u ms) is below the kernel's "
+            "clock tick period (%u ms). /proc/stat is only updated once per tick, "
+            "so sampling faster than this can produce a zero-delta read and crash "
+            "with a division by zero. Use -i %u or higher.\n",
+            msleep_time, min_msleep_time_ms, min_msleep_time_ms);
+        exit(1);
+    }
+}
+
 void get_time_offset(struct timespec *offset) {
     struct timespec realtime, monotonic;
 

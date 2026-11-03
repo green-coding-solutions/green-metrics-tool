@@ -19,6 +19,7 @@ static int user_id = -1;
 static long int user_hz;
 static unsigned int msleep_time=1000;
 static struct timespec offset;
+static unsigned int min_msleep_time_ms = 0;
 
 static long int read_cpu_proc(char* path, int mode) {
     FILE* fd = fopen(path, "r");
@@ -142,6 +143,7 @@ int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
     user_hz = sysconf(_SC_CLK_TCK);
     user_id = getuid();
+    min_msleep_time_ms = get_min_sleep_time_ms(); // must run before we validate -i
 
     static struct option long_options[] =
     {
@@ -158,7 +160,8 @@ int main(int argc, char **argv) {
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-s      : string of container IDs or cgroup names separated by comma\n");
-            printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n\n");
+            printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
+            printf("\t          (must be >= kernel tick period, currently %u ms)\n\n", min_msleep_time_ms);
             printf("\t-c      : check system and exit\n");
             printf("\n");
 
@@ -171,6 +174,7 @@ int main(int argc, char **argv) {
             resolution = res.tv_sec + (((double)res.tv_nsec)/1.0e9);
             printf("\tSystemHZ\t%ld\n", (unsigned long)(1/resolution + 0.5));
             printf("\tCLOCKS_PER_SEC\t%ld\n", CLOCKS_PER_SEC);
+            printf("\tMinSampleMS\t%u\n", min_msleep_time_ms);
             exit(0);
         case 'i':
             msleep_time = parse_int(optarg);
@@ -198,6 +202,8 @@ int main(int argc, char **argv) {
         check_path("/proc/stat");
         exit(check_path("/sys/fs/cgroup/cpu.stat"));
     }
+
+    validate_min_sleep_time(msleep_time, min_msleep_time_ms);
 
     get_time_offset(&offset);
 

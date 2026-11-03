@@ -1,3 +1,4 @@
+"use strict";
 const AVAILABLE_YEARS = [2021, 2022, 2023, 2024, 2025];
 
 const DEFAULT_NUM_RUNS = 1000;
@@ -57,7 +58,7 @@ const fetchMeasurements = async (runId) => {
         const measurements = await makeAPICall(`/v1/measurements/single/${safeRunId}`);
         return measurements?.data || [];
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) return [];
+        if (err instanceof APIHTTPError && err.status === 204) return [];
         throw err;
     }
 };
@@ -68,7 +69,7 @@ const fetchPhaseStats = async (runId) => {
         const response = await makeAPICall(`/v1/phase_stats/single/${safeRunId}`);
         return response?.data || null;
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) return null;
+        if (err instanceof APIHTTPError && err.status === 204) return null;
         throw err;
     }
 };

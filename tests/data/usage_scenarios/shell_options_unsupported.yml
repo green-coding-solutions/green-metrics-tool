@@ -1,0 +1,19 @@
+---
+name: Shell Options Unsupported
+author: Didi Hoffmann
+description: Checks that an unsupported shell option gives a helpful hint
+
+services:
+  test-container:
+    image: alpine
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sleep infinity"]
+
+flow:
+  - name: Flow Name
+    container: test-container
+    commands:
+      - type: console
+        command: "echo 'hello'"
+        shell: /bin/sh
+        shell-options: ['-o', 'unsupported-gmt-option']

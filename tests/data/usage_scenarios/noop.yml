@@ -6,10 +6,11 @@ description: Testing Noop
 services:
   test-container:
     image: alpine
+    entrypoint: tail -f /dev/null
 
 flow:
   - name: Testing Noop
     container: test-container
     commands:
       - type: console
-        command: echo 1
+        command: sleep 1

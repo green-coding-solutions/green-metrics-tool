@@ -6,17 +6,21 @@ description: test
 services:
   test-container-1:
     image: alpine
+    entrypoint: tail -f /dev/null
     depends_on:
       - test-container-2
       - test-container-3
   test-container-2:
     image: alpine
+    entrypoint: tail -f /dev/null
   test-container-3:
     image: alpine
+    entrypoint: tail -f /dev/null
     depends_on:
       - test-container-4
   test-container-4:
     image: alpine
+    entrypoint: tail -f /dev/null
     depends_on:
       - test-container-2
 

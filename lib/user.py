@@ -3,14 +3,12 @@ import hashlib
 
 from lib.secure_variable import SecureVariable
 from lib.db import DB
-from lib.encryption import EncryptionConfigurationError, decrypt_data, encrypt_data, is_valid_openssh_private_key
+from lib.encryption import EncryptionConfigurationError, ENCRYPTED_VALUE_PREFIX, decrypt_data, encrypt_data, is_valid_openssh_private_key
 
-def get_nested_value(dictionary, path):
-    keys = path.split('.', 1)
-    key = keys[0]
-    if len(keys) == 1:
-        return (dictionary, key, dictionary[key])
-    return get_nested_value(dictionary[key], keys[1])
+def set_nested_value(dictionary, keys, value):
+    for key in keys[:-1]:
+        dictionary = dictionary[key]
+    dictionary[keys[-1]] = value
 
 class User():
 
@@ -19,7 +17,7 @@ class User():
             raise UserAuthenticationError('User 0 is system user and cannot log in')
 
         user = DB().fetch_one("""
-                SELECT id, name, capabilities, ssh_private_key
+                SELECT id, name, capabilities, ssh_private_key, docker_credentials
                 FROM users
                 WHERE id = %s
                 """, params=(user_id, ))
@@ -30,10 +28,12 @@ class User():
         self._name = user[1]
         self._capabilities = user[2]
         self.__encrypted_ssh_private_key = user[3]
+        self.__encrypted_docker_credentials = user[4]
         # value is not populated here directly as due to the security setup of GMT
         # the server sometimes only has the public key to encrypt and would fail if the
         # private key is missing
         self.__decrypted_ssh_private_key = None
+        self.__decrypted_docker_credentials = None
 
     def to_dict(self):
         values = self.__dict__.copy()
@@ -41,23 +41,56 @@ class User():
         values.pop('_User__encrypted_ssh_private_key', None)
         values.pop('_User__decrypted_ssh_private_key', None)
         values['_has_ssh_private_key'] = bool(self.__encrypted_ssh_private_key)
+        values.pop('_User__encrypted_docker_credentials', None)
+        values.pop('_User__decrypted_docker_credentials', None)
+        values['_has_docker_credentials'] = bool(self.__encrypted_docker_credentials)
         return values
 
     def __repr__(self):
         return str(self.to_dict())
 
-    def update(self):
+    # Capabilities are only ever written path-wise and never as a whole object.
+    # A User object can live for hours (e.g. during a measurement job) and writing back the full
+    # in-memory copy would overwrite changes that happened in the DB in the meantime
+    def set_capability(self, path: str, value):
+        keys = path.split('.')
+
         DB().query("""
             UPDATE users
-            SET capabilities = %s
+            SET capabilities = jsonb_set(capabilities, %s::text[], %s::jsonb)
             WHERE id = %s
-            """, params=(json.dumps(self._capabilities), self._id, ))
+            """, params=(keys, json.dumps(value), self._id, ))
+
+        set_nested_value(self._capabilities, keys, value)
+
+    # Decrement is done atomically in the DB. If the key does not exist in the DB (anymore) nothing is changed
+    # Note: Quotas can become negative as deductions happen after usage. Checks are always for > 0 though
+    def _decrement_capability(self, keys: list, amount: int):
+        new_value = DB().fetch_one("""
+            UPDATE users
+            SET capabilities = jsonb_set(capabilities, %s::text[], to_jsonb((capabilities #>> %s::text[])::bigint - %s))
+            WHERE id = %s AND capabilities #> %s::text[] IS NOT NULL
+            RETURNING capabilities #> %s::text[]
+            """, params=(keys, keys, amount, self._id, keys, keys))
+
+        if new_value is not None:
+            set_nested_value(self._capabilities, keys, new_value[0])
 
 
     def _save_key_to_db(self, encrypted_value):
         DB().query("""
             UPDATE users
             SET ssh_private_key = %s
+            WHERE id = %s
+            """, params=(encrypted_value, self._id, ))
+
+    def _save_docker_credentials_to_db(self, encrypted_value):
+        if encrypted_value is not None and not (isinstance(encrypted_value, str) and encrypted_value.startswith(ENCRYPTED_VALUE_PREFIX)):
+            raise ValueError('docker_credentials must be encrypted before being stored')
+
+        DB().query("""
+            UPDATE users
+            SET docker_credentials = %s
             WHERE id = %s
             """, params=(encrypted_value, self._id, ))
 
@@ -70,6 +103,10 @@ class User():
     def can_use_machine(self, machine_id: int):
         return machine_id in self._capabilities['machines']
 
+    def can_use_orchestrator(self, orchestrator: str):
+        # 'host' grants execution of flow commands directly on the host (container: null). Security sensitive - grant with care!
+        return orchestrator in self._capabilities['measurement'].get('orchestrators', {})
+
     def can_use_route(self, route: str):
         return route in self._capabilities['api']['routes']
 
@@ -81,7 +118,7 @@ class User():
             raise ValueError(f"You cannot change this setting: {name}")
 
         match name:
-            case 'measurement.skip_optimizations' | 'measurement.dev_no_sleeps' | 'measurement.phase_padding' | 'measurement.skip_volume_inspect':
+            case 'measurement.skip_optimizations' | 'measurement.dev_no_sleeps' | 'measurement.skip_volume_inspect':
                 if not isinstance(value, bool):
                     raise ValueError(f'The setting {name} must be boolean')
             case 'measurement.flow_process_duration' | 'measurement.total_duration':
@@ -105,12 +142,13 @@ class User():
             case 'ssh_private_key':
                 self.update_ssh_private_key(value)
                 return
+            case 'docker_credentials':
+                self.update_docker_credentials(value)
+                return
             case _:
                 raise ValueError(f'The setting {name} is unknown')
 
-        (element, last_key, _) = get_nested_value(self._capabilities, name)
-        element[last_key] = value
-        self.update()
+        self.set_capability(name, value)
 
     def has_ssh_private_key(self):
         return bool(self.__encrypted_ssh_private_key)
@@ -155,6 +193,55 @@ class User():
         self.__encrypted_ssh_private_key = encrypted_value
         self.__decrypted_ssh_private_key = SecureVariable(normalized_value) if normalized_value else None
 
+    def has_docker_credentials(self):
+        return bool(self.__encrypted_docker_credentials)
+
+    def get_docker_credentials(self):
+        if self.__decrypted_docker_credentials is None and self.has_docker_credentials():
+            decrypted = decrypt_data(self.__encrypted_docker_credentials)
+            creds_list = json.loads(decrypted)
+            self.__decrypted_docker_credentials = [
+                {'registry': c['registry'], 'username': c['username'], 'password': SecureVariable(c['password'])}
+                for c in creds_list
+            ]
+        return self.__decrypted_docker_credentials
+
+    def update_docker_credentials(self, creds):
+        if creds is None or (isinstance(creds, str) and creds.strip() == '') or creds == []:
+            self._save_docker_credentials_to_db(None)
+            self.__encrypted_docker_credentials = self.__decrypted_docker_credentials = None
+            return
+
+        if not isinstance(creds, list):
+            raise ValueError('The setting docker_credentials must be a list of credential objects')
+
+        normalized = []
+        for cred in creds:
+            if not isinstance(cred, dict):
+                raise ValueError('Each docker credential must be an object with registry, username, and password fields')
+            for field in ('registry', 'username', 'password'):
+                if field not in cred or not isinstance(cred[field], str) or not cred[field].strip():
+                    raise ValueError(f"Each docker credential must have a non-empty '{field}' string field")
+            normalized.append({
+                'registry': cred['registry'].strip(),
+                'username': cred['username'].strip(),
+                'password': cred['password'],
+            })
+
+        serialized = json.dumps(normalized, separators=(',', ':'))
+
+        try:
+            encrypted_value = encrypt_data(serialized)
+        except EncryptionConfigurationError as e:
+            raise ValueError('Cannot store docker credentials: encryption is not configured on this server') from e
+
+        self._save_docker_credentials_to_db(encrypted_value)
+        self.__encrypted_docker_credentials = encrypted_value
+        self.__decrypted_docker_credentials = [
+            {'registry': c['registry'], 'username': c['username'], 'password': SecureVariable(c['password'])}
+            for c in normalized
+        ]
+
     def can_change_setting(self, name):
         return name in self._capabilities['user']['updateable_settings']
 
@@ -164,9 +251,7 @@ class User():
         return True # None means infinite amounts
 
     def deduct_api_quota(self, route: str, amount: int):
-        if route in self._capabilities['api']['quotas']:
-            self._capabilities['api']['quotas'][route] -= amount
-            self.update()
+        self._decrement_capability(['api', 'quotas', route], amount)
 
     def has_measurement_quota(self, machine_id: int):
         machine_id = str(machine_id) # json does not support integer keys
@@ -176,9 +261,7 @@ class User():
 
     def deduct_measurement_quota(self, machine_id: int, amount: int):
         machine_id = str(machine_id)  # json does not support integer keys
-        if machine_id in self._capabilities['measurement']['quotas']:
-            self._capabilities['measurement']['quotas'][machine_id] -= amount
-            self.update()
+        self._decrement_capability(['measurement', 'quotas', machine_id], amount)
 
     @classmethod
     def authenticate(cls, token: SecureVariable | None):

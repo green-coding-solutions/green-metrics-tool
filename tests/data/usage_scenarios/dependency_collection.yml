@@ -6,14 +6,15 @@ description: Test Dependency Resolving
 services:
   test-container:
     image: greencoding/gcb_playwright:v20
+    entrypoint: tail -f /dev/null
     setup-commands:
       - shell: bash
         command: |
           cd /root
           python3 -m virtualenv venv
           /root/venv/bin/pip install psutils
-          apt update
-          apt install nano
+          timeout 180 apt update
+          apt -o Acquire::http::ConnectTimeout=10 -o Acquire::https::ConnectTimeout=10 install nano
 
 flow:
   - name: Stress

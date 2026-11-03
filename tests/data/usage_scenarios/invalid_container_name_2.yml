@@ -7,10 +7,11 @@ services:
   my-service:
     container_name: 8zhfiuw:-3tjfuehuis
     image: alpine
+    entrypoint: tail -f /dev/null
 
 flow:
   - name: Small-Stress
-    container: highload-api-cont
+    container: 8zhfiuw:-3tjfuehuis
     commands:
       - type: console
         command: echo "asd"

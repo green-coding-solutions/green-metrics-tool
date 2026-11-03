@@ -1,3 +1,4 @@
+"use strict";
 function createPythonDictTable(dataArray, labelPrefix = 'Item', keyHeader = 'Key') {
     // Parse Python dictionary data into a comparison table
     const items = Array.isArray(dataArray) ? dataArray : [dataArray];
@@ -27,7 +28,7 @@ function createPythonDictTable(dataArray, labelPrefix = 'Item', keyHeader = 'Key
     allKeys.forEach(key => {
         tableContent += `<tr><td><strong>${escapeString(key)}</strong></td>`;
         parsedItems.forEach(item => {
-            tableContent += `<td style="text-align: center;">${escapeString(item[key] || '-')}</td>`;
+            tableContent += `<td style="text-align: center;">${escapeString(item[key] ? displayUsageScenarioVariableValue(key, item[key]) : '-')}</td>`;
         });
         tableContent += '</tr>';
     });
@@ -62,7 +63,7 @@ const fetchWarningsForRuns = async (run_ids) => {
             const data = await makeAPICall('/v1/warnings/' + run_id);
             if (data?.data) warnings.push(...data.data);
         } catch (err) {
-            if (err instanceof APIEmptyResponse204) {
+            if (err instanceof APIHTTPError && err.status === 204) {
                 console.log('No warnings where present in API response. Skipping error as this is allowed case.')
             } else {
                 showNotification('Could not get warnings data from API', err);
@@ -165,7 +166,7 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
         document.querySelector('#time-series-notes-no-display').classList.remove('hidden');
         const description = document.querySelector('#time-series-notes-no-display .description')
         description.innerHTML = 'Runs have same amount of notes, but at least one note differed in text. This might only be a small textual change or can be totally different steps. Please check chart for different labels in steps.<br><ul></ul>';
-        description_ul = description.querySelector('ul')
+        const description_ul = description.querySelector('ul')
         comparison.differences.forEach(el =>  {description_ul.innerHTML += `<li>${el.a} -> ${el.b}</li>`})
     }
 
@@ -313,6 +314,12 @@ $(document).ready( () => {
             }
             phase_stats_data = (await makeAPICall(url)).data
         } catch (err) {
+            if (err instanceof APIHTTPError && err.status === 409) {
+                console.log('Endpoint cannot handle request. Will redirect to simple table.')
+                window.location.href = `/compare-simple.html?ids=${run_ids}&redirect_from_auto=true`;
+                return
+            }
+
             showNotification('Could not get compare in-repo data from API', err);
             return
         }
@@ -357,7 +364,8 @@ $(document).ready( () => {
         buildPhaseTabs(phase_stats_data)
         renderCompareChartsForPhase(phase_stats_data, getAndShowPhase(), run_count);
         displayTotalChart(...buildTotalChartData(phase_stats_data));
-        fetchAndShowTimeSeriesNotesHistory(run_ids)
+        // comparison_details is ordered by created_at ASC, same as the comparison tables. The ids from the URL are newest first
+        fetchAndShowTimeSeriesNotesHistory(phase_stats_data.comparison_details.flat().map(el => el.run_id))
 
         document.querySelectorAll('.ui.steps.phases .step, .runtime-step').forEach(node => node.addEventListener('click', el => {
             const phase = el.currentTarget.getAttribute('data-tab');

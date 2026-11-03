@@ -4,12 +4,9 @@ import subprocess
 import sys
 from time import sleep
 import yaml
-import shutil
 import re
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-from lib import utils
 
 BASE_COMPOSE_NAME = 'compose.yml.example'
 TEST_COMPOSE_NAME = 'test-compose.yml'
@@ -52,37 +49,16 @@ def check_sudo():
 
         sys.exit(1)
 
-def copy_sql_structure(ee=False):
-    print('Copying SQL structure...')
-    shutil.copyfile('../docker/structure.sql', './structure.sql')
-
-    with open('./structure.sql', 'r', encoding='utf-8') as f:
-        sql = f.read()
-    sql = sql.replace(
-        '"measurement.skip_volume_inspect"',
-        '"measurement.skip_volume_inspect",\n                "ssh_private_key"'
-    )
-    with open('./structure.sql', 'w', encoding='utf-8') as f:
-        f.write(sql)
-
-    if ee:
-        with open('../ee/docker/structure_ee.sql', 'r', encoding='utf-8') as source, open('./structure.sql', 'a', encoding='utf-8') as target:
-            target.write(source.read())
-            print("Enterprise DB definitions of '../ee/docker/structure.sql' appended to './structure.sql' successfully.")
-
-    if utils.get_architecture() == 'macos':
-        command = ['sed', '-i', "", 's/green-coding/test-green-coding/g', './structure.sql']
-    else:
-        command = ['sed', '-i', 's/green-coding/test-green-coding/g', './structure.sql']
-
-    subprocess.check_output(command)
-
-
-def edit_compose_file():
+def edit_compose_file(ee=False):
     print('Creating test-compose.yml...')
     compose = None
-    with open(base_compose_path, encoding='utf8') as base_compose_file:
-        compose = yaml.load(base_compose_file, Loader=yaml.FullLoader)
+    with open(base_compose_path, encoding='utf8') as f:
+        base_compose = f.read()
+
+    base_compose = base_compose.replace('#TEST-ONLY#', '')
+    if ee:
+        base_compose = base_compose.replace('#EE-ONLY#', '')
+    compose = yaml.load(base_compose, Loader=yaml.FullLoader)
 
     # Edit stack name
     compose['name'] = 'green-metrics-tool-test'
@@ -108,7 +84,6 @@ def edit_compose_file():
                 volume = volume.replace(k, f'test-{k}')
             volume = volume.replace('PATH_TO_GREEN_METRICS_TOOL_REPO',
                           f'{current_dir}/../')
-            volume = volume.replace('./structure.sql', '../tests/structure.sql')
             new_vol_list.append(volume)
 
         # Change the depends on: in services as well
@@ -149,6 +124,8 @@ def edit_compose_file():
             new_env = []
             for env in compose['services'][service]['environment']:
                 env = env.replace('PLEASE_CHANGE_THIS', DB_PW)
+                env = env.replace('PGOPTIONS=-c search_path=public', 'PGOPTIONS=-c search_path=gmt_test,public')
+                env = env.replace('POSTGRES_DB=green-coding', 'POSTGRES_DB=test-green-coding')
                 new_env.append(env)
             compose['services'][service]['environment'] = new_env
 
@@ -189,6 +166,7 @@ def create_test_config_file(ee=False, ai=False):
     content = content.replace('activate_eco_ci: False', 'activate_eco_ci: True')
     content = content.replace('activate_power_hog: False', 'activate_power_hog: True')
     content = content.replace('activate_carbon_db: False', 'activate_carbon_db: True')
+    content = content.replace('activate_software_view: False', 'activate_power_hog: True')
     content = content.replace(
         'security:\n  encryption_public_key_file: none\n  encryption_private_key_file: none\n',
         'security:\n'
@@ -221,6 +199,7 @@ def create_frontend_config_file(ee=False, ai=False):
     content = re.sub(r'ACTIVATE_ECO_CI.*$', 'ACTIVATE_ECO_CI = true;', content, flags=re.MULTILINE)
     content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = true;', content, flags=re.MULTILINE)
     content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = true;', content, flags=re.MULTILINE)
+    content = re.sub(r'ACTIVATE_SOFTWARE_VIEW.*$', 'ACTIVATE_SOFTWARE_VIEW = true;', content, flags=re.MULTILINE)
 
     if ee:
         pass # currently noop as all non ai enterprise content has been moved to open source
@@ -282,10 +261,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     check_sudo()
-    copy_sql_structure(args.ee)
     create_test_config_file(args.ee, args.ai)
     create_frontend_config_file(args.ee, args.ai)
-    edit_compose_file()
+    edit_compose_file(args.ee)
     edit_etc_hosts()
     if not args.no_docker_pull:
         pull_test_docker_image()

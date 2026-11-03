@@ -20,6 +20,7 @@ from tests import test_functions as Tests
 from lib.scenario_runner import ScenarioRunner
 from lib.schema_checker import SchemaError
 from lib import resource_limits
+from lib.utils import container_name
 
 ## Note:
 # Always do asserts after try:finally: blocks
@@ -35,7 +36,7 @@ from lib import resource_limits
 
 def get_env_vars():
     ps = subprocess.run(
-        ['docker', 'exec', 'test-container', '/bin/sh',
+        ['docker', 'exec', container_name('test-container'), '/bin/sh',
         '-c', 'env'],
         check=True,
         stderr=subprocess.PIPE,
@@ -60,21 +61,31 @@ def test_resource_limits_good():
         usage_scenario_contents = yaml.safe_load(f)
     container_dict = utils.get_run_data(run_name)['containers']
 
-    assert 'deploy' not in container_dict['test-container-only-cpu'] # not used
-    assert container_dict['test-container-only-cpu']['mem_limit'] > 0 # auto-fill
-    assert container_dict['test-container-only-cpu']['cpus'] == usage_scenario_contents['services']['test-container-only-cpu']['deploy']['resources']['limits']['cpus'] # copy over
+    # container_dict (from the DB) is keyed by the resolved, worker-suffixed container name (see
+    # lib/scenario_runner.py::_store_active_containers()); usage_scenario_contents is the raw YAML
+    # read directly off disk, so it stays keyed by the plain service name.
+    only_cpu = container_name('test-container-only-cpu')
+    only_memory = container_name('test-container-only-memory')
+    both = container_name('test-container-both')
+    cpu_and_memory_in_both = container_name('test-container-cpu-and-memory-in-both')
+    limits_partial = container_name('test-container-limits-partial')
+    limits_none = container_name('test-container-limits-none')
 
-    assert 'deploy' not in container_dict['test-container-only-memory'] # not used
-    assert container_dict['test-container-only-memory']['cpus'] > 0 # auto-fill
-    assert container_dict['test-container-only-memory']['mem_limit'] == 104857600 # copy over but transformed from 100 MB. We use static value for test
+    assert 'deploy' not in container_dict[only_cpu] # not used
+    assert container_dict[only_cpu]['mem_limit'] > 0 # auto-fill
+    assert container_dict[only_cpu]['cpus'] == usage_scenario_contents['services']['test-container-only-cpu']['deploy']['resources']['limits']['cpus'] # copy over
 
-    assert 'deploy' not in container_dict['test-container-both'] # not used
-    assert container_dict['test-container-both']['mem_limit'] == 10485760 # copy over but transformed from 100 MB. We use static value for test
-    assert container_dict['test-container-both']['cpus'] == usage_scenario_contents['services']['test-container-both']['deploy']['resources']['limits']['cpus'] # copy over
+    assert 'deploy' not in container_dict[only_memory] # not used
+    assert container_dict[only_memory]['cpus'] > 0 # auto-fill
+    assert container_dict[only_memory]['mem_limit'] == 104857600 # copy over but transformed from 100 MB. We use static value for test
 
-    assert 'deploy' not in container_dict['test-container-cpu-and-memory-in-both'] # not used
-    assert container_dict['test-container-cpu-and-memory-in-both']['mem_limit'] == 10485760 # copy over but transformed from 100 MB. We use static value for test
-    assert container_dict['test-container-cpu-and-memory-in-both']['cpus'] == usage_scenario_contents['services']['test-container-cpu-and-memory-in-both']['deploy']['resources']['limits']['cpus'] # copy over
+    assert 'deploy' not in container_dict[both] # not used
+    assert container_dict[both]['mem_limit'] == 10485760 # copy over but transformed from 100 MB. We use static value for test
+    assert container_dict[both]['cpus'] == usage_scenario_contents['services']['test-container-both']['deploy']['resources']['limits']['cpus'] # copy over
+
+    assert 'deploy' not in container_dict[cpu_and_memory_in_both] # not used
+    assert container_dict[cpu_and_memory_in_both]['mem_limit'] == 10485760 # copy over but transformed from 100 MB. We use static value for test
+    assert container_dict[cpu_and_memory_in_both]['cpus'] == usage_scenario_contents['services']['test-container-cpu-and-memory-in-both']['deploy']['resources']['limits']['cpus'] # copy over
 
     MEMORY_DEFINED_IN_USAGE_SCENARIO = 199286402 # ~ 190.05 MB
     MEM_AVAILABLE = resource_limits.get_assignable_memory()
@@ -84,15 +95,15 @@ def test_resource_limits_good():
     CPUS_ASSIGNABLE = resource_limits.get_assignable_cpus()
 
     # these are the only three containers that get auto assigned. Thus their values we can check
-    assert 'deploy' not in container_dict['test-container-limits-partial'] # no fill of deploy key
-    assert container_dict['test-container-limits-partial']['mem_limit'] == MEM_PER_CONTAINER # auto-fill
-    assert container_dict['test-container-limits-partial']['cpus'] == CPUS_ASSIGNABLE # auto-fill
+    assert 'deploy' not in container_dict[limits_partial] # no fill of deploy key
+    assert container_dict[limits_partial]['mem_limit'] == MEM_PER_CONTAINER # auto-fill
+    assert container_dict[limits_partial]['cpus'] == CPUS_ASSIGNABLE # auto-fill
 
-    assert 'deploy' not in container_dict['test-container-limits-none'] # no creation of deploy key
-    assert container_dict['test-container-limits-none']['mem_limit'] == MEM_PER_CONTAINER # auto-fill
-    assert container_dict['test-container-limits-none']['cpus'] == CPUS_ASSIGNABLE # auto-fill
+    assert 'deploy' not in container_dict[limits_none] # no creation of deploy key
+    assert container_dict[limits_none]['mem_limit'] == MEM_PER_CONTAINER # auto-fill
+    assert container_dict[limits_none]['cpus'] == CPUS_ASSIGNABLE # auto-fill
 
-    assert container_dict['test-container-only-cpu']['mem_limit'] == MEM_PER_CONTAINER # auto-fill
+    assert container_dict[only_cpu]['mem_limit'] == MEM_PER_CONTAINER # auto-fill
 
     assert 'Container Memory Limit is 10000001\n' in out.getvalue()
 
@@ -200,7 +211,7 @@ def test_resource_limits_oom_setup():
     with pytest.raises(MemoryError) as e:
         runner.run()
 
-    assert str(e.value) == "Your process ['docker', 'exec', 'test-container', 'dd', 'if=/dev/zero', 'of=/dev/shm/test100mb', 'bs=1M', 'count=100'] failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n\n\n========== Stderr ==========\n"
+    assert str(e.value) == f"Your process ['docker', 'exec', '{container_name('test-container')}', 'dd', 'if=/dev/zero', 'of=/dev/shm/test100mb', 'bs=1M', 'count=100'] failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n\n\n========== Stderr ==========\n"
 
 
 @pytest.mark.skip(reason="This test needs implementing of a check window after container boot. Currently this test is experiencing a race condition")
@@ -210,7 +221,7 @@ def test_resource_limits_oom_launch():
     with pytest.raises(MemoryError) as e:
         runner.run()
 
-    assert str(e.value) == "Container 'test-container' failed during [BOOT] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\nContainer logs:\n\n========== Stdout ==========\n\n\n========== Stderr ==========\n"
+    assert str(e.value) == f"Container '{container_name('test-container')}' failed during [BOOT] with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\nContainer logs:\n\n========== Stdout ==========\n\n\n========== Stderr ==========\n"
 
 def test_resource_limits_oom_exec():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/oom_exec.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
@@ -218,4 +229,4 @@ def test_resource_limits_oom_exec():
     with pytest.raises(MemoryError) as e:
         runner.run()
 
-    assert str(e.value) == "Your process ['docker', 'exec', 'test-container', 'dd', 'if=/dev/zero', 'of=/dev/shm/test100mb', 'bs=1M', 'count=100'] failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\nDetached process: False\n\n========== Stderr ==========\n"
+    assert str(e.value) == f"Your process ['docker', 'exec', '{container_name('test-container')}', 'dd', 'if=/dev/zero', 'of=/dev/shm/test100mb', 'bs=1M', 'count=100'] failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\nDetached process: False\n\n========== Stderr ==========\n"

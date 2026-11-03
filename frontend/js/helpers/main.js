@@ -13,6 +13,15 @@ const escapeString = (string) =>{
     return my_string.replace(reg, (match) => map[match]);
 }
 
+// Usage scenario variables named __GMT_VAR_SECRET_*__ hold secrets. The backend only ever hands us
+// their encrypted value, so nothing sensitive can leak here - we still mask it, as showing a long
+// ciphertext blob in a table label is noise and invites people to copy it around.
+const SECRET_USAGE_SCENARIO_VARIABLE_REGEX = /^__GMT_VAR_SECRET_[\w]+__$/;
+
+const isSecretUsageScenarioVariable = (key) => SECRET_USAGE_SCENARIO_VARIABLE_REGEX.test(key);
+
+const displayUsageScenarioVariableValue = (key, value) => isSecretUsageScenarioVariable(key) ? '*****ENCRYPTED*****' : value;
+
 const toHttpsUri = (uri) => {
     if (uri.startsWith('git@')) {
         return uri.replace(/^git@([^:]+):/, 'https://$1/').replace(/\.git$/, '');
@@ -23,7 +32,37 @@ const toHttpsUri = (uri) => {
     return uri;
 };
 
-class APIEmptyResponse204 extends Error {}
+// Platform path conventions:
+//   type='commit': /commit/ (GitHub), /-/commit/ (GitLab), /commits/ (Bitbucket)
+//   type='tree':   /tree/   (GitHub), /-/tree/   (GitLab), /src/     (Bitbucket)
+// Returns null for non-HTTP URIs (e.g. local paths).
+const getRepoRefUrl = (uri, type) => {
+    const cleanUri = toHttpsUri(uri);
+    if (!cleanUri.startsWith('http')) return null;
+    if (type !== 'commit' && type !== 'tree') {
+        console.error(`getRepoRefUrl: unknown type '${type}', expected 'commit' or 'tree'`);
+        return '#broken-url';
+    }
+    let hostname;
+    try {
+        hostname = new URL(cleanUri).hostname.toLowerCase();
+    } catch {
+        return null;
+    }
+    const base = cleanUri.endsWith('.git') ? cleanUri.slice(0, -4) : cleanUri;
+    if (hostname.includes('bitbucket')) {
+        return base + (type === 'commit' ? '/commits/' : '/src/');
+    }
+    const pathSep = hostname.includes('gitlab') ? '/-/' : '/';
+    return base + (type === 'commit' ? pathSep + 'commit/' : pathSep + 'tree/');
+};
+
+class APIHTTPError extends Error {
+    constructor(status, message) {
+        super(message);
+        this.status = status;
+    }
+}
 
 const date_options = {
   year: 'numeric',
@@ -163,7 +202,7 @@ const getClusterStatus = async (status_ok_selector, status_warning_selector) => 
         document.querySelector('.cluster-health-message.yellow').style.display = 'flex'; // show
 
     } catch (err) {
-        if (err instanceof APIEmptyResponse204) {
+        if (err instanceof APIHTTPError && err.status === 204) {
             document.querySelector('.cluster-health-message.success').style.display = 'flex'; // show
         } else {
             showNotification('Could not get cluster health status data from API', err); // no return as we want other calls to happen
@@ -263,15 +302,16 @@ const replaceRepoIcon = (uri) => {
     default:
       return escapeString(uri);
   }
-  return `<i class="icon ${iconClass}"></i>` + escapeString(uri.substring(url.origin.length));
+  return `<i class="icon ${iconClass}"></i>` + escapeString(url.pathname + url.search + url.hash);
 };
 
 const createExternalIconLink = (url) => {
-    // Creates a safe external icon link with protocol validation to prevent XSS attacks
-    // Only allows http/https protocols, returns empty string for non-HTTP URLs
+    // Build a safe external icon link. toHttpsUri only normalises SSH/git@ prefixes; it does NOT strip
+    // HTML-attribute-breaking chars like ", so the href value still requires escapeString.
+    // The startsWith('http') check restricts the protocol but does not on its own prevent attribute breakout.
     const httpsUrl = url ? toHttpsUri(url) : url;
     if (httpsUrl && httpsUrl.startsWith('http')) {
-        return `<a href="${httpsUrl}" target="_blank"><i class="icon external alternate"></i></a>`;
+        return `<a href="${escapeString(httpsUrl)}" target="_blank"><i class="icon external alternate"></i></a>`;
     }
     return '';
 }
@@ -279,7 +319,7 @@ const createExternalIconLink = (url) => {
 const showNotification = (message_title, message_text, type='error') => {
     if (typeof message_text === 'object') console.log(message_text); // this is most likey an error. We need it in the console
 
-    const message = (typeof message_text === 'string' || typeof message_text === 'object') ? message_text : JSON.stringify(message_text);
+    const message = typeof message_text === 'string' ? message_text : (message_text instanceof Error ? message_text.message : JSON.stringify(message_text));
     $('body')
       .toast({
         class: type,
@@ -324,19 +364,20 @@ const dateToYMD = (date, short=false, no_break=false) => {
 
 async function makeAPICall(path, values=null, force_authentication_token=null, force_put=false) {
 
+    let options = {}
     if(values != null ) {
-        var options = {
+        options = {
             method: "POST",
             body: JSON.stringify(values),
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
         }
         if (force_put == true) {
             options.method = 'PUT';
         }
     }  else {
-        var options = { method: 'GET', headers: {} }
+        options = { method: 'GET', headers: {} }
     }
 
     if (force_authentication_token != null && force_authentication_token != '') {
@@ -349,16 +390,22 @@ async function makeAPICall(path, values=null, force_authentication_token=null, f
     }
 
     let json_response = null;
+    let _http_status = null;
     if(localStorage.getItem('remove_idle') === 'true') path += (path.includes('?') ? '&' : '?') + 'remove_idle=true'
 
     await fetch(API_URL + path, options)
     .then(response => {
-        if (response.status == 204) {
+        _http_status = response.status;
+        if (response.status === 204) {
             // 204 responses use no body, so json() call would fail
-            throw new APIEmptyResponse204('No data to display. API returned empty response (HTTP 204)')
+            throw new APIHTTPError(204, 'No data to display. API returned empty response (HTTP 204)')
         }
-        if (response.status == 202) {
+        if (response.status === 202) {
             return
+        }
+
+        if (response.status === 409) {
+            throw new APIHTTPError(409, 'Endpoint cannot handle request. Please redirect request.')
         }
 
         return response.json()
@@ -366,9 +413,9 @@ async function makeAPICall(path, values=null, force_authentication_token=null, f
     .then(my_json => {
         if (my_json != null && my_json.success != true) {
             if (Array.isArray(my_json.err) && my_json.err.length !== 0)
-                throw my_json.err[0]?.msg
+                throw new APIHTTPError(_http_status, my_json.err[0]?.msg)
             else
-                throw my_json.err
+                throw new APIHTTPError(_http_status, my_json.err)
         }
         json_response = my_json
     })

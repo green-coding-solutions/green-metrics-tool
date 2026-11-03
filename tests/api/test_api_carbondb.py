@@ -4,6 +4,7 @@ import ipaddress
 import time
 import math
 import json
+import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -13,6 +14,8 @@ from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
+
+pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
 
 ENERGY_DATA = {
     'type': 'machine.ci',
@@ -24,9 +27,7 @@ ENERGY_DATA = {
 }
 
 def test_carbondb_add_unauthenticated():
-    user = User(1)
-    user._capabilities['api']['routes'] = []
-    user.update()
+    User(1).set_capability('api.routes', [])
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15)
     assert response.status_code == 401, Tests.assertion_info('success', response.text)

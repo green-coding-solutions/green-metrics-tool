@@ -45,7 +45,7 @@ services:
   # 7. Simple string ENTRYPOINT only
   string-entrypoint-only:
     image: alpine
-    entrypoint: cat
+    entrypoint: sleep 3600
   # -> Executes: cat (string form entrypoint only, waits for input)
 
   # 8. Shell variable testing in ENTRYPOINT + COMMAND
