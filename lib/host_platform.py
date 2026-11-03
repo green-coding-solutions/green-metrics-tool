@@ -169,9 +169,31 @@ def split_volume_spec(volume, maxsplit=-1):
     return parts
 
 
+def _parse_docker_image_references(output):
+    # Images pulled by digest (e.g. `image: mariadb@sha256:...`) have no tag. Formatting them as
+    # `repo:<none>` yields an invalid reference that `docker rmi` rejects, so they must be addressed as
+    # `repo@digest`. Rows with neither tag nor digest are dangling and left to `docker system prune`.
+    # We deliberately do not fall back to the image ID, as `docker rmi -f <ID>` removes all tags of that ID.
+    references = []
+    for line in output.splitlines():
+        parts = line.split('\t')
+        if len(parts) != 3:
+            continue
+        repository, tag, digest = parts
+        if repository == '<none>':
+            continue
+        if tag != '<none>':
+            references.append(f"{repository}:{tag}")
+        elif digest != '<none>':
+            references.append(f"{repository}@{digest}")
+    return references
+
+
 def _docker_image_rows():
+    # --digests is needed, otherwise {{.Digest}} is empty on some docker versions.
+    # No -a: Where docker hides digest-only images they count as dangling and are removed by `docker system prune`
     ps = subprocess.run(
-        ['docker', 'images', '--format', '{{.Repository}}:{{.Tag}}'],
+        ['docker', 'images', '--digests', '--format', '{{.Repository}}\t{{.Tag}}\t{{.Digest}}'],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
@@ -181,7 +203,7 @@ def _docker_image_rows():
     if ps.returncode != 0:
         raise subprocess.CalledProcessError(ps.returncode, ps.args, output=ps.stdout, stderr=ps.stderr)
 
-    return ps.stdout.splitlines()
+    return _parse_docker_image_references(ps.stdout)
 
 
 def remove_gmt_tmp_images():
