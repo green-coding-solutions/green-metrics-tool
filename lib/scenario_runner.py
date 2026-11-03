@@ -2119,7 +2119,7 @@ class ScenarioRunner:
                     raise RuntimeError(f"Command in service '{service_name}' must be a string or a list but is: {type(service['command'])}")
 
             container_data['docker_run_cmd'] = docker_run_string
-            print(f"Calling docker with these parameters: {utils.filter_sensitive_data(str(docker_run_string))}")
+            print(f"Calling docker with these parameters: {utils.filter_sensitive_data_structure(docker_run_string)}")
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
             # injection of unwanted params
@@ -2151,7 +2151,7 @@ class ScenarioRunner:
             print('Checking stderr ...')
             docker_run_stderr = ps.stderr.strip()
             if docker_run_stderr != '':
-                raise RuntimeError(f"Docker run command had non empty stderr: {docker_run_stderr}.\nCommand: {docker_run_string}")
+                raise RuntimeError(f"Docker run command had non empty stderr: {docker_run_stderr}.\nCommand: {utils.filter_sensitive_data_structure(docker_run_string)}")
 
 
             print('Running commands')
@@ -2197,11 +2197,11 @@ class ScenarioRunner:
                     )
 
                     if ps.returncode == 137:
-                        raise MemoryError(f"Your process {d_command} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                        raise MemoryError(f"Your process {utils.filter_sensitive_data_structure(d_command)} failed with exit code 137. This is likely due to an Out-of-Memory Error or because the runtime force-stopped the container. Please check if you can instruct the startup process to use less memory or higher resource limits on the container or if you are accessing security kernel features in your container. The set memory for the container is exposed in the ENV var: GMT_CONTAINER_MEMORY_LIMIT\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
                     elif shell_options_error := process_helpers.get_shell_options_error(d_command, ps.stderr):
-                        raise RuntimeError(f"Process {d_command} could not be run. {shell_options_error}\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                        raise RuntimeError(f"Process {utils.filter_sensitive_data_structure(d_command)} could not be run. {shell_options_error}\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
                     elif ps.returncode != 0:
-                        raise RuntimeError(f"Process {d_command} failed with return code {ps.returncode}.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
+                        raise RuntimeError(f"Process {utils.filter_sensitive_data_structure(d_command)} failed with return code {ps.returncode}.\n\n========== Stdout ==========\n{ps.stdout}\n\n========== Stderr ==========\n{ps.stderr}")
 
                 self.__ps_to_read.append({
                     'cmd': d_command,
@@ -2621,8 +2621,7 @@ class ScenarioRunner:
                 self.__ps_to_read += ps_to_read_tmp # will otherwise be discarded, bc they confuse execption handling
                 self._check_process_returncodes()
 
-            # pylint: disable=broad-exception-caught
-            except BaseException as flow_exc:
+            except BaseException as flow_exc: # pylint: disable=broad-exception-caught
                 if not self._dev_flow_timetravel: # Exception handling only if explicitely wanted
                     raise flow_exc
                 if self.__phases[flow['name']].get('end', None) is None:
