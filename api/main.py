@@ -14,7 +14,7 @@ from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.datastructures import Headers as StarletteHeaders
 
-from api.api_helpers import authenticate, CustomORJSONResponse
+from api.api_helpers import authenticate, CustomORJSONResponse, MAX_LOG_CHARS
 
 from lib.global_config import GlobalConfig
 from lib import error_helpers
@@ -262,8 +262,8 @@ async def get_system_logs(
     ):
 
     data = DB().fetch_all(
-        'SELECT id, title, message, level, created_at FROM system_logs',
-        []
+        'SELECT id, title, LEFT(message, %s), level, created_at, LENGTH(message) > %s FROM system_logs',
+        [MAX_LOG_CHARS, MAX_LOG_CHARS]
     )
     if data is None or data == []:
         return Response(status_code=204)
