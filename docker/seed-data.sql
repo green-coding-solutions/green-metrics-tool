@@ -179,7 +179,8 @@ VALUES (
             }
         },
         "jobs": {
-            "schedule_modes": []
+            "schedule_modes": [],
+            "priority": 0
         },
         "machines": [],
         "measurement": {
