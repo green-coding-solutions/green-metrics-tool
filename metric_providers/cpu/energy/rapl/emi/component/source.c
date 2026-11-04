@@ -80,6 +80,7 @@ typedef struct {
     USHORT        channel_count;     /* named channels only                     */
     ULONG         measure_buf_size;  /* buffer size for ALL channels (incl. unnamed) */
     BYTE         *measure_buf;       /* pre-allocated measurement buffer        */
+    int           measure_warned;    /* emit IOCTL_EMI_GET_MEASUREMENT failure warning only once */
     emi_channel_t channels[MAX_CHANNELS];
 } emi_device_t;
 
@@ -372,8 +373,11 @@ static void sample_devices(emi_device_t *devs, int count, const clock_state_t *c
         DWORD ret = 0;
         if (!DeviceIoControl(dev->handle, IOCTL_EMI_GET_MEASUREMENT,
                              NULL, 0, dev->measure_buf, dev->measure_buf_size, &ret, NULL)) {
-            fprintf(stderr, "Warning: IOCTL_EMI_GET_MEASUREMENT failed for device %d (%lu)\n",
-                    i, GetLastError());
+            if (!dev->measure_warned) {
+                fprintf(stderr, "Warning: IOCTL_EMI_GET_MEASUREMENT failed for device %d (%lu)\n",
+                        i, GetLastError());
+                dev->measure_warned = 1;
+            }
             continue;
         }
 

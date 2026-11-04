@@ -280,6 +280,9 @@ measurement:
     #--- RAPL - Requires the ScaphandreDrv kernel driver to be installed and running.
       cpu_energy_rapl_scaphandre_component:
         sampling_rate: 99
+    #--- RAPL - Windows Energy Meter Interface (EMI). No kernel driver required on Windows 11.
+#      cpu_energy_rapl_emi_component:
+#        sampling_rate: 99
     #--- Optionally disable individual RAPL domains (cpu_package, cpu_cores, cpu_gpu, dram, psys)
 #         domains:
 #           cpu_gpu: False
