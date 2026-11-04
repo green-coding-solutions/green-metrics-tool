@@ -125,6 +125,7 @@ class Job(ABC):
                 j.user_id, m.description, j.message, j.created_at
             FROM jobs as j
             LEFT JOIN machines as m on m.id = j.machine_id
+            LEFT JOIN users as u on u.id = j.user_id
             WHERE
         '''
         params = []
@@ -137,10 +138,14 @@ class Job(ABC):
             query = f"{query} AND j.machine_id = %s"
             params.append(config['machine']['id'])
 
+        # Jobs of users with a higher capabilities.jobs.priority are always picked first. A missing value counts as 0.
+        # Jobs with the same priority are picked in the order that jobs_processing configures.
+        query = f"{query} ORDER BY COALESCE((u.capabilities->'jobs'->>'priority')::int, 0) DESC"
+
         if config['cluster']['client']['jobs_processing'] == 'random':
-            query = f"{query} ORDER BY RANDOM()"
+            query = f"{query}, RANDOM()"
         else:
-            query = f"{query} ORDER BY j.created_at ASC"  # default case == 'fifo'
+            query = f"{query}, j.created_at ASC"  # default case == 'fifo'
 
         query = f"{query} LIMIT 1"
 
