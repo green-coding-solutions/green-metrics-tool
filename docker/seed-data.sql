@@ -112,7 +112,8 @@ VALUES (
                 "commit-variance",
                 "tag-variance",
                 "statistical-significance"
-            ]
+            ],
+            "priority": 0
         },
         "machines": [1],
         "measurement": {
