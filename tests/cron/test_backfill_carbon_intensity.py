@@ -232,9 +232,10 @@ def test_estimated_data_points_are_skipped():
     with patch('requests.get', side_effect=_elephant([BEFORE, _point('2026-11-04T01:05:00Z', 500.0, estimation=True)])):
         assert get_carbon_intensity('DE', MEASURED_AT, NOW) is None # the estimate must also not count as data point after the row
 
-def test_value_rounding_to_zero_still_satisfies_check_constraint():
+def test_value_rounding_to_zero_raises():
     with patch('requests.get', side_effect=_elephant([_point('2026-11-04T01:05:00Z', 0.2)])):
-        assert get_carbon_intensity('DE', MEASURED_AT, NOW) == 1
+        with pytest.raises(ValueError, match='Elephant returned 0 for region DE'):
+            get_carbon_intensity('DE', MEASURED_AT, NOW)
 
 def test_country_without_provider_uses_yearly_without_history_request():
     with patch('requests.get', side_effect=_elephant([])) as get_mock:

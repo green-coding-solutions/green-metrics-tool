@@ -255,7 +255,7 @@ def get_elephant_carbon_intensity(region, providers, measured_at, waited_long_en
 
     value = round(value)  # float -> int for DB
 
-    if value == 0: # should never be allowed by API and we need to check as DB has check constraint
+    if value <= 0: # should never be allowed by API and we need to check as DB has check constraint
         raise ValueError(f"Elephant returned 0 for region {region} measured at {measured_at}")
 
     # Must be an int as not all target columns can hold a float. Must also be > 0 due to the check constraints
