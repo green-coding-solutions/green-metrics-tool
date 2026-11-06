@@ -113,7 +113,7 @@ def backfill_carbon_intensity_missing(table, data):
 def update_eco_ci_carbon():
     query = '''
         UPDATE ci_measurements
-        SET carbon_ug = ((energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*carbon_intensity_g
+        SET carbon_ug = ((energy_uj::DOUBLE PRECISION)/3600/1000)*carbon_intensity_g
         WHERE
             carbon_ug IS NULL
             AND carbon_intensity_g IS NOT NULL -- needed so we do not make useless NULL updates
@@ -124,7 +124,7 @@ def update_eco_ci_carbon():
 def update_power_hog_carbon():
     query = '''
         UPDATE hog_simplified_measurements
-        SET operational_carbon_ug = ((combined_energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*carbon_intensity_g
+        SET operational_carbon_ug = ((combined_energy_uj::DOUBLE PRECISION)/3600/1000)*carbon_intensity_g
         WHERE
             operational_carbon_ug IS NULL
             AND carbon_intensity_g IS NOT NULL -- needed so we do not make useless NULL updates
