@@ -366,10 +366,20 @@ sci:
 #  ignore:
 #    - example_optimization_test
 
-# In order to get the carbon intensity we use electricity maps which requires a token.
-# You can get this under https://api-portal.electricitymaps.com/
-# This is a free service please note that you need to pay if you want to use this commercially!
-#electricity_maps_token: '123'
+# In order to backfill the carbon intensity for Eco CI, Power HOG and CarbonDB we use the Elephant Carbon Service.
+# Countries that have no provider in Elephant use the yearly averages bundled in frontend/js/yearly_co2.
+elephant_url: 'https://elephant.green-coding.io'
+# Providers to prefer in that order if a region has multiple (see /providers endpoint). Other providers are only used as fallback.
+elephant_preferred_providers: ['entsoe']
+# Providers report final values with a lag. This is how long rows wait for their data point before falling back. Must be smaller than
+# carbondb_merge_window_days in hours. Rows are not updated again after falling back, so raise it to give providers more time to deliver data.
+# The CarbonDB copy over job also uses it, to not report rows as broken while they are still waiting for their carbon intensity.
+elephant_max_wait_hours: 6
+# Only data points this far around the time of a row are requested from Elephant. The closest one of them is selected.
+elephant_fence_minutes: 60
+# Rows within a time bucket of this size share one request to Elephant. The fence starts from the bucket and not the exact
+# time of the row, so a selected data point can be up to fence + bucket minutes older than the row.
+elephant_fence_bucket_minutes: 15
 
 # Modules API / Frontend
 # GMT can selectively activate some API and frontend components. This is asked in the install process and should NOT
