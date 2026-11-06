@@ -4,11 +4,13 @@ from pathlib import Path
 from unittest.mock import patch
 import pytest
 import psycopg
+import yaml
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 GMT_DIR = Path(CURRENT_DIR).parent.parent.as_posix()
 
 from lib.db import DB
+from lib.global_config import GlobalConfig
 from lib import utils
 from lib.job.run import RunJob
 from lib.job.email_simple import EmailSimpleJob
@@ -71,6 +73,53 @@ def test_insert_job():
     assert job_id is not None
     job = RunJob.get_job()
     assert job._state == 'WAITING'
+
+def insert_run_job(user_id):
+    return RunJob.insert(user_id=user_id, name=utils.randomword(12), url='https://github.com/green-coding-solutions/pytest-dummy-repo', branch='main', filename='usage_scenario.yml', machine_id=1)
+
+# GlobalConfig is immutable, so write a modified copy of the test config and load that.
+# conftest.py reloads the regular test config before every test.
+def set_jobs_processing(tmp_path, jobs_processing):
+    with open(f"{CURRENT_DIR}/../test-config.yml", encoding='utf-8') as file:
+        config = yaml.safe_load(file)
+
+    config['cluster']['client']['jobs_processing'] = jobs_processing
+
+    tmp_config = tmp_path / 'test-config-jobs-processing.yml'
+    tmp_config.write_text(yaml.safe_dump(config), encoding='utf-8')
+    GlobalConfig().override_config(config_location=tmp_config.as_posix())
+
+@pytest.mark.parametrize('jobs_processing', ['fifo', 'random'])
+def test_get_job_prefers_higher_user_priority(tmp_path, jobs_processing):
+    set_jobs_processing(tmp_path, jobs_processing)
+    Tests.insert_user(2, 'PRIORITY-USER')
+    User(2).set_capability('jobs.priority', 10)
+
+    for _ in range(5):
+        insert_run_job(user_id=1)
+    priority_job_id = insert_run_job(user_id=2) # inserted last, so fifo alone would pick it last
+
+    assert RunJob.get_job()._id == priority_job_id
+
+def test_get_job_same_priority_keeps_fifo(tmp_path):
+    set_jobs_processing(tmp_path, 'fifo')
+    Tests.insert_user(2, 'PRIORITY-USER') # copies the capabilities of user 1 and thus the same priority
+
+    first_job_id = insert_run_job(user_id=2)
+    insert_run_job(user_id=1)
+
+    assert RunJob.get_job()._id == first_job_id
+
+def test_get_job_missing_priority_counts_as_zero(tmp_path):
+    set_jobs_processing(tmp_path, 'fifo')
+    Tests.insert_user(2, 'PRIORITY-USER')
+    User(2).set_capability('jobs.priority', 1)
+    DB().query("UPDATE users SET capabilities = capabilities #- '{jobs,priority}' WHERE id = 1")
+
+    insert_run_job(user_id=1) # inserted first, but a missing priority must not sort before priority 1
+    priority_job_id = insert_run_job(user_id=2)
+
+    assert RunJob.get_job()._id == priority_job_id
 
 @pytest.mark.xdist_group(name="real-metric-providers")
 def test_simple_run_job_no_quota():

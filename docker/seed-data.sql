@@ -112,7 +112,8 @@ VALUES (
                 "commit-variance",
                 "tag-variance",
                 "statistical-significance"
-            ]
+            ],
+            "priority": 0
         },
         "machines": [1],
         "measurement": {
@@ -178,7 +179,8 @@ VALUES (
             }
         },
         "jobs": {
-            "schedule_modes": []
+            "schedule_modes": [],
+            "priority": 0
         },
         "machines": [],
         "measurement": {
