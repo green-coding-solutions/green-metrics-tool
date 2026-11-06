@@ -27,6 +27,14 @@ TIME_COLUMNS = {
     'carbondb_data_raw': 'TO_TIMESTAMP(from_table.time / 1e6)', # microseconds
 }
 
+# Limits the rows to what CarbonDB and Power HOG still accept. This is on the time of the measurement and not on created_at, as late
+# data would otherwise be repaired after carbondb_compress.py stopped looking at it. Uses the plain columns so that indexes can be used.
+LOOKBACK_FILTERS = {
+    'ci_measurements': 'from_table.created_at > NOW() - make_interval(days => %s)',
+    'hog_simplified_measurements': 'from_table."timestamp" > EXTRACT(EPOCH FROM NOW() - make_interval(days => %s)) * 1e3', # milliseconds
+    'carbondb_data_raw': 'from_table.time > EXTRACT(EPOCH FROM NOW() - make_interval(days => %s)) * 1e6', # microseconds
+}
+
 # Same data that the carbon simulation in the frontend uses (frontend/js/simulation-yearly.js)
 YEARLY_CO2_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'frontend', 'js', 'yearly_co2')
 
@@ -37,21 +45,21 @@ YEARLY_CO2_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..',
 def process(table):
 
     data = fetch_carbon_intensity_missing(table)
-    print(f"Rows in DB where {table}.carbon_intensity_g is missing in last 24 hours:", len(data))
+    print(f"Rows in DB where {table}.carbon_intensity_g is missing in merge window:", len(data))
 
     if not data:
         return
 
     backfilled_ids = backfill_carbon_intensity_missing(table, data)
 
-    print(f"Rows backfilled where {table}.carbon_intensity_g was missing in last 24 hours:", len(backfilled_ids))
+    print(f"Rows backfilled where {table}.carbon_intensity_g was missing in merge window:", len(backfilled_ids))
 
     # Do not go back to the DB to re-check. We already know from the backfill above exactly which of the
     # initially-missing ids got updated. Leftovers are expected, as data points can still be outstanding or there is no
     # data for the country. They must not raise, as this would stop all other rows and tables from being processed.
     leftover_ids = [row[0] for row in data if row[0] not in backfilled_ids]
     if leftover_ids:
-        print(f"Rows in {table} left without carbon_intensity_g as no data is available yet. IDs:", leftover_ids)
+        print(f"Rows in {table} left without carbon_intensity_g as no data is available yet: {len(leftover_ids)}. First IDs:", leftover_ids[:20])
 
 def fetch_carbon_intensity_missing(table):
     query = f"""
@@ -68,10 +76,10 @@ def fetch_carbon_intensity_missing(table):
             from_table.carbon_intensity_g is NULL
             AND from_table.latitude IS NOT NULL
             AND from_table.longitude IS NOT NULL
-            AND from_table.created_at > NOW() - INTERVAL '24 HOURS'
+            AND {LOOKBACK_FILTERS[table]}
     """
 
-    data = DB().fetch_all(query)
+    data = DB().fetch_all(query, params=(GlobalConfig().config['cluster']['carbondb_merge_window_days'],))
     return data if data else []
 
 def backfill_carbon_intensity_missing(table, data):
@@ -150,9 +158,10 @@ def get_elephant_url():
 def get_elephant_max_wait():
     hours = GlobalConfig().config['elephant_max_wait_hours']
 
-    # Must be smaller than the 24 hours in fetch_carbon_intensity_missing() or rows are never given a value
-    if not isinstance(hours, int) or isinstance(hours, bool) or not 0 < hours < 24:
-        raise ValueError(f"elephant_max_wait_hours must be an integer between 1 and 23, but is {hours}. Please check your settings in the config.yml")
+    # Must be smaller than the lookback in fetch_carbon_intensity_missing() or rows are never given a value
+    max_hours = GlobalConfig().config['cluster']['carbondb_merge_window_days'] * 24
+    if not isinstance(hours, int) or isinstance(hours, bool) or not 0 < hours < max_hours:
+        raise ValueError(f"elephant_max_wait_hours must be an integer between 1 and {max_hours - 1} (carbondb_merge_window_days in hours), but is {hours}. Please check your settings in the config.yml")
 
     return timedelta(hours=hours)
 

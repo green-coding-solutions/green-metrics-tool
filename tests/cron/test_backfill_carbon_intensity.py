@@ -79,6 +79,7 @@ def elephant_config():
         'elephant_max_wait_hours': MAX_WAIT_HOURS,
         'elephant_fence_minutes': 60,
         'elephant_fence_bucket_minutes': 15,
+        'cluster': {**GlobalConfig().config['cluster'], 'carbondb_merge_window_days': 30},
     }
     with _config(config), \
          patch.object(backfill_carbon_intensity, 'get_yearly_carbon_intensities', return_value=YEARLY_DATA):
@@ -146,7 +147,7 @@ def test_fence_bucket_is_configurable():
 
 @pytest.mark.parametrize('key, value', [
     ('elephant_max_wait_hours', 0),
-    ('elephant_max_wait_hours', 24),
+    ('elephant_max_wait_hours', 720), # carbondb_merge_window_days in hours
     ('elephant_max_wait_hours', '6'),
     ('elephant_max_wait_hours', True),
     ('elephant_fence_minutes', 0),
@@ -159,6 +160,24 @@ def test_invalid_settings_raise(key, value):
     with _config({key: value}), patch('requests.get', side_effect=_elephant([BEFORE, AFTER])):
         with pytest.raises(ValueError, match=key):
             get_carbon_intensity('DE', MEASURED_AT, NOW)
+
+def test_max_wait_can_be_longer_than_a_day():
+    with _config({'elephant_max_wait_hours': 719}), patch('requests.get', side_effect=_elephant([BEFORE])):
+        assert get_carbon_intensity('DE', MEASURED_AT, NOW) is None
+
+@pytest.mark.parametrize('table, time_column', [
+    ('ci_measurements', 'from_table.created_at >'),
+    ('hog_simplified_measurements', 'from_table."timestamp" >'),
+    ('carbondb_data_raw', 'from_table.time >'),
+])
+def test_rows_are_selected_by_merge_window_on_time_of_measurement(table, time_column):
+    with patch.object(backfill_carbon_intensity, 'DB') as db_mock:
+        db_mock.return_value.fetch_all.return_value = []
+        backfill_carbon_intensity.fetch_carbon_intensity_missing(table)
+
+    call = db_mock.return_value.fetch_all.call_args
+    assert time_column in call.args[0]
+    assert call.kwargs['params'] == (30,)
 
 def test_copy_over_validation_gives_rows_max_wait_from_config_plus_one_hour():
     with patch('cron.carbondb_copy_over_and_remove_duplicates.DB') as db_mock:

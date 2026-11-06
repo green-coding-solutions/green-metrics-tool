@@ -371,7 +371,8 @@ sci:
 elephant_url: 'https://elephant.green-coding.io'
 # Providers to prefer in that order if a region has multiple (see /providers endpoint). Other providers are only used as fallback.
 elephant_preferred_providers: ['entsoe']
-# Providers report final values with a lag. This is how long rows wait for their data point before falling back. Must be smaller than 24.
+# Providers report final values with a lag. This is how long rows wait for their data point before falling back. Must be smaller than
+# carbondb_merge_window_days in hours. Rows are not updated again after falling back, so raise it to give providers more time to deliver data.
 # The CarbonDB copy over job also uses it, to not report rows as broken while they are still waiting for their carbon intensity.
 elephant_max_wait_hours: 6
 # Only data points this far around the time of a row are requested from Elephant. The closest one of them is selected.
