@@ -6,17 +6,29 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
+import re
+import glob
 import json
 import fcntl
+from datetime import datetime, timedelta, timezone
+from functools import cache
 
 import requests
-from cachetools import cached
 
 from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib import error_helpers
 from lib.utils import runtime_dir
-from lib.cache_definitions import NoNoneOrNegativeValuesCache
+
+# The column that holds the time of the measurement. It differs from created_at when data arrives late or is copied over.
+TIME_COLUMNS = {
+    'ci_measurements': 'from_table.created_at',
+    'hog_simplified_measurements': 'TO_TIMESTAMP(from_table."timestamp" / 1e3)', # milliseconds
+    'carbondb_data_raw': 'TO_TIMESTAMP(from_table.time / 1e6)', # microseconds
+}
+
+# Same data that the carbon simulation in the frontend uses (frontend/js/simulation-yearly.js)
+YEARLY_CO2_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'frontend', 'js', 'yearly_co2')
 
 ################################################
 ################# ECO CI #######################
@@ -25,70 +37,38 @@ from lib.cache_definitions import NoNoneOrNegativeValuesCache
 def process(table):
 
     data = fetch_carbon_intensity_missing(table)
-    print(f"Rows in DB where {table}.carbon_intensity_g is missing in last 30 Minutes:", len(data))
+    print(f"Rows in DB where {table}.carbon_intensity_g is missing in last 24 hours:", len(data))
 
     if not data:
         return
 
-    ids = [row[0] for row in data]
+    backfilled_ids = backfill_carbon_intensity_missing(table, data)
 
-    updated_rows = update_carbon_intensity_from_db_cache(table, ids)
-    print('Updated rows', updated_rows)
+    print(f"Rows backfilled where {table}.carbon_intensity_g was missing in last 24 hours:", len(backfilled_ids))
 
-    updated_ids = {row[0] for row in updated_rows}
-    remaining_data = [row for row in data if row[0] not in updated_ids]
-
-    print(f"Rows left after db cached update where {table}.carbon_intensity_g is missing in last 30 Minutes:", len(remaining_data))
-
-    backfilled_ids = backfill_carbon_intensity_missing(table, remaining_data)
-
-    print(f"Rows manually backfilled where {table}.carbon_intensity_g was missing in last 30 Minutes:", len(backfilled_ids))
-
-    # Do not go back to the DB to re-check. We already know from the manual backfill above exactly
-    # which of the initially-missing ids got updated. Anything else is a leftover - this should never happen.
-    remaining_ids = [row[0] for row in remaining_data]
-    leftover_ids = [row_id for row_id in remaining_ids if row_id not in backfilled_ids]
+    # Do not go back to the DB to re-check. We already know from the backfill above exactly which of the
+    # initially-missing ids got updated. Leftovers are expected, as data points can still be outstanding or there is no
+    # data for the country. They must not raise, as this would stop all other rows and tables from being processed.
+    leftover_ids = [row[0] for row in data if row[0] not in backfilled_ids]
     if leftover_ids:
-        raise RuntimeError(f"Rows in {table} still have missing carbon_intensity_g after backfilling. This should never happen. IDs: {leftover_ids}")
-
-def update_carbon_intensity_from_db_cache(table, ids):
-    # Backfilled carbon intensity data should only be 30 minutes apart
-    # It makes no sense to look for later values as the value will not be accurate anymore
-    # Most APIs default to 60 minutes update time. So we are conservative here with 30 minutes
-    query = f"""
-        WITH carbon_missing AS (
-            SELECT DISTINCT ON (from_table.id)
-                from_table.id,
-                (ci.data->>'carbonIntensity')::int AS carbon_intensity_g
-            FROM {table} from_table
-            JOIN carbon_intensity ci
-              ON ci.latitude = from_table.latitude
-             AND ci.longitude = from_table.longitude
-             AND ABS(EXTRACT(EPOCH FROM (from_table.created_at - ci.created_at::timestamp))) < EXTRACT(EPOCH FROM INTERVAL '30 MINUTES')
-            WHERE from_table.id = ANY(%s)
-            ORDER BY
-                from_table.id,
-                ABS(EXTRACT(EPOCH FROM (from_table.created_at - ci.created_at::timestamp))) ASC
-        )
-        UPDATE {table} from_table
-        SET carbon_intensity_g = cm.carbon_intensity_g
-        FROM carbon_missing cm
-        WHERE
-            from_table.id = cm.id
-            AND cm.carbon_intensity_g IS NOT NULL
-        RETURNING from_table.id, from_table.carbon_intensity_g;
-    """
-    return DB().fetch_all(query, params=(ids,))
+        print(f"Rows in {table} left without carbon_intensity_g as no data is available yet. IDs:", leftover_ids)
 
 def fetch_carbon_intensity_missing(table):
     query = f"""
-        SELECT id, latitude, longitude
-        FROM {table}
+        SELECT from_table.id, ip.country_code, {TIME_COLUMNS[table]}, from_table.created_at
+        FROM {table} from_table
+        LEFT JOIN LATERAL (
+            SELECT ip_data.country_code
+            FROM ip_data
+            WHERE ip_data.ip_address = from_table.ip_address
+            ORDER BY ip_data.created_at DESC
+            LIMIT 1
+        ) ip ON TRUE
         WHERE
-            carbon_intensity_g is NULL
-            AND latitude IS NOT NULL
-            AND longitude IS NOT NULL
-            AND created_at > NOW() - INTERVAL '30 MINUTES'
+            from_table.carbon_intensity_g is NULL
+            AND from_table.latitude IS NOT NULL
+            AND from_table.longitude IS NOT NULL
+            AND from_table.created_at > NOW() - INTERVAL '24 HOURS'
     """
 
     data = DB().fetch_all(query)
@@ -98,22 +78,20 @@ def backfill_carbon_intensity_missing(table, data):
     query = f"UPDATE {table} SET carbon_intensity_g = %s WHERE id = %s"
 
     updated_ids = []
-    for row in data:
-        row_id = row[0]
-        row_latitude = row[1]
-        row_longitude = row[2]
-        carbon_intensity_g = get_carbon_intensity(row_latitude, row_longitude)
+    for row_id, country_code, measured_at, created_at in data:
+        carbon_intensity_g = get_carbon_intensity(country_code, measured_at, created_at)
+        if carbon_intensity_g is None:
+            continue
         print('Filling', carbon_intensity_g, 'for id', row_id)
         DB().query(query, params=(carbon_intensity_g, row_id))
-        if carbon_intensity_g is not None:
-            updated_ids.append(row_id)
+        updated_ids.append(row_id)
 
     return updated_ids
 
 def update_eco_ci_carbon():
     query = '''
         UPDATE ci_measurements
-        SET carbon_ug = ((energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*carbon_intensity_g
+        SET carbon_ug = ((energy_uj::DOUBLE PRECISION)/3600/1000)*carbon_intensity_g
         WHERE
             carbon_ug IS NULL
             AND carbon_intensity_g IS NOT NULL -- needed so we do not make useless NULL updates
@@ -124,7 +102,7 @@ def update_eco_ci_carbon():
 def update_power_hog_carbon():
     query = '''
         UPDATE hog_simplified_measurements
-        SET operational_carbon_ug = ((combined_energy_uj::DOUBLE PRECISION)/1e3/3600/1000)*carbon_intensity_g
+        SET operational_carbon_ug = ((combined_energy_uj::DOUBLE PRECISION)/3600/1000)*carbon_intensity_g
         WHERE
             operational_carbon_ug IS NULL
             AND carbon_intensity_g IS NOT NULL -- needed so we do not make useless NULL updates
@@ -144,34 +122,160 @@ def update_carbondb_data_raw_carbon():
     return DB().fetch_all(query)
 
 
-# The decorator will not work between workers, but since uvicorn_worker.UvicornWorker is using asyncIO it has some functionality between requests
-@cached(cache=NoNoneOrNegativeValuesCache(maxsize=1024, ttl=3600)) # 60 Minutes
-def get_carbon_intensity(latitude, longitude):
+@cache
+def get_yearly_carbon_intensities():
+    latest_file = max(glob.glob(os.path.join(YEARLY_CO2_DIR, 'yearly_*.js')))
 
-    if latitude is None or longitude is None:
-        error_helpers.log_error('Calling get_carbon_intensity without lat/long')
-        return None
+    with open(latest_file, 'r', encoding='utf-8') as file:
+        match = re.search(r'export const data = (\{.*\})', file.read())
 
-    if not (electricitymaps_token := GlobalConfig().config.get('electricity_maps_token')):
-        raise ValueError('You need to specify an electricitymap token in the config!')
+    if not match:
+        raise RuntimeError(f"Could not find yearly carbon intensity data in {latest_file}")
 
-    if electricitymaps_token == 'testing':
+    return json.loads(match.group(1))
+
+def get_yearly_carbon_intensity(country_code):
+    entry = get_yearly_carbon_intensities().get(country_code)
+    return round(entry['carbonIntensity']['value']) if entry else None
+
+def get_elephant_url():
+    if not (elephant_url := GlobalConfig().config.get('elephant_url')):
+        raise ValueError('You need to specify an elephant_url in the config!')
+
+    return elephant_url
+
+# Providers report final values with a lag of some hours. Rows wait this long for a data point at or after their time from
+# the most preferred provider of their region. After that they use the closest data point in the fence from the most
+# preferred provider that has any, or if there is none the yearly average.
+def get_elephant_max_wait():
+    hours = GlobalConfig().config['elephant_max_wait_hours']
+
+    # Must be smaller than the 24 hours in fetch_carbon_intensity_missing() or rows are never given a value
+    if not isinstance(hours, int) or isinstance(hours, bool) or not 0 < hours < 24:
+        raise ValueError(f"elephant_max_wait_hours must be an integer between 1 and 23, but is {hours}. Please check your settings in the config.yml")
+
+    return timedelta(hours=hours)
+
+# The history is only requested this far around the time of a row. So a data point further away can never be selected.
+def get_elephant_fence():
+    minutes = GlobalConfig().config['elephant_fence_minutes']
+
+    if not isinstance(minutes, int) or isinstance(minutes, bool) or minutes < 1:
+        raise ValueError(f"elephant_fence_minutes must be a positive integer, but is {minutes}. Please check your settings in the config.yml")
+
+    return timedelta(minutes=minutes)
+
+# Rows are grouped into buckets of this size to share one fenced request.
+def get_elephant_fence_bucket_minutes():
+    minutes = GlobalConfig().config['elephant_fence_bucket_minutes']
+
+    if not isinstance(minutes, int) or isinstance(minutes, bool) or not 0 < minutes <= 60:
+        raise ValueError(f"elephant_fence_bucket_minutes must be an integer between 1 and 60, but is {minutes}. Please check your settings in the config.yml")
+
+    return minutes
+
+# Sort key that orders the providers of a region by the config. Elephant names them <provider>_<region>
+def get_provider_preference(region, provider):
+    preferred_names = GlobalConfig().config['elephant_preferred_providers']
+    preferred_providers = [f"{name.lower()}_{region.lower()}" for name in preferred_names]
+
+    rank = preferred_providers.index(provider) if provider in preferred_providers else len(preferred_providers)
+    return (rank, provider)
+
+# Returns the providers per region. Regions that Elephant lists without a provider have no data and are not included.
+@cache
+def get_elephant_providers():
+    response = requests.get(f"{get_elephant_url()}/providers", timeout=30)
+
+    if response.status_code != 200:
+        raise RuntimeError(f"Could not get providers from Elephant. Status: {response.status_code}. Response: {response.text}")
+
+    providers_by_region = {}
+    for _, region, provider in response.json():
+        providers_by_region.setdefault(region.upper(), []).append(provider)
+
+    return providers_by_region
+
+# Returns the final data points per provider. Not filtered by provider, so we can fall back to the other ones in the response.
+@cache
+def get_elephant_history(region, bucket):
+    fence = get_elephant_fence()
+    params = {
+        'region': region,
+        'startTime': (bucket - fence).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'endTime': (bucket + fence).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    }
+    print(f"Accessing Elephant with {params}")
+    response = requests.get(f"{get_elephant_url()}/carbon-intensity/history", params=params, timeout=30)
+
+    if response.status_code != 200:
+        raise RuntimeError(f"Could not get carbon intensity from Elephant for {params}. Status: {response.status_code}. Response: {response.text}")
+
+    # Estimations are skipped as a row is never updated again once it has a value. It waits for the final value instead.
+    history = {}
+    for entry in response.json():
+        if entry.get('carbon_intensity') is not None and not entry.get('estimation'):
+            history.setdefault(entry['provider'], []).append((datetime.fromisoformat(entry['time']), entry['carbon_intensity']))
+
+    return history
+
+def get_elephant_carbon_intensity(region, providers, measured_at, waited_long_enough):
+    bucket_minute = measured_at.minute - measured_at.minute % get_elephant_fence_bucket_minutes()
+    history = get_elephant_history(region, measured_at.replace(minute=bucket_minute, second=0, microsecond=0))
+    preference = lambda provider: get_provider_preference(region, provider) # pylint: disable=unnecessary-lambda-assignment
+
+    if waited_long_enough:
+        if not history:
+            return None
+        points = history[min(history, key=preference)]
+    else:
+        # A missing provider in the response can just mean that it has not reported yet. So we do not fall back here, as the
+        # row would then keep the value of another provider forever. Regions without the preferred provider start with their next best.
+
+
+        # The API generates new data with a bit of a lag.
+        # What we check here is that the lag has already caught up with the current time of the data to be backfilled.
+        # This guarantees that our closest check later does not mistakenly choose a value that is technically in the fence
+        # but a new value would still be coming soon that is closer to it.
+        # The fence should be a fallback only and not be eager and to always be up to grab as soon as
+        points = history.get(min(providers, key=preference), [])
+        if not any(point_time >= measured_at for point_time, _ in points):
+            return None
+
+    _, value = min(points, key=lambda point: abs(point[0] - measured_at))  # get closest
+
+    value = round(value)  # float -> int for DB
+
+    if value == 0: # should never be allowed by API and we need to check as DB has check constraint
+        raise ValueError(f"Elephant returned 0 for region {region} measured at {measured_at}")
+
+    # Must be an int as not all target columns can hold a float. Must also be > 0 due to the check constraints
+    return value
+
+def get_carbon_intensity(country_code, measured_at, created_at):
+
+    if get_elephant_url() == 'testing':
         # If we are running tests we always return 1000
         return 1000
 
-    headers = {'auth-token': electricitymaps_token }
-    params = {'lat': latitude, 'lon': longitude }
+    if not country_code:
+        return None
 
-    response = requests.get('https://api.electricitymap.org/v3/carbon-intensity/latest', params=params, headers=headers, timeout=10)
-    print(f"Accessing electricitymap with {latitude} {longitude}")
-    if response.status_code == 200:
-        resp_data = response.json()
-        query = "INSERT INTO carbon_intensity (latitude, longitude, data) VALUES (%s, %s, %s)"
-        DB().query(query=query, params=(latitude, longitude, json.dumps(resp_data)))
+    country_code = country_code.upper()
 
-        return resp_data.get('carbonIntensity')
+    if providers := get_elephant_providers().get(country_code):
+        waited_long_enough = datetime.now(timezone.utc) - created_at >= get_elephant_max_wait()
 
-    raise RuntimeError(f"Could not get carbon intensity from Electricitymaps.org for {params}. Response: {response}")
+        carbon_intensity_g = get_elephant_carbon_intensity(country_code, providers, measured_at, waited_long_enough)
+        if carbon_intensity_g is not None:
+            return carbon_intensity_g
+
+        if not waited_long_enough:
+            return None # data point is likely still outstanding. Next run will try again
+
+        print(f"Elephant has no data for {country_code} at {measured_at}. Using yearly average instead")
+
+    return get_yearly_carbon_intensity(country_code)
 
 if __name__ == '__main__':
     try:
