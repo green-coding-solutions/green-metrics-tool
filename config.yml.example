@@ -368,7 +368,7 @@ sci:
 
 # In order to backfill the carbon intensity for Eco CI, Power HOG and CarbonDB we use the Elephant Carbon Service.
 # Countries that have no provider in Elephant use the yearly averages bundled in frontend/js/yearly_co2.
-#elephant_url: 'https://elephant.green-coding.io'
+elephant_url: 'https://elephant.green-coding.io'
 # Providers to prefer in that order if a region has multiple (see /providers endpoint). Other providers are only used as fallback.
 elephant_preferred_providers: ['entsoe']
 # Providers report final values with a lag. This is how long rows wait for their data point before falling back. Must be smaller than 24.
