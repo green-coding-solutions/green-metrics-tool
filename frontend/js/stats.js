@@ -114,6 +114,42 @@ const setAndShowAnalyticsLinks = (run_id, run_data) => {
     timelineLink.classList.add('disabled');
 };
 
+const loadRunLogs = async (run_id) => {
+    const logsElement = document.querySelector("#logs");
+    const loadLogsButton = document.querySelector("#load-logs");
+    loadLogsButton.classList.add('loading', 'disabled');
+
+    let logsData = null;
+    try {
+        logsData = (await makeAPICall('/v1/logs/' + run_id)).data;
+    } catch (err) {
+        if (err instanceof APIHTTPError && err.status === 204) {
+            // Display simple message indicating no output was produced
+            logsElement.innerHTML = '<pre>Run did not produce any logs to be captured</pre>';
+        } else {
+            showNotification('Could not get logs from API', err);
+            loadLogsButton.classList.remove('loading', 'disabled');
+        }
+        return;
+    }
+
+    if (typeof logsData === 'object') {
+        // Handle JSON structure logs
+        // Check first if any logs have type 'legacy' - if so, render as simple text instead of structured interface
+        const hasLegacyLogs = Object.values(logsData).some(containerLogs =>
+            Array.isArray(containerLogs) && containerLogs.some(log => log.type === 'legacy')
+        );
+        if (!hasLegacyLogs) {
+            renderLogsInterface(logsData);
+        } else {
+            renderLegacyLogsFromJson(logsData);
+        }
+    } else {
+        // Handle legacy plain text logs (pre-JSON structure)
+        displayLegacyLogs(logsData);
+    }
+};
+
 const fetchAndFillRunData = async (run_id) => {
 
     let run = null;
@@ -178,26 +214,6 @@ const fetchAndFillRunData = async (run_id) => {
 
 
 
-        } else if(item == 'logs') {
-            const logsData = run_data[item];
-            if (logsData === null) {
-                // Display simple message indicating no output was produced
-                document.querySelector("#logs").innerHTML = '<pre>Run did not produce any logs to be captured</pre>';
-            } else if (typeof logsData === 'object' && logsData !== null) {
-                // Handle JSON structure logs
-                // Check first if any logs have type 'legacy' - if so, render as simple text instead of structured interface
-                const hasLegacyLogs = Object.values(logsData).some(containerLogs =>
-                    Array.isArray(containerLogs) && containerLogs.some(log => log.type === 'legacy')
-                );
-                if (!hasLegacyLogs) {
-                    renderLogsInterface(logsData);
-                } else {
-                    renderLegacyLogsFromJson(logsData);
-                }
-            } else {
-                // Handle legacy plain text logs (pre-JSON structure)
-                displayLegacyLogs(run_data[item]);
-            }
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
         } else if(item == 'id' || item == 'phases') {
@@ -321,6 +337,8 @@ const fetchAndFillRunData = async (run_id) => {
             run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
         }
     }
+
+    document.querySelector('#load-logs').addEventListener('click', () => loadRunLogs(run_id));
 
     document.querySelector('#save-note').addEventListener('click', async () => {
         const note_text = document.querySelector('textarea[name=note]').value;

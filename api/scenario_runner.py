@@ -258,6 +258,27 @@ async def get_notes(run_id, user: User = Depends(authenticate)):
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 
+@router.get('/v1/logs/{run_id}')
+async def get_logs(run_id, user: User = Depends(authenticate)):
+    if run_id is None or not is_valid_uuid(run_id):
+        raise HTTPException(status_code=422, detail='Run ID is not a valid UUID or empty')
+
+    query = '''
+            SELECT logs
+            FROM runs
+            WHERE
+                (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
+                AND id = %s
+            '''
+
+    params = (user.is_super_user(), user.visible_users(), run_id)
+    data = DB().fetch_one(query, params=params)
+    if data is None or not data[0]: # no access or the run did not produce any logs
+        return Response(status_code=204) # No-Content
+
+    return ORJSONResponseObjKeep({'success': True, 'data': data[0]})
+
+
 @router.get('/v1/warnings/{run_id}')
 async def get_warnings(run_id, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
