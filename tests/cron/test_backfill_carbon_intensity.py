@@ -11,7 +11,7 @@ from cron.backfill_carbon_intensity import (
     get_yearly_carbon_intensities,
 )
 from cron.carbondb_copy_over_and_remove_duplicates import validate_table_constraints
-from lib.global_config import GlobalConfig
+from lib.global_config import GlobalConfig, freeze_dict
 
 ELEPHANT_URL = 'http://elephant.test'
 PROVIDERS_URL = f"{ELEPHANT_URL}/providers"
@@ -45,6 +45,13 @@ AFTER = _point('2026-11-04T01:15:00Z', 250.2)
 OTHER_BEFORE = _point('2026-11-04T01:00:00Z', 400.0, provider='energycharts_de')
 OTHER_AFTER = _point('2026-11-04T01:15:00Z', 500.0, provider='energycharts_de')
 
+def _config(overrides):
+    # GlobalConfig().config is frozen, so we swap it for a changed copy instead of changing it
+    return patch.object(GlobalConfig(), 'config', freeze_dict({**GlobalConfig().config, **overrides}))
+
+def _config_without(key):
+    return patch.object(GlobalConfig(), 'config', freeze_dict({k: v for k, v in GlobalConfig().config.items() if k != key}))
+
 def _response(status_code, payload=None):
     response = MagicMock(status_code=status_code, text=str(payload))
     response.json.return_value = payload
@@ -73,7 +80,7 @@ def elephant_config():
         'elephant_fence_minutes': 60,
         'elephant_fence_bucket_minutes': 15,
     }
-    with patch.dict(GlobalConfig().config, config), \
+    with _config(config), \
          patch.object(backfill_carbon_intensity, 'get_yearly_carbon_intensities', return_value=YEARLY_DATA):
         yield
     get_elephant_providers.cache_clear()
@@ -101,14 +108,13 @@ def test_preferred_provider_is_used_when_others_are_in_response():
 def test_preferred_provider_is_configurable_and_in_order_of_config():
     history = [BEFORE, AFTER, OTHER_BEFORE, OTHER_AFTER]
 
-    with patch.dict(GlobalConfig().config, {'elephant_preferred_providers': ['energycharts', 'entsoe']}), \
+    with _config({'elephant_preferred_providers': ['energycharts', 'entsoe']}), \
          patch('requests.get', side_effect=_elephant(history)):
         assert get_carbon_intensity('DE', MEASURED_AT, NOW) == 400
 
 @pytest.mark.parametrize('key', ['elephant_preferred_providers', 'elephant_max_wait_hours', 'elephant_fence_minutes', 'elephant_fence_bucket_minutes'])
 def test_settings_have_no_default_in_the_code(key):
-    with patch.dict(GlobalConfig().config), patch('requests.get', side_effect=_elephant([BEFORE, AFTER])):
-        del GlobalConfig().config[key]
+    with _config_without(key), patch('requests.get', side_effect=_elephant([BEFORE, AFTER])):
         with pytest.raises(KeyError, match=key):
             get_carbon_intensity('DE', MEASURED_AT, NOW)
 
@@ -118,11 +124,11 @@ def test_max_wait_is_configurable():
     with patch('requests.get', side_effect=_elephant([BEFORE])):
         assert get_carbon_intensity('DE', MEASURED_AT, created_at) is None
 
-        with patch.dict(GlobalConfig().config, {'elephant_max_wait_hours': 1}):
+        with _config({'elephant_max_wait_hours': 1}):
             assert get_carbon_intensity('DE', MEASURED_AT, created_at) == 193
 
 def test_fence_is_configurable():
-    with patch.dict(GlobalConfig().config, {'elephant_fence_minutes': 30}), \
+    with _config({'elephant_fence_minutes': 30}), \
          patch('requests.get', side_effect=_elephant([BEFORE, AFTER])) as get_mock:
         get_carbon_intensity('DE', MEASURED_AT, NOW)
 
@@ -131,7 +137,7 @@ def test_fence_is_configurable():
     assert params['endTime'] == '2026-11-04T01:30:00Z'
 
 def test_fence_bucket_is_configurable():
-    with patch.dict(GlobalConfig().config, {'elephant_fence_bucket_minutes': 60}), \
+    with _config({'elephant_fence_bucket_minutes': 60}), \
          patch('requests.get', side_effect=_elephant([BEFORE, AFTER])) as get_mock:
         get_carbon_intensity('DE', MEASURED_AT, NOW)
         get_carbon_intensity('DE', MEASURED_AT + timedelta(minutes=30), NOW)
@@ -150,7 +156,7 @@ def test_fence_bucket_is_configurable():
     ('elephant_fence_bucket_minutes', 15.5),
 ])
 def test_invalid_settings_raise(key, value):
-    with patch.dict(GlobalConfig().config, {key: value}), patch('requests.get', side_effect=_elephant([BEFORE, AFTER])):
+    with _config({key: value}), patch('requests.get', side_effect=_elephant([BEFORE, AFTER])):
         with pytest.raises(ValueError, match=key):
             get_carbon_intensity('DE', MEASURED_AT, NOW)
 
@@ -158,7 +164,7 @@ def test_copy_over_validation_gives_rows_max_wait_from_config_plus_one_hour():
     with patch('cron.carbondb_copy_over_and_remove_duplicates.DB') as db_mock:
         db_mock.return_value.fetch_all.return_value = []
 
-        with patch.dict(GlobalConfig().config, {'elephant_max_wait_hours': 10}):
+        with _config({'elephant_max_wait_hours': 10}):
             validate_table_constraints(60)
 
     assert db_mock.return_value.fetch_all.call_args.kwargs['params'] == (False, 60, 11)
@@ -225,7 +231,7 @@ def test_unknown_country_returns_none(country_code):
     assert not _history_calls(get_mock)
 
 def test_testing_sentinel_needs_no_request_or_country():
-    with patch.dict(GlobalConfig().config, {'elephant_url': 'testing'}), patch('requests.get') as get_mock:
+    with _config({'elephant_url': 'testing'}), patch('requests.get') as get_mock:
         assert get_carbon_intensity(None, MEASURED_AT, NOW) == 1000
 
     get_mock.assert_not_called()
@@ -240,7 +246,7 @@ def test_elephant_server_error_raises(url):
             get_carbon_intensity('DE', MEASURED_AT, NOW)
 
 def test_missing_elephant_url_raises():
-    with patch.dict(GlobalConfig().config, {'elephant_url': None}):
+    with _config({'elephant_url': None}):
         with pytest.raises(ValueError, match='elephant_url'):
             get_carbon_intensity('DE', MEASURED_AT, NOW)
 
