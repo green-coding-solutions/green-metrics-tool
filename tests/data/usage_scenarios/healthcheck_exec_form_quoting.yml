@@ -6,6 +6,7 @@ description: Exec form (CMD) healthcheck whose arguments contain spaces, quotes 
 services:
   test-container-1:
     image: alpine
+    entrypoint: tail -f /dev/null
     depends_on:
       test-container-2:
         condition: service_healthy

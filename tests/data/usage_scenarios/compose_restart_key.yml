@@ -6,6 +6,7 @@ description: Docker args valid test
 services:
   test:
     image: alpine
+    entrypoint: tail -f /dev/null
     restart: asd
 
 flow:

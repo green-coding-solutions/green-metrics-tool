@@ -6,6 +6,7 @@ description: test
 services:
   test-container-only-cpu:
     image: alpine
+    entrypoint: tail -f /dev/null
     deploy:
       resources:
         limits:
@@ -13,6 +14,7 @@ services:
 
   test-container-only-memory:
     image: alpine
+    entrypoint: tail -f /dev/null
     deploy:
       resources:
         limits:
@@ -20,6 +22,7 @@ services:
 
   test-container-both:
     image: alpine
+    entrypoint: tail -f /dev/null
     deploy:
       resources:
         limits:
@@ -28,6 +31,7 @@ services:
 
   test-container-cpu-float:
     image: alpine
+    entrypoint: tail -f /dev/null
     deploy:
       resources:
         limits:
@@ -36,6 +40,7 @@ services:
 
   test-container-cpu-int:
     image: alpine
+    entrypoint: tail -f /dev/null
     deploy:
       resources:
         limits:
@@ -44,6 +49,7 @@ services:
 
   test-container-memory-int:
     image: alpine
+    entrypoint: tail -f /dev/null
     deploy:
       resources:
         limits:
@@ -53,6 +59,7 @@ services:
 
   test-container-memory-float:
     image: alpine
+    entrypoint: tail -f /dev/null
     deploy:
       resources:
         limits:
@@ -61,14 +68,17 @@ services:
 
   test-container-limits-partial:
     image: alpine
+    entrypoint: tail -f /dev/null
     deploy: # allowed to be None
 
   test-container-limits-none:
     image: alpine
+    entrypoint: tail -f /dev/null
     # no deploy key at all
 
   test-container-cpu-and-memory-in-both:
     image: alpine
+    entrypoint: tail -f /dev/null
     deploy:
       resources:
         limits:
@@ -79,17 +89,20 @@ services:
 
   test-container-limit-only-service-level:
     image: alpine
+    entrypoint: tail -f /dev/null
     cpus: 1
     mem_limit: "10M"
 
 
   test-container-limit-only-service-level-memory-int:
     image: alpine
+    entrypoint: tail -f /dev/null
     cpus: 1
     mem_limit: 11000000
 
   test-container-limit-only-service-level-memory-float:
     image: alpine
+    entrypoint: tail -f /dev/null
     cpus: 1
     mem_limit: 10000001.23
 

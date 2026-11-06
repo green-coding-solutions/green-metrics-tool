@@ -7,6 +7,7 @@ compose-file: !include include_example.yml
 services:
   test-container-1:
     image: alpine
+    entrypoint: tail -f /dev/null
 
 flow:
   - name: dummy

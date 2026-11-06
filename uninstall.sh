@@ -17,13 +17,8 @@ script_dir="$(dirname -- "$script_path")"
 # Move into the GMT main directory if this script is called from somewhere else
 cd "$script_dir"
 
-source venv/bin/activate
-
-uninstall_python
-
-deactivate
-
-uninstall_python
+rm -rf venv
+rm -rf .venv
 
 docker rm -f green-coding-gunicorn-container
 docker rm -f green-coding-nginx-container

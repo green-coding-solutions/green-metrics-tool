@@ -10,6 +10,7 @@ networks:
 services:
   test-container:
     image: gcb_stress
+    entrypoint: tail -f /dev/null
     build:
       context: ../stress-application
     networks: 

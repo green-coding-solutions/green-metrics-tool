@@ -8,6 +8,7 @@ services:
     build:
       context: ../stress-application
     image: gcb_stress
+    entrypoint: tail -f /dev/null
     container_name: test-container
     volumes: &test-volume
       - ../mounts/test-file:/tmp/test-file:ro
@@ -16,6 +17,7 @@ services:
     build:
       context: ../stress-application
     image: gcb_stress
+    entrypoint: tail -f /dev/null
     container_name: test-container-2
     volumes: *test-volume
 

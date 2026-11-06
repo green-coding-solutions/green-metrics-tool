@@ -16,6 +16,7 @@ networks:
 services:
   ubuntu-stress:
     image: gcb_stress
+    entrypoint: tail -f /dev/null
     networks:
       - network-for-pytests
     build:
@@ -24,6 +25,7 @@ services:
 
   ubuntu-stress-2:
     image: gcb_stress # this will reuse the image earlier built
+    entrypoint: tail -f /dev/null
     networks:
       - network-for-pytests
 

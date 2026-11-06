@@ -6,6 +6,7 @@ description: One flow runs in a container and one directly on the host
 services:
   test-container:
     image: gcb_stress
+    entrypoint: tail -f /dev/null
     build:
       context: ../stress-application
 

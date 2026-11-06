@@ -5,7 +5,7 @@
 Make sure you have venv activated:
 
 ```bash
-source ../venv/bin/activate
+source ../.venv/bin/activate
 ```
 
 Make sure you have the required dev dependencies installed:
