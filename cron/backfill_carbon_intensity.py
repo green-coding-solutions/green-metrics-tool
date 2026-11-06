@@ -62,14 +62,19 @@ def process(table):
         print(f"Rows in {table} left without carbon_intensity_g as no data is available yet: {len(leftover_ids)}. First IDs:", leftover_ids[:20])
 
 def fetch_carbon_intensity_missing(table):
+    # The country is only taken from an ip_data entry within 30 days of the row, as this is how long we assume an IP to keep its
+    # owner. See cron/backfill_geo.py. We compare to created_at as the row got its IP when it was received. A row without such
+    # an entry stays without carbon intensity. The lookback of the rows however is the merge window. These two are independent.
     query = f"""
         SELECT from_table.id, ip.country_code, {TIME_COLUMNS[table]}, from_table.created_at
         FROM {table} from_table
         LEFT JOIN LATERAL (
             SELECT ip_data.country_code
             FROM ip_data
-            WHERE ip_data.ip_address = from_table.ip_address
-            ORDER BY ip_data.created_at DESC
+            WHERE
+                ip_data.ip_address = from_table.ip_address
+                AND ABS(EXTRACT(EPOCH FROM (from_table.created_at - ip_data.created_at))) < EXTRACT(EPOCH FROM INTERVAL '30 DAYS')
+            ORDER BY ABS(EXTRACT(EPOCH FROM (from_table.created_at - ip_data.created_at))) ASC
             LIMIT 1
         ) ip ON TRUE
         WHERE

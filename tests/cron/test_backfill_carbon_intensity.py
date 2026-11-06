@@ -179,6 +179,16 @@ def test_rows_are_selected_by_merge_window_on_time_of_measurement(table, time_co
     assert time_column in call.args[0]
     assert call.kwargs['params'] == (30,)
 
+@pytest.mark.parametrize('table', ['ci_measurements', 'hog_simplified_measurements', 'carbondb_data_raw'])
+def test_country_is_taken_from_closest_ip_data_within_30_days_of_row(table):
+    with patch.object(backfill_carbon_intensity, 'DB') as db_mock:
+        db_mock.return_value.fetch_all.return_value = []
+        backfill_carbon_intensity.fetch_carbon_intensity_missing(table)
+
+    query = db_mock.return_value.fetch_all.call_args.args[0]
+    assert "ABS(EXTRACT(EPOCH FROM (from_table.created_at - ip_data.created_at))) < EXTRACT(EPOCH FROM INTERVAL '30 DAYS')" in query
+    assert 'ORDER BY ABS(EXTRACT(EPOCH FROM (from_table.created_at - ip_data.created_at))) ASC' in query
+
 def test_copy_over_validation_gives_rows_max_wait_from_config_plus_one_hour():
     with patch('cron.carbondb_copy_over_and_remove_duplicates.DB') as db_mock:
         db_mock.return_value.fetch_all.return_value = []

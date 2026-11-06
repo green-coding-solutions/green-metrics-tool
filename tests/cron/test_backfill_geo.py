@@ -34,3 +34,11 @@ def test_only_rows_with_own_coordinates_and_no_intensity_or_ip_data_are_selected
     assert 'from_table.longitude IS NOT NULL' in query
     assert 'from_table.carbon_intensity_g IS NULL' in query
     assert 'NOT EXISTS (SELECT 1 FROM ip_data' in query
+
+def test_ip_data_older_than_30_days_counts_as_missing():
+    with patch.object(backfill_geo, 'DB') as db_mock:
+        db_mock.return_value.fetch_all.return_value = []
+        backfill_geo.fetch_ips_missing_country()
+
+    query = db_mock.return_value.fetch_all.call_args.args[0]
+    assert "ip_data.ip_address = from_table.ip_address AND ABS(EXTRACT(EPOCH FROM (from_table.created_at - ip_data.created_at))) < EXTRACT(EPOCH FROM INTERVAL '30 DAYS')" in query
