@@ -39,7 +39,7 @@ class GpuEnergyNvidiaNvmlComponentProvider(BaseMetricProvider):
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row
-        df.dropna(inplace=True)
+        df = df.dropna()
 
         df['interval'] = intervals  # in microseconds
         # value is initially in milliWatts. So we multiply by 1_000 to get uW and then divide by 1_000_000 to get from us to s  => / 1_000

@@ -115,7 +115,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row
-        df.dropna(inplace=True)
+        df = df.dropna()
 
         df.value = df.value.astype('int64')
 

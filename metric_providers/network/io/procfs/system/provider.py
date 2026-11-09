@@ -34,7 +34,7 @@ class NetworkIoProcfsSystemProvider(BaseMetricProvider):
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row
-        df.dropna(inplace=True)
+        df = df.dropna()
 
         if (df['transmitted_bytes_intervals'] < 0).any():
             raise ValueError('NetworkIoProcfsSystemProvider data column transmitted_bytes_intervals had negative values.')
