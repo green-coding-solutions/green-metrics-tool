@@ -63,6 +63,7 @@ VALUES (
                 "/v1/measurements/single/{run_id}",
                 "/v1/diff",
                 "/v2/run/{run_id}",
+                "/v1/logs/{run_id}",
                 "/v1/optimizations/{run_id}",
                 "/v1/watchlist",
                 "/v1/badge/single/{run_id}",
@@ -112,7 +113,8 @@ VALUES (
                 "commit-variance",
                 "tag-variance",
                 "statistical-significance"
-            ]
+            ],
+            "priority": 0
         },
         "machines": [1],
         "measurement": {
@@ -178,7 +180,8 @@ VALUES (
             }
         },
         "jobs": {
-            "schedule_modes": []
+            "schedule_modes": [],
+            "priority": 0
         },
         "machines": [],
         "measurement": {

@@ -8,7 +8,7 @@ sudo setfacl -bk /tmp
 
 /workspaces/green-metrics-tool/install_linux.sh -p testpw -a "https://${CODESPACE_NAME}-9142.app.github.dev" -m "https://${CODESPACE_NAME}-9143.app.github.dev" -T -I -S -L -z -Z -f -j -g -d --tz Europe/Berlin --disable-path-security --no-elephant --no-software-view
 
-source venv/bin/activate
+source .venv/bin/activate
 
 # Also add XGBoost, as we need it
 python3 -m pip install -r /workspaces/green-metrics-tool/metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
@@ -27,7 +27,7 @@ sed -i 's/common:/common:\n      psu_energy_ac_xgboost_machine:\n        CPUChip
 
 git clone https://github.com/green-coding-solutions/example-applications.git --depth=1 --single-branch /workspaces/green-metrics-tool/example-applications || true
 
-source venv/bin/activate
+source .venv/bin/activate
 
 docker compose -f /workspaces/green-metrics-tool/docker/compose.yml down
 

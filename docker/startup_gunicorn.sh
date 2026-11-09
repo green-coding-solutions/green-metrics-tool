@@ -1,7 +1,7 @@
 #!/bin/sh
-source /var/www/startup/venv/bin/activate
+source /var/www/startup/.venv/bin/activate
 
-/var/www/startup/venv/bin/gunicorn \
+/var/www/startup/.venv/bin/gunicorn \
 --workers=8 \
 --access-logfile=- \
 --error-logfile=- \

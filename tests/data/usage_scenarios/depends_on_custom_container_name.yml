@@ -6,11 +6,13 @@ description: test
 services:
   test-service-1:
     image: alpine
+    entrypoint: tail -f /dev/null
     depends_on:
       - test-service-2
   test-service-2:
     container_name: test-service-2-container-name
     image: alpine
+    entrypoint: tail -f /dev/null
 
 flow:
   - name: dummy

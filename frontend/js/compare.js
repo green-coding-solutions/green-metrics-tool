@@ -166,7 +166,7 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
         document.querySelector('#time-series-notes-no-display').classList.remove('hidden');
         const description = document.querySelector('#time-series-notes-no-display .description')
         description.innerHTML = 'Runs have same amount of notes, but at least one note differed in text. This might only be a small textual change or can be totally different steps. Please check chart for different labels in steps.<br><ul></ul>';
-        description_ul = description.querySelector('ul')
+        const description_ul = description.querySelector('ul')
         comparison.differences.forEach(el =>  {description_ul.innerHTML += `<li>${el.a} -> ${el.b}</li>`})
     }
 
@@ -364,7 +364,8 @@ $(document).ready( () => {
         buildPhaseTabs(phase_stats_data)
         renderCompareChartsForPhase(phase_stats_data, getAndShowPhase(), run_count);
         displayTotalChart(...buildTotalChartData(phase_stats_data));
-        fetchAndShowTimeSeriesNotesHistory(run_ids)
+        // comparison_details is ordered by created_at ASC, same as the comparison tables. The ids from the URL are newest first
+        fetchAndShowTimeSeriesNotesHistory(phase_stats_data.comparison_details.flat().map(el => el.run_id))
 
         document.querySelectorAll('.ui.steps.phases .step, .runtime-step').forEach(node => node.addEventListener('click', el => {
             const phase = el.currentTarget.getAttribute('data-tab');

@@ -2,5 +2,6 @@
 services:
   test-container:
     image: alpine
+    entrypoint: tail -f /dev/null
     container_name: test-container
     restart: always

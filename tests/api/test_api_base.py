@@ -18,9 +18,7 @@ API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with 
 pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
 
 def test_route_forbidden():
-    user = User(1)
-    user._capabilities['api']['routes'] = []
-    user.update()
+    User(1).set_capability('api.routes', [])
 
     response = requests.get(f"{API_URL}/v1/user/settings", timeout=15)
     assert response.status_code == 401
@@ -52,10 +50,9 @@ def test_can_read_authentication_data():
 
 def test_can_not_update_ssh_private_key_setting():
     user = User(1)
-    user._capabilities['user']['updateable_settings'] = [
+    user.set_capability('user.updateable_settings', [
         s for s in user._capabilities['user']['updateable_settings'] if s != 'ssh_private_key'
-    ]
-    user.update()
+    ])
 
     try:
         payload = {
@@ -72,14 +69,12 @@ def test_can_not_update_ssh_private_key_setting():
     finally:
         user = User(1)
         if 'ssh_private_key' not in user._capabilities['user']['updateable_settings']:
-            user._capabilities['user']['updateable_settings'].append('ssh_private_key')
-            user.update()
+            user.set_capability('user.updateable_settings', user._capabilities['user']['updateable_settings'] + ['ssh_private_key'])
 
 def test_can_update_ssh_private_key_setting():
     user = User(1)
     if 'ssh_private_key' not in user._capabilities['user']['updateable_settings']:
-        user._capabilities['user']['updateable_settings'].append('ssh_private_key')
-        user.update()
+        user.set_capability('user.updateable_settings', user._capabilities['user']['updateable_settings'] + ['ssh_private_key'])
 
     payload = {
         'name': 'ssh_private_key',
@@ -97,8 +92,9 @@ def test_can_update_ssh_private_key_setting():
     finally:
         User(1).update_ssh_private_key('')
         user = User(1)
-        user._capabilities['user']['updateable_settings'].remove('ssh_private_key')
-        user.update()
+        user.set_capability('user.updateable_settings', [
+            s for s in user._capabilities['user']['updateable_settings'] if s != 'ssh_private_key'
+        ])
 
 def test_can_update_docker_credentials_setting_encrypted_in_db():
     payload = {
@@ -131,9 +127,7 @@ def test_can_update_docker_credentials_setting_encrypted_in_db():
         User(1).update_docker_credentials(None)
 
 def test_api_quota_exhausted():
-    user = User(1)
-    user._capabilities['api']['quotas'] = {'/v1/user/settings': 0}
-    user.update()
+    User(1).set_capability('api.quotas', {'/v1/user/settings': 0})
 
     response = requests.get(f"{API_URL}/v1/user/settings", timeout=15)
     assert response.status_code == 401

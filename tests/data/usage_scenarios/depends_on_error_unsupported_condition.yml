@@ -6,11 +6,13 @@ description: test
 services:
   test-container-1:
     image: alpine
+    entrypoint: tail -f /dev/null
     depends_on:
       test-container-2:
         condition: service_completed_successfully
   test-container-2:
     image: alpine
+    entrypoint: tail -f /dev/null
 
 flow:
   - name: dummy

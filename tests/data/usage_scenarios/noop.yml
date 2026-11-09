@@ -6,6 +6,7 @@ description: Testing Noop
 services:
   test-container:
     image: alpine
+    entrypoint: tail -f /dev/null
 
 flow:
   - name: Testing Noop

@@ -6,6 +6,7 @@ description: Testing Too high limits
 services:
   test-container:
     image: alpine
+    entrypoint: tail -f /dev/null
     cpus: 400
 
 

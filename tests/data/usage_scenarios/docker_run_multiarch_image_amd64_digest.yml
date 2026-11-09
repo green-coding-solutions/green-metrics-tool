@@ -5,6 +5,7 @@ description: Test docker run with multi-architecture image, but with forced amd6
 services:
   test_service:
     image: alpine@sha256:eafc1edb577d2e9b458664a15f23ea1c370214193226069eb22921169fc7e43f
+    entrypoint: tail -f /dev/null
     
 flow:
   - name: test

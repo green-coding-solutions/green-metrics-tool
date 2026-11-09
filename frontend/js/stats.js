@@ -114,6 +114,42 @@ const setAndShowAnalyticsLinks = (run_id, run_data) => {
     timelineLink.classList.add('disabled');
 };
 
+const loadRunLogs = async (run_id) => {
+    const logsElement = document.querySelector("#logs");
+    const loadLogsButton = document.querySelector("#load-logs");
+    loadLogsButton.classList.add('loading', 'disabled');
+
+    let logsData = null;
+    try {
+        logsData = (await makeAPICall('/v1/logs/' + run_id)).data;
+    } catch (err) {
+        if (err instanceof APIHTTPError && err.status === 204) {
+            // Display simple message indicating no output was produced
+            logsElement.innerHTML = '<pre>Run did not produce any logs to be captured</pre>';
+        } else {
+            showNotification('Could not get logs from API', err);
+            loadLogsButton.classList.remove('loading', 'disabled');
+        }
+        return;
+    }
+
+    if (typeof logsData === 'object') {
+        // Handle JSON structure logs
+        // Check first if any logs have type 'legacy' - if so, render as simple text instead of structured interface
+        const hasLegacyLogs = Object.values(logsData).some(containerLogs =>
+            Array.isArray(containerLogs) && containerLogs.some(log => log.type === 'legacy')
+        );
+        if (!hasLegacyLogs) {
+            renderLogsInterface(logsData);
+        } else {
+            renderLegacyLogsFromJson(logsData);
+        }
+    } else {
+        // Handle legacy plain text logs (pre-JSON structure)
+        displayLegacyLogs(logsData);
+    }
+};
+
 const fetchAndFillRunData = async (run_id) => {
 
     let run = null;
@@ -178,26 +214,6 @@ const fetchAndFillRunData = async (run_id) => {
 
 
 
-        } else if(item == 'logs') {
-            const logsData = run_data[item];
-            if (logsData === null) {
-                // Display simple message indicating no output was produced
-                document.querySelector("#logs").innerHTML = '<pre>Run did not produce any logs to be captured</pre>';
-            } else if (typeof logsData === 'object' && logsData !== null) {
-                // Handle JSON structure logs
-                // Check first if any logs have type 'legacy' - if so, render as simple text instead of structured interface
-                const hasLegacyLogs = Object.values(logsData).some(containerLogs =>
-                    Array.isArray(containerLogs) && containerLogs.some(log => log.type === 'legacy')
-                );
-                if (!hasLegacyLogs) {
-                    renderLogsInterface(logsData);
-                } else {
-                    renderLegacyLogsFromJson(logsData);
-                }
-            } else {
-                // Handle legacy plain text logs (pre-JSON structure)
-                displayLegacyLogs(run_data[item]);
-            }
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
         } else if(item == 'id' || item == 'phases') {
@@ -322,6 +338,8 @@ const fetchAndFillRunData = async (run_id) => {
         }
     }
 
+    document.querySelector('#load-logs').addEventListener('click', () => loadRunLogs(run_id));
+
     document.querySelector('#save-note').addEventListener('click', async () => {
         const note_text = document.querySelector('textarea[name=note]').value;
         try {
@@ -378,16 +396,59 @@ const fillRunTab = async (selector, data, parent = '') => {
     }
 }
 
+
+// Strip CSI / OSC / common ESC sequences. Used only on explicit user click (no pre-scan at render).
+const stripAnsi = (text) => String(text).replace(
+    // CSI (ESC[ ... or 8-bit CSI), OSC (ESC] ... BEL/ST), other 2-byte ESC Fe
+    /(?:\u001b\[|\u009b)[0-?]*[ -/]*[@-~]|\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)|\u001b[@-Z\\-_]/g,
+    ''
+);
+
+const bindAnsiStripButtons = (root) => {
+    if (!root) return;
+    root.querySelectorAll('[data-ansi-strip]').forEach((btn) => {
+        if (btn.dataset.ansiBound === '1') return;
+        btn.dataset.ansiBound = '1';
+        btn.addEventListener('click', () => {
+            const block = btn.closest('.content') || btn.closest('.ui.segment') || root;
+            const target = block.querySelector('[data-log-text]') || block.querySelector('pre');
+            if (!target) return;
+            target.textContent = stripAnsi(target.textContent || '');
+            btn.disabled = true;
+            btn.textContent = 'ANSI removed';
+        });
+    });
+};
+
 const displayLegacyLogs = (logData) => {
     const logsElement = document.querySelector("#logs");
-    logsElement.innerHTML = `<pre>${escapeString(logData)}</pre>`;
+    logsElement.innerHTML = `
+        <div class="content">
+            <h5 class="ui header">
+                <span>Logs</span>
+                <button type="button" class="ui mini compact basic button" data-ansi-strip
+                    title="Does the output look garbled? Try removing ANSI control codes.">
+                    Remove ANSI codes
+                </button>
+            </h5>
+            <div class="ui segment">
+                <pre data-log-text style="margin:0;white-space:pre-wrap;">${escapeString(logData)}</pre>
+            </div>
+        </div>`;
+    bindAnsiStripButtons(logsElement);
 };
 
 const renderLegacyLogsFromJson = (logsData) => {
     const legacyLogTemplate = `
         <div class="ui segment">
-            <h4 class="ui header">{{containerName}}</h4>
-            <pre>{{stdout}}</pre>
+            <h4 class="ui header">
+                <span>{{containerName}}</span>
+                <button type="button" class="ui mini compact basic button" data-ansi-strip
+                    title="Does the output look garbled? Try removing ANSI control codes.">
+                    Remove ANSI codes
+                </button>
+            </h4>
+            <pre data-log-text>{{combinedOut}}</pre>
         </div>
     `;
 
@@ -399,15 +460,18 @@ const renderLegacyLogsFromJson = (logsData) => {
     Object.keys(logsData).forEach(containerName => {
         const containerLogs = logsData[containerName];
         containerLogs.forEach(logEntry => {
+            // legacy logs do not have separate stdout and stderr but only a combined output
+            // still it is funneled in the data structure through the stdout variable. This is just legacy naming. No stderr got lost :)
             if (logEntry.stdout) {
                 contentHTML += legacyLogTemplate
                     .replace('{{containerName}}', escapeString(containerName))
-                    .replace('{{stdout}}', escapeString(logEntry.stdout));
+                    .replace('{{combinedOut}}', escapeString(logEntry.stdout));
             }
         });
     });
 
     logsElement.innerHTML = contentHTML;
+    bindAnsiStripButtons(logsElement);
 };
 
 const renderLogsInterface = (logsData) => {
@@ -454,18 +518,30 @@ const renderLogsInterface = (logsData) => {
 
     const stdoutTemplate = `
         <div class="content">
-            <h5 class="ui header"><i class="file text outline icon"></i> Standard Output</h5>
+            <h5 class="ui header">
+                <span><i class="file text outline icon"></i> Standard Output</span>
+                <button type="button" class="ui mini compact basic button" data-ansi-strip
+                    title="Does the output look garbled? Try removing ANSI control codes.">
+                    Remove ANSI codes
+                </button>
+            </h5>
             <div class="ui segment stdout">
-                <div>{{stdout}}</div>
+                <div data-log-text>{{stdout}}</div>
             </div>
         </div>
     `;
 
     const stderrTemplate = `
         <div class="content">
-            <h5 class="ui header"><i class="exclamation triangle icon"></i> Standard Error</h5>
+            <h5 class="ui header">
+                <span><i class="exclamation triangle icon"></i> Standard Error</span>
+                <button type="button" class="ui mini compact basic button" data-ansi-strip
+                    title="Does the output look garbled? Try removing ANSI control codes.">
+                    Remove ANSI codes
+                </button>
+            </h5>
             <div class="ui segment stderr">
-                <div>{{stderr}}</div>
+                <div data-log-text>{{stderr}}</div>
             </div>
         </div>
     `;
@@ -585,6 +661,7 @@ const renderLogsInterface = (logsData) => {
     accordionHTML += '</div>';
     logsElement.innerHTML = accordionHTML;
     $('.ui.accordion').accordion();
+    bindAnsiStripButtons(logsElement);
 }
 
 

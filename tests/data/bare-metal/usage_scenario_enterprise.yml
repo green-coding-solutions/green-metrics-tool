@@ -50,7 +50,7 @@ flow:
       - type: console
         command: |
           cd ~/green-metrics-tool
-          source venv/bin/activate
+          source .venv/bin/activate
           python3 -m pip install -r requirements-dev.txt
           playwright install --with-deps firefox
         shell: bash
@@ -62,7 +62,7 @@ flow:
     commands:
       - type: console
         command: |
-          source venv/bin/activate
+          source .venv/bin/activate
           cd ~/green-metrics-tool/tests
           python3 setup-test-env.py --ee
         shell: bash
@@ -75,7 +75,7 @@ flow:
       - type: console
         command: |
           cd ~/green-metrics-tool/tests
-          source ../venv/bin/activate
+          source ../.venv/bin/activate
           ./start-test-containers.sh -d
         shell: bash
         log-stdout: true

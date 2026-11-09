@@ -8,6 +8,7 @@ services:
        context: .
        dockerfile: Dockerfile
     image: volume_bind_mount_rel_to_context_root
+    entrypoint: tail -f /dev/null
     container_name: test-container-root
     volumes:
       - ./subdir/testfile:/tmp/testfile-correctly-mounted:ro
@@ -18,6 +19,7 @@ services:
        context: ./subdir
        dockerfile: ./subdir2/Dockerfile2
     image: volume_bind_mount_rel_to_context
+    entrypoint: tail -f /dev/null
     container_name: test-container
     volumes:
       - ./subdir/testfile:/tmp/testfile-correctly-mounted:ro

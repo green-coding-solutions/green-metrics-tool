@@ -114,7 +114,11 @@ optimization:
   ignore:
     - example_optimization_test
 
-electricity_maps_token: 'testing'
+elephant_url: 'testing'
+elephant_preferred_providers: ['entsoe']
+elephant_max_wait_hours: 6
+elephant_fence_minutes: 60
+elephant_fence_bucket_minutes: 15
 #ee_token: 'testing'
 
 activate_scenario_runner: True
