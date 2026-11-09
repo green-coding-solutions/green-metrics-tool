@@ -27,6 +27,8 @@ from lib.secure_variable import SecureVariable
 import redis
 from enum import Enum
 
+MAX_LOG_CHARS = 1_000_000 # Roughly 10k lines at 100 chars per line. Larger system log messages slow down the frontend too much. Also adapt the "clipped" message in the frontend when changing
+
 def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
     host = GlobalConfig().config['redis']['host']
     port = GlobalConfig().config['redis']['port']
@@ -149,7 +151,7 @@ def get_run_info(user, run_id):
                 (SELECT name FROM users WHERE runs.user_id = users.id) as user_name,
                 created_at,
                 (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = runs.id) as warnings,
-                phases, logs, failed, gmt_hash, runner_arguments, archived, note, public
+                phases, failed, gmt_hash, runner_arguments, archived, note, public
             FROM runs
             WHERE
                 (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)

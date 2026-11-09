@@ -63,6 +63,7 @@ VALUES (
                 "/v1/measurements/single/{run_id}",
                 "/v1/diff",
                 "/v2/run/{run_id}",
+                "/v1/logs/{run_id}",
                 "/v1/optimizations/{run_id}",
                 "/v1/watchlist",
                 "/v1/badge/single/{run_id}",
