@@ -1,5 +1,5 @@
 -r requirements.txt
-pydantic==2.14.2
+pydantic==2.14.3
 pylint==4.1.3
 pytest-randomly==5.0.0
 pytest-xdist==3.8.0
