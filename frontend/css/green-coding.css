@@ -741,10 +741,10 @@ a {
     border-radius: 3px;
 }
 
-p.system-log-message {
+pre.system-log-message {
     white-space:pre-wrap;
     max-height:500px;
-    max-width:80vw;
+    max-width:60vw;
     overflow:auto;
     margin:0;
 }
