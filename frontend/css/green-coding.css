@@ -740,3 +740,11 @@ a {
     border: 1px solid #ccc;
     border-radius: 3px;
 }
+
+p.system-log-message {
+    white-space:pre-wrap;
+    max-height:500px;
+    max-width:80vw;
+    overflow:auto;
+    margin:0;
+}
