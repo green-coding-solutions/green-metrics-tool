@@ -17,6 +17,6 @@ flow:
       - type: console
         shell: bash
         command: >-
-          ollama run '__GMT_VAR_MODEL__|quote' '__GMT_VAR_PROMPT__|quote'
+          ollama run --nowordwrap '__GMT_VAR_MODEL__|quote' '__GMT_VAR_PROMPT__|quote'
         read-notes-stdout: true
         log-stdout: true
