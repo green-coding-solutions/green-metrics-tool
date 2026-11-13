@@ -528,7 +528,7 @@ if ($modifyHosts) {
 
 if ($activateScenarioRunnerValue) {
     Write-Step "Checking out further git submodules"
-    git submodule update --init metric_providers/psu/energy/ac/xgboost/machine/model
+    git submodule update --init --recursive metric_providers/psu/energy/ac/xgboost/machine/model
 }
 
 Write-Step "Setting up Python venv"
