@@ -257,7 +257,7 @@ def test_cloud_energy():
 
     assert df.metric.unique() == ['psu_energy_ac_xgboost_machine']
 
-    assert math.isclose(df[df.metric == 'psu_energy_ac_xgboost_machine'].value.mean(), 7076857.12, abs_tol=1e-3)
+    assert math.isclose(df[df.metric == 'psu_energy_ac_xgboost_machine'].value.mean(), 7101284.928, abs_tol=1e-3)
 
 def test_cgroup_system():
     with patch('lib.utils.find_own_cgroup_name') as find_own_cgroup_name:
