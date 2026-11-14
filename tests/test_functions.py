@@ -7,6 +7,7 @@ import random
 import tempfile
 import pandas
 from pathlib import Path
+import yaml
 
 from lib.db import DB, get_schema
 from lib.global_config import GlobalConfig
@@ -25,6 +26,11 @@ from metric_providers.network.io.cgroup.container.provider import NetworkIoCgrou
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 GUNICORN_SEQUENTIAL_GROUP = "gunicorn-sequential-tests"
+
+def get_gmt_postgres_image():
+    # Single source of truth for the postgres image, so tests never pull a second postgres image
+    with open(os.path.join(CURRENT_DIR, '../docker/compose.yml.example'), encoding='utf-8') as f:
+        return yaml.safe_load(f)['services']['green-coding-postgres']['image']
 
 def get_tmp_folder():
     # Mirrors ScenarioRunner's own tmp-folder naming (lib/scenario_runner.py) so tests that
