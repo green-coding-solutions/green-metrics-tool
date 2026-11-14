@@ -121,6 +121,7 @@ CREATE TRIGGER runs_moddatetime
     BEFORE UPDATE ON runs
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
+CREATE INDEX runs_created_at_idx ON runs(created_at); -- run listings sort by created_at; btree is scanned backwards for DESC
 
 -- must happen here, bc we need the runs table first and cannot change order as both depend on each other
 ALTER TABLE "jobs" ADD FOREIGN KEY ("run_id") REFERENCES "runs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
