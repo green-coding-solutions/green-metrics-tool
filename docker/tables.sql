@@ -86,7 +86,7 @@ CREATE TRIGGER system_logs_moddatetime
     EXECUTE PROCEDURE moddatetime (updated_at);
 
 CREATE TABLE runs (
-    id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     job_id integer REFERENCES jobs(id) ON DELETE SET NULL ON UPDATE CASCADE UNIQUE,
     name text,
     uri text NOT NULL,

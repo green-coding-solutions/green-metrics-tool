@@ -9,7 +9,6 @@ if [[  "$response" == "Y" || "$response" == "y" ]] ; then
 
     docker exec green-coding-postgres-container psql -v ON_ERROR_STOP=1 -Upostgres -p9573 -dgreen-coding -c 'DROP schema IF EXISTS "public" CASCADE;'
     docker exec green-coding-postgres-container psql -v ON_ERROR_STOP=1 -Upostgres -p9573 -dgreen-coding -c 'CREATE SCHEMA IF NOT EXISTS "public";'
-    docker exec green-coding-postgres-container psql -v ON_ERROR_STOP=1 -Upostgres -p9573 -dgreen-coding -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA public;'
     docker exec green-coding-postgres-container psql -v ON_ERROR_STOP=1 -Upostgres -p9573 -dgreen-coding -c 'CREATE EXTENSION IF NOT EXISTS "moddatetime" SCHEMA public;'
 
     read -p "Please put all files you want to import now in the subfolder ./backup. Then press enter: " response
