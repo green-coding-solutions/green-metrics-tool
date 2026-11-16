@@ -1,4 +1,4 @@
-gunicorn==26.2.0
+gunicorn==27.0.1
 psycopg_pool==3.3.3
 psycopg[binary]==3.3.8
 uvicorn[standard]==0.54.0
