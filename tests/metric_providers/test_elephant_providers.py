@@ -367,7 +367,6 @@ def test_live_full_gmt_run_creates_metric_and_phase_stat():
             dev_no_phase_stats=False,
             dev_no_container_dependency_collection=True,
             skip_download_dependencies=True,
-            skip_optimizations=True,
         )
         run_id = runner.run()
 

@@ -332,7 +332,6 @@ def _volume_dot_path_runner(filename, *_, dev_cache_build=True, allowed_volume_m
         allow_unsafe=allow_unsafe,
         dev_no_container_dependency_collection=True,
         skip_download_dependencies=True,
-        skip_optimizations=True,
         allowed_volume_mounts=allowed_volume_mounts,
     )
 

@@ -75,7 +75,7 @@ If a new field is visible to users, it often has to move through multiple layers
 
 - Run a quick CLI measurement to check if the runner code is working:
   - first `cd docker && docker compose up -d`
-  - then `python3 runner.py --uri /home/node/green-metrics-tool --filename tests/data/usage_scenarios/basic_stress.yml --dev-no-sleeps --dev-cache-build --skip-download-dependencies --skip-optimizations`
+  - then `python3 runner.py --uri /home/node/green-metrics-tool --filename tests/data/usage_scenarios/basic_stress.yml --dev-no-sleeps --dev-cache-build --skip-download-dependencies`
 - Compile-check a Python file:
   - `python3 -m py_compile path/to/file.py`
 

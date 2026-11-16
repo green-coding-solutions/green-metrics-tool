@@ -56,7 +56,7 @@ if __name__ == '__main__':
     parser.add_argument('--skip-unsafe', action='store_true', help='Skip unsafe volume bindings, ports and complex environment vars')
     parser.add_argument('--skip-download-dependencies', action='store_true', help='Skip downloading GMT dependencies like Kaniko etc. Useful to speed up runs if your dependencies are up to date')
     parser.add_argument('--skip-volume-inspect', action='store_true', help='Disable docker volume inspection. Can help if you encounter permission issues.')
-    parser.add_argument('--skip-optimizations', action='store_true', help='Skip analysis after run to find possible optimizations.')
+    parser.add_argument('--optimizations', action='store_true', help='Run analysis after run to find possible optimizations.')
 
     # These switches may break or skew proper measurements or make them uncomparable due to missing info
     parser.add_argument('--dev-no-system-checks', nargs='?', const=system_checks.ALL_CHECKS_SENTINEL, default=False, help='Do not check the system if the GMT can run properly. Pass no argument to disable ALL checks, or a comma-separated list of check names (e.g. check_steal_time,check_utf_encoding) to disable only those.')
@@ -65,7 +65,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
     parser.add_argument('--dev-no-phase-stats', action='store_true', help='Do not calculate phase stats.')
     parser.add_argument('--dev-cache-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
-    parser.add_argument('--dev-no-save', action='store_true', help='Will save no data to the DB. This implicitly activates --dev-no-phase-stats, --dev-no-metrics and --skip-optimizations')
+    parser.add_argument('--dev-no-save', action='store_true', help='Will save no data to the DB. This implicitly activates --dev-no-phase-stats, --dev-no-metrics and disables --optimizations')
     parser.add_argument('--dev-stream-outputs', action='store_true', help='Stream the output of the container build and the called processes in flows and setup-commands to the terminal. Note that this disallows capturing of errors and build outputs in logs and error messages.')
     parser.add_argument('--dev-cache-repos', action='store_true', help='Do not clone repository and relations again but use the one already present on disk.')
     parser.add_argument('--dev-no-container-dependency-collection', action='store_true', help='Do not collect dependency information of started containers')
@@ -221,7 +221,7 @@ if __name__ == '__main__':
                         measurement_total_duration=args.measurement_total_duration,
 
                         # These switches do not alter proper measurements, but might result in data not being generated
-                        skip_download_dependencies=args.skip_download_dependencies, skip_optimizations=args.skip_optimizations,
+                        skip_download_dependencies=args.skip_download_dependencies, optimizations=args.optimizations,
                         skip_unsafe=args.skip_unsafe, skip_volume_inspect=args.skip_volume_inspect,
 
                         # These switches may break or skew proper measurements if set
@@ -234,7 +234,7 @@ if __name__ == '__main__':
                         #disabled_metric_providers # this is intentionally not supported as the user can just edit the config in CLI mode and using another args="+" for parsing CLI is flaky
                         #allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] # this is intentionally not supported as the user can just enter --allow-unsafe in CLI mode and using another args="+" for parsing CLI is flaky
                         )
-        if not runner._skip_optimizations and not runner._dev_no_save and not runner._dev_no_metrics:
+        if runner._optimizations and not runner._dev_no_save and not runner._dev_no_metrics:
             # We cannot import this at the top of the as we need the correct config file
             # Config file is replaced through args.config_override sometimes
             import optimization_providers.base
@@ -253,7 +253,7 @@ if __name__ == '__main__':
             # From a user perspective it makes perfect sense to run both jobs directly after each other
             # In a cloud setup it however makes sense to free the measurement machine as soon as possible
             # So this code should be individually callable, separate from the runner
-            if not runner._skip_optimizations and not runner._dev_no_save and not runner._dev_no_metrics:
+            if runner._optimizations and not runner._dev_no_save and not runner._dev_no_metrics:
                 print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
                 optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 

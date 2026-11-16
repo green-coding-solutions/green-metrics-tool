@@ -148,6 +148,44 @@ def test_simple_run_job_no_quota():
         Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
+    assert 'optimization reporters' not in ps.stdout,\
+        Tests.assertion_info('Optimizations are opt-in and must not run by default', ps.stdout)
+
+@pytest.mark.xdist_group(name="real-metric-providers")
+def test_simple_run_job_with_optimizations():
+    Tests.shorten_sleep_times(1)
+
+    name = utils.randomword(12)
+    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
+    filename = 'usage_scenario.yml'
+    branch = 'main'
+    machine_id = 1
+
+    RunJob.insert(user_id=1, name=name, url=url, branch=branch, filename=filename, machine_id=machine_id)
+
+    user = User(1)
+    user.set_capability('measurement.dev_no_system_checks', ['check_steal_time'])
+    user.set_capability('measurement.optimizations', True)
+
+    ps = subprocess.run(
+            ['python3', '../cron/jobs.py', 'run', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+
+    assert ps.stderr == '', Tests.assertion_info('No Error', f"STDOUT:\n{ps.stdout}\nSTDERR:\n{ps.stderr}")
+    assert 'Successfully processed jobs queue item.' in ps.stdout,\
+        Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
+    assert 'Running optimization reporters' in ps.stdout,\
+        Tests.assertion_info('Running optimization reporters', ps.stdout)
+
+    run_data = utils.get_run_data(name)
+    assert run_data['runner_arguments']['optimizations'] is True
+
+    labels = [row[0] for row in DB().fetch_all('SELECT label FROM optimizations WHERE run_id = %s', params=(run_data['id'], ))]
+    assert 'message_optimization' in labels, Tests.assertion_info('message_optimization in optimizations', labels)
 
 @pytest.mark.xdist_group(name="real-metric-providers")
 def test_simple_run_job_quota_gets_deducted():

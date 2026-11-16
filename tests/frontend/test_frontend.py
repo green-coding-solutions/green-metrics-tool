@@ -1164,7 +1164,7 @@ class TestFrontendFunctionality:
         assert user._capabilities['measurement']['flow_process_duration'] == 86400
         assert user._capabilities['measurement']['total_duration'] == 86400
         assert user._capabilities['measurement']['dev_no_sleeps'] is False
-        assert user._capabilities['measurement']['skip_optimizations'] is False
+        assert user._capabilities['measurement']['optimizations'] is False
         assert user._capabilities['measurement']['system_check_threshold'] == 3
         assert user._capabilities['measurement']['pre_test_sleep'] == 5
         assert user._capabilities['measurement']['idle_duration'] == 60
@@ -1188,8 +1188,8 @@ class TestFrontendFunctionality:
         value = page.locator('#measurement-dev-no-sleeps').is_checked()
         assert value is user._capabilities['measurement']['dev_no_sleeps']
 
-        value = page.locator('#measurement-skip-optimizations').is_checked()
-        assert value is user._capabilities['measurement']['skip_optimizations']
+        value = page.locator('#measurement-optimizations').is_checked()
+        assert value is user._capabilities['measurement']['optimizations']
 
         value = page.locator('#measurement-system-check-threshold').input_value()
         assert int(value.strip()) == user._capabilities['measurement']['system_check_threshold']
@@ -1230,7 +1230,7 @@ class TestFrontendFunctionality:
         page.locator('#measurement-phase-transition-time').fill('2')
         page.locator('#measurement-wait-time-dependencies').fill('120')
         page.locator('#measurement-dev-no-sleeps').click()
-        page.locator('#measurement-skip-optimizations').click()
+        page.locator('#measurement-optimizations').click()
         page.locator('#measurement-skip-volume-inspect').click()
 
         page.locator('#save-measurement-system-check-threshold').click()
@@ -1244,7 +1244,7 @@ class TestFrontendFunctionality:
         page.locator('#save-measurement-phase-transition-time').click()
         page.locator('#save-measurement-wait-time-dependencies').click()
         page.locator('#save-measurement-dev-no-sleeps').click()
-        page.locator('#save-measurement-skip-optimizations').click()
+        page.locator('#save-measurement-optimizations').click()
         page.locator('#save-measurement-skip-volume-inspect').click()
         page.locator('#ssh-private-key').fill(Tests.OPENSSH_EXAMPLE_PRIVATE_KEY)
         page.locator('#save-ssh-private-key').click(timeout=15_000)
@@ -1257,7 +1257,7 @@ class TestFrontendFunctionality:
         assert user._capabilities['measurement']['flow_process_duration'] == 456
         assert user._capabilities['measurement']['total_duration'] == 123
         assert user._capabilities['measurement']['dev_no_sleeps'] is True
-        assert user._capabilities['measurement']['skip_optimizations'] is True
+        assert user._capabilities['measurement']['optimizations'] is True
         assert user._capabilities['measurement']['system_check_threshold'] == 2
         assert user._capabilities['measurement']['pre_test_sleep'] == 100
         assert user._capabilities['measurement']['idle_duration'] == 200

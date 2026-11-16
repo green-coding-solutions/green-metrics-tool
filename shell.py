@@ -194,7 +194,6 @@ def main():
             shell_executable=args.shell_executable,
             verbose_provider_boot=args.verbose_provider_boot,
             user_id=args.user_id,
-            skip_optimizations=True,
             dev_no_metrics=args.dev_no_metrics,
             dev_no_phase_stats=args.dev_no_phase_stats,
             dev_no_save=args.dev_no_save,
