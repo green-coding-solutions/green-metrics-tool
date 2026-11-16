@@ -195,7 +195,10 @@ $(document).ready(function () {
             columns: [
                 { data: 0, title: 'ID'},
                 { data: 1, title: 'Title', render: (el) => escapeString(el)},
-                { data: 2, title: 'Message', render: (el) => `<pre style="white-space:pre-wrap;max-height:500px; max-width:80vw;overflow:auto;margin:0">${escapeString(el)}</pre>`},
+                { data: 2, title: 'Message', render: (el, type, row) => {
+                    const clipped_info = row[5] === true ? '<div class="ui mini orange label" title="This message is too long to display. Only the first 1,000,000 characters are shown.">Clipped to 1,000,000 characters</div>' : '';
+                    return `${clipped_info}<pre class="system-log-message">${escapeString(el)}</pre>`;
+                }},
                 { data: 3, title: 'Level', render: (el) => escapeString(el)},
                 { data: 4, title: 'Created at', render: (el) => el == null ? '-' : dateToYMD(new Date(el))},
                 { data: 0, title: '-', class: 'log-action', render: (el) =>

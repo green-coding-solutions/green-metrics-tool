@@ -80,7 +80,11 @@ def copy_over_eco_ci(copy_over_lookback_limit):
                 user_id,
                 NOW()
             FROM ci_measurements
-            WHERE %s OR created_at > CURRENT_DATE - make_interval(days => %s)
+            -- rows still waiting for their carbon backfill are copied once it is done. A copy with a NULL carbon_kg would be harmless
+            -- by itself, but backfill_carbon_intensity.py later fills it too. Its carbon_kg is calculated differently than the one of the
+            -- copy made after the backfill, so remove_duplicates cannot match the two and compress counts the row twice
+            WHERE carbon_ug IS NOT NULL
+                AND (%s OR created_at > CURRENT_DATE - make_interval(days => %s))
     '''
 
     DB().query(query, params=(copy_over_lookback_limit is None, copy_over_lookback_limit))
@@ -128,6 +132,10 @@ def copy_over_scenario_runner(copy_over_lookback_limit):
 
 
 def validate_table_constraints(cleanup_lookback_limit):
+    # Data that just arrived can be null, as the backfill waits up to elephant_max_wait_hours for carbon intensity data.
+    # One hour on top gives the backfill cron job the time to run after the wait is over.
+    backfill_grace_hours = GlobalConfig().config['elephant_max_wait_hours'] + 1
+
     data = DB().fetch_all('''
         SELECT id
         FROM
@@ -143,8 +151,8 @@ def validate_table_constraints(cleanup_lookback_limit):
             OR source IS NULL -- null by design. only guard for broken schema
             OR tags IS NULL) -- null by design. only guard for broken schema
             AND (%s OR created_at > NOW() - make_interval(days => %s))
-            AND created_at < NOW() - INTERVAL '30 MINUTES' -- data just arrived can be null, before it is backfilled
-     ''', params=(cleanup_lookback_limit is None, cleanup_lookback_limit))
+            AND created_at < NOW() - make_interval(hours => %s)
+     ''', params=(cleanup_lookback_limit is None, cleanup_lookback_limit, backfill_grace_hours))
 
     if data:
         raise RuntimeError(f"NULL values found `carbondb_data_raw` - {data}")

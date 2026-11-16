@@ -7,6 +7,7 @@ import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+from api.api_helpers import MAX_LOG_CHARS
 from lib.db import DB
 from lib import utils
 from lib.job.run import RunJob
@@ -299,3 +300,75 @@ def test_phase_stats_single_returns_component_carbon():
     cpu_energy = Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
     operational_carbon_expected = int(cpu_energy * MICROJOULES_TO_KWH * carbon_intensity_value * 1_000_000)
     assert detail['mean'] == pytest.approx(operational_carbon_expected, abs=10)
+
+def _insert_run_with_logs(logs):
+    return DB().fetch_one(
+        """
+        INSERT INTO runs (name, uri, branch, filename, machine_id, user_id, logs, created_at)
+        VALUES ('Log run', 'https://www.example.com', 'main', 'usage_scenario.yml', 1, 1, %s, NOW())
+        RETURNING id
+        """,
+        params=(None if logs is None else json.dumps(logs), )
+    )[0]
+
+def _log_entry(**streams):
+    return {'type': 'flow_command', 'id': '1', 'cmd': 'ls', 'phase': None, **streams}
+
+def test_get_run_does_not_return_logs():
+    run_id = _insert_run_with_logs({'ctr': [_log_entry(stdout='a')]})
+
+    response = requests.get(f"{API_URL}/v2/run/{run_id}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+
+    assert 'logs' not in response.json()['data']
+
+def test_get_logs_returns_unclipped_logs():
+    logs = {
+        'ctr': [_log_entry(stdout='a' * (MAX_LOG_CHARS + 1), stderr='b'), _log_entry()],
+        '[SYSTEM]': [_log_entry(stderr='exception')],
+    }
+
+    response = requests.get(f"{API_URL}/v1/logs/{_insert_run_with_logs(logs)}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+
+    assert response.json()['data'] == logs
+
+@pytest.mark.parametrize('logs', [None, {}])
+def test_get_logs_of_run_without_logs(logs):
+    response = requests.get(f"{API_URL}/v1/logs/{_insert_run_with_logs(logs)}", timeout=15)
+
+    assert response.status_code == 204, Tests.assertion_info('no content', response.text)
+
+def test_get_logs_invalid_run_id():
+    response = requests.get(f"{API_URL}/v1/logs/not-a-uuid", timeout=15)
+
+    assert response.status_code == 422, Tests.assertion_info('invalid run id', response.text)
+
+def test_get_logs_only_visible_for_allowed_users():
+    Tests.insert_user(2, 'OTHER_USER')
+    run_id = _insert_run_with_logs({'ctr': [_log_entry(stdout='secret')]})
+    headers = {'X-Authentication': 'OTHER_USER'}
+
+    response = requests.get(f"{API_URL}/v1/logs/{run_id}", headers=headers, timeout=15)
+    assert response.status_code == 204, Tests.assertion_info('no content', response.text)
+
+    DB().query('UPDATE runs SET public = TRUE WHERE id = %s', params=(run_id, ))
+
+    response = requests.get(f"{API_URL}/v1/logs/{run_id}", headers=headers, timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.json()['data'] == {'ctr': [_log_entry(stdout='secret')]}
+
+def test_get_system_logs_clips_message():
+    DB().query(
+        "INSERT INTO system_logs (id, title, message) VALUES (1, 'long', %s), (2, 'at limit', %s)",
+        params=('a' * (MAX_LOG_CHARS + 1), 'b' * MAX_LOG_CHARS)
+    )
+
+    response = requests.get(f"{API_URL}/v1/system-logs", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+
+    rows = {row[0]: row for row in response.json()['data']}
+    assert rows[1][2] == 'a' * MAX_LOG_CHARS
+    assert rows[1][5] is True
+    assert rows[2][2] == 'b' * MAX_LOG_CHARS
+    assert rows[2][5] is False

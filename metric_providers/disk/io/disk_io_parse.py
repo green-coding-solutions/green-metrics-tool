@@ -13,7 +13,7 @@ class DiskIoParseMixin:
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row
-        df.dropna(inplace=True)
+        df = df.dropna()
 
         if (df['read_bytes_intervals'] < 0).any():
             raise ValueError(f"{self.__class__.__name__} data column read_bytes_intervals had negative values.")

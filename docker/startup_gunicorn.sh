@@ -1,6 +1,9 @@
 #!/bin/sh
 source /var/www/startup/.venv/bin/activate
 
+# Warns in the postgres server log about outdated extensions. Backgrounded so it never delays startup
+python3 /var/www/green-metrics-tool/tools/check_postgres_extensions.py &
+
 /var/www/startup/.venv/bin/gunicorn \
 --workers=8 \
 --access-logfile=- \

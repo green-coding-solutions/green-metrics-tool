@@ -395,7 +395,7 @@ function checkout_submodules() {
         timeout 120 git submodule update --init lib/sgx-software-enable
     fi
 
-    timeout 120 git submodule update --init metric_providers/psu/energy/ac/xgboost/machine/model
+    timeout 120 git submodule update --init --recursive metric_providers/psu/energy/ac/xgboost/machine/model
 
     if [[ $enterprise == true ]] ; then
         if [[ ! -d "ee" ]]; then

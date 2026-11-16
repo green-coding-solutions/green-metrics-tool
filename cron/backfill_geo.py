@@ -24,6 +24,11 @@ from lib.cache_definitions import NoNoneOrNegativeValuesCache
 ################# ECO CI #######################
 ################################################
 
+# The 30 days in this file are how long we assume an IP to keep its owner and thereby its location. IPs change owners
+# regularly, so a lookup for a measurement older than that may no longer return where the measurement took place.
+# This is on purpose independent of carbondb_merge_window_days. Do NOT couple them: A longer merge window does not make
+# an IP lookup more reliable, and rows that are out of these 30 days are not missed but shall not be looked up anymore.
+
 def process(table):
 
     data = fetch_geo_missing(table)
@@ -52,6 +57,37 @@ def process(table):
     leftover_ids = [row_id for row_id in remaining_ids if row_id not in backfilled_ids]
     if leftover_ids:
         raise RuntimeError(f"Rows in {table} still have missing lat/lon after backfilling. This should never happen. IDs: {leftover_ids}")
+
+# Eco CI clients can send their own coordinates, so these rows are never looked up by process() and their IP may have no
+# entry in ip_data from within 30 days of the row. If the client also had no carbon intensity, backfill_carbon_intensity.py however needs the country from
+# there. This only creates the ip_data entry and keeps the coordinates of the client on the row.
+def process_missing_country():
+    data = fetch_ips_missing_country()
+    print("IPs in ci_measurements with own lat/lon and no carbon intensity that are missing in ip_data in last 30 days:", len(data))
+
+    for row in data:
+        row_ip = row[0]
+        # Private IPs never get an ip_data entry. They would be selected and reported as error by get_geo in every run
+        if ipaddress.ip_address(row_ip).is_private:
+            continue
+        get_geo(row_ip) # stores the result in ip_data
+
+def fetch_ips_missing_country():
+    # 30 days is the assumed IP ownership time from the top of this file, not the merge window of backfill_carbon_intensity.py
+    query = """
+        SELECT DISTINCT from_table.ip_address
+        FROM ci_measurements as from_table
+        WHERE
+            from_table.latitude IS NOT NULL
+            AND from_table.longitude IS NOT NULL
+            AND from_table.carbon_intensity_g IS NULL
+            AND from_table.ip_address IS NOT NULL
+            AND from_table.created_at > NOW() - INTERVAL '30 DAYS'
+            AND NOT EXISTS (SELECT 1 FROM ip_data WHERE ip_data.ip_address = from_table.ip_address AND ABS(EXTRACT(EPOCH FROM (from_table.created_at - ip_data.created_at))) < EXTRACT(EPOCH FROM INTERVAL '30 DAYS')) -- an older entry may be from a previous owner of the IP
+    """
+    data = DB().fetch_all(query)
+
+    return data if data else []
 
 def update_geo_from_db_cache(table, ids):
     # Only looking back 30 days max, as we believe IP data will typically be stable in that interval
@@ -87,6 +123,7 @@ def update_geo_from_db_cache(table, ids):
     return DB().fetch_all(query, params=(ids,))
 
 def fetch_geo_missing(table):
+    # 30 days is the assumed IP ownership time from the top of this file, not the merge window of backfill_carbon_intensity.py
     query = f"""
         SELECT id, ip_address
         FROM {table} as from_table
@@ -229,6 +266,7 @@ if __name__ == '__main__':
             process('ci_measurements')
             process('hog_simplified_measurements')
             process('carbondb_data_raw')
+            process_missing_country()
 
             fcntl.flock(lock_file, fcntl.LOCK_UN) # release lock here only after successful processing. not in finally
 

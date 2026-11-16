@@ -9,5 +9,4 @@
 CREATE SCHEMA IF NOT EXISTS "public"; -- always present already; this is just a defensive no-op
 
 -- Extensions are registered once per database (not per schema), so check if they are already findable somehow
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA public; -- pin to always present schema
 CREATE EXTENSION IF NOT EXISTS "moddatetime" SCHEMA public; -- pin to always present schema
