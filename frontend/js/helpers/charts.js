@@ -233,7 +233,6 @@ const getLineBarChartOptions = (legend, labels, series, x_axis_name=null, y_axis
                 snap: true,
                 label: { show: false },
             },
-          },
         },
         yAxis: {
             name: `Unit: [${y_axis_name}]`,
