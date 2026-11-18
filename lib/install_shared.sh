@@ -446,7 +446,7 @@ function build_binaries() {
             fi
             echo "Installing $subdir/metric-provider-binary ..."
             rm -f $subdir/metric-provider-binary 2> /dev/null
-            make -C $subdir
+            make -B -C $subdir
         fi
     done
 }
