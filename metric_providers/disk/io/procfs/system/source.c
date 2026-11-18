@@ -94,6 +94,10 @@ static void output_get_disk_procfs() {
             continue;
         }
 
+        if (is_hidden_sysfs(major_number, minor_number)) {
+            continue; // kernel-internal device (e.g. NVMe multipath path device). I/O is already counted on the visible device
+        }
+
         if (is_partition_sysfs(major_number, minor_number)) {
             continue; // we skip when we have found a non root level device (aka partition)
         }

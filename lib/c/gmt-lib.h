@@ -11,6 +11,7 @@ double parse_double(char *argument);
 void get_time_offset(struct timespec *offset);
 void get_adjusted_time(struct timeval *adjusted, struct timespec *offset);
 bool is_partition_sysfs(unsigned int major_number, unsigned int minor_number);
+bool is_hidden_sysfs(unsigned int major_number, unsigned int minor_number);
 unsigned int get_min_sleep_time_ms(void);
 void validate_min_sleep_time(unsigned int msleep_time, unsigned int min_msleep_time_ms);
 

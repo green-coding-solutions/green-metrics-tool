@@ -16,6 +16,25 @@ bool is_partition_sysfs(unsigned int major_number, unsigned int minor_number) {
     return access(path, F_OK) == 0;
 }
 
+// Hidden block devices are kernel-internal (e.g. NVMe native multipath per-path devices nvmeXcYnZ).
+// I/O is remapped from the visible device to them, so counting them would account the same bytes twice.
+// Partitions have no 'hidden' attribute, so a missing file is treated as "not hidden".
+bool is_hidden_sysfs(unsigned int major_number, unsigned int minor_number) {
+    char path[PATH_MAX];
+    snprintf(path, sizeof(path), "/sys/dev/block/%u:%u/hidden", major_number, minor_number);
+
+    FILE *fd = fopen(path, "r");
+    if (fd == NULL) {
+        return false;
+    }
+    int hidden = 0;
+    if (fscanf(fd, "%d", &hidden) != 1) {
+        hidden = 0;
+    }
+    fclose(fd);
+    return hidden == 1;
+}
+
 int check_path(const char* path) {
     FILE* fd = fopen(path, "r");
 
