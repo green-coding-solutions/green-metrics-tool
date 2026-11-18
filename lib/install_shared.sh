@@ -197,27 +197,36 @@ function copy_backup() {
     cp "$example_file" "$file"
 }
 
-function prepare_config() {
+# Edits a file "in place" without sed -i. sed -i writes a temp file next to the target and
+# renames it over the target, which fails with "Device or resource busy" when the target is a
+# bind-mounted file (e.g. in VMs / containers). Here the output is written back into the existing
+# file instead, so no rename happens. Also avoids the GNU vs. BSD (macOS) sed -i syntax difference.
+# Usage: sed_inplace [sed args ...] FILE
+function sed_inplace() {
+    local file="${@: -1}"
+    local tmp_file
+    tmp_file="$(mktemp)"
+    sed "${@:1:$#-1}" "$file" > "$tmp_file" || { rm -f "$tmp_file"; return 1; }
+    cat "$tmp_file" > "$file"
+    rm -f "$tmp_file"
+}
 
-    local sed_command="sed -i"
-    if [[ $(uname) == "Darwin" ]]; then
-        sed_command="sed -i ''"
-    fi
+function prepare_config() {
 
     print_message "Updating compose.yml with current path ..."
     copy_backup docker/compose.yml
-    eval "${sed_command} -e \"s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD|\" docker/compose.yml"
-    eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS|$db_pw|\" docker/compose.yml"
-    eval "${sed_command} -e \"s|__TZ__|$tz|g\" docker/compose.yml"
+    sed_inplace -e "s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD|" docker/compose.yml
+    sed_inplace -e "s|PLEASE_CHANGE_THIS|$db_pw|" docker/compose.yml
+    sed_inplace -e "s|__TZ__|$tz|g" docker/compose.yml
 
     print_message "Updating config.yml with new password ..."
     copy_backup config.yml
-    eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS|$db_pw|\" config.yml"
+    sed_inplace -e "s|PLEASE_CHANGE_THIS|$db_pw|" config.yml
 
     print_message "Updating project with provided URLs ..."
 
-    eval "${sed_command} -e \"s|__API_URL__|$api_url|\" config.yml"
-    eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" config.yml"
+    sed_inplace -e "s|__API_URL__|$api_url|" config.yml
+    sed_inplace -e "s|__METRICS_URL__|$metrics_url|" config.yml
 
     local host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
     local host_metrics_url=${host_metrics_url%:*}
@@ -225,83 +234,83 @@ function prepare_config() {
     local host_api_url=${host_api_url%:*}
 
     copy_backup docker/nginx/api.conf
-    eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/api.conf"
+    sed_inplace -e "s|__API_URL__|$host_api_url|" docker/nginx/api.conf
 
     copy_backup docker/nginx/block-and-redirect.conf
-    eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/block-and-redirect.conf"
-    eval "${sed_command} -e \"s|__METRICS_URL__|$host_metrics_url|\" docker/nginx/block-and-redirect.conf"
+    sed_inplace -e "s|__API_URL__|$host_api_url|" docker/nginx/block-and-redirect.conf
+    sed_inplace -e "s|__METRICS_URL__|$host_metrics_url|" docker/nginx/block-and-redirect.conf
 
     copy_backup docker/nginx/frontend.conf
-    eval "${sed_command} -e \"s|__METRICS_URL__|$host_metrics_url|\" docker/nginx/frontend.conf"
+    sed_inplace -e "s|__METRICS_URL__|$host_metrics_url|" docker/nginx/frontend.conf
 
     copy_backup frontend/js/helpers/config.js
-    eval "${sed_command} -e \"s|__API_URL__|$api_url|\" frontend/js/helpers/config.js"
-    eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" frontend/js/helpers/config.js"
-    eval "${sed_command} -e \"s|__ELEPHANT_URL__|$elephant_url|\" frontend/js/helpers/config.js"
+    sed_inplace -e "s|__API_URL__|$api_url|" frontend/js/helpers/config.js
+    sed_inplace -e "s|__METRICS_URL__|$metrics_url|" frontend/js/helpers/config.js
+    sed_inplace -e "s|__ELEPHANT_URL__|$elephant_url|" frontend/js/helpers/config.js
 
     if [[ $activate_scenario_runner == true ]]; then
-        eval "${sed_command} -e \"s|__ACTIVATE_SCENARIO_RUNNER__|true|\" frontend/js/helpers/config.js"
-        eval "${sed_command} -e \"s|activate_scenario_runner:.*$|activate_scenario_runner: True|\" config.yml"
+        sed_inplace -e "s|__ACTIVATE_SCENARIO_RUNNER__|true|" frontend/js/helpers/config.js
+        sed_inplace -e "s|activate_scenario_runner:.*$|activate_scenario_runner: True|" config.yml
     else
-        eval "${sed_command} -e \"s|__ACTIVATE_SCENARIO_RUNNER__|false|\" frontend/js/helpers/config.js"
+        sed_inplace -e "s|__ACTIVATE_SCENARIO_RUNNER__|false|" frontend/js/helpers/config.js
     fi
 
     if [[ $activate_eco_ci == true ]]; then
-        eval "${sed_command} -e \"s|__ACTIVATE_ECO_CI__|true|\" frontend/js/helpers/config.js"
-        eval "${sed_command} -e \"s|activate_eco_ci:.*$|activate_eco_ci: True|\" config.yml"
+        sed_inplace -e "s|__ACTIVATE_ECO_CI__|true|" frontend/js/helpers/config.js
+        sed_inplace -e "s|activate_eco_ci:.*$|activate_eco_ci: True|" config.yml
     else
-        eval "${sed_command} -e \"s|__ACTIVATE_ECO_CI__|false|\" frontend/js/helpers/config.js"
+        sed_inplace -e "s|__ACTIVATE_ECO_CI__|false|" frontend/js/helpers/config.js
     fi
 
 
     if [[ $enterprise == true ]]; then
-        eval "${sed_command} -e \"s|#EE-ONLY#||\" docker/compose.yml"
-        eval "${sed_command} -e \"s|ee_token:.*$|ee_token: ${ee_token}|\" config.yml"
+        sed_inplace -e "s|#EE-ONLY#||" docker/compose.yml
+        sed_inplace -e "s|ee_token:.*$|ee_token: ${ee_token}|" config.yml
     fi
 
     if [[ $activate_power_hog == true ]]; then
-        eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|true|\" frontend/js/helpers/config.js"
-        eval "${sed_command} -e \"s|activate_power_hog:.*$|activate_power_hog: True|\" config.yml"
+        sed_inplace -e "s|__ACTIVATE_POWER_HOG__|true|" frontend/js/helpers/config.js
+        sed_inplace -e "s|activate_power_hog:.*$|activate_power_hog: True|" config.yml
     else
-        eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|false|\" frontend/js/helpers/config.js"
+        sed_inplace -e "s|__ACTIVATE_POWER_HOG__|false|" frontend/js/helpers/config.js
     fi
     if [[ $activate_carbon_db == true ]]; then
-        eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|true|\" frontend/js/helpers/config.js"
-        eval "${sed_command} -e \"s|activate_carbon_db:.*$|activate_carbon_db: True|\" config.yml"
+        sed_inplace -e "s|__ACTIVATE_CARBON_DB__|true|" frontend/js/helpers/config.js
+        sed_inplace -e "s|activate_carbon_db:.*$|activate_carbon_db: True|" config.yml
     else
-        eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
+        sed_inplace -e "s|__ACTIVATE_CARBON_DB__|false|" frontend/js/helpers/config.js
     fi
 
     if [[ $activate_software_view == true ]]; then
-        eval "${sed_command} -e \"s|__ACTIVATE_SOFTWARE_VIEW__|true|\" frontend/js/helpers/config.js"
-        eval "${sed_command} -e \"s|activate_software_view:.*$|activate_software_view: True|\" config.yml"
+        sed_inplace -e "s|__ACTIVATE_SOFTWARE_VIEW__|true|" frontend/js/helpers/config.js
+        sed_inplace -e "s|activate_software_view:.*$|activate_software_view: True|" config.yml
     else
-        eval "${sed_command} -e \"s|__ACTIVATE_SOFTWARE_VIEW__|false|\" frontend/js/helpers/config.js"
+        sed_inplace -e "s|__ACTIVATE_SOFTWARE_VIEW__|false|" frontend/js/helpers/config.js
     fi
 
 
     # Activating AI Optimisations makes actually only sense in enterprise mode
     # but must run still, as we need to set the variables and replacements
     if [[ $activate_ai_optimisations == true ]]; then
-        eval "${sed_command} -e \"s|__ACTIVATE_AI_OPTIMISATIONS__|true|\" frontend/js/helpers/config.js"
-        eval "${sed_command} -e \"s|activate_ai_optimisations:.*$|activate_ai_optimisations: True|\" config.yml"
+        sed_inplace -e "s|__ACTIVATE_AI_OPTIMISATIONS__|true|" frontend/js/helpers/config.js
+        sed_inplace -e "s|activate_ai_optimisations:.*$|activate_ai_optimisations: True|" config.yml
     else
-        eval "${sed_command} -e \"s|__ACTIVATE_AI_OPTIMISATIONS__|false|\" frontend/js/helpers/config.js"
+        sed_inplace -e "s|__ACTIVATE_AI_OPTIMISATIONS__|false|" frontend/js/helpers/config.js
     fi
 
 
     if [[ $enable_ssl == true ]] ; then
-        eval "${sed_command} -e \"s|9142:9142|443:443|\" docker/compose.yml"
-        eval "${sed_command} -e \"s|9142:9142|443:443|\" docker/compose.yml"
+        sed_inplace -e "s|9142:9142|443:443|" docker/compose.yml
+        sed_inplace -e "s|9142:9142|443:443|" docker/compose.yml
 
-        eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/frontend.conf"
-        eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/api.conf"
-        eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/block-and-redirect.conf"
+        sed_inplace -e "s|#__SSL__||g" docker/nginx/frontend.conf
+        sed_inplace -e "s|#__SSL__||g" docker/nginx/api.conf
+        sed_inplace -e "s|#__SSL__||g" docker/nginx/block-and-redirect.conf
 
     else
-        eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/frontend.conf"
-        eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/api.conf"
-        eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/block-and-redirect.conf"
+        sed_inplace -e "s|#__DEFAULT__||g" docker/nginx/frontend.conf
+        sed_inplace -e "s|#__DEFAULT__||g" docker/nginx/api.conf
+        sed_inplace -e "s|#__DEFAULT__||g" docker/nginx/block-and-redirect.conf
     fi
 
     if [[ $modify_hosts == true ]] ; then
