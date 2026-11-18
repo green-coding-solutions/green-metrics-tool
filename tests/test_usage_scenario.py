@@ -25,6 +25,23 @@ from lib.utils import container_name, gmt_tmp_image_name, kaniko_build_cache_vol
 # otherwise failing Tests will not run the runner.cleanup() properly
 
 
+# `docker run -d` returns before PID 1 has exec'd into the actual command. In that short window
+# `ps` shows PID 1 as `runc init`. On loaded machines this window is wide enough to be hit, so retry.
+def get_container_ps_output(name, retries=50, delay=0.1):
+    for _ in range(retries):
+        ps = subprocess.run(
+            ['docker', 'exec', container_name(name), 'ps', '-a'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        if 'runc init' not in ps.stdout:
+            break
+        time.sleep(delay)
+    return ps.stdout
+
+
 # This function runs the runner up to and *including* the specified step
 #pylint: disable=redefined-argument-from-local
 ### The Tests for usage_scenario configurations
@@ -726,14 +743,7 @@ def test_cmd_ran():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/cmd_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
-        ps = subprocess.run(
-            ['docker', 'exec', container_name('test-container'), 'ps', '-a'],
-            check=True,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            encoding='UTF-8'
-        )
-        docker_ps_out = ps.stdout
+        docker_ps_out = get_container_ps_output('test-container')
     assert '1 root      0:00 tail -f /dev/null' in docker_ps_out, Tests.assertion_info('1 root      0:00 tail -f /dev/null', docker_ps_out)
 
 # entrypoint: [str] (optional)
@@ -744,14 +754,7 @@ def test_entrypoint_ran_with_script():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_script.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
-        ps = subprocess.run(
-            ['docker', 'exec', container_name('test-container'), 'ps', '-a'],
-            check=True,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            encoding='UTF-8'
-        )
-        docker_ps_out = ps.stdout
+        docker_ps_out = get_container_ps_output('test-container')
     assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
     assert 'entrypoint-overwrite.sh' in docker_ps_out, Tests.assertion_info('entrypoint `entrypoint-overwrite.sh` in ps output', docker_ps_out)
     assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('entrypoint `tail -f /dev/null` in ps output', docker_ps_out)
@@ -760,14 +763,7 @@ def test_entrypoint_ran_in_conjunction_with_command():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_with_command.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
-        ps = subprocess.run(
-            ['docker', 'exec', container_name('test-container'), 'ps', '-a'],
-            check=True,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            encoding='UTF-8'
-        )
-        docker_ps_out = ps.stdout
+        docker_ps_out = get_container_ps_output('test-container')
     assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
     assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('`tail -f /dev/null` in ps output', docker_ps_out)
 
@@ -778,14 +774,7 @@ def test_entrypoint_empty():
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
-            ps = subprocess.run(
-                ['docker', 'exec', container_name('test-container'), 'ps', '-a'],
-                check=True,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                encoding='UTF-8'
-        )
-        docker_ps_out = ps.stdout
+            docker_ps_out = get_container_ps_output('test-container')
     docker_run_command = re.search(
         r"Calling docker with these parameters: (.*)",
         str(out.getvalue())
