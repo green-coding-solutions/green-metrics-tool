@@ -1,3 +1,5 @@
+import ctypes
+import gc
 import os
 import platform
 import shlex
@@ -59,6 +61,16 @@ def clear_file_system_caches():
 
     if is_macos():
         return
+
+    libc = ctypes.CDLL("libc.so.6")
+    libc.malloc_trim.argtypes = [ctypes.c_size_t]
+    libc.malloc_trim.restype = ctypes.c_int
+
+    gc.collect()
+
+    trimmed = libc.malloc_trim(0)
+
+    print(f"Memory released: {bool(trimmed)}")
 
     subprocess.check_output(
         ['sudo', Path('/usr/sbin/sysctl').resolve(strict=True).as_posix(), '-w', 'vm.drop_caches=3'],
