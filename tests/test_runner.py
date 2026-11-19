@@ -454,6 +454,7 @@ def test_runner_with_iterations_and_save_to_database():
 
     assert ps.returncode == 0
     assert ps.stdout.count('Running:  tests/data/usage_scenarios/basic_stress.yml') == 2
+    assert ps.stdout.count('Multiple runs were executed in one GMT process') == 2, Tests.assertion_info('memory warning for every run', ps.stdout)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 def test_runner_with_iterations_and_multiple_files():
@@ -479,6 +480,7 @@ def test_runner_with_iterations_and_multiple_files():
     # and basic_stress_2.yml processed 2 times (1 instance * 2 iterations)
     assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_1.yml') == 4
     assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_2.yml') == 2
+    assert ps.stdout.count('Multiple runs were executed in one GMT process') == 6, Tests.assertion_info('memory warning for every run', ps.stdout)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 ## --file-cleanup

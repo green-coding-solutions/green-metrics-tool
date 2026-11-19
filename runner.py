@@ -247,6 +247,12 @@ if __name__ == '__main__':
             # Update filename for reused runner (no-op for first file)
             runner.set_filename(filename)
 
+            if len(filenames) > 1:
+                # All runs share this one Python process. Memory used by post-processing of previous runs (e.g. phase_stats
+                # of long runs) is not fully handed back to the OS and stays in the GMT cgroup.
+                # Warnings are reset after every run, thus we must add it for every run again
+                runner._append_and_print_warning('Multiple runs were executed in one GMT process (--iterations or multiple files). Memory retained from post-processing previous runs may inflate the "GMT Overhead" memory metrics and other memory metrics of the machine. For comparable memory values start every run as a separate runner.py call.')
+
             run_id = runner.run()  # Start main code
 
             # this code can live at a different position.
