@@ -1,11 +1,13 @@
+import time
 from datetime import date
 
 from fastapi import APIRouter
 from fastapi import Request, Response, Depends, HTTPException
 
-from api.api_helpers import authenticate, get_connecting_ip, CustomORJSONResponse, carbondb_add
+from api.api_helpers import authenticate, get_connecting_ip, CustomORJSONResponse
 from api.object_specifications import EnergyData
 
+from lib.global_config import GlobalConfig
 from lib.user import User
 from lib.db import DB
 
@@ -13,19 +15,46 @@ router = APIRouter()
 
 @router.post('/v1/carbondb/add')
 async def add_carbondb_deprecated():
-    return Response("This endpoint is not supported anymore. Please migrate to /v2/carbondb/add !", status_code=410)
+    return Response("This endpoint is not supported anymore. Please migrate to /v3/carbondb/add !", status_code=410)
 
-@router.post('/v2/carbondb/add')
+@router.post('/v3/carbondb/add')
 async def add_carbondb(
     request: Request,
     energydata: EnergyData,
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
 
-    try:
-        carbondb_add(get_connecting_ip(request), energydata.dict(), 'CUSTOM', user._id)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    merge_window_max = GlobalConfig().config['cluster']['carbondb_merge_window_days']
+    current_time_us = int(time.time_ns()  / 1e3)
+    if energydata.time < current_time_us - merge_window_max * 24 * 60 * 60 * 1e6 : # microseconds
+        raise HTTPException(status_code=422, detail=f"CarbonDB is configured to not accept values older than {merge_window_max} days. Your timestamp was: {energydata.time}")
+    if energydata.time > current_time_us:
+        raise HTTPException(status_code=422, detail=f"CarbonDB does not accept timestamps in the future. Your timestamp was: {energydata.time}")
+
+    energy_kwh = energydata.energy_uj / 1e6 / (3_600*1_000)
+
+    # Operational carbon can be derived from energy and carbon intensity. If neither carbon nor intensity is given
+    # it stays NULL and cron/backfill_carbon_intensity.py fills it. Embodied carbon is mandatory and never backfilled
+    if energydata.operational_carbon_ug is not None:
+        operational_carbon_kg = energydata.operational_carbon_ug / 1e9
+    elif energydata.carbon_intensity_g is not None:
+        operational_carbon_kg = (energy_kwh * energydata.carbon_intensity_g) / 1_000
+    else:
+        operational_carbon_kg = None
+
+    used_client_ip = energydata.ip if energydata.ip is not None else get_connecting_ip(request) # An ip given with the data is prioritized
+
+    DB().query(
+        query='''
+            INSERT INTO carbondb_data_raw
+                ("type", "project", "machine", "source", "tags", "time", "energy_kwh", "operational_carbon_kg", "embodied_carbon_kg", "carbon_intensity_g", "ip_address", "user_id", "created_at")
+            VALUES
+                (%s, %s, %s, 'CUSTOM', %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        ''',
+        params=(
+            energydata.type, energydata.project, energydata.machine, energydata.tags, energydata.time,
+            energy_kwh, operational_carbon_kg, energydata.embodied_carbon_ug / 1e9, energydata.carbon_intensity_g,
+            used_client_ip, user._id))
 
     return Response(status_code=202)
 
@@ -143,7 +172,7 @@ async def carbondb_get(
 
     query = f"""
         SELECT
-            type, project, machine, source, tags, date, energy_kwh_sum, carbon_kg_sum, carbon_intensity_g_avg, record_count, user_id
+            type, project, machine, source, tags, date, energy_kwh_sum, operational_carbon_kg_sum, embodied_carbon_kg_sum, carbon_intensity_g_avg, record_count, user_id
         FROM
             carbondb_data as cedd
         WHERE

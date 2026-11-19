@@ -33,7 +33,7 @@ def evaluate_config():
 def copy_over_power_hog(copy_over_lookback_limit):
     query = '''
         INSERT INTO carbondb_data_raw
-            ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+            ("type", "project", "machine", "source", "tags","time","energy_kwh","operational_carbon_kg","embodied_carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
 
             SELECT
                 'machine.desktop',
@@ -43,7 +43,8 @@ def copy_over_power_hog(copy_over_lookback_limit):
                 '{}',
                 "timestamp" * 1e3, -- timestamp is already milliseconds. thus only 1e3
                 (combined_energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
-                (operational_carbon_ug::DOUBLE PRECISION)/1e9 + (embodied_carbon_ug/1e9), -- to get to kg
+                (operational_carbon_ug::DOUBLE PRECISION)/1e9, -- to get to kg
+                COALESCE(embodied_carbon_ug::DOUBLE PRECISION, 0)/1e9, -- to get to kg. Unknown embodied carbon counts as 0, as it is never backfilled
                 carbon_intensity_g,
                 latitude,
                 longitude,
@@ -62,7 +63,7 @@ def copy_over_power_hog(copy_over_lookback_limit):
 def copy_over_eco_ci(copy_over_lookback_limit):
     query = '''
         INSERT INTO carbondb_data_raw
-            ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+            ("type", "project", "machine", "source", "tags","time","energy_kwh","operational_carbon_kg","embodied_carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
 
             SELECT
                 filter_type,
@@ -72,7 +73,8 @@ def copy_over_eco_ci(copy_over_lookback_limit):
                 filter_tags,
                 EXTRACT(EPOCH FROM created_at) * 1e6,
                 (energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
-                (carbon_ug::DOUBLE PRECISION)/1e9, -- to get to kg
+                (operational_carbon_ug::DOUBLE PRECISION)/1e9, -- to get to kg
+                COALESCE(embodied_carbon_ug::DOUBLE PRECISION, 0)/1e9, -- to get to kg. Unknown embodied carbon counts as 0, as it is never backfilled
                 carbon_intensity_g,
                 latitude,
                 longitude,
@@ -80,10 +82,10 @@ def copy_over_eco_ci(copy_over_lookback_limit):
                 user_id,
                 NOW()
             FROM ci_measurements
-            -- rows still waiting for their carbon backfill are copied once it is done. A copy with a NULL carbon_kg would be harmless
-            -- by itself, but backfill_carbon_intensity.py later fills it too. Its carbon_kg is calculated differently than the one of the
+            -- rows still waiting for their carbon backfill are copied once it is done. A copy with a NULL operational_carbon_kg would be harmless
+            -- by itself, but backfill_carbon_intensity.py later fills it too. Its operational_carbon_kg is calculated differently than the one of the
             -- copy made after the backfill, so remove_duplicates cannot match the two and compress counts the row twice
-            WHERE carbon_ug IS NOT NULL
+            WHERE operational_carbon_ug IS NOT NULL
                 AND (%s OR created_at > CURRENT_DATE - make_interval(days => %s))
     '''
 
@@ -92,7 +94,7 @@ def copy_over_eco_ci(copy_over_lookback_limit):
 def copy_over_scenario_runner(copy_over_lookback_limit):
     query = '''
         INSERT INTO carbondb_data_raw
-            ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","run_id","created_at")
+            ("type", "project", "machine", "source", "tags","time","energy_kwh","operational_carbon_kg","embodied_carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","run_id","created_at")
             SELECT
                 'machine.server' as type,
                 'ScenarioRunner' as project,
@@ -103,7 +105,9 @@ def copy_over_scenario_runner(copy_over_lookback_limit):
 
                 -- we do these two queries as subselects as if they were left joins they will blow up the table whenever we relax the condition that only one metric with same name may exist
                 COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p WHERE p.run_id = r.id AND p.unit = 'uJ' AND p.phase != '004_[RUNTIME]' AND p.metric LIKE '%%_energy_%%_machine')/1e6/3600/1000, 0) as energy_kwh,
-                COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p2 WHERE p2.run_id = r.id AND p2.unit = 'ugCO2e' AND p2.phase != '004_[RUNTIME]' AND p2.metric LIKE '%%_carbon_%%_machine')/1e9, 0) as carbon_kg,
+                -- embodied_carbon_share_machine also matches '%%_carbon_%%_machine', so it must be excluded from the operational carbon
+                COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p2 WHERE p2.run_id = r.id AND p2.unit = 'ugCO2e' AND p2.phase != '004_[RUNTIME]' AND p2.metric LIKE '%%_carbon_%%_machine' AND p2.metric != 'embodied_carbon_share_machine')/1e9, 0) as operational_carbon_kg,
+                COALESCE((SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p3 WHERE p3.run_id = r.id AND p3.unit = 'ugCO2e' AND p3.phase != '004_[RUNTIME]' AND p3.metric = 'embodied_carbon_share_machine')/1e9, 0) as embodied_carbon_kg,
 
                 NULL, -- there simply is no carbon intensity atm
                 NULL, -- there simply is no latitude as no IP is present
@@ -122,10 +126,11 @@ def copy_over_scenario_runner(copy_over_lookback_limit):
                 machine = EXCLUDED.machine,
                 time = EXCLUDED.time,
                 energy_kwh = EXCLUDED.energy_kwh,
-                carbon_kg = EXCLUDED.carbon_kg,
+                operational_carbon_kg = EXCLUDED.operational_carbon_kg,
+                embodied_carbon_kg = EXCLUDED.embodied_carbon_kg,
                 user_id = EXCLUDED.user_id
-            WHERE (carbondb_data_raw.machine, carbondb_data_raw.time, carbondb_data_raw.energy_kwh, carbondb_data_raw.carbon_kg, carbondb_data_raw.user_id)
-                IS DISTINCT FROM (EXCLUDED.machine, EXCLUDED.time, EXCLUDED.energy_kwh, EXCLUDED.carbon_kg, EXCLUDED.user_id) -- avoid needless writes and updated_at bumps
+            WHERE (carbondb_data_raw.machine, carbondb_data_raw.time, carbondb_data_raw.energy_kwh, carbondb_data_raw.operational_carbon_kg, carbondb_data_raw.embodied_carbon_kg, carbondb_data_raw.user_id)
+                IS DISTINCT FROM (EXCLUDED.machine, EXCLUDED.time, EXCLUDED.energy_kwh, EXCLUDED.operational_carbon_kg, EXCLUDED.embodied_carbon_kg, EXCLUDED.user_id) -- avoid needless writes and updated_at bumps
     '''
 
     DB().query(query, params=(copy_over_lookback_limit is None, copy_over_lookback_limit))
@@ -144,7 +149,7 @@ def validate_table_constraints(cleanup_lookback_limit):
             (user_id IS NULL -- null by design. only guard for broken schema
             OR time IS NULL -- null by design. only guard for broken schema
             OR energy_kwh IS NULL -- null by design. only guard for broken schema
-            OR carbon_kg IS NULL  -- can be null bc of backfill
+            OR operational_carbon_kg IS NULL  -- can be null bc of backfill. embodied_carbon_kg is NOT NULL and never backfilled
             OR type IS NULL -- null by design. only guard for broken schema
             OR project IS NULL -- null by design. only guard for broken schema
             OR machine IS NULL -- null by design. only guard for broken schema
@@ -170,7 +175,8 @@ def remove_duplicates(cleanup_lookback_limit):
             AND a.source = b.source
             AND a.tags = b.tags
             AND a.energy_kwh = b.energy_kwh
-            AND a.carbon_kg = b.carbon_kg -- if this column is null the rows will simply not match. so not problematic. we check later with validate_table_constraints
+            AND a.operational_carbon_kg = b.operational_carbon_kg -- if this column is null the rows will simply not match. so not problematic. we check later with validate_table_constraints
+            AND a.embodied_carbon_kg = b.embodied_carbon_kg
             AND a.user_id = b.user_id
             AND a.run_id IS NOT DISTINCT FROM b.run_id -- rows of different ScenarioRunner runs are never duplicates. Same run cannot occur twice due to unique index
             AND (%s OR a.time > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e6) -- Time filter must be starting from midnight and not include elapsed minutes in the day to work with copy over which cuts off time info

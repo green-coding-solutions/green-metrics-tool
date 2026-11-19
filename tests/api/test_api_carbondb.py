@@ -20,6 +20,7 @@ pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
 ENERGY_DATA = {
     'type': 'machine.ci',
     'energy_uj': 1,
+    'embodied_carbon_ug': 1234,
     'time': int(time.time_ns() / 1e3),
     'project': 'my-project',
     'machine': 'my-machine',
@@ -29,17 +30,19 @@ ENERGY_DATA = {
 def test_carbondb_add_unauthenticated():
     User(1).set_capability('api.routes', [])
 
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=ENERGY_DATA, timeout=15)
     assert response.status_code == 401, Tests.assertion_info('success', response.text)
 
 def test_carbondb_add():
 
     exp_data = ENERGY_DATA.copy()
     del exp_data['energy_uj']
+    del exp_data['embodied_carbon_ug']
     exp_data['energy_kwh'] = 2.7777777777777774e-13 # 1 uJ
-    exp_data['carbon_kg'] = None # as we have no further carbon intensity supplied
+    exp_data['operational_carbon_kg'] = None # as we have no further carbon intensity supplied. Will be backfilled
+    exp_data['embodied_carbon_kg'] = 1234 / 1e9
 
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=ENERGY_DATA, timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
@@ -54,7 +57,7 @@ def test_carbondb_add_outdated():
 
     energydata_modified = ENERGY_DATA.copy()
     energydata_modified['time'] = int( (time.time_ns()/1e3) - (31*24*60*60 * 1e6) )
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
     assert json.loads(response.text)['err'] == f"CarbonDB is configured to not accept values older than 30 days. Your timestamp was: {energydata_modified['time']}"
 
@@ -62,14 +65,14 @@ def test_carbondb_add_at_border():
 
     energydata_modified = ENERGY_DATA.copy()
     energydata_modified['time'] = int( (time.time_ns()/1e3) - ((30*24*60*60-5) * 1e6)) # ~ 5 seconds before cut-off depending on API request processing time
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
 def test_carbondb_add_future():
 
     energydata_modified = ENERGY_DATA.copy()
     energydata_modified['time'] = int( (time.time_ns()/1e3) + 5*1e6) # ~ 5 seconds in the future depending on API request processing time
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
 
     assert json.loads(response.text)['err'] == f"CarbonDB does not accept timestamps in the future. Your timestamp was: {energydata_modified['time']}"
@@ -81,9 +84,10 @@ def test_carbondb_add_force_ip():
 
     exp_data = energydata_modified.copy()
     del exp_data['energy_uj']
+    del exp_data['embodied_carbon_ug']
     exp_data['ip_address'] = ipaddress.IPv4Address('5.75.242.14')
 
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
@@ -98,40 +102,72 @@ def test_carbondb_add_force_carbon_intensity():
 
     exp_data = energydata_modified.copy()
     del exp_data['energy_uj']
+    del exp_data['embodied_carbon_ug']
     exp_data['carbon_intensity_g'] = 200
-    exp_data['carbon_kg'] = 5.555555555555555e-14
 
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
     assert data is not None or data != []
     assert_expected_data(exp_data, data)
+    # assert_expected_data compares floats only to 1e-3, which is too coarse for these values
+    assert math.isclose(data['operational_carbon_kg'], 5.555555555555555e-14, rel_tol=1e-9) # derived from energy and carbon intensity
+    assert math.isclose(data['embodied_carbon_kg'], 1234 / 1e9, rel_tol=1e-9)
+
+def test_carbondb_add_operational_carbon():
+
+    energydata_modified = ENERGY_DATA.copy()
+    energydata_modified['operational_carbon_ug'] = 5678
+    energydata_modified['carbon_intensity_g'] = 200 # informational. Transmitted operational carbon has precedence
+
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    data = DB().fetch_one('SELECT operational_carbon_kg, embodied_carbon_kg, carbon_intensity_g FROM carbondb_data_raw', fetch_mode='dict')
+    assert math.isclose(data['operational_carbon_kg'], 5678 / 1e9, rel_tol=1e-9)
+    assert math.isclose(data['embodied_carbon_kg'], 1234 / 1e9, rel_tol=1e-9)
+    assert data['carbon_intensity_g'] == 200
+
+def test_carbondb_add_embodied_carbon_required():
+
+    energydata_modified = ENERGY_DATA.copy()
+    del energydata_modified['embodied_carbon_ug']
+    energydata_modified['operational_carbon_ug'] = 5678
+
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
+    assert response.status_code == 422, Tests.assertion_info('422', response.text)
+    assert json.loads(response.text)['err'][0]['loc'] == ['body', 'embodied_carbon_ug']
+
+def test_carbondb_removed_v2_endpoint():
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15)
+    assert response.status_code == 404, Tests.assertion_info('404', response.text)
 
 
 def test_carbondb_missing_values():
     energydata_crap = {
     }
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_crap, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_crap, timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
-    assert response.text == '{"success":false,"err":[{"type":"missing","loc":["body","project"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","machine"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","type"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","time"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","energy_uj"],"msg":"Field required","input":{}}],"body":{}}'
+    assert response.text == '{"success":false,"err":[{"type":"missing","loc":["body","project"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","machine"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","type"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","time"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","energy_uj"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","embodied_carbon_ug"],"msg":"Field required","input":{}}],"body":{}}'
 
 def test_carbondb_non_int():
     energydata_broken = {
         'type': 123,
         'energy_uj': 'no-int',
+        'embodied_carbon_ug': 'no-int',
         'time': 'no-time',
         'project': 678,
         'machine': 9,
     }
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_broken, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_broken, timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
-    assert response.text == '{"success":false,"err":[{"type":"string_type","loc":["body","project"],"msg":"Input should be a valid string","input":678},{"type":"string_type","loc":["body","machine"],"msg":"Input should be a valid string","input":9},{"type":"string_type","loc":["body","type"],"msg":"Input should be a valid string","input":123},{"type":"int_parsing","loc":["body","time"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-time"},{"type":"int_parsing","loc":["body","energy_uj"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-int"}],"body":{"type":123,"energy_uj":"no-int","time":"no-time","project":678,"machine":9}}'
+    assert response.text == '{"success":false,"err":[{"type":"string_type","loc":["body","project"],"msg":"Input should be a valid string","input":678},{"type":"string_type","loc":["body","machine"],"msg":"Input should be a valid string","input":9},{"type":"string_type","loc":["body","type"],"msg":"Input should be a valid string","input":123},{"type":"int_parsing","loc":["body","time"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-time"},{"type":"int_parsing","loc":["body","energy_uj"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-int"},{"type":"int_parsing","loc":["body","embodied_carbon_ug"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-int"}],"body":{"type":123,"energy_uj":"no-int","embodied_carbon_ug":"no-int","time":"no-time","project":678,"machine":9}}'
 
 def test_carbondb_superflous():
     energydata_superflous = ENERGY_DATA.copy()
     energydata_superflous['no-need'] = 1
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_superflous, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_superflous, timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
     assert json.loads(response.text)['err'][0]['type'] == 'extra_forbidden'
     assert json.loads(response.text)['err'][0]['loc'] == ['body','no-need']
@@ -143,7 +179,7 @@ def test_carbondb_empty_filters():
     energydata_modified['machine'] = ''
     energydata_modified['tags'] = ['','']
 
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
 
     assert response.text.startswith('''{"success":false,"err":[{"type":"value_error","loc":["body","tags"],"msg":"Value error, The list contains empty elements.","input":["",""],"ctx":{"error":{}}},{"type":"value_error","loc":["body","project"],"msg":"Value error, Value is empty","input":"","ctx":{"error":{}}},{"type":"value_error","loc":["body","machine"],"msg":"Value error, Value is empty","input":"","ctx":{"error":{}}},{"type":"value_error","loc":["body","type"],"msg":"Value error, Value is empty","input":"","ctx":{"error":{}}}]''')
@@ -153,7 +189,7 @@ def test_carbondb_weird_tags():
     energydata_modified = ENERGY_DATA.copy()
     energydata_modified['tags'] = ['öla', '<asd>']
 
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT tags FROM carbondb_data_raw', fetch_mode='dict')

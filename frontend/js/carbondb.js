@@ -108,6 +108,7 @@ const fillBarChart = (y_axis, legend, labels, series) => {
         trigger: 'item',
         formatter: function (params, ticket, callback) {
             return `<strong>${escapeString(labels[params.componentIndex].date)}</strong><br>
+                    ${labels[params.componentIndex].kind ? `Carbon: ${escapeString(labels[params.componentIndex].kind)}<br>` : ''}
                     Type: ${escapeString(labels[params.componentIndex].type)}<br>
                     Value: ${escapeString(labels[params.componentIndex].value)} ${escapeString(labels[params.componentIndex].unit)}<br>
                     Project: ${escapeString(labels[params.componentIndex].project)}<br>
@@ -169,41 +170,54 @@ const processData = (measurements) => {
 
 
 
-    let total_carbon = 0;
+    let total_operational_carbon = 0;
+    let total_embodied_carbon = 0;
     let total_energy = 0;
     const carbon_intensity_list = [];
 
     measurements.forEach(measurement => { // iterate over all measurements, which are in row order
-        let [type, project, machine, source, tags, date, energy, carbon, carbon_intensity, record_count, user] = measurement;
+        let [type, project, machine, source, tags, date, energy, operational_carbon, embodied_carbon, carbon_intensity, record_count, user] = measurement;
+        const carbon = operational_carbon + embodied_carbon; // total is always computed from its parts
 
-        total_carbon += carbon;
+        total_operational_carbon += operational_carbon;
+        total_embodied_carbon += embodied_carbon;
         total_energy += energy;
         carbon_intensity_list.push(carbon_intensity);
 
-        carbon_barchart_data.series.push({
-            type: 'bar',
-            smooth: true,
-            stack: date,
-            name: dimensions_lookup['types'][type] ,
-            data: [carbon],
-            itemStyle: {
-                borderWidth: .5,
-                borderColor: '#000000',
-              },
-        })
-        carbon_barchart_data.legend.add(dimensions_lookup['types'][type])
+        // Three bars per day: operational, embodied and total. Every bar is stacked by type.
+        // Colors come from the series name (= type), so the kinds are distinguished by a pattern (embodied) and opacity (total)
+        for (const [kind, value, extra_item_style] of [
+            ['operational', operational_carbon, {}],
+            ['embodied', embodied_carbon, {decal: {symbol: 'rect', dashArrayX: [1, 0], dashArrayY: [2, 4], rotation: Math.PI / 4, color: 'rgba(0, 0, 0, 0.35)'}}],
+            ['total', carbon, {opacity: 0.6}],
+        ]) {
+            carbon_barchart_data.series.push({
+                type: 'bar',
+                smooth: true,
+                stack: `${date} ${kind}`,
+                name: dimensions_lookup['types'][type] ,
+                data: [value],
+                itemStyle: {
+                    borderWidth: .5,
+                    borderColor: '#000000',
+                    ...extra_item_style,
+                  },
+            })
 
-        carbon_barchart_data.labels.push({
-            type: dimensions_lookup['types'][type],
-            date: date,
-            project: dimensions_lookup['projects'][project],
-            machine: dimensions_lookup['machines'][machine],
-            source: dimensions_lookup['sources'][source],
-            tags: tags.map( el => dimensions_lookup['tags'][el]),
-            value: carbon,
-            unit: 'kg',
-            user: dimensions_lookup['users'][user],
-        })
+            carbon_barchart_data.labels.push({
+                kind: kind,
+                type: dimensions_lookup['types'][type],
+                date: date,
+                project: dimensions_lookup['projects'][project],
+                machine: dimensions_lookup['machines'][machine],
+                source: dimensions_lookup['sources'][source],
+                tags: tags.map( el => dimensions_lookup['tags'][el]),
+                value: value,
+                unit: 'kg',
+                user: dimensions_lookup['users'][user],
+            })
+        }
+        carbon_barchart_data.legend.add(dimensions_lookup['types'][type])
 
         energy_barchart_data.series.push({
             type: 'bar',
@@ -253,14 +267,14 @@ const processData = (measurements) => {
     piechart_users_data = transformPieChartData(piechart_users_data, piechart_users_values, 'users')
 
 
+    const total_carbon = total_operational_carbon + total_embodied_carbon;
     const total_machines = piechart_machines_data.labels.length
     const carbon_per_machine = total_carbon / total_machines;
-    const carbon_per_project = total_carbon / piechart_machines_data.labels.length;
 
-    // TODO: Currently this value is false high, because it includes embodied carbon in the total carbon value. Dividing by the energy alone is thus too high
+    // carbon_intensity_g_avg only stems from operational carbon, so it is not inflated by embodied carbon
     const avg_carbon_intensity = carbon_intensity_list.reduce((sum, value) => sum + value, 0) / carbon_intensity_list.length;
 
-    return [carbon_barchart_data, energy_barchart_data, piechart_types_data, piechart_machines_data, piechart_projects_data, piechart_sources_data, piechart_users_data, total_carbon, total_energy, total_machines, carbon_per_machine, carbon_per_project, avg_carbon_intensity];
+    return [carbon_barchart_data, energy_barchart_data, piechart_types_data, piechart_machines_data, piechart_projects_data, piechart_sources_data, piechart_users_data, total_operational_carbon, total_embodied_carbon, total_carbon, total_energy, total_machines, carbon_per_machine, avg_carbon_intensity];
 }
 
 const transformPieChartData = (data, values, dimension) => {
@@ -305,7 +319,7 @@ const refreshView = async () => {
         return;
     }
 
-    const [carbon_barchart_data, energy_barchart_data, piechart_types_data, piechart_machines_data, piechart_projects_data, piechart_sources_data, piechart_users_data, total_carbon, total_energy, total_machines, carbon_per_machine, carbon_per_project, avg_carbon_intensity] = processData(measurements.data);
+    const [carbon_barchart_data, energy_barchart_data, piechart_types_data, piechart_machines_data, piechart_projects_data, piechart_sources_data, piechart_users_data, total_operational_carbon, total_embodied_carbon, total_carbon, total_energy, total_machines, carbon_per_machine, avg_carbon_intensity] = processData(measurements.data);
 
     $('.carbondb-data').show();
 
@@ -330,11 +344,12 @@ const refreshView = async () => {
     options = fillPieChart('user', piechart_users_data.legend, piechart_users_data.labels, piechart_users_data.series);
     chart_instances['carbondb-piechart-users-chart'].setOption(options);
 
+    $('#total-operational-carbon').html(`<span title="${total_operational_carbon}">${total_operational_carbon.toFixed(2)}</span>`);
+    $('#total-embodied-carbon').html(`<span title="${total_embodied_carbon}">${total_embodied_carbon.toFixed(2)}</span>`);
     $('#total-carbon').html(`<span title="${total_carbon}">${total_carbon.toFixed(2)}</span>`);
     $('#total-energy').html(`<span title="${total_energy}">${total_energy.toFixed(2)}</span>`);
     $('#total-machines').html(`<span title="${total_machines}">${total_machines.toFixed(2)}</span>`);
     $('#carbon-per-machine').html(`<span title="${carbon_per_machine}">${carbon_per_machine.toFixed(2)}</span>`);
-    $('#carbon-per-project').html(`<span title="${carbon_per_project}">${carbon_per_project.toFixed(2)}</span>`);
     $('#avg-carbon-intensity').html(`<span title="${avg_carbon_intensity}">${avg_carbon_intensity.toFixed(2)}</span>`);
 
     setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);

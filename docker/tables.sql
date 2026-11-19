@@ -434,7 +434,8 @@ CREATE TABLE carbondb_data_raw (
     tags text[] NOT NULL,
     time BIGINT NOT NULL,
     energy_kwh DOUBLE PRECISION NOT NULL,
-    carbon_kg DOUBLE PRECISION,
+    operational_carbon_kg DOUBLE PRECISION, -- nullable as it is backfilled once carbon_intensity_g is known
+    embodied_carbon_kg DOUBLE PRECISION NOT NULL, -- never backfilled. Sources that do not know it (e.g. Eco CI without machine data) copy over 0
     carbon_intensity_g int CHECK (carbon_intensity_g > 0), -- we need this column nullable as we want to backfill missing data
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
@@ -466,7 +467,8 @@ CREATE TABLE carbondb_data (
     tags int[] NOT NULL,
     date DATE NOT NULL,
     energy_kwh_sum DOUBLE PRECISION NOT NULL,
-    carbon_kg_sum DOUBLE PRECISION NOT NULL,
+    operational_carbon_kg_sum DOUBLE PRECISION NOT NULL,
+    embodied_carbon_kg_sum DOUBLE PRECISION NOT NULL,
     carbon_intensity_g_avg int NOT NULL,
     record_count INT NOT NULL,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE

@@ -99,7 +99,7 @@ def compress_carbondb_raw(copy_over_lookback_limit):
         FROM carbondb_data_raw
         WHERE
             {time_filter}
-            AND carbon_kg IS NOT NULL; -- guarded in carbondb_copy_over that we do not miss rows continuously;
+            AND operational_carbon_kg IS NOT NULL; -- guarded in carbondb_copy_over that we do not miss rows continuously;
 
         UPDATE carbondb_data_raw_tmp AS cdrt
         SET "type" = s.id
@@ -137,7 +137,8 @@ def compress_carbondb_raw(copy_over_lookback_limit):
             tags,
             date,
             energy_kwh_sum,
-            carbon_kg_sum,
+            operational_carbon_kg_sum,
+            embodied_carbon_kg_sum,
             carbon_intensity_g_avg,
             record_count,
             user_id
@@ -150,8 +151,10 @@ def compress_carbondb_raw(copy_over_lookback_limit):
                 cdr.tags::int[],
                 DATE_TRUNC('day', TO_TIMESTAMP(cdr.time / 1000000)),
                 SUM(cdr.energy_kwh),
-                SUM(cdr.carbon_kg),
-                COALESCE(SUM(cdr.carbon_kg)*1e3 / NULLIF(SUM(cdr.energy_kwh), 0), 0), -- weighted average instead of just averaging carbon_intensity. Since the solar panel might not be producing power at all for a day, which results in 0, we need to COALESCE and insert 0 in this case
+                SUM(cdr.operational_carbon_kg),
+                SUM(cdr.embodied_carbon_kg),
+                -- only operational carbon stems from the grid, so embodied carbon must not be part of the intensity
+                COALESCE(SUM(cdr.operational_carbon_kg)*1e3 / NULLIF(SUM(cdr.energy_kwh), 0), 0), -- weighted average instead of just averaging carbon_intensity. Since the solar panel might not be producing power at all for a day, which results in 0, we need to COALESCE and insert 0 in this case
                 COUNT(*),
                 cdr.user_id
             FROM
@@ -169,7 +172,8 @@ def compress_carbondb_raw(copy_over_lookback_limit):
             -- excluded will take the fields positional from the insert query. The names are not the actual column values
             -- but the calculation planned for these columns through the SELECT statement
             energy_kwh_sum = EXCLUDED.energy_kwh_sum,
-            carbon_kg_sum = EXCLUDED.carbon_kg_sum,
+            operational_carbon_kg_sum = EXCLUDED.operational_carbon_kg_sum,
+            embodied_carbon_kg_sum = EXCLUDED.embodied_carbon_kg_sum,
             carbon_intensity_g_avg = EXCLUDED.carbon_intensity_g_avg,
             record_count = EXCLUDED.record_count;
     '''
