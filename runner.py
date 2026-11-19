@@ -330,5 +330,5 @@ if __name__ == '__main__':
                 print()
 
         # Last thing before we exit is to shutdown the DB Pool
-        DB().shutdown()
+        DB.shutdown_if_initialized()
         sys.exit(exit_code)
