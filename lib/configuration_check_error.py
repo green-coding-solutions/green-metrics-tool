@@ -9,6 +9,11 @@ class ConfigurationCheckError(Exception):
         self.status = status
         self.error_key = error_key
 
+    # Must be picklable with all attributes, as exceptions are transferred from isolated child processes
+    # back to the parent (see lib/process_isolation.py). The default reduce only passes self.args (= message).
+    def __reduce__(self):
+        return (self.__class__, (self.message, self.status, self.error_key), self.__dict__)
+
     def __str__(self):
         error = f"[{self.status.name}] {self.message}"
         if self.error_key:
@@ -21,3 +26,6 @@ class TemperatureException(ConfigurationCheckError):
         super().__init__(message, Status.WARN)
         self.direction = direction  # 'hot' or 'cold'
         self.temperature = temperature
+
+    def __reduce__(self):
+        return (self.__class__, (self.message, self.direction, self.temperature), self.__dict__)

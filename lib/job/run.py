@@ -26,6 +26,15 @@ class RunJob(Job):
         query = "SELECT id FROM jobs WHERE type = %s AND state = 'RUNNING' AND machine_id = %s"
         return DB().fetch_one(query, params=(self.JOB_TYPE, self._machine_id, ))
 
+    # When the job was processed in an isolated child process (see lib/process_isolation.py) the run_id
+    # was only set on the job object in the child. We retrieve it from the DB instead
+    # This function does not error by design as it might be that this value is not present when the run has failed early
+    def load_run_id(self):
+        query = "SELECT id FROM runs WHERE job_id = %s ORDER BY created_at DESC LIMIT 1"
+        if data := DB().fetch_one(query, params=(self._id, )):
+            self._run_id = data[0]
+        return self._run_id
+
     #pylint: disable=arguments-differ
     @classmethod
     def insert(cls, *, user_id, name, url, branch, filename, machine_id, email=None, commit_hash=None, usage_scenario_variables=None, category_ids=None, carbon_simulation=None):
