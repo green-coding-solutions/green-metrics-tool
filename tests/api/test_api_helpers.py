@@ -1,28 +1,6 @@
 import math
-from pydantic import BaseModel
 
 from api import api_helpers
-
-class Run(BaseModel):
-    name: str
-    url: str
-    email: str
-    branch: str
-    machine_id: int
-
-class CI_Measurement(BaseModel):
-    value: int
-    unit: str
-    repo: str
-    branch: str
-    cpu: str
-    commit_hash: str
-    workflow: str
-    run_id: str
-    source: str
-    label: str
-    duration: int
-
 
 def test_convert_value():
     [value, unit] = api_helpers.convert_value(100, 'uJ')

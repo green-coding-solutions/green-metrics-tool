@@ -55,6 +55,14 @@
                                     <span id="carbon-badge-container-last" class="badge-container"></span>
                                     <a class="copy-badge"><i class="copy icon"></i></a>
                                 </td>
+                                <td>
+                                    <span id="operational-carbon-badge-container-last" class="badge-container"></span>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
+                                </td>
+                                <td>
+                                    <span id="embodied-carbon-badge-container-last" class="badge-container"></span>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
+                                </td>
                             </tr>
                             <tr>
                                 <td><strong>Totals Badge:</strong></td>
@@ -66,6 +74,14 @@
                                     <span id="carbon-badge-container-totals" class="badge-container"></span>
                                     <a class="copy-badge"><i class="copy icon"></i></a>
                                 </td>
+                                <td>
+                                    <span id="operational-carbon-badge-container-totals" class="badge-container"></span>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
+                                </td>
+                                <td>
+                                    <span id="embodied-carbon-badge-container-totals" class="badge-container"></span>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
+                                </td>
                             </tr>
                             <tr>
                                 <td data-position="bottom left" data-inverted="" data-tooltip="Modify the badge source code to show alternative durations like 60 days, 365 days etc."><strong>Monthly Badge <i class="question circle icon"></i>: </strong></td>
@@ -75,6 +91,14 @@
                                 </td>
                                 <td>
                                     <span id="carbon-badge-container-totals-monthly" class="badge-container"></span>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
+                                </td>
+                                <td>
+                                    <span id="operational-carbon-badge-container-totals-monthly" class="badge-container"></span>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
+                                </td>
+                                <td>
+                                    <span id="embodied-carbon-badge-container-totals-monthly" class="badge-container"></span>
                                     <a class="copy-badge"><i class="copy icon"></i></a>
                                 </td>
                             </tr>
@@ -151,7 +175,9 @@
                             <th data-sort="numeric">Time Avg. (± StdDev.)</th>
                             <th> <div data-tooltip="Only accurate for runs after Aug 15, 2023. If '--%', you likely have no runs after that date.">CPU Util. Avg. (± StdDev.)<i class="question circle icon "></i> </div></th>
                             <th data-sort="numeric">Grid Intensity Avg. (± StdDev.)</th>
-                            <th data-sort="numeric">Carbon Avg. (± StdDev.)</th>
+                            <th data-sort="numeric">Operational Carbon Avg. (± StdDev.)</th>
+                            <th data-sort="numeric">Embodied Carbon Avg. (± StdDev.)</th>
+                            <th data-sort="numeric">Total Carbon Avg.</th>
                             <th data-sort="numeric">Count</th>
                         </tr>
                     </thead>
@@ -165,7 +191,9 @@
                             <th>Label</th>
                             <th data-sort="numeric">Energy Total</th>
                             <th data-sort="numeric">Time Total</th>
-                            <th data-sort="numeric">Carbon Total</th>
+                            <th data-sort="numeric">Operational Carbon Total</th>
+                            <th data-sort="numeric">Embodied Carbon Total</th>
+                            <th data-sort="numeric">Total Carbon</th>
                             <th data-sort="numeric">Count</th>
                         </tr>
                     </thead>
@@ -214,7 +242,9 @@
                     <th>Commit Hash</th>
                     <th>Location</th>
                     <th data-sort="numeric">Grid Intensity</th>
-                    <th data-sort="numeric">gCO2eq of run</th>
+                    <th data-sort="numeric">Operational Carbon</th>
+                    <th data-sort="numeric">Embodied Carbon</th>
+                    <th data-sort="numeric">Total Carbon</th>
                     <th>Note</th>
                 </tr>
             </thead>

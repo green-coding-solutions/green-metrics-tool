@@ -16,7 +16,7 @@ from tests import test_functions as Tests
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from datetime import datetime, timedelta
 
-from api.object_specifications import CI_Measurement, CI_MeasurementV3
+from api.object_specifications import CI_MeasurementV3, CI_MeasurementV4
 
 
 page = None
@@ -250,10 +250,16 @@ class TestFrontendFunctionality:
         grid_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(5)").text_content()
         assert grid_all_steps.strip() == '494.20 gCO2/kWh (± 5.47%)'
 
-        carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)").text_content()
-        assert carbon_all_steps.strip() == '0.016 gCO2e (± 5.71%)'
+        operational_carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)").text_content()
+        assert operational_carbon_all_steps.strip() == '0.0039 gCO2e (± 6.57%)'
 
-        count_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(7)").text_content()
+        embodied_carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(7)").text_content()
+        assert embodied_carbon_all_steps.strip() == '0.0121 gCO2e (± 5.43%)'
+
+        total_carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(8)").text_content()
+        assert total_carbon_all_steps.strip() == '0.016 gCO2e'
+
+        count_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(9)").text_content()
         assert count_all_steps.strip() == '5'
 
         energy_avg_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(2)").text_content()
@@ -268,10 +274,16 @@ class TestFrontendFunctionality:
         grid_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(5)").text_content()
         assert grid_single.strip() == '494.20 gCO2/kWh (± 5.47%)'
 
-        carbon_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(6)").text_content()
-        assert carbon_single.strip() == '0.0134 gCO2e (± 5.27%)'
+        operational_carbon_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(6)").text_content()
+        assert operational_carbon_single.strip() == '0.0033 gCO2e (± 5.91%)'
 
-        count_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(7)").text_content()
+        embodied_carbon_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(7)").text_content()
+        assert embodied_carbon_single.strip() == '0.0101 gCO2e (± 5.05%)'
+
+        total_carbon_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(8)").text_content()
+        assert total_carbon_single.strip() == '0.0134 gCO2e'
+
+        count_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(9)").text_content()
         assert count_single.strip() == '5'
 
     def open_and_assert_ci_stats(self):
@@ -288,39 +300,15 @@ class TestFrontendFunctionality:
         ).text_content()
         assert energy_avg_all_steps.strip() == '78.00 J (± 0.00%)'
 
-        carbon_all_steps = page.locator(
-            "#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)"
+        total_carbon_all_steps = page.locator(
+            "#label-stats-table-avg > tr:nth-child(1) > td:nth-child(8)"
         ).text_content()
-        assert carbon_all_steps.strip() == '0.9704 gCO2e (± 0.00%)'
+        assert total_carbon_all_steps.strip() == '0.9704 gCO2e'
 
         carbon_all_steps = page.locator(
             "#label-stats-table-avg > tr:nth-child(1) > td:nth-child(3)"
         ).text_content()
         assert carbon_all_steps.strip() == '0.11 s (± 0.00%)'
-
-    def test_eco_ci_adding_data(self):
-        for index in range(1,4):
-            measurement = CI_Measurement(energy_uj=(13_000_000*index),
-                        repo='testRepo',
-                        branch='testBranch',
-                        cpu='testCPU',
-                        cpu_util_avg=50,
-                        commit_hash='1234asdf',
-                        workflow='testWorkflow',
-                        run_id='testRunID',
-                        source='testSource',
-                        label='testLabel',
-                        duration_us=35323,
-                        workflow_name='testWorkflowName',
-                        lat="18.2972",
-                        lon="77.2793",
-                        city="Nine Mile",
-                        carbon_intensity_g=100,
-                        carbon_ug=323456
-            )
-            response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement.model_dump(), timeout=15)
-            assert response.status_code == 202, Tests.assertion_info('success', response.text)
-        self.open_and_assert_ci_stats()
 
     def test_eco_ci_adding_data_v3(self):
         for index in range(1, 4):
@@ -349,6 +337,47 @@ class TestFrontendFunctionality:
             response = requests.post(f"{API_URL}/v3/ci/measurement/add", json=measurement.model_dump(), timeout=15)
             assert response.status_code == 202, Tests.assertion_info('success', response.text)
         self.open_and_assert_ci_stats()
+
+        # v3 carbon_ug is split up: operational = energy * intensity (361 + 722 + 1083 ug), embodied is the remainder
+        operational_carbon = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)").text_content()
+        assert operational_carbon.strip() == '0.0022 gCO2e (± 0.00%)'
+        embodied_carbon = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(7)").text_content()
+        assert embodied_carbon.strip() == '0.9682 gCO2e (± 0.00%)'
+
+
+    def test_eco_ci_adding_data_v4(self):
+        for index in range(1, 4):
+            measurement = CI_MeasurementV4(energy_uj=(13_000_000 * index),
+                                           repo='testRepo',
+                                           branch='testBranch',
+                                           cpu='testCPU',
+                                           cpu_util_avg=50,
+                                           commit_hash='1234asdf',
+                                           workflow_id='testWorkflow',
+                                           run_id='testRunID',
+                                           source='testSource',
+                                           label='testLabel',
+                                           duration_us=35323,
+                                           workflow_name='testWorkflowName',
+                                           lat="18.2972",
+                                           lon="77.2793",
+                                           city="Nine Mile",
+                                           carbon_intensity_g=100,
+                                           operational_carbon_ug=300000,
+                                           embodied_carbon_ug=23456,
+                                           os_name='Linux',
+                                           cpu_arch='x86_64',
+                                           job_id='testJobID',
+                                           version='v1.2'
+                                           )
+            response = requests.post(f"{API_URL}/v4/ci/measurement/add", json=measurement.model_dump(), timeout=15)
+            assert response.status_code == 202, Tests.assertion_info('success', response.text)
+        self.open_and_assert_ci_stats()
+
+        operational_carbon = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)").text_content()
+        assert operational_carbon.strip() == '0.90 gCO2e (± 0.00%)'
+        embodied_carbon = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(7)").text_content()
+        assert embodied_carbon.strip() == '0.0704 gCO2e (± 0.00%)'
 
 
     def test_stats(self):
@@ -1647,7 +1676,7 @@ class TestXssSecurity:
         INSERT INTO ci_measurements (
             energy_uj, repo, branch, workflow_id, run_id, label, source, cpu, commit_hash,
             duration_us, cpu_util_avg, workflow_name, latitude, longitude, city, carbon_intensity_g,
-            carbon_ug, filter_type, filter_project, filter_machine, filter_tags,
+            operational_carbon_ug, filter_type, filter_project, filter_machine, filter_tags,
             ip_address, user_id, note, created_at
         ) VALUES (
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, {filter_tags_sql}, %s, %s, %s, NOW()
