@@ -54,10 +54,8 @@ def _call(func, args, kwargs):
         return func(*args, **kwargs)
     finally:
         # multiprocessing workers exit via os._exit(), so atexit hooks do not run. Close the connections cleanly.
-        # Only if a pool was ever created, as DB() would otherwise create one
         from lib.db import DB # pylint: disable=import-outside-toplevel
-        if hasattr(DB, 'instance'):
-            DB.instance.shutdown()
+        DB.shutdown_if_initialized()
 
 def run_isolated(func, *args, **kwargs):
     with ProcessPoolExecutor(
