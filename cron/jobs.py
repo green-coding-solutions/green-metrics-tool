@@ -78,4 +78,4 @@ if __name__ == '__main__':
             error_helpers.log_error('Base exception occurred in jobs.py: ', exception_context=exc.__context__, last_exception=exc)
 
     finally:
-        DB().shutdown()
+        DB.shutdown_if_initialized()
