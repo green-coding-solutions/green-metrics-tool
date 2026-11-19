@@ -16,7 +16,12 @@ on:
 
 jobs:
   run-tests:
-    if: github.repository_owner == 'green-coding-solutions'
+    # Skip automatic runs for Dependabot fastapi PRs; manual workflow_dispatch still runs
+    if: >-
+      github.repository_owner == 'green-coding-solutions' &&
+      !(github.event_name == 'pull_request' &&
+        github.event.pull_request.user.login == 'dependabot[bot]' &&
+        contains(github.event.pull_request.title, 'fastapi'))
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 20
     permissions:
