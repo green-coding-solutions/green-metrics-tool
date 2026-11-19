@@ -16,7 +16,6 @@ from lib.job.email_report import EmailReportJob
 from lib.db import DB
 from lib.user import User
 from lib.terminal_colors import TerminalColors
-from lib.scenario_runner import ScenarioRunner
 from lib.global_config import GlobalConfig
 
 class RunJob(Job):
@@ -66,6 +65,10 @@ class RunJob(Job):
 
         if not user.has_measurement_quota(self._machine_id):
             raise RuntimeError(f"Your user does not have enough measurement quota to run a job on the selected machine. Machine ID: {self._machine_id}")
+
+        # Imported here and not at the top, as it pulls in pandas, numpy etc. Long-running processes that only
+        # handle the job queue (cron/client.py, the API) should not carry this memory. See lib/process_isolation.py
+        from lib.scenario_runner import ScenarioRunner # pylint: disable=import-outside-toplevel
 
         runner = ScenarioRunner(
             name=self._name,
