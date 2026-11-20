@@ -1011,7 +1011,7 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
             except RuntimeError as exc:
                 raise HTTPException(status_code=422, detail=utils.filter_sensitive_data(str(exc))) from exc
 
-        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+        Watchlist.insert(name=software.name, email=software.email, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=carbon_simulation, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
     job_ids_inserted = []
 

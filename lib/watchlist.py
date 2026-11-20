@@ -10,14 +10,13 @@ from lib.db import DB
 class Watchlist():
     #pylint:disable=redefined-outer-name
     @classmethod
-    def insert(cls, *, name, image_url, repo_url, branch, filename, usage_scenario_variables, category_ids, machine_id, user_id, schedule_mode, last_marker, carbon_simulation=None):
-        # Watchlist items never insert / use emails as they are always premium and made by admin
-        # So they need no notification on success / add
+    def insert(cls, *, name, image_url, repo_url, branch, filename, usage_scenario_variables, category_ids, machine_id, user_id, schedule_mode, last_marker, carbon_simulation=None, email=None):
+        # email is optional. If set, every job scheduled from this watchlist item will notify it on completion
         insert_query = """
                 INSERT INTO
-                    watchlist (name, image_url, repo_url, branch, filename, usage_scenario_variables, category_ids, carbon_simulation, machine_id, last_marker, user_id, schedule_mode, created_at)
+                    watchlist (name, email, image_url, repo_url, branch, filename, usage_scenario_variables, category_ids, carbon_simulation, machine_id, last_marker, user_id, schedule_mode, created_at)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()) RETURNING id;
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()) RETURNING id;
                 """
-        params = (name, image_url, repo_url, branch, filename, json.dumps(usage_scenario_variables), category_ids, json.dumps(carbon_simulation), machine_id, last_marker, user_id, schedule_mode,)
+        params = (name, email, image_url, repo_url, branch, filename, json.dumps(usage_scenario_variables), category_ids, json.dumps(carbon_simulation), machine_id, last_marker, user_id, schedule_mode,)
         return DB().fetch_one(insert_query, params=params)[0]
