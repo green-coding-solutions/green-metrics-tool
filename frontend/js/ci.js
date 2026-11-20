@@ -52,6 +52,9 @@ const formatCarbonUg = (value_ug, stddev_percent = undefined) => {
     return (stddev_percent === undefined) ? formatted : `${formatted} (± ${numberFormatter.format(stddev_percent)}%)`;
 }
 
+// Exact value in g for the tooltip of a table cell
+const carbonTitle = (value_ug) => (value_ug == null) ? 'data missing' : value_ug/1000000;
+
 const getChartOptions = (measurements) => {
     const options = getEChartsOptions();
     options.title.text = `Workflow energy cost per run [J]`;
@@ -245,9 +248,9 @@ const displayRunDetailsTable = (measurements, repo) => {
                             <td class="td-index" title="${escapeString(commit_hash)}">${escapeString(short_hash)}</td>\
                             <td class="td-index">${city_string}</td>
                             <td class="td-index">${escapeString(carbon_intensity_g)} gCO2/kWh</td>
-                            <td class="td-index" title="${operational_carbon_ug/1000000}">${escapeString(formatCarbonUg(operational_carbon_ug))}</td>
-                            <td class="td-index" title="${embodied_carbon_ug/1000000}">${escapeString(formatCarbonUg(embodied_carbon_ug))}</td>
-                            <td class="td-index" title="${total_carbon_ug/1000000}">${escapeString(formatCarbonUg(total_carbon_ug))}</td>
+                            <td class="td-index" title="${carbonTitle(operational_carbon_ug)}">${escapeString(formatCarbonUg(operational_carbon_ug))}</td>
+                            <td class="td-index" title="${carbonTitle(embodied_carbon_ug)}">${escapeString(formatCarbonUg(embodied_carbon_ug))}</td>
+                            <td class="td-index" title="${carbonTitle(total_carbon_ug)}">${escapeString(formatCarbonUg(total_carbon_ug))}</td>
                             <td class="td-index">${ (note == null) ? '' : `<span class="ui icon" data-position="top right" data-inverted="" data-tooltip="${escapeString(note)}"><i class="ui question circle icon fluid"></i></span>` }</td>
 
                             `;
