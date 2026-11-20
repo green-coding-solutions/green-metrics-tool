@@ -21,6 +21,7 @@ from lib import validate
 from lib.temperature import get_temperature
 from lib import error_helpers
 from lib import utils
+from lib.process_isolation import run_isolated
 from lib.configuration_check_error import ConfigurationCheckError, Status, TemperatureException
 
 STATUS_LIST = (
@@ -170,7 +171,9 @@ def do_measurement_control():
     cwl = config['cluster']['client']['control_workload']
 
     set_status('measurement_control_start')
-    validate.run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
+    # run in child process so that memory used by the measurement is handed back to the OS afterwards
+    # and does not inflate the GMT Overhead of all following measurements. See lib/process_isolation.py
+    run_isolated(validate.run_workload, cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
     set_status('measurement_control_end')
 
     stddev_data = validate.get_workload_stddev(cwl['uri'], cwl['filename'], cwl['branch'], config['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
@@ -294,7 +297,13 @@ if __name__ == '__main__':
             if job:
                 set_status('job_start', run_id=job._run_id)
                 try:
-                    job.process()
+                    try:
+                        # run in child process so that memory used by the measurement, its post-processing and the
+                        # optimization reporters is handed back to the OS afterwards and does not inflate the
+                        # GMT Overhead of all following measurements. See lib/process_isolation.py
+                        run_isolated(job.process)
+                    finally:
+                        job.load_run_id() # run_id was only set on the job object in the child process
                     if temperature_cooldown_time > 0:
                         DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(temperature_cooldown_time, config['machine']['id']))
                     temperature_errors = 0
