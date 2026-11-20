@@ -90,7 +90,7 @@ def test_ci_measurement_add_small_with_warning(version, measurement_model_base):
     data = fetch_data_from_db(measurement_model['run_id'])
     compare_data(measurement_model, data)
 
-    assert 'Extremely small energy budget was submitted to Eco CI API' in logs
+    assert 'Extremely small energy / carbon value was submitted to Eco CI API' in logs
     assert f"Measurement (CI_Measurement{version.upper()}): energy_uj=1" in logs
 
 @BOTH_VERSIONS

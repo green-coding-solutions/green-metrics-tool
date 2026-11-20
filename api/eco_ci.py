@@ -21,17 +21,14 @@ def split_carbon_ug(carbon_ug, energy_uj, carbon_intensity_g):
     """
     Splits a combined carbon value (as submitted to /v3) into (operational_carbon_ug, embodied_carbon_ug).
 
-    Eco CI only ever sent carbon_ug together with carbon_intensity_g, as its operational part is
-    energy * carbon intensity. Thus the operational part can be recalculated and the remainder is embodied.
-    Without a carbon intensity a client cannot have calculated operational carbon, so the value can only be embodied.
-    The operational part is then filled later by cron/backfill_carbon_intensity.py once the intensity is known.
-
-    migrations/2026_11_19_ci_measurements_split_carbon.sql applies the same logic to historic rows.
     """
     if carbon_ug is None:
         return None, None
 
     if carbon_intensity_g is None:
+        # Eco CI only ever sent carbon_ug together with carbon_intensity_g, as its operational part is
+        # energy * carbon intensity. Thus the operational part can be recalculated and the remainder is embodied.
+        # Without a carbon intensity a client cannot have calculated operational carbon, so the value can only be embodied.
         return None, carbon_ug
 
     operational_carbon_ug = round(energy_uj * carbon_intensity_g / 3_600_000) # uJ * g/kWh -> ug
@@ -110,7 +107,7 @@ def _insert_ci_measurement(request: Request, measurement, user: User, operationa
     carbon_ug = (operational_carbon_ug or 0) + (embodied_carbon_ug or 0)
     if measurement.energy_uj <= 1 or 0 < carbon_ug <= 1:
         error_helpers.log_error(
-            'Extremely small energy budget was submitted to Eco CI API',
+            'Extremely small energy / carbon value was submitted to Eco CI API',
             measurement=measurement
         )
 
