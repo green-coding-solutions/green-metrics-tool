@@ -330,6 +330,7 @@ int main(int argc, char *argv[]) {
 
         /* The main loop */
         while (keep_running) {
+            gmt_drop_written_page_cache();
             for (output_iterator = chip_feature_output; output_iterator; output_iterator = output_iterator->next) {
                 const sensors_chip_name *tmp_chip_name = ((Output_Mapping *)output_iterator->data)->chip_name;
                 const sensors_feature *temp_feature = ((Output_Mapping *)output_iterator->data)->feature;

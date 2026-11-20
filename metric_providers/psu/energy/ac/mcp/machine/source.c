@@ -533,6 +533,7 @@ int main(int argc, char **argv) {
         }
     } else {
         while (1) {
+            gmt_drop_written_page_cache();
             if (energy_mode) {
                 result = f511_get_energy(&energy_data[0], &energy_data[1], fd);
             } else {

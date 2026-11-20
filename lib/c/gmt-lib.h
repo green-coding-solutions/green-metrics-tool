@@ -13,6 +13,7 @@ void get_adjusted_time(struct timeval *adjusted, struct timespec *offset);
 bool is_partition_sysfs(unsigned int major_number, unsigned int minor_number);
 unsigned int get_min_sleep_time_ms(void);
 void validate_min_sleep_time(unsigned int msleep_time, unsigned int min_msleep_time_ms);
+void gmt_drop_written_page_cache(void);
 
 
 #endif // GMT_LIB_H

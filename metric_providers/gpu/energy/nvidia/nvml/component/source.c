@@ -44,6 +44,7 @@ static void output_stats() {
     }
 
     while (1) {
+        gmt_drop_written_page_cache();
         get_adjusted_time(&now, &offset);
 
         for (unsigned int i = 0; i < device_count; i++) {

@@ -150,6 +150,7 @@ int main(int argc, char **argv) {
     get_time_offset(&offset);
 
     while(1) {
+        gmt_drop_written_page_cache();
         output_get_disk_procfs();
     }
 

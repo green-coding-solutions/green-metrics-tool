@@ -459,6 +459,7 @@ static void rapl_msr(int measurement_mode) {
     }
 
     while(1) {
+        gmt_drop_written_page_cache();
         for(int j=0;j<total_packages;j++) {
             result[j]=read_msr(fd[j],energy_status);
             /*

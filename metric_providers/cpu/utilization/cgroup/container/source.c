@@ -210,6 +210,7 @@ int main(int argc, char **argv) {
     int length = parse_containers("cpu.stat", user_id, &containers, containers_string, false);
 
     while(1) {
+        gmt_drop_written_page_cache();
         output_stats(containers, length);
     }
 

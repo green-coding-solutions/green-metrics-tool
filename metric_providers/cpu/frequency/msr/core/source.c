@@ -120,6 +120,7 @@ static void measure_freq(void) {
     }
 
     while (1) {
+        gmt_drop_written_page_cache();
         usleep(msleep_time * 1000);
 
         for (int i = 0; i < total_cores; i++) {

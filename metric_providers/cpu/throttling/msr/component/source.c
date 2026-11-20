@@ -118,6 +118,7 @@ static void measure_throttling() {
     }
 
     while (1) {
+        gmt_drop_written_page_cache();
         for (int j = 0; j < total_packages; j++) {
             result = read_msr(fd[j], IA32_THERM_STATUS);
             thermal_throttling_status = 0;

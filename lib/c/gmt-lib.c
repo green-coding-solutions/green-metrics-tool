@@ -1,3 +1,8 @@
+#ifdef __linux__
+#include <fcntl.h>
+#include <sys/stat.h>
+#endif
+
 #include "gmt-lib.h"
 
 #include <stdio.h>
@@ -104,6 +109,63 @@ void validate_min_sleep_time(unsigned int msleep_time, unsigned int min_msleep_t
             msleep_time, min_msleep_time_ms, min_msleep_time_ms);
         exit(1);
     }
+}
+
+// Metric providers write their output via shell redirection into a log file. Every written byte lands in the
+// page cache and stays there as long as there is no memory pressure, as the kernel does not know that we will
+// never read it again. The page cache is charged to the cgroup of the writer, which is the GMT cgroup, so it
+// shows up as an ever increasing "GMT Overhead" memory.
+// This function writes back the completed pages of stdout and drops them from the page cache again.
+// It is meant to be called in every iteration of the main loop and rate-limits itself.
+// The data is not lost: it is on disk and GMT reads it from there after the run.
+// Dirty pages cannot be dropped, so we must write them back first. We use fdatasync and not sync_file_range, as
+// the latter silently does nothing on overlayfs (pages stay dirty and the fadvise becomes a no-op).
+// The interval matches the kernel default dirty_expire_centisecs (30 s) so we do not create more disk writes than the
+// kernel writeback would do anyway.
+// Note: If the file lives on tmpfs this is a no-op, as tmpfs pages ARE the storage and cannot be dropped.
+#define GMT_DROP_PAGE_CACHE_INTERVAL_SEC 30
+
+void gmt_drop_written_page_cache(void) {
+#ifdef __linux__
+    static off_t dropped_until = 0;
+    static time_t last_run = 0;
+    static bool disabled = false;
+    struct timespec now;
+    struct stat st;
+
+    if (disabled) return;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) return;
+    if (last_run != 0 && now.tv_sec - last_run < GMT_DROP_PAGE_CACHE_INTERVAL_SEC) return;
+    last_run = now.tv_sec;
+
+    fflush(stdout); // in case stdout is not unbuffered, so that the file size is up to date
+
+    if (fstat(STDOUT_FILENO, &st) != 0 || !S_ISREG(st.st_mode)) { // pipe or tty: no page cache to drop
+        disabled = true;
+        return;
+    }
+
+    long page_size = sysconf(_SC_PAGESIZE);
+    if (page_size <= 0) {
+        disabled = true;
+        return;
+    }
+
+    // we keep the last, partially filled page as it is still being appended to
+    off_t end = st.st_size - (st.st_size % page_size);
+    if (end <= dropped_until) return;
+
+    if (fdatasync(STDOUT_FILENO) != 0) {
+        return; // we try again next interval. Failing to drop the cache must never stop the measurement
+    }
+
+    if (posix_fadvise(STDOUT_FILENO, dropped_until, end - dropped_until, POSIX_FADV_DONTNEED) != 0) {
+        return;
+    }
+
+    dropped_until = end;
+#endif
 }
 
 void get_time_offset(struct timespec *offset) {

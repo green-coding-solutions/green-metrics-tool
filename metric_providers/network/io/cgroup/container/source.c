@@ -182,6 +182,7 @@ int main(int argc, char **argv) {
     int length = parse_containers("cgroup.procs", user_id, &containers, containers_string, true);
 
     while(1) {
+        gmt_drop_written_page_cache();
         output_stats(containers, length);
     }
 
