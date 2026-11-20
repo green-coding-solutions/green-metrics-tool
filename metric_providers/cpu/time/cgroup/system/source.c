@@ -16,7 +16,6 @@
 
 static long int user_hz;
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 
 static long int read_cpu_cgroup() {
 
@@ -34,7 +33,7 @@ static long int read_cpu_cgroup() {
 
 static void output_stats() {
     struct timeval now;
-    get_adjusted_time(&now, &offset);
+    get_time(&now);
 
     printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, read_cpu_cgroup());
     usleep(msleep_time*1000);
@@ -94,8 +93,6 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_system());
     }
-
-    get_time_offset(&offset);
 
     while(1) {
         output_stats();

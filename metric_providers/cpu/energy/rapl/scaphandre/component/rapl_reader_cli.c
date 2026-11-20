@@ -10,11 +10,10 @@
  *
  * Unit: uJ (micro-Joules), consistent with CpuEnergyRaplMsrComponentProvider.
  *
- * Timing: QueryPerformanceCounter (monotonic, ~100ns resolution)
- * + wall-clock offset at startup. Immune to DST and leap seconds.
- * Mirrors GMT's gmt-lib.c get_time_offset() / get_adjusted_time().
- * Each domain gets its own timestamp via now_us() to ensure unique
- * timestamps without artificial offsets.
+ * Timing: GetSystemTimePreciseAsFileTime (system wall clock, ~100ns resolution).
+ * This is the same clock Python's time.time() uses on Windows, which GMT uses for
+ * phases and notes. Both must stay in sync. Mirrors GMT's gmt-lib.c get_time().
+ * Each domain gets its own timestamp via now_us().
  *
  * Sleep precision: timeBeginPeriod(1) sets the Windows timer resolution
  * to 1ms so Sleep(99) actually sleeps ~99ms instead of the default
@@ -95,12 +94,6 @@ typedef struct {
     int    ioctl_err;  /* 1 if the failure was an IOCTL error specifically */
 } rapl_sample_t;
 
-typedef struct {
-    LARGE_INTEGER qpc_start;
-    uint64_t      wall_start_us;
-    double        qpc_freq_us;
-} clock_state_t;
-
 static unsigned int parse_int(char *argument)
 {
     unsigned long number = 0;
@@ -119,31 +112,13 @@ static unsigned int parse_int(char *argument)
     return (unsigned int)number;
 }
 
-static uint64_t get_wall_time_us(void)
+/* Microseconds since the Unix epoch from the system wall clock. See "Timing" at the top. */
+static uint64_t now_us(void)
 {
     FILETIME ft;
-    GetSystemTimeAsFileTime(&ft);
+    GetSystemTimePreciseAsFileTime(&ft);
     uint64_t t = ((uint64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
     return (t - 116444736000000000ULL) / 10;
-}
-
-static clock_state_t clock_init(void)
-{
-    clock_state_t cs;
-    LARGE_INTEGER freq;
-    QueryPerformanceFrequency(&freq);
-    cs.qpc_freq_us   = (double)freq.QuadPart / 1000000.0;
-    cs.wall_start_us = get_wall_time_us();
-    QueryPerformanceCounter(&cs.qpc_start);
-    return cs;
-}
-
-static uint64_t now_us(const clock_state_t *cs)
-{
-    LARGE_INTEGER qpc_now;
-    QueryPerformanceCounter(&qpc_now);
-    double elapsed_us = (double)(qpc_now.QuadPart - cs->qpc_start.QuadPart) / cs->qpc_freq_us;
-    return cs->wall_start_us + (uint64_t)elapsed_us;
 }
 
 /*
@@ -342,7 +317,6 @@ int main(int argc, char *argv[])
         domains |= DOMAIN_PKG; /* re-add as silent canary */
 
     setvbuf(stdout, NULL, _IONBF, 0);
-    clock_state_t cs = clock_init();
 
     /*
      * Auto-detect active domains at startup (1 sample x 100ms each).
@@ -465,7 +439,7 @@ int main(int argc, char *argv[])
 
             /*
              * Each domain calls now_us() individually so timestamps are
-             * naturally unique (QPC ~100ns resolution) without artificial offsets.
+             * naturally ordered (wall clock ~100ns resolution) without artificial offsets.
              *
              * Only negative values are skipped (overflow edge cases),
              * matching GMT's native RAPL provider (source.c line 478).
@@ -478,15 +452,15 @@ int main(int argc, char *argv[])
              * (it still runs internally as the IOCTL canary).
              */
             if ((domains & DOMAIN_PKG)   && !pkg_excluded && pkg_uj  >= 0)
-                printf("%llu %lld cpu_package\n", (unsigned long long)now_us(&cs), pkg_uj);
+                printf("%llu %lld cpu_package\n", (unsigned long long)now_us(), pkg_uj);
             if ((domains & DOMAIN_CORES) && pp0_uj  >= 0)
-                printf("%llu %lld cpu_cores\n",   (unsigned long long)now_us(&cs), pp0_uj);
+                printf("%llu %lld cpu_cores\n",   (unsigned long long)now_us(), pp0_uj);
             if  (domains & DOMAIN_GPU)
-                printf("%llu %lld cpu_gpu\n",     (unsigned long long)now_us(&cs), pp1_uj > 1 ? pp1_uj : 2);
+                printf("%llu %lld cpu_gpu\n",     (unsigned long long)now_us(), pp1_uj > 1 ? pp1_uj : 2);
             if ((domains & DOMAIN_DRAM)  && dram_uj >= 0)
-                printf("%llu %lld dram\n",        (unsigned long long)now_us(&cs), dram_uj);
+                printf("%llu %lld dram\n",        (unsigned long long)now_us(), dram_uj);
             if ((domains & DOMAIN_PSYS)  && psys_uj >= 0)
-                printf("%llu %lld psys\n",        (unsigned long long)now_us(&cs), psys_uj);
+                printf("%llu %lld psys\n",        (unsigned long long)now_us(), psys_uj);
         }
 
         if (curr.valid) { prev = curr; first = 0; }

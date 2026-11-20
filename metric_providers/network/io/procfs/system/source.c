@@ -16,7 +16,6 @@
 // between Threads.
 // in any case, none of these variables should change between threads
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 
 static char *trimwhitespace(char *str) {
   char *end;
@@ -60,7 +59,7 @@ static void output_network_procfs() {
     int match_result = 0;
 
     // we only make this one time as we believe the overhead of the systemcall is more harmful than the mini time delay for every loop iteration
-    get_adjusted_time(&now, &offset);
+    get_time(&now);
 
     while (fgets(buf, 200, fd)) {
         // We are not counting dropped packets, as we believe they will at least show up in the
@@ -120,8 +119,6 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_path("/proc/net/dev"));
     }
-
-    get_time_offset(&offset);
 
     while(1) {
         output_network_procfs();
