@@ -71,7 +71,7 @@ class RunJob(Job):
             skip_unsafe=True, # Always True in cluster as no way to use unsafe rules anyway since we do not expose allow_unsafe atm
             dev_no_system_checks=user._capabilities['measurement']['dev_no_system_checks'],
             skip_volume_inspect=user._capabilities['measurement']['skip_volume_inspect'],
-            skip_optimizations=user._capabilities['measurement']['skip_optimizations'],
+            optimizations=user._capabilities['measurement'].get('optimizations', False),
             full_docker_prune=config['cluster']['client']['full_docker_prune'], # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
             docker_prune=config['cluster']['client']['docker_prune'], # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
             job_id=self._id,
@@ -99,13 +99,14 @@ class RunJob(Job):
             # Start main code. Only URL is allowed for cron jobs
             self._run_id = runner.run()
 
-            # We need to import this here as we need the correct config file, and to avoid a circular
-            # import (optimization_providers.base imports api.scenario_runner, which imports RunJob)
-            import optimization_providers.base #pylint: disable=import-outside-toplevel
-            print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
-            optimization_providers.base.import_reporters()
-            print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
-            optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
+            if runner._optimizations:
+                # We need to import this here as we need the correct config file, and to avoid a circular
+                # import (optimization_providers.base imports api.scenario_runner, which imports RunJob)
+                import optimization_providers.base #pylint: disable=import-outside-toplevel
+                print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
+                optimization_providers.base.import_reporters()
+                print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
+                optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
 
             if self._email:

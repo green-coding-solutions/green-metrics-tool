@@ -779,7 +779,7 @@ def test_phase_stats_process_user_custom_metrics():
 @pytest.mark.serial
 @pytest.mark.skipif(bool(os.environ.get('PYTEST_XDIST_WORKER')), reason="needs the whole machine's CPUs uncontended for accurate real energy/SCI assertions - run this outside of -n/xdist, on its own")
 def test_custom_metric_sci_run():
-    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_custom_metrics.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_custom_metrics.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()

@@ -413,4 +413,4 @@ if __name__ == '__main__':
         )
 
     finally:
-        DB().shutdown()
+        DB.shutdown_if_initialized()
