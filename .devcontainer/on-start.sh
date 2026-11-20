@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
+etc_hosts_line_1="127.0.0.1 green-coding-postgres-container green-coding-redis-container"
 
 echo "Writing to /etc/hosts file..."
 
