@@ -106,38 +106,19 @@ void validate_min_sleep_time(unsigned int msleep_time, unsigned int min_msleep_t
     }
 }
 
-void get_time_offset(struct timespec *offset) {
-    struct timespec realtime, monotonic;
-
-    if (clock_gettime(CLOCK_REALTIME, &realtime) != 0) {
+// All metric providers timestamp with CLOCK_REALTIME, the same clock that Python's time.time() / time.time_ns()
+// uses for phases and notes in the ScenarioRunner. GMT relies on both being in sync. Do not switch this to a
+// monotonic clock + offset: CLOCK_MONOTONIC_RAW drifts away from CLOCK_REALTIME by the kernel's NTP frequency
+// correction, and CLOCK_MONOTONIC / CLOCK_BOOTTIME diverge when the clock is set.
+// If the clock is set backwards during a run, timestamps become non-monotonic and the run fails in
+// BaseMetricProvider._check_monotonic() - which is wanted as the phase timestamps would be broken too.
+void get_time(struct timeval *now) {
+    struct timespec ts;
+    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
         perror("clock_gettime CLOCK_REALTIME");
         exit(EXIT_FAILURE);
     }
-    if (clock_gettime(CLOCK_MONOTONIC_RAW, &monotonic) != 0) {
-        perror("clock_gettime CLOCK_MONOTONIC_RAW");
-        exit(EXIT_FAILURE);
-    }
-    offset->tv_sec = realtime.tv_sec - monotonic.tv_sec;
-    offset->tv_nsec = realtime.tv_nsec - monotonic.tv_nsec;
-    if (offset->tv_nsec < 0) {
-        offset->tv_sec -= 1;
-        offset->tv_nsec += 1000000000L;
-    }
-}
 
-void get_adjusted_time(struct timeval *adjusted, struct timespec *offset) {
-    struct timespec now_monotonic;
-    if (clock_gettime(CLOCK_MONOTONIC_RAW, &now_monotonic) != 0) {
-        perror("clock_gettime CLOCK_MONOTONIC_RAW");
-        exit(EXIT_FAILURE);
-    }
-
-    // Convert to microseconds precision
-    adjusted->tv_sec = now_monotonic.tv_sec + offset->tv_sec;
-    adjusted->tv_usec = (now_monotonic.tv_nsec / 1000) + (offset->tv_nsec / 1000);
-
-    if (adjusted->tv_usec >= 1000000) {
-        adjusted->tv_sec += adjusted->tv_usec / 1000000;
-        adjusted->tv_usec %= 1000000;
-    }
+    now->tv_sec = ts.tv_sec;
+    now->tv_usec = ts.tv_nsec / 1000; // microseconds precision
 }
