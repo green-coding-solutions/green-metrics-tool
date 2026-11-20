@@ -91,7 +91,11 @@ static disk_io_t get_disk_cgroup(char* path, char* container_name) {
             continue;
         }
 
-        if (is_partition_sysfs(major_number, minor_number)) {
+        block_dev_type_t dev_type = get_block_device_type_sysfs(major_number, minor_number);
+        if (dev_type == BLOCK_DEV_HIDDEN) {
+            continue; // kernel-internal device (e.g. NVMe multipath path device). I/O is already counted on the visible device
+        }
+        if (dev_type == BLOCK_DEV_PARTITION) {
             fprintf(stderr, "Partition inside a docker container found. This should not happen: %u:%u rbytes=%llu wbytes=%llu\n", major_number, minor_number, rbytes, wbytes);
             exit(1);
         }

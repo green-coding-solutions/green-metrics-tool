@@ -93,8 +93,8 @@ static void output_get_disk_procfs() {
             continue;
         }
 
-        if (is_partition_sysfs(major_number, minor_number)) {
-            continue; // we skip when we have found a non root level device (aka partition)
+        if (get_block_device_type_sysfs(major_number, minor_number) != BLOCK_DEV_DISK) {
+            continue; // we skip partitions (counted on the parent disk) and hidden devices (e.g. NVMe multipath path devices, counted on the visible device)
         }
 
         printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, sectors_read, sectors_written, device_name);
