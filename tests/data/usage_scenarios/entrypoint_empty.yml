@@ -9,7 +9,7 @@ services:
     build:
       context: ../entrypoint-application
     entrypoint: '' # ignores entrypoint in container
-    command: tail -f /dev/null
+    command: sleep infinity
 
 flow:
   - name: Stress
