@@ -250,7 +250,7 @@ function Invoke-ScaphandreProviderBuild {
     ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
     if ($vswherePath) {
-        $vsInstallPath = & $vswherePath -latest -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
+        $vsInstallPath = & $vswherePath -latest -products '*' -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
         if ($vsInstallPath) {
             $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
             if (Test-Path $vcvarsall) {
@@ -259,7 +259,7 @@ function Invoke-ScaphandreProviderBuild {
                 $absOutput = Join-Path $providerDir $outputBinary
                 # Run via cmd.exe so vcvarsall environment is inherited by cl.exe
                 $cmdLine = "`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib"
-                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow -PassThru
+                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/s /c `"$cmdLine`"" -Wait -NoNewWindow -PassThru
                 if ($proc.ExitCode -ne 0) {
                     Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
                 } else {
@@ -304,7 +304,7 @@ function Invoke-EmiProviderBuild {
     ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
     if ($vswherePath) {
-        $vsInstallPath = & $vswherePath -latest -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
+        $vsInstallPath = & $vswherePath -latest -products '*' -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
         if ($vsInstallPath) {
             $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
             if (Test-Path $vcvarsall) {
@@ -312,7 +312,7 @@ function Invoke-EmiProviderBuild {
                 $absSource = Join-Path $providerDir $sourceFile
                 $absOutput = Join-Path $providerDir $outputBinary
                 $cmdLine = "`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link setupapi.lib winmm.lib"
-                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow -PassThru
+                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/s /c `"$cmdLine`"" -Wait -NoNewWindow -PassThru
                 if ($proc.ExitCode -ne 0) {
                     Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
                 } else {
@@ -356,7 +356,7 @@ function Invoke-CpuUtilizationSystemProviderBuild {
         "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
     ) | Where-Object { Test-Path $_ } | Select-Object -First 1
     if ($vswherePath) {
-        $vsInstallPath = & $vswherePath -latest -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
+        $vsInstallPath = & $vswherePath -latest -products '*' -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
         if ($vsInstallPath) {
             $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
             if (Test-Path $vcvarsall) {
@@ -364,7 +364,7 @@ function Invoke-CpuUtilizationSystemProviderBuild {
                 $absSource = Join-Path $providerDir $sourceFile
                 $absOutput = Join-Path $providerDir $outputBinary
                 $cmdLine = "`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib"
-                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow -PassThru
+                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/s /c `"$cmdLine`"" -Wait -NoNewWindow -PassThru
                 if ($proc.ExitCode -ne 0) {
                     Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
                 } else {
@@ -407,7 +407,7 @@ function Invoke-CpuUtilizationCoreProviderBuild {
         "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
     ) | Where-Object { Test-Path $_ } | Select-Object -First 1
     if ($vswherePath) {
-        $vsInstallPath = & $vswherePath -latest -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
+        $vsInstallPath = & $vswherePath -latest -products '*' -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath 2>$null
         if ($vsInstallPath) {
             $vcvarsall = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
             if (Test-Path $vcvarsall) {
@@ -415,7 +415,7 @@ function Invoke-CpuUtilizationCoreProviderBuild {
                 $absSource = Join-Path $providerDir $sourceFile
                 $absOutput = Join-Path $providerDir $outputBinary
                 $cmdLine = "`"$vcvarsall`" x64 >nul 2>&1 && cl.exe `"$absSource`" /Fe:`"$absOutput`" /O2 /W3 /nologo /link winmm.lib"
-                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmdLine" -Wait -NoNewWindow -PassThru
+                $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/s /c `"$cmdLine`"" -Wait -NoNewWindow -PassThru
                 if ($proc.ExitCode -ne 0) {
                     Write-Warning "Compilation failed. Build manually by running build.bat from an x64 Native Tools Command Prompt in:`n  $providerDir"
                 } else {

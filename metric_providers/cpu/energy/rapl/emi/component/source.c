@@ -284,6 +284,18 @@ static int open_emi_devices(emi_device_t *devs, int max_devs)
                 if (valid < MAX_CHANNELS &&
                     normalize_name(ch->ChannelName,
                                    dev->channels[valid].name, MAX_NAME_LEN)) {
+                    /* Disambiguate names that collide after normalization
+                     * (e.g. "CPU-0" and "CPU 0" both become "cpu_0").
+                     * Append the channel index as a stable suffix. */
+                    for (USHORT k = 0; k < valid; k++) {
+                        if (strcmp(dev->channels[valid].name, dev->channels[k].name) == 0) {
+                            char suffix[16];
+                            snprintf(suffix, sizeof(suffix), "_%u", c);
+                            strncat(dev->channels[valid].name, suffix,
+                                    MAX_NAME_LEN - strlen(dev->channels[valid].name) - 1);
+                            break;
+                        }
+                    }
                     dev->channels[valid].buf_index = c;
                     valid++;
                 }
@@ -291,10 +303,10 @@ static int open_emi_devices(emi_device_t *devs, int max_devs)
                 /*
                  * Advance to the next EMI_CHANNEL_V2 entry.
                  * ChannelNameSize includes the null terminator, in bytes.
-                 * The SDK requires 8-byte alignment between entries.
+                 * EMI_CHANNEL_V2_NEXT_CHANNEL does not add padding — do not
+                 * round to 8-byte alignment here.
                  */
                 size_t stride = offsetof(EMI_CHANNEL_V2, ChannelName) + ch->ChannelNameSize;
-                stride = (stride + 7) & ~(size_t)7;
 
                 /* Bound check: next entry must not start past the metadata buffer */
                 const BYTE *next = (const BYTE *)ch + stride;
@@ -393,12 +405,13 @@ static void sample_devices(emi_device_t *devs, int count, const clock_state_t *c
                 long long delta_uj  = (long long)((double)delta_pwh * PWH_TO_UJ);
 
                 /*
-                 * Skip zero values: either the channel is inactive (driver
+                 * Skip values <= 1 µJ: either the channel is inactive (driver
                  * exposes it but does not update the counter, e.g. DRAM on
-                 * some systems) or the delta is below µJ resolution (~278 pWh).
-                 * Outputting zeros would trigger GMT's resolution-underflow check.
+                 * some systems) or the delta is below µJ resolution (~278 pWh,
+                 * which truncates to 0 or 1 µJ). BaseMetricProvider rejects
+                 * values <= 1, so filter them here to avoid a ValueError on read.
                  */
-                if (delta_uj > 0) {
+                if (delta_uj > 1) {
                     /* Each channel gets its own timestamp so all lines are unique */
                     printf("%llu %lld %s\n",
                            (unsigned long long)now_us(cs),
