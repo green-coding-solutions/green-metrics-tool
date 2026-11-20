@@ -45,12 +45,12 @@ const getEChartsOptions = () => {
 }
 
 
-// Total carbon is always computed from its parts. If one part is missing the total is unknown
-const sumCarbon = (operational, embodied) => (operational == null || embodied == null) ? null : operational + embodied;
-
-const formatCarbonUg = (value_ug) => (value_ug == null) ? '--' : `${numberFormatterLong.format(value_ug/1000000)} gCO2e`;
-
-const formatCarbonUgWithStddev = (value_ug, stddev_percent) => (value_ug == null) ? '--' : `${numberFormatterLong.format(value_ug/1000000)} gCO2e (± ${numberFormatter.format(stddev_percent)}%)`;
+// Total carbon is computed by the API from its parts. It is NULL if one part is missing
+const formatCarbonUg = (value_ug, stddev_percent = undefined) => {
+    if (value_ug == null) return '--';
+    const formatted = `${numberFormatterLong.format(value_ug/1000000)} gCO2e`;
+    return (stddev_percent === undefined) ? formatted : `${formatted} (± ${numberFormatter.format(stddev_percent)}%)`;
+}
 
 const getChartOptions = (measurements) => {
     const options = getEChartsOptions();
@@ -60,7 +60,7 @@ const getChartOptions = (measurements) => {
     const labels = []
 
     measurements.forEach(measurement => { // iterate over all measurements, which are in row order
-        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug] = measurement;
+        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug, _note, total_carbon_ug] = measurement;
         cpu_util = cpu_util ? cpu_util : '--';
         options.series.push({
             type: 'bar',
@@ -89,7 +89,7 @@ const getChartOptions = (measurements) => {
             carbon_intensity_g: carbon_intensity_g,
             operational_carbon: formatCarbonUg(operational_carbon_ug),
             embodied_carbon: formatCarbonUg(embodied_carbon_ug),
-            total_carbon: formatCarbonUg(sumCarbon(operational_carbon_ug, embodied_carbon_ug)),
+            total_carbon: formatCarbonUg(total_carbon_ug),
         })
     });
 
@@ -148,10 +148,10 @@ const displayStatsTable = (stats) => {
                             <td class="bold td-index">${numberFormatter.format(stats.totals[4]/1000000)} s (± ${numberFormatter.format(stats.totals[7])}%)</td>
                             <td class="bold td-index">${numberFormatter.format(stats.totals[8])}% (± ${numberFormatter.format(stats.totals[11])}%%)</td>
                             <td class="bold td-index">${numberFormatter.format(stats.totals[12])} gCO2/kWh (± ${numberFormatter.format(stats.totals[15])}%)</td>
-                            <td class="bold td-index">${formatCarbonUgWithStddev(stats.totals[16], stats.totals[19])}</td>
-                            <td class="bold td-index">${formatCarbonUgWithStddev(stats.totals[20], stats.totals[23])}</td>
-                            <td class="bold td-index">${formatCarbonUg(sumCarbon(stats.totals[16], stats.totals[20]))}</td>
-                            <td class="bold td-index">${stats.totals[24]}</td>`;
+                            <td class="bold td-index">${formatCarbonUg(stats.totals[16], stats.totals[19])}</td>
+                            <td class="bold td-index">${formatCarbonUg(stats.totals[20], stats.totals[23])}</td>
+                            <td class="bold td-index">${formatCarbonUg(stats.totals[24], stats.totals[27])}</td>
+                            <td class="bold td-index">${stats.totals[28]}</td>`;
 
     avg_table.appendChild(full_run_stats_avg_node);
 
@@ -162,23 +162,23 @@ const displayStatsTable = (stats) => {
                             <td class="bold td-index">${numberFormatter.format(stats.totals[5]/1000000)} s</td>
                             <td class="bold td-index">${formatCarbonUg(stats.totals[17])}</td>
                             <td class="bold td-index">${formatCarbonUg(stats.totals[21])}</td>
-                            <td class="bold td-index">${formatCarbonUg(sumCarbon(stats.totals[17], stats.totals[21]))}</td>
-                            <td class="bold td-index">${stats.totals[24]}</td>`;
+                            <td class="bold td-index">${formatCarbonUg(stats.totals[25])}</td>
+                            <td class="bold td-index">${stats.totals[28]}</td>`;
     total_table.appendChild(full_run_stats_total_node)
 
     stats.per_label.forEach((row) =>{
         const label_stats_avg_node = document.createElement("tr")
-        const label = row[25];
+        const label = row[29];
         label_stats_avg_node.innerHTML += `
                                         <td class="td-index" data-tooltip="Averages per step '${escapeString(label)}'"  data-position="top left">${escapeString(label)} <i class="question circle icon small"></i></td>
                                         <td class=" td-index">${numberFormatter.format(row[0]/1000000)} J (± ${numberFormatter.format(row[3])}%)</td>
                                         <td class=" td-index">${numberFormatter.format(row[4]/1000000)} s (± ${numberFormatter.format(row[7])}%)</td>
                                         <td class=" td-index">${numberFormatter.format(row[8])}% (± ${numberFormatter.format(row[11])}%%)</td>
                                         <td class=" td-index">${numberFormatter.format(row[12])} gCO2/kWh (± ${numberFormatter.format(row[15])}%)</td>
-                                        <td class=" td-index">${formatCarbonUgWithStddev(row[16], row[19])}</td>
-                                        <td class=" td-index">${formatCarbonUgWithStddev(row[20], row[23])}</td>
-                                        <td class=" td-index">${formatCarbonUg(sumCarbon(row[16], row[20]))}</td>
-                                        <td class="td-index">${row[24]}</td>`;
+                                        <td class=" td-index">${formatCarbonUg(row[16], row[19])}</td>
+                                        <td class=" td-index">${formatCarbonUg(row[20], row[23])}</td>
+                                        <td class=" td-index">${formatCarbonUg(row[24], row[27])}</td>
+                                        <td class="td-index">${row[28]}</td>`;
 
         avg_table.appendChild(label_stats_avg_node);
 
@@ -189,8 +189,8 @@ const displayStatsTable = (stats) => {
                                         <td class=" td-index">${numberFormatter.format(row[5]/1000000)} s</td>
                                         <td class=" td-index">${formatCarbonUg(row[17])}</td>
                                         <td class=" td-index">${formatCarbonUg(row[21])}</td>
-                                        <td class=" td-index">${formatCarbonUg(sumCarbon(row[17], row[21]))}</td>
-                                        <td class="td-index">${row[24]}</td>`;
+                                        <td class=" td-index">${formatCarbonUg(row[25])}</td>
+                                        <td class="td-index">${row[28]}</td>`;
         total_table.appendChild(label_stats_total_node);
 
     }) ;
@@ -210,8 +210,7 @@ const displayRunDetailsTable = (measurements, repo) => {
     measurements.forEach(measurement => {
         const li_node = document.createElement("tr");
 
-        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug, note] = measurement;
-        const total_carbon_ug = sumCarbon(operational_carbon_ug, embodied_carbon_ug);
+        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug, note, total_carbon_ug] = measurement;
 
         const short_hash = commit_hash.substring(0, 7);
         const tooltip = `title="${commit_hash}"`;
@@ -301,7 +300,7 @@ const getMeasurementsAndStats = async (repo, branch, workflow_id, start_date, en
     const query_string=`repo=${escapeString(repo)}&branch=${escapeString(branch)}&workflow=${escapeString(workflow_id)}&start_date=${start_date}&end_date=${end_date}`;
     const [measurements, stats] = await Promise.all([
         makeAPICall(`/v2/ci/measurements?${query_string}`),
-        makeAPICall(`/v1/ci/stats?${query_string}`)
+        makeAPICall(`/v2/ci/stats?${query_string}`)
     ]);
 
     return [measurements, stats];

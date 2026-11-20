@@ -427,6 +427,57 @@ def test_ci_measurements_v2():
     assert row[14] == 300 # operational_carbon_ug
     assert row[15] == 200 # embodied_carbon_ug
     assert row[16] == 'testNote'
+    assert row[17] == 500 # total carbon
+
+def test_ci_stats_v1_deprecated():
+    response = requests.get(f"{API_URL}/v1/ci/stats?repo=testRepo&branch=testBranch&workflow=testWorkflow&start_date=1970-01-01&end_date=3000-01-01", timeout=15)
+    assert response.status_code == 410, Tests.assertion_info('410', response.text)
+    assert 'operational and embodied carbon' in response.json()['err']
+    assert '/v2/ci/stats' in response.json()['err']
+
+def test_ci_stats_v2_total_carbon_only_over_complete_runs():
+    # Run A is complete. Run B has no operational carbon yet (e.g. waiting for the carbon intensity backfill)
+    # Adding up the component averages would give 1000 + 2000 = 3000 ug, which matches no run
+    for run_id, operational_carbon_ug, embodied_carbon_ug in [('A', 1000, 1000), ('B', None, 3000)]:
+        measurement_model = MEASUREMENT_MODEL_V4.copy()
+        measurement_model['run_id'] = run_id
+        measurement_model['operational_carbon_ug'] = operational_carbon_ug
+        measurement_model['embodied_carbon_ug'] = embodied_carbon_ug
+        response = requests.post(f"{API_URL}/v4/ci/measurement/add", json=measurement_model, timeout=15)
+        assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    response = requests.get(f"{API_URL}/v2/ci/stats?repo={MEASUREMENT_MODEL_V4['repo']}&branch={MEASUREMENT_MODEL_V4['branch']}&workflow={MEASUREMENT_MODEL_V4['workflow_id']}&start_date=1970-01-01&end_date=3000-01-01", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    totals = response.json()['data']['totals']
+    per_label = response.json()['data']['per_label']
+
+    assert totals[16] == 1000 # AVG operational, only run A
+    assert totals[20] == 2000 # AVG embodied, runs A and B
+    assert totals[24] == 2000 # AVG total, only complete run A
+    assert totals[25] == 2000 # SUM total, only complete run A
+    assert totals[28] == 2 # run count
+
+    assert len(per_label) == 1
+    assert per_label[0][24] == 2000 # AVG total, only the complete measurement
+    assert per_label[0][28] == 2 # measurement count
+    assert per_label[0][29] == MEASUREMENT_MODEL_V4['label']
+
+def test_ci_stats_v2_total_carbon_of_partially_complete_run():
+    # One measurement of the run lacks operational carbon. So the total of the whole run is unknown
+    for operational_carbon_ug, embodied_carbon_ug in [(600, 400), (None, 2000)]:
+        measurement_model = MEASUREMENT_MODEL_V4.copy()
+        measurement_model['operational_carbon_ug'] = operational_carbon_ug
+        measurement_model['embodied_carbon_ug'] = embodied_carbon_ug
+        response = requests.post(f"{API_URL}/v4/ci/measurement/add", json=measurement_model, timeout=15)
+        assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    response = requests.get(f"{API_URL}/v2/ci/stats?repo={MEASUREMENT_MODEL_V4['repo']}&branch={MEASUREMENT_MODEL_V4['branch']}&workflow={MEASUREMENT_MODEL_V4['workflow_id']}&start_date=1970-01-01&end_date=3000-01-01", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    totals = response.json()['data']['totals']
+    assert totals[17] == 600 # SUM operational
+    assert totals[21] == 2400 # SUM embodied
+    assert totals[24] is None # AVG total unknown, as the only run is incomplete
+    assert totals[25] is None
 
 def test_ci_measurement_v3_deprecated():
     response = requests.get(f"{API_URL}/openapi.json", timeout=15)
@@ -436,6 +487,8 @@ def test_ci_measurement_v3_deprecated():
     assert paths['/v4/ci/measurement/add']['post'].get('deprecated') is None
     assert paths['/v1/ci/measurements']['get'].get('deprecated') is True
     assert paths['/v2/ci/measurements']['get'].get('deprecated') is None
+    assert paths['/v1/ci/stats']['get'].get('deprecated') is True
+    assert paths['/v2/ci/stats']['get'].get('deprecated') is None
 
 
 ## helpers

@@ -77,6 +77,7 @@ VALUES (
                 "/v1/ci/runs",
                 "/v1/ci/repositories",
                 "/v1/ci/stats",
+                "/v2/ci/stats",
                 "/v3/ci/measurement/add",
                 "/v4/ci/measurement/add",
                 "/v1/runs/add",

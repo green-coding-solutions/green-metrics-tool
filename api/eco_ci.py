@@ -167,7 +167,8 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
                 AND latest_workflow.workflow_id = ci_measurements.workflow_id
                 ORDER BY latest_workflow.created_at DESC
                 LIMIT 1) AS workflow_name,
-               latitude, longitude, city, carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug, note
+               latitude, longitude, city, carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug, note,
+               operational_carbon_ug + embodied_carbon_ug -- total carbon. NULL if a part is missing
         FROM ci_measurements
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))
@@ -185,7 +186,12 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
 
     return CustomORJSONResponse({'success': True, 'data': data})
 
-@router.get('/v1/ci/stats')
+@router.get('/v1/ci/stats', deprecated=True)
+def old_v1_stats_endpoint():
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Carbon is now split into operational and embodied carbon, which changed the returned data. Please migrate to /v2/ci/stats'}, status_code=410)
+
+
+@router.get('/v2/ci/stats')
 async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, end_date: date, user: User = Depends(authenticate)):
 
 
@@ -197,7 +203,10 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
                 SUM(cpu_util_avg * duration_us) / NULLIF(SUM(duration_us), 0)  as c, -- weighted average
                 SUM(carbon_intensity_g * duration_us) / NULLIF(SUM(duration_us), 0) as d,-- weighted average
                 SUM(operational_carbon_ug) as e,
-                SUM(embodied_carbon_ug) as f
+                SUM(embodied_carbon_ug) as f,
+                -- total carbon of a run is only known if every measurement of the run has both parts.
+                -- Otherwise e and f are averaged over different runs and cannot just be added up
+                CASE WHEN COUNT(*) = COUNT(operational_carbon_ug + embodied_carbon_ug) THEN SUM(operational_carbon_ug + embodied_carbon_ug) END as g
             FROM ci_measurements
             WHERE
                 (TRUE = %s OR user_id = ANY(%s::int[]))
@@ -212,6 +221,7 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
             AVG(d)::float, NULL, STDDEV(d)::float, (STDDEV(d) / NULLIF(AVG(d), 0))::float * 100, -- SUM of carbon_intensity_g makes no sense
             AVG(e)::float, SUM(e)::float, STDDEV(e)::float, (STDDEV(e) / NULLIF(AVG(e), 0))::float * 100,
             AVG(f)::float, SUM(f)::float, STDDEV(f)::float, (STDDEV(f) / NULLIF(AVG(f), 0))::float * 100,
+            AVG(g)::float, SUM(g)::float, STDDEV(g)::float, (STDDEV(g) / NULLIF(AVG(g), 0))::float * 100, -- only runs with complete carbon data
             COUNT(*)
         FROM my_table;
     '''
@@ -232,6 +242,8 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
             AVG(carbon_intensity_g)::float, NULL, STDDEV(carbon_intensity_g)::float, (STDDEV(carbon_intensity_g) / NULLIF(AVG(carbon_intensity_g), 0))::float * 100, -- SUM of carbon_intensity_g makes no sense
             AVG(operational_carbon_ug)::float, SUM(operational_carbon_ug)::float, STDDEV(operational_carbon_ug)::float, (STDDEV(operational_carbon_ug) / NULLIF(AVG(operational_carbon_ug), 0))::float * 100,
             AVG(embodied_carbon_ug)::float, SUM(embodied_carbon_ug)::float, STDDEV(embodied_carbon_ug)::float, (STDDEV(embodied_carbon_ug) / NULLIF(AVG(embodied_carbon_ug), 0))::float * 100,
+            -- total carbon only over measurements that have both parts. NULL + x is NULL and skipped by the aggregates
+            AVG(operational_carbon_ug + embodied_carbon_ug)::float, SUM(operational_carbon_ug + embodied_carbon_ug)::float, STDDEV(operational_carbon_ug + embodied_carbon_ug)::float, (STDDEV(operational_carbon_ug + embodied_carbon_ug) / NULLIF(AVG(operational_carbon_ug + embodied_carbon_ug), 0))::float * 100,
             COUNT(*), label
         FROM ci_measurements
         WHERE
@@ -317,7 +329,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         label = 'energy used'
         default_color = 'orange'
     elif metric == 'carbon':
-        metric = '(operational_carbon_ug + embodied_carbon_ug)' # NULL if a part is missing, so incomplete rows do not under-report
+        metric = '(operational_carbon_ug + embodied_carbon_ug)' # NULL if a part is missing, so SUM skips incomplete measurements (as it skipped a missing carbon_ug before). Shows only the known total until the backfill completes them
         metric_unit = 'ugCO2e'
         label = 'carbon emitted'
         default_color = 'black'

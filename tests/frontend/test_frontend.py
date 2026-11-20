@@ -257,7 +257,7 @@ class TestFrontendFunctionality:
         assert embodied_carbon_all_steps.strip() == '0.0121 gCO2e (± 5.43%)'
 
         total_carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(8)").text_content()
-        assert total_carbon_all_steps.strip() == '0.016 gCO2e'
+        assert total_carbon_all_steps.strip() == '0.016 gCO2e (± 5.71%)'
 
         count_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(9)").text_content()
         assert count_all_steps.strip() == '5'
@@ -281,7 +281,7 @@ class TestFrontendFunctionality:
         assert embodied_carbon_single.strip() == '0.0101 gCO2e (± 5.05%)'
 
         total_carbon_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(8)").text_content()
-        assert total_carbon_single.strip() == '0.0134 gCO2e'
+        assert total_carbon_single.strip() == '0.0134 gCO2e (± 5.27%)'
 
         count_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(9)").text_content()
         assert count_single.strip() == '5'
@@ -303,7 +303,7 @@ class TestFrontendFunctionality:
         total_carbon_all_steps = page.locator(
             "#label-stats-table-avg > tr:nth-child(1) > td:nth-child(8)"
         ).text_content()
-        assert total_carbon_all_steps.strip() == '0.9704 gCO2e'
+        assert total_carbon_all_steps.strip() == '0.9704 gCO2e (± 0.00%)'
 
         carbon_all_steps = page.locator(
             "#label-stats-table-avg > tr:nth-child(1) > td:nth-child(3)"
