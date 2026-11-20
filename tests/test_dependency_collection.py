@@ -23,7 +23,6 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_save=True,
             skip_download_dependencies=True,
-            skip_optimizations=True,
         )
 
         # Mock successful energy-dependency-inspector response
@@ -66,7 +65,6 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_save=True,
             skip_download_dependencies=True,
-            skip_optimizations=True,
         )
 
         with patch('lib.scenario_runner.resolve_docker_dependencies_as_dict') as mock_resolver:
@@ -89,7 +87,6 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_save=True,
             skip_download_dependencies=True,
-            skip_optimizations=True,
         )
 
         # Mock container data
@@ -104,7 +101,7 @@ class TestDependencyCollection:
                 "source": {"type": "container", "image": "nginx:latest", "hash": "sha256:nginx123"}
             }),
             ("postgres-container", {
-                "source": {"type": "container", "image": "postgres:13", "hash": "sha256:postgres456"}
+                "source": {"type": "container", "image": "postgres:18", "hash": "sha256:postgres456"}
             })
         ]
 
@@ -118,7 +115,7 @@ class TestDependencyCollection:
                     "source": {"type": "container", "image": "nginx:latest", "hash": "sha256:nginx123"}
                 },
                 "postgres-container": {
-                    "source": {"type": "container", "image": "postgres:13", "hash": "sha256:postgres456"}
+                    "source": {"type": "container", "image": "postgres:18", "hash": "sha256:postgres456"}
                 }
             }
 
@@ -136,7 +133,6 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_save=True,
             skip_download_dependencies=True,
-            skip_optimizations=True,
         )
 
         # Mock container data
@@ -173,7 +169,6 @@ class TestDependencyCollection:
             dev_no_sleeps=True,
             dev_no_save=True,
             skip_download_dependencies=True,
-            skip_optimizations=True,
         )
 
         # No containers
@@ -196,7 +191,6 @@ class TestDependencyCollection:
             dev_no_metrics=True,
             dev_no_save=True,
             skip_download_dependencies=True,
-            skip_optimizations=True,
         )
 
         # Mock the dependency collection method
@@ -221,7 +215,6 @@ class TestDependencyCollection:
             dev_no_metrics=True,
             dev_no_phase_stats=True,
             skip_download_dependencies=True,
-            skip_optimizations=True,
         )
 
         # Mock successful dependency collection
@@ -260,7 +253,6 @@ class TestDependencyCollection:
             dev_no_metrics=True,
             dev_no_phase_stats=True,
             skip_download_dependencies=True,
-            skip_optimizations=True,
         )
 
         # Mock failed dependency collection that raises exception
@@ -284,7 +276,6 @@ class TestDependencyCollection:
             dev_no_metrics=True,
             dev_no_phase_stats=True,
             skip_download_dependencies=True,
-            skip_optimizations=True,
         )
 
         run_id = runner.run()
@@ -359,6 +350,7 @@ class TestDependencyCollection:
             uri=GMT_DIR,
             uri_type='folder',
             filename='tests/data/web-application/usage_scenario.yml',
+            usage_scenario_variables={'__GMT_VAR_POSTGRES_IMAGE__': Tests.get_gmt_postgres_image()},
             skip_unsafe=True,
             dev_no_system_checks=True,
             dev_cache_build=True,
@@ -366,7 +358,6 @@ class TestDependencyCollection:
             dev_no_metrics=True,
             dev_no_phase_stats=True,
             skip_download_dependencies=True,
-            skip_optimizations=True,
         )
 
         run_id = runner.run()
@@ -431,7 +422,7 @@ class TestDependencyCollection:
         # under pytest, worker-suffixed under -n too - see utils.gmt_tmp_image_name())
         images = [data['source']['image'] for data in dependencies.values()]
 
-        assert 'postgres:13' in images
+        assert Tests.get_gmt_postgres_image() in images
         assert f'{gmt_tmp_image_name("web")}:latest' in images
         assert 'curlimages/curl:8.10.1' in images
 

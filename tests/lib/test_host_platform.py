@@ -89,7 +89,7 @@ def test_parse_docker_image_references():
     output = (
         'martizih/kaniko\tslim\tsha256:aaa\n'
         'mariadb\t<none>\tsha256:dd9b303aed4f\n'
-        'postgres\t16\t<none>\n'
+        'postgres\t18\t<none>\n'
         '<none>\t<none>\t<none>\n'
         'ribalba/benchbase\t<none>\tsha256:85c175561d83\n'
         'ribalba/benchbase\t<none>\tsha256:f7a0f21e8bfc\n'
@@ -99,7 +99,7 @@ def test_parse_docker_image_references():
     assert host_platform._parse_docker_image_references(output) == [ # pylint: disable=protected-access
         'martizih/kaniko:slim',
         'mariadb@sha256:dd9b303aed4f',
-        'postgres:16',
+        'postgres:18',
         'ribalba/benchbase@sha256:85c175561d83',
         'ribalba/benchbase@sha256:f7a0f21e8bfc',
     ]
@@ -110,7 +110,7 @@ def test_remove_docker_images_except_removes_digest_pulled_images(monkeypatch):
 
     def fake_run(args, **_kwargs):
         calls.append(args)
-        stdout = 'martizih/kaniko\tslim\tsha256:aaa\nmariadb\t<none>\tsha256:dd9b\npostgres\t16\tsha256:bbb\n'
+        stdout = 'martizih/kaniko\tslim\tsha256:aaa\nmariadb\t<none>\tsha256:dd9b\npostgres\t18\tsha256:bbb\n'
         return subprocess.CompletedProcess(args, 0, stdout=stdout if args[:2] == ['docker', 'images'] else '', stderr='')
 
     monkeypatch.setattr(host_platform.subprocess, 'run', fake_run)
@@ -118,4 +118,4 @@ def test_remove_docker_images_except_removes_digest_pulled_images(monkeypatch):
     host_platform.remove_docker_images_except(['martizih/kaniko:slim'])
 
     assert calls[0][:3] == ['docker', 'images', '--digests']
-    assert calls[1] == ['docker', 'rmi', '-f', 'mariadb@sha256:dd9b', 'postgres:16']
+    assert calls[1] == ['docker', 'rmi', '-f', 'mariadb@sha256:dd9b', 'postgres:18']

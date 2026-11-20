@@ -47,11 +47,13 @@ class GlobalConfig:
         if not hasattr(self, 'config'):
             with open(config_location, encoding='utf8') as config_file:
                 self.config = freeze_dict(yaml.load(config_file, yaml.FullLoader))
+            self.config_location = config_location
 
     ## add an override function that will always set the config to a new value
     def override_config(self, config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../config.yml"):
         with open(config_location, encoding='utf8') as config_file:
             self.config = freeze_dict(yaml.load(config_file, yaml.FullLoader))
+        self.config_location = config_location
 
 if __name__ == '__main__':
     print(GlobalConfig().config['measurement'])

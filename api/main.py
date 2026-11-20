@@ -175,7 +175,7 @@ async def get_cluster_status(
         SELECT id, message, resolved, created_at
         FROM cluster_status_messages
         WHERE resolved = false
-        ORDER BY created_at DESC
+        ORDER BY created_at ASC
     '''
 
     data = DB().fetch_all(query)

@@ -2,7 +2,8 @@
 
 services:
   db:
-    image: postgres:13
+    # Filled by the test with the image from docker/compose.yml.example - see Tests.get_gmt_postgres_image()
+    image: __GMT_VAR_POSTGRES_IMAGE__
     # volumes:
     #   - postgres_data:/var/lib/postgresql/data/
     environment:

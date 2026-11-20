@@ -201,7 +201,7 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
     let radar_chart_data = [...Array(phase_stats_object.comparison_identifiers.length)].map(e => Array(0));
 
     let top_bar_chart_labels = [];
-    let top_bar_chart_data =  [[],[]];
+    let top_bar_chart_data = [...Array(phase_stats_object.comparison_identifiers.length)].map(e => Array(0));
     let top_bar_chart_unit = null;
 
     let compare_chart_unit = null;
@@ -311,11 +311,12 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
         } // end detail
     } // end metric
 
-    let radar_legend = phase_stats_object.comparison_identifiers.map(e => `${phase_stats_object.comparison_case}: ${e}`)
+    // shared by the top radar and bar chart. comparison_case is null in single run view (stats.html) -> no prefix then
+    let top_charts_legend = phase_stats_object.comparison_identifiers.map(e => phase_stats_object.comparison_case == null ? e : `${phase_stats_object.comparison_case}: ${e}`)
 
     if(phase_stats_object.comparison_identifiers.length >= 2) {
         displayKeyMetricsRadarChart(
-            radar_legend,
+            top_charts_legend,
             radar_chart_labels,
             radar_chart_data,
             phase
@@ -326,7 +327,7 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
     }
 
     displayKeyMetricsBarChart(
-        radar_legend,
+        top_charts_legend,
         top_bar_chart_labels,
         top_bar_chart_data,
         phase,

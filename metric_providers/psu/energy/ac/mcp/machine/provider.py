@@ -38,7 +38,7 @@ class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row
-        df.dropna(inplace=True)
+        df = df.dropna()
 
         df['interval'] = intervals  # in microseconds
         df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_000_000, axis=1) # value is in micro-Watts, so divide by 1_000_000 to get micro-Joules

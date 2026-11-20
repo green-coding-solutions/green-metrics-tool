@@ -7,6 +7,7 @@ import random
 import tempfile
 import pandas
 from pathlib import Path
+import yaml
 
 from lib.db import DB, get_schema
 from lib.global_config import GlobalConfig
@@ -25,6 +26,11 @@ from metric_providers.network.io.cgroup.container.provider import NetworkIoCgrou
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 GUNICORN_SEQUENTIAL_GROUP = "gunicorn-sequential-tests"
+
+def get_gmt_postgres_image():
+    # Single source of truth for the postgres image, so tests never pull a second postgres image
+    with open(os.path.join(CURRENT_DIR, '../docker/compose.yml.example'), encoding='utf-8') as f:
+        return yaml.safe_load(f)['services']['green-coding-postgres']['image']
 
 def get_tmp_folder():
     # Mirrors ScenarioRunner's own tmp-folder naming (lib/scenario_runner.py) so tests that
@@ -378,7 +384,7 @@ def flush_redis():
 
 # Must run before the test body, not just before reset_db()'s own truncate/reseed: DB (lib/db.py)
 # is a process-wide singleton whose connection pool bakes in search_path once, at pool-creation
-# time, and only rebuilds it after reset_db()'s DB().shutdown() call tears it down - so the env var
+# time, and only rebuilds it after reset_db()'s DB.shutdown_if_initialized() call tears it down - so the env var
 # has to already be gone by the time the test body makes its own first DB() call (which may be
 # well before reset_db() ever runs), or that call (and everything sharing the pool it creates)
 # targets the wrong schema for the rest of the test.
@@ -442,7 +448,7 @@ END $$;''',
     if ps.returncode != 0:
         raise RuntimeError('Resetting the test schema failed with ', ps.stdout, ps.stderr)
 
-    DB().shutdown()
+    DB.shutdown_if_initialized()
 
 class RunUntilManager:
     def __init__(self, runner):

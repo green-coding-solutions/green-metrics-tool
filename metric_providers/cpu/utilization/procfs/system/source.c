@@ -33,7 +33,6 @@ typedef struct procfs_time_t { // struct is a specification and this static make
 // TODO: If this code ever gets multi-threaded please review this assumption to
 // not pollute another threads state
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 static unsigned int min_msleep_time_ms = 0;
 
 static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
@@ -69,7 +68,7 @@ static void output_stats() {
     procfs_time_t main_cpu_reading_after;
     struct timeval now;
 
-    get_adjusted_time(&now, &offset);
+    get_time(&now);
 
     read_cpu_proc(&main_cpu_reading_before); // will set main_cpu_reading_before
 
@@ -142,8 +141,6 @@ int main(int argc, char **argv) {
     }
 
     validate_min_sleep_time(msleep_time, min_msleep_time_ms);
-
-    get_time_offset(&offset);
 
     while(1) {
         output_stats();

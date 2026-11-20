@@ -115,7 +115,7 @@ class ScenarioRunner:
 
         # These switches do not alter proper measurements, but might result in data not being generated
         skip_volume_inspect=False, skip_download_dependencies=False, skip_unsafe=False,
-        skip_optimizations=False,
+        optimizations=False,
         ):
 
         self._arguments = locals() # safe the argument as first step before anything else to not expose local created variables
@@ -150,7 +150,7 @@ class ScenarioRunner:
         self._skip_unsafe = skip_unsafe
         self._skip_volume_inspect = skip_volume_inspect
         self._skip_download_dependencies = skip_download_dependencies
-        self._skip_optimizations = skip_optimizations
+        self._optimizations = optimizations
         self._dev_no_container_dependency_collection = dev_no_container_dependency_collection
 
         self._dev_no_sleeps = dev_no_sleeps
@@ -3118,7 +3118,7 @@ class ScenarioRunner:
         self.__join_default_network = False
         self.__docker_params.clear()
         self.__working_folder = self._repo_folder
-        self.__working_folder_rel = ''
+        self.__working_folder_rel = Path('')
         self.__image_sizes.clear()
         self.__volume_sizes.clear()
         self.__warnings.clear()

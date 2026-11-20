@@ -24,7 +24,7 @@ VALUES (
             "is_super_user": true,
             "updateable_settings": [
                 "measurement.dev_no_sleeps",
-                "measurement.skip_optimizations",
+                "measurement.optimizations",
                 "measurement.dev_no_container_dependency_collection",
                 "measurement.disabled_metric_providers",
                 "measurement.flow_process_duration",
@@ -120,7 +120,7 @@ VALUES (
         "measurement": {
             "quotas": {},
             "dev_no_sleeps": false,
-            "skip_optimizations": false,
+            "optimizations": false,
             "dev_no_container_dependency_collection": false,
             "allowed_volume_mounts": [],
             "dev_no_system_checks": false,

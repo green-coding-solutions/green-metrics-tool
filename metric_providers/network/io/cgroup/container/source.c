@@ -26,7 +26,6 @@ typedef struct net_io_t {
 // in any case, none of these variables should change between threads
 static int user_id = -1;
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 
 static char *trimwhitespace(char *str) {
   char *end;
@@ -111,7 +110,7 @@ static void output_stats(container_t *containers, int length) {
     struct timeval now;
     int i;
 
-    get_adjusted_time(&now, &offset);
+    get_time(&now);
 
     for(i=0; i<length; i++) {
         net_io_t net_io = get_network_cgroup(containers[i].pid, containers[i].name);
@@ -176,8 +175,6 @@ int main(int argc, char **argv) {
         check_path("/proc/net/dev");
         exit(check_path("/sys/fs/cgroup/cgroup.procs"));
     }
-
-    get_time_offset(&offset);
 
     int length = parse_containers("cgroup.procs", user_id, &containers, containers_string, true);
 
