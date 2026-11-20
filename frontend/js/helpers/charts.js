@@ -222,7 +222,16 @@ const getLineBarChartOptions = (legend, labels, series, x_axis_name=null, y_axis
             axisLabel: {
                 show: show_x_axis_label,
                 interval: 0,
-                rotate: -15,
+                rotate: 45,
+                overflow: 'truncate',
+                ellipsis: '…',  // optional, default is '...'
+                width: 100,  // maximum width in pixels
+            },
+            axisPointer: {
+                show: true,
+                type: 'line',
+                snap: true,
+                label: { show: false },
             },
         },
         yAxis: {
@@ -579,7 +588,7 @@ const displayTotalChart = (legend, labels, data, unit) => {
     }
 
 
-    const options = getLineBarChartOptions(null, labels, series, null, unit, 'category', null, true)
+    const options = getLineBarChartOptions(null, labels, series, null, unit, 'category', null, false)
 
     myChart.setOption(options);
         // set callback when ever the user changes the viewport

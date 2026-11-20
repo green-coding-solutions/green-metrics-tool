@@ -99,7 +99,7 @@ if [[ $activate_scenario_runner == true ]] ; then
     fi
 
     print_message "Building C libs"
-    make -C "lib/c"
+    make -B -C "lib/c" # -B: always rebuild, stale or empty .o files would otherwise be considered up to date
 
     build_binaries
 

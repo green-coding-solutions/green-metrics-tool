@@ -45,6 +45,7 @@ install_nvidia_toolkit_headers=false
 disable_path_security_checks=false
 ee_branch=''
 ask_elephant=true
+skip_submodules=false
 
 function print_message {
     echo ""
@@ -383,7 +384,7 @@ function setup_python() {
 }
 
 function checkout_submodules() {
-    if [[ $activate_scenario_runner == false ]]; then
+    if [[ $activate_scenario_runner == false || $skip_submodules == true ]]; then
         print_message 'Skipping checkout submodules ...'
         return
     fi
@@ -445,7 +446,7 @@ function build_binaries() {
             fi
             echo "Installing $subdir/metric-provider-binary ..."
             rm -f $subdir/metric-provider-binary 2> /dev/null
-            make -C $subdir
+            make -B -C $subdir
         fi
     done
 }
@@ -553,6 +554,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-elephant)
             ask_elephant=false
+            shift
+            ;;
+        --skip-submodules)
+            skip_submodules=true
             shift
             ;;
 
@@ -696,6 +701,7 @@ while [[ $# -gt 0 ]]; do
             echo -e '  --disable-path-security:\tDisable path security checks'
             echo -e '  --elephant-url URL:\tSupply Elephant URL'
             echo -e '  --no-elephant:\t\tDo not configure Elephant'
+            echo -e '  --skip-submodules:\tDo not check out git submodules'
 
             echo -e '  -p DB_PW:\t\t\tSupply DB password'
             echo -e '  -a API_URL:\t\tSupply API URL'

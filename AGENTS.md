@@ -14,7 +14,7 @@ Green Metrics Tool is itself a multi-service application with these main runtime
 - ScenarioRunner CLI entrypoint in `runner.py`
 - Cron / helper scripts
 
-The canonical local stack definition is `docker/compose.yml`.
+The canonical local stack definition is `docker/compose.yml` (if GMT is not installed yet look at `docker/compose.yml.example`).
 
 ## Read-Next Map
 
@@ -76,8 +76,6 @@ If a new field is visible to users, it often has to move through multiple layers
 - Run a quick CLI measurement to check if the runner code is working:
   - first `cd docker && docker compose up -d`
   - then `python3 runner.py --uri /home/node/green-metrics-tool --filename tests/data/usage_scenarios/basic_stress.yml --dev-no-sleeps --dev-cache-build --skip-download-dependencies`
-- Compile-check a Python file:
-  - `python3 -m py_compile path/to/file.py`
 
 ## Updating this file
 
