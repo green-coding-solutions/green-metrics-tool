@@ -403,12 +403,39 @@ def test_ci_measurement_add_no_carbon_v3():
     assert data['operational_carbon_ug'] is None # filled later by cron/backfill_carbon_intensity.py
     assert data['embodied_carbon_ug'] is None
 
+def test_ci_measurements_v1_deprecated():
+    response = requests.get(f"{API_URL}/v1/ci/measurements?repo=testRepo&branch=testBranch&workflow=testWorkflow&start_date=1970-01-01&end_date=3000-01-01", timeout=15)
+    assert response.status_code == 410, Tests.assertion_info('410', response.text)
+    assert 'operational and embodied carbon' in response.json()['err']
+    assert '/v2/ci/measurements' in response.json()['err']
+
+def test_ci_measurements_v2():
+    measurement_model = MEASUREMENT_MODEL_V4.copy()
+    measurement_model['carbon_intensity_g'] = 100
+    measurement_model['operational_carbon_ug'] = 300
+    measurement_model['embodied_carbon_ug'] = 200
+    measurement_model['note'] = 'testNote'
+
+    response = requests.post(f"{API_URL}/v4/ci/measurement/add", json=measurement_model, timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    response = requests.get(f"{API_URL}/v2/ci/measurements?repo={measurement_model['repo']}&branch={measurement_model['branch']}&workflow={measurement_model['workflow_id']}&start_date=1970-01-01&end_date=3000-01-01", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    row = response.json()['data'][0]
+    assert row[0] == measurement_model['energy_uj']
+    assert row[13] == 100 # carbon_intensity_g
+    assert row[14] == 300 # operational_carbon_ug
+    assert row[15] == 200 # embodied_carbon_ug
+    assert row[16] == 'testNote'
+
 def test_ci_measurement_v3_deprecated():
     response = requests.get(f"{API_URL}/openapi.json", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     paths = response.json()['paths']
     assert paths['/v3/ci/measurement/add']['post'].get('deprecated') is True
     assert paths['/v4/ci/measurement/add']['post'].get('deprecated') is None
+    assert paths['/v1/ci/measurements']['get'].get('deprecated') is True
+    assert paths['/v2/ci/measurements']['get'].get('deprecated') is None
 
 
 ## helpers

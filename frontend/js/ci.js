@@ -300,7 +300,7 @@ const getMeasurementsAndStats = async (repo, branch, workflow_id, start_date, en
 
     const query_string=`repo=${escapeString(repo)}&branch=${escapeString(branch)}&workflow=${escapeString(workflow_id)}&start_date=${start_date}&end_date=${end_date}`;
     const [measurements, stats] = await Promise.all([
-        makeAPICall(`/v1/ci/measurements?${query_string}`),
+        makeAPICall(`/v2/ci/measurements?${query_string}`),
         makeAPICall(`/v1/ci/stats?${query_string}`)
     ]);
 

@@ -26,5 +26,17 @@ SET capabilities = jsonb_set(
     '{api,routes}',
     ((capabilities #> '{api,routes}')::jsonb - '/v2/ci/measurement/add') || '["/v4/ci/measurement/add"]',
     true
-);
+)
+WHERE capabilities #> '{api,routes}' ?| array['/v2/ci/measurement/add', '/v3/ci/measurement/add']; -- only users that were allowed to add CI data before
+
+-- /v1/ci/measurements is deprecated (returns 410) as its returned data changed. /v2/ci/measurements replaces it
+UPDATE users
+SET capabilities = jsonb_set(
+    capabilities,
+    '{api,routes}',
+    (capabilities #> '{api,routes}')::jsonb || '["/v2/ci/measurements"]',
+    true
+)
+WHERE capabilities #> '{api,routes}' ? '/v1/ci/measurements'
+    AND NOT capabilities #> '{api,routes}' ? '/v2/ci/measurements';
 

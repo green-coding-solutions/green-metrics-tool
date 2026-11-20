@@ -144,7 +144,12 @@ async def post_ci_measurement_add_v4(
     return _insert_ci_measurement(request, measurement, user, measurement.operational_carbon_ug, measurement.embodied_carbon_ug)
 
 
-@router.get('/v1/ci/measurements')
+@router.get('/v1/ci/measurements', deprecated=True)
+def old_v1_measurements_endpoint():
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Carbon is now split into operational and embodied carbon, which changed the returned data. Please migrate to /v2/ci/measurements'}, status_code=410)
+
+
+@router.get('/v2/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date, job_id: str | None = None, user: User = Depends(authenticate)):
 
     params = [user.is_super_user(), user.visible_users(), repo, branch, workflow, str(start_date), str(end_date)]
