@@ -1338,8 +1338,11 @@ $(document).ready( () => {
         fetchAndFillAIData(run_id);
         fetchAndFillWarnings(run_id);
         fetchAndFillRunData(run_id).then((run_data) => {
-            // optimizations are opt-in. Only fetch them if the run was started with --optimizations
-            if (run_data?.runner_arguments?.optimizations === true) {
+            // optimizations are opt-in. Only fetch them if the run was started with --optimizations.
+            // Legacy runs (pre opt-in) have no `optimizations` key. For them we fetch unless skip_optimizations was set.
+            const runner_arguments = run_data?.runner_arguments;
+            if (runner_arguments?.optimizations === true
+                || (runner_arguments?.optimizations === undefined && runner_arguments?.skip_optimizations !== true)) {
                 fetchAndFillOptimizationsData(run_id);
             } else {
                 document.querySelector('#optimizationsContainer').insertAdjacentHTML('beforeend', '<div class="ui info message">Optimizations were not enabled for this run. Use <code>--optimizations</code> in the CLI or activate them in your user settings to get them.</div>');
