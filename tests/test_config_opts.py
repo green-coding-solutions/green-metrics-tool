@@ -25,7 +25,7 @@ QUICK_OPTIONS= {
     'skip_volume_inspect': False,
     'skip_download_dependencies': False,
     'skip_unsafe': False,
-    'skip_optimizations': False,
+    'optimizations': False,
 }
 
 def test_global_timeout():
