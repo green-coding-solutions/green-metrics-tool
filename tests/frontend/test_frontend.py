@@ -245,7 +245,7 @@ class TestFrontendFunctionality:
         assert time_avg_all_steps.strip() == '12.80 s (± 3.49%)'
 
         cpu_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(4)").text_content()
-        assert cpu_avg_all_steps.strip() == '44.73% (± 10.65%%)'
+        assert cpu_avg_all_steps.strip() == '44.73% (± 10.65%)'
 
         grid_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(5)").text_content()
         assert grid_all_steps.strip() == '494.20 gCO2/kWh (± 5.47%)'
@@ -269,7 +269,7 @@ class TestFrontendFunctionality:
         assert time_avg_single.strip() == '10.00 s (± 0.00%)'
 
         cpu_avg_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(4)").text_content()
-        assert cpu_avg_single.strip() == '49.60% (± 5.06%%)'
+        assert cpu_avg_single.strip() == '49.60% (± 5.06%)'
 
         grid_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(5)").text_content()
         assert grid_single.strip() == '494.20 gCO2/kWh (± 5.47%)'
@@ -295,20 +295,16 @@ class TestFrontendFunctionality:
 
         page.wait_for_load_state("load")
 
-        energy_avg_all_steps = page.locator(
-            "#label-stats-table-avg > tr:nth-child(1) > td:nth-child(2)"
-        ).text_content()
-        assert energy_avg_all_steps.strip() == '78.00 J (± 0.00%)'
+        # Row 1 is the whole pipeline. All measurements belong to one run, so no deviation is known and none is shown
+        # Columns: energy, time, cpu, grid intensity, (operational, embodied, total carbon are asserted per version), count
+        assert self.ci_stats_avg_row(1, [2, 3, 4, 5, 8, 9]) == ['78.00 J', '0.11 s', '50.00%', '100.00 gCO2/kWh', '0.9704 gCO2e', '1']
 
-        total_carbon_all_steps = page.locator(
-            "#label-stats-table-avg > tr:nth-child(1) > td:nth-child(8)"
-        ).text_content()
-        assert total_carbon_all_steps.strip() == '0.9704 gCO2e (± 0.00%)'
+        # Row 2 is the step with its three measurements. Energy varies (13, 26, 39 J), the other values are constant,
+        # so a genuine 0% deviation must still be shown
+        assert self.ci_stats_avg_row(2, [2, 3, 4, 5, 8, 9]) == ['26.00 J (± 50.00%)', '0.04 s (± 0.00%)', '50.00% (± 0.00%)', '100.00 gCO2/kWh (± 0.00%)', '0.3235 gCO2e (± 0.00%)', '3']
 
-        carbon_all_steps = page.locator(
-            "#label-stats-table-avg > tr:nth-child(1) > td:nth-child(3)"
-        ).text_content()
-        assert carbon_all_steps.strip() == '0.11 s (± 0.00%)'
+    def ci_stats_avg_row(self, row, columns):
+        return [page.locator(f"#label-stats-table-avg > tr:nth-child({row}) > td:nth-child({column})").text_content().strip() for column in columns]
 
     def test_eco_ci_adding_data_v3(self):
         for index in range(1, 4):
@@ -339,10 +335,9 @@ class TestFrontendFunctionality:
         self.open_and_assert_ci_stats()
 
         # v3 carbon_ug is split up: operational = energy * intensity (361 + 722 + 1083 ug), embodied is the remainder
-        operational_carbon = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)").text_content()
-        assert operational_carbon.strip() == '0.0022 gCO2e (± 0.00%)'
-        embodied_carbon = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(7)").text_content()
-        assert embodied_carbon.strip() == '0.9682 gCO2e (± 0.00%)'
+        assert self.ci_stats_avg_row(1, [6, 7]) == ['0.0022 gCO2e', '0.9682 gCO2e']
+        # so both parts vary per measurement, while their total (carbon_ug) is constant
+        assert self.ci_stats_avg_row(2, [6, 7]) == ['0.0007 gCO2e (± 50.00%)', '0.3227 gCO2e (± 0.11%)']
 
 
     def test_eco_ci_adding_data_v4(self):
@@ -374,10 +369,8 @@ class TestFrontendFunctionality:
             assert response.status_code == 202, Tests.assertion_info('success', response.text)
         self.open_and_assert_ci_stats()
 
-        operational_carbon = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)").text_content()
-        assert operational_carbon.strip() == '0.90 gCO2e (± 0.00%)'
-        embodied_carbon = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(7)").text_content()
-        assert embodied_carbon.strip() == '0.0704 gCO2e (± 0.00%)'
+        assert self.ci_stats_avg_row(1, [6, 7]) == ['0.90 gCO2e', '0.0704 gCO2e']
+        assert self.ci_stats_avg_row(2, [6, 7]) == ['0.30 gCO2e (± 0.00%)', '0.0235 gCO2e (± 0.00%)']
 
 
     def test_stats(self):

@@ -45,15 +45,10 @@ const getEChartsOptions = () => {
 }
 
 
-// Total carbon is computed by the API from its parts. It is NULL if one part is missing
-const formatCarbonUg = (value_ug, stddev_percent = undefined) => {
-    if (value_ug == null) return '--';
-    const formatted = `${numberFormatterLong.format(value_ug/1000000)} gCO2e`;
-    return (stddev_percent === undefined) ? formatted : `${formatted} (± ${numberFormatter.format(stddev_percent)}%)`;
-}
-
-// Exact value in g for the tooltip of a table cell
-const carbonTitle = (value_ug) => (value_ug == null) ? 'data missing' : value_ug/1000000;
+// NULL means unknown and is never shown as 0: no value is '--', no deviation (e.g. a single run) shows no ±
+const formatStat = (value, unit, stddev = null, formatter = numberFormatter) => (value == null) ? '--' : `${formatter.format(value)}${unit}${(stddev == null) ? '' : ` (± ${numberFormatter.format(stddev)}%)`}`;
+const formatCarbonUg = (ug, stddev = null) => formatStat((ug == null) ? null : ug/1000000, ' gCO2e', stddev, numberFormatterLong);
+const carbonTitle = (ug) => (ug == null) ? 'data missing' : ug/1000000; // exact value in g for cell tooltips
 
 const getChartOptions = (measurements) => {
     const options = getEChartsOptions();
@@ -147,10 +142,10 @@ const displayStatsTable = (stats) => {
     const full_run_stats_avg_node = document.createElement("tr")
     full_run_stats_avg_node.innerHTML += `
                             <td class="bold td-index" data-tooltip="Averages for whole run" data-position="top left">Total run <i class="question circle icon small"></i> </td>
-                            <td class="bold td-index">${numberFormatter.format(stats.totals[0]/1000000)} J (± ${numberFormatter.format(stats.totals[3])}%)</td>
-                            <td class="bold td-index">${numberFormatter.format(stats.totals[4]/1000000)} s (± ${numberFormatter.format(stats.totals[7])}%)</td>
-                            <td class="bold td-index">${numberFormatter.format(stats.totals[8])}% (± ${numberFormatter.format(stats.totals[11])}%%)</td>
-                            <td class="bold td-index">${numberFormatter.format(stats.totals[12])} gCO2/kWh (± ${numberFormatter.format(stats.totals[15])}%)</td>
+                            <td class="bold td-index">${formatStat(stats.totals[0]/1000000, ' J', stats.totals[3])}</td>
+                            <td class="bold td-index">${formatStat(stats.totals[4]/1000000, ' s', stats.totals[7])}</td>
+                            <td class="bold td-index">${formatStat(stats.totals[8], '%', stats.totals[11])}</td>
+                            <td class="bold td-index">${formatStat(stats.totals[12], ' gCO2/kWh', stats.totals[15])}</td>
                             <td class="bold td-index">${formatCarbonUg(stats.totals[16], stats.totals[19])}</td>
                             <td class="bold td-index">${formatCarbonUg(stats.totals[20], stats.totals[23])}</td>
                             <td class="bold td-index">${formatCarbonUg(stats.totals[24], stats.totals[27])}</td>
@@ -161,8 +156,8 @@ const displayStatsTable = (stats) => {
     const full_run_stats_total_node = document.createElement("tr")
     full_run_stats_total_node.innerHTML += `
                             <td class="bold td-index" data-tooltip="Totals for whole run" data-position="top left">Per total run <i class="question circle icon small"></i> </td>
-                            <td class="bold td-index">${numberFormatter.format(stats.totals[1]/1000000)} J</td>
-                            <td class="bold td-index">${numberFormatter.format(stats.totals[5]/1000000)} s</td>
+                            <td class="bold td-index">${formatStat(stats.totals[1]/1000000, ' J')}</td>
+                            <td class="bold td-index">${formatStat(stats.totals[5]/1000000, ' s')}</td>
                             <td class="bold td-index">${formatCarbonUg(stats.totals[17])}</td>
                             <td class="bold td-index">${formatCarbonUg(stats.totals[21])}</td>
                             <td class="bold td-index">${formatCarbonUg(stats.totals[25])}</td>
@@ -174,10 +169,10 @@ const displayStatsTable = (stats) => {
         const label = row[29];
         label_stats_avg_node.innerHTML += `
                                         <td class="td-index" data-tooltip="Averages per step '${escapeString(label)}'"  data-position="top left">${escapeString(label)} <i class="question circle icon small"></i></td>
-                                        <td class=" td-index">${numberFormatter.format(row[0]/1000000)} J (± ${numberFormatter.format(row[3])}%)</td>
-                                        <td class=" td-index">${numberFormatter.format(row[4]/1000000)} s (± ${numberFormatter.format(row[7])}%)</td>
-                                        <td class=" td-index">${numberFormatter.format(row[8])}% (± ${numberFormatter.format(row[11])}%%)</td>
-                                        <td class=" td-index">${numberFormatter.format(row[12])} gCO2/kWh (± ${numberFormatter.format(row[15])}%)</td>
+                                        <td class=" td-index">${formatStat(row[0]/1000000, ' J', row[3])}</td>
+                                        <td class=" td-index">${formatStat(row[4]/1000000, ' s', row[7])}</td>
+                                        <td class=" td-index">${formatStat(row[8], '%', row[11])}</td>
+                                        <td class=" td-index">${formatStat(row[12], ' gCO2/kWh', row[15])}</td>
                                         <td class=" td-index">${formatCarbonUg(row[16], row[19])}</td>
                                         <td class=" td-index">${formatCarbonUg(row[20], row[23])}</td>
                                         <td class=" td-index">${formatCarbonUg(row[24], row[27])}</td>
@@ -188,8 +183,8 @@ const displayStatsTable = (stats) => {
         const label_stats_total_node = document.createElement("tr")
         label_stats_total_node.innerHTML += `
                                         <td class="td-index" data-tooltip="Totals per step '${escapeString(label)}'"  data-position="top left">${escapeString(label)} <i class="question circle icon small"></i></td>
-                                        <td class=" td-index">${numberFormatter.format(row[1]/1000000)} J</td>
-                                        <td class=" td-index">${numberFormatter.format(row[5]/1000000)} s</td>
+                                        <td class=" td-index">${formatStat(row[1]/1000000, ' J')}</td>
+                                        <td class=" td-index">${formatStat(row[5]/1000000, ' s')}</td>
                                         <td class=" td-index">${formatCarbonUg(row[17])}</td>
                                         <td class=" td-index">${formatCarbonUg(row[21])}</td>
                                         <td class=" td-index">${formatCarbonUg(row[25])}</td>
