@@ -7,7 +7,7 @@ services:
   my-service:
     container_name: 8zhfiuw:-3tjfuehuis
     image: alpine
-    entrypoint: tail -f /dev/null
+    entrypoint: sleep infinity
 
 flow:
   - name: Small-Stress

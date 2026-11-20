@@ -6,13 +6,13 @@ description: test
 services:
   test-service-1:
     image: alpine
-    entrypoint: tail -f /dev/null
+    entrypoint: sleep infinity
     depends_on:
       - test-service-2
   test-service-2:
     container_name: test-service-2-container-name
     image: alpine
-    entrypoint: tail -f /dev/null
+    entrypoint: sleep infinity
 
 flow:
   - name: dummy

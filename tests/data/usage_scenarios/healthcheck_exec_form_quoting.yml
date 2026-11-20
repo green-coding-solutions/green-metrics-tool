@@ -6,7 +6,7 @@ description: Exec form (CMD) healthcheck whose arguments contain spaces, quotes 
 services:
   test-container-1:
     image: alpine
-    entrypoint: tail -f /dev/null
+    entrypoint: sleep infinity
     depends_on:
       test-container-2:
         condition: service_healthy
@@ -15,8 +15,9 @@ services:
       context: ../slow-start-application
     healthcheck:
       # Each list element must reach the container as exactly one argument.
-      # Naively joining with spaces would run `sh -c pgrep tail` and never become healthy
-      test: ["CMD", "sh", "-c", "pgrep 'tail' > /dev/null; exit $?"]
+      # Naively joining with spaces would run `sh -c pgrep -f ...` and never become healthy
+      # [i] avoids matching the startup 'sleep 7' and the healthcheck's own shell
+      test: ["CMD", "sh", "-c", "pgrep -f 'sleep [i]nfinity' > /dev/null; exit $?"]
       start_interval: 1s
       start_period: 10s
 
