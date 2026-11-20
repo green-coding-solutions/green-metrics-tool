@@ -18,7 +18,6 @@
 static int user_id = -1;
 static long int user_hz;
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 static unsigned int min_msleep_time_ms = 0;
 
 static long int read_cpu_proc(char* path, int mode) {
@@ -87,7 +86,7 @@ static void output_stats(container_t* containers, int length) {
     int i;
 
     // Get Energy Readings, set timestamp mark
-    get_adjusted_time(&now, &offset);
+    get_time(&now);
 
     for(i=0; i<length; i++) {
         //printf("Looking at %s ", containers[i].path);
@@ -204,8 +203,6 @@ int main(int argc, char **argv) {
     }
 
     validate_min_sleep_time(msleep_time, min_msleep_time_ms);
-
-    get_time_offset(&offset);
 
     int length = parse_containers("cpu.stat", user_id, &containers, containers_string, false);
 

@@ -1,8 +1,12 @@
 import os
-from functools import lru_cache
 
 from metric_providers.base import BaseMetricProvider
 from metric_providers.disk.io.disk_io_parse import DiskIoParseMixin
+
+# /proc/diskstats always reports sectors in 512-byte units, regardless of the
+# device's hw_sector_size / logical_block_size.
+# See https://www.kernel.org/doc/Documentation/admin-guide/iostats.rst
+DISKSTATS_SECTOR_SIZE = 512
 
 class DiskIoProcfsSystemProvider(BaseMetricProvider, DiskIoParseMixin):
     def __init__(self, sampling_rate, folder, skip_check=False):
@@ -21,17 +25,8 @@ class DiskIoProcfsSystemProvider(BaseMetricProvider, DiskIoParseMixin):
     def _parse_metrics(self, df):
         df = super()._parse_metrics(df)
 
-        df['blocksize'] = df['device'].apply(self.get_blocksize)
-        df['read_bytes'] = df['read_sectors']*df['blocksize']
-        df['written_bytes'] = df['written_sectors']*df['blocksize']
+        df['read_bytes'] = df['read_sectors']*DISKSTATS_SECTOR_SIZE
+        df['written_bytes'] = df['written_sectors']*DISKSTATS_SECTOR_SIZE
         df['detail_name'] = df['device']
 
         return self._parse_metrics_splitup_helper(df)
-
-    @lru_cache(maxsize=100)
-    def get_blocksize(self, device_name):
-        device_path = f"/sys/block/{device_name}/queue/hw_sector_size"
-        with open(device_path, "r", encoding='utf-8') as fd:
-            sector_size = int(fd.read().strip())
-
-        return sector_size

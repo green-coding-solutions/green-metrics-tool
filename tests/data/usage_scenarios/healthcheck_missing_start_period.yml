@@ -6,7 +6,7 @@ description: test
 services:
   test-container-1:
     image: alpine
-    entrypoint: tail -f /dev/null
+    entrypoint: sleep infinity
     depends_on:
       test-container-2:
         condition: service_healthy
@@ -14,7 +14,7 @@ services:
     build:
       context: ../slow-start-application
     healthcheck:
-      test: pgrep 'tail'
+      test: pgrep -f 'sleep [i]nfinity' # [i] avoids matching the startup 'sleep 7' and the healthcheck's own shell
       start_interval: 1s
       interval: 1h # should not influence the measurement
 

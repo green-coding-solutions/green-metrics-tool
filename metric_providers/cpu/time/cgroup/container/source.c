@@ -18,7 +18,6 @@
 static int user_id = -1;
 static long int user_hz;
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 
 static long int read_cpu_cgroup(char* path, char* container_name) {
     long int cpu_usage = -1;
@@ -39,7 +38,7 @@ static long int read_cpu_cgroup(char* path, char* container_name) {
 
 static void output_stats(container_t *containers, int length) {
     struct timeval now;
-    get_adjusted_time(&now, &offset);
+    get_time(&now);
 
     for(int i=0; i<length; i++) {
         printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, read_cpu_cgroup(containers[i].path, containers[i].name), containers[i].id);
@@ -113,8 +112,6 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_path("/sys/fs/cgroup/cpu.stat"));
     }
-
-    get_time_offset(&offset);
 
     int length = parse_containers("cpu.stat", user_id, &containers, containers_string, false);
 

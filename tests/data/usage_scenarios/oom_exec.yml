@@ -6,7 +6,7 @@ description: Functional Test
 services:
   test-container:
     image: ubuntu
-    entrypoint: ["tail", "-f", "/dev/null"]
+    entrypoint: ["sleep", "infinity"]
     mem_limit: 10MB
 
 flow:

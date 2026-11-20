@@ -18,7 +18,6 @@
 // in any case, none of these variables should change between threads
 static int user_id = -1;
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 
 static long long int get_memory_cgroup(char* path, char* container_name) {
     long long int active_file = -1;
@@ -99,7 +98,7 @@ static void output_stats(container_t *containers, int length) {
     struct timeval now;
     int i;
 
-    get_adjusted_time(&now, &offset);
+    get_time(&now);
 
     for(i=0; i<length; i++) {
         printf("%ld%06ld %lld %s\n", now.tv_sec, now.tv_usec, get_memory_cgroup(containers[i].path, containers[i].name), containers[i].id);
@@ -162,8 +161,6 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_path("/sys/fs/cgroup/memory.stat"));
     }
-
-    get_time_offset(&offset);
 
     int length = parse_containers("memory.stat", user_id, &containers, containers_string, false);
 
