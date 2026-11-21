@@ -17,6 +17,10 @@ router = APIRouter()
 async def add_carbondb_deprecated():
     return Response("This endpoint is not supported anymore. Please migrate to /v3/carbondb/add !", status_code=410)
 
+@router.post('/v2/carbondb/add')
+async def add_carbondb_v2_deprecated():
+    return Response("This endpoint is not supported anymore. Carbon is now split into operational and embodied carbon, and embodied carbon is mandatory. Please migrate to /v3/carbondb/add !", status_code=410)
+
 @router.post('/v3/carbondb/add')
 async def add_carbondb(
     request: Request,

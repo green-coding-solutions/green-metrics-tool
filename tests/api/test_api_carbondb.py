@@ -139,9 +139,32 @@ def test_carbondb_add_embodied_carbon_required():
     assert response.status_code == 422, Tests.assertion_info('422', response.text)
     assert json.loads(response.text)['err'][0]['loc'] == ['body', 'embodied_carbon_ug']
 
-def test_carbondb_removed_v2_endpoint():
+def test_carbondb_add_negative_embodied_carbon():
+
+    energydata_modified = ENERGY_DATA.copy()
+    energydata_modified['embodied_carbon_ug'] = -1
+
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
+    assert response.status_code == 422, Tests.assertion_info('422', response.text)
+    assert json.loads(response.text)['err'][0]['type'] == 'greater_than_equal'
+    assert json.loads(response.text)['err'][0]['loc'] == ['body', 'embodied_carbon_ug']
+
+def test_carbondb_add_negative_operational_carbon():
+    # operational carbon may be negative, e.g. when the energy was offset by own renewable production
+
+    energydata_modified = ENERGY_DATA.copy()
+    energydata_modified['operational_carbon_ug'] = -5678
+
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    data = DB().fetch_one('SELECT operational_carbon_kg FROM carbondb_data_raw', fetch_mode='dict')
+    assert math.isclose(data['operational_carbon_kg'], -5678 / 1e9, rel_tol=1e-9)
+
+def test_carbondb_deprecated_v2_endpoint():
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15)
-    assert response.status_code == 404, Tests.assertion_info('404', response.text)
+    assert response.status_code == 410, Tests.assertion_info('410', response.text)
+    assert '/v3/carbondb/add' in response.text
 
 
 def test_carbondb_missing_values():
