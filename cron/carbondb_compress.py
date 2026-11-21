@@ -60,6 +60,11 @@ def compress_carbondb_raw(copy_over_lookback_limit):
 
     # Query contains multiple statements, which psycopg cannot run with server-side bound params. Thus values are inlined
     query = f'''
+        -- Serialize concurrent compress runs (cron and tools/rebuild_carbondb.py). Must come before the snapshot below, as otherwise
+        -- an earlier run with an older snapshot could commit after a later run and overwrite newer aggregates with stale values.
+        -- Lock is released automatically on COMMIT / ROLLBACK as the whole query runs in one transaction
+        SELECT pg_advisory_xact_lock(hashtext('carbondb_compress'));
+
         DROP TABLE IF EXISTS carbondb_data_raw_tmp;
 
         -- Only the columns needed for compression. Rows are never updated in place, as every UPDATE would write
