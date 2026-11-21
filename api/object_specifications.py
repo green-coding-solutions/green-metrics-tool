@@ -1,3 +1,6 @@
+import json
+import uuid
+
 from typing import List, Optional, Dict, Literal, Union
 
 from enum import Enum
@@ -58,9 +61,45 @@ class Software(BaseModel):
     schedule_mode: str
     usage_scenario_variables: Optional[Dict[str, str]] = None
     category_ids: Optional[List[int]] = None
-    carbon_simulation: Optional[Union[int, str, List[int]]] = None
+    carbon_simulation: Optional[Union[List[StrictInt], str]] = None
 
     model_config = ConfigDict(extra='forbid')
+
+    # mode='before' so that we see the raw input. Otherwise pydantic lax mode would coerce true -> 1 or 1.0 -> 1
+    # Normalizes to None | list[int] | str (UUID)
+    @field_validator('carbon_simulation', mode='before')
+    @classmethod
+    def parse_carbon_simulation(cls, value):
+        if value is None:
+            return None
+
+        if isinstance(value, bool):
+            raise ValueError('Carbon simulation must be an integer, list of integers, or UUID string')
+
+        if isinstance(value, int):
+            return [value]
+
+        if isinstance(value, list):
+            if all(isinstance(item, int) and not isinstance(item, bool) for item in value):
+                return value
+            raise ValueError('Carbon simulation list must contain only integers')
+
+        if isinstance(value, str):
+            value = value.strip()
+            if value == '':
+                return None
+
+            try:
+                parsed_value = json.loads(value)
+            except json.JSONDecodeError:
+                try:
+                    return str(uuid.UUID(value))
+                except ValueError as exc:
+                    raise ValueError('Carbon simulation must be an integer, list of integers, or UUID string') from exc
+
+            return cls.parse_carbon_simulation(parsed_value)
+
+        raise ValueError('Carbon simulation must be an integer, list of integers, or UUID string')
 
 ### User Settings Update
 
