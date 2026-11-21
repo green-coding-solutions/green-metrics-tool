@@ -22,7 +22,7 @@ from lib.user import User
 from lib.db import DB
 from lib.secure_variable import SecureVariable
 
-from api.object_specifications import UserSetting, SystemLogDelete
+from api.object_specifications import UserSetting, SystemLogDelete, ClusterService
 
 app = FastAPI()
 
@@ -168,17 +168,36 @@ async def update_user_setting(setting: UserSetting, user: User = Depends(authent
 
 @app.get('/v1/cluster/status')
 async def get_cluster_status(
+    machine_id: int | None = None,
+    service: ClusterService | None = None,
     # Endpoint without user restriction on DB. But authenticate() must be present to check if route is allowed in general
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
-    query = '''
-        SELECT id, message, resolved, created_at
+
+    params = []
+    machine_id_condition = ''
+    service_condition = ''
+
+    # if no machine / service is listed in the entry it means it affects ALL machines / services. Thus we include NULL
+    if machine_id is not None:
+        machine_id_condition = 'AND (machine_id = %s OR machine_id IS NULL)'
+        params.append(machine_id)
+
+    if service is not None:
+        service_condition = 'AND (service = %s OR service IS NULL)'
+        params.append(service.value)
+
+    query = f'''
+        SELECT id, message, resolved, created_at, machine_id, service
         FROM cluster_status_messages
-        WHERE resolved = false
+        WHERE
+            resolved = false
+            {machine_id_condition}
+            {service_condition}
         ORDER BY created_at ASC
     '''
 
-    data = DB().fetch_all(query)
+    data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
         return Response(status_code=204)  # No-Content

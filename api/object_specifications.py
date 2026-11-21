@@ -5,6 +5,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
 
 ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE', 'SOFTWARE'])
 
+# Must be kept in sync with the cluster_service ENUM in docker/tables.sql
+class ClusterService(str, Enum):
+    CARBONDB = 'CarbonDB'
+    ECO_CI = 'Eco CI'
+    SCENARIO_RUNNER = 'ScenarioRunner'
+    POWER_HOG = 'Power HOG'
+
 ### Run
 class RunChange(BaseModel):
     archived: Optional[bool] = None
