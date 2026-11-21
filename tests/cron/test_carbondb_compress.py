@@ -12,7 +12,7 @@ from tests import test_functions as Tests
 from cron import backfill_carbon_intensity
 from cron import backfill_geo
 from cron.carbondb_compress import compress_carbondb_raw
-from cron.carbondb_copy_over_and_remove_duplicates import copy_over_scenario_runner, copy_over_eco_ci, remove_duplicates, evaluate_config
+from cron.carbondb_copy_over_and_remove_duplicates import copy_over_scenario_runner, copy_over_eco_ci, copy_over_power_hog, remove_duplicates, evaluate_config
 
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
@@ -432,3 +432,25 @@ def test_eco_ci_operational_carbon_backfill_keeps_embodied():
     data = DB().fetch_one('SELECT operational_carbon_kg_sum, embodied_carbon_kg_sum, carbon_intensity_g_avg FROM carbondb_data WHERE date = CURRENT_DATE AND user_id = 1', fetch_mode='dict')
     assert math.isclose(data['operational_carbon_kg_sum'], round(eco_ci_data['energy_uj'] * 100 / 3_600_000) / FROM_UG_TO_KG, abs_tol=1e-12)
     assert math.isclose(data['embodied_carbon_kg_sum'], 2000 / FROM_UG_TO_KG, abs_tol=1e-12)
+
+def test_power_hog_copy_over_is_keyed_on_measurement():
+    DB().query('''
+        INSERT INTO hog_simplified_measurements (user_id, machine_uuid, timestamp, combined_energy_uj, operational_carbon_ug, embodied_carbon_ug, carbon_intensity_g, ip_address)
+        VALUES
+            (1, '00000000-0000-0000-0000-000000000001', (EXTRACT(EPOCH FROM NOW()) * 1e3)::bigint, 3600000000, 1000, 500, 100, '127.0.0.1'),
+            (1, '00000000-0000-0000-0000-000000000001', (EXTRACT(EPOCH FROM NOW()) * 1e3)::bigint + 1000, 3600000000, NULL, 500, NULL, '127.0.0.1') -- not yet backfilled
+    ''')
+
+    copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
+    copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
+
+    data = DB().fetch_all("SELECT hog_measurement_id FROM carbondb_data_raw WHERE source = 'Power HOG' ORDER BY hog_measurement_id")
+    hog_ids = DB().fetch_all('SELECT id FROM hog_simplified_measurements ORDER BY id')
+    assert data == hog_ids, 'Second copy over inserted already copied Power HOG measurements again'
+
+    # backfill of the source row must not lead to a second row in carbondb_data_raw
+    DB().query('UPDATE hog_simplified_measurements SET carbon_intensity_g = 100')
+    backfill_carbon_intensity.update_power_hog_carbon()
+    copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
+
+    assert DB().fetch_one("SELECT COUNT(id) FROM carbondb_data_raw WHERE source = 'Power HOG'")[0] == 2

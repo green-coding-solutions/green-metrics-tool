@@ -33,7 +33,7 @@ def evaluate_config():
 def copy_over_power_hog(copy_over_lookback_limit):
     query = '''
         INSERT INTO carbondb_data_raw
-            ("type", "project", "machine", "source", "tags","time","energy_kwh","operational_carbon_kg","embodied_carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+            ("type", "project", "machine", "source", "tags","time","energy_kwh","operational_carbon_kg","embodied_carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","hog_measurement_id","created_at")
 
             SELECT
                 'machine.desktop',
@@ -50,11 +50,17 @@ def copy_over_power_hog(copy_over_lookback_limit):
                 longitude,
                 ip_address,
                 user_id,
+                id,
                 NOW()
             FROM hog_simplified_measurements
             -- filter on the measurement timestamp and not on created_at, as Power HOG data may arrive up to the merge window late.
             -- This aligns the copy over with remove_duplicates and compress, which both filter on carbondb_data_raw.time
-            WHERE %s OR "timestamp" > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e3 -- timestamp is in milliseconds
+            -- The right side must be cast to bigint. EXTRACT returns numeric, which would cast the column instead and prevent index usage
+            WHERE %s OR "timestamp" > (EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e3)::bigint -- timestamp is in milliseconds
+            -- rows are keyed on their source row, so already copied measurements are skipped instead of being inserted again on every run
+            -- and then deleted by remove_duplicates. DO NOTHING instead of DO UPDATE, as operational_carbon_kg of a row copied before its
+            -- backfill is filled on carbondb_data_raw itself by backfill_carbon_intensity.py
+            ON CONFLICT (hog_measurement_id) DO NOTHING
     '''
 
     DB().query(query, params=(copy_over_lookback_limit is None, copy_over_lookback_limit))
@@ -179,7 +185,7 @@ def remove_duplicates(cleanup_lookback_limit):
             AND a.embodied_carbon_kg = b.embodied_carbon_kg
             AND a.user_id = b.user_id
             AND a.run_id IS NOT DISTINCT FROM b.run_id -- rows of different ScenarioRunner runs are never duplicates. Same run cannot occur twice due to unique index
-            AND (%s OR a.time > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e6) -- Time filter must be starting from midnight and not include elapsed minutes in the day to work with copy over which cuts off time info
+            AND (%s OR a.time > (EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e6)::bigint) -- bigint cast keeps the index usable. Time filter must be starting from midnight and not include elapsed minutes in the day to work with copy over which cuts off time info
     ''', params=(cleanup_lookback_limit is None, cleanup_lookback_limit))
 
 

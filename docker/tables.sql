@@ -263,6 +263,7 @@ CREATE TABLE ci_measurements (
     updated_at timestamp with time zone
 );
 CREATE INDEX "ci_measurements_subselect" ON ci_measurements(repo, branch, workflow_id, created_at);
+CREATE INDEX ci_measurements_created_at ON ci_measurements(created_at); -- copy over to CarbonDB filters on created_at only
 
 CREATE INDEX ci_measurements_missing_lon ON ci_measurements (created_at)
     WHERE longitude IS NULL AND carbon_intensity_g IS NULL; -- partial index only for backfill geo
@@ -447,11 +448,13 @@ CREATE TABLE carbondb_data_raw (
     ip_address INET,
     user_id int NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     run_id uuid, -- only set for ScenarioRunner. No FK as data must persist in CarbonDB when runs are deleted
+    hog_measurement_id bigint, -- only set for Power HOG. No FK as data must persist in CarbonDB when measurements are deleted
     created_at timestamp with time zone NOT NULL DEFAULT now(),
     updated_at timestamp with time zone
 );
 
 CREATE UNIQUE INDEX carbondb_data_raw_run_id_unique ON carbondb_data_raw (run_id); -- NULLs are distinct, so only ScenarioRunner rows are constrained
+CREATE UNIQUE INDEX carbondb_data_raw_hog_measurement_id_unique ON carbondb_data_raw (hog_measurement_id); -- NULLs are distinct, so only Power HOG rows are constrained
 CREATE INDEX carbondb_data_raw_time_type_user_idx ON carbondb_data_raw (time, type, user_id);
 CREATE INDEX "carbondb_data_raw_backfill_geo" ON "carbondb_data_raw"("latitude","longitude","carbon_intensity_g","created_at");
 

@@ -28,7 +28,8 @@ def compress_carbondb_raw(copy_over_lookback_limit):
     if copy_over_lookback_limit is None:
         time_filter = 'TRUE'
     else:
-        time_filter = f"time > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => {int(copy_over_lookback_limit)}))::date::timestamp))*1e6"
+        # The right side must be cast to bigint. EXTRACT returns numeric, which would cast the column instead and prevent index usage
+        time_filter = f"time > (EXTRACT(EPOCH FROM ((NOW() - make_interval(days => {int(copy_over_lookback_limit)}))::date::timestamp))*1e6)::bigint"
 
     # The lookup tables only need entries for values that end up in carbondb_data. Older rows were already compressed
     # in earlier runs and thus already have their lookup entries. So we only build them from the temp table instead of

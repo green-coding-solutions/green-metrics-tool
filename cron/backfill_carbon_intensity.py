@@ -29,10 +29,11 @@ TIME_COLUMNS = {
 
 # Limits the rows to what CarbonDB and Power HOG still accept. This is on the time of the measurement and not on created_at, as late
 # data would otherwise be repaired after carbondb_compress.py stopped looking at it. Uses the plain columns so that indexes can be used.
+# The bigint columns must be compared against bigint. EXTRACT returns numeric, which would cast the column instead and prevent index usage.
 LOOKBACK_FILTERS = {
     'ci_measurements': 'from_table.created_at > NOW() - make_interval(days => %s)',
-    'hog_simplified_measurements': 'from_table."timestamp" > EXTRACT(EPOCH FROM NOW() - make_interval(days => %s)) * 1e3', # milliseconds
-    'carbondb_data_raw': 'from_table.time > EXTRACT(EPOCH FROM NOW() - make_interval(days => %s)) * 1e6', # microseconds
+    'hog_simplified_measurements': 'from_table."timestamp" > (EXTRACT(EPOCH FROM NOW() - make_interval(days => %s)) * 1e3)::bigint', # milliseconds
+    'carbondb_data_raw': 'from_table.time > (EXTRACT(EPOCH FROM NOW() - make_interval(days => %s)) * 1e6)::bigint', # microseconds
 }
 
 # Same data that the carbon simulation in the frontend uses (frontend/js/simulation-yearly.js)
