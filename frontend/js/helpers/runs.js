@@ -217,7 +217,7 @@ let repositories_sort_by = 'date';
 async function getRepositories(sort_by = 'date') {
     repositories_sort_by = sort_by;
     try {
-        var api_data = await makeAPICall(`/v1/repositories?${getFilterQueryStringFromURI()}&sort_by=${sort_by}`)
+        var api_data = await makeAPICall(`/v1/repositories?${getFilterQueryStringFromURI(false)}&sort_by=${sort_by}`)
     } catch (err) {
         if (err instanceof APIHTTPError && err.status === 204) { // no repositories match the filter. Clear previous result
             document.querySelector('#runs-and-repos-table tbody').innerHTML = '';
