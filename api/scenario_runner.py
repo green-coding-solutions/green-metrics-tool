@@ -33,6 +33,23 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 router = APIRouter()
 
+MAX_PAGE_LIMIT = 100 # maximum amount of rows that can be requested in one call for paginated list endpoints
+
+def check_offset_field_api(offset):
+    if not isinstance(offset, int) or offset < 0:
+        raise HTTPException(status_code=422, detail='offset must be integer >= 0')
+    return True
+
+def paginated_response(data, total, with_count):
+    if data is None or data == []:
+        if with_count and total: # offset is beyond the last page, but the filter in general matches rows
+            return CustomORJSONResponse({'success': True, 'data': [], 'total': total})
+        return Response(status_code=204) # No-Content
+
+    if with_count:
+        return CustomORJSONResponse({'success': True, 'data': data, 'total': total})
+    return CustomORJSONResponse({'success': True, 'data': data})
+
 def parse_usage_scenario_variables(request: Request, usage_scenario_variables: str | None = None) -> dict[str, str] | str | None:
     usage_scenario_variables_pairs = {}
 
@@ -303,6 +320,8 @@ async def get_repositories(
     machine: str | None = None,
     filename: str | None = None,
     sort_by: str = 'name',
+    show_archived: bool | None = None,
+    show_other_users: bool | None = None,
     user: User = Depends(authenticate),
     ):
 
@@ -313,10 +332,20 @@ async def get_repositories(
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
-                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
     '''
+    params = []
 
-    params = [user.is_super_user(), user.visible_users()]
+    # same visibility semantics as /v2/runs, so a repository is only listed if it has runs that /v2/runs would return
+    if show_other_users is False:
+        query = f"{query} r.user_id = %s  \n"
+        params.append(user._id)
+    else:
+        query = f"{query} (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE) \n"
+        params.append(user.is_super_user())
+        params.append(user.visible_users())
+
+    if show_archived is not True:
+        query = f"{query} AND r.archived = False \n"
 
     if uri:
         query = f"{query} AND r.uri LIKE %s  \n"
@@ -370,98 +399,136 @@ async def get_runs(
     failed: bool | None = None,
     show_archived: bool | None = None,
     show_other_users: bool | None = None,
-    limit: int | None = 50,
+    limit: int = 50,
+    offset: int = 0,
+    with_count: bool = False,
+    search: str | None = None,
+    order_by: str = 'created_at',
+    order_dir: str = 'desc',
     uri_mode = 'none',
     start_date: date | None = None,
     end_date: date | None = None,
     user: User = Depends(authenticate)
     ):
 
-    query = '''
-            SELECT r.id, r.name, r.uri, r.branch, r.created_at,
-            (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = r.id) as warnings,
-            r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id, r.relations
-            FROM runs as r
-            LEFT JOIN machines as m on r.machine_id = m.id
-            WHERE
-    '''
+    check_int_field_api(limit, 'limit', MAX_PAGE_LIMIT)
+    check_offset_field_api(offset)
+
+    order_columns = {
+        'created_at': 'r.created_at',
+        'name': 'r.name',
+        'uri': 'r.uri',
+        'branch': 'r.branch',
+        'filename': 'r.filename',
+        'machine': 'm.description',
+        'commit_hash': 'r.commit_hash',
+    }
+    if order_by not in order_columns:
+        raise HTTPException(status_code=422, detail=f"order_by must be one of {', '.join(order_columns)}")
+    if order_dir not in ('asc', 'desc'):
+        raise HTTPException(status_code=422, detail='order_dir must be asc or desc')
+
+    where = 'WHERE'
     params = []
 
     if show_other_users is False:
-        query = f"{query} r.user_id = %s  \n"
+        where = f"{where} r.user_id = %s  \n"
         params.append(user._id)
     else:
-        query = f"{query} (TRUE = %s OR r.user_id = ANY(%s::int[]) or r.public = TRUE) \n"
+        where = f"{where} (TRUE = %s OR r.user_id = ANY(%s::int[]) or r.public = TRUE) \n"
         params.append(user.is_super_user())
         params.append(user.visible_users())
 
     if name:
-        query = f"{query} AND r.name ILIKE %s  \n"
+        where = f"{where} AND r.name ILIKE %s  \n"
         params.append(f"%{name}%")
 
     if uri:
         if uri_mode == 'exact':
-            query = f"{query} AND r.uri = %s  \n"
+            where = f"{where} AND r.uri = %s  \n"
             params.append(uri)
         else:
-            query = f"{query} AND r.uri ILIKE %s  \n"
+            where = f"{where} AND r.uri ILIKE %s  \n"
             params.append(f"%{uri}%")
 
     if branch:
-        query = f"{query} AND r.branch ILIKE %s  \n"
+        where = f"{where} AND r.branch ILIKE %s  \n"
         params.append(f"%{branch}%")
 
     if filename:
-        query = f"{query} AND r.filename ILIKE %s  \n"
+        where = f"{where} AND r.filename ILIKE %s  \n"
         params.append(f"%{filename}%")
 
     if machine_id and check_int_field_api(machine_id, 'machine_id', 1024):
-        query = f"{query} AND m.id = %s \n"
+        where = f"{where} AND m.id = %s \n"
         params.append(machine_id)
 
     if machine:
-        query = f"{query} AND m.description ILIKE %s \n"
+        where = f"{where} AND m.description ILIKE %s \n"
         params.append(f"%{machine}%")
 
     if usage_scenario_variables:
         # This query cannot use an index because of the cast
         # at the moment the column has no index, so it must anyway be scanned.
         # But potential target for optimizations if schema changes
-        query = f"{query} AND r.usage_scenario_variables::text ILIKE %s \n"
+        where = f"{where} AND r.usage_scenario_variables::text ILIKE %s \n"
         params.append(f"%{usage_scenario_variables}%")
 
     if job_id:
-        query = f"{query} AND r.job_id = %s \n"
+        where = f"{where} AND r.job_id = %s \n"
         params.append(job_id)
 
     if failed is not None:
-        query = f"{query} AND r.failed = %s \n"
+        where = f"{where} AND r.failed = %s \n"
         params.append(bool(failed))
 
     if show_archived is not True:
-        query = f"{query} AND r.archived = False \n"
+        where = f"{where} AND r.archived = False \n"
 
     if start_date is not None:
-        query = f"{query} AND DATE(r.created_at) >= %s"
+        where = f"{where} AND DATE(r.created_at) >= %s"
         params.append(start_date)
 
     if end_date is not None:
-        query = f"{query} AND DATE(r.created_at) <= %s"
+        where = f"{where} AND DATE(r.created_at) <= %s"
         params.append(end_date)
 
-    query = f"{query} ORDER BY r.created_at DESC"
+    if search:
+        where = f"""{where} AND (
+                r.name ILIKE %s
+                OR r.uri ILIKE %s
+                OR r.branch ILIKE %s
+                OR r.filename ILIKE %s
+                OR r.commit_hash ILIKE %s
+                OR m.description ILIKE %s
+                OR r.usage_scenario_variables::text ILIKE %s
+            ) \n"""
+        params.extend([f"%{search}%"] * 7)
 
-    if limit is not None and limit != 0:
-        check_int_field_api(limit, 'limit', 50)
-        query = f"{query} LIMIT %s"
-        params.append(limit)
+    query = f'''
+            SELECT r.id, r.name, r.uri, r.branch, r.created_at,
+            (SELECT COUNT(id) FROM warnings as w WHERE w.run_id = r.id) as warnings,
+            r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id, r.relations
+            FROM runs as r
+            LEFT JOIN machines as m on r.machine_id = m.id
+            {where}
+            ORDER BY {order_columns[order_by]} {order_dir.upper()}, r.created_at DESC, r.id ASC
+            LIMIT %s OFFSET %s
+    '''
 
+    data = DB().fetch_all(query, params=[*params, limit, offset])
 
-    data = DB().fetch_all(query, params=params)
-    if data is None or data == []:
-        return Response(status_code=204) # No-Content
+    total = None
+    if with_count:
+        count_query = f'''
+            SELECT COUNT(*)
+            FROM runs as r
+            LEFT JOIN machines as m on r.machine_id = m.id
+            {where}
+        '''
+        total = DB().fetch_one(count_query, params=params)[0]
 
-    return CustomORJSONResponse({'success': True, 'data': data})
+    return paginated_response(data, total, with_count)
 
 # Just copy and paste if we want to deprecate URLs
 # @router.get('/v1/measurements/uri', deprecated=True) # Here you can see, that URL is nevertheless accessible as variable

@@ -70,6 +70,84 @@ def test_get_runs_created_after_filter():
     assert len(response_filtered.json()['data']) == 1
 
 
+def test_get_runs_pagination():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v2/runs?limit=3&with_count=true", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    first_page = response.json()
+    assert len(first_page['data']) == 3
+    assert first_page['total'] == 8
+
+    response = requests.get(f"{API_URL}/v2/runs?limit=3&offset=3&with_count=true", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    second_page = response.json()
+    assert len(second_page['data']) == 3
+    assert second_page['total'] == 8
+    assert not {row[0] for row in first_page['data']} & {row[0] for row in second_page['data']}
+
+    response = requests.get(f"{API_URL}/v2/runs?limit=3&offset=6", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert len(response.json()['data']) == 2
+    assert 'total' not in response.json()
+
+    # offset beyond the last page still returns the total for paginated tables
+    response = requests.get(f"{API_URL}/v2/runs?limit=3&offset=30&with_count=true", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.json()['data'] == []
+    assert response.json()['total'] == 8
+
+def test_get_runs_limit_bounds():
+    response = requests.get(f"{API_URL}/v2/runs?limit=100", timeout=15)
+    assert response.status_code in (200, 204), Tests.assertion_info('success', response.text)
+
+    for invalid in ('limit=101', 'limit=0', 'offset=-1', 'order_by=r.id', 'order_dir=sideways'):
+        response = requests.get(f"{API_URL}/v2/runs?{invalid}", timeout=15)
+        assert response.status_code == 422, Tests.assertion_info(f"422 for {invalid}", response.text)
+
+def test_get_runs_order_and_search():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v2/runs?order_by=name&order_dir=asc&limit=100", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    names = [row[1] for row in response.json()['data']]
+    assert names == sorted(names)
+
+    name = names[0]
+    response = requests.get(f"{API_URL}/v2/runs?search={name}&with_count=true", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.json()['total'] >= 1
+    assert all(name.lower() in json.dumps(row).lower() for row in response.json()['data'])
+
+def test_get_repositories_respects_show_archived():
+    uri = f"/tmp/archived-repo-{utils.randomword(12)}"
+    DB().query("INSERT INTO runs (name,uri,branch,filename,created_at,user_id,machine_id,archived) \
+                    VALUES ('archived_run',%s,'testing','testing',NOW(),1,1,TRUE)", params=(uri, ))
+
+    for query_string in ('', '?show_archived=false'):
+        response = requests.get(f"{API_URL}/v1/repositories{query_string}", timeout=15)
+        assert response.status_code in (200, 204), Tests.assertion_info('success', response.text)
+        if response.status_code == 200:
+            assert uri not in [row[0] for row in response.json()['data']]
+
+    response = requests.get(f"{API_URL}/v1/repositories?show_archived=true", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert uri in [row[0] for row in response.json()['data']]
+
+def test_get_repositories_respects_show_other_users():
+    uri = f"/tmp/other-user-repo-{utils.randomword(12)}"
+    DB().query("INSERT INTO runs (name,uri,branch,filename,created_at,user_id,machine_id,public) \
+                    VALUES ('other_user_run',%s,'testing','testing',NOW(),0,1,TRUE)", params=(uri, ))
+
+    response = requests.get(f"{API_URL}/v1/repositories?show_other_users=true", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert uri in [row[0] for row in response.json()['data']]
+
+    response = requests.get(f"{API_URL}/v1/repositories?show_other_users=false", timeout=15)
+    assert response.status_code in (200, 204), Tests.assertion_info('success', response.text)
+    if response.status_code == 200:
+        assert uri not in [row[0] for row in response.json()['data']]
+
 def test_get_jobs_redacts_url_credentials():
     run_name = 'test_' + utils.randomword(12)
     credentialed_url = 'https://admin:s3cr3t@github.com/green-coding-solutions/green-metrics-tool'
