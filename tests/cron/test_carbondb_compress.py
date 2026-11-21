@@ -66,10 +66,10 @@ def test_insert_and_compress_eco_ci_with_two_users():
     assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
     operational_carbon_kg = eco_ci_data['operational_carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG
-    assert math.isclose(data['operational_carbon_kg_sum'], operational_carbon_kg, abs_tol=1e-6)
+    assert math.isclose(data['operational_carbon_kg_sum'], operational_carbon_kg, rel_tol=1e-9)
 
     embodied_carbon_kg = eco_ci_data['embodied_carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG
-    assert math.isclose(data['embodied_carbon_kg_sum'], embodied_carbon_kg, abs_tol=1e-6)
+    assert math.isclose(data['embodied_carbon_kg_sum'], embodied_carbon_kg, rel_tol=1e-9)
 
     carbon_intensity_g_avg = int((operational_carbon_kg/energy_kWh)*1000) # only operational carbon stems from the grid
     assert carbon_intensity_g_avg-1 <= data['carbon_intensity_g_avg'] <= carbon_intensity_g_avg+1 # different rounding can cost 1 g different intensity. No need to be more precise here given that the margin of error in the source data is not know
@@ -80,10 +80,10 @@ def test_insert_and_compress_eco_ci_with_two_users():
     assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
     operational_carbon_kg = eco_ci_data_2['operational_carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG
-    assert math.isclose(data['operational_carbon_kg_sum'], operational_carbon_kg, abs_tol=1e-6)
+    assert math.isclose(data['operational_carbon_kg_sum'], operational_carbon_kg, rel_tol=1e-9)
 
     embodied_carbon_kg = eco_ci_data_2['embodied_carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG
-    assert math.isclose(data['embodied_carbon_kg_sum'], embodied_carbon_kg, abs_tol=1e-6)
+    assert math.isclose(data['embodied_carbon_kg_sum'], embodied_carbon_kg, rel_tol=1e-9)
 
     carbon_intensity_g_avg = int((operational_carbon_kg/energy_kWh)*1000) # only operational carbon stems from the grid
     assert carbon_intensity_g_avg-1 <= data['carbon_intensity_g_avg'] <= carbon_intensity_g_avg+1 # different rounding can cost 1 g different intensity. No need to be more precise here given that the margin of error in the source data is not know
