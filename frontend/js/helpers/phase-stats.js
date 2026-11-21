@@ -1,3 +1,4 @@
+"use strict";
 const createTableHeader = (phase, comparison_keys, comparison_case, comparison_amounts) => {
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] .compare-metrics-table thead`).insertRow();
 
@@ -371,7 +372,6 @@ const buildTotalChartData = (phase_stats_object) => {
                     } else {
                         total_chart_bottom_legend[phase].push(getPretty(metric_name, 'clean_name'));
                         found_bottom_chart_metric = `${metric_name} ${detail_name}`;
-                        total_chart_bottom_unit = convertValue(0, metric_data.unit)[1]
                     }
                 }
                 // we loop over all keys that exist, not over the one that are present in detail_data['data']
