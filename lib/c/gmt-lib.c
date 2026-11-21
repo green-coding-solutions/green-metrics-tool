@@ -10,10 +10,44 @@
 #include <stdbool.h>
 #include <sys/time.h>
 
-bool is_partition_sysfs(unsigned int major_number, unsigned int minor_number) {
+// Classifies a block device so callers only count I/O that lands on an actual (whole) disk.
+// - /sys/dev/block missing: sysfs is not mounted / accessible -> hard error, as we would silently report 0 otherwise
+// - /sys/dev/block/M:m missing: hidden disk (e.g. NVMe native multipath per-path device nvmeXcYnZ).
+//   device_add_disk() only assigns a devt when GENHD_FL_HIDDEN is clear, so no link is created for hidden disks.
+//   Their I/O is remapped from the visible device, so counting them would account the same bytes twice.
+// - 'partition' attribute present: partition. I/O is already accounted on the parent disk
+// - 'hidden' attribute present and 1: hidden disk. Safety net in case a kernel ever registers hidden disks
+// - otherwise: whole disk. Older kernels have no 'hidden' attribute, so a missing attribute means "not hidden"
+block_dev_type_t get_block_device_type_sysfs(unsigned int major_number, unsigned int minor_number) {
     char path[PATH_MAX];
+
+    if (access("/sys/dev/block", F_OK) != 0) {
+        fprintf(stderr, "Error - /sys/dev/block is not accessible. Is sysfs mounted? Errno: %d\n", errno);
+        exit(1);
+    }
+
+    snprintf(path, sizeof(path), "/sys/dev/block/%u:%u", major_number, minor_number);
+    if (access(path, F_OK) != 0) {
+        return BLOCK_DEV_HIDDEN;
+    }
+
     snprintf(path, sizeof(path), "/sys/dev/block/%u:%u/partition", major_number, minor_number);
-    return access(path, F_OK) == 0;
+    if (access(path, F_OK) == 0) {
+        return BLOCK_DEV_PARTITION;
+    }
+
+    snprintf(path, sizeof(path), "/sys/dev/block/%u:%u/hidden", major_number, minor_number);
+    FILE *fd = fopen(path, "r");
+    if (fd != NULL) {
+        int hidden = 0;
+        int matched = fscanf(fd, "%d", &hidden);
+        fclose(fd);
+        if (matched == 1 && hidden == 1) {
+            return BLOCK_DEV_HIDDEN;
+        }
+    }
+
+    return BLOCK_DEV_DISK;
 }
 
 int check_path(const char* path) {
@@ -106,38 +140,19 @@ void validate_min_sleep_time(unsigned int msleep_time, unsigned int min_msleep_t
     }
 }
 
-void get_time_offset(struct timespec *offset) {
-    struct timespec realtime, monotonic;
-
-    if (clock_gettime(CLOCK_REALTIME, &realtime) != 0) {
+// All metric providers timestamp with CLOCK_REALTIME, the same clock that Python's time.time() / time.time_ns()
+// uses for phases and notes in the ScenarioRunner. GMT relies on both being in sync. Do not switch this to a
+// monotonic clock + offset: CLOCK_MONOTONIC_RAW drifts away from CLOCK_REALTIME by the kernel's NTP frequency
+// correction, and CLOCK_MONOTONIC / CLOCK_BOOTTIME diverge when the clock is set.
+// If the clock is set backwards during a run, timestamps become non-monotonic and the run fails in
+// BaseMetricProvider._check_monotonic() - which is wanted as the phase timestamps would be broken too.
+void get_time(struct timeval *now) {
+    struct timespec ts;
+    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
         perror("clock_gettime CLOCK_REALTIME");
         exit(EXIT_FAILURE);
     }
-    if (clock_gettime(CLOCK_MONOTONIC_RAW, &monotonic) != 0) {
-        perror("clock_gettime CLOCK_MONOTONIC_RAW");
-        exit(EXIT_FAILURE);
-    }
-    offset->tv_sec = realtime.tv_sec - monotonic.tv_sec;
-    offset->tv_nsec = realtime.tv_nsec - monotonic.tv_nsec;
-    if (offset->tv_nsec < 0) {
-        offset->tv_sec -= 1;
-        offset->tv_nsec += 1000000000L;
-    }
-}
 
-void get_adjusted_time(struct timeval *adjusted, struct timespec *offset) {
-    struct timespec now_monotonic;
-    if (clock_gettime(CLOCK_MONOTONIC_RAW, &now_monotonic) != 0) {
-        perror("clock_gettime CLOCK_MONOTONIC_RAW");
-        exit(EXIT_FAILURE);
-    }
-
-    // Convert to microseconds precision
-    adjusted->tv_sec = now_monotonic.tv_sec + offset->tv_sec;
-    adjusted->tv_usec = (now_monotonic.tv_nsec / 1000) + (offset->tv_nsec / 1000);
-
-    if (adjusted->tv_usec >= 1000000) {
-        adjusted->tv_sec += adjusted->tv_usec / 1000000;
-        adjusted->tv_usec %= 1000000;
-    }
+    now->tv_sec = ts.tv_sec;
+    now->tv_usec = ts.tv_nsec / 1000; // microseconds precision
 }

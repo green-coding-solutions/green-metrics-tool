@@ -23,7 +23,6 @@ typedef struct disk_io_t { // struct is a specification and this static makes no
 // in any case, none of these variables should change between threads
 static int user_id = -1;
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 
 static disk_io_t get_disk_cgroup(char* path, char* container_name) {
     unsigned long long int rbytes = 0;
@@ -92,7 +91,11 @@ static disk_io_t get_disk_cgroup(char* path, char* container_name) {
             continue;
         }
 
-        if (is_partition_sysfs(major_number, minor_number)) {
+        block_dev_type_t dev_type = get_block_device_type_sysfs(major_number, minor_number);
+        if (dev_type == BLOCK_DEV_HIDDEN) {
+            continue; // kernel-internal device (e.g. NVMe multipath path device). I/O is already counted on the visible device
+        }
+        if (dev_type == BLOCK_DEV_PARTITION) {
             fprintf(stderr, "Partition inside a docker container found. This should not happen: %u:%u rbytes=%llu wbytes=%llu\n", major_number, minor_number, rbytes, wbytes);
             exit(1);
         }
@@ -119,7 +122,7 @@ static void output_stats(container_t *containers, int length) {
     struct timeval now;
     int i;
 
-    get_adjusted_time(&now, &offset);
+    get_time(&now);
     for(i=0; i<length; i++) {
         disk_io_t disk_io = get_disk_cgroup(containers[i].path, containers[i].name);
         printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, disk_io.rbytes, disk_io.wbytes, containers[i].id);
@@ -183,8 +186,6 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_path("/sys/fs/cgroup/io.stat"));
     }
-
-    get_time_offset(&offset);
 
     int length = parse_containers("io.stat", user_id, &containers, containers_string, false);
 

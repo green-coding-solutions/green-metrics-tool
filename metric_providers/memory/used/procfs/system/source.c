@@ -15,7 +15,6 @@
 // between Threads.
 // in any case, none of these variables should change between threads
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 
 // just a helper function
 void print_repr(const char *str) {
@@ -111,7 +110,7 @@ static long long int get_memory_procfs() {
 
 static void output_stats() {
     struct timeval now;
-    get_adjusted_time(&now, &offset);
+    get_time(&now);
 
     printf("%ld%06ld %lld\n", now.tv_sec, now.tv_usec, get_memory_procfs());
     usleep(msleep_time*1000);
@@ -158,8 +157,6 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_path("/proc/meminfo"));
     }
-
-    get_time_offset(&offset);
 
     while(1) {
         output_stats();

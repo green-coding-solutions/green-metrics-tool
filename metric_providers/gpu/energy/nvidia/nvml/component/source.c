@@ -17,7 +17,6 @@
 // between Threads.
 // in any case, none of these variables should change between threads
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 
 static void output_stats() {
     struct timeval now;
@@ -44,7 +43,7 @@ static void output_stats() {
     }
 
     while (1) {
-        get_adjusted_time(&now, &offset);
+        get_time(&now);
 
         for (unsigned int i = 0; i < device_count; i++) {
 
@@ -142,8 +141,6 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_system());
     }
-
-    get_time_offset(&offset);
 
     output_stats();
 

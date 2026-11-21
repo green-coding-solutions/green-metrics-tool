@@ -20,9 +20,9 @@ services:
   # 3. Command ENTRYPOINT + Parameters
   tool-entrypoint-with-params:
     image: alpine
-    entrypoint: ["tail"]
-    command: ["-f", "/dev/null"]
-  # -> Executes: tail -f /dev/null (stays alive, demonstrates parameters)
+    entrypoint: ["sleep"]
+    command: ["infinity"]
+  # -> Executes: sleep infinity (stays alive, demonstrates parameters)
 
   # 4. No ENTRYPOINT + Shell COMMAND
   no-entrypoint-shell-command:
