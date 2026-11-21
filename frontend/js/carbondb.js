@@ -123,6 +123,61 @@ const fillBarChart = (y_axis, legend, labels, series) => {
     return options;
 }
 
+// The carbon chart shows total, operational and embodied carbon as separate bars per day. Only total is shown by default.
+// The kinds are toggled through an own legend at the top, while the legend at the bottom toggles the types
+const CARBON_KINDS = {total: 'Total carbon', operational: 'Operational carbon', embodied: 'Embodied carbon'};
+// Colors come from the series name (= type), so the kinds are distinguished by opacity (operational) and a pattern (embodied)
+const CARBON_KIND_STYLES = {
+    total: {},
+    operational: {opacity: 0.6},
+    embodied: {decal: {symbol: 'rect', dashArrayX: [1, 0], dashArrayY: [2, 4], rotation: Math.PI / 4, color: 'rgba(0, 0, 0, 0.35)'}},
+};
+const carbon_kinds_selected = {[CARBON_KINDS.total]: true, [CARBON_KINDS.operational]: false, [CARBON_KINDS.embodied]: false};
+let carbon_barchart_data_cache = null;
+
+const fillCarbonBarChart = () => {
+    const {legend, labels, series} = carbon_barchart_data_cache;
+
+    // Deselected kinds are removed instead of only hidden, as every stack keeps its bar slot on the axis even when hidden
+    const visible_series = [];
+    const visible_labels = [];
+    series.forEach((el, idx) => {
+        if (carbon_kinds_selected[CARBON_KINDS[labels[idx].kind]] === true) {
+            visible_series.push(el);
+            visible_labels.push(labels[idx]);
+        }
+    });
+
+    // Empty placeholder series that only exist so the kind legend has entries to show.
+    // They are lines so they do not take a bar slot, and are appended last so the componentIndex of the bars stays aligned with visible_labels in the tooltip
+    for (const [kind, name] of Object.entries(CARBON_KINDS)) {
+        visible_series.push({type: 'line', name: name, data: [], itemStyle: {color: '#8c8c8c', ...CARBON_KIND_STYLES[kind]}});
+    }
+
+    const options = fillBarChart('carbon', legend, visible_labels, visible_series);
+    options.legend = [
+        options.legend, // types at the bottom
+        {
+            top: 0,
+            right: 0,
+            data: Object.values(CARBON_KINDS).map(name => ({name: name, icon: 'rect'})),
+            selected: {...carbon_kinds_selected},
+        },
+    ];
+    return options;
+}
+
+const toggleCarbonKind = (params) => {
+    if (!(params.name in carbon_kinds_selected)) return; // a type was toggled. echarts handles this by itself
+
+    carbon_kinds_selected[params.name] = params.selected[params.name];
+
+    const chart = chart_instances['carbondb-barchart-carbon-chart'];
+    const options = fillCarbonBarChart();
+    options.legend[0].selected = chart.getOption().legend[0].selected; // keep the types the user has toggled off
+    chart.setOption(options, {replaceMerge: ['series']});
+}
+
 const buildQueryParams = () => {
     let api_url = `start_date=${dateToYMD(new Date($('#rangestart input').val()), /*short= */true)}`;
     api_url = `${api_url}&end_date=${dateToYMD(new Date($('#rangeend input').val()), /*short= */true)}`;
@@ -184,12 +239,12 @@ const processData = (measurements) => {
         total_energy += energy;
         carbon_intensity_list.push(carbon_intensity);
 
-        // Three bars per day: operational, embodied and total. Every bar is stacked by type.
-        // Colors come from the series name (= type), so the kinds are distinguished by a pattern (embodied) and opacity (total)
-        for (const [kind, value, extra_item_style] of [
-            ['operational', operational_carbon, {}],
-            ['embodied', embodied_carbon, {decal: {symbol: 'rect', dashArrayX: [1, 0], dashArrayY: [2, 4], rotation: Math.PI / 4, color: 'rgba(0, 0, 0, 0.35)'}}],
-            ['total', carbon, {opacity: 0.6}],
+        // One bar per day for every kind (total, operational, embodied). Every bar is stacked by type.
+        // Which kinds are shown is decided in fillCarbonBarChart
+        for (const [kind, value] of [
+            ['total', carbon],
+            ['operational', operational_carbon],
+            ['embodied', embodied_carbon],
         ]) {
             carbon_barchart_data.series.push({
                 type: 'bar',
@@ -200,7 +255,7 @@ const processData = (measurements) => {
                 itemStyle: {
                     borderWidth: .5,
                     borderColor: '#000000',
-                    ...extra_item_style,
+                    ...CARBON_KIND_STYLES[kind],
                   },
             })
 
@@ -323,7 +378,8 @@ const refreshView = async () => {
 
     $('.carbondb-data').show();
 
-    let options = fillBarChart('carbon', carbon_barchart_data.legend, carbon_barchart_data.labels, carbon_barchart_data.series);
+    carbon_barchart_data_cache = carbon_barchart_data;
+    let options = fillCarbonBarChart();
     chart_instances['carbondb-barchart-carbon-chart'].setOption(options);
 
     options = fillBarChart('energy', energy_barchart_data.legend, energy_barchart_data.labels, energy_barchart_data.series);
@@ -393,6 +449,7 @@ $(document).ready(function () {
     $('.ui.accordion').accordion();
 
     chart_instances['carbondb-barchart-carbon-chart'] = echarts.init(document.querySelector("#carbondb-barchart-carbon-chart"));
+    chart_instances['carbondb-barchart-carbon-chart'].on('legendselectchanged', toggleCarbonKind);
     chart_instances['carbondb-barchart-energy-chart'] = echarts.init(document.querySelector("#carbondb-barchart-energy-chart"));
     chart_instances['carbondb-piechart-types-chart'] = echarts.init(document.querySelector("#carbondb-piechart-types-chart"));
     chart_instances['carbondb-piechart-machines-chart'] = echarts.init(document.querySelector("#carbondb-piechart-machines-chart"));
