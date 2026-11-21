@@ -56,10 +56,13 @@ def copy_over_power_hog(copy_over_lookback_limit):
             -- filter on the measurement timestamp and not on created_at, as Power HOG data may arrive up to the merge window late.
             -- This aligns the copy over with remove_duplicates and compress, which both filter on carbondb_data_raw.time
             -- The right side must be cast to bigint. EXTRACT returns numeric, which would cast the column instead and prevent index usage
-            WHERE %s OR "timestamp" > (EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e3)::bigint -- timestamp is in milliseconds
+            WHERE (%s OR "timestamp" > (EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e3)::bigint) -- timestamp is in milliseconds
+                -- rows still waiting for their carbon backfill are copied once it is done, same as for Eco CI. Otherwise rows that never
+                -- get a carbon intensity would stay NULL in carbondb_data_raw and fail validate_table_constraints
+                AND operational_carbon_ug IS NOT NULL
             -- rows are keyed on their source row, so already copied measurements are skipped instead of being inserted again on every run
-            -- and then deleted by remove_duplicates. DO NOTHING instead of DO UPDATE, as operational_carbon_kg of a row copied before its
-            -- backfill is filled on carbondb_data_raw itself by backfill_carbon_intensity.py
+            -- and then deleted by remove_duplicates. DO NOTHING instead of DO UPDATE, as a row is only copied once its operational carbon is final.
+            -- A carbon_intensity_g still missing then is filled on carbondb_data_raw itself by backfill_carbon_intensity.py
             ON CONFLICT (hog_measurement_id) DO NOTHING
     '''
 

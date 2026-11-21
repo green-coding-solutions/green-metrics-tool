@@ -220,7 +220,7 @@ class SimplifiedMeasurement(BaseModel):
     hw_model: str
     elapsed_ns: int
     embodied_carbon_g: Optional[float] = 0.0
-    operational_carbon_g: Optional[float] = 0.0
+    operational_carbon_g: Optional[float] = None # stays NULL if unknown, so that cron/backfill_carbon_intensity.py can fill it
     thermal_pressure: str
     top_processes: List[Dict[str, Union[str, float, int]]]
 

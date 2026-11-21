@@ -444,13 +444,16 @@ def test_power_hog_copy_over_is_keyed_on_measurement():
     copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
     copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
 
+    hog_ids = [row[0] for row in DB().fetch_all('SELECT id FROM hog_simplified_measurements ORDER BY id')]
     data = DB().fetch_all("SELECT hog_measurement_id FROM carbondb_data_raw WHERE source = 'Power HOG' ORDER BY hog_measurement_id")
-    hog_ids = DB().fetch_all('SELECT id FROM hog_simplified_measurements ORDER BY id')
-    assert data == hog_ids, 'Second copy over inserted already copied Power HOG measurements again'
+    assert data == [(hog_ids[0], )], 'Second copy over inserted already copied Power HOG measurements again or copied a row still waiting for its backfill'
 
-    # backfill of the source row must not lead to a second row in carbondb_data_raw
+    # once the source row is backfilled it is copied exactly once, with the backfilled operational carbon
     DB().query('UPDATE hog_simplified_measurements SET carbon_intensity_g = 100')
     backfill_carbon_intensity.update_power_hog_carbon()
     copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
+    copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
 
-    assert DB().fetch_one("SELECT COUNT(id) FROM carbondb_data_raw WHERE source = 'Power HOG'")[0] == 2
+    data = DB().fetch_all("SELECT hog_measurement_id, operational_carbon_kg FROM carbondb_data_raw WHERE source = 'Power HOG' ORDER BY hog_measurement_id")
+    assert [row[0] for row in data] == hog_ids
+    assert math.isclose(data[1][1], 3600000000 / 3600 / 1000 * 100 / FROM_UG_TO_KG, rel_tol=1e-9) # 1 Wh at 100 g/kWh = 100_000 ug
