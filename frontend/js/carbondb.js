@@ -148,8 +148,13 @@ const fillCarbonBarChart = () => {
         }
     });
 
-    // Empty placeholder series that only exist so the kind legend has entries to show.
+    // Empty placeholder series that only exist so both legends always have a series for each of their entries.
+    // Without them deselecting all kinds leaves the types without series. echarts then drops them from the types legend
+    // and they stay hidden once the kinds are selected again.
     // They are lines so they do not take a bar slot, and are appended last so the componentIndex of the bars stays aligned with visible_labels in the tooltip
+    for (const type of legend) {
+        visible_series.push({type: 'line', name: type, data: []}); // same name as the bars, so echarts gives it the same color
+    }
     for (const [kind, name] of Object.entries(CARBON_KINDS)) {
         visible_series.push({type: 'line', name: name, data: [], itemStyle: {color: '#8c8c8c', ...CARBON_KIND_STYLES[kind]}});
     }
@@ -173,8 +178,13 @@ const toggleCarbonKind = (params) => {
     carbon_kinds_selected[params.name] = params.selected[params.name];
 
     const chart = chart_instances['carbondb-barchart-carbon-chart'];
+
+    // a legend toggle is applied to all legends, so the types legend also knows the kinds. Only keep the types the user has toggled off
+    const type_selected = {...chart.getOption().legend[0].selected};
+    for (const name in carbon_kinds_selected) delete type_selected[name];
+
     const options = fillCarbonBarChart();
-    options.legend[0].selected = chart.getOption().legend[0].selected; // keep the types the user has toggled off
+    options.legend[0].selected = type_selected;
     chart.setOption(options, {replaceMerge: ['series']});
 }
 
