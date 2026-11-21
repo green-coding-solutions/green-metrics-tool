@@ -1,8 +1,12 @@
 
 
+// Tables are paginated server-side, so checkboxes of other pages are not in the DOM.
+// We thus keep the selection separately to be able to compare runs across pages.
+const selected_run_ids = new Set();
+
 const compareButton = () => {
-    const checkedBoxes = document.querySelectorAll('input[type=checkbox]:checked');
-    const ids = Array.from(checkedBoxes).map(cb => cb.value).join(',');
+    syncSelectedRunIds();
+    const ids = Array.from(selected_run_ids).join(',');
 
     const value = document.querySelector('#compare-force-mode').value;
     localStorage.setItem('compare_mode_last_value', value);
@@ -21,11 +25,22 @@ const unselectHandler = () => {
     document.querySelectorAll('input[type="checkbox"]').forEach(el => {
         el.checked = '';
     })
+    selected_run_ids.clear();
     updateCompareCount();
 }
+
+const syncSelectedRunIds = () => {
+    // checkboxes can also be changed programmatically (shift group select), which fires no change event
+    document.querySelectorAll('input[type="checkbox"][name="chbx-proj"]').forEach(el => {
+        if (el.checked) selected_run_ids.add(el.value);
+        else selected_run_ids.delete(el.value);
+    })
+}
+
 const updateCompareCount = () => {
+    syncSelectedRunIds();
     const countButton = document.querySelector('#compare-button');
-    const checkedCount = document.querySelectorAll('input[type=checkbox]:checked').length;
+    const checkedCount = selected_run_ids.size;
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
     if (checkedCount === 0) {
         document.querySelector('#compare-force-mode-dropdown').style.visibility = 'hidden';
@@ -164,7 +179,7 @@ const getFilterQueryStringFromURI = (use_basic_filters=true) => {
     return query_string
 }
 
-const getFilterQueryStringFromInputs = () => {
+const getFilterQueryStringFromInputs = (use_basic_filters=true) => {
     let query_string = '';
 
     const name = document.querySelector('input[name="name"]').value.trim()
@@ -179,13 +194,15 @@ const getFilterQueryStringFromInputs = () => {
     const show_other_users = document.querySelector('input[name="show_other_users"]:checked')?.value?.trim()
     localStorage.setItem('show_other_users', show_other_users);
 
-    if(name != '') query_string += `&name=${encodeURIComponent(name)}`
-    if(uri != '') query_string += `&uri=${encodeURIComponent(uri)}`
-    if(filename != '') query_string += `&filename=${encodeURIComponent(filename)}`
-    if(branch != '') query_string += `&branch=${encodeURIComponent(branch)}`
-    if(machine != '') query_string += `&machine=${encodeURIComponent(machine)}`
-    if(machine_id != '') query_string += `&machine_id=${encodeURIComponent(machine_id)}`
-    if(usage_scenario_variables != '') query_string += `&usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}`
+    if (use_basic_filters !== false) {
+        if(name != '') query_string += `&name=${encodeURIComponent(name)}`
+        if(uri != '') query_string += `&uri=${encodeURIComponent(uri)}`
+        if(filename != '') query_string += `&filename=${encodeURIComponent(filename)}`
+        if(branch != '') query_string += `&branch=${encodeURIComponent(branch)}`
+        if(machine != '') query_string += `&machine=${encodeURIComponent(machine)}`
+        if(machine_id != '') query_string += `&machine_id=${encodeURIComponent(machine_id)}`
+        if(usage_scenario_variables != '') query_string += `&usage_scenario_variables=${encodeURIComponent(usage_scenario_variables)}`
+    }
     if(show_archived != null && show_archived != '') query_string += `&show_archived=${encodeURIComponent(show_archived)}`
     if(show_other_users != null && show_other_users != '') query_string += `&show_other_users=${encodeURIComponent(show_other_users)}`
 
@@ -194,7 +211,11 @@ const getFilterQueryStringFromInputs = () => {
     return query_string
 }
 
+const PAGE_LENGTH_MAX = 100; // API limit per request
+let repositories_sort_by = 'date';
+
 async function getRepositories(sort_by = 'date') {
+    repositories_sort_by = sort_by;
     try {
         var api_data = await makeAPICall(`/v1/repositories?${getFilterQueryStringFromURI()}&sort_by=${sort_by}`)
     } catch (err) {
@@ -233,29 +254,45 @@ async function getRepositories(sort_by = 'date') {
 
             if(!$.fn.DataTable.isDataTable(table)) {
                 const uri = this.getAttribute('data-uri');
-                getRunsTable($(table), `/v2/runs?uri=${uri}&uri_mode=exact&limit=0&${getFilterQueryStringFromURI(false)}`, false, false, true)
+                getRunsTable($(table), `&uri=${encodeURIComponent(uri)}&uri_mode=exact${getFilterQueryStringFromURI(false)}`, false, false, true)
             }
     }});
-    $('.ui.accordion.filter-dropdown').hide();
 }
 
-const getRunsTable = async (el, url, include_uri=true, include_button=true, searching=false) => {
-
-    let runs = null;
-
+// Fetches one page for a server-side DataTable and returns it in the format DataTables expects
+const fetchDataTablesPage = async (path, dt_params, error_message) => {
+    const empty_page = { draw: dt_params.draw, data: [], recordsTotal: 0, recordsFiltered: 0 };
+    let api_data = null;
     try {
-        runs = await makeAPICall(url)
+        api_data = await makeAPICall(path);
     } catch (err) {
-        showNotification('Could not get run data from API', err);
-        const dt = el.DataTable();
-        dt.clear();
-        dt.draw();
-        return
+        if (!(err instanceof APIHTTPError && err.status === 204)) { // 204 just means no results
+            showNotification(error_message, err);
+        }
+        return empty_page;
+    }
+    return {
+        draw: dt_params.draw,
+        data: api_data?.data ?? [],
+        recordsTotal: api_data?.total ?? 0,
+        recordsFiltered: api_data?.total ?? 0,
+    };
+}
+
+// query_string holds the filters (must start with & or be empty). Paging, sorting and search are added per request.
+const getRunsTable = async (el, query_string, include_uri=true, include_button=true, searching=false) => {
+
+    el.data('gmt-query-string', query_string);
+
+    if ($.fn.DataTable.isDataTable(el)) { // filters changed: just reload. ajax.reload also resets to the first page
+        el.DataTable().ajax.reload();
+        return;
     }
 
     const columns = [
         {
             data: 1,
+            name: 'name', // name is used as order_by value for the API
             title: 'Name',
             render: function(el, type, row) {
 
@@ -289,6 +326,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     if(include_uri) {
         columns.push({
                 data: 2,
+                name: 'uri',
                 title: '(<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.) Repo',
                 render: function(el, type, row) {
                     let uri_link = replaceRepoIcon(el);
@@ -307,10 +345,11 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         })
     }
 
-    columns.push({ data: 3, title: '<i class="icon code branch"></i>Branch', render: (el, type, row) => escapeString(el) });
+    columns.push({ data: 3, name: 'branch', title: '<i class="icon code branch"></i>Branch', render: (el, type, row) => escapeString(el) });
 
     columns.push({
         data: 9,
+        name: 'commit_hash',
         title: '<i class="icon history"></i>Commit</th>',
         render: function(el, type, row) {
             const commitLabels = [];
@@ -333,15 +372,17 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
 
     columns.push({
         data: 6,
+        name: 'filename',
         title: '<i class="icon file alternate"></i>Filename',
         render: function(el, type, row) {
             const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui small label">${escapeString(k)}=${escapeString(displayUsageScenarioVariableValue(k, v))}</span>`);
             return `${escapeString(el)} <br> ${usage_scenario_variables.join(' ')}`
         }
     });
-    columns.push({ data: 8, title: '<i class="icon laptop code"></i>Machine</th>', render: (el, type, row) => escapeString(el) });
+    columns.push({ data: 8, name: 'machine', title: '<i class="icon laptop code"></i>Machine</th>', render: (el, type, row) => escapeString(el) });
     columns.push({
         data: 4,
+        name: 'created_at',
         title: '<i class="icon calendar"></i>Last run</th>',
         render: function(el, type, row) {
             if (el == null) return '-';
@@ -383,45 +424,55 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         data: 0,
         render: function(el, type, row) {
             // Modify the content of the "Name" column here
-            return `<input type="checkbox" value="${el}" name="chbx-proj"/>&nbsp;`
+            return `<input type="checkbox" value="${el}" name="chbx-proj" ${selected_run_ids.has(el) ? 'checked' : ''}/>&nbsp;`
         },
         orderable: false,
     });
 
 
-   if ($.fn.DataTable.isDataTable(el)) { // just refill. A clean .destroy and .clear will break sorting sadly ...
-        const dt = el.DataTable();
-        dt.clear();
-        dt.rows.add(runs.data); // array or Ajax-style data
-        dt.draw();
-    } else { // init
-        el.DataTable({
-            // searchPanes: {
-            //     initCollapsed: true,
-            // },
-            searching: searching,
-            data: runs.data,
-            columns: columns,
-            deferRender: true,
-            layout: {
-                topStart: '',
-                topEnd: '',
-                bottomStart: 'pageLength',
-                bottomEnd: 'paging'
-            },
-            drawCallback: function(settings) {
-                document.querySelectorAll('input[type="checkbox"]').forEach((e) =>{
-                    e.removeEventListener('change', updateCompareCount);
-                    e.addEventListener('change', updateCompareCount);
-                })
-                document.querySelector('#unselect-button').removeEventListener('click', unselectHandler);
-                document.querySelector('#unselect-button').addEventListener('click', unselectHandler)
-                allow_group_select_checkboxes();
-                updateCompareCount();
-            },
-            order: [[columns.length-3, 'desc']] // API also orders, but we need to indicate order for the user
-        });
-    }
+    el.DataTable({
+        // searchPanes: {
+        //     initCollapsed: true,
+        // },
+        searching: searching,
+        serverSide: true, // paging, sorting and searching is done by the API
+        processing: true,
+        ajax: async (dt_params, callback) => {
+            const page_length = Math.min(Math.max(dt_params.length, 1), PAGE_LENGTH_MAX);
+            let params = `${el.data('gmt-query-string')}&limit=${page_length}&offset=${dt_params.start}&with_count=true`;
+
+            const order = dt_params.order?.[0];
+            const order_by = (order != null) ? dt_params.columns?.[order.column]?.name : null;
+            if (order_by) {
+                params += `&order_by=${encodeURIComponent(order_by)}&order_dir=${order.dir === 'asc' ? 'asc' : 'desc'}`;
+            }
+
+            const search = dt_params.search?.value?.trim();
+            if (search) params += `&search=${encodeURIComponent(search)}`;
+
+            callback(await fetchDataTablesPage(`/v2/runs?${params}`, dt_params, 'Could not get run data from API'));
+        },
+        columns: columns,
+        pageLength: 10,
+        lengthMenu: [10, 25, 50, PAGE_LENGTH_MAX],
+        layout: {
+            topStart: '',
+            topEnd: '',
+            bottomStart: 'pageLength',
+            bottomEnd: 'paging'
+        },
+        drawCallback: function(settings) {
+            document.querySelectorAll('input[type="checkbox"]').forEach((e) =>{
+                e.removeEventListener('change', updateCompareCount);
+                e.addEventListener('change', updateCompareCount);
+            })
+            document.querySelector('#unselect-button').removeEventListener('click', unselectHandler);
+            document.querySelector('#unselect-button').addEventListener('click', unselectHandler)
+            allow_group_select_checkboxes();
+            updateCompareCount();
+        },
+        order: [[columns.length-3, 'desc']] // default order of the API, but we need to indicate order for the user
+    });
 
 }
 
@@ -436,14 +487,20 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             history.replaceState(null, '', window.location.pathname); // clear any filters if any set
             window.location.reload();
         } else {
-            document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Last 50 Runs';
+            document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Last Runs';
             localStorage.setItem('scenario_runner_data_shown', 'last_runs');
             history.replaceState(null, '', window.location.pathname); // clear any filters if any set
             window.location.reload();
         }
     });
 
-    if (url_params['show'] === 'repositories' || localStorage.getItem('scenario_runner_data_shown') === 'repositories') {
+    const is_repositories_view = (url_params['show'] === 'repositories' || localStorage.getItem('scenario_runner_data_shown') === 'repositories');
+
+    if (is_repositories_view) {
+        // reduced filter: only the extra settings apply, and they are used for the runs table of each repository
+        document.querySelectorAll('form .basic-filter, form button[name=clear]').forEach((el) => {
+            el.style.display = 'none';
+        });
         document.querySelector('#runs-and-repos-table-title').innerText = 'Repositories';
         document.querySelector('#home-toggle-button').innerText = 'Switch to last runs view';
         document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Repositories';
@@ -452,7 +509,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     } else {
         document.querySelector('#scenario-runner-repositories-description')?.remove();
         document.querySelector('#sort-button').remove()
-        getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?${getFilterQueryStringFromURI()}&limit=50`)
+        getRunsTable($('#runs-and-repos-table tbody table'), getFilterQueryStringFromURI())
     }
 
     const value = localStorage.getItem('compare_mode_last_value');
@@ -469,9 +526,16 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     $('.ui.accordion.filter-dropdown').accordion();
     $('form').on('submit', async function (e) {
         e.preventDefault();
-        const query_string = getFilterQueryStringFromInputs()
-        getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?${query_string}&limit=0`)
-        history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${query_string}`); // replace URL to bookmark!
+        if (is_repositories_view) {
+            let query_string = getFilterQueryStringFromInputs(false)
+            if (url_params['show'] === 'repositories') query_string = `show=repositories${query_string}`; // keep view on reload
+            history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${query_string}`); // must be set before, as the runs tables of the repositories read the filters from the URL
+            getRepositories(repositories_sort_by); // re-render so that opened repositories are queried with the new settings
+        } else {
+            const query_string = getFilterQueryStringFromInputs()
+            getRunsTable($('#runs-and-repos-table tbody table'), query_string)
+            history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${query_string}`); // replace URL to bookmark!
+        }
         $('.ui.accordion.filter-dropdown').accordion('close', 0);
         return false;
     });
@@ -480,7 +544,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         document.querySelectorAll('input.filter-option').forEach((el) => {
             el.value = '';
         })
-        getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?limit=50`)
+        getRunsTable($('#runs-and-repos-table tbody table'), '')
         $('.ui.accordion').accordion('close', 0); // close all accordions
         document.querySelector('#filters-active').classList.add('hidden');
     });
