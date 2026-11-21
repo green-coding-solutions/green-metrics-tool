@@ -219,7 +219,11 @@ async function getRepositories(sort_by = 'date') {
     try {
         var api_data = await makeAPICall(`/v1/repositories?${getFilterQueryStringFromURI()}&sort_by=${sort_by}`)
     } catch (err) {
-        showNotification('Could not get data from API', err);
+        if (err instanceof APIHTTPError && err.status === 204) { // no repositories match the filter. Clear previous result
+            document.querySelector('#runs-and-repos-table tbody').innerHTML = '';
+        } else {
+            showNotification('Could not get data from API', err);
+        }
         return
     }
 
