@@ -303,7 +303,7 @@ class EnergyData(BaseModel):
     type: str
     time: int # value is in us as UTC timestamp
     energy_uj: int # is in uJ
-    embodied_carbon_ug: int # mandatory, as it cannot be derived later. Is in ug
+    embodied_carbon_ug: int = Field(ge=0) # mandatory, as it cannot be derived later. Is in ug. Cannot be negative, as hardware never removes carbon
     operational_carbon_ug: Optional[int] = None # is in ug. If not transmitted it is calculated from carbon_intensity_g, now or once backfilled
     carbon_intensity_g: Optional[int] = None # Will be backfilled if not transmitted
     ip: Optional[str] = None  # Will be populated with the connecting IP if not transmitted

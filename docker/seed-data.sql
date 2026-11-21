@@ -88,7 +88,7 @@ VALUES (
                 "/v1/cluster/status/history",
                 "/v1/carbondb/insights",
                 "/v1/hog/insights",
-                "/v2/carbondb/add",
+                "/v3/carbondb/add",
                 "/v2/carbondb",
                 "/v2/carbondb/filters",
                 "/v2/hog/add",
