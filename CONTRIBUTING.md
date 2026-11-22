@@ -6,6 +6,13 @@ All contributions should be done via Pull Requests. We use the standard forking 
 
 Please see our: [Contribution Guidelines](https://docs.green-coding.io/docs/contributing/green-metrics-tool-contribution/)
 
+## Tests
+
+All submissions **MUST** pass the full test suite when run locally before a Pull Request is opened.
+Please run the tests on your machine and confirm in your Pull Request that they pass.
+
+See [tests/README.md](tests/README.md) for how to set up and run the test suite.
+
 ## Python conventions
 
 We adhere to standard ([PEP8][pep8]) python conventions for the most part.
