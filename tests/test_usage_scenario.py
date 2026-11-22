@@ -298,7 +298,7 @@ def test_setup_commands_one_command():
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
     assert f"Running command:  docker exec {container_name('test-container')} sh -o errexit -o nounset -o pipefail -c ps -a" in out.getvalue()
-    assert '1 root      0:00 tail -f /dev/null' in out.getvalue(), 'Expected container stdout showing tail -f /dev/null as process 1'
+    assert '1 root      0:00 sleep infinity' in out.getvalue(), 'Expected container stdout showing sleep infinity as process 1'
 
 # shell-options: [array|str] (optional)
 # Options that are passed to the shell before the -c flag. Defaults to errexit, nounset and pipefail
@@ -696,7 +696,6 @@ def test_cmd_entrypoint():
     alpine_tag = re.escape(gmt_tmp_image_name('alpine'))
     assert re.search(rf"--entrypoint[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*-c[\s,\[\]\"']*echo \'Hello from command\'", str(o))
     assert re.search(rf"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*infinity", str(o))
-    assert re.search(rf"--entrypoint[\s,\[\]\"']*tail[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*-f[\s,\[\]\"']*/dev/null", str(o))
     assert re.search(rf"{alpine_tag}[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*-c", str(o))
     assert re.search(rf"{alpine_tag}[\s,\[\]\"']*sleep[\s,\[\]\"']*infinity", str(o))
     assert re.search(rf"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*infinity", str(o))
@@ -744,7 +743,7 @@ def test_cmd_ran():
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         docker_ps_out = get_container_ps_output('test-container')
-    assert '1 root      0:00 tail -f /dev/null' in docker_ps_out, Tests.assertion_info('1 root      0:00 tail -f /dev/null', docker_ps_out)
+    assert '1 root      0:00 sleep infinity' in docker_ps_out, Tests.assertion_info('1 root      0:00 sleep infinity', docker_ps_out)
 
 # entrypoint: [str] (optional)
 #    entrypoint declares the default entrypoint for the service container.
@@ -757,7 +756,7 @@ def test_entrypoint_ran_with_script():
         docker_ps_out = get_container_ps_output('test-container')
     assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
     assert 'entrypoint-overwrite.sh' in docker_ps_out, Tests.assertion_info('entrypoint `entrypoint-overwrite.sh` in ps output', docker_ps_out)
-    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('entrypoint `tail -f /dev/null` in ps output', docker_ps_out)
+    assert 'sleep infinity' in docker_ps_out, Tests.assertion_info('entrypoint `sleep infinity` in ps output', docker_ps_out)
 
 def test_entrypoint_ran_in_conjunction_with_command():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_with_command.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
@@ -765,7 +764,7 @@ def test_entrypoint_ran_in_conjunction_with_command():
         context.run_until('setup_services')
         docker_ps_out = get_container_ps_output('test-container')
     assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
-    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('`tail -f /dev/null` in ps output', docker_ps_out)
+    assert 'sleep infinity' in docker_ps_out, Tests.assertion_info('`sleep infinity` in ps output', docker_ps_out)
 
 def test_entrypoint_empty():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_empty.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
@@ -781,7 +780,7 @@ def test_entrypoint_empty():
     ).group(1)
     assert '--entrypoint=' in docker_run_command, f"--entrypoint= not found in docker run command: {docker_run_command}"
     assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been ignored', docker_ps_out)
-    assert re.search(r"tail[\s,\[\]\"']*-f[\s,\[\]\"']*/dev/null", docker_ps_out)
+    assert re.search(r"sleep[\s,\[\]\"']*infinity", docker_ps_out)
 
 def test_read_detached_process_no_exit():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_no_exit.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)

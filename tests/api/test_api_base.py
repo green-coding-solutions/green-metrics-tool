@@ -181,3 +181,34 @@ def test_jobs_with_dummy_job():
 def test_jobs_clean():
     response = requests.get(f"{API_URL}/v2/jobs", timeout=15, headers={'X-Authentication': 'DEFAULT'})
     assert response.status_code == 204
+
+def test_cluster_status_filter_machine_and_service():
+    DB().query('DELETE FROM cluster_status_messages')
+    DB().query("INSERT INTO machines (id, description) VALUES(100, 'Machine 100') ON CONFLICT DO NOTHING")
+    DB().query("INSERT INTO machines (id, description) VALUES(101, 'Machine 101') ON CONFLICT DO NOTHING")
+
+    DB().query("INSERT INTO cluster_status_messages (message) VALUES('default')") # ScenarioRunner, all machines
+    DB().query("INSERT INTO cluster_status_messages (message, machine_id, service) VALUES('all', NULL, NULL)")
+    DB().query("INSERT INTO cluster_status_messages (message, machine_id, service) VALUES('m100-ecoci', 100, 'Eco CI')")
+    DB().query("INSERT INTO cluster_status_messages (message, machine_id, service) VALUES('m101-sr', 101, 'ScenarioRunner')")
+    DB().query("INSERT INTO cluster_status_messages (message, resolved) VALUES('resolved', true)")
+
+    def get_messages(query=''):
+        response = requests.get(f"{API_URL}/v1/cluster/status{query}", timeout=15)
+        assert response.status_code == 200, response.text
+        return {row[1]: row for row in response.json()['data']}
+
+    data = get_messages()
+    assert set(data.keys()) == {'default', 'all', 'm100-ecoci', 'm101-sr'}
+    assert data['default'][4:] == [None, 'ScenarioRunner']
+    assert data['all'][4:] == [None, None]
+    assert data['m100-ecoci'][4:] == [100, 'Eco CI']
+
+    assert set(get_messages('?machine_id=100').keys()) == {'default', 'all', 'm100-ecoci'}
+    assert set(get_messages('?service=ScenarioRunner').keys()) == {'default', 'all', 'm101-sr'}
+    assert set(get_messages('?service=Eco%20CI').keys()) == {'all', 'm100-ecoci'}
+    assert set(get_messages('?machine_id=100&service=ScenarioRunner').keys()) == {'default', 'all'}
+    assert set(get_messages('?machine_id=101&service=ScenarioRunner').keys()) == {'default', 'all', 'm101-sr'}
+
+    response = requests.get(f"{API_URL}/v1/cluster/status?service=Unknown", timeout=15)
+    assert response.status_code == 422

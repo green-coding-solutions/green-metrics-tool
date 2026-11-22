@@ -7,7 +7,6 @@ from functools import cache
 import typing
 import uuid
 import math
-import time
 import orjson
 
 from starlette.background import BackgroundTask
@@ -894,41 +893,6 @@ def check_int_field_api(field, name, max_value):
         raise HTTPException(status_code=422, detail=f'{name} must be <= {max_value}')
 
     return True
-
-def carbondb_add(connecting_ip, data, source, user_id):
-    merge_window_max = GlobalConfig().config['cluster']['carbondb_merge_window_days']
-    current_time_us = int(time.time_ns()  / 1e3)
-    if data['time'] < current_time_us - merge_window_max * 24 * 60 * 60 * 1e6 : # microseconds
-        raise ValueError(f"CarbonDB is configured to not accept values older than {merge_window_max} days. Your timestamp was: {data['time']}")
-    if data['time'] > current_time_us:
-        raise ValueError(f"CarbonDB does not accept timestamps in the future. Your timestamp was: {data['time']}")
-
-
-    query = '''
-            INSERT INTO carbondb_data_raw
-                ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","ip_address","user_id","created_at")
-            VALUES
-                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-    '''
-
-    used_client_ip = data.get('ip', None) # An ip has been given with the data. We prioritize that
-    if used_client_ip is None:
-        used_client_ip = connecting_ip
-
-    carbon_intensity_g_per_kWh = data.get('carbon_intensity_g', None)
-
-    energy_J = float(data['energy_uj']) / 1e6
-    energy_kWh = energy_J / (3_600*1_000)
-    if carbon_intensity_g_per_kWh is None:
-        carbon_kg = None
-    else:
-        carbon_kg = (energy_kWh * carbon_intensity_g_per_kWh)/1_000
-
-    DB().query(
-        query=query,
-        params=(
-            data['type'],
-            data['project'], data['machine'], source, data['tags'], data['time'], energy_kWh, carbon_kg, carbon_intensity_g_per_kWh, used_client_ip, user_id))
 
 def replace_nan_with_zero(obj):
     if isinstance(obj, dict):

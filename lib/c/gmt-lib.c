@@ -10,10 +10,44 @@
 #include <stdbool.h>
 #include <sys/time.h>
 
-bool is_partition_sysfs(unsigned int major_number, unsigned int minor_number) {
+// Classifies a block device so callers only count I/O that lands on an actual (whole) disk.
+// - /sys/dev/block missing: sysfs is not mounted / accessible -> hard error, as we would silently report 0 otherwise
+// - /sys/dev/block/M:m missing: hidden disk (e.g. NVMe native multipath per-path device nvmeXcYnZ).
+//   device_add_disk() only assigns a devt when GENHD_FL_HIDDEN is clear, so no link is created for hidden disks.
+//   Their I/O is remapped from the visible device, so counting them would account the same bytes twice.
+// - 'partition' attribute present: partition. I/O is already accounted on the parent disk
+// - 'hidden' attribute present and 1: hidden disk. Safety net in case a kernel ever registers hidden disks
+// - otherwise: whole disk. Older kernels have no 'hidden' attribute, so a missing attribute means "not hidden"
+block_dev_type_t get_block_device_type_sysfs(unsigned int major_number, unsigned int minor_number) {
     char path[PATH_MAX];
+
+    if (access("/sys/dev/block", F_OK) != 0) {
+        fprintf(stderr, "Error - /sys/dev/block is not accessible. Is sysfs mounted? Errno: %d\n", errno);
+        exit(1);
+    }
+
+    snprintf(path, sizeof(path), "/sys/dev/block/%u:%u", major_number, minor_number);
+    if (access(path, F_OK) != 0) {
+        return BLOCK_DEV_HIDDEN;
+    }
+
     snprintf(path, sizeof(path), "/sys/dev/block/%u:%u/partition", major_number, minor_number);
-    return access(path, F_OK) == 0;
+    if (access(path, F_OK) == 0) {
+        return BLOCK_DEV_PARTITION;
+    }
+
+    snprintf(path, sizeof(path), "/sys/dev/block/%u:%u/hidden", major_number, minor_number);
+    FILE *fd = fopen(path, "r");
+    if (fd != NULL) {
+        int hidden = 0;
+        int matched = fscanf(fd, "%d", &hidden);
+        fclose(fd);
+        if (matched == 1 && hidden == 1) {
+            return BLOCK_DEV_HIDDEN;
+        }
+    }
+
+    return BLOCK_DEV_DISK;
 }
 
 int check_path(const char* path) {

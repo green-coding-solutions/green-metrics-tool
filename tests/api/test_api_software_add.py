@@ -44,6 +44,28 @@ def test_post_run_add_github_with_carbon_simulation():
     assert get_job_carbon_simulation(run_name) == carbon_simulation
     assert get_watchlist_carbon_simulation(run_name) == carbon_simulation
 
+@pytest.mark.parametrize('carbon_simulation, expected', [
+    (None, None),
+    (5, [5]),
+    ([100, 200], [100, 200]),
+    ('5', [5]),
+    (' [1,2] ', [1, 2]),
+    ('0b8f8c4e-9a8e-4c63-9d6d-2f7b2b6f8e11', '0b8f8c4e-9a8e-4c63-9d6d-2f7b2b6f8e11'),
+    ('', None),
+])
+def test_software_carbon_simulation_normalized(carbon_simulation, expected):
+    run = Software(name='test', repo_url='https://github.com/green-coding-solutions/green-metrics-tool', branch='', filename='', machine_id=1, schedule_mode='one-off', carbon_simulation=carbon_simulation)
+    assert run.carbon_simulation == expected
+
+@pytest.mark.parametrize('carbon_simulation', [True, [1, True], 'abc', 1.5, '1.5', [1.0], 'true'])
+def test_post_run_add_invalid_carbon_simulation(carbon_simulation):
+    run_name = 'test_' + utils.randomword(12)
+    payload = {'name': run_name, 'repo_url': 'https://github.com/green-coding-solutions/green-metrics-tool', 'email': 'testEmail', 'branch': '', 'filename': '', 'machine_id': 1, 'schedule_mode': 'one-off', 'carbon_simulation': carbon_simulation}
+    response = requests.post(f"{API_URL}/v1/runs/add?no_url_check=true", json=payload, timeout=15)
+    assert response.status_code == 422, Tests.assertion_info('error', response.text)
+    assert 'Carbon simulation' in json.loads(response.text)['err'][0]['msg']
+    assert get_job_ids(run_name) is None
+
 
 
 def test_post_run_add_github_tags():

@@ -18,9 +18,13 @@ This directory defines the canonical local deployment and baseline database sche
   - One-time database bootstrap only (`CREATE DATABASE` + `\c`). Runs once, ever, on first
     container boot; never re-run after that (`CREATE DATABASE` has no `IF NOT EXISTS`).
 - `tables.sql`
-  - Canonical schema, extensions, and seed data for fresh installs. Also re-run standalone by
-    `tests/test_functions.py::reset_db()` on every test reset, so every statement in it must stay
-    idempotent (`IF NOT EXISTS` etc.).
+  - Canonical schema and extensions for fresh installs. Runs once per database, and in tests once per
+    test schema (`tests/test_functions.py::create_test_schema()` skips it when the schema already exists).
+    It is never re-run on an existing schema, so its statements do not need `IF NOT EXISTS`.
+- `seed-data.sql`
+  - Seed data for a freshly created schema. Re-run by `tests/test_functions.py::reset_db()` on every
+    test reset, after all tables have been TRUNCATEd. Every statement must therefore work on empty
+    tables, but does not need to tolerate already existing rows.
 - `nginx/`
   - Frontend and API proxy configuration
 
