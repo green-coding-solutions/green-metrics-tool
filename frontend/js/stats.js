@@ -695,15 +695,13 @@ const buildTimelineChartData = (measurements_data) => {
 
     const transform_timelines_energy_to_power = localStorage.getItem('transform_timelines_energy_to_power') === 'true' ? true : false;
 
+    // declared outside of try so that the failing metric can be reported in the catch block.
+    // This helps debugging quickly, as we apparently often forget to add new metrics to the converters
+    let metric_name = null;
+    let time_before = 0;
+    let detail_name = null;
+
     try {
-         // define here as var (not let!), so we can alert it later in error case.
-         // this was done, because we apparently often forget to add new metrics here and this helps debugging quickly with the alert later :)
-        var metric_name = null
-
-        // this can be let
-        let time_before = 0;
-        let detail_name = null;
-
         measurements_data.forEach(el => {
             const time_after = el[1] / 1000000;
             const time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
@@ -758,8 +756,8 @@ const buildTimelineChartData = (measurements_data) => {
 
         })
     } catch (err) {
-        alert(err)
-        alert(metric_name)
+        console.error(`Could not build time series data for metric ${metric_name}`, err);
+        showNotification('Could not build time series charts', `Failed at metric ${metric_name}: ${err.message}`);
     }
 
     const t1 = performance.now();
