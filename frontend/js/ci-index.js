@@ -36,7 +36,7 @@ async function getRepositories(sort_by = 'date') {
 
             if(!$.fn.DataTable.isDataTable(table)) {
                 const repo = this.getAttribute('data-uri');
-                await getCIRunsTable($(table), `/v1/ci/runs?repo=${repo}`, false, false, true)
+                await getCIRunsTable($(table), `/v1/ci/runs?repo=${encodeURIComponent(repo)}`, false, false, true)
             }
     }});
 };
