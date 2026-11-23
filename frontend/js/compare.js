@@ -167,7 +167,7 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
         const description = document.querySelector('#time-series-notes-no-display .description')
         description.innerHTML = 'Runs have same amount of notes, but at least one note differed in text. This might only be a small textual change or can be totally different steps. Please check chart for different labels in steps.<br><ul></ul>';
         const description_ul = description.querySelector('ul')
-        comparison.differences.forEach(el =>  {description_ul.innerHTML += `<li>${el.a} -> ${el.b}</li>`})
+        comparison.differences.forEach(el =>  {description_ul.insertAdjacentHTML('beforeend', `<li>${escapeString(el.a)} -> ${escapeString(el.b)}</li>`)})
     }
 
     let { cumulative1, cumulative2, candles, labels1, labels2 } = buildSeries(dataset1, dataset2);
@@ -181,7 +181,7 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
           const candlestick = params[2];          // candlestick series
           const [open, close, low, high] = candlestick.data;
           return `
-            ${series1.axisValue}<br/>
+            ${escapeString(series1.axisValue)}<br/>
             ${series1.marker} ${series1.seriesName}: ${numberFormatter.format(series1.value)} s<br>
             ${series2.marker} ${series2.seriesName}: ${numberFormatter.format(series2.value)} s<br>
             ${candlestick.marker} ${candlestick.seriesName}: ${numberFormatter.format(candlestick.value[2])} s<br>
