@@ -332,6 +332,7 @@ const showNotification = (message_title, message_text, type='error') => {
         displayTime: 5000,
         title: message_title,
         message: message,
+        preserveHTML: false, // title and message can contain user input (URL params, API errors). Render as text only
     });
     return;
 }
