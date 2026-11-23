@@ -696,7 +696,7 @@ const buildTimelineChartData = (measurements_data) => {
     const metrics = {}
     const t0 = performance.now();
 
-    const transform_timelines_energy_to_power = localStorage.getItem('transform_timelines_energy_to_power') === 'true' ? true : false;
+    const transform_timelines_energy_to_power = localStorage.getItem('transform_timelines_energy_to_power') === 'true';
 
     // declared outside of try so that the failing metric can be reported in the catch block.
     // This helps debugging quickly, as we apparently often forget to add new metrics to the converters
