@@ -52,7 +52,7 @@ const getAndShowPhase = () => {
         const allowed_phases = ['BASELINE', 'INSTALLATION', 'BOOT', 'IDLE', 'RUNTIME', 'REMOVE'];
         phase_to_display = phase_to_display.split('__');
         if (allowed_phases.includes(phase_to_display[0])) {
-            document.querySelector(`a.step[data-tab="[${phase_to_display[0]}]"`).dispatchEvent(new Event('click'));
+            document.querySelector(`a.step[data-tab="[${phase_to_display[0]}]"]`).dispatchEvent(new Event('click'));
             shown_phase = `[${phase_to_display[0]}]`;
         } else {
             document.querySelector('a.step[data-tab="[RUNTIME]"]').dispatchEvent(new Event('click'));
@@ -60,7 +60,7 @@ const getAndShowPhase = () => {
         const sub_phase_regex = /^[\.\s0-9a-zA-Z_\(\)-]+$/; // Matches strings containing only letters and digits
         if (phase_to_display[1] != null && sub_phase_regex.test(phase_to_display[1])) {
             try {
-                document.querySelector(`a.runtime-step[data-tab="${phase_to_display[1]}"`).dispatchEvent(new Event('click'));
+                document.querySelector(`a.runtime-step[data-tab="${phase_to_display[1]}"]`).dispatchEvent(new Event('click'));
             } catch(err) {
                 console.log('Could not match phase to show', err);
             }
