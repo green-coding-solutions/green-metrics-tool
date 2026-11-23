@@ -993,7 +993,9 @@ const fetchAndFillOptimizationsData = async (run_id) => {
     try {
         optimizations = await makeAPICall('/v1/optimizations/' + run_id)
     } catch (err) {
-        showNotification('Could not get optimizations data from API', err);
+        if (!(err instanceof APIHTTPError && err.status === 204)) { // 204 = no optimizations found. Count in HTML stays at 0
+            showNotification('Could not get optimizations data from API', err);
+        }
         return
     }
 
