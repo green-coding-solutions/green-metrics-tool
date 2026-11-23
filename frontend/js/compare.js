@@ -90,8 +90,10 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
         return
     }
 
-    let notes_data1 = await fetchTimelineNotes(run_ids[0])
-    let notes_data2 = await fetchTimelineNotes(run_ids[1])
+    const [notes_data1, notes_data2] = await Promise.all([
+        fetchTimelineNotes(run_ids[0]),
+        fetchTimelineNotes(run_ids[1])
+    ])
 
     if (!notes_data1 || !notes_data2) {
         document.querySelector('#loader-time-series-notes').classList.add('hidden');

@@ -493,20 +493,21 @@ const fetchTimelineNotes = async (run_id) => {
 }
 
 const fetchWarningsForRuns = async (run_ids) => {
-    const warnings = [];
-    for (const run_id of run_ids) {
+    // requests run in parallel. Promise.all keeps the order of run_ids
+    const warnings_per_run = await Promise.all(run_ids.map(async (run_id) => {
         try {
             const data = await makeAPICall('/v1/warnings/' + run_id);
-            if (data?.data) warnings.push(...data.data);
+            return data?.data ?? [];
         } catch (err) {
             if (err instanceof APIHTTPError && err.status === 204) {
                 console.log('No warnings where present in API response. Skipping error as this is allowed case.')
             } else {
                 showNotification('Could not get warnings data from API', err);
             }
+            return [];
         }
-    }
-    return warnings;
+    }));
+    return warnings_per_run.flat();
 };
 
 // fills the #run-warnings box. Identical warnings of multiple runs are only shown once
