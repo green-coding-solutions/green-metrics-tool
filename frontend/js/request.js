@@ -184,6 +184,7 @@ const updateRemoveButtonsVisibility = () => {
             if (event.submitter?.id !== 'submit-keep-values') {
                 form.reset()
                 document.getElementById('variables-container').innerHTML = '';
+                addVariableField() // same state as on page load: one empty row
             }
             showNotification('Success', 'Save successful. Check your mail in 10-15 minutes', 'success');
         } catch (err) {
