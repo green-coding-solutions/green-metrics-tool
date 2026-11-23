@@ -352,7 +352,7 @@ const buildClusterChangelogSegments = (clusterChangelog, timestamps) => {
 }
 
 const wrapTooltipText = (text, maxLength = 40) => {
-    if (text.length <= maxLength) return text;
+    if (text.length <= maxLength) return escapeString(text);
 
     const lines = [];
     let currentLine = '';
@@ -365,7 +365,7 @@ const wrapTooltipText = (text, maxLength = 40) => {
         }
     }
 
-    if (currentLine.length > 0) escapeString(lines.push(currentLine));
+    if (currentLine.length > 0) lines.push(escapeString(currentLine));
     return lines.join('<br>');
 }
 
