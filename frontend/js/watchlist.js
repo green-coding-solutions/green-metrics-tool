@@ -41,7 +41,7 @@ $(document).ready(function () {
                     <p title="${escapeString(filename)}"><b>Filename: </b> ${filename == '' ? '-': escapeString(filename)}</p>
                     <p title="${escapeString(machine_description)}"><b>Machine: </b>${escapeString(machine_description)}</p>
                     <p title="${escapeString(schedule_mode)}"><b>Schedule Mode: </b>${escapeString(schedule_mode)}</p>
-                    <p title="${escapeString(last_run)}"><b>Last Run: </b>${last_run == '' ? '-' : dateToYMD(new Date(last_run), false, true)}</p>
+                    <p title="${escapeString(last_run)}"><b>Last Run: </b>${(last_run == null || last_run == '') ? '-' : dateToYMD(new Date(last_run), false, true)}</p>
 
                     `
 
