@@ -253,7 +253,7 @@ const getLineBarChartOptions = (legend, labels, series, x_axis_name=null, y_axis
         }
     };
     if (mark_area != null) {
-        options['series']['markArea'] = {
+        options['series'][0]['markArea'] = { // series is an array. markArea must be set on a series object
             data: [
                 [
                     { name: mark_area[0].name, yAxis: mark_area[0].top }, // a name in one item is apprently enough ...
