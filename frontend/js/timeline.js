@@ -629,7 +629,7 @@ const loadCharts = async () => {
             let options = chart_instance.getOption()
             const stddevSeries = options.series.find((entry) => entry.name === 'Stddev');
             if (stddevSeries?.markArea?.data?.[0] != null) {
-                stddevSeries.markArea.data[0][0].name = `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `(${(stddev/mean * 100).toFixed(2)} %)` : 'N/A'}} %)`
+                stddevSeries.markArea.data[0][0].name = `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `${(stddev/mean * 100).toFixed(2)} %` : 'N/A'})`
                 stddevSeries.markArea.data[0][0].yAxis = mean + stddev
                 stddevSeries.markArea.data[0][1].yAxis = mean - stddev;
             }
