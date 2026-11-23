@@ -1133,7 +1133,7 @@ const fetchAndFillAIData = async (run_id) => {
     $('body').on('click', '.copy-button', function() {
         var code = $(this).closest('.content').find('pre').text();
         copyTextToClipboard('You are a world class programmer. Please improve:' + code); // TODO: Refactor to use central function in main.js
-        showNotification('Code copied', 'The code has been copied to the clipboard.')
+        showNotification('Code copied', 'The code has been copied to the clipboard.', 'success')
     });
 
 }
