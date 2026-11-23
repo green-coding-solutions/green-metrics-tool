@@ -678,8 +678,8 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
                 'mean': value, # this is the mean over all repetitions of the detail_name for the key
                 'max': max_value,
                 'min': min_value,
-                'max_mean': max_value,
-                'min_mean': min_value,
+                'max_mean': value, # will be overwritten in add_phase_stats_statistics() if multiple values exist
+                'min_mean': value, # will be overwritten in add_phase_stats_statistics() if multiple values exist
                 'stddev': None,
                 'sr_avg_avg': sampling_rate_avg,
                 'sr_max_max': sampling_rate_max,
