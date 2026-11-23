@@ -473,8 +473,6 @@ const loadCharts = async () => {
     let legends = {};
     let series = {};
 
-    let prun_id = null
-
     phase_stats_data.forEach( (data) => {
         let [run_id, run_name, usage_scenario_variables, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash, archived] = data
 
@@ -483,6 +481,8 @@ const loadCharts = async () => {
         if (series[`${metric_name} - ${detail_name}`] == undefined) {
             series[`${metric_name} - ${detail_name}`] = {labels: [], timestamps: [], values: [], notes: [], unit: transformed_unit, metric_name: metric_name, detail_name: detail_name}
         }
+        // previous run must come from the same series. First point of a series has no previous run
+        const prun_id = series[`${metric_name} - ${detail_name}`].notes.at(-1)?.run_id ?? null;
 
         const timelineTimestamp = isMeasurementSorting ? created_at : commit_timestamp;
         series[`${metric_name} - ${detail_name}`].labels.push(timelineTimestamp)
@@ -500,8 +500,6 @@ const loadCharts = async () => {
             archived: archived,
             gmt_hash: gmt_hash,
         })
-
-        prun_id = run_id
     })
 
     try {
@@ -582,8 +580,8 @@ const loadCharts = async () => {
                         commit_hash: <a class="commit-hash-link" href="" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
                         gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].gmt_hash)}</a><br>
 
-                        <br>
-                        👉 <a href="/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}" target="_blank">Diff with previous run</a>
+                        ${series[params.seriesName].notes[params.dataIndex].prun_id == null ? '' : `<br>
+                        👉 <a href="/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}" target="_blank">Diff with previous run</a>`}
                         `;
                         const container = document.createElement('div');
                         container.innerHTML = html_content;
