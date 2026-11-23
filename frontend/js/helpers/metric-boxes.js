@@ -334,7 +334,10 @@ const updateKeyMetric = (
             icon = 'leaf';
             colour = 'green';
         }
-        node.insertAdjacentHTML('beforeend', createCard({ key: selector.slice(1), name: null, icon: icon, variable:false, detail_name: detail_name }, '', colour));
+        // only create the card once per phase. Further detail_names are aggregated into the existing card below
+        if (node.querySelector(selector) == null) {
+            node.insertAdjacentHTML('beforeend', createCard({ key: selector.slice(1), name: null, icon: icon, variable:false, detail_name: detail_name }, '', colour));
+        }
     } else {
         return // no selector found, which means this is no currently configured key metric
     }
