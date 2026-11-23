@@ -96,8 +96,13 @@ const setAndShowAnalyticsLinks = (run_id, run_data) => {
     if (run_data.branch) timelineParams.set('branch', run_data.branch);
     if (run_data.filename) timelineParams.set('filename', run_data.filename);
     if (run_data.machine_id != null) timelineParams.set('machine_id', String(run_data.machine_id));
+    // same format as runs.js: timeline.html only parses usage_scenario_variables[KEY]=value or the literal 'false'
     if (run_data.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
-        timelineParams.set('usage_scenario_variables', JSON.stringify(run_data.usage_scenario_variables));
+        Object.entries(run_data.usage_scenario_variables).forEach(([key, value]) => {
+            timelineParams.append(`usage_scenario_variables[${key}]`, String(value));
+        });
+    } else {
+        timelineParams.set('usage_scenario_variables', 'false');
     }
 
     if (timelineParams.get('uri')) {
