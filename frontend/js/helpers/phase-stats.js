@@ -173,7 +173,7 @@ const buildPhaseTabs = (phase_stats_object) => {
 
     render* means that build* and display* functions are mixed
 */
-const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_count=1) => {
+const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]') => {
 
     // we now traverse all branches of the tree
     // the tree is sparese, so although we see all metrics that are throughout all phases and comparison_keys

@@ -289,7 +289,6 @@ $(document).ready( () => {
             showNotification('Invalid ids', 'ids parameter in URL contains at least one invalid run ID. Did you follow a correct URL?');
             return;
         }
-        const run_count = run_ids.length
 
         let phase_stats_data = null
         try {
@@ -313,6 +312,8 @@ $(document).ready( () => {
         fillWarnings(warnings);
 
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${escapeString(phase_stats_data.comparison_case)}</td></tr>`)
+        // count the runs the API resolved and not the URL ids, as these can contain duplicates or runs not visible to the user
+        const run_count = phase_stats_data.comparison_details.flat().length
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Number of runs compared</strong></td><td>${run_count}</td></tr>`)
         if (phase_stats_data.comparison_case === 'Machine') {
             let comparison_identifiers = phase_stats_data.comparison_identifiers.join(' vs. ')
@@ -349,14 +350,14 @@ $(document).ready( () => {
         document.querySelector('#fetch-diff').addEventListener('click', (event) => { fetchDiff(run_ids) })
 
         buildPhaseTabs(phase_stats_data)
-        renderCompareChartsForPhase(phase_stats_data, getAndShowPhase(), run_count);
+        renderCompareChartsForPhase(phase_stats_data, getAndShowPhase());
         displayTotalChart(...buildTotalChartData(phase_stats_data));
         // comparison_details is ordered by created_at ASC, same as the comparison tables. The ids from the URL are newest first
         fetchAndShowTimeSeriesNotesHistory(phase_stats_data.comparison_details.flat().map(el => el.run_id))
 
         document.querySelectorAll('.ui.steps.phases .step, .runtime-step').forEach(node => node.addEventListener('click', el => {
             const phase = el.currentTarget.getAttribute('data-tab');
-            renderCompareChartsForPhase(phase_stats_data, phase, run_count);
+            renderCompareChartsForPhase(phase_stats_data, phase);
         }));
 
     })();
