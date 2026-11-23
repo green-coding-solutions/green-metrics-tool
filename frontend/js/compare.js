@@ -1,34 +1,19 @@
 "use strict";
-function createPythonDictTable(dataArray, labelPrefix = 'Item', keyHeader = 'Key') {
-    // Parse Python dictionary data into a comparison table
-    const items = Array.isArray(dataArray) ? dataArray : [dataArray];
-    
-    // Collect all unique keys
-    const allKeys = new Set();
-    const parsedItems = items.map(item => {
-        const vars = {};
-        const matches = item.match(/'([^']+)':\s*'([^']*)'/g);
-        if (matches) {
-            matches.forEach(match => {
-                const [, key, value] = match.match(/'([^']+)':\s*'([^']*)'/);
-                vars[key] = value;
-                allKeys.add(key);
-            });
-        }
-        return vars;
-    });
-    
-    // Build simple table
-    let tableContent = `<table><tr><th>${keyHeader}</th>`;
-    items.forEach((_, index) => {
-        tableContent += `<th style="text-align: center;">${labelPrefix} ${index + 1}</th>`;
+function createVariablesComparisonTable(variablesList, labelPrefix = 'Item', keyHeader = 'Key') {
+    // variablesList holds one usage scenario variables object per comparison group
+    const allKeys = new Set(variablesList.flatMap(vars => Object.keys(vars)));
+
+    let tableContent = `<table><tr><th>${escapeString(keyHeader)}</th>`;
+    variablesList.forEach((_, index) => {
+        tableContent += `<th style="text-align: center;">${escapeString(labelPrefix)} ${index + 1}</th>`;
     });
     tableContent += '</tr>';
-    
+
     allKeys.forEach(key => {
         tableContent += `<tr><td><strong>${escapeString(key)}</strong></td>`;
-        parsedItems.forEach(item => {
-            tableContent += `<td style="text-align: center;">${escapeString(item[key] ? displayUsageScenarioVariableValue(key, item[key]) : '-')}</td>`;
+        variablesList.forEach(vars => {
+            const value = Object.hasOwn(vars, key) ? displayUsageScenarioVariableValue(key, vars[key]) : '-';
+            tableContent += `<td style="text-align: center;">${escapeString(value)}</td>`;
         });
         tableContent += '</tr>';
     });
@@ -343,7 +328,9 @@ $(document).ready( () => {
                 document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${escapeString(GMT_MACHINES[comparison_identifiers] || comparison_identifiers)}</td></tr>`)
             }
         } else if (phase_stats_data.comparison_case === 'Usage Scenario Variables') {
-            const tableContent = createPythonDictTable(phase_stats_data.comparison_identifiers || comparison_identifiers.split(' vs. '), 'Scenario', 'Variable');
+            // comparison_details has one list of runs per comparison identifier. All runs in a group share the same variables
+            const variablesList = phase_stats_data.comparison_details.map(runs => runs[0]?.usage_scenario_variables || {});
+            const tableContent = createVariablesComparisonTable(variablesList, 'Scenario', 'Variable');
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${tableContent}</td></tr>`)
         } else if (phase_stats_data.comparison_case === 'IDs') {
             document.querySelector('#compare-mode-ids').classList.remove('hidden');
