@@ -430,6 +430,12 @@ $(document).ready(() => {
             return;
         }
 
+        if (!compareSimpleState.runIds.every(isValidUUID)) {
+            showNotification('Invalid ids', 'ids parameter in URL contains at least one invalid run ID. Did you follow a correct URL?');
+            document.querySelector('#loader-compare-simple').remove();
+            return;
+        }
+
         if (url_params['swap_axes'] === 'true') compareSimpleState.metricsOnY = true;
         if (url_params['source'] === 'true') compareSimpleState.showSource = true;
         if (url_params['detail'] === 'true') compareSimpleState.showDetail = true;
