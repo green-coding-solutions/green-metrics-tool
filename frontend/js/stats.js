@@ -584,7 +584,7 @@ const renderLogsInterface = (logsData) => {
                     typeIcon = 'cog';
                     typeTooltip = 'Logs from the entire container execution process';
                     break;
-                case 'setup_commands':
+                case 'setup_command':
                     typeIcon = 'wrench';
                     typeTooltip = 'Logs from setup commands before flow execution';
                     break;
