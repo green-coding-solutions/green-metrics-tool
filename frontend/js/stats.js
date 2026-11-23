@@ -607,7 +607,7 @@ const renderLogsInterface = (logsData) => {
             }
 
             // Make the type name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
-            const typeTitle = escapeString(logEntry.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+            const typeTitle = escapeString(logEntry.type.replaceAll('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
             const typeLabel = `<div class="ui purple label" data-tooltip="${typeTooltip}" data-position="top center"><i class="${typeIcon} icon"></i> ${typeTitle}</div>`;
 
             const phaseLabel = logEntry.phase ?
@@ -640,7 +640,7 @@ const renderLogsInterface = (logsData) => {
                         operationTooltip = `Exception occurred during '${logEntry.cmd}' operation`;
                 }
                 // Make the operation name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
-                const operationTitle = escapeString(logEntry.cmd.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+                const operationTitle = escapeString(logEntry.cmd.replaceAll('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
                 operationLabel = `<div class="ui orange label" data-tooltip="${escapeString(operationTooltip)}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
 
                 if (logEntry.exception_class) {
