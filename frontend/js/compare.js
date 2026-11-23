@@ -245,7 +245,7 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
     comparison.differences.forEach(el =>  {
         option.series[0].markLine.data.push(
         {
-            xAxis: el.a,
+            xAxis: el.index, // index instead of label, as labels can repeat and ECharts would then mark the first match
             label: {
                 show: true,
                 formatter: '⚠',
