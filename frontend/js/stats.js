@@ -391,18 +391,32 @@ const fetchAndFillRunData = async (run_id) => {
 
 const fillRunTab = async (selector, data, parent = '', is_top_level = true) => {
     const node = document.querySelector(selector);
-    for (const item in data) {
+    const isObject = (value) => value != null && typeof value == 'object';
+    const addHeading = (text) => node.insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(text)}</h2></strong></td><td></td></tr>`);
+    const addRow = (label, value) => node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(label)}</strong></td><td>${escapeString(value)}</td></tr>`);
 
-        if(data[item] != null && typeof data[item] == 'object') {
-            if (is_top_level) {
-                // top level keys become a heading and are thus not repeated in the labels below
-                node.insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(item)}</h2></strong></td><td></td></tr>`)
-                fillRunTab(selector, data[item], '', false)
-            } else {
-                fillRunTab(selector, data[item], `${parent}${item}.`, false)
-            }
+    if (is_top_level) {
+        // Top level scalars are collected in a "General" section first. Otherwise they would be displayed
+        // after the previous section heading and look like they belong to it.
+        // Top level objects become a heading and are thus not repeated in the labels below
+        const entries = Object.entries(data ?? {});
+        const scalar_entries = entries.filter(([, value]) => !isObject(value));
+        if (scalar_entries.length > 0) {
+            addHeading('General');
+            scalar_entries.forEach(([item, value]) => addRow(item, value));
+        }
+        entries.filter(([, value]) => isObject(value)).forEach(([item, value]) => {
+            addHeading(item);
+            fillRunTab(selector, value, '', false);
+        });
+        return;
+    }
+
+    for (const item in data) {
+        if (isObject(data[item])) {
+            fillRunTab(selector, data[item], `${parent}${item}.`, false);
         } else {
-            node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data[item])}</td></tr>`)
+            addRow(`${parent}${item}`, data[item]);
         }
     }
 }
