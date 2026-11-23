@@ -243,7 +243,9 @@ const fetchAndFillRunData = async (run_id) => {
             failedContainer.classList.remove('hidden');
 
         } else if(item == 'start_measurement' || item == 'end_measurement') {
-            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item] / 1e3)}</td></tr>`)
+            // can be null if the run has not yet reached or never reached this point
+            const measurement_date = run_data[item] == null ? 'N/A' : escapeString(new Date(run_data[item] / 1e3));
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${measurement_date}</td></tr>`)
         } else if(item == 'created_at' ) {
             run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item])}</td></tr>`)
         } else if(item == 'gmt_hash') {
@@ -371,11 +373,16 @@ const fetchAndFillRunData = async (run_id) => {
         });
     })
     // create new custom field
-    // timestamp is in microseconds, therefore divide by 10**6
-    const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1e6
-    const measurement_duration_display = (measurement_duration_in_s > 60) ? `${numberFormatter.format(measurement_duration_in_s / 60)} min` : `${numberFormatter.format(measurement_duration_in_s)} s`
+    // start / end can be null if the run is still running or failed before. Otherwise null would be treated as 0
+    if (run_data.start_measurement == null || run_data.end_measurement == null) {
+        run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="Measurement has not started or not ended">N/A</td></tr>`)
+    } else {
+        // timestamp is in microseconds, therefore divide by 10**6
+        const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1e6
+        const measurement_duration_display = (measurement_duration_in_s > 60) ? `${numberFormatter.format(measurement_duration_in_s / 60)} min` : `${numberFormatter.format(measurement_duration_in_s)} s`
 
-    run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
+        run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
+    }
 
     // warnings will be fetched separately
 
