@@ -304,13 +304,17 @@ $(document).ready( () => {
         }
 
         const run_ids = url_params['ids'].split(",");
+        if (!run_ids.every(isValidUUID)) {
+            showNotification('Invalid ids', 'ids parameter in URL contains at least one invalid run ID. Did you follow a correct URL?');
+            return;
+        }
         const run_count = run_ids.length
 
         let phase_stats_data = null
         try {
             let url = `/v1/compare?ids=${run_ids}`
             if (url_params['force_mode']?.length) {
-                url = `${url}&force_mode=${url_params['force_mode']}`
+                url = `${url}&force_mode=${encodeURIComponent(url_params['force_mode'])}`
             }
             phase_stats_data = (await makeAPICall(url)).data
         } catch (err) {
@@ -338,9 +342,9 @@ $(document).ready( () => {
             if (match) {
                 const num1 = parseInt(match[1], 10); // First number
                 const num2 = parseInt(match[2], 10); // Second number
-                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${num1} (${GMT_MACHINES[num1]}) vs. ${num2} (${GMT_MACHINES[num2]})</td></tr>`)
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${num1} (${escapeString(GMT_MACHINES[num1] || num1)}) vs. ${num2} (${escapeString(GMT_MACHINES[num2] || num2)})</td></tr>`)
             } else {
-                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${GMT_MACHINES[comparison_identifiers] || escapeString(comparison_identifiers)}</td></tr>`)
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${escapeString(GMT_MACHINES[comparison_identifiers] || comparison_identifiers)}</td></tr>`)
             }
         } else if (phase_stats_data.comparison_case === 'Usage Scenario Variables') {
             const tableContent = createPythonDictTable(phase_stats_data.comparison_identifiers || comparison_identifiers.split(' vs. '), 'Scenario', 'Variable');

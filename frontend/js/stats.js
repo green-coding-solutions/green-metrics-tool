@@ -225,16 +225,16 @@ const fetchAndFillRunData = async (run_id) => {
                 const httpsUrl = toHttpsUri(url);
                 const relationHash = run_data[item][relation]['commit_hash'];
                 const display = httpsUrl.startsWith('http')
-                    ? `<a href="${escapeString(httpsUrl)}" target="_blank">${escapeString(url)} (${relationHash})</a>`
-                    : `${escapeString(url)} (${relationHash})`;
+                    ? `<a href="${escapeString(httpsUrl)}" target="_blank">${escapeString(url)} (${escapeString(relationHash)})</a>`
+                    : `${escapeString(url)} (${escapeString(relationHash)})`;
                 document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td>${display}</td></tr>`)
             }
         }  else if(item == 'commit_hash') {
             if (run_data[item] == null) continue; // some old runs did not save it
             const commit_link = getRepoRefUrl(run_data['uri'], 'tree');
             const display = commit_link
-                ? `<a href="${escapeString(commit_link + run_data['commit_hash'])}" target="_blank">${run_data[item]}</a>`
-                : run_data[item];
+                ? `<a href="${escapeString(commit_link + run_data['commit_hash'])}" target="_blank">${escapeString(run_data[item])}</a>`
+                : escapeString(run_data[item]);
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${display}</td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
@@ -247,7 +247,7 @@ const fetchAndFillRunData = async (run_id) => {
         } else if(item == 'created_at' ) {
             run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item])}</td></tr>`)
         } else if(item == 'gmt_hash') {
-            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data[item]}">${escapeString(run_data[item])}</a></td></tr>`);
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${encodeURIComponent(run_data[item])}">${escapeString(run_data[item])}</a></td></tr>`);
         } else if(item == 'uri') {
             const uri = run_data[item];
             const httpsUri = toHttpsUri(uri);
@@ -626,7 +626,7 @@ const renderLogsInterface = (logsData) => {
                 }
                 // Make the operation name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
                 const operationTitle = escapeString(logEntry.cmd.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
-                operationLabel = `<div class="ui orange label" data-tooltip="${operationTooltip}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
+                operationLabel = `<div class="ui orange label" data-tooltip="${escapeString(operationTooltip)}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
 
                 if (logEntry.exception_class) {
                     classLabel = `<div class="ui red label" data-tooltip="Exception class type" data-position="top center"><i class="exclamation triangle icon"></i> ${escapeString(logEntry.exception_class)}</div>`;
@@ -783,7 +783,7 @@ const displayTimelineCharts = async (metrics, notes) => {
 
     for (const metric_name in metrics) {
 
-        const element = createChartContainer("#chart-container", `${getPretty(metric_name, 'clean_name')} via ${getPretty(metric_name, 'source')} <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
+        const element = createChartContainer("#chart-container", `${escapeString(getPretty(metric_name, 'clean_name'))} via ${escapeString(getPretty(metric_name, 'source'))} <i data-tooltip="${escapeString(getPretty(metric_name, 'explanation'))}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
 
         let legend = [];
         let series = [];
