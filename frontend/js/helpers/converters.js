@@ -61,6 +61,23 @@ const convertValue = (value, unit) => {
     }
 }
 
+// Converts an energy value to kWh. Unlike convertValue this is independent of the display_in_joules setting,
+// as calculations (e.g. carbon from grid intensity) always need kWh. Returns null if unit is not a known energy unit
+const ENERGY_UNIT_TO_KWH_DIVISOR = {
+    'uJ': 1_000 * 1_000 * 3_600_000,
+    'mJ': 1_000 * 3_600_000,
+    'J': 3_600_000,
+    'uWh': 1_000_000_000,
+    'mWh': 1_000_000,
+    'Wh': 1_000,
+    'kWh': 1,
+};
+const convertEnergyToKwh = (value, unit) => {
+    const divisor = ENERGY_UNIT_TO_KWH_DIVISOR[unit];
+    if (divisor === undefined) return null;
+    return transformIfNotNull(value, divisor);
+}
+
 const rescaleCO2Value = (value,unit) => {
     if     (value > 1_000_000_000) return [(value/(10**9)).toFixed(2), 'kg'];
     else if(value > 1_000_000) return [(value/(10**6)).toFixed(2), 'g'];
