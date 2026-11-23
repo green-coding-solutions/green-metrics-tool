@@ -388,9 +388,10 @@ const updateKeyMetric = (
 
         valueNode.innerHTML = `${total} (<i class="window restore outline icon" title="This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)`
 
-        if (display_mode != 'std_dev') {
-            const cleanedRawValue = valueNode.getAttribute('title').replace(/[^0-9.]/g, '');
-            const rawTotal = (parseFloat(cleanedRawValue) + parseFloat(raw_value))
+        const rawTitle = valueNode.getAttribute('title'); // can be null if first encountered detail_name was in std_dev mode
+        if (display_mode != 'std_dev' && rawTitle != null) {
+            // title is "<value> [<unit>]". parseFloat reads only the leading number. Stripping non-digits would also catch digits in the unit (e.g. ugCO2e)
+            const rawTotal = (parseFloat(rawTitle) + parseFloat(raw_value))
             valueNode.setAttribute('title', `${rawTotal} [${raw_unit}]`);
         }
 
