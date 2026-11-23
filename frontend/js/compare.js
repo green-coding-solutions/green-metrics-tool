@@ -41,36 +41,6 @@ async function fetchDiff(run_ids) {
 
 }
 
-const fetchWarningsForRuns = async (run_ids) => {
-    const warnings = [];
-    for (const run_id of run_ids) {
-        try {
-            const data = await makeAPICall('/v1/warnings/' + run_id);
-            if (data?.data) warnings.push(...data.data);
-        } catch (err) {
-            if (err instanceof APIHTTPError && err.status === 204) {
-                console.log('No warnings where present in API response. Skipping error as this is allowed case.')
-            } else {
-                showNotification('Could not get warnings data from API', err);
-            }
-        }
-    }
-    return warnings;
-};
-
-const fillWarnings = (warnings) => {
-    if (!warnings || warnings.length === 0) return;
-    const warnings_texts = warnings.map(sub => sub[1]);
-    const unique_warnings = [...new Set(warnings_texts)];
-
-    const container = document.querySelector('#run-warnings');
-    const ul = container.querySelector('ul');
-    unique_warnings.forEach(w => {
-        ul.insertAdjacentHTML('beforeend', `<li>${escapeString(w)}</li>`);
-    });
-    container.classList.remove('hidden');
-};
-
 const buildSeries = (ds1, ds2) => {
   const cumulative1 = [];
   const cumulative2 = [];

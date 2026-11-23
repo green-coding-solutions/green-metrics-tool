@@ -1180,30 +1180,6 @@ const fetchAndShowTimelineCharts = async (run_id) => {
     displayTimelineCharts(timeline_chart_data, timeline_notes);
 }
 
-const fetchAndFillWarnings = async (run_id) => {
-    let warnings = null;
-    try {
-        warnings = await makeAPICall('/v1/warnings/' + run_id)
-    } catch (err) {
-        if (err instanceof APIHTTPError && err.status === 204) {
-            console.log('No warnings where present in API response. Skipping error as this is allowed case.')
-        } else {
-            showNotification('Could not get warnings data from API', err);
-        }
-        return;
-
-    }
-
-    if (!warnings || warnings?.data?.length === 0) return;
-
-    const container = document.querySelector('#run-warnings');
-    const ul = container.querySelector('ul');
-    warnings.data.forEach(w => {
-        ul.insertAdjacentHTML('beforeend', `<li>${escapeString(w[1])}</li>`);
-    });
-    container.classList.remove('hidden');
-}
-
 
 
 // Templates for usage scenario dependencies
@@ -1403,7 +1379,7 @@ $(document).ready( () => {
         // run all without await, as they have no blocking visuals or depended upon changes
         fetchAndFillNetworkIntercepts(run_id);
         fetchAndFillAIData(run_id);
-        fetchAndFillWarnings(run_id);
+        fetchWarningsForRuns([run_id]).then(fillWarnings);
         fetchAndFillRunData(run_id).then((run_data) => {
             // optimizations are opt-in. Only fetch them if the run was started with --optimizations.
             // Legacy runs (pre opt-in) have no `optimizations` key. For them we fetch unless skip_optimizations was set.
