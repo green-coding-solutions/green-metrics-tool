@@ -936,20 +936,28 @@ const fetchAndFillPhaseStatsData = async (run_id) => {
 }
 
 const fetchAndFillNetworkIntercepts = async (run_id) => {
+    const showNetworkMessage = (message) => {
+        document.querySelector("#network-divider").insertAdjacentHTML('afterend', `<p>${escapeString(message)}</p>`)
+    };
+
     let network = null;
     try {
         network = await makeAPICall('/v1/network/' + run_id)
     } catch (err) {
         if (err instanceof APIHTTPError && err.status === 204) {
-            console.log('No network intercepts present in API response. Skipping error as this is allowed case.')
+            // API returns 204 only if the network connections provider was active, but no connections were made
+            showNetworkMessage('No external network connections were detected.');
+        } else if (err instanceof APIHTTPError && err.status === 422) {
+            // API returns 422 if the network connections provider was not active. Thus no statement can be made
+            showNetworkMessage(`${err.message}. External network connections were not recorded.`);
         } else {
             showNotification('Could not get network intercepts data from API', err);
         }
         return
     }
 
-    if (network.data.length === 0) {
-        document.querySelector("#network-divider").insertAdjacentHTML('afterEnd', '<p>No external network connections were detected.</p>')
+    if (!network?.data?.length) {
+        showNetworkMessage('No external network connections were detected.');
     } else {
         const node = document.querySelector("#network-intercepts");
         for (const item of network.data) {

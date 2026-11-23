@@ -287,12 +287,29 @@ async def get_network(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
         return ORJSONResponseObjKeep({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=422)
 
-    run_exists = DB().fetch_one(
-        "SELECT 1 FROM runs WHERE id = %s",
-        params=(run_id,)
+    run = DB().fetch_one(
+        '''
+            SELECT measurement_config->'configured_metric_providers'
+            FROM runs
+            WHERE
+                (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
+                AND id = %s
+        ''',
+        params=(user.is_super_user(), user.visible_users(), run_id)
     )
-    if not run_exists:
-        return ORJSONResponseObjKeep({'success': False, 'data': 'Run not found'}, status_code=404)
+    if not run:
+        return ORJSONResponseObjKeep({'success': False, 'err': 'Run not found'}, status_code=404)
+
+    # 204 must only mean "provider was active, but no connections were made". If the provider was not active
+    # we cannot make any statement about network connections and must tell the client.
+    # Legacy runs stored the provider under its full module path instead of the metric name
+    configured_metric_providers = run[0] or {}
+    if not any(
+        provider == 'network_connections_proxy_container' or provider.endswith('.NetworkConnectionsProxyContainerProvider')
+        for provider in configured_metric_providers
+    ):
+        # Expected case, so returned directly instead of raising HTTPException, which would log an error
+        return ORJSONResponseObjKeep({'success': False, 'err': 'Network connections metric provider was not active for this run'}, status_code=422)
 
     query = '''
             SELECT ni.*
