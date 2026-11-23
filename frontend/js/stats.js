@@ -80,27 +80,20 @@ const getElephantServiceUrl = () => {
 const setAndShowAnalyticsLinks = (run_id, run_data) => {
 
     if (getElephantServiceUrl() !== '') {
-        const simulationLink = document.querySelector('#analytics-simulation-link');
-        if (simulationLink) {
-            simulationLink.href = `simulation.html?id=${encodeURIComponent(run_id)}`;
-        }
-        const simulationYearlyLink = document.querySelector('#analytics-simulation-yearly-link');
-        if (simulationYearlyLink) {
-            simulationYearlyLink.href = `simulation-yearly.html?id=${encodeURIComponent(run_id)}`;
-        }
+        document.querySelector('#analytics-simulation-link').href = `simulation.html?id=${encodeURIComponent(run_id)}`;
+        document.querySelector('#analytics-simulation-yearly-link').href = `simulation-yearly.html?id=${encodeURIComponent(run_id)}`;
     } else {
         document.querySelector('a[data-tab="analytics-simulation"]').classList.add('hidden');
     }
 
     const timelineLink = document.querySelector('#analytics-timeline-link');
-    if (!timelineLink) return;
 
     const timelineParams = new URLSearchParams();
-    if (run_data?.uri) timelineParams.set('uri', run_data.uri);
-    if (run_data?.branch) timelineParams.set('branch', run_data.branch);
-    if (run_data?.filename) timelineParams.set('filename', run_data.filename);
-    if (run_data?.machine_id != null) timelineParams.set('machine_id', String(run_data.machine_id));
-    if (run_data?.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
+    if (run_data.uri) timelineParams.set('uri', run_data.uri);
+    if (run_data.branch) timelineParams.set('branch', run_data.branch);
+    if (run_data.filename) timelineParams.set('filename', run_data.filename);
+    if (run_data.machine_id != null) timelineParams.set('machine_id', String(run_data.machine_id));
+    if (run_data.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
         timelineParams.set('usage_scenario_variables', JSON.stringify(run_data.usage_scenario_variables));
     }
 
