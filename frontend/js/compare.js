@@ -175,18 +175,14 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
     tooltip: {
         trigger: 'axis',
         formatter: function (params) {
-
-          const series1 = params[0];
-          const series2 = params[1];
-          const candlestick = params[2];          // candlestick series
-          const [open, close, low, high] = candlestick.data;
-          return `
-            ${escapeString(series1.axisValue)}<br/>
-            ${series1.marker} ${series1.seriesName}: ${numberFormatter.format(series1.value)} s<br>
-            ${series2.marker} ${series2.seriesName}: ${numberFormatter.format(series2.value)} s<br>
-            ${candlestick.marker} ${candlestick.seriesName}: ${numberFormatter.format(candlestick.value[2])} s<br>
-
-          `;
+          if (!params.length) return '';
+          // Series hidden via the legend are missing from params, so never access them by position
+          const lines = params.map((p) => {
+            // Take the step delta from our own data, as ECharts reshapes candlestick values in params
+            const value = p.seriesName === 'Step Delta' ? candles[p.dataIndex][1] : p.value;
+            return `${p.marker} ${p.seriesName}: ${numberFormatter.format(value)} s`;
+          });
+          return `${escapeString(params[0].axisValue)}<br>${lines.join('<br>')}`;
         }
       },
       legend: {
