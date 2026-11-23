@@ -14,6 +14,9 @@ const escapeString = (string) =>{
     return my_string.replace(reg, (match) => map[match]);
 }
 
+// Run IDs are always UUIDs. Validate them before they are used in API paths or HTML
+const isValidUUID = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value));
+
 // Usage scenario variables named __GMT_VAR_SECRET_*__ hold secrets. The backend only ever hands us
 // their encrypted value, so nothing sensitive can leak here - we still mask it, as showing a long
 // ciphertext blob in a table label is noise and invites people to copy it around.

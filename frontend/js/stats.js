@@ -856,19 +856,24 @@ const renderBadges = async (run_id, phase_stats) => {
     phase_stats_keys.forEach(metric_name => {
         if (phase_stats[metric_name].type != 'TOTAL') return; // skip averaged metrics
 
-        badge_container.innerHTML += `
+        const encoded_run_id = encodeURIComponent(run_id);
+        badge_container.insertAdjacentHTML('beforeend', `
             <div class="inline field">
-                <a href="${METRICS_URL}/stats.html?id=${run_id}">
-                    <img src="${API_URL}/v1/badge/single/${run_id}?metric=${encodeURIComponent(metric_name)}" loading="lazy" onerror="this.parentNode.parentNode.remove(); console.log('Could not render ${metric_name} badge - Likely due to non public visibility of the run.')">
+                <a href="${escapeString(METRICS_URL)}/stats.html?id=${encoded_run_id}">
+                    <img src="${escapeString(API_URL)}/v1/badge/single/${encoded_run_id}?metric=${encodeURIComponent(metric_name)}" loading="lazy">
                 </a>
                 <a class="copy-badge"><i class="copy icon"></i></a>
                 <div class="ui left pointing blue basic label">
                     ${escapeString(METRIC_MAPPINGS[metric_name]?.['explanation'])}
                 </div>
                 <hr class="ui divider"></hr>
-            </div>`;
+            </div>`);
 
-
+        const badge_field = badge_container.lastElementChild;
+        badge_field.querySelector('img').addEventListener('error', () => {
+            badge_field.remove();
+            console.log(`Could not render ${metric_name} badge - Likely due to non public visibility of the run.`);
+        });
     })
     document.querySelectorAll(".copy-badge").forEach(el => {
         el.addEventListener('click', copyToClipboard)
@@ -1328,6 +1333,11 @@ $(document).ready( () => {
 
         if(url_params['id'] == null || url_params['id'] == '' || url_params['id'] == 'null') {
             showNotification('No run id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
+            return;
+        }
+
+        if (!isValidUUID(url_params['id'])) {
+            showNotification('Invalid run id', 'ID parameter in URL is not a valid run ID. Did you follow a correct URL?');
             return;
         }
 
