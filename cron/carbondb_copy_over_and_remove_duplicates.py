@@ -163,7 +163,8 @@ def validate_table_constraints(cleanup_lookback_limit):
             (user_id IS NULL -- null by design. only guard for broken schema
             OR time IS NULL -- null by design. only guard for broken schema
             OR energy_kwh IS NULL -- null by design. only guard for broken schema
-            OR operational_carbon_kg IS NULL  -- can be null bc of backfill. embodied_carbon_kg is NOT NULL and never backfilled
+            OR operational_carbon_kg IS NULL  -- can be null bc of backfill.
+            OR embodied_carbon_kg is NULL -- null by design. only guard for broken schema
             OR type IS NULL -- null by design. only guard for broken schema
             OR project IS NULL -- null by design. only guard for broken schema
             OR machine IS NULL -- null by design. only guard for broken schema
