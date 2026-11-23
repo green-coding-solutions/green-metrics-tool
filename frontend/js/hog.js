@@ -16,7 +16,7 @@ $(document).ready(function () {
             data: measurements.process_data,
             autoWidth: false,
             columns: [
-                { data: 0, title: 'Name'},
+                { data: 0, title: 'Name', render: (el) => escapeString(el)},
                 {
                     data: 1,
                     title: 'Energy Impact',
