@@ -253,7 +253,7 @@ $(document).ready( () => {
             || url_params['ids'] == ''
             || url_params['ids'] == 'null') {
             showNotification('No ids', 'ids parameter in URL is empty or not present. Did you follow a correct URL?');
-            throw "Error";
+            return;
         }
 
         const run_ids = url_params['ids'].split(",");
