@@ -1110,13 +1110,14 @@ const fetchAndFillAIData = async (run_id) => {
 
     ai_data.forEach(d => {
         let optimizationHTML = aiTemplate
-            .replace("{{function_name}}", escapeString(d.name))
-            .replace("{{rating}}", escapeString(d.rating))
-            .replace("{{filename}}", escapeString(d.filename))
-            .replace("{{code}}", escapeString(d.code))
-            .replace("{{model}}", escapeString(d.model))
-            .replace("{{color}}", escapeString(d.color))
-            .replace("{{ret_val}}", (d.ret_val || '').replace(/\n/g, '<br>'))
+            // replacer functions are used so that "$&", "$'" etc. in the data are not interpreted as replacement patterns
+            .replace("{{function_name}}", () => escapeString(d.name))
+            .replace("{{rating}}", () => escapeString(d.rating))
+            .replace("{{filename}}", () => escapeString(d.filename))
+            .replace("{{code}}", () => escapeString(d.code))
+            .replace("{{model}}", () => escapeString(d.model))
+            .replace("{{color}}", () => escapeString(d.color))
+            .replace("{{ret_val}}", () => escapeString(d.ret_val || '').replace(/\n/g, '<br>'))
 
         const optimizationElement = document.createElement("div");
         optimizationElement.classList.add("ui", "styled","fluid", "accordion");
