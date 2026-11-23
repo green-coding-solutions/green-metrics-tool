@@ -1,3 +1,4 @@
+"use strict";
 const createCard = ({ key, name, icon, variable, detail_name }, suffix, colour) => {
     const cardClass = variable ? `${key}-${suffix}` : key;
     return `
@@ -246,7 +247,7 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
 
     if (co2_budget_utilization) document.querySelector(`div.tab[data-tab='${phase}'] .co2-budget-utilization`).innerHTML = (co2_budget_utilization).toFixed(2) + ' <span class="si-unit">%</span>'
 
-    upscaled_CO2_in_kg = total_CO2_in_kg * 1000 * 365 ; // upscaled to 365 days for 1000 runs per day
+    const upscaled_CO2_in_kg = total_CO2_in_kg * 1000 * 365 ; // upscaled to 365 days for 1000 runs per day
 
     if(display_in_metric_units) {
         document.querySelectorAll(".distance-units").forEach((el) => {el.innerText = "in kms by car"})

@@ -1,3 +1,4 @@
+"use strict";
 import yearly2025 from "./yearly_2025.js";
 import yearly2024 from "./yearly_2024.js";
 import yearly2023 from "./yearly_2023.js";

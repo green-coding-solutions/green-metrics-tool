@@ -1,3 +1,4 @@
+"use strict";
 let select_diff_buffer = [];
 
 const addToDiffSelection = (node) => {
@@ -303,7 +304,7 @@ const getPieChartOptions = (title, data) => {
 }
 
 const getChartGraphic = (text, top = 'center', left= 'center') => {
-    return graphic = {
+    return {
         type: 'group',
         top: top,
         left: left,

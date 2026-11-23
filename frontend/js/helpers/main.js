@@ -1,3 +1,4 @@
+"use strict";
 const GMT_MACHINES = JSON.parse(localStorage.getItem('gmt_machines')) || {}; // global variable. dynamically resolved via resolveMachinesToGlobalVariable
 
 const escapeString = (string) =>{
@@ -193,7 +194,7 @@ const resolveMachinesToGlobalVariable = async () => {
 
 const getClusterStatus = async (status_ok_selector, status_warning_selector) => {
     try {
-        cluster_status_data = await makeAPICall('/v1/cluster/status')
+        const cluster_status_data = await makeAPICall('/v1/cluster/status')
 
         const container = document.querySelector('.cluster-health-message.yellow #cluster-health-warnings');
         cluster_status_data.data.forEach(message => {
