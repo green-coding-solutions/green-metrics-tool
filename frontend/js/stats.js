@@ -382,7 +382,7 @@ const fetchAndFillRunData = async (run_id) => {
     return run_data;
 }
 
-const fillRunTab = async (selector, data, parent = '', is_top_level = true) => {
+const fillRunTab = (selector, data, parent = '', is_top_level = true) => {
     const node = document.querySelector(selector);
     const isObject = (value) => value != null && typeof value == 'object';
     const addHeading = (text) => node.insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(text)}</h2></strong></td><td></td></tr>`);
@@ -689,7 +689,7 @@ const renderLogsInterface = (logsData) => {
 // Energy units that convertValue() can return for energy metrics, mapped to their factor to Joules
 const TIMELINE_ENERGY_UNIT_TO_JOULES = { 'J': 1, 'mWh': 3.6, 'kWh': 3_600_000 };
 
-const buildTimelineChartData = async (measurements_data) => {
+const buildTimelineChartData = (measurements_data) => {
     const metrics = {}
     const t0 = performance.now();
 
@@ -796,7 +796,7 @@ const wrapNoteText = (text, maxLength = 80) => {
     return lines.join('\n');
 };
 
-const displayTimelineCharts = async (metrics, notes) => {
+const displayTimelineCharts = (metrics, notes) => {
 
     const note_positions = [
         'insideStartTop',
@@ -879,7 +879,7 @@ const displayTimelineCharts = async (metrics, notes) => {
 
 }
 
-const renderBadges = async (run_id, phase_stats) => {
+const renderBadges = (run_id, phase_stats) => {
     if (phase_stats == null) return;
 
     const phase_stats_keys = Object.keys(phase_stats);
@@ -1176,7 +1176,7 @@ const fetchAndShowTimelineCharts = async (run_id) => {
         document.querySelector('#message-chart-load-failure').classList.remove('hidden');
         return
     }
-    const timeline_chart_data = await buildTimelineChartData(timeline_data);
+    const timeline_chart_data = buildTimelineChartData(timeline_data);
     displayTimelineCharts(timeline_chart_data, timeline_notes);
 }
 
