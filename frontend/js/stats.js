@@ -397,7 +397,7 @@ const fillRunTab = async (selector, data, parent = '') => {
             if (parent == '') {
                 node.insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(item)}</h2></strong></td><td></td></tr>`)
             }
-            fillRunTab(selector, data[item], `${item}.`)
+            fillRunTab(selector, data[item], `${parent}${item}.`) // carry the full path, so deeper levels are not shown as only their last two parts
         } else {
             node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data[item])}</td></tr>`)
         }
