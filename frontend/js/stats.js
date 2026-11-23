@@ -397,6 +397,13 @@ const fillRunTab = async (selector, data, parent = '') => {
     }
 }
 
+// Fills all {{placeholders}} in one pass. Values are inserted verbatim, so callers must escape them.
+// Do not use chained String.replace(str, str) instead: it interprets $&, $', $` and $$ in the
+// replacement (common in shell logs) and a value containing a later {{placeholder}} would be substituted again.
+const fillTemplate = (template, values) => template.replace(/{{(\w+)}}/g, (match, key) =>
+    Object.hasOwn(values, key) ? String(values[key] ?? '') : match
+);
+
 
 // Strip CSI / OSC / common ESC sequences. Used only on explicit user click (no pre-scan at render).
 const stripAnsi = (text) => String(text).replace(
@@ -464,9 +471,10 @@ const renderLegacyLogsFromJson = (logsData) => {
             // legacy logs do not have separate stdout and stderr but only a combined output
             // still it is funneled in the data structure through the stdout variable. This is just legacy naming. No stderr got lost :)
             if (logEntry.stdout) {
-                contentHTML += legacyLogTemplate
-                    .replace('{{containerName}}', escapeString(containerName))
-                    .replace('{{combinedOut}}', escapeString(logEntry.stdout));
+                contentHTML += fillTemplate(legacyLogTemplate, {
+                    containerName: escapeString(containerName),
+                    combinedOut: escapeString(logEntry.stdout),
+                });
             }
         });
     });
@@ -604,10 +612,10 @@ const renderLogsInterface = (logsData) => {
             const idLabel = `<div class="ui label" data-tooltip="Unique identifier for this log entry" data-position="top center"><i class="hashtag icon"></i> ID: ${escapeString(logEntry.id)}</div>`;
 
             const stdoutContent = logEntry.stdout ?
-                stdoutTemplate.replace('{{stdout}}', escapeString(logEntry.stdout)) : '';
+                fillTemplate(stdoutTemplate, { stdout: escapeString(logEntry.stdout) }) : '';
 
             const stderrContent = logEntry.stderr ?
-                stderrTemplate.replace('{{stderr}}', escapeString(logEntry.stderr)) : '';
+                fillTemplate(stderrTemplate, { stderr: escapeString(logEntry.stderr) }) : '';
 
             // Show different information if the type is exception
             let operationLabel = '';
@@ -633,30 +641,25 @@ const renderLogsInterface = (logsData) => {
                 }
             }
 
-            const metadataContent = metadataTemplate
-                .replace('{{flowLabel}}', flowLabel)
-                .replace('{{typeLabel}}', typeLabel)
-                .replace('{{operationLabel}}', operationLabel)
-                .replace('{{classLabel}}', classLabel)
-                .replace('{{phaseLabel}}', phaseLabel)
-                .replace('{{idLabel}}', idLabel);
+            const metadataContent = fillTemplate(metadataTemplate, {
+                flowLabel, typeLabel, operationLabel, classLabel, phaseLabel, idLabel,
+            });
 
             // For exceptions or empty/null commands, don't show the command section
             const commandContent = (logEntry.type === 'exception' || !logEntry.cmd) ? '' :
-                commandTemplate.replace('{{command}}', escapeString(logEntry.cmd));
+                fillTemplate(commandTemplate, { command: escapeString(logEntry.cmd) });
 
-                contentHTML += logCardTemplate
-                .replace('{{metadataContent}}', metadataContent)
-                .replace('{{commandContent}}', commandContent)
-                .replace('{{stdoutContent}}', stdoutContent)
-                .replace('{{stderrContent}}', stderrContent);
+            contentHTML += fillTemplate(logCardTemplate, {
+                metadataContent, commandContent, stdoutContent, stderrContent,
+            });
         });
 
-        accordionHTML += containerTemplate
-            .replace('{{containerName}}', escapeString(containerName))
-            .replace('{{logCount}}', containerLogs.length)
-            .replace('{{logPlural}}', containerLogs.length === 1 ? '' : 's')
-            .replace('{{content}}', contentHTML);
+        accordionHTML += fillTemplate(containerTemplate, {
+            containerName: escapeString(containerName),
+            logCount: containerLogs.length,
+            logPlural: containerLogs.length === 1 ? '' : 's',
+            content: contentHTML,
+        });
     });
 
     accordionHTML += '</div>';
@@ -975,22 +978,20 @@ const fetchAndFillOptimizationsData = async (run_id) => {
     const container = document.getElementById("optimizationsContainer");
 
     optimizations.data.forEach(optimization => {
-        let optimizationHTML = optimizationTemplate
-            .replace("{{header}}", escapeString(optimization[0]))
-            .replace("{{label}}", escapeString(optimization[1]))
-            .replace("{{label_colour}}", escapeString(optimization[2]))
-            .replace("{{description}}", escapeString(optimization[5]))
-            .replace("{{subsystem}}", escapeString(optimization[3]))
-            .replace("{{subsystem_icon}}", escapeString(optimization[4]))
-
-        if (optimization[6]){
-            optimizationHTML = optimizationHTML.replace("{{link}}", `
+        const link = optimization[6] ? `
             <a class="ui mini icon primary basic button" href="${escapeString(optimization[6])}">
                 <i class="angle right icon"></i>
-            </a>`);
-        }else{
-            optimizationHTML = optimizationHTML.replace("{{link}}", "");
-        }
+            </a>` : '';
+
+        const optimizationHTML = fillTemplate(optimizationTemplate, {
+            header: escapeString(optimization[0]),
+            label: escapeString(optimization[1]),
+            label_colour: escapeString(optimization[2]),
+            description: escapeString(optimization[5]),
+            subsystem: escapeString(optimization[3]),
+            subsystem_icon: escapeString(optimization[4]),
+            link,
+        });
 
         const optimizationElement = document.createElement("div");
         optimizationElement.classList.add("ui", "horizontal", "fluid", "card");
@@ -1218,9 +1219,9 @@ function renderUsageScenarioDependencies(container_name, dependency_data) {
     if (package_managers.length > 0) {
         const accordion_items = buildPackageManagerAccordionItems(package_managers, container_dependencies);
 
-        package_manager_content = dependencies_templates.scopeAccordion.replace('{{accordion_items}}', accordion_items);
+        package_manager_content = fillTemplate(dependencies_templates.scopeAccordion, { accordion_items });
     } else {
-        package_manager_content = dependencies_templates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
+        package_manager_content = fillTemplate(dependencies_templates.noDepsMessage, { message: '<em>No package dependencies found</em>' });
     }
 
     return package_manager_content;
@@ -1259,21 +1260,22 @@ function buildSingleAccordionItem(packageManager, displayName, data, parentData)
     }
 
     const packageManagerMetadata = metadataContent ?
-        dependencies_templates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
+        fillTemplate(dependencies_templates.scopeMetadata, { metadataContent }) : '';
 
     let depsTable = '';
     if (totalDeps > 0) {
         const tableRows = buildDependencyTableRows(dependenciesArray);
-        depsTable = dependencies_templates.depsTable.replace('{{tableRows}}', tableRows);
+        depsTable = fillTemplate(dependencies_templates.depsTable, { tableRows });
     } else {
-        depsTable = dependencies_templates.noDepsMessage.replace('{{message}}', '<em>No dependencies found</em>');
+        depsTable = fillTemplate(dependencies_templates.noDepsMessage, { message: '<em>No dependencies found</em>' });
     }
 
-    return dependencies_templates.accordionItem
-        .replace('{{scopeDisplayName}}', escapeString(displayName))
-        .replace('{{totalDeps}}', totalDeps)
-        .replace('{{scopeMetadata}}', packageManagerMetadata)
-        .replace('{{depsTable}}', depsTable);
+    return fillTemplate(dependencies_templates.accordionItem, {
+        scopeDisplayName: escapeString(displayName),
+        totalDeps,
+        scopeMetadata: packageManagerMetadata,
+        depsTable,
+    });
 }
 
 function buildPackageManagerAccordionItems(package_managers, container_dependencies) {
@@ -1308,11 +1310,12 @@ function buildDependencyTableRows(packages) {
         const depHash = pkg.hash || 'N/A';
         const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
 
-        const row = dependencies_templates.depsTableRow
-            .replace('{{depName}}', escapeString(pkg.name || 'N/A'))
-            .replace('{{version}}', version)
-            .replace('{{fullHash}}', escapeString(depHash))
-            .replace('{{truncatedHash}}', escapeString(truncatedHash));
+        const row = fillTemplate(dependencies_templates.depsTableRow, {
+            depName: escapeString(pkg.name || 'N/A'),
+            version,
+            fullHash: escapeString(depHash),
+            truncatedHash: escapeString(truncatedHash),
+        });
 
         tableRows += row;
     });
