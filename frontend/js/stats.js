@@ -389,15 +389,18 @@ const fetchAndFillRunData = async (run_id) => {
     return run_data;
 }
 
-const fillRunTab = async (selector, data, parent = '') => {
+const fillRunTab = async (selector, data, parent = '', is_top_level = true) => {
     const node = document.querySelector(selector);
     for (const item in data) {
 
         if(data[item] != null && typeof data[item] == 'object') {
-            if (parent == '') {
+            if (is_top_level) {
+                // top level keys become a heading and are thus not repeated in the labels below
                 node.insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(item)}</h2></strong></td><td></td></tr>`)
+                fillRunTab(selector, data[item], '', false)
+            } else {
+                fillRunTab(selector, data[item], `${parent}${item}.`, false)
             }
-            fillRunTab(selector, data[item], `${parent}${item}.`) // carry the full path, so deeper levels are not shown as only their last two parts
         } else {
             node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data[item])}</td></tr>`)
         }
