@@ -863,11 +863,11 @@ const displayTimelineCharts = (metrics, notes) => {
     const t1 = performance.now();
     console.log(`buildTimelineCharts took ${t1 - t0} milliseconds.`);
 
-    window.onresize = function() { // set callback when ever the user changes the viewport
+    $(window).on('resize', () => { // set callback when ever the user changes the viewport. Adds to and does not replace other resize handlers
         chart_instances.forEach(chart_instance => {
             chart_instance.resize();
         })
-    }
+    });
 
     document.querySelector('#api-loader').remove();
 
