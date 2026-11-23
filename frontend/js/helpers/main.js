@@ -550,7 +550,7 @@ $(document).ready(() => {
         localStorage.setItem('closed_descriptions', `${closed_descriptions},${window.location.pathname}`)
     });
 
-    if (closed_descriptions.indexOf(window.location.pathname) !== -1) {
+    if (closed_descriptions.split(',').includes(window.location.pathname)) { // exact match. Substring would match the root path "/" in every stored path
         document.querySelectorAll('i.close.icon').forEach(el => { el.closest('.ui').remove()}
         )
     }
