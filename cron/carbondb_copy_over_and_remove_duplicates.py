@@ -130,7 +130,7 @@ def copy_over_scenario_runner(copy_over_lookback_limit):
             LEFT JOIN machines as m ON m.id = r.machine_id
             WHERE %s OR r.created_at > CURRENT_DATE - make_interval(days => %s)
             GROUP BY r.id, m.description
-            -- runs are keyed so that changed values (e.g. run finished after previous copy over or phase_stats got recalculated) replace the old row instead of creating a second one
+            -- runs are keyed so that changed values (e.g. run finished after previous copy over or phase_stats got recalculated or was only partially written yet) replace the old row instead of creating a second one
             ON CONFLICT (run_id) DO UPDATE SET
                 machine = EXCLUDED.machine,
                 time = EXCLUDED.time,
