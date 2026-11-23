@@ -1165,6 +1165,21 @@ const fetchTimelineData = async (run_id) => {
 
 }
 
+const fetchAndShowTimelineCharts = async (run_id) => {
+    const [timeline_data, timeline_notes] = await Promise.all([
+        fetchTimelineData(run_id),
+        fetchTimelineNotes(run_id)
+    ]);
+
+    if (timeline_data == null) {
+        document.querySelector('#api-loader').remove()
+        document.querySelector('#message-chart-load-failure').classList.remove('hidden');
+        return
+    }
+    const timeline_chart_data = await buildTimelineChartData(timeline_data);
+    displayTimelineCharts(timeline_chart_data, timeline_notes);
+}
+
 const fetchAndFillWarnings = async (run_id) => {
     let warnings = null;
     try {
@@ -1408,34 +1423,9 @@ $(document).ready( () => {
 
 
         if (localStorage.getItem('fetch_time_series') === 'true') {
-            const [timeline_data, timeline_notes] = await Promise.all([
-                fetchTimelineData(run_id),
-                fetchTimelineNotes(run_id)
-            ]);
-            if (timeline_data == null) {
-                document.querySelector('#api-loader').remove()
-                document.querySelector('#message-chart-load-failure').classList.remove('hidden');
-                return
-            }
-            const timeline_chart_data = await buildTimelineChartData(timeline_data);
-            displayTimelineCharts(timeline_chart_data, timeline_notes);
+            fetchAndShowTimelineCharts(run_id);
         } else {
-            document.querySelector('#fetch-time-series').addEventListener('click', async () => {
-                const [timeline_data, timeline_notes] = await Promise.all([
-                    fetchTimelineData(run_id),
-                    fetchTimelineNotes(run_id)
-                ]);
-
-                if (timeline_data == null) {
-                    document.querySelector('#api-loader').remove()
-                    document.querySelector('#message-chart-load-failure').classList.remove('hidden');
-                    return
-                }
-                const timeline_chart_data = await buildTimelineChartData(timeline_data);
-                displayTimelineCharts(timeline_chart_data, timeline_notes);
-
-
-            });
+            document.querySelector('#fetch-time-series').addEventListener('click', () => fetchAndShowTimelineCharts(run_id));
         }
     })();
 });
