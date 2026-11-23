@@ -295,7 +295,7 @@ const getBadges = async (repo, branch, workflow_id) => {
 
 const getMeasurementsAndStats = async (repo, branch, workflow_id, start_date, end_date) => {
 
-    const query_string=`repo=${escapeString(repo)}&branch=${escapeString(branch)}&workflow=${escapeString(workflow_id)}&start_date=${start_date}&end_date=${end_date}`;
+    const query_string=`repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}&workflow=${encodeURIComponent(workflow_id)}&start_date=${start_date}&end_date=${end_date}`;
     const [measurements, stats] = await Promise.all([
         makeAPICall(`/v2/ci/measurements?${query_string}`),
         makeAPICall(`/v2/ci/stats?${query_string}`)
@@ -327,10 +327,10 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
         }
     }
 
-    history.pushState(null, '', `${window.location.origin}${window.location.pathname}?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`); // replace URL to bookmark!
+    history.pushState(null, '', `${window.location.origin}${window.location.pathname}?repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}&workflow=${encodeURIComponent(workflow_id)}&start_date=${start_date}&end_date=${end_date}`); // replace URL to bookmark!
 
-    const source = escapeString(measurements.data[0][7]);
-    let workflow_name = escapeString(measurements.data[0][9]);
+    const source = measurements.data[0][7];
+    let workflow_name = measurements.data[0][9];
     populateRunInfos(repo, branch, source, workflow_name, workflow_id)
 
     $('#display-run-details-table').off('click');
@@ -362,13 +362,13 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
 
 const populateRunInfos = async (repo, branch, source, workflow_name, workflow_id) => {
 
-    document.querySelector('#ci-data-branch').innerText =  escapeString(branch);
-    document.querySelector('#ci-data-workflow-id').innerText =  escapeString(workflow_id);
+    document.querySelector('#ci-data-branch').innerText =  branch;
+    document.querySelector('#ci-data-workflow-id').innerText =  workflow_id;
 
     if (workflow_name == '' || workflow_name == null) {
         workflow_name = workflow_id ;
     }
-    document.querySelector('#ci-data-workflow').innerText =  escapeString(workflow_name);
+    document.querySelector('#ci-data-workflow').innerText =  workflow_name;
 
     let repo_link = ''
     const repo_encoded = repo.split('/').map(encodeURIComponent).join('/');
@@ -391,9 +391,10 @@ $(document).ready((e) => {
 
         const url_params = getURLParams();
 
-        const branch = escapeString(url_params['branch']);
-        const repo = escapeString(url_params['repo']);
-        const workflow_id = escapeString(url_params['workflow']);
+        // raw values. Escaping / encoding happens where they are used (HTML vs. URL)
+        const branch = url_params['branch'];
+        const repo = url_params['repo'];
+        const workflow_id = url_params['workflow'];
 
         if (repo == null || repo == '' || repo == 'null') {
             showNotification('No Repo', 'Repo parameter in URL is empty or not present. Did you follow a correct URL?');
