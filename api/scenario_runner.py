@@ -285,7 +285,7 @@ async def get_warnings(run_id, user: User = Depends(authenticate)):
 @router.get('/v1/network/{run_id}')
 async def get_network(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponseObjKeep({'success': False, 'data': 'Run ID is not a valid UUID or empty'}, status_code=422)
+        return ORJSONResponseObjKeep({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=422)
 
     run_exists = DB().fetch_one(
         "SELECT 1 FROM runs WHERE id = %s",
