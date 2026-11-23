@@ -1,4 +1,7 @@
 "use strict";
+// Intentionally defined here and not in metric-boxes.js, although <co2-tangible> is part of the shared <phase-metrics> markup.
+// The CO2 values are only calculated for single runs (see calculateCO2 in phase-stats.js). On compare.html the tag thus
+// stays an unknown element and renders nothing. Moving this definition would show an empty CO2 box on compare.html.
 class CO2Tangible extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
