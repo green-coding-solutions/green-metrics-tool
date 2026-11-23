@@ -47,6 +47,7 @@ const getEChartsOptions = () => {
 
 // NULL means unknown and is never shown as 0: no value is '--', no deviation (e.g. a single run) shows no ±
 const formatStat = (value, unit, stddev = null, formatter = numberFormatter) => (value == null) ? '--' : `${formatter.format(value)}${unit}${(stddev == null) ? '' : ` (± ${numberFormatter.format(stddev)}%)`}`;
+const fromMicro = (value) => (value == null) ? null : value/1000000; // null must stay null, so that formatStat shows '--' instead of 0
 const formatCarbonUg = (ug, stddev = null) => formatStat((ug == null) ? null : ug/1000000, ' gCO2e', stddev, numberFormatterLong);
 const carbonTitle = (ug) => (ug == null) ? 'data missing' : ug/1000000; // exact value in g for cell tooltips
 
@@ -78,7 +79,7 @@ const getChartOptions = (measurements) => {
             run_id: run_id,
             labels: [label],
             cpu_util: cpu_util,
-            duration_s: duration_us/1000000,
+            duration_s: fromMicro(duration_us) ?? '--',
             commit_hash: commit_hash,
             created_at: dateToYMD(new Date(created_at)),
             lat: lat,
@@ -142,8 +143,8 @@ const displayStatsTable = (stats) => {
     const full_run_stats_avg_node = document.createElement("tr")
     full_run_stats_avg_node.innerHTML += `
                             <td class="bold td-index" data-tooltip="Averages for whole run" data-position="top left">Total run <i class="question circle icon small"></i> </td>
-                            <td class="bold td-index">${formatStat(stats.totals[0]/1000000, ' J', stats.totals[3])}</td>
-                            <td class="bold td-index">${formatStat(stats.totals[4]/1000000, ' s', stats.totals[7])}</td>
+                            <td class="bold td-index">${formatStat(fromMicro(stats.totals[0]), ' J', stats.totals[3])}</td>
+                            <td class="bold td-index">${formatStat(fromMicro(stats.totals[4]), ' s', stats.totals[7])}</td>
                             <td class="bold td-index">${formatStat(stats.totals[8], '%', stats.totals[11])}</td>
                             <td class="bold td-index">${formatStat(stats.totals[12], ' gCO2/kWh', stats.totals[15])}</td>
                             <td class="bold td-index">${formatCarbonUg(stats.totals[16], stats.totals[19])}</td>
@@ -156,8 +157,8 @@ const displayStatsTable = (stats) => {
     const full_run_stats_total_node = document.createElement("tr")
     full_run_stats_total_node.innerHTML += `
                             <td class="bold td-index" data-tooltip="Totals for whole run" data-position="top left">Per total run <i class="question circle icon small"></i> </td>
-                            <td class="bold td-index">${formatStat(stats.totals[1]/1000000, ' J')}</td>
-                            <td class="bold td-index">${formatStat(stats.totals[5]/1000000, ' s')}</td>
+                            <td class="bold td-index">${formatStat(fromMicro(stats.totals[1]), ' J')}</td>
+                            <td class="bold td-index">${formatStat(fromMicro(stats.totals[5]), ' s')}</td>
                             <td class="bold td-index">${formatCarbonUg(stats.totals[17])}</td>
                             <td class="bold td-index">${formatCarbonUg(stats.totals[21])}</td>
                             <td class="bold td-index">${formatCarbonUg(stats.totals[25])}</td>
@@ -169,8 +170,8 @@ const displayStatsTable = (stats) => {
         const label = row[29];
         label_stats_avg_node.innerHTML += `
                                         <td class="td-index" data-tooltip="Averages per step '${escapeString(label)}'"  data-position="top left">${escapeString(label)} <i class="question circle icon small"></i></td>
-                                        <td class=" td-index">${formatStat(row[0]/1000000, ' J', row[3])}</td>
-                                        <td class=" td-index">${formatStat(row[4]/1000000, ' s', row[7])}</td>
+                                        <td class=" td-index">${formatStat(fromMicro(row[0]), ' J', row[3])}</td>
+                                        <td class=" td-index">${formatStat(fromMicro(row[4]), ' s', row[7])}</td>
                                         <td class=" td-index">${formatStat(row[8], '%', row[11])}</td>
                                         <td class=" td-index">${formatStat(row[12], ' gCO2/kWh', row[15])}</td>
                                         <td class=" td-index">${formatCarbonUg(row[16], row[19])}</td>
@@ -183,8 +184,8 @@ const displayStatsTable = (stats) => {
         const label_stats_total_node = document.createElement("tr")
         label_stats_total_node.innerHTML += `
                                         <td class="td-index" data-tooltip="Totals per step '${escapeString(label)}'"  data-position="top left">${escapeString(label)} <i class="question circle icon small"></i></td>
-                                        <td class=" td-index">${formatStat(row[1]/1000000, ' J')}</td>
-                                        <td class=" td-index">${formatStat(row[5]/1000000, ' s')}</td>
+                                        <td class=" td-index">${formatStat(fromMicro(row[1]), ' J')}</td>
+                                        <td class=" td-index">${formatStat(fromMicro(row[5]), ' s')}</td>
                                         <td class=" td-index">${formatCarbonUg(row[17])}</td>
                                         <td class=" td-index">${formatCarbonUg(row[21])}</td>
                                         <td class=" td-index">${formatCarbonUg(row[25])}</td>
@@ -239,7 +240,7 @@ const displayRunDetailsTable = (measurements, repo) => {
                             <td class="td-index">${numberFormatter.format(energy_uj/1000000)} J</td>\
                             <td class="td-index">${escapeString(cpu)}</td>\
                             <td class="td-index">${escapeString(cpu_avg)}%</td>
-                            <td class="td-index">${numberFormatter.format(duration_us/1000000)} s</td>
+                            <td class="td-index">${formatStat(fromMicro(duration_us), ' s')}</td>
                             <td class="td-index" title="${escapeString(commit_hash)}">${escapeString(short_hash)}</td>\
                             <td class="td-index">${city_string}</td>
                             <td class="td-index">${escapeString(carbon_intensity_g)} gCO2/kWh</td>
