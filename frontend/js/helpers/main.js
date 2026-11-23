@@ -488,7 +488,9 @@ const fetchTimelineNotes = async (run_id) => {
     try {
         notes = await makeAPICall('/v1/notes/' + run_id)
     } catch (err) {
-        showNotification('Could not get notes data from API', err);
+        if (!(err instanceof APIHTTPError && err.status === 204)) { // 204 = run has no notes. Not an error
+            showNotification('Could not get notes data from API', err);
+        }
     }
     return notes?.data;
 }
