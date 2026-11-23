@@ -669,6 +669,9 @@ const renderLogsInterface = (logsData) => {
 }
 
 
+// Energy units that convertValue() can return for energy metrics, mapped to their factor to Joules
+const TIMELINE_ENERGY_UNIT_TO_JOULES = { 'J': 1, 'mWh': 3.6, 'kWh': 3_600_000 };
+
 const buildTimelineChartData = async (measurements_data) => {
     const metrics = {}
     const t0 = performance.now();
@@ -708,16 +711,25 @@ const buildTimelineChartData = async (measurements_data) => {
                 }
             }
 
-            if(transform_timelines_energy_to_power && metrics[metric_name].unit == 'J') {
-                value = value/(time_after-time_before); // convert Joules to Watts by dividing through the time difference of two measurements
-                metrics[metric_name].converted_unit = 'W';
-            } else if(!transform_timelines_energy_to_power && metrics[metric_name].unit == 'W') {
-                value = value*(time_after-time_before); // convert Watts to Joules by multiplying with the time difference of two measurements
-                metrics[metric_name].converted_unit = 'J';
-            }
+            const time_delta = time_after - time_before;
             time_before = time_after;
 
-            if(metric_changed && transform_timelines_energy_to_power) return; // if watts display then the first graph value will be zero. We skip that.
+            // convertValue() has already changed the unit. Energy can now be J, mWh or kWh, depending on display_in_joules
+            const energy_to_joules = TIMELINE_ENERGY_UNIT_TO_JOULES[metrics[metric_name].unit];
+            let rate_converted = false;
+            if(transform_timelines_energy_to_power && energy_to_joules !== undefined) {
+                value = value * energy_to_joules / time_delta; // convert energy to Watts by dividing through the time difference of two measurements
+                metrics[metric_name].converted_unit = 'W';
+                rate_converted = true;
+            } else if(!transform_timelines_energy_to_power && metrics[metric_name].unit == 'W') {
+                // convert Watts to Joules by multiplying with the time difference of two measurements.
+                // Passed through convertValue() as mJ so that the result honours display_in_joules (J or mWh)
+                [value, metrics[metric_name].converted_unit] = convertValue(value * time_delta * 1_000, 'mJ');
+                rate_converted = true;
+            }
+
+            // the first value of a series has no time difference to a previous value and thus cannot be converted. We skip that.
+            if(metric_changed && rate_converted) return;
 
             // Depending on the charting library the object has to be reformatted
             // First we check if structure is initialized
