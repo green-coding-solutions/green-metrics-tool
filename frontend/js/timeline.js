@@ -211,12 +211,14 @@ const fillInputsFromURL = (url_params) => {
         $('select[name="machine_id"]').val(url_params['machine_id']);
         $('#machine').text($('select[name="machine_id"] :checked').text());
     }
-    if(url_params['sorting'] != null) $(`#sorting-${url_params['sorting']}`).prop('checked', true);
-    if(url_params['metric'] != null) $(`#metric-${url_params['metric']}`).prop('checked', true);
-    if(url_params['show_archived'] != null) $(`input[name="show_archived"][value="${url_params['show_archived']}"]`).prop('checked', true);
+    // URL params are compared as values and not put into selectors, as special chars would make jQuery throw
+    const radioWithValue = (name, value) => $(`input[name="${name}"]`).filter((_, el) => el.value === value);
+    if(url_params['sorting'] != null) radioWithValue('sorting', url_params['sorting']).prop('checked', true);
+    if(url_params['metric'] != null) radioWithValue('metric', url_params['metric']).prop('checked', true);
+    if(url_params['show_archived'] != null) radioWithValue('show_archived', url_params['show_archived']).prop('checked', true);
 
     if(url_params['phase'] != null && url_params['phase'] !== '') {
-        const matchingPhaseRadio = $(`input[name="phase"][value="${url_params['phase']}"]`);
+        const matchingPhaseRadio = radioWithValue('phase', url_params['phase']);
         if (matchingPhaseRadio.length > 0) {
             matchingPhaseRadio.prop('checked', true);
         } else {
