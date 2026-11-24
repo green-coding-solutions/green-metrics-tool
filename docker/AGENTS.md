@@ -27,6 +27,13 @@ This directory defines the canonical local deployment and baseline database sche
     tables, but does not need to tolerate already existing rows.
 - `nginx/`
   - Frontend and API proxy configuration
+- `frontend-image/`
+  - Prebuilt frontend image `greencoding/gmt-frontend`, built and pushed by
+    `.github/workflows/build-and-push-frontend-image.yml`. Its nginx config is derived from
+    `nginx/frontend.conf.example` at build time. `40-gmt-frontend-config.sh` fills
+    `frontend/js/helpers/config.js.example` from `GMT_*` env vars at container start, unless a
+    `config.js` is mounted. A new placeholder in `config.js.example` must also be added there,
+    otherwise the container refuses to start (`test-image.sh` catches this in CI).
 
 ## Working rules
 

@@ -1,0 +1,9 @@
+# Build context for docker/frontend-image/Dockerfile (the context is the repository root).
+# Only send what the image needs, not venvs, data or the rest of the repository.
+*
+!frontend
+!docker/frontend-image
+!docker/nginx/frontend.conf.example
+
+# A local, install-generated config.js must never end up in the image
+frontend/js/helpers/config.js
