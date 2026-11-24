@@ -1,0 +1,6 @@
+# Build context for docker/postgres-image/Dockerfile (the context is the repository root).
+# Only the SQL files the image needs.
+*
+!docker/structure.sql
+!docker/tables.sql
+!docker/seed-data.sql

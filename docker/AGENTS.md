@@ -34,6 +34,11 @@ This directory defines the canonical local deployment and baseline database sche
     `frontend/js/helpers/config.js.example` from `GMT_*` env vars at container start, unless a
     `config.js` is mounted. A new placeholder in `config.js.example` must also be added there,
     otherwise the container refuses to start (`test-image.sh` catches this in CI).
+- `postgres-image/`
+  - Prebuilt database image `greencoding/gmt-postgres`, built by the same workflow. It copies
+    `structure.sql`, `tables.sql` and `seed-data.sql` into `/docker-entrypoint-initdb.d` with the
+    same file names and server flags as `compose.yml.example`. Keep both in sync when changing init
+    files or postgres flags there.
 
 ## Working rules
 
