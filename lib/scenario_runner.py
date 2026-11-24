@@ -319,6 +319,7 @@ class ScenarioRunner:
         self.__carbon_simulation_uuid = None
         self.__custom_metrics = {}
         self.__sci_metrics = []
+        self.__custom_metric_types = {}
         self.__uri_userinfo = None
         self.__clean_uri = None
 
@@ -945,6 +946,7 @@ class ScenarioRunner:
             self.__custom_metrics[safe_key] = custom_metric
             if custom_metric.get('sci', False):
                 self.__sci_metrics.append(safe_key)
+            self.__custom_metric_types[safe_key] = custom_metric.get('type', 'TOTAL')
 
     def _prepare_docker(self):
         # Disable Docker CLI hints (e.g. "What's Next? ...")
@@ -3024,7 +3026,7 @@ class ScenarioRunner:
         # get all the metrics from the measurements table grouped by metric
         # loop over them issuing separate queries to the DB
         from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-        build_and_store_phase_stats(self._run_id, self._sci, self.__sci_metrics.copy())
+        build_and_store_phase_stats(self._run_id, self._sci, self.__sci_metrics.copy(), self.__custom_metric_types.copy())
 
     def _store_cumulative_run_logs(self):
         """
@@ -3128,6 +3130,7 @@ class ScenarioRunner:
         self.__relations.clear()
         self.__custom_metrics.clear()
         self.__sci_metrics.clear()
+        self.__custom_metric_types.clear()
         self.__uri_userinfo = None
         self.__clean_uri = None
 

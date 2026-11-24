@@ -34,7 +34,7 @@ STEP_FUNCTION_METRICS = (
     'carbon_intensitylevel_electricitymaps_machine',
 )
 
-def reconstruct_runtime_phase(run_id, runtime_phase_idx):
+def reconstruct_runtime_phase(run_id, runtime_phase_idx, mean_custom_metrics):
     # First we create averages for all types. This includes means and totals
     DB().query('''
         INSERT INTO phase_stats
@@ -45,7 +45,12 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx):
                 metric,
                 detail_name,
                 %s,
-                SUM(value),
+                CASE type
+                    WHEN 'MAX' THEN MAX(value)
+                    WHEN 'MIN' THEN MIN(value)
+                    WHEN 'LAST' THEN (ARRAY_AGG(value ORDER BY phase DESC))[1]
+                    ELSE SUM(value)
+                END,
                 type,
                 MAX(max_value),
                 MIN(min_value),
@@ -80,17 +85,26 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx):
                 value
             FROM phase_stats
             WHERE run_id = %s AND phase NOT LIKE '%%[%%' AND hidden IS FALSE AND type = 'MEAN'
+        ),
+        tvt_normalized as (
+            SELECT
+                tvt.*,
+                CASE WHEN tvt.metric = ANY(%s::TEXT[])
+                    THEN SUM(tvt.time_of_the_sub_phase) OVER (PARTITION BY tvt.metric, tvt.detail_name, tvt.unit)
+                    ELSE %s
+                END as normalization_time
+            FROM tvt
         )
         UPDATE phase_stats
             SET value =
                 -- we divide by /s here inside the bracket to make it more numerically stable. The sum of tvt*value * tvt.time_... will get too large otherwise
                 (
-                    SELECT ROUND(COALESCE(SUM(tvt.value * (tvt.time_of_the_sub_phase::DOUBLE PRECISION / %s)), 0))
-                    FROM tvt WHERE tvt.metric = phase_stats.metric AND tvt.detail_name = phase_stats.detail_name AND tvt.unit = phase_stats.unit
+                    SELECT ROUND(COALESCE(SUM(tvt_normalized.value * (tvt_normalized.time_of_the_sub_phase::DOUBLE PRECISION / tvt_normalized.normalization_time)), 0))
+                    FROM tvt_normalized WHERE tvt_normalized.metric = phase_stats.metric AND tvt_normalized.detail_name = phase_stats.detail_name AND tvt_normalized.unit = phase_stats.unit
                 )::BIGINT
 
         WHERE phase = %s AND run_id = %s AND type = 'MEAN'
-        ''', params=(run_id, total_runtime_sub_phase_duration, f"{runtime_phase_idx:03}_[RUNTIME]", run_id)
+        ''', params=(run_id, mean_custom_metrics, total_runtime_sub_phase_duration, f"{runtime_phase_idx:03}_[RUNTIME]", run_id)
     )
 
 
@@ -165,7 +179,7 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
         # but here we at least have seen something. This could be improved by forcing a sample tick
         # in the provider at the phase boundaries.
         return {
-            'value_sum': None, 'max_value': None, 'min_value': None, 'value_avg': None,
+            'value_sum': None, 'max_value': None, 'min_value': None, 'value_avg': None, 'last_value': None,
             'derivative_avg': None, 'derivative_max': None, 'derivative_min': None, 'value_count': 0,
             'sampling_rate_avg': None, 'sampling_rate_max': None, 'sampling_rate_95p': None,
         }
@@ -264,18 +278,21 @@ def _compute_metric_phase_stats(times, values, phase_start, phase_end, next_phas
 
 
     return {
-        'value_sum': value_sum, 'max_value': max_value, 'min_value': min_value, 'value_avg': value_avg,
+        'value_sum': value_sum, 'max_value': max_value, 'min_value': min_value, 'value_avg': value_avg, 'last_value': Decimal(combined_values[-1]),
         'derivative_avg': derivative_avg, 'derivative_max': derivative_max, 'derivative_min': derivative_min, 'value_count': value_count,
         'sampling_rate_avg': sampling_rate_avg, 'sampling_rate_max': sampling_rate_max, 'sampling_rate_95p': sampling_rate_95p,
     }
 
 
 
-def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
+def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None, custom_metric_types=None):
     if not sci:
         sci = {}
     if not sci_metrics:
         sci_metrics = []
+    if not custom_metric_types:
+        custom_metric_types = {} # maps a custom metric to its type. Custom metrics not in here are TOTAL
+    mean_custom_metrics = [metric for metric, custom_metric_type in custom_metric_types.items() if custom_metric_type == 'MEAN']
 
     query = """
             SELECT id, metric, unit, detail_name
@@ -480,6 +497,17 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 if metric.endswith('_machine') and chosen_carbon_metric_name is not None and chosen_carbon_metric_name in detail_name:
                     sci_phase_data['machine_carbon_ug'] = sci_phase_data.get('machine_carbon_ug', 0) + Decimal(metric_stats['value_sum'])
 
+            elif custom_metric_types.get(metric, 'TOTAL') != 'TOTAL':
+                # Never part of sci_phase_data_custom. The schema checker only allows `sci: true` for TOTAL custom metrics.
+                custom_metric_type = custom_metric_types[metric]
+                custom_metric_value = {
+                    'MEAN': metric_stats['value_avg'],
+                    'MAX': metric_stats['max_value'],
+                    'MIN': metric_stats['min_value'],
+                    'LAST': metric_stats['last_value'],
+                }[custom_metric_type]
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", custom_metric_value, custom_metric_type, metric_stats['max_value'], metric_stats['min_value'], metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
+
             else: # Default
                 if metric.startswith('custom_'):
                     sci_phase_data_custom.setdefault(metric, {})[detail_name] = {'value': metric_stats['value_sum'], 'unit': unit}
@@ -567,4 +595,4 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
     csv_buffer.close()  # Close the buffer
 
     if runtime_phase_idx is not None:
-        reconstruct_runtime_phase(run_id, runtime_phase_idx)
+        reconstruct_runtime_phase(run_id, runtime_phase_idx, mean_custom_metrics)

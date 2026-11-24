@@ -20,6 +20,15 @@ def derive_sci_metrics(usage_scenario):
     return sci_metrics
 
 
+def derive_custom_metric_types(usage_scenario):
+    # Same as derive_sci_metrics(), but for the type of every custom metric
+    # (self.__custom_metric_types in scenario_runner.py). Custom metrics without a type are TOTAL.
+    custom_metric_types = {}
+    for key, custom_metric in (usage_scenario or {}).get('custom_metrics', {}).items():
+        custom_metric_types[f"custom_{key}"] = custom_metric.get('type', 'TOTAL')
+    return custom_metric_types
+
+
 if __name__ == '__main__':
     import argparse
 
@@ -38,4 +47,4 @@ if __name__ == '__main__':
     '''
     data = DB().fetch_one(query, params=(args.run_id, ), fetch_mode='dict')
 
-    build_and_store_phase_stats(args.run_id, data['measurement_config']['sci'], derive_sci_metrics(data['usage_scenario']))
+    build_and_store_phase_stats(args.run_id, data['measurement_config']['sci'], derive_sci_metrics(data['usage_scenario']), derive_custom_metric_types(data['usage_scenario']))
