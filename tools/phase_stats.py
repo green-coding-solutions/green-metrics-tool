@@ -21,8 +21,6 @@ def derive_sci_metrics(usage_scenario):
 
 
 def derive_custom_metric_types(usage_scenario):
-    # Same as derive_sci_metrics(), but for the type of every custom metric
-    # (self.__custom_metric_types in scenario_runner.py). Custom metrics without a type are TOTAL.
     custom_metric_types = {}
     for key, custom_metric in (usage_scenario or {}).get('custom_metrics', {}).items():
         custom_metric_types[f"custom_{key}"] = custom_metric.get('type', 'TOTAL')
