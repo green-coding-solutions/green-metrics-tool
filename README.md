@@ -5,7 +5,9 @@
 
 [![Try in Github Codespaces!](https://github.com/codespaces/badge.svg)](https://codespaces.new/green-coding-solutions/green-metrics-tool)
 
-Part of the Green Software Landscape [![Scenario Measurement](https://raw.githubusercontent.com/bundesverband-green-software/landscape/refs/heads/main/badges/scenario-measurement.svg)](https://landscape.bundesverband-green-software.de)
+Part of the Green Software Landscape
+
+[![Scenario Measurement](https://raw.githubusercontent.com/bundesverband-green-software/landscape/refs/heads/main/badges/scenario-measurement.svg)](https://landscape.bundesverband-green-software.de)
 
 # Introduction
 
