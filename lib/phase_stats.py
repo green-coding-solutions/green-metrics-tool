@@ -34,7 +34,7 @@ STEP_FUNCTION_METRICS = (
     'carbon_intensitylevel_electricitymaps_machine',
 )
 
-def reconstruct_runtime_phase(run_id, runtime_phase_idx, mean_custom_metrics):
+def reconstruct_runtime_phase(run_id, runtime_phase_idx, custom_metric_types):
     # First we create averages for all types. This includes means and totals
     DB().query('''
         INSERT INTO phase_stats
@@ -76,6 +76,7 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx, mean_custom_metrics):
         return # can happen if no runtime phase was produced data
 
     total_runtime_sub_phase_duration = result[0]
+    mean_custom_metrics = [metric for metric, custom_metric_type in custom_metric_types.items() if custom_metric_type == 'MEAN']
 
     DB().query('''
         WITH tvt as (
@@ -292,7 +293,6 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None, custom_metri
         sci_metrics = []
     if not custom_metric_types:
         custom_metric_types = {} # maps a custom metric to its type. Custom metrics not in here are TOTAL
-    mean_custom_metrics = [metric for metric, custom_metric_type in custom_metric_types.items() if custom_metric_type == 'MEAN']
 
     query = """
             SELECT id, metric, unit, detail_name
@@ -595,4 +595,4 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None, custom_metri
     csv_buffer.close()  # Close the buffer
 
     if runtime_phase_idx is not None:
-        reconstruct_runtime_phase(run_id, runtime_phase_idx, mean_custom_metrics)
+        reconstruct_runtime_phase(run_id, runtime_phase_idx, custom_metric_types)
