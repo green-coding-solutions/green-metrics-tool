@@ -60,6 +60,15 @@ def test_uri_local_dir():
     # also check that the tmp folder was deleted locally
     assert tmp_folder.exists(), '/tmp/green-metrics-tool was deleted after run, which should not happen without --file-cleanup set'
 
+def test_uri_local_dir_trailing_slash_is_stored_normalized():
+    # /path/to/repo/ and /path/to/repo are the same folder and must end up as the same uri in the DB
+    runner = ScenarioRunner(uri=f"{GMT_DIR}/", uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
+
+    run_id = runner.run()
+
+    uri_in_db = DB().fetch_one('SELECT uri FROM runs WHERE id = %s', params=(run_id,))[0]
+    assert uri_in_db == GMT_DIR, Tests.assertion_info(f"uri: {GMT_DIR}", uri_in_db)
+
 def test_uri_local_dir_missing():
     runner = ScenarioRunner(uri='/tmp/missing', uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 

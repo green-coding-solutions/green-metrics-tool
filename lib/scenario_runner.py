@@ -624,7 +624,8 @@ class ScenarioRunner:
             if problematic_symlink := self._find_outside_symlinks(self._repo_folder):
                 raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
         else:
-            self.__clean_uri = self._uri
+            # strip trailing slashes so that /path/to/repo/ and /path/to/repo are stored as the same uri
+            self.__clean_uri = self._uri.rstrip('/') or '/'
 
             if self._original_branch is not None:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
