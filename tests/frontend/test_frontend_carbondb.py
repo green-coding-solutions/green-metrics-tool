@@ -140,6 +140,7 @@ def test_carbondb_display_xss_tags():
 
     finally:
         DB().query('DELETE FROM carbondb_data WHERE id = 3000;')
+        DB().query('DELETE FROM carbondb_tags WHERE id = 999;') # otherwise a pytest rerun fails on duplicate key
 
 def test_carbondb_no_display_different_user():
     Tests.insert_user(234, 'NO-CARBONDB')
