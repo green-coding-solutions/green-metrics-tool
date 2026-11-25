@@ -70,9 +70,11 @@ def test_uri_local_dir_is_stored_normalized(uri):
     # all of these point to the same folder and must end up as the same uri in the DB
     runner = ScenarioRunner(uri=uri, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
 
-    run_id = runner.run()
+    # initialize_run is the step that writes the runs row, so no full runner.run() is needed
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('initialize_run')
 
-    uri_in_db = DB().fetch_one('SELECT uri FROM runs WHERE id = %s', params=(run_id,))[0]
+    uri_in_db = DB().fetch_one('SELECT uri FROM runs WHERE id = %s', params=(runner._run_id,))[0]
     assert uri_in_db == GMT_DIR, Tests.assertion_info(f"uri: {GMT_DIR}", uri_in_db)
 
 def test_uri_local_dir_missing():
