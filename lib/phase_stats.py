@@ -35,7 +35,8 @@ STEP_FUNCTION_METRICS = (
 )
 
 def reconstruct_runtime_phase(run_id, runtime_phase_idx, custom_metric_types):
-    # First we create averages for all types. This includes means and totals
+    runtime_phase_name = f"{runtime_phase_idx:03}_[RUNTIME]"
+
     DB().query('''
         INSERT INTO phase_stats
             ("run_id", "metric", "detail_name", "phase", "value", "type", "max_value", "min_value", "sampling_rate_avg", "sampling_rate_max", "sampling_rate_95p", "unit", "created_at")
@@ -45,10 +46,8 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx, custom_metric_types):
                 metric,
                 detail_name,
                 %s,
-                CASE type
-                    WHEN 'MAX' THEN MAX(value)
-                    WHEN 'MIN' THEN MIN(value)
-                    WHEN 'LAST' THEN (ARRAY_AGG(value ORDER BY phase DESC))[1]
+                CASE WHEN type = 'LAST'
+                    THEN (ARRAY_AGG(value ORDER BY phase DESC))[1]
                     ELSE SUM(value)
                 END,
                 type,
@@ -63,20 +62,20 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx, custom_metric_types):
             WHERE run_id = %s AND phase NOT LIKE '%%[%%' AND hidden IS FALSE
             GROUP BY run_id, metric, detail_name, type, unit
             ORDER BY MAX(id) ASC
-        ''', params=(f"{runtime_phase_idx:03}_[RUNTIME]", run_id, ))
+        ''', params=(runtime_phase_name, run_id, ))
 
-    # now we need to actually fix the totals. This is done in a separate step as we could not reference the total phase
-    # time for the runtime phases and their aggreagate value in one query
+    # Next we replace the sum of the MEAN metrics with the time weighted mean of the sub phases:
+    # value = SUM(sub phase value * sub phase duration) / runtime duration
+    # This is done in a separate step as we could not reference the total phase time for the runtime phases and their aggreagate value in one query
 
     result = DB().fetch_one(
         "SELECT value FROM phase_stats WHERE phase = %s AND run_id = %s AND metric = 'phase_time_syscall_system' AND detail_name = '[SYSTEM]' AND unit = 'us' AND type = 'TOTAL' AND hidden IS FALSE ",
-        params=(f"{runtime_phase_idx:03}_[RUNTIME]", run_id,)
+        params=(runtime_phase_name, run_id,)
     )
     if not result or result == []:
         return # can happen if no runtime phase was produced data
 
     total_runtime_sub_phase_duration = result[0]
-    mean_custom_metrics = [metric for metric, custom_metric_type in custom_metric_types.items() if custom_metric_type == 'MEAN']
 
     DB().query('''
         WITH tvt as (
@@ -86,26 +85,43 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx, custom_metric_types):
                 value
             FROM phase_stats
             WHERE run_id = %s AND phase NOT LIKE '%%[%%' AND hidden IS FALSE AND type = 'MEAN'
-        ),
-        tvt_normalized as (
-            SELECT
-                tvt.*,
-                CASE WHEN tvt.metric = ANY(%s::TEXT[])
-                    THEN SUM(tvt.time_of_the_sub_phase) OVER (PARTITION BY tvt.metric, tvt.detail_name, tvt.unit)
-                    ELSE %s
-                END as normalization_time
-            FROM tvt
         )
         UPDATE phase_stats
             SET value =
                 -- we divide by /s here inside the bracket to make it more numerically stable. The sum of tvt*value * tvt.time_... will get too large otherwise
                 (
-                    SELECT ROUND(COALESCE(SUM(tvt_normalized.value * (tvt_normalized.time_of_the_sub_phase::DOUBLE PRECISION / tvt_normalized.normalization_time)), 0))
-                    FROM tvt_normalized WHERE tvt_normalized.metric = phase_stats.metric AND tvt_normalized.detail_name = phase_stats.detail_name AND tvt_normalized.unit = phase_stats.unit
+                    SELECT ROUND(COALESCE(SUM(tvt.value * (tvt.time_of_the_sub_phase::DOUBLE PRECISION / %s)), 0))
+                    FROM tvt WHERE tvt.metric = phase_stats.metric AND tvt.detail_name = phase_stats.detail_name AND tvt.unit = phase_stats.unit
                 )::BIGINT
 
         WHERE phase = %s AND run_id = %s AND type = 'MEAN'
-        ''', params=(run_id, mean_custom_metrics, total_runtime_sub_phase_duration, f"{runtime_phase_idx:03}_[RUNTIME]", run_id)
+        ''', params=(run_id, total_runtime_sub_phase_duration, runtime_phase_name, run_id)
+    )
+
+    # Custom metrics of type MEAN are often only reported in some sub phases, e.g. the latency of a load test that runs in one of several flows.
+    # The step above counts the sub phases without a value as 0. With 100 ms in one flow and four other flows of the same length the mean would be 20 ms.
+    # Thus for them we divide only by the duration of the sub phases that have a value:
+    # value = SUM(sub phase value * sub phase duration) / SUM(sub phase duration)
+    mean_custom_metrics = [metric for metric, custom_metric_type in custom_metric_types.items() if custom_metric_type == 'MEAN']
+    if not mean_custom_metrics:
+        return
+
+    DB().query('''
+        WITH custom_mean_sub_phases as (
+            SELECT
+                metric, detail_name, unit, value,
+                (SELECT p2.value FROM phase_stats as p2 WHERE p2.metric = 'phase_time_syscall_system' AND p2.detail_name = '[SYSTEM]' AND p2.unit = 'us' AND p2.run_id = phase_stats.run_id AND p2.phase = phase_stats.phase) as sub_phase_duration
+            FROM phase_stats
+            WHERE run_id = %s AND phase NOT LIKE '%%[%%' AND hidden IS FALSE AND type = 'MEAN' AND metric = ANY(%s::TEXT[])
+        )
+        UPDATE phase_stats
+            SET value = (
+                SELECT ROUND(COALESCE(SUM(sub.value * sub.sub_phase_duration::DOUBLE PRECISION) / NULLIF(SUM(sub.sub_phase_duration), 0), 0))
+                FROM custom_mean_sub_phases as sub
+                WHERE sub.metric = phase_stats.metric AND sub.detail_name = phase_stats.detail_name AND sub.unit = phase_stats.unit
+            )::BIGINT
+        WHERE phase = %s AND run_id = %s AND type = 'MEAN' AND metric = ANY(%s::TEXT[])
+        ''', params=(run_id, mean_custom_metrics, runtime_phase_name, run_id, mean_custom_metrics)
     )
 
 
@@ -502,8 +518,6 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None, custom_metri
                 custom_metric_type = custom_metric_types[metric]
                 custom_metric_value = {
                     'MEAN': metric_stats['value_avg'],
-                    'MAX': metric_stats['max_value'],
-                    'MIN': metric_stats['min_value'],
                     'LAST': metric_stats['last_value'],
                 }[custom_metric_type]
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", custom_metric_value, custom_metric_type, metric_stats['max_value'], metric_stats['min_value'], metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))

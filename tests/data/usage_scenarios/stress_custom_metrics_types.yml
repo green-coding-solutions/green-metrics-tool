@@ -7,12 +7,6 @@ custom_metrics:
   open_fds:
     unit: count
     type: MEAN
-  peak_connections:
-    unit: count
-    type: MAX
-  free_workers:
-    unit: count
-    type: MIN
   files_stored:
     unit: count
     type: LAST
@@ -32,7 +26,7 @@ flow:
     commands:
       - type: console
         shell: sh
-        command: TS=$(date +%s%N); echo "$TS open_fds=10"; echo "$TS peak_connections=10"; echo "$TS free_workers=10"; echo "$TS files_stored=10"; echo "$TS api_hits=33"; stress-ng -c 1 -t 1 -q
+        command: TS=$(date +%s%N); echo "$TS open_fds=10"; echo "$TS files_stored=10"; echo "$TS api_hits=33"; stress-ng -c 1 -t 1 -q
       - type: console
         shell: sh
-        command: TS=$(date +%s%N); echo "$TS open_fds=30"; echo "$TS peak_connections=30"; echo "$TS free_workers=30"; echo "$TS files_stored=30"; echo "$TS api_hits=44"; stress-ng -c 1 -t 1 -q
+        command: TS=$(date +%s%N); echo "$TS open_fds=30"; echo "$TS files_stored=30"; echo "$TS api_hits=44"; stress-ng -c 1 -t 1 -q

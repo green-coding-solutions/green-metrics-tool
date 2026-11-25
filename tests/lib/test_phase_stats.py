@@ -840,12 +840,10 @@ def test_phase_stats_custom_metric_type_mean_over_multiple_sub_phases():
     ]
 
 @pytest.mark.parametrize('custom_metric_type, expected_stress, expected_download, expected_runtime', [
-    ('MAX', 40, 100, 100), # RUNTIME is the max over all sub phases
-    ('MIN', 2, 5, 2), # RUNTIME is the min over all sub phases
     ('LAST', 30, 5, 5), # RUNTIME is the value of the last sub phase
     ('TOTAL', 72, 105, 177), # unchanged default for comparison
 ])
-def test_phase_stats_custom_metric_types_max_min_last(custom_metric_type, expected_stress, expected_download, expected_runtime):
+def test_phase_stats_custom_metric_type_last(custom_metric_type, expected_stress, expected_download, expected_runtime):
     run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
     stress_start = Tests.TEST_MEASUREMENT_PHASES[7]['start']
     download_start = Tests.TEST_MEASUREMENT_PHASES[8]['start']
@@ -976,14 +974,10 @@ def test_custom_metric_types_run():
     assert [(d['phase'], d['metric'], d['value'], d['type'], d['max_value'], d['min_value'], d['unit']) for d in data] == [
         ('004_[RUNTIME]', 'custom_api_hits', 77, 'TOTAL', 44, 33, 'API Hits'),
         ('004_[RUNTIME]', 'custom_files_stored', 30, 'LAST', 30, 10, 'count'),
-        ('004_[RUNTIME]', 'custom_free_workers', 10, 'MIN', 30, 10, 'count'),
         ('004_[RUNTIME]', 'custom_open_fds', 20, 'MEAN', 30, 10, 'count'),
-        ('004_[RUNTIME]', 'custom_peak_connections', 30, 'MAX', 30, 10, 'count'),
         ('005_Stress', 'custom_api_hits', 77, 'TOTAL', 44, 33, 'API Hits'),
         ('005_Stress', 'custom_files_stored', 30, 'LAST', 30, 10, 'count'),
-        ('005_Stress', 'custom_free_workers', 10, 'MIN', 30, 10, 'count'),
         ('005_Stress', 'custom_open_fds', 20, 'MEAN', 30, 10, 'count'),
-        ('005_Stress', 'custom_peak_connections', 30, 'MAX', 30, 10, 'count'),
     ]
 
 

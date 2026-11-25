@@ -235,8 +235,6 @@ def test_schema_checker_custom_metrics_type_valid():
     usage_scenario = _valid_usage_scenario_with_custom_metrics({
         'requests': {'unit': 'count', 'type': 'TOTAL', 'sci': True},
         'open_fds': {'unit': 'count', 'type': 'MEAN'},
-        'peak_connections': {'unit': 'count', 'type': 'MAX'},
-        'free_workers': {'unit': 'count', 'type': 'MIN'},
         'files_stored': {'unit': 'count', 'type': 'LAST'},
         'hits': {'unit': 'count', 'sci': True}, # no type means TOTAL
     })
@@ -245,17 +243,17 @@ def test_schema_checker_custom_metrics_type_valid():
 
 def test_schema_checker_custom_metrics_type_invalid():
     usage_scenario = _valid_usage_scenario_with_custom_metrics({
-        'open_fds': {'unit': 'count', 'type': 'P95'},
+        'open_fds': {'unit': 'count', 'type': 'MAX'},
     })
     schema_checker = SchemaChecker(validate_compose_flag=True)
     with pytest.raises(SchemaError) as error:
         schema_checker.check_usage_scenario(usage_scenario)
 
-    expected_exception = "Or('TOTAL', 'MEAN', 'MAX', 'MIN', 'LAST') did not validate 'P95'"
+    expected_exception = "Or('TOTAL', 'MEAN', 'LAST') did not validate 'MAX'"
     assert expected_exception in str(error.value), \
         Tests.assertion_info(f"Exception: {expected_exception}", str(error.value))
 
-@pytest.mark.parametrize('custom_metric_type', ['MEAN', 'MAX', 'MIN', 'LAST'])
+@pytest.mark.parametrize('custom_metric_type', ['MEAN', 'LAST'])
 def test_schema_checker_custom_metrics_sci_only_for_total(custom_metric_type):
     usage_scenario = _valid_usage_scenario_with_custom_metrics({
         'open_fds': {'unit': 'count', 'type': custom_metric_type, 'sci': True},

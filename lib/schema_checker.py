@@ -123,7 +123,7 @@ class SchemaChecker():
                     'unit': And(str, Use(self.not_empty), Use(self.no_newlines)),
                     Optional('regex'): And(str, Use(self.not_empty), Use(self.regex_has_two_groups)),
                     Optional('sci'): bool,
-                    Optional('type'): Or('TOTAL', 'MEAN', 'MAX', 'MIN', 'LAST'),
+                    Optional('type'): Or('TOTAL', 'MEAN', 'LAST'),
                 },
             },
 
@@ -278,7 +278,7 @@ class SchemaChecker():
 
         for key, custom_metric in usage_scenario.get('custom_metrics', {}).items():
             # SCI divides the carbon of a phase by the custom metric. This only makes sense for a quantity
-            # that accumulates over the phase (requests served, items processed), not for an average, a peak or a state.
+            # that accumulates over the phase (requests served, items processed), not for an average or a state.
             if custom_metric.get('sci', False) and custom_metric.get('type', 'TOTAL') != 'TOTAL':
                 raise SchemaError(f"Custom metric '{key}' has `sci: true` but type '{custom_metric['type']}'. SCI can only be calculated for custom metrics of type 'TOTAL'.")
 
