@@ -324,10 +324,16 @@ def determine_comparison_case(user, ids, force_mode=None):
     '''
     params = (user.is_super_user(), user.visible_users(), ids)
     data = DB().fetch_one(query, params=params)
-    if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
+    if data is None or data == []:
         raise RuntimeError('Could not determine compare case')
 
     [repos, usage_scenarios, machine_ids, commit_hashes, branches, usage_scenario_variables] = data
+
+    # The aggregate query always returns one row. If no requested run exists or is visible, all COUNTs are 0
+    # (uri is NOT NULL, so repos == 0 means no rows at all). Without this check auto mode would fall through to the
+    # IDs / Table fallback and fail later on with a 500 in get_comparison_details()
+    if repos == 0:
+        raise HTTPException(status_code=404, detail='None of the requested runs exist or you do not have access to them')
 
     # If we have one or more measurement in a phase_stat it will currently just be averaged
     # however, when we allow comparing runs we will get same phase_stats but with different repo etc.
