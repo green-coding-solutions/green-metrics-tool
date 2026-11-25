@@ -983,6 +983,10 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
     if software.repo_url is None or software.repo_url.strip() == '':
         raise HTTPException(status_code=422, detail='URL is empty')
 
+    # URIs cannot contain quotes by design. Reject them here so they never get stored and break the frontend (#382)
+    if "'" in software.repo_url or '"' in software.repo_url:
+        raise HTTPException(status_code=422, detail='URL must not contain quote characters (\' or ")')
+
     if software.image_url is None:
         software.image_url = ''
 

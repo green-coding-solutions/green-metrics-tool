@@ -216,6 +216,19 @@ def test_post_run_add_broken_repo_url():
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
     assert json.loads(response.text)['err'] == 'Could not find repository h8gw4hruihuf and branch main. Is the repo publicly accessible, not empty and does the branch main exist?'
 
+@pytest.mark.parametrize('repo_url', [
+    "https://broken-uri'.de",
+    'https://broken-uri".de',
+    "https://github.com/green-coding-solutions/green-metrics-tool'",
+])
+def test_post_run_add_repo_url_with_quotes(repo_url):
+    run_name = 'test_' + utils.randomword(12)
+    run = Software(name=run_name, repo_url=repo_url, email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
+    response = requests.post(f"{API_URL}/v1/runs/add?no_url_check=true", json=run.model_dump(), timeout=15)
+    assert response.status_code == 422, Tests.assertion_info('error', response.text)
+    assert json.loads(response.text)['err'] == 'URL must not contain quote characters (\' or ")'
+    assert get_job_ids(run_name) is None
+
 def test_post_run_add_non_existent_repo():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='https://github.com/no-company-here/and-no-repo/', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
