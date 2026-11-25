@@ -640,6 +640,13 @@ const loadCharts = async () => {
             renderChangelogChangeLines(chart_instance, chart_instance._changelogTotalDataPoints, chart_instance._changelogSegments);
         });
 
+        // the toolbox "Restore" resets the chart to the option of the very first setOption call.
+        // The changelog markers are added in a later setOption, so they get wiped and must be redrawn.
+        // Restore emits no datazoom event, so the handler above does not cover this
+        chart_instance.on('restore', function() {
+            renderChangelogChangeLines(chart_instance, chart_instance._changelogTotalDataPoints, chart_instance._changelogSegments);
+        });
+
     }
 
     document.querySelectorAll(".copy-badge").forEach(el => {
