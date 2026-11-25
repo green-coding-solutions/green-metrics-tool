@@ -290,6 +290,29 @@ def test_compare_force_unknown_mode():
     assert response.status_code == 422
     assert res_json['err'] == 'Forcing a comparison mode for unknown mode'
 
+# two IDs used to hit the 'IDs' fallback and crash with a 500 in get_comparison_details(); three+ IDs used to return a misleading 409
+@pytest.mark.parametrize('ids', [
+    'b3a6c1d0-0000-4000-8000-000000000001,b3a6c1d0-0000-4000-8000-000000000002',
+    'b3a6c1d0-0000-4000-8000-000000000001,b3a6c1d0-0000-4000-8000-000000000002,b3a6c1d0-0000-4000-8000-000000000003',
+])
+@pytest.mark.parametrize('force_mode', [None, 'machine_ids'])
+def test_compare_non_existing_runs(ids, force_mode):
+    Tests.import_demo_data()
+
+    url = f"{API_URL}/v1/compare?ids={ids}" + (f"&force_mode={force_mode}" if force_mode else '')
+    response = requests.get(url, timeout=15)
+    assert response.status_code == 404, Tests.assertion_info('not found', response.text)
+    assert response.json()['err'] == 'None of the requested runs exist or you do not have access to them'
+
+@pytest.mark.parametrize('ids', [f"{RUN_3},{RUN_1}", f"{RUN_3},{RUN_1},{RUN_2}"])
+def test_compare_runs_not_visible_for_user(ids):
+    Tests.import_demo_data()
+    Tests.insert_user(2, 'OTHER_USER')
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={ids}", headers={'X-Authentication': 'OTHER_USER'}, timeout=15)
+    assert response.status_code == 404, Tests.assertion_info('not found', response.text)
+    assert response.json()['err'] == 'None of the requested runs exist or you do not have access to them'
+
 def test_get_insights():
     Tests.import_demo_data()
 
