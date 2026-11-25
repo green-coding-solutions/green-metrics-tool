@@ -436,6 +436,48 @@ def test_get_logs_only_visible_for_allowed_users():
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert response.json()['data'] == {'ctr': [_log_entry(stdout='secret')]}
 
+def _insert_run_with_metric_providers(configured_metric_providers):
+    return DB().fetch_one(
+        """
+        INSERT INTO runs (name, uri, branch, filename, machine_id, user_id, measurement_config, created_at)
+        VALUES ('Network run', 'https://www.example.com', 'main', 'usage_scenario.yml', 1, 1, %s, NOW())
+        RETURNING id
+        """,
+        params=(json.dumps({'configured_metric_providers': configured_metric_providers}), )
+    )[0]
+
+def test_get_network_provider_not_active():
+    run_id = _insert_run_with_metric_providers({'cpu_utilization_procfs_system': {'sampling_rate': 99}})
+
+    response = requests.get(f"{API_URL}/v1/network/{run_id}", timeout=15)
+    assert response.status_code == 422, Tests.assertion_info('provider not active', response.text)
+    assert response.json()['err'] == 'Network connections metric provider was not active for this run'
+
+@pytest.mark.parametrize('provider', ['network_connections_proxy_container', 'network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider'])
+def test_get_network_provider_active_without_connections(provider):
+    run_id = _insert_run_with_metric_providers({provider: None})
+
+    response = requests.get(f"{API_URL}/v1/network/{run_id}", timeout=15)
+    assert response.status_code == 204, Tests.assertion_info('no content', response.text)
+
+def test_get_network_provider_active_with_connections():
+    run_id = _insert_run_with_metric_providers({'network_connections_proxy_container': None})
+    DB().query(
+        "INSERT INTO network_intercepts (run_id, time, connection_type, protocol) VALUES (%s, 1700000000000, 'example.com:443', 'HTTPS')",
+        params=(run_id, )
+    )
+
+    response = requests.get(f"{API_URL}/v1/network/{run_id}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert [row[3:5] for row in response.json()['data']] == [['example.com:443', 'HTTPS']]
+
+def test_get_network_run_not_visible():
+    Tests.insert_user(2, 'OTHER_USER')
+    run_id = _insert_run_with_metric_providers({'network_connections_proxy_container': None})
+
+    response = requests.get(f"{API_URL}/v1/network/{run_id}", headers={'X-Authentication': 'OTHER_USER'}, timeout=15)
+    assert response.status_code == 404, Tests.assertion_info('not found', response.text)
+
 def test_get_system_logs_clips_message():
     DB().query(
         "INSERT INTO system_logs (id, title, message) VALUES (1, 'long', %s), (2, 'at limit', %s)",

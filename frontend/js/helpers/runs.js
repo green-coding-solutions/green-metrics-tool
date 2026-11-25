@@ -1,3 +1,4 @@
+"use strict";
 
 
 // Tables are paginated server-side, so checkboxes of other pages are not in the DOM.

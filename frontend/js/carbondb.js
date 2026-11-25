@@ -425,8 +425,9 @@ const refreshView = async () => {
 const populatePossibleFilters = (filters) => {
     for (const dimension in filters.data) {
         for (const element in filters.data[dimension]) {
-            document.querySelector(`#${dimension}-include`).appendChild(new Option(escapeString(filters.data[dimension][element]), element));
-            document.querySelector(`#${dimension}-exclude`).appendChild(new Option(escapeString(filters.data[dimension][element]), element));
+            // no escapeString: new Option() sets text, not HTML. Fomantic reads it back via .html(), which is already entity-encoded
+            document.querySelector(`#${dimension}-include`).appendChild(new Option(filters.data[dimension][element], element));
+            document.querySelector(`#${dimension}-exclude`).appendChild(new Option(filters.data[dimension][element], element));
         }
     }
 }

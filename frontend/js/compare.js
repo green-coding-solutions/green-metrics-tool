@@ -1,34 +1,19 @@
 "use strict";
-function createPythonDictTable(dataArray, labelPrefix = 'Item', keyHeader = 'Key') {
-    // Parse Python dictionary data into a comparison table
-    const items = Array.isArray(dataArray) ? dataArray : [dataArray];
-    
-    // Collect all unique keys
-    const allKeys = new Set();
-    const parsedItems = items.map(item => {
-        const vars = {};
-        const matches = item.match(/'([^']+)':\s*'([^']*)'/g);
-        if (matches) {
-            matches.forEach(match => {
-                const [, key, value] = match.match(/'([^']+)':\s*'([^']*)'/);
-                vars[key] = value;
-                allKeys.add(key);
-            });
-        }
-        return vars;
-    });
-    
-    // Build simple table
-    let tableContent = `<table><tr><th>${keyHeader}</th>`;
-    items.forEach((_, index) => {
-        tableContent += `<th style="text-align: center;">${labelPrefix} ${index + 1}</th>`;
+function createVariablesComparisonTable(variablesList, labelPrefix = 'Item', keyHeader = 'Key') {
+    // variablesList holds one usage scenario variables object per comparison group
+    const allKeys = new Set(variablesList.flatMap(vars => Object.keys(vars)));
+
+    let tableContent = `<table><tr><th>${escapeString(keyHeader)}</th>`;
+    variablesList.forEach((_, index) => {
+        tableContent += `<th style="text-align: center;">${escapeString(labelPrefix)} ${index + 1}</th>`;
     });
     tableContent += '</tr>';
-    
+
     allKeys.forEach(key => {
         tableContent += `<tr><td><strong>${escapeString(key)}</strong></td>`;
-        parsedItems.forEach(item => {
-            tableContent += `<td style="text-align: center;">${escapeString(item[key] ? displayUsageScenarioVariableValue(key, item[key]) : '-')}</td>`;
+        variablesList.forEach(vars => {
+            const value = Object.hasOwn(vars, key) ? displayUsageScenarioVariableValue(key, vars[key]) : '-';
+            tableContent += `<td style="text-align: center;">${escapeString(value)}</td>`;
         });
         tableContent += '</tr>';
     });
@@ -55,36 +40,6 @@ async function fetchDiff(run_ids) {
     document.querySelector('#loader-diff').remove();
 
 }
-
-const fetchWarningsForRuns = async (run_ids) => {
-    const warnings = [];
-    for (const run_id of run_ids) {
-        try {
-            const data = await makeAPICall('/v1/warnings/' + run_id);
-            if (data?.data) warnings.push(...data.data);
-        } catch (err) {
-            if (err instanceof APIHTTPError && err.status === 204) {
-                console.log('No warnings where present in API response. Skipping error as this is allowed case.')
-            } else {
-                showNotification('Could not get warnings data from API', err);
-            }
-        }
-    }
-    return warnings;
-};
-
-const fillWarnings = (warnings) => {
-    if (!warnings || warnings.length === 0) return;
-    const warnings_texts = warnings.map(sub => sub[1]);
-    const unique_warnings = [...new Set(warnings_texts)];
-
-    const container = document.querySelector('#run-warnings');
-    const ul = container.querySelector('ul');
-    unique_warnings.forEach(w => {
-        ul.insertAdjacentHTML('beforeend', `<li>${escapeString(w)}</li>`);
-    });
-    container.classList.remove('hidden');
-};
 
 const buildSeries = (ds1, ds2) => {
   const cumulative1 = [];
@@ -135,8 +90,10 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
         return
     }
 
-    let notes_data1 = await fetchTimelineNotes(run_ids[0])
-    let notes_data2 = await fetchTimelineNotes(run_ids[1])
+    const [notes_data1, notes_data2] = await Promise.all([
+        fetchTimelineNotes(run_ids[0]),
+        fetchTimelineNotes(run_ids[1])
+    ])
 
     if (!notes_data1 || !notes_data2) {
         document.querySelector('#loader-time-series-notes').classList.add('hidden');
@@ -167,7 +124,7 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
         const description = document.querySelector('#time-series-notes-no-display .description')
         description.innerHTML = 'Runs have same amount of notes, but at least one note differed in text. This might only be a small textual change or can be totally different steps. Please check chart for different labels in steps.<br><ul></ul>';
         const description_ul = description.querySelector('ul')
-        comparison.differences.forEach(el =>  {description_ul.innerHTML += `<li>${el.a} -> ${el.b}</li>`})
+        comparison.differences.forEach(el =>  {description_ul.insertAdjacentHTML('beforeend', `<li>${escapeString(el.a)} -> ${escapeString(el.b)}</li>`)})
     }
 
     let { cumulative1, cumulative2, candles, labels1, labels2 } = buildSeries(dataset1, dataset2);
@@ -175,18 +132,14 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
     tooltip: {
         trigger: 'axis',
         formatter: function (params) {
-
-          const series1 = params[0];
-          const series2 = params[1];
-          const candlestick = params[2];          // candlestick series
-          const [open, close, low, high] = candlestick.data;
-          return `
-            ${series1.axisValue}<br/>
-            ${series1.marker} ${series1.seriesName}: ${numberFormatter.format(series1.value)} s<br>
-            ${series2.marker} ${series2.seriesName}: ${numberFormatter.format(series2.value)} s<br>
-            ${candlestick.marker} ${candlestick.seriesName}: ${numberFormatter.format(candlestick.value[2])} s<br>
-
-          `;
+          if (!params.length) return '';
+          // Series hidden via the legend are missing from params, so never access them by position
+          const lines = params.map((p) => {
+            // Take the step delta from our own data, as ECharts reshapes candlestick values in params
+            const value = p.seriesName === 'Step Delta' ? candles[p.dataIndex][1] : p.value;
+            return `${p.marker} ${p.seriesName}: ${numberFormatter.format(value)} s`;
+          });
+          return `${escapeString(params[0].axisValue)}<br>${lines.join('<br>')}`;
         }
       },
       legend: {
@@ -264,7 +217,7 @@ const fetchAndShowTimeSeriesNotesHistory = async (run_ids) => {
     comparison.differences.forEach(el =>  {
         option.series[0].markLine.data.push(
         {
-            xAxis: el.a,
+            xAxis: el.index, // index instead of label, as labels can repeat and ECharts would then mark the first match
             label: {
                 show: true,
                 formatter: '⚠',
@@ -300,17 +253,20 @@ $(document).ready( () => {
             || url_params['ids'] == ''
             || url_params['ids'] == 'null') {
             showNotification('No ids', 'ids parameter in URL is empty or not present. Did you follow a correct URL?');
-            throw "Error";
+            return;
         }
 
         const run_ids = url_params['ids'].split(",");
-        const run_count = run_ids.length
+        if (!run_ids.every(isValidUUID)) {
+            showNotification('Invalid ids', 'ids parameter in URL contains at least one invalid run ID. Did you follow a correct URL?');
+            return;
+        }
 
         let phase_stats_data = null
         try {
             let url = `/v1/compare?ids=${run_ids}`
             if (url_params['force_mode']?.length) {
-                url = `${url}&force_mode=${url_params['force_mode']}`
+                url = `${url}&force_mode=${encodeURIComponent(url_params['force_mode'])}`
             }
             phase_stats_data = (await makeAPICall(url)).data
         } catch (err) {
@@ -328,6 +284,8 @@ $(document).ready( () => {
         fillWarnings(warnings);
 
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${escapeString(phase_stats_data.comparison_case)}</td></tr>`)
+        // count the runs the API resolved and not the URL ids, as these can contain duplicates or runs not visible to the user
+        const run_count = phase_stats_data.comparison_details.flat().length
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Number of runs compared</strong></td><td>${run_count}</td></tr>`)
         if (phase_stats_data.comparison_case === 'Machine') {
             let comparison_identifiers = phase_stats_data.comparison_identifiers.join(' vs. ')
@@ -338,12 +296,14 @@ $(document).ready( () => {
             if (match) {
                 const num1 = parseInt(match[1], 10); // First number
                 const num2 = parseInt(match[2], 10); // Second number
-                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${num1} (${GMT_MACHINES[num1]}) vs. ${num2} (${GMT_MACHINES[num2]})</td></tr>`)
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${num1} (${escapeString(GMT_MACHINES[num1] || num1)}) vs. ${num2} (${escapeString(GMT_MACHINES[num2] || num2)})</td></tr>`)
             } else {
-                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${GMT_MACHINES[comparison_identifiers] || escapeString(comparison_identifiers)}</td></tr>`)
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${escapeString(GMT_MACHINES[comparison_identifiers] || comparison_identifiers)}</td></tr>`)
             }
         } else if (phase_stats_data.comparison_case === 'Usage Scenario Variables') {
-            const tableContent = createPythonDictTable(phase_stats_data.comparison_identifiers || comparison_identifiers.split(' vs. '), 'Scenario', 'Variable');
+            // comparison_details has one list of runs per comparison identifier. All runs in a group share the same variables
+            const variablesList = phase_stats_data.comparison_details.map(runs => runs[0]?.usage_scenario_variables || {});
+            const tableContent = createVariablesComparisonTable(variablesList, 'Scenario', 'Variable');
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(phase_stats_data.comparison_case)}</strong></td><td>${tableContent}</td></tr>`)
         } else if (phase_stats_data.comparison_case === 'IDs') {
             document.querySelector('#compare-mode-ids').classList.remove('hidden');
@@ -362,14 +322,14 @@ $(document).ready( () => {
         document.querySelector('#fetch-diff').addEventListener('click', (event) => { fetchDiff(run_ids) })
 
         buildPhaseTabs(phase_stats_data)
-        renderCompareChartsForPhase(phase_stats_data, getAndShowPhase(), run_count);
+        renderCompareChartsForPhase(phase_stats_data, getAndShowPhase());
         displayTotalChart(...buildTotalChartData(phase_stats_data));
         // comparison_details is ordered by created_at ASC, same as the comparison tables. The ids from the URL are newest first
         fetchAndShowTimeSeriesNotesHistory(phase_stats_data.comparison_details.flat().map(el => el.run_id))
 
         document.querySelectorAll('.ui.steps.phases .step, .runtime-step').forEach(node => node.addEventListener('click', el => {
             const phase = el.currentTarget.getAttribute('data-tab');
-            renderCompareChartsForPhase(phase_stats_data, phase, run_count);
+            renderCompareChartsForPhase(phase_stats_data, phase);
         }));
 
     })();

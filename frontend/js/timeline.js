@@ -211,12 +211,14 @@ const fillInputsFromURL = (url_params) => {
         $('select[name="machine_id"]').val(url_params['machine_id']);
         $('#machine').text($('select[name="machine_id"] :checked').text());
     }
-    if(url_params['sorting'] != null) $(`#sorting-${url_params['sorting']}`).prop('checked', true);
-    if(url_params['metric'] != null) $(`#metric-${url_params['metric']}`).prop('checked', true);
-    if(url_params['show_archived'] != null) $(`input[name="show_archived"][value="${url_params['show_archived']}"]`).prop('checked', true);
+    // URL params are compared as values and not put into selectors, as special chars would make jQuery throw
+    const radioWithValue = (name, value) => $(`input[name="${name}"]`).filter((_, el) => el.value === value);
+    if(url_params['sorting'] != null) radioWithValue('sorting', url_params['sorting']).prop('checked', true);
+    if(url_params['metric'] != null) radioWithValue('metric', url_params['metric']).prop('checked', true);
+    if(url_params['show_archived'] != null) radioWithValue('show_archived', url_params['show_archived']).prop('checked', true);
 
     if(url_params['phase'] != null && url_params['phase'] !== '') {
-        const matchingPhaseRadio = $(`input[name="phase"][value="${url_params['phase']}"]`);
+        const matchingPhaseRadio = radioWithValue('phase', url_params['phase']);
         if (matchingPhaseRadio.length > 0) {
             matchingPhaseRadio.prop('checked', true);
         } else {
@@ -352,7 +354,7 @@ const buildClusterChangelogSegments = (clusterChangelog, timestamps) => {
 }
 
 const wrapTooltipText = (text, maxLength = 40) => {
-    if (text.length <= maxLength) return text;
+    if (text.length <= maxLength) return escapeString(text);
 
     const lines = [];
     let currentLine = '';
@@ -365,7 +367,7 @@ const wrapTooltipText = (text, maxLength = 40) => {
         }
     }
 
-    if (currentLine.length > 0) escapeString(lines.push(currentLine));
+    if (currentLine.length > 0) lines.push(escapeString(currentLine));
     return lines.join('<br>');
 }
 
@@ -473,8 +475,6 @@ const loadCharts = async () => {
     let legends = {};
     let series = {};
 
-    let prun_id = null
-
     phase_stats_data.forEach( (data) => {
         let [run_id, run_name, usage_scenario_variables, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash, archived] = data
 
@@ -483,6 +483,8 @@ const loadCharts = async () => {
         if (series[`${metric_name} - ${detail_name}`] == undefined) {
             series[`${metric_name} - ${detail_name}`] = {labels: [], timestamps: [], values: [], notes: [], unit: transformed_unit, metric_name: metric_name, detail_name: detail_name}
         }
+        // previous run must come from the same series. First point of a series has no previous run
+        const prun_id = series[`${metric_name} - ${detail_name}`].notes.at(-1)?.run_id ?? null;
 
         const timelineTimestamp = isMeasurementSorting ? created_at : commit_timestamp;
         series[`${metric_name} - ${detail_name}`].labels.push(timelineTimestamp)
@@ -500,8 +502,6 @@ const loadCharts = async () => {
             archived: archived,
             gmt_hash: gmt_hash,
         })
-
-        prun_id = run_id
     })
 
     try {
@@ -582,8 +582,8 @@ const loadCharts = async () => {
                         commit_hash: <a class="commit-hash-link" href="" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].commit_hash)}</a><br>
                         gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}" target="_blank">${escapeString(series[params.seriesName].notes[params.dataIndex].gmt_hash)}</a><br>
 
-                        <br>
-                        👉 <a href="/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}" target="_blank">Diff with previous run</a>
+                        ${series[params.seriesName].notes[params.dataIndex].prun_id == null ? '' : `<br>
+                        👉 <a href="/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}" target="_blank">Diff with previous run</a>`}
                         `;
                         const container = document.createElement('div');
                         container.innerHTML = html_content;
@@ -631,7 +631,7 @@ const loadCharts = async () => {
             let options = chart_instance.getOption()
             const stddevSeries = options.series.find((entry) => entry.name === 'Stddev');
             if (stddevSeries?.markArea?.data?.[0] != null) {
-                stddevSeries.markArea.data[0][0].name = `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `(${(stddev/mean * 100).toFixed(2)} %)` : 'N/A'}} %)`
+                stddevSeries.markArea.data[0][0].name = `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `${(stddev/mean * 100).toFixed(2)} %` : 'N/A'})`
                 stddevSeries.markArea.data[0][0].yAxis = mean + stddev
                 stddevSeries.markArea.data[0][1].yAxis = mean - stddev;
             }

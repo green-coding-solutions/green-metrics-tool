@@ -457,3 +457,33 @@ def test_power_hog_copy_over_is_keyed_on_measurement():
     data = DB().fetch_all("SELECT hog_measurement_id, operational_carbon_kg FROM carbondb_data_raw WHERE source = 'Power HOG' ORDER BY hog_measurement_id")
     assert [row[0] for row in data] == hog_ids
     assert math.isclose(data[1][1], 3600000000 / 3600 / 1000 * 100 / FROM_UG_TO_KG, rel_tol=1e-9) # 1 Wh at 100 g/kWh = 100_000 ug
+
+def test_eco_ci_copy_over_is_keyed_on_measurement():
+    eco_ci_data = ECO_CI_DATA.copy()
+    eco_ci_data['operational_carbon_ug'] = 5
+    eco_ci_data['embodied_carbon_ug'] = 2
+
+    response = requests.post(f"{API_URL}/v4/ci/measurement/add", json=eco_ci_data, timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    eco_ci_data_backfill = ECO_CI_DATA.copy() # no operational carbon yet. Waits for the backfill
+    eco_ci_data_backfill['embodied_carbon_ug'] = 2
+    response = requests.post(f"{API_URL}/v4/ci/measurement/add", json=eco_ci_data_backfill, timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
+    copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
+
+    ci_ids = [row[0] for row in DB().fetch_all('SELECT id FROM ci_measurements ORDER BY id')]
+    data = DB().fetch_all("SELECT ci_measurement_id FROM carbondb_data_raw WHERE source = 'Eco CI' ORDER BY ci_measurement_id")
+    assert data == [(ci_ids[0], )], 'Second copy over inserted already copied Eco CI measurements again or copied a row still waiting for its backfill'
+
+    # once the source row is backfilled it is copied exactly once, with the backfilled operational carbon
+    DB().query('UPDATE ci_measurements SET carbon_intensity_g = 100 WHERE operational_carbon_ug IS NULL')
+    backfill_carbon_intensity.update_eco_ci_carbon()
+    copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
+    copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
+
+    data = DB().fetch_all("SELECT ci_measurement_id, operational_carbon_kg FROM carbondb_data_raw WHERE source = 'Eco CI' ORDER BY ci_measurement_id")
+    assert [row[0] for row in data] == ci_ids
+    assert math.isclose(data[1][1], round(eco_ci_data_backfill['energy_uj'] * 100 / 3_600_000) / FROM_UG_TO_KG, abs_tol=1e-12)

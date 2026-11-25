@@ -1,3 +1,4 @@
+"use strict";
 const GMT_MACHINES = JSON.parse(localStorage.getItem('gmt_machines')) || {}; // global variable. dynamically resolved via resolveMachinesToGlobalVariable
 
 const escapeString = (string) =>{
@@ -12,6 +13,9 @@ const escapeString = (string) =>{
     const reg = /[&<>"']/ig;
     return my_string.replace(reg, (match) => map[match]);
 }
+
+// Run IDs are always UUIDs. Validate them before they are used in API paths or HTML
+const isValidUUID = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value));
 
 // Usage scenario variables named __GMT_VAR_SECRET_*__ hold secrets. The backend only ever hands us
 // their encrypted value, so nothing sensitive can leak here - we still mask it, as showing a long
@@ -193,7 +197,7 @@ const resolveMachinesToGlobalVariable = async () => {
 
 const getClusterStatus = async (status_ok_selector, status_warning_selector) => {
     try {
-        cluster_status_data = await makeAPICall('/v1/cluster/status')
+        const cluster_status_data = await makeAPICall('/v1/cluster/status')
 
         const container = document.querySelector('.cluster-health-message.yellow #cluster-health-warnings');
         cluster_status_data.data.forEach(message => {
@@ -328,6 +332,7 @@ const showNotification = (message_title, message_text, type='error') => {
         displayTime: 5000,
         title: message_title,
         message: message,
+        preserveHTML: false, // title and message can contain user input (URL params, API errors). Render as text only
     });
     return;
 }
@@ -483,10 +488,44 @@ const fetchTimelineNotes = async (run_id) => {
     try {
         notes = await makeAPICall('/v1/notes/' + run_id)
     } catch (err) {
-        showNotification('Could not get notes data from API', err);
+        if (!(err instanceof APIHTTPError && err.status === 204)) { // 204 = run has no notes. Not an error
+            showNotification('Could not get notes data from API', err);
+        }
     }
     return notes?.data;
 }
+
+const fetchWarningsForRuns = async (run_ids) => {
+    // requests run in parallel. Promise.all keeps the order of run_ids
+    const warnings_per_run = await Promise.all(run_ids.map(async (run_id) => {
+        try {
+            const data = await makeAPICall('/v1/warnings/' + run_id);
+            return data?.data ?? [];
+        } catch (err) {
+            if (err instanceof APIHTTPError && err.status === 204) {
+                console.log('No warnings where present in API response. Skipping error as this is allowed case.')
+            } else {
+                showNotification('Could not get warnings data from API', err);
+            }
+            return [];
+        }
+    }));
+    return warnings_per_run.flat();
+};
+
+// fills the #run-warnings box. Identical warnings of multiple runs are only shown once
+const fillWarnings = (warnings) => {
+    if (!warnings || warnings.length === 0) return;
+    const warnings_texts = warnings.map(sub => sub[1]);
+    const unique_warnings = [...new Set(warnings_texts)];
+
+    const container = document.querySelector('#run-warnings');
+    const ul = container.querySelector('ul');
+    unique_warnings.forEach(w => {
+        ul.insertAdjacentHTML('beforeend', `<li>${escapeString(w)}</li>`);
+    });
+    container.classList.remove('hidden');
+};
 
 
 if (localStorage.getItem('closed_descriptions') == null) {
@@ -511,7 +550,7 @@ $(document).ready(() => {
         localStorage.setItem('closed_descriptions', `${closed_descriptions},${window.location.pathname}`)
     });
 
-    if (closed_descriptions.indexOf(window.location.pathname) !== -1) {
+    if (closed_descriptions.split(',').includes(window.location.pathname)) { // exact match. Substring would match the root path "/" in every stored path
         document.querySelectorAll('i.close.icon').forEach(el => { el.closest('.ui').remove()}
         )
     }

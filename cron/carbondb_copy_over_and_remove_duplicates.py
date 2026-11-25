@@ -72,7 +72,7 @@ def copy_over_power_hog(copy_over_lookback_limit):
 def copy_over_eco_ci(copy_over_lookback_limit):
     query = '''
         INSERT INTO carbondb_data_raw
-            ("type", "project", "machine", "source", "tags","time","energy_kwh","operational_carbon_kg","embodied_carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+            ("type", "project", "machine", "source", "tags","time","energy_kwh","operational_carbon_kg","embodied_carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","ci_measurement_id","created_at")
 
             SELECT
                 filter_type,
@@ -89,6 +89,7 @@ def copy_over_eco_ci(copy_over_lookback_limit):
                 longitude,
                 ip_address,
                 user_id,
+                id,
                 NOW()
             FROM ci_measurements
             -- rows still waiting for their carbon backfill are copied once it is done. A copy with a NULL operational_carbon_kg would be harmless
@@ -96,6 +97,10 @@ def copy_over_eco_ci(copy_over_lookback_limit):
             -- copy made after the backfill, so remove_duplicates cannot match the two and compress counts the row twice
             WHERE operational_carbon_ug IS NOT NULL
                 AND (%s OR created_at > CURRENT_DATE - make_interval(days => %s))
+            -- rows are keyed on their source row, so already copied measurements are skipped instead of being inserted again on every run
+            -- and then deleted by remove_duplicates. DO NOTHING instead of DO UPDATE, as a row is only copied once its operational carbon is final.
+            -- A carbon_intensity_g still missing then is filled on carbondb_data_raw itself by backfill_carbon_intensity.py
+            ON CONFLICT (ci_measurement_id) DO NOTHING
     '''
 
     DB().query(query, params=(copy_over_lookback_limit is None, copy_over_lookback_limit))
@@ -130,7 +135,7 @@ def copy_over_scenario_runner(copy_over_lookback_limit):
             LEFT JOIN machines as m ON m.id = r.machine_id
             WHERE %s OR r.created_at > CURRENT_DATE - make_interval(days => %s)
             GROUP BY r.id, m.description
-            -- runs are keyed so that changed values (e.g. run finished after previous copy over or phase_stats got recalculated) replace the old row instead of creating a second one
+            -- runs are keyed so that changed values (e.g. run finished after previous copy over or phase_stats got recalculated or was only partially written yet) replace the old row instead of creating a second one
             ON CONFLICT (run_id) DO UPDATE SET
                 machine = EXCLUDED.machine,
                 time = EXCLUDED.time,
@@ -158,7 +163,8 @@ def validate_table_constraints(cleanup_lookback_limit):
             (user_id IS NULL -- null by design. only guard for broken schema
             OR time IS NULL -- null by design. only guard for broken schema
             OR energy_kwh IS NULL -- null by design. only guard for broken schema
-            OR operational_carbon_kg IS NULL  -- can be null bc of backfill. embodied_carbon_kg is NOT NULL and never backfilled
+            OR operational_carbon_kg IS NULL  -- can be null bc of backfill.
+            OR embodied_carbon_kg is NULL -- null by design. only guard for broken schema
             OR type IS NULL -- null by design. only guard for broken schema
             OR project IS NULL -- null by design. only guard for broken schema
             OR machine IS NULL -- null by design. only guard for broken schema
@@ -189,7 +195,9 @@ def remove_duplicates(cleanup_lookback_limit):
             AND a.user_id = b.user_id
             AND a.run_id IS NOT DISTINCT FROM b.run_id -- rows of different ScenarioRunner runs are never duplicates. Same run cannot occur twice due to unique index
             AND (%s OR a.time > (EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e6)::bigint) -- bigint cast keeps the index usable. Time filter must be starting from midnight and not include elapsed minutes in the day to work with copy over which cuts off time info
-    ''', params=(cleanup_lookback_limit is None, cleanup_lookback_limit))
+            -- Same filter on b. Postgres only derives equalities from a.time = b.time, not ranges. Without it b is read and hashed over the full table
+            AND (%s OR b.time > (EXTRACT(EPOCH FROM ((NOW() - make_interval(days => %s))::date::timestamp))*1e6)::bigint)
+    ''', params=(cleanup_lookback_limit is None, cleanup_lookback_limit, cleanup_lookback_limit is None, cleanup_lookback_limit))
 
 
 if __name__ == '__main__':
