@@ -18,6 +18,7 @@ The frontend is a static HTML + vanilla JavaScript application served by NGINX.
 ## Working rules
 
 - Keep configuration in `js/helpers/config.js` and `config.js.example`; do not hard-code environment URLs into page scripts.
+- A new `__PLACEHOLDER__` in `config.js.example` must be filled in by both `lib/install_shared.sh` and `docker/frontend-image/40-gmt-frontend-config.sh` (prebuilt frontend image).
 - Most pages map directly to a page-specific script. Check both the HTML and its corresponding JS before changing behavior.
 - Several tables consume positional arrays returned by API SQL queries. Backend column order changes often require frontend updates.
 - Shared menu, notifications, and API helpers live in `js/helpers/main.js`.

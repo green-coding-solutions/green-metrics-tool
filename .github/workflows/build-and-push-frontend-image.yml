@@ -1,0 +1,153 @@
+name: Build and Push Prebuilt Images
+
+# Builds the prebuilt images and tests them:
+#   greencoding/gmt-frontend  (docker/frontend-image)
+#   greencoding/gmt-postgres  (docker/postgres-image)
+#
+# Pushes to Docker Hub for every commit on main and for release tags:
+#   :latest       newest commit on main
+#   :sha-<short>  every commit on main
+#   :<tag>        release tags like v4.2
+# Every commit on main builds all images, so the same sha tag exists for each of them and
+# users can run frontend, database and API from one commit.
+# Pull requests only build and test the images.
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'docker/frontend-image/**'
+      - 'docker/nginx/frontend.conf.example'
+      - 'docker/postgres-image/**'
+      - 'docker/structure.sql'
+      - 'docker/tables.sql'
+      - 'docker/seed-data.sql'
+      - '.github/workflows/build-and-push-frontend-image.yml'
+  workflow_dispatch:
+
+concurrency:
+  # Pull requests only need the newest build. On main every commit must get its sha tag,
+  # so those runs are never cancelled or skipped.
+  group: prebuilt-images-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PUSH: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+
+jobs:
+  build-and-push-image:
+    if: github.repository_owner == 'green-coding-solutions'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: frontend
+            image: greencoding/gmt-frontend
+            title: Green Metrics Tool Frontend
+            description: Prebuilt frontend of the Green Metrics Tool. Configure it with GMT_* environment variables or a mounted config.js.
+          - name: postgres
+            image: greencoding/gmt-postgres
+            title: Green Metrics Tool Database
+            description: PostgreSQL with the schema and seed data of the Green Metrics Tool.
+    steps:
+      - name: Eco CI Energy Estimation - Initialize
+        if: github.event_name != 'pull_request'
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: start-measurement
+          project: "Green Metrics Tool"
+          machine: "ubuntu-latest"
+          tags: "CI/CD,Build-Prebuilt-Images-Workflow,${{ matrix.name }}"
+          gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
+          electricitymaps-api-token: ${{ secrets.ELECTRICITY_MAPS_ALT_TOKEN_INFO_AT_GCS }}
+
+      - name: Eco CI Energy Estimation - Initialize (PR)
+        if: github.event_name == 'pull_request'
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: start-measurement
+          project: "Green Metrics Tool"
+          machine: "ubuntu-latest"
+          tags: "CI/CD,Build-Prebuilt-Images-Workflow,${{ matrix.name }}"
+          gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
+          # Same as tests-vm-pr.yml. Workflows triggered by bots cannot access the Electricitymaps token
+          co2-calculation-method: 'constant'
+          co2-grid-intensity-constant: 231
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          submodules: 'false'
+
+      # Needed for the arm64 build
+      - name: Set up QEMU
+        if: env.PUSH == 'true'
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image for testing
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./docker/${{ matrix.name }}-image/Dockerfile
+          load: true
+          tags: gmt-${{ matrix.name }}:test
+          cache-from: type=gha,scope=${{ matrix.name }}-image
+          cache-to: type=gha,scope=${{ matrix.name }}-image,mode=max
+
+      - name: Test image
+        run: ./docker/${{ matrix.name }}-image/test-image.sh gmt-${{ matrix.name }}:test
+
+      - name: Docker metadata
+        if: env.PUSH == 'true'
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=tag
+          labels: |
+            org.opencontainers.image.title=${{ matrix.title }}
+            org.opencontainers.image.description=${{ matrix.description }}
+
+      - name: Login to Docker Registry
+        if: env.PUSH == 'true'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        if: env.PUSH == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./docker/${{ matrix.name }}-image/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}-image
+
+      - name: Eco CI Energy Estimation - Get Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: get-measurement
+
+      - name: Eco CI Energy Estimation - End Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: display-results
