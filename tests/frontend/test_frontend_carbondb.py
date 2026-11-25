@@ -133,13 +133,21 @@ def test_carbondb_display_xss_tags():
 
         page.locator('#show-filters').click()
 
+        # the filter options are filled asynchronously
+        page.locator('#tags-include').locator('option[value="999"]').wait_for(state='attached')
+
+        # new Option() sets the tag as text. So the text is the raw tag and must not be escaped a second time
         all_tags = page.locator('#tags-include').locator("option").evaluate_all("options => options.map(option => option.textContent)")
-        assert '<script>alert(XSS);</script>' not in all_tags
-        assert '&lt;script&gt;alert(XSS);&lt;/script&gt;' in all_tags
+        assert '<script>alert(XSS);</script>' in all_tags
+        assert '&lt;script&gt;alert(XSS);&lt;/script&gt;' not in all_tags
+
+        # the tag must never end up as a script element. Playwright text selectors ignore script content, thus evaluate
+        assert page.evaluate("() => [...document.querySelectorAll('script')].some(script => script.textContent.includes('alert(XSS)'))") is False
 
 
     finally:
         DB().query('DELETE FROM carbondb_data WHERE id = 3000;')
+        DB().query('DELETE FROM carbondb_tags WHERE id = 999;') # otherwise a pytest rerun fails on duplicate key
 
 def test_carbondb_no_display_different_user():
     Tests.insert_user(234, 'NO-CARBONDB')
