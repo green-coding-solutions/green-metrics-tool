@@ -196,12 +196,16 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
         relative_difference = 0;
     } else if (detail_data_array[0] == null || detail_data_array[1] == null) {
         relative_difference = 'not comparable';
+    } else if (detail_data_array[0] == 0) {
+        relative_difference = 'not comparable (baseline is 0)'; // relative change from 0 is undefined
     } else {
-       relative_difference = detail_data_array[0] == 0 ? 0: (((detail_data_array[1] - detail_data_array[0])/detail_data_array[0])*100).toFixed(2);
+       relative_difference = (((detail_data_array[1] - detail_data_array[0])/detail_data_array[0])*100).toFixed(2);
     }
 
     let icon_color = 'positive';
-    if (relative_difference > 0) {
+    if (typeof relative_difference === 'string' && relative_difference.startsWith('not comparable')) {
+        icon_color = '';
+    } else if (relative_difference > 0) {
         icon_color = 'error';
         relative_difference = `+ ${relative_difference} %`;
     } else {
