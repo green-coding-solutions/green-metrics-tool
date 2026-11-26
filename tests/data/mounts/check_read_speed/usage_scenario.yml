@@ -1,0 +1,53 @@
+---
+name: Disk I/O on the mounted repository (read only)
+author: Arne Tarara <arne@green-coding.io>
+description: Reads the bind mounted repository folder (/tmp/repo) repeatedly and writes to the container overlay as control. Works in safe mode on the cluster. Only meaningful as URL run (e.g. --uri https://github.com/green-coding-solutions/green-metrics-tool), as local folder runs mount the folder of the user instead of a GMT checkout.
+
+services:
+  gcb-disk-io-mount:
+    image: alpine:3.21
+    entrypoint: tail -f /dev/null
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: 2
+
+flow:
+  - name: Read repo first time
+    container: gcb-disk-io-mount
+    commands:
+      - type: console
+        # Not a cold read: git wrote every file of the checkout, so its pages are already in RAM (tmpfs) or in the page cache (disk).
+        # On disk these pages are charged to the GMT cgroup (git ran there) and this read moves them to the active list
+        command: du -sh /tmp/repo && find /tmp/repo -type f -exec cat {} + | wc -c
+        shell: sh
+        log-stdout: true
+        note: Reading the whole repository once
+
+  - name: Read repo warm 5x
+    container: gcb-disk-io-mount
+    commands:
+      - type: console
+        command: for i in 1 2 3 4 5; do find /tmp/repo -type f -exec cat {} + | wc -c; done
+        shell: sh
+        log-stdout: true
+        note: Reading the whole repository five times
+
+  - name: Idle after reads
+    container: gcb-disk-io-mount
+    commands:
+      - type: console
+        # Shows if memory charged by the reads stays or is given back
+        command: sleep 30
+        note: Idle
+
+  - name: Write to container overlay (control)
+    container: gcb-disk-io-mount
+    commands:
+      - type: console
+        # Not a mount. Goes to the overlay upper dir in the docker data root and is thus independent of where GMT puts the repo
+        command: mkdir -p /root/io-bench && for i in $(seq 1 16); do dd if=/dev/zero of=/root/io-bench/file_$i bs=1M count=64 conv=fsync 2>/dev/null; done && cat /root/io-bench/* | wc -c && rm -rf /root/io-bench
+        shell: sh
+        log-stdout: true
+        note: Writing, reading and deleting 1 GiB in the container overlay
