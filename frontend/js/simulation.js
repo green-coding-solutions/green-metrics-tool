@@ -582,6 +582,26 @@ const getDefaultMetric = (metrics) => {
     return metrics.includes(preferredMetric) ? preferredMetric : metrics[0];
 };
 
+// [MACHINE] is already the total. Otherwise a metric can have multiple details (e.g. RAPL Package_0 and Package_1)
+// which together form the energy of the metric. Their values are thus added up per timestamp
+const sumSeriesByTime = (seriesList, getKey, getValue, setValue, compare) => {
+    if (seriesList.length === 1) return seriesList[0];
+    const byKey = new Map();
+    seriesList.forEach((entry) => entry.data.forEach((point) => {
+        const key = getKey(point);
+        const existing = byKey.get(key);
+        if (existing == null) {
+            byKey.set(key, Array.isArray(point) ? [...point] : { ...point });
+        } else if (getValue(point) != null) {
+            setValue(existing, (getValue(existing) ?? 0) + getValue(point));
+        }
+    }));
+    return {
+        name: seriesList.map((entry) => entry.name).join(' + '),
+        data: [...byKey.values()].sort(compare)
+    };
+};
+
 const buildEnergyData = (measurements, metric) => {
     if (!Array.isArray(measurements) || measurements.length === 0) return null;
     if (!metric) return null;
@@ -608,7 +628,13 @@ const buildEnergyData = (measurements, metric) => {
     const seriesKeys = Object.keys(series);
     if (seriesKeys.length === 0) return null;
 
-    const primarySeries = series['[MACHINE]'] || series[seriesKeys[0]];
+    const primarySeries = series['[MACHINE]'] || sumSeriesByTime(
+        Object.values(series),
+        (point) => point[0],
+        (point) => point[1],
+        (point, value) => { point[1] = value; },
+        (a, b) => a[0] - b[0]
+    );
 
     return {
         metric,
@@ -641,7 +667,13 @@ const buildEnergySeriesRaw = (measurements, metric) => {
     const seriesKeys = Object.keys(series);
     if (seriesKeys.length === 0) return null;
 
-    const primarySeries = series['[MACHINE]'] || series[seriesKeys[0]];
+    const primarySeries = series['[MACHINE]'] || sumSeriesByTime(
+        Object.values(series),
+        (point) => `${point.timeMs}|${point.unit}`, // only add up values of the same unit
+        (point) => point.value,
+        (point, value) => { point.value = value; },
+        (a, b) => a.timeMs - b.timeMs
+    );
 
     return {
         metric,
