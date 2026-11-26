@@ -152,6 +152,7 @@ def test_uri_github_repo_and_using_default_filename():
 
     # also check that the tmp folder was emptied locally
     assert tmp_folder.exists() and not any(tmp_folder.iterdir()), '/tmp/green-metrics-tool was not emptied after run although --file-cleanup was set'
+    assert Tests.repo_tmp_folder_emptied(), 'repo/ and relations/ in /var/tmp/green-metrics-tool were not emptied after run although --file-cleanup was set'
 
 ## --branch BRANCH
 #    Optionally specify the git branch when targeting a git repository
@@ -505,6 +506,73 @@ def test_file_cleanup():
     tmp_folder = Tests.get_tmp_folder()
     assert tmp_folder.exists() and not any(tmp_folder.iterdir()), \
         Tests.assertion_info('tmp directory emptied', f"exists={tmp_folder.exists()}, contents={list(tmp_folder.iterdir()) if tmp_folder.exists() else None}")
+    assert Tests.repo_tmp_folder_emptied(), \
+        Tests.assertion_info('repo/ and relations/ emptied', list(Tests.get_repo_tmp_folder().rglob('*')))
+
+## Location of the repository checkout
+#   Repositories must not be checked out to /tmp, as it is typically a tmpfs and they would be kept in RAM for the whole run
+def test_repo_checkouts_not_in_tmp():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_system_checks=True, skip_download_dependencies=True)
+    runner._create_folders()
+
+    assert runner._metrics_folder.parent == Tests.get_tmp_folder()
+    assert runner._build_dir.parent == Tests.get_tmp_folder()
+    assert runner._repo_folder == Tests.get_repo_tmp_folder().joinpath('repo')
+    assert runner._relations_folder == Tests.get_repo_tmp_folder().joinpath('relations')
+    assert runner._repo_folder.is_dir() and runner._relations_folder.is_dir()
+
+#   repo/ and the checkouts in relations/ are bind mount sources and must only be emptied, never deleted, so their inodes stay stable
+#   for the virtiofs cache of Docker Desktop on macOS. For local folder runs the folder of the user must never be touched
+def test_empty_repo_and_relations_folder_keeps_inodes_and_user_folder(tmp_path):
+    user_folder = tmp_path / 'user-repo'
+    user_folder.mkdir()
+    user_folder.joinpath('usage_scenario.yml').write_text('must survive', encoding='utf-8')
+
+    runner = ScenarioRunner(uri=str(user_folder), uri_type='folder', filename='usage_scenario.yml', dev_no_save=True, dev_no_system_checks=True, skip_download_dependencies=True)
+    runner._create_folders()
+    repo_folder = Tests.get_repo_tmp_folder().joinpath('repo')
+    relation_folder = Tests.get_repo_tmp_folder().joinpath('relations', 'helpers')
+    relation_folder.mkdir()
+    inodes = (repo_folder.stat().st_ino, relation_folder.stat().st_ino)
+    repo_folder.joinpath('subdir').mkdir()
+    repo_folder.joinpath('subdir', 'file').write_text('x', encoding='utf-8')
+    relation_folder.joinpath('subdir').mkdir()
+    relation_folder.joinpath('subdir', 'file').write_text('x', encoding='utf-8')
+
+    runner._repo_folder = user_folder # what _checkout_repository() does for local folder runs
+    runner._empty_repo_folder()
+    runner._empty_relations_folder()
+
+    assert Tests.repo_tmp_folder_emptied(), Tests.assertion_info('repo/ and relations/ emptied', list(Tests.get_repo_tmp_folder().rglob('*')))
+    assert (repo_folder.stat().st_ino, relation_folder.stat().st_ino) == inodes, 'repo/ or relations/helpers/ were deleted instead of emptied'
+    assert user_folder.joinpath('usage_scenario.yml').exists(), 'folder of the user was touched'
+
+#   A normal run must re-clone relations into their existing folders instead of deleting and re-creating them
+def test_relations_emptied_in_place_before_checkout():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_system_checks=True, skip_download_dependencies=True)
+    runner._create_folders()
+    relation_folder = runner._relations_folder.joinpath('helpers')
+    relation_folder.mkdir(exist_ok=True)
+    relation_folder.joinpath('stale').write_text('x', encoding='utf-8')
+    stray_file = runner._relations_folder.joinpath('stray-file')
+    stray_file.write_text('x', encoding='utf-8')
+    inode = relation_folder.stat().st_ino
+
+    runner._empty_relations_folder()
+
+    assert relation_folder.is_dir() and not any(relation_folder.iterdir()), Tests.assertion_info('relation emptied', list(relation_folder.iterdir()))
+    assert relation_folder.stat().st_ino == inode, 'relation folder was deleted instead of emptied'
+    assert not stray_file.exists(), 'files directly in relations/ must be removed'
+
+#   The tmp folders hold secrets and the checked out code. They must not be usable if pre-planted as symlink
+def test_tmp_folder_symlink_refused(tmp_path):
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_system_checks=True, skip_download_dependencies=True)
+    planted = tmp_path / 'planted-symlink'
+    planted.symlink_to(tmp_path)
+
+    with pytest.raises(RuntimeError) as e:
+        runner._check_private_folder(planted)
+    assert 'is a symlink or not a directory' in str(e.value)
 
 ## --skip-unsafe and --allow-unsafe
 #pylint: disable=unused-variable

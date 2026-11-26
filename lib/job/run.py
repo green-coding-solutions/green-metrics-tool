@@ -135,6 +135,8 @@ class RunJob(Job):
             # ScenarioRunner._initialize_folder) so the directory inode stays stable
             # for Docker Desktop's virtiofs cache on macOS.
             runner._initialize_folder(runner._tmp_folder)
+            runner._empty_repo_folder()
+            runner._empty_relations_folder()
 
             self._run_id = runner._run_id # might not be set yet due to error
             user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds

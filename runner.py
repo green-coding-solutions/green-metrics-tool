@@ -268,6 +268,8 @@ if __name__ == '__main__':
                 # ScenarioRunner._initialize_folder) so the directory inode stays stable
                 # for Docker Desktop's virtiofs cache on macOS.
                 runner._initialize_folder(runner._tmp_folder)
+                runner._empty_repo_folder()
+                runner._empty_relations_folder()
 
             if not runner._dev_no_save:
                 print(TerminalColors.OKGREEN,'\n\n####################################################################################')

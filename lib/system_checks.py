@@ -82,10 +82,31 @@ def check_one_energy_and_scope_machine_provider(*_, **__):
 
     return f"energy_machine_providers={energy_machine_providers}"
 
+RAM_BACKED_FILESYSTEMS = ('tmpfs', 'ramfs')
+
+def get_filesystem_type(path):
+    # The mount with the longest mountpoint that contains the path is the one the path lives on.
+    # all=True is needed, as otherwise psutil omits virtual filesystems like tmpfs on Linux
+    path = Path(path).resolve()
+    matching_partitions = [partition for partition in psutil.disk_partitions(all=True) if path.is_relative_to(partition.mountpoint)]
+    if not matching_partitions:
+        return None
+    return max(matching_partitions, key=lambda partition: len(partition.mountpoint)).fstype
+
 def check_tmpfs_mount(*_, **__):
     if host_platform.is_windows():
         return NOT_IMPLEMENTED
     return not any(partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs' for partition in psutil.disk_partitions())
+
+def check_repo_tmp_folder_not_tmpfs(*_, **__):
+    if host_platform.is_windows():
+        return NOT_IMPLEMENTED
+
+    repo_tmp_root = host_platform.get_repo_tmp_root()
+    fstype = get_filesystem_type(repo_tmp_root)
+    if fstype in RAM_BACKED_FILESYSTEMS:
+        return f"{repo_tmp_root} is on {fstype}"
+    return True
 
 def check_ntp(*_, **__):
     if platform.system() in ('Darwin', 'Windows'): # no NTP for darwin/windows, as this is linux cluster only functionality
@@ -700,6 +721,7 @@ start_checks = (
     (check_gmt_dir_dirty, Status.WARN, 'gmt directory dirty', 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir'),
     (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
+    (check_repo_tmp_folder_not_tmpfs, Status.WARN, 'repo tmp folder not on tmpfs', 'The folder GMT checks out repositories to (/var/tmp) is RAM-backed. The checkout stays in RAM for the whole run, is accounted to the GMT cgroup (inflating the "GMT Overhead" memory) and reduces the memory available to the measured application. Please keep /var/tmp on disk'),
     (check_ntp, Status.WARN, 'ntp', 'You have NTP time syncing active. This can create noise in runs and should be deactivated'),
     (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement'),
     (check_largest_sampling_rate, Status.WARN, 'high sampling rate', 'You have chosen at least one provider with a sampling rate > 1000 ms. That is not recommended and might lead also to longer benchmarking times due to internal extra sleeps to adjust measurement frames'),
