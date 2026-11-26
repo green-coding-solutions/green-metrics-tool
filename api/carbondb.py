@@ -33,7 +33,7 @@ async def add_carbondb(
     if energydata.time < current_time_us - merge_window_max * 24 * 60 * 60 * 1e6 : # microseconds
         raise HTTPException(status_code=422, detail=f"CarbonDB is configured to not accept values older than {merge_window_max} days. Your timestamp was: {energydata.time}")
     if energydata.time > current_time_us:
-        raise HTTPException(status_code=422, detail=f"CarbonDB does not accept timestamps in the future. Your timestamp was: {energydata.time}")
+        raise HTTPException(status_code=422, detail=f"CarbonDB does not accept timestamps in the future. Your timestamp was: {energydata.time}. API timestamp was: {current_time_us}")
 
     energy_kwh = energydata.energy_uj / 1e6 / (3_600*1_000)
 
