@@ -209,6 +209,13 @@ const resolveMachinesToGlobalVariable = async () => {
     localStorage.setItem('gmt_machines_updated_at', String(Date.now()));
 }
 
+// Must be called when the user changes (login / logout), as the visible machines depend on the user.
+// The next page load then fetches the machines of the new user
+const clearCachedMachines = () => {
+    localStorage.removeItem('gmt_machines');
+    localStorage.removeItem('gmt_machines_updated_at');
+}
+
 
 const getClusterStatus = async (status_ok_selector, status_warning_selector) => {
     try {
@@ -245,11 +252,8 @@ const dateTimePicker = (days_before=30, url_params=null) => {
 
 }
 
-const getURLParams = () => {
-    const url_params = new URLSearchParams(window.location.search);
-    if (!url_params.size) return {};
-    return Object.fromEntries(url_params.entries())
-}
+// no early return on URLSearchParams.size. Older browsers (Safari < 17, Chrome < 113) do not have it and all URL params would be ignored
+const getURLParams = () => Object.fromEntries(new URLSearchParams(window.location.search).entries());
 
 const getPretty = (metric_name, key)  => {
     if(metric_name.startsWith('custom_')) {

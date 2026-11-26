@@ -904,7 +904,7 @@ const renderBadges = (run_id, phase_stats) => {
                 </a>
                 <a class="copy-badge"><i class="copy icon"></i></a>
                 <div class="ui left pointing blue basic label">
-                    ${escapeString(METRIC_MAPPINGS[metric_name]?.['explanation'])}
+                    ${escapeString(getPretty(metric_name, 'explanation'))}
                 </div>
                 <hr class="ui divider"></hr>
             </div>`);
@@ -939,20 +939,7 @@ const fetchAndFillPhaseStatsData = async (run_id) => {
         })
     );
 
-    document.querySelectorAll('.ui.steps.phases .step, #runtime-sub-phases .item').forEach(node => { node.addEventListener('click', event => {
-        const activeTab = localStorage.getItem('activeMetricTab');
-        const tabName = node.getAttribute('data-tab');
-        const segment = document.querySelector('.ui.attached.tab.segment[data-tab="' + tabName + '"]');
-
-        if (!segment) return;
-
-        const tabs = $(segment).find('.ui.pointing.menu .item');
-
-        if (activeTab) {
-            tabs.tab('change tab', activeTab);
-        }
-      });
-    });
+    bindMetricTabSyncOnPhaseChange();
 
     renderCompareChartsForPhase(phase_stats.data, getAndShowPhase());
     displayTotalChart(...buildTotalChartData(phase_stats.data));
@@ -1056,11 +1043,13 @@ const fetchAndFillAIData = async (run_id) => {
 
     let ai_data = null;
     try {
-        ai_data = await makeAPICall('/v1/ai/' + run_id)
+        // makeAPICall returns the whole response object. The list is in .data, like for all other endpoints
+        ai_data = (await makeAPICall('/v1/ai/' + run_id))?.data;
     } catch (err) {
         // Do nothing as ai data will be empty most of the time
         return
     }
+    if (!Array.isArray(ai_data) || ai_data.length === 0) return;
 
     ai_data.sort((a, b) => a.rating - b.rating);
 

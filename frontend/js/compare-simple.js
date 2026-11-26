@@ -222,7 +222,12 @@ const populateMetricsDropdown = () => {
     $(select).dropdown({
         placeholder: 'All metrics shown',
         onChange: () => {
-            const selected = Array.from(select.selectedOptions).map((o) => o.value);
+            // selected metrics that do not exist in this phase have no option here. They are kept for when the user switches back
+            const optionKeys = new Set(Array.from(select.options).map((o) => o.value));
+            const keptFromOtherPhases = compareSimpleState.selectedMetrics == null
+                ? []
+                : [...compareSimpleState.selectedMetrics].filter((k) => !optionKeys.has(k));
+            const selected = [...keptFromOtherPhases, ...Array.from(select.selectedOptions).map((o) => o.value)];
             compareSimpleState.selectedMetrics = selected.length === 0 ? null : new Set(selected);
             syncURLParams();
             renderTable();
@@ -241,14 +246,34 @@ const syncURLParams = () => {
     if (compareSimpleState.showDetail)  { p.set('detail', 'true'); }   else { p.delete('detail'); }
     if (compareSimpleState.colorize)    { p.delete('colorize'); }      else { p.set('colorize', 'false'); }
 
-    if (compareSimpleState.selectedMetrics != null && compareSimpleState.selectedMetrics.size > 0) {
-        const names = [...new Set([...compareSimpleState.selectedMetrics].map((k) => k.split('||')[0]))];
-        p.set('metrics', names.join(','));
+    const metrics = compareSimpleState.selectedMetrics != null ? serializeSelectedMetrics() : [];
+    if (metrics.length > 0) {
+        p.set('metrics', metrics.join(','));
     } else {
         p.delete('metrics');
     }
 
     history.replaceState(null, '', url.toString());
+};
+
+// A metric with all its details selected is written by its name, which keeps links short and readable.
+// Otherwise its selected details are written as metric_name||detail_name, so that a reload restores the exact selection.
+// Only the current phase is written, as the deep link is also only resolved against the phase in the URL
+const serializeSelectedMetrics = () => {
+    const keysPerMetric = new Map();
+    buildMetricKeys(compareSimpleState.selectedPhase).forEach((m) => {
+        if (!keysPerMetric.has(m.metric_name)) keysPerMetric.set(m.metric_name, []);
+        keysPerMetric.get(m.metric_name).push(`${m.metric_name}||${m.detail_name}`);
+    });
+
+    const entries = [];
+    keysPerMetric.forEach((keys, metric_name) => {
+        const selectedKeys = keys.filter((k) => compareSimpleState.selectedMetrics.has(k));
+        if (selectedKeys.length === 0) return;
+        if (selectedKeys.length === keys.length) entries.push(metric_name);
+        else entries.push(...selectedKeys);
+    });
+    return entries;
 };
 
 const updateAxisSwitchLabel = () => {
@@ -384,9 +409,12 @@ const renderTable = () => {
     }
     noDataEl.classList.add('hidden');
 
-    const metricKeys = compareSimpleState.selectedMetrics == null
+    const selectedMetricKeys = compareSimpleState.selectedMetrics == null
         ? allMetricKeys
         : allMetricKeys.filter((m) => compareSimpleState.selectedMetrics.has(`${m.metric_name}||${m.detail_name}`));
+    // none of the selected metrics exists in this phase. The dropdown then shows its "All metrics shown" placeholder,
+    // so all metrics are shown to match it instead of an empty table
+    const metricKeys = selectedMetricKeys.length > 0 ? selectedMetricKeys : allMetricKeys;
 
     const lookup = buildValueLookup(phase);
     const { columns, data } = compareSimpleState.metricsOnY
@@ -487,10 +515,12 @@ $(document).ready(() => {
             const requestedMetrics = url_params['metrics'].split(',').map((s) => s.trim()).filter((s) => s.length > 0);
             const allMetricKeys = buildMetricKeys(compareSimpleState.selectedPhase);
             const matched = new Set();
+            // an entry is either a single detail (metric_name||detail_name) or a metric name / clean name, which selects all its details
             requestedMetrics.forEach((requested) => {
                 allMetricKeys.forEach((m) => {
-                    if (m.metric_name === requested || m.clean_name.toLowerCase() === requested.toLowerCase()) {
-                        matched.add(`${m.metric_name}||${m.detail_name}`);
+                    const key = `${m.metric_name}||${m.detail_name}`;
+                    if (key === requested || m.metric_name === requested || m.clean_name.toLowerCase() === requested.toLowerCase()) {
+                        matched.add(key);
                     }
                 });
             });

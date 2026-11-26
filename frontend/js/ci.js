@@ -60,7 +60,7 @@ const getChartOptions = (measurements) => {
 
     measurements.forEach(measurement => { // iterate over all measurements, which are in row order
         let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug, _note, total_carbon_ug] = measurement;
-        cpu_util = cpu_util ? cpu_util : '--';
+        cpu_util = (cpu_util == null) ? '--' : cpu_util; // 0 % is a valid value
         options.series.push({
             type: 'bar',
             smooth: true,
@@ -110,7 +110,7 @@ const getChartOptions = (measurements) => {
                     duration: ${escapeString(labels[params.componentIndex].duration_s)} seconds<br>
                     avg. cpu. utilization: ${escapeString(labels[params.componentIndex].cpu_util)}%<br>
                     location of run: ${escapeString(labels[params.componentIndex].city || 'N/A')}<br>
-                    grid intensity: ${escapeString(labels[params.componentIndex].carbon_intensity_g || 'N/A')} g<br>
+                    grid intensity: ${escapeString(labels[params.componentIndex].carbon_intensity_g ?? 'N/A')} g<br>
                     operational carbon: ${escapeString(labels[params.componentIndex].operational_carbon)}<br>
                     embodied carbon: ${escapeString(labels[params.componentIndex].embodied_carbon)}<br>
                     total carbon: ${escapeString(labels[params.componentIndex].total_carbon)}<br>
@@ -195,7 +195,7 @@ const displayStatsTable = (stats) => {
     }) ;
     $('#stats-container table').tablesort();
     $('#stats-container table thead th[data-sort="numeric"]').data('sortBy', function(th, td, tablesort) {
-        return parseFloat(td.text().replace(',', ''));
+        return parseFloat(td.text().replace(/,/g, '')); // all thousands separators, not only the first
     });
 
 
@@ -212,7 +212,7 @@ const displayRunDetailsTable = (measurements, repo) => {
         let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug, note, total_carbon_ug] = measurement;
 
         const short_hash = (commit_hash == null) ? '--' : commit_hash.substring(0, 7); // commit_hash is nullable in ci_measurements
-        const cpu_avg = cpu_util ? cpu_util : '--';
+        const cpu_avg = (cpu_util == null) ? '--' : cpu_util; // 0 % is a valid value
 
         let run_link = '';
 
@@ -253,7 +253,7 @@ const displayRunDetailsTable = (measurements, repo) => {
     });
     $('#run-details-table table').tablesort();
     $('#run-details-table table thead th[data-sort="numeric"]').data('sortBy', function(th, td, tablesort) {
-        return parseFloat(td.text().replace(',', ''));
+        return parseFloat(td.text().replace(/,/g, '')); // all thousands separators, not only the first
     });
 
 }

@@ -448,6 +448,10 @@ const loadCharts = async () => {
     } else {
         $('#usage-scenario-variables').text(stringifyUsageScenarioVariables(usageScenarioVariables));
     }
+    // the header shows what the charts are filtered by. The form can have changed since the values were filled from the URL
+    $('#branch').text($('input[name="branch"]').val() || '-');
+    $('#filename').text($('input[name="filename"]').val() || '-');
+    $('#machine').text($('select[name="machine_id"]').val() ? $('select[name="machine_id"] :checked').text() : '-');
 
     let phase_stats_data = null;
     let cluster_changelog_data = [];

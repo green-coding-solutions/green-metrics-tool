@@ -16,7 +16,8 @@ const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time'
         max = Math.max(max, ...item)
     })
 
-    max = (Math.abs(max) < 1) ? parseFloat((max*1.2).toFixed(5)) : Math.ceil(max*1.2) // max 5 significant digits if < 1
+    // max 5 significant digits if < 1. toFixed(5) would round values below 0.00001 to an axis max of 0 and hide all bars
+    max = (Math.abs(max) < 1) ? parseFloat((max*1.2).toPrecision(5)) : Math.ceil(max*1.2)
 
     let options =  {
         tooltip: {

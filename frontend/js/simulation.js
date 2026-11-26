@@ -508,8 +508,9 @@ const getRunTimes = (runData, measurements = []) => {
             .filter((value) => Number.isFinite(value))
             .map((value) => value / 1000);
         if (measurementTimes.length > 0) {
-            const measuredStartMs = Math.min(...measurementTimes);
-            const measuredEndMs = Math.max(...measurementTimes);
+            // no spread into Math.min / Math.max: a run can have hundreds of thousands of measurements, which exceeds the call stack
+            const measuredStartMs = measurementTimes.reduce((min, value) => Math.min(min, value), Infinity);
+            const measuredEndMs = measurementTimes.reduce((max, value) => Math.max(max, value), -Infinity);
             if (startMs == null) startMs = Math.round(measuredStartMs);
             if (endMs == null) endMs = Math.round(measuredEndMs);
         }

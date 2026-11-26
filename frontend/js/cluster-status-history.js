@@ -20,7 +20,8 @@ $(document).ready(function () {
             searching: false,
             columns: [
                 { data: 0, title: 'ID'},
-                { data: 1, title: 'Name', render: (el) => escapeString(el)},
+                // not escaped: cluster status messages are written by admins and can contain HTML on purpose. Same as the banner in getClusterStatus (main.js)
+                { data: 1, title: 'Name'},
                 { data: 2, title: 'Resolved', render: function(el) {
                     return (el == true) ? '<i class="ui label mini empty green circular"></i>': '<i class="ui label mini empty red circular"></i>';
                 }},

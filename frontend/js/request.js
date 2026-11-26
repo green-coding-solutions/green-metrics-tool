@@ -122,7 +122,9 @@ const updateRemoveButtonsVisibility = () => {
     });
 
     $('#variables-container').on('click', '.remove-variable', function (e) {
-        $(this).closest('.variable-row').remove();
+        const row = $(this).closest('.variable-row');
+        row.next('.custom-mobile-divider').remove(); // added together with the row in addVariableField
+        row.remove();
         updateRemoveButtonsVisibility();
     });
 

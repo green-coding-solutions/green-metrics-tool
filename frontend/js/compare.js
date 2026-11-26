@@ -322,15 +322,19 @@ $(document).ready( () => {
         document.querySelector('#fetch-diff').addEventListener('click', (event) => { fetchDiff(run_ids) })
 
         buildPhaseTabs(phase_stats_data)
-        renderCompareChartsForPhase(phase_stats_data, getAndShowPhase());
-        displayTotalChart(...buildTotalChartData(phase_stats_data));
-        // comparison_details is ordered by created_at ASC, same as the comparison tables. The ids from the URL are newest first
-        fetchAndShowTimeSeriesNotesHistory(phase_stats_data.comparison_details.flat().map(el => el.run_id))
 
+        // listeners must exist before getAndShowPhase(), as it selects the phase from the URL hash by clicking its tab.
+        // Otherwise a deep link to a sub-phase shows an empty tab
         document.querySelectorAll('.ui.steps.phases .step, .runtime-step').forEach(node => node.addEventListener('click', el => {
             const phase = el.currentTarget.getAttribute('data-tab');
             renderCompareChartsForPhase(phase_stats_data, phase);
         }));
+        bindMetricTabSyncOnPhaseChange();
+
+        renderCompareChartsForPhase(phase_stats_data, getAndShowPhase());
+        displayTotalChart(...buildTotalChartData(phase_stats_data));
+        // comparison_details is ordered by created_at ASC, same as the comparison tables. The ids from the URL are newest first
+        fetchAndShowTimeSeriesNotesHistory(phase_stats_data.comparison_details.flat().map(el => el.run_id))
 
     })();
 });
