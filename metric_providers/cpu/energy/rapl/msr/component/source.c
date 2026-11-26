@@ -170,7 +170,6 @@ static long long read_msr(int fd, unsigned int which) {
 // not pollute another threads state
 static unsigned int msr_rapl_units,msr_pkg_energy_status,msr_pp0_energy_status;
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 
 static int detect_cpu(void) {
 
@@ -481,7 +480,7 @@ static void rapl_msr(int measurement_mode) {
             // For now, skip reporting this value. in the future, we can use a branchless alternative
             if(energy_output>=0) {
 
-                get_adjusted_time(&now, &offset);
+                get_time(&now);
 
                 if (measurement_mode == MEASURE_ENERGY_PKG) {
                     printf("%ld%06ld %lld Package_%d\n", now.tv_sec, now.tv_usec, (long long)(energy_output*1000000), k);
@@ -555,8 +554,6 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_system());
     }
-
-    get_time_offset(&offset);
 
     rapl_msr(measurement_mode);
 

@@ -687,13 +687,10 @@ const buildEmissionSeries = (energySeries, carbonHistory, metric, timeOffsetMs =
 
     energySeries.data.forEach((point) => {
         const shiftedTime = point.timeMs + timeOffsetMs;
-        let energyKwh = point.value;
-        let energyUnit = point.unit === '*' && typeof metric === 'string' && metric.includes('energy') ? 'uJ' : point.unit;
-        for (let i = 0; i < 2 && energyUnit !== 'kWh'; i++) {
-            [energyKwh, energyUnit] = convertValue(energyKwh, energyUnit);
-        }
+        const energyUnit = point.unit === '*' && typeof metric === 'string' && metric.includes('energy') ? 'uJ' : point.unit;
+        const energyKwh = convertEnergyToKwh(point.value, energyUnit);
         debug.energyPoints += 1;
-        if (energyKwh == null || energyUnit !== 'kWh') {
+        if (energyKwh == null) {
             debug.skippedNoKwh += 1;
             return;
         }

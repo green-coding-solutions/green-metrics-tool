@@ -24,7 +24,6 @@ faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to st
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.terminal_colors import TerminalColors
-from lib.scenario_runner import ScenarioRunner
 
 class ValidationWorkloadStddevError(RuntimeError):
     pass
@@ -75,6 +74,10 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
 
 def run_workload(name, uri, filename, branch):
     config = GlobalConfig().config
+
+    # Imported here and not at the top, as it pulls in pandas, numpy etc. which cron/client.py should not
+    # carry while it waits for the isolated measurement process. See lib/process_isolation.py
+    from lib.scenario_runner import ScenarioRunner # pylint: disable=import-outside-toplevel
 
     runner = ScenarioRunner(
         name=name,

@@ -81,7 +81,13 @@ async def add_hog(
             RETURNING id
             """
 
-            validated_operational_carbon_g = validated_measurement.operational_carbon_g or 0.0
+            # Operational carbon is energy * grid intensity. Without a grid intensity the client cannot have calculated it, so any
+            # transmitted value is not usable. It must stay NULL and not 0, as cron/backfill_carbon_intensity.py only fills NULL values
+            # once the carbon intensity is known. A 0 would be kept forever
+            if validated_measurement.grid_intensity_cog is None or validated_measurement.operational_carbon_g is None:
+                operational_carbon_ug = None
+            else:
+                operational_carbon_ug = validated_measurement.operational_carbon_g * 1_000_000 # Convert to micrograms
             validated_embodied_carbon_g = validated_measurement.embodied_carbon_g or 0.0
 
 
@@ -96,7 +102,7 @@ async def add_hog(
                 validated_measurement.gpu_energy_mj * 1000,
                 validated_measurement.ane_energy_mj * 1000,
                 validated_measurement.energy_impact,
-                validated_operational_carbon_g * 1_000_000, # Convert to micrograms
+                operational_carbon_ug,
                 validated_measurement.hw_model,
                 validated_measurement.elapsed_ns,
                 validated_embodied_carbon_g * 1_000_000, # Convert to micrograms

@@ -8,8 +8,8 @@ services:
     image: gcb_stress_entrypoint # image with an endpoint
     build:
       context: ../entrypoint-application
-    entrypoint: 'tail' # overwrite entrypoint
-    command: '-f /dev/null' # value of command is used as an argument for the entrypoint -> `tail -f /dev/null`
+    entrypoint: 'sleep' # overwrite entrypoint
+    command: 'infinity' # value of command is used as an argument for the entrypoint -> `sleep infinity`
 
 flow:
   - name: Stress

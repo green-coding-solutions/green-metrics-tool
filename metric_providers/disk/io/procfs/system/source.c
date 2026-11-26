@@ -17,7 +17,6 @@
 // between Threads.
 // in any case, none of these variables should change between threads
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 
 static void output_get_disk_procfs() {
     unsigned long long int sectors_read = 0;
@@ -36,7 +35,7 @@ static void output_get_disk_procfs() {
     }
 
     // one call for get time of day for all interfaces is fine. The overhead would be more than the gain in granularity
-    get_adjusted_time(&now, &offset);
+    get_time(&now);
 
     while (fgets(buf, 1024, fd)) {
         match_result = sscanf(buf, "%u %u %15s %*u %*u %llu %*u %*u %*u %llu", &major_number, &minor_number, device_name, &sectors_read, &sectors_written);
@@ -94,8 +93,8 @@ static void output_get_disk_procfs() {
             continue;
         }
 
-        if (is_partition_sysfs(major_number, minor_number)) {
-            continue; // we skip when we have found a non root level device (aka partition)
+        if (get_block_device_type_sysfs(major_number, minor_number) != BLOCK_DEV_DISK) {
+            continue; // we skip partitions (counted on the parent disk) and hidden devices (e.g. NVMe multipath path devices, counted on the visible device)
         }
 
         printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, sectors_read, sectors_written, device_name);
@@ -146,8 +145,6 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_path("/proc/diskstats"));
     }
-
-    get_time_offset(&offset);
 
     while(1) {
         output_get_disk_procfs();

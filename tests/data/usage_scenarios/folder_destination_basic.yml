@@ -7,7 +7,7 @@ services:
     image: alpine:latest
     container_name: test-container
     folder-destination: /custom/repo/path
-    entrypoint: tail -f /dev/null # keep container running
+    entrypoint: sleep infinity # keep container running
 
 flow:
   - name: Verify folder-destination is accessible

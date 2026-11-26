@@ -16,7 +16,6 @@ from lib.job.email_report import EmailReportJob
 from lib.db import DB
 from lib.user import User
 from lib.terminal_colors import TerminalColors
-from lib.scenario_runner import ScenarioRunner
 from lib.global_config import GlobalConfig
 
 class RunJob(Job):
@@ -25,6 +24,15 @@ class RunJob(Job):
     def check_job_running(self):
         query = "SELECT id FROM jobs WHERE type = %s AND state = 'RUNNING' AND machine_id = %s"
         return DB().fetch_one(query, params=(self.JOB_TYPE, self._machine_id, ))
+
+    # When the job was processed in an isolated child process (see lib/process_isolation.py) the run_id
+    # was only set on the job object in the child. We retrieve it from the DB instead
+    # This function does not error by design as it might be that this value is not present when the run has failed early
+    def load_run_id(self):
+        query = "SELECT id FROM runs WHERE job_id = %s ORDER BY created_at DESC LIMIT 1"
+        if data := DB().fetch_one(query, params=(self._id, )):
+            self._run_id = data[0]
+        return self._run_id
 
     #pylint: disable=arguments-differ
     @classmethod
@@ -58,6 +66,10 @@ class RunJob(Job):
         if not user.has_measurement_quota(self._machine_id):
             raise RuntimeError(f"Your user does not have enough measurement quota to run a job on the selected machine. Machine ID: {self._machine_id}")
 
+        # Imported here and not at the top, as it pulls in pandas, numpy etc. Long-running processes that only
+        # handle the job queue (cron/client.py, the API) should not carry this memory. See lib/process_isolation.py
+        from lib.scenario_runner import ScenarioRunner # pylint: disable=import-outside-toplevel
+
         runner = ScenarioRunner(
             name=self._name,
             uri=self._url,
@@ -71,7 +83,7 @@ class RunJob(Job):
             skip_unsafe=True, # Always True in cluster as no way to use unsafe rules anyway since we do not expose allow_unsafe atm
             dev_no_system_checks=user._capabilities['measurement']['dev_no_system_checks'],
             skip_volume_inspect=user._capabilities['measurement']['skip_volume_inspect'],
-            skip_optimizations=user._capabilities['measurement']['skip_optimizations'],
+            optimizations=user._capabilities['measurement'].get('optimizations', False),
             full_docker_prune=config['cluster']['client']['full_docker_prune'], # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
             docker_prune=config['cluster']['client']['docker_prune'], # is no user setting as it can change behaviour of subsequent runs. Thus set by machine / cluster
             job_id=self._id,
@@ -99,13 +111,14 @@ class RunJob(Job):
             # Start main code. Only URL is allowed for cron jobs
             self._run_id = runner.run()
 
-            # We need to import this here as we need the correct config file, and to avoid a circular
-            # import (optimization_providers.base imports api.scenario_runner, which imports RunJob)
-            import optimization_providers.base #pylint: disable=import-outside-toplevel
-            print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
-            optimization_providers.base.import_reporters()
-            print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
-            optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
+            if runner._optimizations:
+                # We need to import this here as we need the correct config file, and to avoid a circular
+                # import (optimization_providers.base imports api.scenario_runner, which imports RunJob)
+                import optimization_providers.base #pylint: disable=import-outside-toplevel
+                print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
+                optimization_providers.base.import_reporters()
+                print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
+                optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
 
             if self._email:

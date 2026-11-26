@@ -20,7 +20,6 @@
 #define POWER_LIMIT_STATUS_BIT (1 << 10)
 
 static unsigned int msleep_time = 1000;
-static struct timespec offset;
 
 static int open_msr(int core) {
     char msr_filename[PATH_MAX];
@@ -130,7 +129,7 @@ static void measure_throttling() {
                 power_limit_throttling_status = 1;
             }
 
-            get_adjusted_time(&now, &offset);
+            get_time(&now);
             printf("%ld%06ld %d %d Package_%d\n", now.tv_sec, now.tv_usec, thermal_throttling_status, power_limit_throttling_status, j);
         }
         usleep(msleep_time * 1000);
@@ -169,7 +168,6 @@ int main(int argc, char **argv) {
         exit(check_system());
     }
 
-    get_time_offset(&offset);
     measure_throttling();
 
     return 0;

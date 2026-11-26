@@ -2,21 +2,21 @@ gunicorn==27.0.1
 psycopg_pool==3.3.3
 psycopg[binary]==3.3.9
 uvicorn[standard]==0.54.0
-fastapi[standard]==0.162.5
+fastapi[standard]==0.163.1
 starlette>=1.10.0
 pandas==3.1.1
-PyYAML==6.0.3
+PyYAML==6.0.4
 anybadge==1.18.0
 orjson==3.13.0
 scipy==1.18.1
 psutil==7.2.2
 schema==0.7.8
-deepdiff==9.1.0
+deepdiff==9.2.1
 redis==8.1.0
 hiredis==3.5.0
 requests==2.34.2
 uvicorn-worker==0.4.0
-cachetools==8.0.0
+cachetools==8.0.2
 cryptography==50.0.2
 energy-dependency-inspector==0.5.1
 

@@ -25,6 +25,23 @@ from lib.utils import container_name, gmt_tmp_image_name, kaniko_build_cache_vol
 # otherwise failing Tests will not run the runner.cleanup() properly
 
 
+# `docker run -d` returns before PID 1 has exec'd into the actual command. In that short window
+# `ps` shows PID 1 as `runc init`. On loaded machines this window is wide enough to be hit, so retry.
+def get_container_ps_output(name, retries=50, delay=0.1):
+    for _ in range(retries):
+        ps = subprocess.run(
+            ['docker', 'exec', container_name(name), 'ps', '-a'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        if 'runc init' not in ps.stdout:
+            break
+        time.sleep(delay)
+    return ps.stdout
+
+
 # This function runs the runner up to and *including* the specified step
 #pylint: disable=redefined-argument-from-local
 ### The Tests for usage_scenario configurations
@@ -47,7 +64,7 @@ def get_env_vars():
 
 def test_env_variable_allowed_characters():
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_allowed.yml', skip_unsafe=False, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_allowed.yml', skip_unsafe=False, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
 
@@ -60,7 +77,7 @@ def test_env_variable_allowed_characters():
 
 # Test too long values
 def test_env_variable_too_long():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_forbidden.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_forbidden.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
@@ -69,7 +86,7 @@ def test_env_variable_too_long():
 
 # Test skip_unsafe=true
 def test_env_variable_skip_unsafe_true():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_forbidden.yml', skip_unsafe=True, dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_forbidden.yml', skip_unsafe=True, dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -81,7 +98,7 @@ def test_env_variable_skip_unsafe_true():
 
 # Test allow_unsafe=true
 def test_env_variable_allow_unsafe_true():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_forbidden.yml', allow_unsafe=True, dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_forbidden.yml', allow_unsafe=True, dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         env_var_output = get_env_vars()
@@ -106,7 +123,7 @@ def get_labels():
 
 def test_labels_allowed_characters():
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_allowed.yml', skip_unsafe=False, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_allowed.yml', skip_unsafe=False, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         labels = get_labels()
@@ -116,7 +133,7 @@ def test_labels_allowed_characters():
         assert labels.get('OTHER_LABEL') == 'http://localhost:8080', Tests.assertion_info('OTHER_LABEL label', labels)
 
 def test_labels_too_long():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
@@ -124,7 +141,7 @@ def test_labels_too_long():
     assert "- value of label 'LABEL_TOO_LONG' is too long 1075 (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe" == str(e.value), Tests.assertion_info('Label value is too long', str(e.value))
 
 def test_labels_skip_unsafe_true():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', skip_unsafe=True, dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', skip_unsafe=True, dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -134,7 +151,7 @@ def test_labels_skip_unsafe_true():
     assert 'LABEL_TOO_LONG' not in labels, Tests.assertion_info('LABEL_TOO_LONG not in labels', labels)
 
 def test_labels_allow_unsafe_true():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', allow_unsafe=True, dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', allow_unsafe=True, dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         labels = get_labels()
@@ -158,7 +175,7 @@ def get_port_bindings():
     return port, err
 
 def test_port_bindings_allow_unsafe_true():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/port_bindings_stress.yml', allow_unsafe=True, dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/port_bindings_stress.yml', allow_unsafe=True, dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -169,7 +186,7 @@ def test_port_bindings_allow_unsafe_true():
 def test_port_bindings_skip_unsafe_true():
     out = io.StringIO()
     err = io.StringIO()
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/port_bindings_stress.yml', skip_unsafe=True, dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/port_bindings_stress.yml', skip_unsafe=True, dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     # need to catch exception here as otherwise the subprocess returning an error will
     # fail the test
@@ -186,7 +203,7 @@ def test_port_bindings_skip_unsafe_true():
         Tests.assertion_info(f"Warning: {expected_warning}", 'no/different warning')
 
 def test_port_bindings_no_skip_or_allow():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/port_bindings_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/port_bindings_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(Exception) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -200,7 +217,7 @@ def test_port_bindings_no_skip_or_allow():
         Tests.assertion_info(f"Exception: {expected_error}", str(e.value))
 
 def test_compose_include_not_same_dir():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/parentdir_compose_include/subdir/usage_scenario_fail.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/parentdir_compose_include/subdir/usage_scenario_fail.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -212,7 +229,7 @@ def test_compose_include_not_same_dir():
     assert str(e.value).startswith('Included compose file "../compose.yml" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore')
 
 def test_context_include():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/subdir_parent_context/subdir/usage_scenario_ok.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/subdir_parent_context/subdir/usage_scenario_ok.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -223,7 +240,7 @@ def test_context_include():
     # will not throw an exception
 
 def test_context_include_escape():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/subdir_parent_context/subdir/usage_scenario_fail.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/subdir_parent_context/subdir/usage_scenario_fail.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -236,7 +253,7 @@ def test_context_include_escape():
         Tests.assertion_info('Root directory escape', str(e.value))
 
 def test_include_overwrites_string_values():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/overwrite_string_from_include.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/overwrite_string_from_include.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
@@ -246,7 +263,7 @@ def test_include_overwrites_string_values():
     assert runner._usage_scenario_original['description'] == 'Description as is'
 
 def test_include_overwrites_string_values_even_if_top_include():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/overwrite_string_from_include_even_if_top.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/overwrite_string_from_include_even_if_top.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
@@ -257,7 +274,7 @@ def test_include_overwrites_string_values_even_if_top_include():
 
 
 def test_unsupported_compose():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/unsupported_compose.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/unsupported_compose.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(SchemaError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -265,7 +282,7 @@ def test_unsupported_compose():
     assert str(e.value) == 'Your compose file does contain a key that GMT does not support - Please check if the container will still run as intended. If you want to ignore this error you can add the attribute `ignore-unsupported-compose: true` to your usage_scenario.yml\nError: ["Wrong key \'blkio_config\' in {\'image\': \'alpine\', \'blkio_config\': {\'weight\': 300}}"]'
 
 def test_skip_unsupported_compose():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/skip_unsupported_compose.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/skip_unsupported_compose.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
@@ -276,17 +293,17 @@ def test_skip_unsupported_compose():
 def test_setup_commands_one_command():
     out = io.StringIO()
     err = io.StringIO()
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/setup_commands_noop.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/setup_commands_noop.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
     assert f"Running command:  docker exec {container_name('test-container')} sh -o errexit -o nounset -o pipefail -c ps -a" in out.getvalue()
-    assert '1 root      0:00 tail -f /dev/null' in out.getvalue(), 'Expected container stdout showing tail -f /dev/null as process 1'
+    assert '1 root      0:00 sleep infinity' in out.getvalue(), 'Expected container stdout showing sleep infinity as process 1'
 
 # shell-options: [array|str] (optional)
 # Options that are passed to the shell before the -c flag. Defaults to errexit, nounset and pipefail
 def test_shell_options_default_catches_error_in_pipe():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/shell_options_default.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/shell_options_default.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -298,7 +315,7 @@ def test_shell_options_default_catches_error_in_pipe():
     assert 'had bad returncode: 1' in str(e.value), Tests.assertion_info('Expected failing command due to pipefail', str(e.value))
 
 def test_shell_options_override():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/shell_options_override.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/shell_options_override.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -311,7 +328,7 @@ def test_shell_options_override():
     assert 'unset variable did not abort:' in out.getvalue(), Tests.assertion_info('Expected nounset to be disabled', out.getvalue())
 
 def test_shell_options_unsupported_gives_hint():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/shell_options_unsupported.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/shell_options_unsupported.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -325,7 +342,7 @@ def test_shell_options_unsupported_gives_hint():
 def test_setup_commands_multiple_commands():
     out = io.StringIO()
     err = io.StringIO()
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/setup_commands_multiple_noop.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/setup_commands_multiple_noop.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
@@ -350,7 +367,7 @@ def assert_order(text, first, second):
 def test_depends_on_order():
     out = io.StringIO()
     err = io.StringIO()
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
@@ -365,7 +382,7 @@ def test_depends_on_order():
 def test_depends_on_huge():
     out = io.StringIO()
     err = io.StringIO()
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_huge.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_huge.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
@@ -435,7 +452,7 @@ def test_depends_on_huge():
     assert_order(out.getvalue(), container_name('test-container-1'), container_name('test-container-2'))
 
 def test_depends_on_error_not_running():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_not_running.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=10, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_not_running.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=10, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -444,7 +461,7 @@ def test_depends_on_error_not_running():
     assert re.match(r"State check of dependent services of 'test-container-\d+' failed! Container '" + re.escape(container_name('test-container-3')) + r"' is not running but 'exited' after waiting for 10 sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.", str(e.value))
 
 def test_depends_on_error_cyclic_dependency():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_cycle.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_cycle.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -454,7 +471,7 @@ def test_depends_on_error_cyclic_dependency():
         Tests.assertion_info("Cycle found in depends_on definition with service 'test-container-1'!", str(e.value))
 
 def test_depends_on_error_unsupported_condition():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_unsupported_condition.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_unsupported_condition.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
@@ -464,7 +481,7 @@ def test_depends_on_error_unsupported_condition():
         Tests.assertion_info(message, str(e.value))
 
 def test_depends_on_long_form():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_long_form.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_long_form.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     out = io.StringIO()
     err = io.StringIO()
 
@@ -475,7 +492,7 @@ def test_depends_on_long_form():
         Tests.assertion_info(message, out.getvalue())
 
 def test_depends_on_with_custom_container_name():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_custom_container_name.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_custom_container_name.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     out = io.StringIO()
     err = io.StringIO()
 
@@ -492,7 +509,7 @@ def test_depends_on_with_custom_container_name():
 def test_flow_addresses_container_by_custom_container_name():
     out = io.StringIO()
     err = io.StringIO()
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/flow_container_by_custom_name.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/flow_container_by_custom_name.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
@@ -505,7 +522,7 @@ def test_flow_addresses_container_by_custom_container_name():
 def test_depends_on_healthcheck_using_interval():
     # Test setup: Container has a startup time of 3 seconds, interval is set to 1s, retries is set to a number bigger than 3.
     # Container should become healthy after 3 seconds.
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_using_interval.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_using_interval.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     out = io.StringIO()
     err = io.StringIO()
 
@@ -520,7 +537,7 @@ def test_depends_on_healthcheck_using_start_interval():
     # Using start_interval is preferable (available since Docker Engine version 25)
     # Test setup: Container has a startup time of 3 seconds, start_interval is set to 1s, start_period to 5s
     # Container should become healthy after 3 seconds.
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_using_start_interval.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_using_start_interval.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     out = io.StringIO()
     err = io.StringIO()
 
@@ -543,7 +560,7 @@ Container health of dependent service 'test-container-2': healthy
 def test_depends_on_healthcheck_exec_form_quoting():
     # Test setup: Healthcheck uses the exec form (CMD) with an argument containing spaces, quotes and a semicolon.
     # Every list element must be passed as exactly one argument, so the container becomes healthy.
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_exec_form_quoting.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_exec_form_quoting.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     out = io.StringIO()
     err = io.StringIO()
 
@@ -557,7 +574,7 @@ def test_depends_on_healthcheck_exec_form_quoting():
 def test_depends_on_healthcheck_missing_start_period():
     # Test setup: Container would be healthy after 3 seconds, however, no start_period is set (default 0s), therefore start_interval is not used.
     # Because max waiting time is configured to be 5s, exception is raised after 5s.
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_missing_start_period.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=5, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_missing_start_period.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=5, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -568,7 +585,7 @@ def test_depends_on_healthcheck_missing_start_period():
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_depends_on_healthcheck_error_missing():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_missing.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_missing.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(RuntimeError) as e:
         runner.run()
@@ -580,7 +597,7 @@ def test_depends_on_healthcheck_error_missing():
 def test_depends_on_healthcheck_error_container_unhealthy():
     # Test setup: Healthcheck test will never be successful, interval is set to 1s and retries to 3.
     # Container should become unhealthy after 3-4 seconds.
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_container_unhealthy.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_container_unhealthy.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -594,7 +611,7 @@ def test_depends_on_healthcheck_error_container_unhealthy():
 def test_depends_on_healthcheck_error_max_waiting_time():
     # Test setup: Container would be healthy after 7 seconds, however, interval is set to 100s and there is no start interval.
     # Because max waiting time is configured to be 10s (test_config.yml), the healthcheck at 10s will never be executed.
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_max_waiting_time.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=10, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_max_waiting_time.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, measurement_wait_time_dependencies=10, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -605,7 +622,7 @@ def test_depends_on_healthcheck_error_max_waiting_time():
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_network_created():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_networks')
         ps = subprocess.run(
@@ -619,7 +636,7 @@ def test_network_created():
     assert 'gmt-test-network' in ls, Tests.assertion_info('gmt-test-network', ls)
 
 def test_container_is_in_network():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps = subprocess.run(
@@ -633,7 +650,7 @@ def test_container_is_in_network():
     assert 'test-container' in inspect, Tests.assertion_info('test-container', inspect)
 
 def test_network_alias_added():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_alias.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_alias.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
@@ -645,7 +662,7 @@ def test_network_alias_added():
     assert "'--network-alias', 'test-alias'" in docker_run_command
 
 def test_network_host_join_blocked():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_host_join.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_host_join.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with pytest.raises(ValueError) as e,Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
 
@@ -653,7 +670,7 @@ def test_network_host_join_blocked():
 
 
 def test_network_host_creation_blocked():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_host_create.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_host_create.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with pytest.raises(ValueError) as e,Tests.RunUntilManager(runner) as context:
         context.run_until('setup_networks')
 
@@ -665,7 +682,7 @@ def test_network_host_creation_blocked():
 # tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
 @pytest.mark.xdist_group(name="real-metric-providers")
 def test_cmd_entrypoint():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -679,7 +696,6 @@ def test_cmd_entrypoint():
     alpine_tag = re.escape(gmt_tmp_image_name('alpine'))
     assert re.search(rf"--entrypoint[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*-c[\s,\[\]\"']*echo \'Hello from command\'", str(o))
     assert re.search(rf"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*infinity", str(o))
-    assert re.search(rf"--entrypoint[\s,\[\]\"']*tail[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*-f[\s,\[\]\"']*/dev/null", str(o))
     assert re.search(rf"{alpine_tag}[\s,\[\]\"']*/bin/sh[\s,\[\]\"']*-c", str(o))
     assert re.search(rf"{alpine_tag}[\s,\[\]\"']*sleep[\s,\[\]\"']*infinity", str(o))
     assert re.search(rf"--entrypoint[\s,\[\]\"']*sleep[\s,\[\]\"']*{alpine_tag}[\s,\[\]\"']*infinity", str(o))
@@ -696,7 +712,7 @@ def test_cmd_entrypoint():
 @pytest.mark.xdist_group(name="real-metric-providers")
 def test_container_immediate_exit_with_error():
     """Test that containers exiting immediately with non-zero exit codes raise RuntimeError"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/container_immediate_exit_with_error.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/container_immediate_exit_with_error.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -723,79 +739,51 @@ def test_container_immediate_exit_with_error():
 #    When container does not have a daemon running typically a shell
 #    is started here to have the container running like bash or sh
 def test_cmd_ran():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/cmd_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/cmd_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
-        ps = subprocess.run(
-            ['docker', 'exec', container_name('test-container'), 'ps', '-a'],
-            check=True,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            encoding='UTF-8'
-        )
-        docker_ps_out = ps.stdout
-    assert '1 root      0:00 tail -f /dev/null' in docker_ps_out, Tests.assertion_info('1 root      0:00 tail -f /dev/null', docker_ps_out)
+        docker_ps_out = get_container_ps_output('test-container')
+    assert '1 root      0:00 sleep infinity' in docker_ps_out, Tests.assertion_info('1 root      0:00 sleep infinity', docker_ps_out)
 
 # entrypoint: [str] (optional)
 #    entrypoint declares the default entrypoint for the service container.
 #    This overrides the ENTRYPOINT instruction from the service's Dockerfile.
 #    If the entrypoint is empty, the ENTRYPOINT instruction is ignored.
 def test_entrypoint_ran_with_script():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_script.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_script.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
-        ps = subprocess.run(
-            ['docker', 'exec', container_name('test-container'), 'ps', '-a'],
-            check=True,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            encoding='UTF-8'
-        )
-        docker_ps_out = ps.stdout
+        docker_ps_out = get_container_ps_output('test-container')
     assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
     assert 'entrypoint-overwrite.sh' in docker_ps_out, Tests.assertion_info('entrypoint `entrypoint-overwrite.sh` in ps output', docker_ps_out)
-    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('entrypoint `tail -f /dev/null` in ps output', docker_ps_out)
+    assert 'sleep infinity' in docker_ps_out, Tests.assertion_info('entrypoint `sleep infinity` in ps output', docker_ps_out)
 
 def test_entrypoint_ran_in_conjunction_with_command():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_with_command.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_with_command.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
-        ps = subprocess.run(
-            ['docker', 'exec', container_name('test-container'), 'ps', '-a'],
-            check=True,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            encoding='UTF-8'
-        )
-        docker_ps_out = ps.stdout
+        docker_ps_out = get_container_ps_output('test-container')
     assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
-    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('`tail -f /dev/null` in ps output', docker_ps_out)
+    assert 'sleep infinity' in docker_ps_out, Tests.assertion_info('`sleep infinity` in ps output', docker_ps_out)
 
 def test_entrypoint_empty():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_empty.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_empty.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
-            ps = subprocess.run(
-                ['docker', 'exec', container_name('test-container'), 'ps', '-a'],
-                check=True,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                encoding='UTF-8'
-        )
-        docker_ps_out = ps.stdout
+            docker_ps_out = get_container_ps_output('test-container')
     docker_run_command = re.search(
         r"Calling docker with these parameters: (.*)",
         str(out.getvalue())
     ).group(1)
     assert '--entrypoint=' in docker_run_command, f"--entrypoint= not found in docker run command: {docker_run_command}"
     assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been ignored', docker_ps_out)
-    assert re.search(r"tail[\s,\[\]\"']*-f[\s,\[\]\"']*/dev/null", docker_ps_out)
+    assert re.search(r"sleep[\s,\[\]\"']*infinity", docker_ps_out)
 
 def test_read_detached_process_no_exit():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_no_exit.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_no_exit.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
@@ -805,7 +793,7 @@ def test_read_detached_process_no_exit():
     assert 'successful run completed' not in out.getvalue()
 
 def test_read_detached_process_after_exit():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_exit.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_exit.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
@@ -814,7 +802,7 @@ def test_read_detached_process_after_exit():
         Tests.assertion_info('successful run completed', out.getvalue())
 
 def test_read_detached_process_failure():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_failure.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_failure.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -826,7 +814,7 @@ def test_read_detached_process_failure():
         Tests.assertion_info(expected_process_error, str(e.value))
 
 def test_invalid_container_name():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -840,7 +828,7 @@ def test_invalid_container_name():
     assert e.value.stderr.startswith(f"docker: Error response from daemon: Invalid container name ({container_name('highload-api-:cont')}), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed")
 
 def test_invalid_container_name_2():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name_2.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name_2.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -854,7 +842,7 @@ def test_invalid_container_name_2():
     assert e.value.stderr.startswith(f"docker: Error response from daemon: Invalid container name ({container_name('8zhfiuw:-3tjfuehuis')}), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed")
 
 def test_duplicate_container_name():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/duplicate_container_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/duplicate_container_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -864,7 +852,7 @@ def test_duplicate_container_name():
         Tests.assertion_info("Container name 'number-1' was already used. Please choose unique container names.", str(e.value))
 
 def test_empty_container_name():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/empty_container_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/empty_container_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -875,7 +863,7 @@ def test_empty_container_name():
 
 
 def test_none_container_name():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/none_container_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/none_container_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -885,7 +873,7 @@ def test_none_container_name():
         Tests.assertion_info("Key 'container_name' error:\nNone should be instance of 'str'", str(e.value))
 
 def test_empty_phase_name():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/empty_phase_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/empty_phase_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -896,7 +884,7 @@ def test_empty_phase_name():
 
 
 def test_invalid_phase_name():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_phase_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_phase_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -906,7 +894,7 @@ def test_invalid_phase_name():
         Tests.assertion_info("Key 'name' error:\n'This phase is / not ok!' does not match '^[\\\\.\\\\s0-9a-zA-Z_\\\\(\\\\)-]+$'", str(e.value))
 
 def test_invalid_phase_name_runtime():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_phase_name_runtime.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_phase_name_runtime.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -917,7 +905,7 @@ def test_invalid_phase_name_runtime():
         Tests.assertion_info("Key 'name' error:\n'[RUNTIME]' does not match '^[\\\\.\\\\s0-9a-zA-Z_\\\\(\\\\)-]+$'", str(e.value))
 
 def test_duplicate_phase_name():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/duplicate_phase_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/duplicate_phase_name.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -928,7 +916,7 @@ def test_duplicate_phase_name():
 
 
 def test_failed_pull_does_not_trigger_cli():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_image.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_image.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -938,7 +926,7 @@ def test_failed_pull_does_not_trigger_cli():
     assert "Command 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' returned non-zero exit status 1." == str(e.value)
 
 def test_failed_pull_does_not_trigger_cli_with_build_on():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_image.yml', dev_no_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_image.yml', dev_no_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -948,7 +936,7 @@ def test_failed_pull_does_not_trigger_cli_with_build_on():
     assert "Command 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' returned non-zero exit status 1." == str(e.value)
 
 def test_internal_network():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/internal_network.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/internal_network.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(RuntimeError) as e:
         runner.run()
@@ -956,7 +944,7 @@ def test_internal_network():
     assert str(e.value) == f"Process '['docker', 'exec', '{container_name('test-container')}', 'curl', '-s', '--fail', 'https://www.google.de']' had bad returncode: 6. Stderr: ; Detached process: False. Please also check the stdout in the logs and / or enable stdout logging to debug further."
 
 def test_bad_arg():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_bad.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_bad.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -968,7 +956,7 @@ def test_bad_arg():
 
 def test_good_arg():
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_good.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, user_id=1, allowed_run_args=[r'--label\s+([\w.-]+)=([\w.-]+)'], dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_good.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, user_id=1, allowed_run_args=[r'--label\s+([\w.-]+)=([\w.-]+)'], dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -983,14 +971,14 @@ def test_good_arg():
 
 def test_restart_no_error():
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/compose_restart_key.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/compose_restart_key.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
 
 
 def test_outside_symlink_not_allowed():
-    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', filename='usage_scenario.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', filename='usage_scenario.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(RuntimeError) as exc:
 
@@ -1002,7 +990,7 @@ def test_outside_symlink_not_allowed():
 
 
 def test_outside_symlink_not_allowed_deep():
-    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', branch="deep", filename='usage_scenario_deep.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', branch="deep", filename='usage_scenario_deep.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(RuntimeError) as exc:
 
@@ -1013,7 +1001,7 @@ def test_outside_symlink_not_allowed_deep():
     assert '/passwd' in str(exc)
 
 def test_outside_symlink_not_allowed_missing_outside():
-    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', branch="missing-outside", filename='usage_scenario.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', branch="missing-outside", filename='usage_scenario.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(RuntimeError) as exc:
 
@@ -1025,7 +1013,7 @@ def test_outside_symlink_not_allowed_missing_outside():
 
 # plain symlinks, even if missing, as long as they are inside the repository we want to allow at the moment
 def test_outside_symlink_not_allowed_missing_inside():
-    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', branch="missing-inside", filename='usage_scenario.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', branch="missing-inside", filename='usage_scenario.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
@@ -1038,7 +1026,7 @@ def test_outside_symlink_not_allowed_missing_inside():
 # tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
 @pytest.mark.xdist_group(name="real-metric-providers")
 def test_folder_destination_basic():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_basic.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_basic.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -1056,7 +1044,7 @@ def test_folder_destination_basic():
 # tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
 @pytest.mark.xdist_group(name="real-metric-providers")
 def test_folder_destination_with_build():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_with_build.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/folder_destination_with_build.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -1071,7 +1059,7 @@ def test_folder_destination_with_build():
 
 
 def test_build_target_multi_stage():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/multi_stage_target/usage_scenario.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/multi_stage_target/usage_scenario.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -1106,7 +1094,7 @@ def test_build_target_invalid():
 # tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
 @pytest.mark.xdist_group(name="real-metric-providers")
 def test_provider_early_exit():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/container_early_exit.yml', dev_no_system_checks=True, dev_no_metrics=False, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/container_early_exit.yml', dev_no_system_checks=True, dev_no_metrics=False, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()

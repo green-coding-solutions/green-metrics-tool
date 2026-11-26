@@ -128,7 +128,7 @@ $(document).ready(function () {
             ],
             deferRender: true,
             drawCallback: function(settings) {
-                $('.show-machine-configuration').on('click', function(el) {
+                $('.show-machine-configuration').off('click').on('click', function(el) { // off() as drawCallback runs on every sort / page change
                         el.preventDefault();
                         $("#machine-configuration-details pre").text($(this).find('.machine-configuration-details').text())
                         $("#machine-configuration-details").removeClass("loading")

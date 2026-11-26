@@ -85,9 +85,9 @@ def test_carbondb_manual_add():
 
     try:
         DB().query('''
-            INSERT INTO carbondb_data(id, type,project,machine,source,tags,date,energy_kwh_sum,carbon_kg_sum,carbon_intensity_g_avg,record_count,user_id)
+            INSERT INTO carbondb_data(id, type,project,machine,source,tags,date,energy_kwh_sum,operational_carbon_kg_sum,embodied_carbon_kg_sum,carbon_intensity_g_avg,record_count,user_id)
             VALUES
-            (3000, 1,1,1,1,ARRAY[]::int[],E'2024-10-10',1.25e3,300,283,7,1);
+            (3000, 1,1,1,1,ARRAY[]::int[],E'2024-10-10',1.25e3,200,100,283,7,1);
         ''')
 
 
@@ -105,6 +105,13 @@ def test_carbondb_manual_add():
         total_carbon = page.locator('#total-carbon').text_content()
         assert total_carbon.strip() == '1777.00'
 
+        # demo data has only operational carbon (1477). The manual row adds 200 operational and 100 embodied
+        total_operational_carbon = page.locator('#total-operational-carbon').text_content()
+        assert total_operational_carbon.strip() == '1677.00'
+
+        total_embodied_carbon = page.locator('#total-embodied-carbon').text_content()
+        assert total_embodied_carbon.strip() == '100.00'
+
     finally:
         DB().query('DELETE FROM carbondb_data WHERE id = 3000;')
 
@@ -115,9 +122,9 @@ def test_carbondb_display_xss_tags():
         DB().query('''
             INSERT INTO carbondb_tags(id,tag,user_ids)
             VALUES (999,'<script>alert(XSS);</script>','{1}');
-            INSERT INTO carbondb_data(id,type,project,machine,source,tags,date,energy_kwh_sum,carbon_kg_sum,carbon_intensity_g_avg,record_count,user_id)
+            INSERT INTO carbondb_data(id,type,project,machine,source,tags,date,energy_kwh_sum,operational_carbon_kg_sum,embodied_carbon_kg_sum,carbon_intensity_g_avg,record_count,user_id)
             VALUES
-            (3000,1,1,1,1,ARRAY[999],E'2024-10-10',1.25e3,300,283,7,1);
+            (3000,1,1,1,1,ARRAY[999],E'2024-10-10',1.25e3,200,100,283,7,1);
         ''')
 
 
@@ -126,13 +133,21 @@ def test_carbondb_display_xss_tags():
 
         page.locator('#show-filters').click()
 
+        # the filter options are filled asynchronously
+        page.locator('#tags-include').locator('option[value="999"]').wait_for(state='attached')
+
+        # new Option() sets the tag as text. So the text is the raw tag and must not be escaped a second time
         all_tags = page.locator('#tags-include').locator("option").evaluate_all("options => options.map(option => option.textContent)")
-        assert '<script>alert(XSS);</script>' not in all_tags
-        assert '&lt;script&gt;alert(XSS);&lt;/script&gt;' in all_tags
+        assert '<script>alert(XSS);</script>' in all_tags
+        assert '&lt;script&gt;alert(XSS);&lt;/script&gt;' not in all_tags
+
+        # the tag must never end up as a script element. Playwright text selectors ignore script content, thus evaluate
+        assert page.evaluate("() => [...document.querySelectorAll('script')].some(script => script.textContent.includes('alert(XSS)'))") is False
 
 
     finally:
         DB().query('DELETE FROM carbondb_data WHERE id = 3000;')
+        DB().query('DELETE FROM carbondb_tags WHERE id = 999;') # otherwise a pytest rerun fails on duplicate key
 
 def test_carbondb_no_display_different_user():
     Tests.insert_user(234, 'NO-CARBONDB')

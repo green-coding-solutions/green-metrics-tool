@@ -5,6 +5,10 @@
 
 [![Try in Github Codespaces!](https://github.com/codespaces/badge.svg)](https://codespaces.new/green-coding-solutions/green-metrics-tool)
 
+Part of the Green Software Landscape
+
+[![Scenario Measurement](https://raw.githubusercontent.com/bundesverband-green-software/landscape/refs/heads/main/badges/scenario-measurement.svg)](https://landscape.bundesverband-green-software.de)
+
 # Introduction
 
 The Green Metrics Tool is a developer tool indented for measuring the energy and CO2 consumption of software through a software life cycle analysis (SLCA).

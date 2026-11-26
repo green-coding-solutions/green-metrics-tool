@@ -114,12 +114,8 @@ const computeTotalEnergyKwh = (phaseStats, metric, phaseName) => {
     if (!phaseStats || !metric || !phaseName) return null;
     const entry = getPhaseEnergyEntry(phaseStats, phaseName, metric);
     if (!entry) return null;
-    let energyKwh = entry.value;
-    let energyUnit = entry.unit === '*' && typeof metric === 'string' && metric.includes('energy') ? 'uJ' : entry.unit;
-    for (let i = 0; i < 2 && energyUnit !== 'kWh'; i++) {
-        [energyKwh, energyUnit] = convertValue(energyKwh, energyUnit);
-    }
-    return energyUnit === 'kWh' ? energyKwh : null;
+    const energyUnit = entry.unit === '*' && typeof metric === 'string' && metric.includes('energy') ? 'uJ' : entry.unit;
+    return convertEnergyToKwh(entry.value, energyUnit);
 };
 
 const formatEnergy = (kwh) => {

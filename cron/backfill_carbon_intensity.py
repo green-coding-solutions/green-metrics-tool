@@ -29,10 +29,11 @@ TIME_COLUMNS = {
 
 # Limits the rows to what CarbonDB and Power HOG still accept. This is on the time of the measurement and not on created_at, as late
 # data would otherwise be repaired after carbondb_compress.py stopped looking at it. Uses the plain columns so that indexes can be used.
+# The bigint columns must be compared against bigint. EXTRACT returns numeric, which would cast the column instead and prevent index usage.
 LOOKBACK_FILTERS = {
     'ci_measurements': 'from_table.created_at > NOW() - make_interval(days => %s)',
-    'hog_simplified_measurements': 'from_table."timestamp" > EXTRACT(EPOCH FROM NOW() - make_interval(days => %s)) * 1e3', # milliseconds
-    'carbondb_data_raw': 'from_table.time > EXTRACT(EPOCH FROM NOW() - make_interval(days => %s)) * 1e6', # microseconds
+    'hog_simplified_measurements': 'from_table."timestamp" > (EXTRACT(EPOCH FROM NOW() - make_interval(days => %s)) * 1e3)::bigint', # milliseconds
+    'carbondb_data_raw': 'from_table.time > (EXTRACT(EPOCH FROM NOW() - make_interval(days => %s)) * 1e6)::bigint', # microseconds
 }
 
 # Same data that the carbon simulation in the frontend uses (frontend/js/simulation-yearly.js)
@@ -101,38 +102,28 @@ def backfill_carbon_intensity_missing(table, data):
 
     return updated_ids
 
-def update_eco_ci_carbon():
-    query = '''
-        UPDATE ci_measurements
-        SET carbon_ug = ((energy_uj::DOUBLE PRECISION)/3600/1000)*carbon_intensity_g
+# Operational carbon is energy * carbon intensity. It can only be calculated once carbon_intensity_g is known,
+# so all tables are filled here the same way. Embodied carbon does not depend on the grid and is never touched
+def update_operational_carbon(table, carbon_column, carbon_expression):
+    # table, carbon_column and carbon_expression are constants from the functions below and never user input
+    query = f'''
+        UPDATE {table}
+        SET {carbon_column} = {carbon_expression}
         WHERE
-            carbon_ug IS NULL
+            {carbon_column} IS NULL
             AND carbon_intensity_g IS NOT NULL -- needed so we do not make useless NULL updates
-        RETURNING id, carbon_ug;
+        RETURNING id, {carbon_column};
     '''
     return DB().fetch_all(query)
+
+def update_eco_ci_carbon():
+    return update_operational_carbon('ci_measurements', 'operational_carbon_ug', '((energy_uj::DOUBLE PRECISION)/3600/1000)*carbon_intensity_g')
 
 def update_power_hog_carbon():
-    query = '''
-        UPDATE hog_simplified_measurements
-        SET operational_carbon_ug = ((combined_energy_uj::DOUBLE PRECISION)/3600/1000)*carbon_intensity_g
-        WHERE
-            operational_carbon_ug IS NULL
-            AND carbon_intensity_g IS NOT NULL -- needed so we do not make useless NULL updates
-        RETURNING id, operational_carbon_ug;
-    '''
-    return DB().fetch_all(query)
+    return update_operational_carbon('hog_simplified_measurements', 'operational_carbon_ug', '((combined_energy_uj::DOUBLE PRECISION)/3600/1000)*carbon_intensity_g')
 
 def update_carbondb_data_raw_carbon():
-    query = '''
-        UPDATE carbondb_data_raw
-        SET carbon_kg = (energy_kwh*carbon_intensity_g)/1e3
-        WHERE
-            carbon_kg IS NULL
-            AND carbon_intensity_g IS NOT NULL -- needed so we do not make useless NULL updates
-        RETURNING id, carbon_kg;
-    '''
-    return DB().fetch_all(query)
+    return update_operational_carbon('carbondb_data_raw', 'operational_carbon_kg', '(energy_kwh*carbon_intensity_g)/1e3')
 
 
 @cache
@@ -318,4 +309,4 @@ if __name__ == '__main__':
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])
     finally:
-        DB().shutdown()
+        DB.shutdown_if_initialized()

@@ -7,7 +7,6 @@ from functools import cache
 import typing
 import uuid
 import math
-import time
 import orjson
 
 from starlette.background import BackgroundTask
@@ -443,7 +442,7 @@ def determine_comparison_case(user, ids, force_mode=None):
         if usage_scenario_variables == 2:
             return ('Usage Scenario Variables', 'usage_scenario_variables')  # Case E
 
-        if usage_scenario_variables > 3:
+        if usage_scenario_variables > 2:
             raise RuntimeError('Multiple usage scenario variables comparison not supported.')
 
         # important to check this case before checking repeated runs
@@ -623,7 +622,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
 
         run_id = str(run_id)
 
-        phase = phase.split('_', maxsplit=1)[1] # remove the 001_ prepended stuff again, which is only for ordering
+        phase = phase.split('_', maxsplit=1)[-1] # remove the 001_ prepended stuff again, which is only for ordering. [-1] keeps the name intact if no prefix is present
 
         if case == 'Repository':
             key = repo # Case D : RequirementsEngineering Case
@@ -642,6 +641,8 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
 
         if phase not in phase_stats_object['data']:
             phase_stats_object['data'][phase] = OrderedDict({'hidden': hidden, 'data': {}})
+        elif not hidden: # a phase is only hidden if it is hidden in all runs
+            phase_stats_object['data'][phase]['hidden'] = False
 
         if metric_name not in phase_stats_object['data'][phase]['data']:
             phase_stats_object['data'][phase]['data'][metric_name] = {
@@ -677,8 +678,8 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
                 'mean': value, # this is the mean over all repetitions of the detail_name for the key
                 'max': max_value,
                 'min': min_value,
-                'max_mean': max_value,
-                'min_mean': min_value,
+                'max_mean': value, # will be overwritten in add_phase_stats_statistics() if multiple values exist
+                'min_mean': value, # will be overwritten in add_phase_stats_statistics() if multiple values exist
                 'stddev': None,
                 'sr_avg_avg': sampling_rate_avg,
                 'sr_max_max': sampling_rate_max,
@@ -692,7 +693,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
                 'values': [value],
             }
             if comparison_details: # create None filled lists in comparison casese so that we can later understand which values are missing when parsing in JS for example
-                detail_data[key]['values'] = [None for _ in comparison_details[key]] # Debug: if this line errors it means we have not inserted a new at the beginning of the function (L584++)
+                detail_data[key]['values'] = [None for _ in comparison_details[key]] # Debug: if this line errors it means we have not inserted a new key into comparison_details in get_comparison_details()
                 detail_data[key]['sr_avg_values'] = [None for _ in comparison_details[key]]
                 detail_data[key]['sr_max_values'] = [None for _ in comparison_details[key]]
                 detail_data[key]['sr_95p_values'] = [None for _ in comparison_details[key]]
@@ -744,7 +745,7 @@ def add_phase_stats_statistics(phase_stats_object):
                         # JSON does not recognize the numpy data types. Sometimes int64 is returned
                         key_obj['mean'] = np.mean(values_none_filtered).item()
 
-                        key_obj['stddev'] = np.std(values_none_filtered, correction=1).item()
+                        key_obj['stddev'] = np.std(values_none_filtered, ddof=1).item()
                         # We are using now the STDDEV of the sample for two reasons:
                         # It is required by the Blue Angel for Software
                         # We got many debates that in cases where the average is only estimated through measurements and is not absolute
@@ -802,6 +803,9 @@ def add_phase_stats_statistics(phase_stats_object):
                     # Welch-Test because we cannot assume equal variances
                     values_none_filtered_1 = [item for item in detail['data'][key1]['values'] if item is not None]
                     values_none_filtered_2 = [item for item in detail['data'][key2]['values'] if item is not None]
+
+                    if len(values_none_filtered_1) < 2 or len(values_none_filtered_2) < 2:
+                        continue # t-test is undefined for a single sample per side and would only return NaN with a warning
 
                     _, p_value = scipy.stats.ttest_ind(values_none_filtered_1, values_none_filtered_2, equal_var=False)
 
@@ -894,41 +898,6 @@ def check_int_field_api(field, name, max_value):
         raise HTTPException(status_code=422, detail=f'{name} must be <= {max_value}')
 
     return True
-
-def carbondb_add(connecting_ip, data, source, user_id):
-    merge_window_max = GlobalConfig().config['cluster']['carbondb_merge_window_days']
-    current_time_us = int(time.time_ns()  / 1e3)
-    if data['time'] < current_time_us - merge_window_max * 24 * 60 * 60 * 1e6 : # microseconds
-        raise ValueError(f"CarbonDB is configured to not accept values older than {merge_window_max} days. Your timestamp was: {data['time']}")
-    if data['time'] > current_time_us:
-        raise ValueError(f"CarbonDB does not accept timestamps in the future. Your timestamp was: {data['time']}")
-
-
-    query = '''
-            INSERT INTO carbondb_data_raw
-                ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","ip_address","user_id","created_at")
-            VALUES
-                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-    '''
-
-    used_client_ip = data.get('ip', None) # An ip has been given with the data. We prioritize that
-    if used_client_ip is None:
-        used_client_ip = connecting_ip
-
-    carbon_intensity_g_per_kWh = data.get('carbon_intensity_g', None)
-
-    energy_J = float(data['energy_uj']) / 1e6
-    energy_kWh = energy_J / (3_600*1_000)
-    if carbon_intensity_g_per_kWh is None:
-        carbon_kg = None
-    else:
-        carbon_kg = (energy_kWh * carbon_intensity_g_per_kWh)/1_000
-
-    DB().query(
-        query=query,
-        params=(
-            data['type'],
-            data['project'], data['machine'], source, data['tags'], data['time'], energy_kWh, carbon_kg, carbon_intensity_g_per_kWh, used_client_ip, user_id))
 
 def replace_nan_with_zero(obj):
     if isinstance(obj, dict):
