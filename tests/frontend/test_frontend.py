@@ -756,7 +756,7 @@ class TestFrontendFunctionality:
         assert cell(table, 10, 6).text_content().strip() == "0.04"
         assert cell(table, 10, 7).text_content().strip() == "undefined"
         assert cell(table, 10, 8).text_content().strip() == "MB"
-        assert cell(table, 10, 9).text_content().strip() == "not comparable %"
+        assert cell(table, 10, 9).text_content().strip() == "not comparable"
 
         # --- Machine Energy (row 11) ---
         assert cell(table, 11, 1).text_content().strip() == "Machine Energy"
