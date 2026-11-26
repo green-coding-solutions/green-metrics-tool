@@ -8,7 +8,7 @@ const SIMULATION_CHART_COLORS = {
     provider: '#6ea9c9',
     emission: '#5c9d6e'
 };
-const DEFAULT_PROVIDER_HISTORY_FALLBACK_HALF_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
+const DEFAULT_PROVIDER_HISTORY_PADDING_MS = 30 * 60 * 1000; // 30 minutes before the start and after the end of the run
 const PROVIDER_HISTORY_PAST_HOURS = 12;
 const PROVIDER_HISTORY_FUTURE_HOURS = 12;
 const METRIC_SHIFT_STEP_MS = 5 * 60 * 1000; // 5 minutes
@@ -155,12 +155,14 @@ const parseLocalDatetimeInputValue = (value) => {
     return Number.isNaN(timeMs) ? null : timeMs;
 };
 
+// The range must cover the whole run and not only its start. Energy after the end of the carbon data
+// cannot be matched and would be missing from the emissions total
 const getDefaultProviderHistoryRangeMs = () => {
-    const anchorMs = simulationState.runTimes?.startMs ?? Date.now();
-    const halfWindowMs = DEFAULT_PROVIDER_HISTORY_FALLBACK_HALF_WINDOW_MS;
+    const runStartMs = simulationState.runTimes?.startMs ?? Date.now();
+    const runEndMs = simulationState.runTimes?.endMs ?? runStartMs;
     return {
-        startMs: anchorMs - halfWindowMs,
-        endMs: anchorMs + halfWindowMs
+        startMs: runStartMs - DEFAULT_PROVIDER_HISTORY_PADDING_MS,
+        endMs: runEndMs + DEFAULT_PROVIDER_HISTORY_PADDING_MS
     };
 };
 
@@ -1192,7 +1194,12 @@ const updateSimulationChart = () => {
         emissionLabel,
         selection.provider
     );
-    setCarbonSummary(calculateEmissionTotal(emissionSeriesData), '');
+    // the provider can lack carbon data for parts of the run. The total then only covers the matched part
+    const { matchedPoints, energyPointsWithKwh } = emissionResult.debug;
+    const coverageStatus = matchedPoints < energyPointsWithKwh
+        ? `Partial: only ${Math.round(matchedPoints / energyPointsWithKwh * 100)}% of the run is covered by carbon intensity data.`
+        : '';
+    setCarbonSummary(calculateEmissionTotal(emissionSeriesData), coverageStatus);
     setAlignButtonVisible(false);
     setChartLoadFailureVisible(false);
 };
