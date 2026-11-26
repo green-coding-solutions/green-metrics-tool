@@ -608,9 +608,17 @@ const buildEnergyData = (measurements, metric) => {
 
     const series = {};
     let unit = null;
+    let raw_unit = null;
 
     measurements.forEach((entry) => {
         if (entry?.[2] !== metric) return;
+        // values of the details are added up below. This is only valid if they all share one unit
+        if (raw_unit == null) raw_unit = entry[4];
+        else if (entry[4] !== raw_unit) {
+            const message = `Metric ${metric} has mixed units (${raw_unit} and ${entry[4]}). Cannot add up its values`;
+            showNotification('Mixed units in metric', message);
+            throw new Error(message);
+        }
         const detail = entry?.[0];
         const timeMs = entry[1] / 1000;
         let value = entry[3];
