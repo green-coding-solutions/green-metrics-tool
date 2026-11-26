@@ -6,6 +6,8 @@ from lib import system_checks
 Partition = namedtuple('Partition', ['device', 'mountpoint', 'fstype', 'opts'])
 
 def _patch(monkeypatch, tmp_root, partitions):
+    # get_filesystem_type() resolves the path. On macOS /var and /tmp are symlinks to /private/..., so the mountpoints must be resolved too
+    partitions = [partition._replace(mountpoint=str(Path(partition.mountpoint).resolve())) for partition in partitions]
     monkeypatch.setattr(system_checks.host_platform, 'is_windows', lambda: False)
     monkeypatch.setattr(system_checks.host_platform, 'get_repo_tmp_root', lambda: Path(tmp_root))
     monkeypatch.setattr(system_checks.psutil, 'disk_partitions', lambda all=False: partitions) # pylint: disable=redefined-builtin

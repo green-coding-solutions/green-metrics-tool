@@ -532,7 +532,7 @@ def test_empty_repo_and_relations_folder_keeps_inodes_and_user_folder(tmp_path):
     runner._create_folders()
     repo_folder = Tests.get_repo_tmp_folder().joinpath('repo')
     relation_folder = Tests.get_repo_tmp_folder().joinpath('relations', 'helpers')
-    relation_folder.mkdir()
+    relation_folder.mkdir(exist_ok=True) # may be left by an earlier run, as it is only emptied
     inodes = (repo_folder.stat().st_ino, relation_folder.stat().st_ino)
     repo_folder.joinpath('subdir').mkdir()
     repo_folder.joinpath('subdir', 'file').write_text('x', encoding='utf-8')
@@ -548,7 +548,7 @@ def test_empty_repo_and_relations_folder_keeps_inodes_and_user_folder(tmp_path):
     assert user_folder.joinpath('usage_scenario.yml').exists(), 'folder of the user was touched'
 
 #   A normal run must re-clone relations into their existing folders instead of deleting and re-creating them
-def test_relations_emptied_in_place_before_checkout():
+def test_relations_emptied_in_place_before_checkout(tmp_path):
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_system_checks=True, skip_download_dependencies=True)
     runner._create_folders()
     relation_folder = runner._relations_folder.joinpath('helpers')
@@ -556,6 +556,11 @@ def test_relations_emptied_in_place_before_checkout():
     relation_folder.joinpath('stale').write_text('x', encoding='utf-8')
     stray_file = runner._relations_folder.joinpath('stray-file')
     stray_file.write_text('x', encoding='utf-8')
+    symlink_target = tmp_path / 'symlink-target'
+    symlink_target.mkdir()
+    symlink_target.joinpath('must-survive').write_text('x', encoding='utf-8')
+    planted_symlink = runner._relations_folder.joinpath('planted')
+    planted_symlink.symlink_to(symlink_target)
     inode = relation_folder.stat().st_ino
 
     runner._empty_relations_folder()
@@ -563,6 +568,8 @@ def test_relations_emptied_in_place_before_checkout():
     assert relation_folder.is_dir() and not any(relation_folder.iterdir()), Tests.assertion_info('relation emptied', list(relation_folder.iterdir()))
     assert relation_folder.stat().st_ino == inode, 'relation folder was deleted instead of emptied'
     assert not stray_file.exists(), 'files directly in relations/ must be removed'
+    assert not planted_symlink.is_symlink(), 'symlinks in relations/ must be removed'
+    assert symlink_target.joinpath('must-survive').exists(), 'the target of a symlink in relations/ must never be emptied'
 
 #   The tmp folders hold secrets and the checked out code. They must not be usable if pre-planted as symlink
 def test_tmp_folder_symlink_refused(tmp_path):
@@ -573,6 +580,10 @@ def test_tmp_folder_symlink_refused(tmp_path):
     with pytest.raises(RuntimeError) as e:
         runner._check_private_folder(planted)
     assert 'is a symlink or not a directory' in str(e.value)
+
+    # lib/job/run.py relies on this to skip emptying folders that run() never created
+    with pytest.raises(OSError):
+        runner._check_private_folder(tmp_path / 'missing')
 
 ## --skip-unsafe and --allow-unsafe
 #pylint: disable=unused-variable

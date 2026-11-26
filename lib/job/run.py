@@ -134,9 +134,17 @@ class RunJob(Job):
             # We empty the folder in place rather than removing it (see
             # ScenarioRunner._initialize_folder) so the directory inode stays stable
             # for Docker Desktop's virtiofs cache on macOS.
-            runner._initialize_folder(runner._tmp_folder)
-            runner._empty_repo_folder()
-            runner._empty_relations_folder()
+            # run() might have raised before or in _create_folders(). We thus check the folders again, as we would otherwise
+            # empty whatever a planted symlink points to. Must not raise, as the quota deduction below must still happen
+            try:
+                runner._check_private_folder(runner._tmp_folder)
+                runner._check_private_folder(runner._repo_tmp_folder)
+            except (RuntimeError, OSError) as exc: # planted / foreign folder, or never created because run() failed earlier
+                print(f"Not emptying the temporary folders: {exc}")
+            else:
+                runner._initialize_folder(runner._tmp_folder)
+                runner._empty_repo_folder()
+                runner._empty_relations_folder()
 
             self._run_id = runner._run_id # might not be set yet due to error
             user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds

@@ -2876,10 +2876,11 @@ class ScenarioRunner:
         if not relations_folder.exists():
             return
         for child in relations_folder.iterdir():
-            if child.is_dir():
-                self._initialize_folder(child)
-            else:
+            # same as in _initialize_folder(): a symlink is removed itself and its target is never touched
+            if child.is_symlink() or not child.is_dir():
                 child.unlink()
+            else:
+                self._initialize_folder(child)
 
     def _create_folders(self):
         ''' Must be here and not in init, as it must be created for every iteration'''
