@@ -381,8 +381,10 @@ const updateKeyMetric = (
             return;
         }
 
-        const cleanedValue = valueNode.innerText.replace(/[^0-9.]/g, '');
-        let total = (parseFloat(cleanedValue) + parseFloat(value))
+        // running total is kept as number in a data attribute. Parsing it back from the display text would drop
+        // the minus sign and glue in the digits of a "± x.xx%" std-dev text
+        let total = (parseFloat(valueNode.dataset.total) + parseFloat(value))
+        valueNode.dataset.total = total;
 
         if (Number.isNaN(total)) { // can happen when "not comparable" as we are in compare mode and a certain network provider does not exist
             total = "Not comparable";
@@ -405,6 +407,7 @@ const updateKeyMetric = (
         // fields like unit etc.
 
         valueNode.innerText = `${value} ${std_dev_text}`;
+        valueNode.dataset.total = parseFloat(value);
 
         if (display_mode != 'std_dev') {
             valueNode.setAttribute('title', `${raw_value} [${raw_unit}]`);
