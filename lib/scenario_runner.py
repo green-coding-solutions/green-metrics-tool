@@ -23,6 +23,7 @@ import math
 import yaml
 import platform
 import psutil
+import stat
 
 from pathlib import Path
 from urllib.parse import urlparse
@@ -180,6 +181,9 @@ class ScenarioRunner:
         worker_id = utils.get_test_worker_id()
         tmp_folder_name = f'green-metrics-tool-{worker_id}' if worker_id else 'green-metrics-tool'
         self._tmp_folder = host_platform.get_tmp_root().joinpath(tmp_folder_name)
+        # Repository and relation checkouts can be hundreds of MB. They live in the disk-backed temporary folder of the
+        # OS, as /tmp is typically a tmpfs and they would otherwise stay in RAM for the whole run - see host_platform.get_repo_tmp_root()
+        self._repo_tmp_folder = host_platform.get_repo_tmp_root().joinpath(tmp_folder_name)
 
         if isinstance(ssh_private_key, SecureVariable):
             self._ssh_private_key = ssh_private_key
@@ -198,8 +202,8 @@ class ScenarioRunner:
         else:
             raise ValueError('docker_credentials must be a list or None')
 
-        self._relations_folder = self._tmp_folder.joinpath('relations')
-        self._repo_folder = self._tmp_folder.joinpath('repo') # default if not changed in checkout_repository
+        self._relations_folder = self._repo_tmp_folder.joinpath('relations')
+        self._repo_folder = self._repo_tmp_folder.joinpath('repo') # default if not changed in checkout_repository
         self._metrics_folder = self._tmp_folder.joinpath('metrics')
         self._build_dir = self._tmp_folder.joinpath('docker_images')
         self._ssh_private_key_file = self._tmp_folder.joinpath('user_ssh_key')
@@ -659,7 +663,7 @@ class ScenarioRunner:
             return
 
         if not self._dev_cache_repos:
-            self._initialize_folder(self._relations_folder)
+            self._empty_relations_folder()
 
         git_env_vars = self._get_git_environment()
 
@@ -2850,9 +2854,41 @@ class ScenarioRunner:
             print('Imported', TerminalColors.HEADER, len(custom_metric['data']), TerminalColors.ENDC, f"metrics from {metric_name}")
 
 
+    def _check_private_folder(self, folder: Path):
+        # Check only, creates nothing. The tmp folders sit in world-writable locations. We refuse to work in them if they
+        # were pre-planted by another user or are symlinks, as they hold secrets (ssh key, docker credentials) and the checked out code
+        folder_stat = os.lstat(folder)
+        if stat.S_ISLNK(folder_stat.st_mode) or not stat.S_ISDIR(folder_stat.st_mode):
+            raise RuntimeError(f"GMT temporary folder {folder} is a symlink or not a directory. Please remove it.")
+        if hasattr(os, 'getuid') and folder_stat.st_uid != os.getuid():
+            raise RuntimeError(f"GMT temporary folder {folder} is owned by another user (uid {folder_stat.st_uid}). Please remove it.")
+
+    def _empty_repo_folder(self):
+        # repo/ is a bind mount source and must thus never be deleted, only emptied - see _initialize_folder()
+        # We deliberately do not use self._repo_folder, as it points to the folder of the user for local folder runs
+        repo_folder = self._repo_tmp_folder.joinpath('repo')
+        if repo_folder.exists():
+            self._initialize_folder(repo_folder)
+
+    def _empty_relations_folder(self):
+        # The checkouts in relations/ are bind mount sources. They are emptied in place, but the folders themselves are kept - see _initialize_folder()
+        relations_folder = self._repo_tmp_folder.joinpath('relations')
+        if not relations_folder.exists():
+            return
+        for child in relations_folder.iterdir():
+            # same as in _initialize_folder(): a symlink is removed itself and its target is never touched
+            if child.is_symlink() or not child.is_dir():
+                child.unlink()
+            else:
+                self._initialize_folder(child)
+
     def _create_folders(self):
         ''' Must be here and not in init, as it must be created for every iteration'''
         self._tmp_folder.mkdir(parents=False, exist_ok=True)
+        self._repo_tmp_folder.mkdir(parents=False, exist_ok=True)
+        self._check_private_folder(self._tmp_folder)
+        self._check_private_folder(self._repo_tmp_folder)
+
         self._relations_folder.mkdir(parents=False, exist_ok=True)
         self._repo_folder.mkdir(parents=False, exist_ok=True)
         self._metrics_folder.mkdir(parents=False, exist_ok=True)

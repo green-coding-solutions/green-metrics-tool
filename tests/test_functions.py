@@ -40,6 +40,19 @@ def get_tmp_folder():
     name = f'green-metrics-tool-{worker_id}' if worker_id else 'green-metrics-tool'
     return host_platform.get_tmp_root().joinpath(name)
 
+def get_repo_tmp_folder():
+    # Same as get_tmp_folder(), but for the folder holding repo/ and relations/ (lib/scenario_runner.py)
+    worker_id = get_test_worker_id()
+    name = f'green-metrics-tool-{worker_id}' if worker_id else 'green-metrics-tool'
+    return host_platform.get_repo_tmp_root().joinpath(name)
+
+def repo_tmp_folder_emptied():
+    # repo/ and the checkouts in relations/ must still exist (stable inodes for Docker Desktop), but be empty
+    repo_folder = get_repo_tmp_folder().joinpath('repo')
+    relations_folder = get_repo_tmp_folder().joinpath('relations')
+    folders = [repo_folder] + [child for child in relations_folder.iterdir() if child.is_dir()]
+    return relations_folder.is_dir() and all(folder.is_dir() and not any(folder.iterdir()) for folder in folders)
+
 # Dedicated, isolated folder for the metric providers built by the import_* helpers below.
 GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-test-functions-'))
 
