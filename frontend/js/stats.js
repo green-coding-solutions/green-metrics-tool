@@ -862,7 +862,7 @@ const displayTimelineCharts = (metrics, notes) => {
         });
 
         const chart_instance = echarts.init(element);
-        let options = getLineBarChartOptions(null, legend, series, 'Time', metrics[metric_name].converted_unit);
+        let options = getLineBarChartOptions(legend, null, series, 'Time', metrics[metric_name].converted_unit); // time axis needs no labels
         chart_instance.setOption(options);
         chart_instances.push(chart_instance);
 

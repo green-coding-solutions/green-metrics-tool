@@ -356,7 +356,7 @@ const getChartGraphic = (text, top = 'center', left= 'center') => {
 
 function moveRight(e) {
     let el = e.currentTarget.closest(".statistics-chart-card")
-    const next = el.nextSibling;
+    const next = el.nextElementSibling; // nextSibling can be a whitespace text node, which made the move a no-op
     if (!next) return;
     next.after(el)
     window.dispatchEvent(new Event('resize'));
@@ -364,7 +364,7 @@ function moveRight(e) {
 
 function moveToLast(e) {
     let el = e.currentTarget.closest(".statistics-chart-card")
-    const last = el.parentNode.lastChild;
+    const last = el.parentNode.lastElementChild;
     last.after(el)
     window.dispatchEvent(new Event('resize'));
 }
@@ -379,7 +379,7 @@ function moveLeft(e) {
 
 function moveToFirst(e) {
     let el = e.currentTarget.closest(".statistics-chart-card")
-    const first = el.parentNode.childNodes[0];
+    const first = el.parentNode.firstElementChild;
     first.before(el)
     window.dispatchEvent(new Event('resize'));
 }

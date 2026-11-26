@@ -956,9 +956,11 @@ async def get_watchlist(user: User = Depends(authenticate)):
                     AND tp.branch = r.branch
                     AND tp.filename = r.filename
                     AND tp.machine_id = r.machine_id
+                    AND tp.usage_scenario_variables = r.usage_scenario_variables
                 ORDER BY r.created_at DESC
                 LIMIT 1
-            ) as "last_run"
+            ) as "last_run",
+            tp.usage_scenario_variables
         FROM watchlist as tp
         LEFT JOIN machines as m ON m.id = tp.machine_id
         WHERE

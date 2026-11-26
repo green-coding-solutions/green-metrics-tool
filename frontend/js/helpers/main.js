@@ -559,15 +559,24 @@ $(document).ready(() => {
 
     $("body").removeClass("preload"); // activate tranisition CSS properties again
 
-    const closed_descriptions = localStorage.getItem('closed_descriptions');
+    // A page can have multiple descriptions. They are stored by their id so closing one does not hide the others.
+    // Descriptions without id (and entries stored before) fall back to the page path
+    const descriptionKey = (el) => {
+        const id = el.closest('.ui')?.id;
+        return id ? `${window.location.pathname}#${id}` : window.location.pathname;
+    };
     $('.close').on('click', function() {
         $(this).closest('.ui').transition('fade');
-        localStorage.setItem('closed_descriptions', `${closed_descriptions},${window.location.pathname}`)
+        // read fresh, so closing a second description on the same page does not overwrite the first one
+        localStorage.setItem('closed_descriptions', `${localStorage.getItem('closed_descriptions')},${descriptionKey(this)}`)
     });
 
-    if (closed_descriptions.split(',').includes(window.location.pathname)) { // exact match. Substring would match the root path "/" in every stored path
-        document.querySelectorAll('i.close.icon').forEach(el => { el.closest('.ui').remove()}
-        )
-    }
+    const closed_descriptions = localStorage.getItem('closed_descriptions').split(',');
+    document.querySelectorAll('i.close.icon').forEach(el => {
+        // exact match. Substring would match the root path "/" in every stored path
+        if (closed_descriptions.includes(descriptionKey(el)) || closed_descriptions.includes(window.location.pathname)) {
+            el.closest('.ui').remove();
+        }
+    })
     resolveMachinesToGlobalVariable();
 });
