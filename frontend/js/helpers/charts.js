@@ -150,7 +150,7 @@ const calculateMA = (series, factor) => {
   factor = Math.round(factor)
 
   for (let i = 0, len = series.length; i < len; i++) {
-    if (i < factor) {
+    if (i < factor - 1) { // first full window of factor values ends at index factor - 1
       result.push('-');
       continue;
     }
