@@ -2854,6 +2854,15 @@ class ScenarioRunner:
             print('Imported', TerminalColors.HEADER, len(custom_metric['data']), TerminalColors.ENDC, f"metrics from {metric_name}")
 
 
+    def _check_private_folder(self, folder: Path):
+        # Check only, creates nothing. The tmp folders sit in world-writable locations. We refuse to work in them if they
+        # were pre-planted by another user or are symlinks, as they hold secrets (ssh key, docker credentials) and the checked out code
+        folder_stat = os.lstat(folder)
+        if stat.S_ISLNK(folder_stat.st_mode) or not stat.S_ISDIR(folder_stat.st_mode):
+            raise RuntimeError(f"GMT temporary folder {folder} is a symlink or not a directory. Please remove it.")
+        if hasattr(os, 'getuid') and folder_stat.st_uid != os.getuid():
+            raise RuntimeError(f"GMT temporary folder {folder} is owned by another user (uid {folder_stat.st_uid}). Please remove it.")
+
     def _empty_repo_folder(self):
         # repo/ is a bind mount source and must thus never be deleted, only emptied - see _initialize_folder()
         # We deliberately do not use self._repo_folder, as it points to the folder of the user for local folder runs
@@ -2876,6 +2885,8 @@ class ScenarioRunner:
         ''' Must be here and not in init, as it must be created for every iteration'''
         self._tmp_folder.mkdir(parents=False, exist_ok=True)
         self._repo_tmp_folder.mkdir(parents=False, exist_ok=True)
+        self._check_private_folder(self._tmp_folder)
+        self._check_private_folder(self._repo_tmp_folder)
 
         self._relations_folder.mkdir(parents=False, exist_ok=True)
         self._repo_folder.mkdir(parents=False, exist_ok=True)
