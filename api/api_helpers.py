@@ -316,10 +316,23 @@ def determine_comparison_case(user, ids, force_mode=None):
                     (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
                     AND id = ANY(%s::uuid[])
                 GROUP BY uri, filename, usage_scenario_variables, machine_id, commit_hash, branch
+            ), per_repo as (
+                SELECT
+                    COUNT(DISTINCT filename) as usage_scenarios, COUNT(DISTINCT commit_hash) as commit_hashes,
+                    COUNT(DISTINCT branch) as branches, COUNT(DISTINCT usage_scenario_variables) as usage_scenario_variables
+                FROM uniques
+                GROUP BY uri
+            ), per_branch as (
+                SELECT COUNT(DISTINCT commit_hash) as commit_hashes
+                FROM uniques
+                GROUP BY uri, branch
             )
             SELECT
                 COUNT(DISTINCT uri ), COUNT(DISTINCT filename), COUNT(DISTINCT machine_id),
-                COUNT(DISTINCT commit_hash ), COUNT(DISTINCT branch), COUNT(DISTINCT usage_scenario_variables)
+                COUNT(DISTINCT commit_hash ), COUNT(DISTINCT branch), COUNT(DISTINCT usage_scenario_variables),
+                (SELECT MAX(usage_scenarios) FROM per_repo), (SELECT MAX(commit_hashes) FROM per_repo),
+                (SELECT MAX(branches) FROM per_repo), (SELECT MAX(usage_scenario_variables) FROM per_repo),
+                (SELECT MAX(commit_hashes) FROM per_branch)
             FROM uniques
     '''
     params = (user.is_super_user(), user.visible_users(), ids)
@@ -327,7 +340,9 @@ def determine_comparison_case(user, ids, force_mode=None):
     if data is None or data == []:
         raise RuntimeError('Could not determine compare case')
 
-    [repos, usage_scenarios, machine_ids, commit_hashes, branches, usage_scenario_variables] = data
+    [repos, usage_scenarios, machine_ids, commit_hashes, branches, usage_scenario_variables,
+     max_usage_scenarios_per_repo, max_commit_hashes_per_repo, max_branches_per_repo, max_usage_scenario_variables_per_repo,
+     max_commit_hashes_per_branch] = data
 
     # The aggregate query always returns one row. If no requested run exists or is visible, all COUNTs are 0
     # (uri is NOT NULL, so repos == 0 means no rows at all). Without this check auto mode would fall through to the
@@ -378,16 +393,19 @@ def determine_comparison_case(user, ids, force_mode=None):
 
         #pylint: disable=no-else-raise,no-else-return
         if repos == 2:
-            if usage_scenarios > 2:
-                raise RuntimeError('Different repos & more than 2 usage scenarios not supported')
+            # usage scenario, branch, commit and variables may differ between the two repos, but must be identical within
+            # each repo. Otherwise the runs of one repo would be averaged over e.g. different usage scenarios.
+            # Checking the total amount (<= 2) is not enough: repo A with variables X and Y vs. repo B with X would pass
             if machine_ids > 1:
                 raise RuntimeError('Different repos & machines not supported')
-            if branches > 2:
-                raise RuntimeError('Different repos & more than 2 branches not supported')
-            if commit_hashes > 2:
-                raise RuntimeError('Different repos & more than 2 different commits not supported')
-            if usage_scenario_variables > 2:
-                raise RuntimeError('Different repos & more than 2 sets of usage scenario variables not supported')
+            if max_usage_scenarios_per_repo > 1:
+                raise RuntimeError('Different repos & more than 1 usage scenario per repo not supported')
+            if max_branches_per_repo > 1:
+                raise RuntimeError('Different repos & more than 1 branch per repo not supported')
+            if max_commit_hashes_per_repo > 1:
+                raise RuntimeError('Different repos & more than 1 commit per repo not supported')
+            if max_usage_scenario_variables_per_repo > 1:
+                raise RuntimeError('Different repos & more than 1 set of usage scenario variables per repo not supported')
 
             return ('Repository', 'uri')  # Case D
 
@@ -424,8 +442,9 @@ def determine_comparison_case(user, ids, force_mode=None):
             raise RuntimeError('Less than 1 or more than 2 Machines per repo not supported.')
 
         if branches == 2:
-            if commit_hashes > 2:
-                raise RuntimeError('Different branches and more than 2 commits not supported')
+            # the commit may differ between the two branches, but must be identical within each branch (see Repository case)
+            if max_commit_hashes_per_branch > 1:
+                raise RuntimeError('Different branches & more than 1 commit per branch not supported')
             if usage_scenario_variables > 1:
                 raise RuntimeError('Different branches & usage scenario variables not supported')
 
