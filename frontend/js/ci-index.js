@@ -36,7 +36,7 @@ async function getRepositories(sort_by = 'date') {
 
             if(!$.fn.DataTable.isDataTable(table)) {
                 const repo = this.getAttribute('data-uri');
-                await getCIRunsTable($(table), `/v1/ci/runs?repo=${repo}`, false, false, true)
+                await getCIRunsTable($(table), `/v1/ci/runs?repo=${encodeURIComponent(repo)}`, false, false, true)
             }
     }});
 };
@@ -85,12 +85,12 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
                 return `<a href="/ci.html?repo=${encodeURIComponent(row[0])}&branch=${encodeURIComponent(row[1])}&workflow=${encodeURIComponent(row[2])}">${escapeString(row[5])}</a>`;
             }
         },
-        {data : 1, title: 'Branch'},
-        {data: 3, title: 'Source'},
+        {data : 1, title: 'Branch', render: (el) => escapeString(el)},
+        {data: 3, title: 'Source', render: (el) => escapeString(el)},
 
         {
             data: 4, title: 'Last Run', render: function(el, type, row) {
-                return `<span title=${el}>${dateToYMD(new Date(el), true)}</span>`;
+                return `<span title="${escapeString(el)}">${dateToYMD(new Date(el), true)}</span>`;
             }
         },
         {

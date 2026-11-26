@@ -15,9 +15,10 @@ REGEX_PARAMS = re.MULTILINE | re.IGNORECASE
 CURRENT_PATH = os.path.dirname(__file__)
 
 # pylint: disable=unnecessary-lambda-assignment
-# read_process_with_regex with duplicates removed (single)
+# read_process_with_regex with duplicate and empty lines removed (single)
 # this can also be used to remove a \n at the end of single line
-rpwrs = lambda *x: ''.join(set(rpwr(*x).split('\n')))
+# dict.fromkeys keeps the first-seen line order, so the output is deterministic across runs (set() is not)
+rpwrs = lambda *x: '\n'.join(filter(None, dict.fromkeys(rpwr(*x).split('\n'))))
 
 def get_display_resolutions():
 

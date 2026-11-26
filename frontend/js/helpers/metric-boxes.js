@@ -1,3 +1,4 @@
+"use strict";
 const createCard = ({ key, name, icon, variable, detail_name }, suffix, colour) => {
     const cardClass = variable ? `${key}-${suffix}` : key;
     return `
@@ -195,12 +196,16 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
         relative_difference = 0;
     } else if (detail_data_array[0] == null || detail_data_array[1] == null) {
         relative_difference = 'not comparable';
+    } else if (detail_data_array[0] == 0) {
+        relative_difference = 'not comparable (baseline is 0)'; // relative change from 0 is undefined
     } else {
-       relative_difference = detail_data_array[0] == 0 ? 0: (((detail_data_array[1] - detail_data_array[0])/detail_data_array[0])*100).toFixed(2);
+       relative_difference = (((detail_data_array[1] - detail_data_array[0])/detail_data_array[0])*100).toFixed(2);
     }
 
     let icon_color = 'positive';
-    if (relative_difference > 0) {
+    if (typeof relative_difference === 'string' && relative_difference.startsWith('not comparable')) {
+        icon_color = '';
+    } else if (relative_difference > 0) {
         icon_color = 'error';
         relative_difference = `+ ${relative_difference} %`;
     } else {
@@ -239,14 +244,13 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
 
     // network via formula: https://www.green-coding.io/co2-formulas/
     let total_CO2_in_kg = total_CO2_in_ug / 1_000_000_000;
-    const [component_co2_value, component_co2_unit] = rescaleCO2Value(total_CO2_in_kg)
 
     const daily_co2_budget_in_kg_per_day = 1.739; // (12.7 * 1000 * 0.05) / 365 from https://www.pawprint.eco/eco-blog/average-carbon-footprint-uk and https://www.pawprint.eco/eco-blog/average-carbon-footprint-globally
     const co2_budget_utilization = total_CO2_in_kg*100 / daily_co2_budget_in_kg_per_day;
 
     if (co2_budget_utilization) document.querySelector(`div.tab[data-tab='${phase}'] .co2-budget-utilization`).innerHTML = (co2_budget_utilization).toFixed(2) + ' <span class="si-unit">%</span>'
 
-    upscaled_CO2_in_kg = total_CO2_in_kg * 1000 * 365 ; // upscaled to 365 days for 1000 runs per day
+    const upscaled_CO2_in_kg = total_CO2_in_kg * 1000 * 365 ; // upscaled to 365 days for 1000 runs per day
 
     if(display_in_metric_units) {
         document.querySelectorAll(".distance-units").forEach((el) => {el.innerText = "in kms by car"})
@@ -333,7 +337,10 @@ const updateKeyMetric = (
             icon = 'leaf';
             colour = 'green';
         }
-        node.insertAdjacentHTML('beforeend', createCard({ key: selector.slice(1), name: null, icon: icon, variable:false, detail_name: detail_name }, '', colour));
+        // only create the card once per phase. Further detail_names are aggregated into the existing card below
+        if (node.querySelector(selector) == null) {
+            node.insertAdjacentHTML('beforeend', createCard({ key: selector.slice(1), name: null, icon: icon, variable:false, detail_name: detail_name }, '', colour));
+        }
     } else {
         return // no selector found, which means this is no currently configured key metric
     }
@@ -373,8 +380,10 @@ const updateKeyMetric = (
             return;
         }
 
-        const cleanedValue = valueNode.innerText.replace(/[^0-9.]/g, '');
-        let total = (parseFloat(cleanedValue) + parseFloat(value))
+        // running total is kept as number in a data attribute. Parsing it back from the display text would drop
+        // the minus sign and glue in the digits of a "± x.xx%" std-dev text
+        let total = (parseFloat(valueNode.dataset.total) + parseFloat(value))
+        valueNode.dataset.total = total;
 
         if (Number.isNaN(total)) { // can happen when "not comparable" as we are in compare mode and a certain network provider does not exist
             total = "Not comparable";
@@ -384,9 +393,10 @@ const updateKeyMetric = (
 
         valueNode.innerHTML = `${total} (<i class="window restore outline icon" title="This is an aggregate value based on multiple sources. Please check metrics table for individual values."></i>)`
 
-        if (display_mode != 'std_dev') {
-            const cleanedRawValue = valueNode.getAttribute('title').replace(/[^0-9.]/g, '');
-            const rawTotal = (parseFloat(cleanedRawValue) + parseFloat(raw_value))
+        const rawTitle = valueNode.getAttribute('title'); // can be null if first encountered detail_name was in std_dev mode
+        if (display_mode != 'std_dev' && rawTitle != null) {
+            // title is "<value> [<unit>]". parseFloat reads only the leading number. Stripping non-digits would also catch digits in the unit (e.g. ugCO2e)
+            const rawTotal = (parseFloat(rawTitle) + parseFloat(raw_value))
             valueNode.setAttribute('title', `${rawTotal} [${raw_unit}]`);
         }
 
@@ -396,6 +406,7 @@ const updateKeyMetric = (
         // fields like unit etc.
 
         valueNode.innerText = `${value} ${std_dev_text}`;
+        valueNode.dataset.total = parseFloat(value);
 
         if (display_mode != 'std_dev') {
             valueNode.setAttribute('title', `${raw_value} [${raw_unit}]`);

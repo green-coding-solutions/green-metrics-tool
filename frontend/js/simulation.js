@@ -582,15 +582,43 @@ const getDefaultMetric = (metrics) => {
     return metrics.includes(preferredMetric) ? preferredMetric : metrics[0];
 };
 
+// [MACHINE] is already the total. Otherwise a metric can have multiple details (e.g. RAPL Package_0 and Package_1)
+// which together form the energy of the metric. Their values are thus added up per timestamp
+const sumSeriesByTime = (seriesList, getKey, getValue, setValue, compare) => {
+    if (seriesList.length === 1) return seriesList[0];
+    const byKey = new Map();
+    seriesList.forEach((entry) => entry.data.forEach((point) => {
+        const key = getKey(point);
+        const existing = byKey.get(key);
+        if (existing == null) {
+            byKey.set(key, Array.isArray(point) ? [...point] : { ...point });
+        } else if (getValue(point) != null) {
+            setValue(existing, (getValue(existing) ?? 0) + getValue(point));
+        }
+    }));
+    return {
+        name: seriesList.map((entry) => entry.name).join(' + '),
+        data: [...byKey.values()].sort(compare)
+    };
+};
+
 const buildEnergyData = (measurements, metric) => {
     if (!Array.isArray(measurements) || measurements.length === 0) return null;
     if (!metric) return null;
 
     const series = {};
     let unit = null;
+    let raw_unit = null;
 
     measurements.forEach((entry) => {
         if (entry?.[2] !== metric) return;
+        // values of the details are added up below. This is only valid if they all share one unit
+        if (raw_unit == null) raw_unit = entry[4];
+        else if (entry[4] !== raw_unit) {
+            const message = `Metric ${metric} has mixed units (${raw_unit} and ${entry[4]}). Cannot add up its values`;
+            showNotification('Mixed units in metric', message);
+            throw new Error(message);
+        }
         const detail = entry?.[0];
         const timeMs = entry[1] / 1000;
         let value = entry[3];
@@ -608,7 +636,13 @@ const buildEnergyData = (measurements, metric) => {
     const seriesKeys = Object.keys(series);
     if (seriesKeys.length === 0) return null;
 
-    const primarySeries = series['[MACHINE]'] || series[seriesKeys[0]];
+    const primarySeries = series['[MACHINE]'] || sumSeriesByTime(
+        Object.values(series),
+        (point) => point[0],
+        (point) => point[1],
+        (point, value) => { point[1] = value; },
+        (a, b) => a[0] - b[0]
+    );
 
     return {
         metric,
@@ -641,7 +675,13 @@ const buildEnergySeriesRaw = (measurements, metric) => {
     const seriesKeys = Object.keys(series);
     if (seriesKeys.length === 0) return null;
 
-    const primarySeries = series['[MACHINE]'] || series[seriesKeys[0]];
+    const primarySeries = series['[MACHINE]'] || sumSeriesByTime(
+        Object.values(series),
+        (point) => `${point.timeMs}|${point.unit}`, // only add up values of the same unit
+        (point) => point.value,
+        (point, value) => { point.value = value; },
+        (a, b) => a.timeMs - b.timeMs
+    );
 
     return {
         metric,
@@ -666,6 +706,12 @@ const buildEmissionSeries = (energySeries, carbonHistory, metric, timeOffsetMs =
 
     if (carbonSeries.length === 0) return { data: [], debug: { reason: 'no_carbon_series' } };
 
+    // A carbon value is valid until the next one. The last value is only valid for one more sampling interval
+    // of the carbon data. Without this bound it would be applied to everything after the end of the carbon data
+    const lastCarbonTime = carbonSeries[carbonSeries.length - 1].time;
+    const carbonInterval = carbonSeries.length >= 2 ? lastCarbonTime - carbonSeries[carbonSeries.length - 2].time : 0;
+    const carbonValidUntil = lastCarbonTime + carbonInterval;
+
     let index = 0;
     let current = null;
     const result = [];
@@ -687,13 +733,10 @@ const buildEmissionSeries = (energySeries, carbonHistory, metric, timeOffsetMs =
 
     energySeries.data.forEach((point) => {
         const shiftedTime = point.timeMs + timeOffsetMs;
-        let energyKwh = point.value;
-        let energyUnit = point.unit === '*' && typeof metric === 'string' && metric.includes('energy') ? 'uJ' : point.unit;
-        for (let i = 0; i < 2 && energyUnit !== 'kWh'; i++) {
-            [energyKwh, energyUnit] = convertValue(energyKwh, energyUnit);
-        }
+        const energyUnit = point.unit === '*' && typeof metric === 'string' && metric.includes('energy') ? 'uJ' : point.unit;
+        const energyKwh = convertEnergyToKwh(point.value, energyUnit);
         debug.energyPoints += 1;
-        if (energyKwh == null || energyUnit !== 'kWh') {
+        if (energyKwh == null) {
             debug.skippedNoKwh += 1;
             return;
         }
@@ -704,7 +747,7 @@ const buildEmissionSeries = (energySeries, carbonHistory, metric, timeOffsetMs =
             index += 1;
         }
 
-        if (current) {
+        if (current && shiftedTime <= carbonValidUntil) {
             result.push([shiftedTime, energyKwh * current.value]);
             debug.matchedPoints += 1;
         } else {

@@ -22,7 +22,7 @@ updates:
 #    target-branch: "main"
 #    schedule:
 #      interval: "weekly"
-    open-pull-requests-limit: 300
+#    open-pull-requests-limit: 300
   - package-ecosystem: "github-actions"
     directory: "/.github/workflows"
     schedule:

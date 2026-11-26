@@ -28,107 +28,86 @@ def compress_carbondb_raw(copy_over_lookback_limit):
     if copy_over_lookback_limit is None:
         time_filter = 'TRUE'
     else:
-        time_filter = f"time > EXTRACT(EPOCH FROM ((NOW() - make_interval(days => {int(copy_over_lookback_limit)}))::date::timestamp))*1e6"
+        # The right side must be cast to bigint. EXTRACT returns numeric, which would cast the column instead and prevent index usage
+        time_filter = f"time > (EXTRACT(EPOCH FROM ((NOW() - make_interval(days => {int(copy_over_lookback_limit)}))::date::timestamp))*1e6)::bigint"
+
+    # The lookup tables only need entries for values that end up in carbondb_data. Older rows were already compressed
+    # in earlier runs and thus already have their lookup entries. So we only build them from the temp table instead of
+    # scanning the full carbondb_data_raw.
+    # DISTINCT on (value, user_id) first is a cheap hash aggregate. ARRAY_AGG(DISTINCT ...) would sort every group instead.
+    # The WHERE on the conflict branch skips rewriting rows that already contain all user_ids, which avoids
+    # creating dead tuples for every lookup row on every run.
+    lookup_queries = []
+    for table, column, source_select in (
+        ('carbondb_types', 'type', 'SELECT DISTINCT type AS value, user_id FROM carbondb_data_raw_tmp'),
+        ('carbondb_machines', 'machine', 'SELECT DISTINCT machine AS value, user_id FROM carbondb_data_raw_tmp'),
+        ('carbondb_sources', 'source', 'SELECT DISTINCT source AS value, user_id FROM carbondb_data_raw_tmp'),
+        ('carbondb_projects', 'project', 'SELECT DISTINCT project AS value, user_id FROM carbondb_data_raw_tmp'),
+        # tags can only be unnested in a subquery and not directly in GROUP BY
+        ('carbondb_tags', 'tag', 'SELECT DISTINCT unnest(tags) AS value, user_id FROM carbondb_data_raw_tmp'),
+    ):
+        lookup_queries.append(f'''
+            INSERT INTO {table} ({column}, user_ids)
+            SELECT value, ARRAY_AGG(user_id ORDER BY user_id)
+            FROM ({source_select}) AS sub
+            GROUP BY value
+            ON CONFLICT ({column}) DO UPDATE
+            SET user_ids = ARRAY(
+                SELECT DISTINCT u FROM unnest({table}.user_ids || excluded.user_ids) AS u ORDER BY u
+            )
+            WHERE NOT {table}.user_ids @> excluded.user_ids;
+        ''')
+    lookup_queries = '\n'.join(lookup_queries)
 
     # Query contains multiple statements, which psycopg cannot run with server-side bound params. Thus values are inlined
     query = f'''
-
-        INSERT INTO carbondb_types (type, user_ids)
-        SELECT type, ARRAY_AGG(DISTINCT user_id)
-        FROM carbondb_data_raw
-        GROUP BY type
-        ON CONFLICT (type) DO UPDATE
-        SET user_ids = (
-            SELECT ARRAY(
-                SELECT DISTINCT unnest(carbondb_types.user_ids || excluded.user_ids)
-            )
-        );
-
-        INSERT INTO carbondb_machines (machine, user_ids)
-        SELECT machine, ARRAY_AGG(DISTINCT user_id)
-        FROM carbondb_data_raw
-        GROUP BY machine
-        ON CONFLICT (machine) DO UPDATE
-        SET user_ids = (
-            SELECT ARRAY(
-                SELECT DISTINCT unnest(carbondb_machines.user_ids || excluded.user_ids)
-            )
-        );
-
-        INSERT INTO carbondb_tags (tag, user_ids)
-        SELECT tag, ARRAY_AGG(DISTINCT user_id)
-        FROM (
-            SELECT unnest(tags) AS tag, user_id
-            FROM carbondb_data_raw
-        ) sub -- we cannot group by by unnest(tags) so we need a CTE here
-        GROUP BY tag
-        ON CONFLICT (tag) DO UPDATE
-        SET user_ids = (
-            SELECT ARRAY(
-                SELECT DISTINCT unnest(carbondb_tags.user_ids || excluded.user_ids)
-            )
-        );
-
-
-        INSERT INTO carbondb_sources (source, user_ids)
-        SELECT source, ARRAY_AGG(DISTINCT user_id)
-        FROM carbondb_data_raw
-        GROUP BY source
-        ON CONFLICT (source) DO UPDATE
-        SET user_ids = (
-            SELECT ARRAY(
-                SELECT DISTINCT unnest(carbondb_sources.user_ids || excluded.user_ids)
-            )
-        );
-
-        INSERT INTO carbondb_projects (project, user_ids)
-        SELECT project, ARRAY_AGG(DISTINCT user_id)
-        FROM carbondb_data_raw
-        GROUP BY project
-        ON CONFLICT (project) DO UPDATE
-        SET user_ids = (
-            SELECT ARRAY(
-                SELECT DISTINCT unnest(carbondb_projects.user_ids || excluded.user_ids)
-            )
-        );
+        -- Serialize concurrent compress runs (cron and tools/rebuild_carbondb.py). Must come before the snapshot below, as otherwise
+        -- an earlier run with an older snapshot could commit after a later run and overwrite newer aggregates with stale values.
+        -- Lock is released automatically on COMMIT / ROLLBACK as the whole query runs in one transaction
+        SELECT pg_advisory_xact_lock(hashtext('carbondb_compress'));
 
         DROP TABLE IF EXISTS carbondb_data_raw_tmp;
 
+        -- Only the columns needed for compression. Rows are never updated in place, as every UPDATE would write
+        -- a new version of every row and multiply the size of the temp table
         CREATE TEMPORARY TABLE carbondb_data_raw_tmp AS
-        SELECT *
+        SELECT
+            type,
+            source,
+            machine,
+            project,
+            tags,
+            DATE_TRUNC('day', TO_TIMESTAMP(time / 1000000))::date AS date,
+            energy_kwh,
+            operational_carbon_kg,
+            embodied_carbon_kg,
+            user_id
         FROM carbondb_data_raw
         WHERE
             {time_filter}
-            AND carbon_kg IS NOT NULL; -- guarded in carbondb_copy_over that we do not miss rows continuously;
+            AND operational_carbon_kg IS NOT NULL; -- guarded in carbondb_copy_over that we do not miss rows continuously;
 
-        UPDATE carbondb_data_raw_tmp AS cdrt
-        SET "type" = s.id
-        FROM carbondb_types AS s
-        WHERE cdrt.type = s.type AND cdrt.user_id = ANY(s.user_ids);
+        -- temp tables are not touched by autovacuum. Without statistics the planner assumes wrong sizes for the joins and aggregates below
+        ANALYZE carbondb_data_raw_tmp;
 
-        UPDATE carbondb_data_raw_tmp AS cdrt
-        SET "source" = s.id
-        FROM carbondb_sources AS s
-        WHERE cdrt.source = s.source AND cdrt.user_id = ANY(s.user_ids);
+        {lookup_queries}
 
-        UPDATE carbondb_data_raw_tmp AS cdrt
-        SET "machine" = s.id
-        FROM carbondb_machines AS s
-        WHERE cdrt.machine = s.machine AND cdrt.user_id = ANY(s.user_ids);;
+        -- tags arrays repeat heavily, so we resolve every distinct array only once instead of once per row
+        CREATE TEMPORARY TABLE carbondb_tags_map_tmp AS
+        SELECT
+            dt.tags,
+            COALESCE(
+                (SELECT ARRAY_AGG(s.id ORDER BY elem.ord)
+                FROM UNNEST(dt.tags) WITH ORDINALITY AS elem(tag, ord)
+                LEFT JOIN carbondb_tags AS s ON s.tag = elem.tag)
+                , ARRAY[]::int[]
+            ) AS tag_ids
+        FROM (SELECT DISTINCT tags FROM carbondb_data_raw_tmp) AS dt;
 
-        UPDATE carbondb_data_raw_tmp AS cdrt
-        SET "project" = s.id
-        FROM carbondb_projects AS s
-        WHERE cdrt.project = s.project AND cdrt.user_id = ANY(s.user_ids);
+        ANALYZE carbondb_tags_map_tmp;
 
-        UPDATE carbondb_data_raw_tmp
-        SET tags = COALESCE(
-            (SELECT ARRAY_AGG(s.id)
-            FROM UNNEST(carbondb_data_raw_tmp.tags) AS elem
-            LEFT JOIN carbondb_tags AS s ON s.tag = elem AND carbondb_data_raw_tmp.user_id = ANY(s.user_ids))
-            , ARRAY[]::int[]
-        );
-
+        -- the text columns are unique in the lookup tables and the lookups were just filled with all (value, user_id)
+        -- combinations from carbondb_data_raw_tmp. Thus a plain join on the text column is sufficient
         INSERT INTO carbondb_data (
             type,
             machine,
@@ -137,44 +116,55 @@ def compress_carbondb_raw(copy_over_lookback_limit):
             tags,
             date,
             energy_kwh_sum,
-            carbon_kg_sum,
+            operational_carbon_kg_sum,
+            embodied_carbon_kg_sum,
             carbon_intensity_g_avg,
             record_count,
             user_id
         )
             SELECT
-                cdr.type::int,
-                cdr.machine::int,
-                cdr.project::int,
-                cdr.source::int,
-                cdr.tags::int[],
-                DATE_TRUNC('day', TO_TIMESTAMP(cdr.time / 1000000)),
+                t.id,
+                m.id,
+                p.id,
+                s.id,
+                tm.tag_ids,
+                cdr.date,
                 SUM(cdr.energy_kwh),
-                SUM(cdr.carbon_kg),
-                COALESCE(SUM(cdr.carbon_kg)*1e3 / NULLIF(SUM(cdr.energy_kwh), 0), 0), -- weighted average instead of just averaging carbon_intensity. Since the solar panel might not be producing power at all for a day, which results in 0, we need to COALESCE and insert 0 in this case
+                SUM(cdr.operational_carbon_kg),
+                SUM(cdr.embodied_carbon_kg),
+                -- only operational carbon stems from the grid, so embodied carbon must not be part of the intensity
+                COALESCE(SUM(cdr.operational_carbon_kg)*1e3 / NULLIF(SUM(cdr.energy_kwh), 0), 0), -- weighted average instead of just averaging carbon_intensity. Since the solar panel might not be producing power at all for a day, which results in 0, we need to COALESCE and insert 0 in this case
                 COUNT(*),
                 cdr.user_id
             FROM
                 carbondb_data_raw_tmp AS cdr
+            JOIN carbondb_types AS t ON t.type = cdr.type
+            JOIN carbondb_machines AS m ON m.machine = cdr.machine
+            JOIN carbondb_projects AS p ON p.project = cdr.project
+            JOIN carbondb_sources AS s ON s.source = cdr.source
+            JOIN carbondb_tags_map_tmp AS tm ON tm.tags = cdr.tags
             GROUP BY
-                cdr.type,
-                cdr.source,
-                cdr.machine,
-                cdr.project,
-                cdr.tags,
-                DATE_TRUNC('day', TO_TIMESTAMP(cdr.time / 1000000)),
+                t.id,
+                s.id,
+                m.id,
+                p.id,
+                tm.tag_ids,
+                cdr.date,
                 cdr.user_id
         ON CONFLICT (type, source, machine, project, tags, date, user_id) DO UPDATE
         SET
             -- excluded will take the fields positional from the insert query. The names are not the actual column values
             -- but the calculation planned for these columns through the SELECT statement
             energy_kwh_sum = EXCLUDED.energy_kwh_sum,
-            carbon_kg_sum = EXCLUDED.carbon_kg_sum,
+            operational_carbon_kg_sum = EXCLUDED.operational_carbon_kg_sum,
+            embodied_carbon_kg_sum = EXCLUDED.embodied_carbon_kg_sum,
             carbon_intensity_g_avg = EXCLUDED.carbon_intensity_g_avg,
             record_count = EXCLUDED.record_count;
+
+        DROP TABLE carbondb_tags_map_tmp;
+        DROP TABLE carbondb_data_raw_tmp;
     '''
     DB().query(query)
-
 
 if __name__ == '__main__':
     try:
@@ -185,4 +175,4 @@ if __name__ == '__main__':
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])
     finally:
-        DB().shutdown()
+        DB.shutdown_if_initialized()

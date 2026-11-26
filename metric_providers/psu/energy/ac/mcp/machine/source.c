@@ -52,7 +52,6 @@ const unsigned char f511_set_accumulation_interval[] = { 0x41, 0x00, 0xA8, 0x4D,
 
 /* This variable ist just global for consitency with our other metric_provider source files */
 static unsigned int msleep_time=1000;
-static struct timespec offset;
 
 enum mcp_states { init, wait_ack, get_len, get_data, validate_checksum };
 
@@ -521,8 +520,6 @@ int main(int argc, char **argv) {
 
     f511_check_range_registers(fd);
 
-    get_time_offset(&offset);
-
     if (oneshot) {
         if (energy_mode) {
             result = f511_get_energy(&energy_data[0], &energy_data[1], fd);
@@ -542,7 +539,7 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "Error. Result was not 0 but %d\n", result);
                 break;
             }
-            get_adjusted_time(&now, &offset);
+            get_time(&now);
 
             if (energy_mode) {
                 printf("%ld%06ld %" PRIu64 "\n", now.tv_sec, now.tv_usec, (uint64_t)(((__uint128_t)energy_data[0] * 1000000u + ((__uint128_t)1 << (MCP_POWER_RANGE_SHIFT - 1))) >> MCP_POWER_RANGE_SHIFT));

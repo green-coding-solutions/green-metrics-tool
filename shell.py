@@ -194,7 +194,6 @@ def main():
             shell_executable=args.shell_executable,
             verbose_provider_boot=args.verbose_provider_boot,
             user_id=args.user_id,
-            skip_optimizations=True,
             dev_no_metrics=args.dev_no_metrics,
             dev_no_phase_stats=args.dev_no_phase_stats,
             dev_no_save=args.dev_no_save,
@@ -248,8 +247,7 @@ def main():
 
         # Explicitly close the psycopg pool to avoid thread finalization warnings on interpreter shutdown.
         try:
-            if hasattr(DB, "instance") and hasattr(DB.instance, "_pool"):
-                DB.instance.shutdown()
+            DB.shutdown_if_initialized()
         except Exception as exc:  # pylint: disable=broad-exception-caught
             print(TerminalColors.WARNING, f"Could not cleanly shut down DB pool: {exc}", TerminalColors.ENDC, file=sys.stderr)
 

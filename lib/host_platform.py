@@ -37,6 +37,15 @@ def get_tmp_root():
     else:
         return Path('/tmp/').resolve(strict=True)
 
+# Repository checkouts can be hundreds of MB and must not live on a RAM-backed /tmp, as they would stay in RAM for the
+# whole run and be accounted to the GMT cgroup. /var/tmp is the disk-backed temporary folder of the OS (FHS) on Linux
+# and macOS - see system_checks.check_repo_tmp_folder_not_tmpfs
+def get_repo_tmp_root():
+    if is_windows():
+        return Path(tempfile.gettempdir()).resolve(strict=True)
+    else:
+        return Path('/var/tmp/').resolve(strict=True)
+
 def clear_file_system_caches():
     if is_windows():
         try:

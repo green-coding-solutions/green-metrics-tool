@@ -12,18 +12,18 @@ from tests import test_functions as Tests
 from cron import backfill_carbon_intensity
 from cron import backfill_geo
 from cron.carbondb_compress import compress_carbondb_raw
-from cron.carbondb_copy_over_and_remove_duplicates import copy_over_scenario_runner, copy_over_eco_ci, remove_duplicates, evaluate_config
+from cron.carbondb_copy_over_and_remove_duplicates import copy_over_scenario_runner, copy_over_eco_ci, copy_over_power_hog, remove_duplicates, evaluate_config
 
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
 # Unlike test_client.py/test_jobs.py/test_watchlist.py in this same directory, this file talks to
-# the shared gunicorn container over HTTP (POST /v2/carbondb/add) and then asserts on the result
+# the shared gunicorn container over HTTP (POST /v3/carbondb/add) and then asserts on the result
 # with its own direct DB() calls - both need to target the same unsuffixed 'gmt_test' schema the
 # container reads/writes, hence this marker (see tests/conftest.py::setup_and_cleanup_test).
 pytestmark = pytest.mark.xdist_group(name=Tests.GUNICORN_SEQUENTIAL_GROUP)
 
-from tests.api.test_api_eco_ci import MEASUREMENT_MODEL_NEW as ECO_CI_DATA
+from tests.api.test_api_eco_ci import MEASUREMENT_MODEL_V4 as ECO_CI_DATA
 from tests.api.test_api_carbondb import ENERGY_DATA
 
 FROM_J_TO_KWH = 3_600 * 1_000
@@ -42,17 +42,19 @@ def test_insert_and_compress_eco_ci_with_two_users():
     Tests.insert_user(345, 'ALTERNATIVE-USER')
 
     eco_ci_data = ECO_CI_DATA.copy()
-    eco_ci_data['carbon_ug'] = 7
+    eco_ci_data['operational_carbon_ug'] = 5
+    eco_ci_data['embodied_carbon_ug'] = 2
 
     eco_ci_data_2 = ECO_CI_DATA.copy()
-    eco_ci_data_2['carbon_ug'] = 400
+    eco_ci_data_2['operational_carbon_ug'] = 300
+    eco_ci_data_2['embodied_carbon_ug'] = 100
 
 
     for _ in range(RANGE_AMOUNT):
-        response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=eco_ci_data, timeout=15)
+        response = requests.post(f"{API_URL}/v4/ci/measurement/add", json=eco_ci_data, timeout=15)
         assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-        response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=eco_ci_data_2, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER'})
+        response = requests.post(f"{API_URL}/v4/ci/measurement/add", json=eco_ci_data_2, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER'})
         assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
@@ -63,10 +65,13 @@ def test_insert_and_compress_eco_ci_with_two_users():
     energy_kWh =  eco_ci_data['energy_uj'] * RANGE_AMOUNT / FROM_UJ_TO_J / FROM_J_TO_KWH
     assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
-    carbon_kg = eco_ci_data['carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG
-    assert math.isclose(data['carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
+    operational_carbon_kg = eco_ci_data['operational_carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG
+    assert math.isclose(data['operational_carbon_kg_sum'], operational_carbon_kg, rel_tol=1e-9)
 
-    carbon_intensity_g_avg = int((carbon_kg/energy_kWh)*1000)
+    embodied_carbon_kg = eco_ci_data['embodied_carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG
+    assert math.isclose(data['embodied_carbon_kg_sum'], embodied_carbon_kg, rel_tol=1e-9)
+
+    carbon_intensity_g_avg = int((operational_carbon_kg/energy_kWh)*1000) # only operational carbon stems from the grid
     assert carbon_intensity_g_avg-1 <= data['carbon_intensity_g_avg'] <= carbon_intensity_g_avg+1 # different rounding can cost 1 g different intensity. No need to be more precise here given that the margin of error in the source data is not know
 
     data = DB().fetch_one('SELECT * FROM carbondb_data WHERE date = CURRENT_DATE and user_id = 345', fetch_mode='dict')
@@ -74,10 +79,13 @@ def test_insert_and_compress_eco_ci_with_two_users():
     energy_kWh = eco_ci_data_2['energy_uj'] * RANGE_AMOUNT / FROM_UJ_TO_J / FROM_J_TO_KWH
     assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
-    carbon_kg = eco_ci_data_2['carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG
-    assert math.isclose(data['carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
+    operational_carbon_kg = eco_ci_data_2['operational_carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG
+    assert math.isclose(data['operational_carbon_kg_sum'], operational_carbon_kg, rel_tol=1e-9)
 
-    carbon_intensity_g_avg = int((carbon_kg/energy_kWh)*1000)
+    embodied_carbon_kg = eco_ci_data_2['embodied_carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG
+    assert math.isclose(data['embodied_carbon_kg_sum'], embodied_carbon_kg, rel_tol=1e-9)
+
+    carbon_intensity_g_avg = int((operational_carbon_kg/energy_kWh)*1000) # only operational carbon stems from the grid
     assert carbon_intensity_g_avg-1 <= data['carbon_intensity_g_avg'] <= carbon_intensity_g_avg+1 # different rounding can cost 1 g different intensity. No need to be more precise here given that the margin of error in the source data is not know
 
 def test_insert_and_compress_carbondb_with_two_users():
@@ -96,10 +104,10 @@ def test_insert_and_compress_carbondb_with_two_users():
 
     for _ in range(RANGE_AMOUNT):
 
-        response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data, timeout=15)
+        response = requests.post(f"{API_URL}/v3/carbondb/add", json=energy_data, timeout=15)
         assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-        response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data_2, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER'})
+        response = requests.post(f"{API_URL}/v3/carbondb/add", json=energy_data_2, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER'})
         assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
@@ -109,7 +117,8 @@ def test_insert_and_compress_carbondb_with_two_users():
     assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
     carbon_kg = energy_kWh * energy_data['carbon_intensity_g'] / FROM_G_TO_KG
-    assert math.isclose(data['carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
+    assert math.isclose(data['operational_carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
+    assert math.isclose(data['embodied_carbon_kg_sum'], energy_data['embodied_carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG, rel_tol=1e-9)
 
     assert data['carbon_intensity_g_avg'] == energy_data['carbon_intensity_g']
 
@@ -119,7 +128,8 @@ def test_insert_and_compress_carbondb_with_two_users():
     assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
     carbon_kg = energy_kWh * energy_data_2['carbon_intensity_g'] / FROM_G_TO_KG
-    assert math.isclose(data['carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
+    assert math.isclose(data['operational_carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
+    assert math.isclose(data['embodied_carbon_kg_sum'], energy_data_2['embodied_carbon_ug'] * RANGE_AMOUNT / FROM_UG_TO_KG, rel_tol=1e-9)
 
     assert data['carbon_intensity_g_avg'] == energy_data_2['carbon_intensity_g']
 
@@ -211,26 +221,29 @@ def test_insert_and_compress_gmt_with_two_users():
 
     record_count = 4
     energy = 5434523*record_count / FROM_UJ_TO_J / FROM_J_TO_KWH # value initially was in uJ
-    carbon = 14610*record_count / FROM_UG_TO_KG
-    data = DB().fetch_one('SELECT energy_kwh_sum, carbon_kg_sum, carbon_intensity_g_avg, record_count FROM carbondb_data WHERE date = CURRENT_DATE AND user_id = 2', fetch_mode='dict')
+    embodied_carbon = 14610*record_count / FROM_UG_TO_KG # embodied_carbon_share_machine
+    data = DB().fetch_one('SELECT energy_kwh_sum, operational_carbon_kg_sum, embodied_carbon_kg_sum, carbon_intensity_g_avg, record_count FROM carbondb_data WHERE date = CURRENT_DATE AND user_id = 2', fetch_mode='dict')
 
     assert data['record_count'] == record_count
     assert math.isclose(data['energy_kwh_sum'], energy, rel_tol=1e-6)
-    assert math.isclose(data['carbon_kg_sum'], carbon, rel_tol=1e-6)
+    assert data['operational_carbon_kg_sum'] == 0 # embodied_carbon_share_machine must not end up in operational carbon
+    assert math.isclose(data['embodied_carbon_kg_sum'], embodied_carbon, rel_tol=1e-6)
+    assert data['carbon_intensity_g_avg'] == 0
 
 
     record_count = 2
     energy = 5434523*record_count / FROM_UJ_TO_J / FROM_J_TO_KWH # value initially was in uJ
     energy += 5434523123 / FROM_UJ_TO_J / FROM_J_TO_KWH  # other_energy_share_machine - in uJ
 
-    carbon = 14610*record_count / FROM_UG_TO_KG
-    carbon += 14610 / FROM_UG_TO_KG # other_carbon_share_machine
-    carbon += 14610 / FROM_UG_TO_KG # another_carbon_share_machine
-    data = DB().fetch_one("SELECT energy_kwh_sum, carbon_kg_sum, carbon_intensity_g_avg, record_count FROM carbondb_data WHERE date = CURRENT_DATE + INTERVAL '1 DAY' AND user_id = 2", fetch_mode='dict')
+    embodied_carbon = 14610*record_count / FROM_UG_TO_KG # embodied_carbon_share_machine
+    operational_carbon = 14610 / FROM_UG_TO_KG # other_carbon_share_machine
+    operational_carbon += 14610 / FROM_UG_TO_KG # another_carbon_share_machine
+    data = DB().fetch_one("SELECT energy_kwh_sum, operational_carbon_kg_sum, embodied_carbon_kg_sum, carbon_intensity_g_avg, record_count FROM carbondb_data WHERE date = CURRENT_DATE + INTERVAL '1 DAY' AND user_id = 2", fetch_mode='dict')
 
     assert data['record_count'] == record_count
     assert math.isclose(data['energy_kwh_sum'], energy, rel_tol=1e-6)
-    assert math.isclose(data['carbon_kg_sum'], carbon, rel_tol=1e-6)
+    assert math.isclose(data['operational_carbon_kg_sum'], operational_carbon, rel_tol=1e-6)
+    assert math.isclose(data['embodied_carbon_kg_sum'], embodied_carbon, rel_tol=1e-6)
 
 
     record_count = 2
@@ -238,11 +251,12 @@ def test_insert_and_compress_gmt_with_two_users():
 
     carbon = 14610*record_count / FROM_UG_TO_KG
     machine_100_filter_id = DB().fetch_one("SELECT id FROM carbondb_machines WHERE 345 = ANY(user_ids) AND machine = 'Machine 100'")[0]
-    data = DB().fetch_one("SELECT energy_kwh_sum, carbon_kg_sum, carbon_intensity_g_avg, record_count FROM carbondb_data WHERE user_id = 345 AND machine = %s", params=(machine_100_filter_id, ), fetch_mode='dict')
+    data = DB().fetch_one("SELECT energy_kwh_sum, operational_carbon_kg_sum, embodied_carbon_kg_sum, carbon_intensity_g_avg, record_count FROM carbondb_data WHERE user_id = 345 AND machine = %s", params=(machine_100_filter_id, ), fetch_mode='dict')
 
     assert data['record_count'] == record_count
     assert math.isclose(data['energy_kwh_sum'], energy, rel_tol=1e-6)
-    assert math.isclose(data['carbon_kg_sum'], carbon, rel_tol=1e-6)
+    assert data['operational_carbon_kg_sum'] == 0
+    assert math.isclose(data['embodied_carbon_kg_sum'], carbon, rel_tol=1e-6)
 
 
 
@@ -251,11 +265,12 @@ def test_insert_and_compress_gmt_with_two_users():
 
     carbon = 14610*record_count / FROM_UG_TO_KG
     machine_101_filter_id = DB().fetch_one("SELECT id FROM carbondb_machines WHERE 345 = ANY(user_ids)  AND machine = 'Machine 101'")[0]
-    data = DB().fetch_one("SELECT energy_kwh_sum, carbon_kg_sum, carbon_intensity_g_avg, record_count FROM carbondb_data WHERE user_id = 345 AND machine = %s", params=(machine_101_filter_id, ),  fetch_mode='dict')
+    data = DB().fetch_one("SELECT energy_kwh_sum, operational_carbon_kg_sum, embodied_carbon_kg_sum, carbon_intensity_g_avg, record_count FROM carbondb_data WHERE user_id = 345 AND machine = %s", params=(machine_101_filter_id, ),  fetch_mode='dict')
 
     assert data['record_count'] == record_count
     assert math.isclose(data['energy_kwh_sum'], energy, rel_tol=1e-6)
-    assert math.isclose(data['carbon_kg_sum'], carbon, rel_tol=1e-6)
+    assert data['operational_carbon_kg_sum'] == 0
+    assert math.isclose(data['embodied_carbon_kg_sum'], carbon, rel_tol=1e-6)
 
 
 
@@ -269,7 +284,7 @@ def test_big_values():
 
     for _ in range(RANGE_AMOUNT):
 
-        response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data, timeout=15)
+        response = requests.post(f"{API_URL}/v3/carbondb/add", json=energy_data, timeout=15)
         assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
@@ -279,7 +294,7 @@ def test_big_values():
     assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
     carbon_kg = (energy_kWh*energy_data['carbon_intensity_g'])/1_000
-    assert math.isclose(data['carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
+    assert math.isclose(data['operational_carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
 
     assert data['carbon_intensity_g_avg'] == energy_data['carbon_intensity_g']
 
@@ -287,7 +302,7 @@ def test_big_values():
 def test_carbondb_backfill():
 
     energy_data = ENERGY_DATA.copy()
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data, timeout=15) # Insert ID 1
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energy_data, timeout=15) # Insert ID 1
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     backfill_geo.process('carbondb_data_raw')
@@ -301,7 +316,8 @@ def test_carbondb_backfill():
     assert math.isclose(data['energy_kwh_sum'], energy_kWh, abs_tol=1e-6)
 
     carbon_kg = (energy_kWh*CARBON_INTENSITY_TESTING_DEFAULT)/1_000
-    assert math.isclose(data['carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
+    assert math.isclose(data['operational_carbon_kg_sum'], carbon_kg, abs_tol=1e-6)
+    assert math.isclose(data['embodied_carbon_kg_sum'], energy_data['embodied_carbon_ug'] / FROM_UG_TO_KG, rel_tol=1e-9) # never backfilled, taken as transmitted
 
     assert data['carbon_intensity_g_avg'] == CARBON_INTENSITY_TESTING_DEFAULT
 
@@ -311,10 +327,10 @@ def test_carbondb_filter_mapped_to_same_id():
     energy_data['carbon_intensity_g'] = 200
 
     Tests.insert_user(345, 'ALTERNATIVE-USER-CARBONDB')
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data, timeout=15) # Insert ID 1
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energy_data, timeout=15) # Insert ID 1
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energy_data, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER-CARBONDB'}) # Insert ID 345
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energy_data, timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER-CARBONDB'}) # Insert ID 345
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
@@ -339,7 +355,7 @@ def test_carbondb_filter_mapped_to_same_id():
     exp_data['type'] = 'asdasd' # this must map to the same tag ID later, but no other tags should be visible
     exp_data['carbon_intensity_g'] = 200
 
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=exp_data, timeout=15)
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=exp_data, timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
@@ -367,8 +383,8 @@ def test_scenario_runner_changed_values_replace_row():
     # Run is copied over while it is still running and has no phase_stats yet
     copy_over_scenario_runner(COPY_OVER_LOOKBACK_LIMIT)
 
-    data = DB().fetch_all('SELECT energy_kwh, carbon_kg FROM carbondb_data_raw')
-    assert data == [(0, 0)]
+    data = DB().fetch_all('SELECT energy_kwh, operational_carbon_kg, embodied_carbon_kg FROM carbondb_data_raw')
+    assert data == [(0, 0, 0)]
 
     DB().query('''INSERT INTO phase_stats(run_id, metric, detail_name, phase, value, type, unit, sampling_rate_avg, sampling_rate_max, sampling_rate_95p)
                 VALUES
@@ -379,14 +395,95 @@ def test_scenario_runner_changed_values_replace_row():
     copy_over_scenario_runner(COPY_OVER_LOOKBACK_LIMIT)
     remove_duplicates(CLEANUP_LOOKBACK_LIMIT)
 
-    data = DB().fetch_all('SELECT energy_kwh, carbon_kg, run_id::text FROM carbondb_data_raw')
+    data = DB().fetch_all('SELECT energy_kwh, operational_carbon_kg, embodied_carbon_kg, run_id::text FROM carbondb_data_raw')
     assert len(data) == 1, 'Changed values of a run created a second row'
     assert math.isclose(data[0][0], 5434523 / FROM_UJ_TO_J / FROM_J_TO_KWH, rel_tol=1e-6)
-    assert math.isclose(data[0][1], 14610 / FROM_UG_TO_KG, rel_tol=1e-6)
-    assert data[0][2] == '00000000-0000-0000-0000-000000000000'
+    assert data[0][1] == 0
+    assert math.isclose(data[0][2], 14610 / FROM_UG_TO_KG, rel_tol=1e-6)
+    assert data[0][3] == '00000000-0000-0000-0000-000000000000'
 
     compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
 
     data = DB().fetch_one('SELECT energy_kwh_sum, record_count FROM carbondb_data WHERE date = CURRENT_DATE AND user_id = 1', fetch_mode='dict')
     assert data['record_count'] == 1
     assert math.isclose(data['energy_kwh_sum'], 5434523 / FROM_UJ_TO_J / FROM_J_TO_KWH, rel_tol=1e-6)
+
+def test_eco_ci_operational_carbon_backfill_keeps_embodied():
+    # Eco CI knew the embodied carbon, but had no carbon intensity yet. Operational carbon is backfilled once it is known
+    eco_ci_data = ECO_CI_DATA.copy()
+    eco_ci_data['embodied_carbon_ug'] = 2000
+
+    response = requests.post(f"{API_URL}/v4/ci/measurement/add", json=eco_ci_data, timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
+    assert DB().fetch_one('SELECT COUNT(id) FROM carbondb_data_raw')[0] == 0, 'Row without operational carbon must wait for the backfill'
+
+    DB().query('UPDATE ci_measurements SET carbon_intensity_g = 100') # as backfill_carbon_intensity.process() would do
+    backfill_carbon_intensity.update_eco_ci_carbon()
+
+    data = DB().fetch_one('SELECT operational_carbon_ug, embodied_carbon_ug FROM ci_measurements', fetch_mode='dict')
+    assert data['operational_carbon_ug'] == round(eco_ci_data['energy_uj'] * 100 / 3_600_000)
+    assert data['embodied_carbon_ug'] == 2000, 'Backfill must not touch embodied carbon'
+
+    copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
+    compress_carbondb_raw(COPY_OVER_LOOKBACK_LIMIT)
+
+    data = DB().fetch_one('SELECT operational_carbon_kg_sum, embodied_carbon_kg_sum, carbon_intensity_g_avg FROM carbondb_data WHERE date = CURRENT_DATE AND user_id = 1', fetch_mode='dict')
+    assert math.isclose(data['operational_carbon_kg_sum'], round(eco_ci_data['energy_uj'] * 100 / 3_600_000) / FROM_UG_TO_KG, abs_tol=1e-12)
+    assert math.isclose(data['embodied_carbon_kg_sum'], 2000 / FROM_UG_TO_KG, abs_tol=1e-12)
+
+def test_power_hog_copy_over_is_keyed_on_measurement():
+    DB().query('''
+        INSERT INTO hog_simplified_measurements (user_id, machine_uuid, timestamp, combined_energy_uj, operational_carbon_ug, embodied_carbon_ug, carbon_intensity_g, ip_address)
+        VALUES
+            (1, '00000000-0000-0000-0000-000000000001', (EXTRACT(EPOCH FROM NOW()) * 1e3)::bigint, 3600000000, 1000, 500, 100, '127.0.0.1'),
+            (1, '00000000-0000-0000-0000-000000000001', (EXTRACT(EPOCH FROM NOW()) * 1e3)::bigint + 1000, 3600000000, NULL, 500, NULL, '127.0.0.1') -- not yet backfilled
+    ''')
+
+    copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
+    copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
+
+    hog_ids = [row[0] for row in DB().fetch_all('SELECT id FROM hog_simplified_measurements ORDER BY id')]
+    data = DB().fetch_all("SELECT hog_measurement_id FROM carbondb_data_raw WHERE source = 'Power HOG' ORDER BY hog_measurement_id")
+    assert data == [(hog_ids[0], )], 'Second copy over inserted already copied Power HOG measurements again or copied a row still waiting for its backfill'
+
+    # once the source row is backfilled it is copied exactly once, with the backfilled operational carbon
+    DB().query('UPDATE hog_simplified_measurements SET carbon_intensity_g = 100')
+    backfill_carbon_intensity.update_power_hog_carbon()
+    copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
+    copy_over_power_hog(COPY_OVER_LOOKBACK_LIMIT)
+
+    data = DB().fetch_all("SELECT hog_measurement_id, operational_carbon_kg FROM carbondb_data_raw WHERE source = 'Power HOG' ORDER BY hog_measurement_id")
+    assert [row[0] for row in data] == hog_ids
+    assert math.isclose(data[1][1], 3600000000 / 3600 / 1000 * 100 / FROM_UG_TO_KG, rel_tol=1e-9) # 1 Wh at 100 g/kWh = 100_000 ug
+
+def test_eco_ci_copy_over_is_keyed_on_measurement():
+    eco_ci_data = ECO_CI_DATA.copy()
+    eco_ci_data['operational_carbon_ug'] = 5
+    eco_ci_data['embodied_carbon_ug'] = 2
+
+    response = requests.post(f"{API_URL}/v4/ci/measurement/add", json=eco_ci_data, timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    eco_ci_data_backfill = ECO_CI_DATA.copy() # no operational carbon yet. Waits for the backfill
+    eco_ci_data_backfill['embodied_carbon_ug'] = 2
+    response = requests.post(f"{API_URL}/v4/ci/measurement/add", json=eco_ci_data_backfill, timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
+    copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
+
+    ci_ids = [row[0] for row in DB().fetch_all('SELECT id FROM ci_measurements ORDER BY id')]
+    data = DB().fetch_all("SELECT ci_measurement_id FROM carbondb_data_raw WHERE source = 'Eco CI' ORDER BY ci_measurement_id")
+    assert data == [(ci_ids[0], )], 'Second copy over inserted already copied Eco CI measurements again or copied a row still waiting for its backfill'
+
+    # once the source row is backfilled it is copied exactly once, with the backfilled operational carbon
+    DB().query('UPDATE ci_measurements SET carbon_intensity_g = 100 WHERE operational_carbon_ug IS NULL')
+    backfill_carbon_intensity.update_eco_ci_carbon()
+    copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
+    copy_over_eco_ci(COPY_OVER_LOOKBACK_LIMIT)
+
+    data = DB().fetch_all("SELECT ci_measurement_id, operational_carbon_kg FROM carbondb_data_raw WHERE source = 'Eco CI' ORDER BY ci_measurement_id")
+    assert [row[0] for row in data] == ci_ids
+    assert math.isclose(data[1][1], round(eco_ci_data_backfill['energy_uj'] * 100 / 3_600_000) / FROM_UG_TO_KG, abs_tol=1e-12)

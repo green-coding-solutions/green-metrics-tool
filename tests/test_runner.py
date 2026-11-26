@@ -44,7 +44,7 @@ def test_uri_local_dir():
         ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR,'--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
         '--filename', filename,
         '--dev-no-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-container-dependency-collection',
-        '--skip-optimizations', '--skip-download-dependencies'],
+        '--skip-download-dependencies'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -61,7 +61,7 @@ def test_uri_local_dir():
     assert tmp_folder.exists(), '/tmp/green-metrics-tool was deleted after run, which should not happen without --file-cleanup set'
 
 def test_uri_local_dir_missing():
-    runner = ScenarioRunner(uri='/tmp/missing', uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri='/tmp/missing', uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
@@ -73,7 +73,7 @@ def test_uri_local_dir_missing():
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_git_environment_without_ssh_private_key():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=['check_steal_time'])
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=['check_steal_time'])
     runner._create_folders()
 
     env = runner._get_git_environment()
@@ -83,7 +83,7 @@ def test_git_environment_without_ssh_private_key():
 
 def test_git_environment_with_ssh_private_key():
     key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=['check_steal_time'])
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=['check_steal_time'])
     runner._create_folders()
 
     env = runner._get_git_environment()
@@ -97,7 +97,7 @@ def test_git_environment_with_ssh_private_key():
 
 def test_git_environment_with_secure_variable_ssh_private_key():
     key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=['check_steal_time'])
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=['check_steal_time'])
     runner._create_folders()
 
     env = runner._get_git_environment()
@@ -108,13 +108,13 @@ def test_git_environment_with_secure_variable_ssh_private_key():
 
 def test_runner_arguments_obfuscate_ssh_private_key():
     key = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n'
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=['check_steal_time'])
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', ssh_private_key=SecureVariable(key), dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=['check_steal_time'])
 
     runner_arguments = json.dumps(runner._arguments, cls=SecureVariableEncoder)
     assert key not in runner_arguments
 
 def test_non_git_root_supplied():
-    runner = ScenarioRunner(uri=f"{GMT_DIR}/tests/data/usage_scenarios/", uri_type='folder', filename='invalid_image.yml', dev_no_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=f"{GMT_DIR}/tests/data/usage_scenarios/", uri_type='folder', filename='invalid_image.yml', dev_no_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -135,7 +135,7 @@ def test_uri_github_repo_and_using_default_filename():
     ps = subprocess.run(
         ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', uri ,'--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
         '--dev-no-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-container-dependency-collection',
-        '--skip-optimizations', '--skip-download-dependencies',
+        '--skip-download-dependencies',
          '--file-cleanup'],
         check=True,
         stderr=subprocess.PIPE,
@@ -152,11 +152,12 @@ def test_uri_github_repo_and_using_default_filename():
 
     # also check that the tmp folder was emptied locally
     assert tmp_folder.exists() and not any(tmp_folder.iterdir()), '/tmp/green-metrics-tool was not emptied after run although --file-cleanup was set'
+    assert Tests.repo_tmp_folder_emptied(), 'repo/ and relations/ in /var/tmp/green-metrics-tool were not emptied after run although --file-cleanup was set'
 
 ## --branch BRANCH
 #    Optionally specify the git branch when targeting a git repository
 def test_uri_local_branch():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', branch='test-branch', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', branch='test-branch', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -178,7 +179,7 @@ def test_uri_github_repo_branch():
         '--branch', branch , '--filename', 'basic_stress.yml',
         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
         '--dev-no-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-container-dependency-collection',
-        '--skip-optimizations', '--skip-download-dependencies'],
+        '--skip-download-dependencies'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -194,7 +195,7 @@ def test_uri_github_repo_branch():
     ## Is the expected_exception OK or should it have a more graceful error?
     ## ATM this is just the default console error of a failed git command
 def test_uri_github_repo_branch_missing():
-    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/pytest-dummy-repo', uri_type='URL', branch='missing-branch', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/pytest-dummy-repo', uri_type='URL', branch='missing-branch', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     with pytest.raises(subprocess.CalledProcessError) as e:
         runner.run()
     expected_exception = f"Command '['git', 'clone', '--depth', '1', '-b', 'missing-branch', '--single-branch', '--recurse-submodules', '--shallow-submodules', 'https://github.com/green-coding-solutions/pytest-dummy-repo', '{os.path.realpath(runner._repo_folder)}']' returned non-zero exit status 128."
@@ -213,7 +214,6 @@ def test_uri_github_repo_commit_hash_checkout():
         dev_no_save=True,
         dev_no_container_dependency_collection=True,
         skip_download_dependencies=True,
-        skip_optimizations=True,
         dev_no_metrics=True,
         dev_no_system_checks=True,
     )
@@ -249,7 +249,6 @@ def test_relations_checkout_specific_commit_hash():
         dev_no_save=True,
         dev_no_container_dependency_collection=True,
         skip_download_dependencies=True,
-        skip_optimizations=True,
         dev_no_system_checks=True,
         dev_no_metrics=True,
     )
@@ -288,7 +287,6 @@ def test_relations_checkout_redacts_credentials_in_db():
         dev_cache_repos=True,
         dev_no_container_dependency_collection=True,
         skip_download_dependencies=True,
-        skip_optimizations=True,
         dev_no_sleeps=True,
         dev_no_system_checks=True,
     )
@@ -334,7 +332,7 @@ def test_name_is_in_db():
         '--filename', 'tests/data/stress-application/usage_scenario.yml',
         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
         '--dev-no-system-checks', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-container-dependency-collection',
-        '--skip-optimizations', '--skip-download-dependencies'],
+        '--skip-download-dependencies'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -354,7 +352,7 @@ def test_different_filename():
     ps = subprocess.run(
         ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/basic_stress_with_limits.yml', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
         '--dev-no-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-container-dependency-collection',
-        '--skip-optimizations', '--skip-download-dependencies'],
+        '--skip-download-dependencies'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -376,7 +374,7 @@ def test_runner_filename_pattern_no_match_error():
          '--filename', 'tests/data/usage_scenarios/nonexistent_*.yml',
          '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--dev-no-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save', '--dev-no-container-dependency-collection',
-         '--skip-optimizations', '--skip-download-dependencies'],
+         '--skip-download-dependencies'],
         check=False,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -388,7 +386,7 @@ def test_runner_filename_pattern_no_match_error():
 
     # if file does not exist and ScenarioRunner is called directly
 def test_different_filename_missing():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='I_do_not_exist.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='I_do_not_exist.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
@@ -404,7 +402,7 @@ def test_runner_with_glob_pattern_filename():
          '--filename', 'tests/data/usage_scenarios/runner_filename/basic*.yml',
          '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--dev-no-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save', '--dev-no-container-dependency-collection',
-         '--skip-optimizations', '--skip-download-dependencies', '--dev-no-metrics'],
+         '--skip-download-dependencies', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -424,7 +422,7 @@ def test_runner_filename_relative_to_local_uri():
          '--filename', 'usage_scenarios/runner_filename/basic_stress_1.yml',
          '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--dev-no-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save', '--dev-no-container-dependency-collection',
-         '--skip-optimizations', '--skip-download-dependencies', '--dev-no-metrics'],
+         '--skip-download-dependencies', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -445,7 +443,7 @@ def test_runner_with_iterations_and_save_to_database():
          '--iterations', '2',
          '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--dev-no-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-container-dependency-collection',
-         '--skip-optimizations', '--skip-download-dependencies'],
+         '--skip-download-dependencies'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -454,6 +452,7 @@ def test_runner_with_iterations_and_save_to_database():
 
     assert ps.returncode == 0
     assert ps.stdout.count('Running:  tests/data/usage_scenarios/basic_stress.yml') == 2
+    assert ps.stdout.count('Multiple runs were executed in one GMT process') == 2, Tests.assertion_info('memory warning for every run', ps.stdout)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 def test_runner_with_iterations_and_multiple_files():
@@ -466,7 +465,7 @@ def test_runner_with_iterations_and_multiple_files():
          '--iterations', '2',
          '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--dev-no-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save', '--dev-no-container-dependency-collection',
-         '--skip-optimizations', '--skip-download-dependencies', '--dev-no-metrics',
+         '--skip-download-dependencies', '--dev-no-metrics',
          ],
         check=True,
         stderr=subprocess.PIPE,
@@ -479,12 +478,13 @@ def test_runner_with_iterations_and_multiple_files():
     # and basic_stress_2.yml processed 2 times (1 instance * 2 iterations)
     assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_1.yml') == 4
     assert ps.stdout.count('Running:  tests/data/usage_scenarios/runner_filename/basic_stress_2.yml') == 2
+    assert ps.stdout.count('Multiple runs were executed in one GMT process') == 6, Tests.assertion_info('memory warning for every run', ps.stdout)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 ## --file-cleanup
 #   Check that default is to leave the files
 def test_no_file_cleanup():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_metrics=True)
     runner.run()
 
     assert runner._tmp_folder.exists(), \
@@ -497,7 +497,7 @@ def test_file_cleanup():
         ['python3', f'{GMT_DIR}/runner.py', '--uri', GMT_DIR, '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
          '--file-cleanup', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--dev-no-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-save', '--dev-no-container-dependency-collection',
-         '--skip-optimizations', '--skip-download-dependencies', '--dev-no-metrics'],
+         '--skip-download-dependencies', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -506,13 +506,91 @@ def test_file_cleanup():
     tmp_folder = Tests.get_tmp_folder()
     assert tmp_folder.exists() and not any(tmp_folder.iterdir()), \
         Tests.assertion_info('tmp directory emptied', f"exists={tmp_folder.exists()}, contents={list(tmp_folder.iterdir()) if tmp_folder.exists() else None}")
+    assert Tests.repo_tmp_folder_emptied(), \
+        Tests.assertion_info('repo/ and relations/ emptied', list(Tests.get_repo_tmp_folder().rglob('*')))
+
+## Location of the repository checkout
+#   Repositories must not be checked out to /tmp, as it is typically a tmpfs and they would be kept in RAM for the whole run
+def test_repo_checkouts_not_in_tmp():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_system_checks=True, skip_download_dependencies=True)
+    runner._create_folders()
+
+    assert runner._metrics_folder.parent == Tests.get_tmp_folder()
+    assert runner._build_dir.parent == Tests.get_tmp_folder()
+    assert runner._repo_folder == Tests.get_repo_tmp_folder().joinpath('repo')
+    assert runner._relations_folder == Tests.get_repo_tmp_folder().joinpath('relations')
+    assert runner._repo_folder.is_dir() and runner._relations_folder.is_dir()
+
+#   repo/ and the checkouts in relations/ are bind mount sources and must only be emptied, never deleted, so their inodes stay stable
+#   for the virtiofs cache of Docker Desktop on macOS. For local folder runs the folder of the user must never be touched
+def test_empty_repo_and_relations_folder_keeps_inodes_and_user_folder(tmp_path):
+    user_folder = tmp_path / 'user-repo'
+    user_folder.mkdir()
+    user_folder.joinpath('usage_scenario.yml').write_text('must survive', encoding='utf-8')
+
+    runner = ScenarioRunner(uri=str(user_folder), uri_type='folder', filename='usage_scenario.yml', dev_no_save=True, dev_no_system_checks=True, skip_download_dependencies=True)
+    runner._create_folders()
+    repo_folder = Tests.get_repo_tmp_folder().joinpath('repo')
+    relation_folder = Tests.get_repo_tmp_folder().joinpath('relations', 'helpers')
+    relation_folder.mkdir(exist_ok=True) # may be left by an earlier run, as it is only emptied
+    inodes = (repo_folder.stat().st_ino, relation_folder.stat().st_ino)
+    repo_folder.joinpath('subdir').mkdir()
+    repo_folder.joinpath('subdir', 'file').write_text('x', encoding='utf-8')
+    relation_folder.joinpath('subdir').mkdir()
+    relation_folder.joinpath('subdir', 'file').write_text('x', encoding='utf-8')
+
+    runner._repo_folder = user_folder # what _checkout_repository() does for local folder runs
+    runner._empty_repo_folder()
+    runner._empty_relations_folder()
+
+    assert Tests.repo_tmp_folder_emptied(), Tests.assertion_info('repo/ and relations/ emptied', list(Tests.get_repo_tmp_folder().rglob('*')))
+    assert (repo_folder.stat().st_ino, relation_folder.stat().st_ino) == inodes, 'repo/ or relations/helpers/ were deleted instead of emptied'
+    assert user_folder.joinpath('usage_scenario.yml').exists(), 'folder of the user was touched'
+
+#   A normal run must re-clone relations into their existing folders instead of deleting and re-creating them
+def test_relations_emptied_in_place_before_checkout(tmp_path):
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_system_checks=True, skip_download_dependencies=True)
+    runner._create_folders()
+    relation_folder = runner._relations_folder.joinpath('helpers')
+    relation_folder.mkdir(exist_ok=True)
+    relation_folder.joinpath('stale').write_text('x', encoding='utf-8')
+    stray_file = runner._relations_folder.joinpath('stray-file')
+    stray_file.write_text('x', encoding='utf-8')
+    symlink_target = tmp_path / 'symlink-target'
+    symlink_target.mkdir()
+    symlink_target.joinpath('must-survive').write_text('x', encoding='utf-8')
+    planted_symlink = runner._relations_folder.joinpath('planted')
+    planted_symlink.symlink_to(symlink_target)
+    inode = relation_folder.stat().st_ino
+
+    runner._empty_relations_folder()
+
+    assert relation_folder.is_dir() and not any(relation_folder.iterdir()), Tests.assertion_info('relation emptied', list(relation_folder.iterdir()))
+    assert relation_folder.stat().st_ino == inode, 'relation folder was deleted instead of emptied'
+    assert not stray_file.exists(), 'files directly in relations/ must be removed'
+    assert not planted_symlink.is_symlink(), 'symlinks in relations/ must be removed'
+    assert symlink_target.joinpath('must-survive').exists(), 'the target of a symlink in relations/ must never be emptied'
+
+#   The tmp folders hold secrets and the checked out code. They must not be usable if pre-planted as symlink
+def test_tmp_folder_symlink_refused(tmp_path):
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_save=True, dev_no_system_checks=True, skip_download_dependencies=True)
+    planted = tmp_path / 'planted-symlink'
+    planted.symlink_to(tmp_path)
+
+    with pytest.raises(RuntimeError) as e:
+        runner._check_private_folder(planted)
+    assert 'is a symlink or not a directory' in str(e.value)
+
+    # lib/job/run.py relies on this to skip emptying folders that run() never created
+    with pytest.raises(OSError):
+        runner._check_private_folder(tmp_path / 'missing')
 
 ## --skip-unsafe and --allow-unsafe
 #pylint: disable=unused-variable
 def test_skip_and_allow_unsafe_both_true():
 
     with pytest.raises(ValueError) as e:
-        ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, skip_unsafe=True, allow_unsafe=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+        ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, skip_unsafe=True, allow_unsafe=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, Tests.assertion_info('', str(e.value))
 
@@ -528,7 +606,7 @@ def test_debug(monkeypatch):
          '--debug',
          '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", '--dev-no-system-checks',
           '--dev-no-sleeps', '--dev-cache-build', '--dev-no-save', '--dev-no-container-dependency-collection',
-          '--skip-optimizations', '--skip-download-dependencies', '--dev-no-metrics'],
+          '--skip-download-dependencies', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -547,7 +625,7 @@ test_data = [
 def test_check_system(dev_no_system_checks, config_file, expectation):
 
     GlobalConfig().override_config(config_location=config_file)
-    runner = ScenarioRunner(uri="not_relevant", uri_type="folder", dev_no_system_checks=dev_no_system_checks, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri="not_relevant", uri_type="folder", dev_no_system_checks=dev_no_system_checks, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with expectation:
         runner._check_system('start')
@@ -556,14 +634,14 @@ def test_check_system(dev_no_system_checks, config_file, expectation):
 def test_check_broken_variable_format():
 
     with pytest.raises(ValueError) as e:
-        ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'Wrong': "1"}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+        ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'Wrong': "1"}, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     assert str(e.value) == 'Usage Scenario variable (Wrong) has invalid name. Format must be __GMT_VAR_[\\w]+__ - Example: __GMT_VAR_EXAMPLE__'
 
 def test_check_variable_no_replacement_found():
 
     with pytest.raises(ValueError) as e:
-        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_VALID__': "1"}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_VALID__': "1"}, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
         runner.run()
 
     assert "Usage Scenario Variable" in str(e.value)
@@ -572,7 +650,7 @@ def test_check_variable_no_replacement_found():
 def test_usage_scenario_variable_leftover():
 
     with pytest.raises(ValueError) as e:
-        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+        runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
         runner.run()
 
     assert "Unreplaced leftover variables are still in usage_scenario:" in str(e.value)
@@ -580,7 +658,7 @@ def test_usage_scenario_variable_leftover():
 
 def test_usage_scenario_variable_replacement_done_correctly():
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_COMMAND__': "stress-ng"}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_COMMAND__': "stress-ng"}, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -591,7 +669,7 @@ def test_usage_scenario_variable_quote_modifier():
 
     value = '''This is a "string for ' me to know.'''
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_quoted_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_TEXT__': value}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_quoted_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_TEXT__': value}, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -609,7 +687,7 @@ def test_usage_scenario_secret_variable_quoted_form_is_redacted():
     secret_value = "my-super-secret-pass'word"
 
     # instantiating the runner registers the secret, so anything it logs afterwards gets scrubbed
-    ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_secret_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': secret_value}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_secret_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': secret_value}, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     assert utils.filter_sensitive_data(f"echo '{utils.quote_for_single_quotes(secret_value)}'") == f"echo '{utils.REDACTED}'"
 
@@ -617,7 +695,7 @@ def test_usage_scenario_secret_variable_replaced_but_never_stored_in_plaintext()
 
     secret_value = 'my-super-secret-password'
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_secret_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': secret_value}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_secret_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': secret_value}, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     # the storable form the runner keeps around must be encrypted, but still resolve to the real value
     encrypted_value = runner._usage_scenario_variables['__GMT_VAR_SECRET_PASSWORD__']
@@ -644,7 +722,7 @@ def test_usage_scenario_secret_variable_accepts_already_encrypted_value():
 
     secret_value = 'my-super-secret-password'
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_secret_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': encrypt_data(secret_value)}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_secret_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': encrypt_data(secret_value)}, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -656,7 +734,7 @@ def test_usage_scenario_secret_variable_is_redacted_from_run_logs():
     secret_value = 'my-super-secret-password'
 
     # instantiating the runner registers the secret, so anything it logs afterwards gets scrubbed
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_secret_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': secret_value}, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress_with_secret_variables.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, usage_scenario_variables={'__GMT_VAR_SECRET_PASSWORD__': secret_value}, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     runner._add_to_current_run_log(
         container_name='test-container',
@@ -678,8 +756,8 @@ def test_usage_scenario_secret_variable_is_redacted_from_run_logs():
 # tests/smoke_test.py for why xdist_group is what actually prevents that under -n.
 @pytest.mark.xdist_group(name="real-metric-providers")
 def test_reporters_still_running():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
-    runner2 = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
+    runner2 = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
 
     with Tests.RunUntilManager(runner) as context:
@@ -713,11 +791,54 @@ def test_template_website():
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
+## --optimizations
+# Optimizations are opt-in. Reporters need real metrics and a saved run, so real metric-provider
+# processes are spawned and these tests must not overlap with others doing the same.
+def _run_cli_for_optimizations(run_name, extra_args):
+    return subprocess.run(
+        ['python3', f'{GMT_DIR}/runner.py', '--name', run_name, '--uri', GMT_DIR, '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
+        '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
+        '--dev-no-system-checks', '--dev-no-sleeps', '--dev-cache-build', '--dev-no-container-dependency-collection',
+        '--skip-download-dependencies'] + extra_args,
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+@pytest.mark.xdist_group(name="real-metric-providers")
+def test_optimizations_flag_runs_reporters():
+    run_name = 'test_' + utils.randomword(12)
+    ps = _run_cli_for_optimizations(run_name, ['--optimizations'])
+
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+    assert 'Running optimization reporters' in ps.stdout, Tests.assertion_info('Running optimization reporters', ps.stdout)
+
+    run_id = utils.get_run_data(run_name)['id']
+    assert utils.get_run_data(run_name)['runner_arguments']['optimizations'] is True
+
+    labels = [row[0] for row in DB().fetch_all('SELECT label FROM optimizations WHERE run_id = %s', params=(run_id, ))]
+    assert 'message_optimization' in labels, Tests.assertion_info('message_optimization in optimizations', labels)
+
+@pytest.mark.xdist_group(name="real-metric-providers")
+def test_optimizations_off_by_default():
+    run_name = 'test_' + utils.randomword(12)
+    ps = _run_cli_for_optimizations(run_name, [])
+
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
+    assert 'optimization reporters' not in ps.stdout, Tests.assertion_info('no optimization reporters', ps.stdout)
+
+    run_id = utils.get_run_data(run_name)['id']
+    assert utils.get_run_data(run_name)['runner_arguments']['optimizations'] is False
+
+    count = DB().fetch_one('SELECT COUNT(*) FROM optimizations WHERE run_id = %s', params=(run_id, ))[0]
+    assert count == 0, Tests.assertion_info('0 optimizations', count)
+
 ## --user-id
 def test_runner_can_use_different_user():
     USER_ID = 758932
     Tests.insert_user(USER_ID, "My bad password")
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, user_id=USER_ID, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, user_id=USER_ID, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -740,7 +861,7 @@ def test_runner_dirty_dir(delete_and_create_temp_file): #pylint: disable=unused-
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with redirect_stdout(out), redirect_stderr(err), Tests.RunUntilManager(runner) as context:
         context.run_until('import_metric_providers')
@@ -749,7 +870,7 @@ def test_runner_dirty_dir(delete_and_create_temp_file): #pylint: disable=unused-
 
 def test_runner_run_invalidated():
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     run_id = runner.run()
 
@@ -772,7 +893,7 @@ def test_runner_run_invalidated():
 ## Docker pull logic tests
 def test_docker_pull_multiarch_image_succeeds():
     """Test successful Docker pull with multi-architecture image"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_multiarch_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_multiarch_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -782,7 +903,7 @@ def test_docker_pull_multiarch_image_succeeds():
 @pytest.mark.skipif(platform.machine() != 'x86_64', reason="Test requires amd64/x86_64 architecture")
 def test_docker_pull_arm64_image_on_amd64_host_fails():
     """Test Docker pull fails when trying to use ARM64 image on AMD64 host"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_arm64_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_arm64_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -795,7 +916,7 @@ def test_docker_pull_arm64_image_on_amd64_host_fails():
 @pytest.mark.skipif(platform.machine() != 'aarch64', reason="Test requires arm64/aarch64 architecture")
 def test_docker_pull_amd64_image_on_arm64_host_fails():
     """Test Docker pull fails when trying to use AMD64 image on ARM64 host"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_amd64_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_amd64_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -807,7 +928,7 @@ def test_docker_pull_amd64_image_on_arm64_host_fails():
 
 def test_docker_pull_nonexistent_image_non_interactive_fails():
     """Test Docker pull fails due to nonexistent image in non-interactive mode"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_nonexistent.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_nonexistent.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
 
     with pytest.raises(subprocess.CalledProcessError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -819,7 +940,7 @@ def test_docker_pull_nonexistent_image_non_interactive_fails():
 
 def test_docker_pull_private_image_without_credentials_fails():
     """False-negative control: a private image must be unreachable when no docker credentials are configured."""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_private_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_pull_private_image.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
 
     with pytest.raises(subprocess.CalledProcessError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -841,7 +962,6 @@ def test_docker_pull_private_image_with_credentials_succeeds():
         filename='tests/data/usage_scenarios/docker_pull_private_image.yml',
         dev_no_container_dependency_collection=True,
         skip_download_dependencies=True,
-        skip_optimizations=True,
         dev_no_system_checks=True,
         dev_no_metrics=True,
         dev_no_sleeps=True,
@@ -945,7 +1065,7 @@ def _print_architecture_debug_info(target_platform):
 @pytest.mark.skipif(can_emulate_arm64_images(), reason="Test is only valid when arm64 can't be emulated")
 def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
     """Test Docker run fails immediately when trying to run ARM64 image on AMD64 host without emulation"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
 
     # Add debug outputs in CI pipeline to investigate https://github.com/green-coding-solutions/green-metrics-tool/issues/1360
     if os.getenv('GITHUB_ACTIONS'):
@@ -964,7 +1084,7 @@ def test_docker_run_multi_arch_image_with_arm64_digest_on_amd64_host_fails():
 @pytest.mark.skipif(can_emulate_amd64_images(), reason="Test is only valid when amd64 can't be emulated")
 def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
     """Test Docker run fails immediately when trying to run amd64 image on arm64 host without emulation"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
 
     # Add debug outputs in CI pipeline to investigate https://github.com/green-coding-solutions/green-metrics-tool/issues/1360
     if os.getenv('GITHUB_ACTIONS'):
@@ -983,7 +1103,7 @@ def test_docker_run_multi_arch_image_with_amd64_digest_on_arm64_host_fails():
 @pytest.mark.skipif(not can_emulate_arm64_images(), reason="Test requires Docker with emulation support for arm64 images")
 def test_docker_runs_arm64_image_with_emulation_on_amd64_host():
     """Test Docker successfully runs ARM64 images on AMD64 host using emulation and generates warning"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_arm64_digest.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -998,7 +1118,7 @@ def test_docker_runs_arm64_image_with_emulation_on_amd64_host():
 @pytest.mark.skipif(not can_emulate_amd64_images(), reason="Test requires Docker with emulation support for amd64 images")
 def test_docker_runs_amd64_image_with_emulation_on_arm64_host():
     """Test Docker successfully runs AMD64 images on ARM64 host using emulation and generates warning"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_run_multiarch_image_amd64_digest.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -1012,7 +1132,7 @@ def test_docker_runs_amd64_image_with_emulation_on_arm64_host():
 ## Container running verification
 def test_container_running_verification_after_boot_phase():
     """Test that container verification catches containers that exit during boot phase"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', dev_no_container_dependency_collection=True, skip_download_dependencies=True, filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_metrics=True)
 
     with pytest.raises(MemoryError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -1025,7 +1145,7 @@ def test_container_running_verification_after_boot_phase():
 
 def test_container_running_verification_after_runtime_phase():
     """Test that container verification catches containers that exit during runtime phase"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', dev_no_container_dependency_collection=True, skip_download_dependencies=True, filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_metrics=True)
 
     with pytest.raises(MemoryError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -1045,7 +1165,7 @@ def wip_test_verbose_provider_boot():
          '--verbose-provider-boot', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--filename', 'tests/data/stress-application/usage_scenario.yml',
          '--dev-no-sleeps', '--dev-cache-build', '--dev-no-metrics', '--dev-no-phase-stats', '--dev-no-container-dependency-collection',
-         '--skip-optimizations', '--skip-download-dependencies', '--dev-no-system-checks', 'check_steal_time'],
+         '--skip-download-dependencies', '--dev-no-system-checks', 'check_steal_time'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -1084,7 +1204,7 @@ def wip_test_verbose_provider_boot():
 ## Logging
 def test_logs_structure():
     """Test that logs stored in database are structured in JSON format with proper metadata"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
 
     run_id = runner.run()
 
@@ -1165,7 +1285,7 @@ def test_logs_structure():
 
 def test_logs_null_byte_handling():
     """Test that null bytes in logs are automatically cleaned and don't cause database errors"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs_with_null_bytes.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs_with_null_bytes.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
 
     # This should not raise any database errors despite null bytes in the scenario
     run_id = runner.run()
@@ -1198,7 +1318,6 @@ def test_checkout_failure_redacts_credentials_in_run_logs():
         filename='tests/data/usage_scenarios/basic_stress.yml',
         dev_no_container_dependency_collection=True,
         skip_download_dependencies=True,
-        skip_optimizations=True,
         dev_no_system_checks=True,
         dev_cache_build=True,
         dev_no_sleeps=True,
@@ -1252,7 +1371,7 @@ def test_checkout_failure_redacts_credentials_in_run_logs():
 
 def test_logs_invalid_character_handling():
     """Test that invalid UTF-8 character in logs are automatically replaced"""
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs_with_invalid_character.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs_with_invalid_character.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
 
     # This should not raise any database errors despite invalid characters in the scenario
     run_id = runner.run()
@@ -1273,7 +1392,7 @@ def test_logs_invalid_character_handling():
 def test_all_run_logs_comprehensive():
     """Comprehensive test of _get_all_run_logs() method covering single runs, iterations, and different files"""
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/capture_logs.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, dev_no_metrics=True)
 
     # Test 1: Single run - basic structure
     runner.run()
@@ -1337,7 +1456,7 @@ def test_print_logs_integration():
          '--iterations', '2', '--print-logs',
          '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--dev-no-system-checks', '--dev-cache-build', '--dev-no-sleeps', '--dev-no-save', '--dev-no-container-dependency-collection',
-         '--skip-optimizations', '--skip-download-dependencies', '--dev-no-metrics'],
+         '--skip-download-dependencies', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -1392,7 +1511,7 @@ def test_database_reconnection_during_run():
 
     out = io.StringIO()
     err = io.StringIO()
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, skip_optimizations=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
@@ -1413,7 +1532,7 @@ def test_host_execution_denied_without_host_capability():
     Tests.insert_user(762, 'no-host-capability-user')
     DB().query("UPDATE users SET capabilities = capabilities #- '{measurement,orchestrators,host}' WHERE id = 762")
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution.yml', user_id=762, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution.yml', user_id=762, dev_no_system_checks=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with pytest.raises(PermissionError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -1426,7 +1545,7 @@ def test_host_execution_allowed_runs_on_host():
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
@@ -1439,7 +1558,7 @@ def test_host_execution_mixed_container_and_host_flow():
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution_mixed.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution_mixed.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
@@ -1448,7 +1567,7 @@ def test_host_execution_mixed_container_and_host_flow():
     assert 'command on [HOST]' in out.getvalue()
 
 def test_container_metric_providers_disabled_without_services():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     with redirect_stdout(out):
@@ -1463,7 +1582,7 @@ def test_container_metric_providers_disabled_without_services():
         Tests.assertion_info('no container bound metric providers imported', imported_metric_names)
 
 def test_container_metric_providers_imported_with_services():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution_mixed.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/host_execution_mixed.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     with redirect_stdout(out):

@@ -49,7 +49,6 @@ def _make_runner(**overrides):
         "dev_no_save": True,
         "dev_no_metrics": True,
         "dev_no_system_checks": True,
-        "skip_optimizations": True,
     }
     values.update(overrides)
     return ShellScenarioRunner(**values)

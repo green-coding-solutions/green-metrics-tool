@@ -17,4 +17,4 @@ if __name__ == '__main__':
         data = fp.read()
 
     DB().query(data)
-    DB().shutdown()
+    DB.shutdown_if_initialized()

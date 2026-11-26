@@ -10,7 +10,6 @@
 #include <stdbool.h>
 #include "gmt-lib.h"
 
-static struct timespec offset;
 
 
 void loop_utilization(unsigned int msleep_time) {
@@ -38,7 +37,7 @@ void loop_utilization(unsigned int msleep_time) {
                 ut_total = ut_total + (inUse / total);
             }
 
-            get_adjusted_time(&now, &offset);
+            get_time(&now);
 
 
             printf("%ld%06i %i\n", now.tv_sec, now.tv_usec, (int)( (ut_total / (float)numCPUsU)*100*100) );
@@ -111,8 +110,6 @@ int main(int argc, char **argv) {
             exit(-1);
         }
     }
-
-    get_time_offset(&offset);
 
     loop_utilization(msleep_time);
 

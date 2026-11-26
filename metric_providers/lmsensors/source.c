@@ -54,7 +54,6 @@ char degstr[5]; /* store the correct string to print degrees */
 
 static unsigned int msleep_time = 1000;
 static volatile sig_atomic_t keep_running = 1;
-static struct timespec offset;
 
 /* As we need to do some cleanup when we get SIGINT we need a signal handler*/
 static void sig_handler(int _) {
@@ -174,7 +173,7 @@ static int do_the_real_work(const sensors_chip_name *match, int *err) {
 static void output_value(int value, char *detail_name) {
     struct timeval now;
 
-    get_adjusted_time(&now, &offset);
+    get_time(&now);
     printf("%ld%06ld %i %s\n", now.tv_sec, now.tv_usec, value, detail_name);
 }
 
@@ -325,8 +324,6 @@ int main(int argc, char *argv[]) {
             }
             exit(1);
         }
-
-        get_time_offset(&offset);
 
         /* The main loop */
         while (keep_running) {

@@ -18,9 +18,17 @@ async function cancelJob(e){
     const job_id = this.getAttribute('data-job-id');
     try {
         await makeAPICall('/v1/job', {job_id: job_id, action: 'cancel'}, null, true)
-        const row = this.closest('tr');
-        row.querySelector('.job-state').innerText = 'CANCELLED'
-        row.querySelector('.job-action').innerHTML = '<i class="ui large icon grey minus"></i>'
+        // update the DataTables data and not only the cells, so that the state filter and sorting see the new state.
+        // The renderers then also replace the cancel link
+        const dt_row = $('#jobs-table').DataTable().row(this.closest('tr'));
+        const row_data = dt_row.data();
+        row_data[8] = 'CANCELLED';
+        dt_row.data(row_data).draw(false);
+
+        const jobs_state_filter = document.getElementById('jobs-state-filter');
+        if (![...jobs_state_filter.options].some((option) => option.value === 'CANCELLED')) {
+            jobs_state_filter.appendChild(new Option('CANCELLED', 'CANCELLED'));
+        }
         showNotification('Job cancelled', 'Job has been cancelled successfully', 'success');
     } catch (err) {
         showNotification('Could not cancel job', err);
@@ -128,7 +136,7 @@ $(document).ready(function () {
             ],
             deferRender: true,
             drawCallback: function(settings) {
-                $('.show-machine-configuration').on('click', function(el) {
+                $('.show-machine-configuration').off('click').on('click', function(el) { // off() as drawCallback runs on every sort / page change
                         el.preventDefault();
                         $("#machine-configuration-details pre").text($(this).find('.machine-configuration-details').text())
                         $("#machine-configuration-details").removeClass("loading")
