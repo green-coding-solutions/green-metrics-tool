@@ -706,6 +706,12 @@ const buildEmissionSeries = (energySeries, carbonHistory, metric, timeOffsetMs =
 
     if (carbonSeries.length === 0) return { data: [], debug: { reason: 'no_carbon_series' } };
 
+    // A carbon value is valid until the next one. The last value is only valid for one more sampling interval
+    // of the carbon data. Without this bound it would be applied to everything after the end of the carbon data
+    const lastCarbonTime = carbonSeries[carbonSeries.length - 1].time;
+    const carbonInterval = carbonSeries.length >= 2 ? lastCarbonTime - carbonSeries[carbonSeries.length - 2].time : 0;
+    const carbonValidUntil = lastCarbonTime + carbonInterval;
+
     let index = 0;
     let current = null;
     const result = [];
@@ -741,7 +747,7 @@ const buildEmissionSeries = (energySeries, carbonHistory, metric, timeOffsetMs =
             index += 1;
         }
 
-        if (current) {
+        if (current && shiftedTime <= carbonValidUntil) {
             result.push([shiftedTime, energyKwh * current.value]);
             debug.matchedPoints += 1;
         } else {
