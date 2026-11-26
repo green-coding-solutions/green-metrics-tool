@@ -105,7 +105,7 @@ const getChartOptions = (measurements) => {
             return `<strong>${escapeString(labels[params.componentIndex].labels[params.dataIndex])}</strong><br>
                     run_id: ${escapeString(labels[params.componentIndex].run_id)}<br>
                     created_at: ${labels[params.componentIndex].created_at}<br>
-                    commit_hash: ${escapeString(labels[params.componentIndex].commit_hash)}<br>
+                    commit_hash: ${escapeString(labels[params.componentIndex].commit_hash ?? '--')}<br>
                     energy: ${escapeString(labels[params.componentIndex].energy_j)} J<br>
                     duration: ${escapeString(labels[params.componentIndex].duration_s)} seconds<br>
                     avg. cpu. utilization: ${escapeString(labels[params.componentIndex].cpu_util)}%<br>
@@ -211,8 +211,7 @@ const displayRunDetailsTable = (measurements, repo) => {
 
         let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug, note, total_carbon_ug] = measurement;
 
-        const short_hash = commit_hash.substring(0, 7);
-        const tooltip = `title="${commit_hash}"`;
+        const short_hash = (commit_hash == null) ? '--' : commit_hash.substring(0, 7); // commit_hash is nullable in ci_measurements
         const cpu_avg = cpu_util ? cpu_util : '--';
 
         let run_link = '';
@@ -241,7 +240,7 @@ const displayRunDetailsTable = (measurements, repo) => {
                             <td class="td-index">${escapeString(cpu)}</td>\
                             <td class="td-index">${escapeString(cpu_avg)}%</td>
                             <td class="td-index">${formatStat(fromMicro(duration_us), ' s')}</td>
-                            <td class="td-index" title="${escapeString(commit_hash)}">${escapeString(short_hash)}</td>\
+                            <td class="td-index" title="${escapeString(commit_hash ?? '--')}">${escapeString(short_hash)}</td>\
                             <td class="td-index">${city_string}</td>
                             <td class="td-index">${escapeString(carbon_intensity_g)} gCO2/kWh</td>
                             <td class="td-index" title="${carbonTitle(operational_carbon_ug)}">${escapeString(formatCarbonUg(operational_carbon_ug))}</td>
