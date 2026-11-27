@@ -2,7 +2,6 @@
     "common_info": {
         "Branch": "main",
         "Commit": "58c7a5002c684f41f8d7a355f3ede641d8e45ddc",
-        "Filename": "stress/usage_scenario.yml",
         "Repository": "/home/arne/Sites/green-coding/example-applications/",
         "Usage Scenario": "Stress Container One Core 5 Seconds"
     },

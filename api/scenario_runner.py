@@ -11,7 +11,7 @@ import anybadge
 
 from api.object_specifications import Software, JobChange, WatchlistChange, RunChange, ArtifactType
 from api.api_helpers import (CustomORJSONResponse, ORJSONResponseObjKeep, add_phase_stats_statistics,
-                         determine_comparison_case,get_comparison_details,
+                         determine_comparison_case,get_comparison_details, get_common_info,
                          get_phase_stats, get_phase_stats_object, check_run_failed,
                          is_valid_uuid, convert_value, get_timeline_query,
                          get_run_info, get_machine_list, get_artifact, store_artifact,
@@ -594,65 +594,7 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    phase_stats_object['common_info'] = {}
-
-    try:
-        run_info = get_run_info(user, ids[0])
-
-        machine_list = get_machine_list()
-        machines = {machine[0]: machine[1] for machine in machine_list}
-
-        machine = machines[run_info['machine_id']]
-        uri = run_info['uri']
-        usage_scenario = run_info['usage_scenario']['name']
-        branch = run_info['branch']
-        commit = run_info['commit_hash']
-        filename = run_info['filename']
-
-        match case:
-
-            case 'Repeated Run on same Commit Hash' | 'Repeated Run (Two only) on same Commit Hash':
-                # same repo, same usage scenarios, same machines, same branches, same commit hashes
-                phase_stats_object['common_info']['Repository'] = uri
-                phase_stats_object['common_info']['Filename'] = filename
-                phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
-                phase_stats_object['common_info']['Machine'] = machine
-                phase_stats_object['common_info']['Branch'] = branch
-                phase_stats_object['common_info']['Commit'] = commit
-            case 'Usage Scenario':
-                # same repo, diff usage scenarios, same machines, same branches, same commit hashes
-                phase_stats_object['common_info']['Repository'] = uri
-                phase_stats_object['common_info']['Machine'] = machine
-                phase_stats_object['common_info']['Branch'] = branch
-                phase_stats_object['common_info']['Commit'] = commit
-            case 'Machine':
-                # same repo, same usage scenarios, diff machines, same branches, same commit hashes
-                phase_stats_object['common_info']['Repository'] = uri
-                phase_stats_object['common_info']['Filename'] = filename
-                phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
-                phase_stats_object['common_info']['Branch'] = branch
-                phase_stats_object['common_info']['Commit'] = commit
-            case 'Commit':
-                # same repo, same usage scenarios, same machines, diff commit hashes
-                phase_stats_object['common_info']['Repository'] = uri
-                phase_stats_object['common_info']['Filename'] = filename
-                phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
-                phase_stats_object['common_info']['Machine'] = machine
-            case 'Repository':
-                # diff repo, diff usage scenarios, same machine,  same branches, diff/same commits_hashes
-                phase_stats_object['common_info']['Machine'] = machine
-                phase_stats_object['common_info']['Branch'] = branch
-            case 'Branch':
-                # same repo, same usage scenarios, same machines, diff branch
-                phase_stats_object['common_info']['Repository'] = uri
-                phase_stats_object['common_info']['Filename'] = filename
-                phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
-                phase_stats_object['common_info']['Machine'] = machine
-
-    except RuntimeError as err:
-        raise HTTPException(status_code=422, detail=str(err)) from err
-    except HTTPException as err:
-        return ORJSONResponseObjKeep({'success': False, 'data': err.detail}, status_code=err.status_code)
+    phase_stats_object['common_info'] = get_common_info(user, ids, case)
 
     if not force_mode: # force_mode must never store data
         store_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}", orjson.dumps(phase_stats_object)) # pylint: disable=no-member
@@ -956,9 +898,11 @@ async def get_watchlist(user: User = Depends(authenticate)):
                     AND tp.branch = r.branch
                     AND tp.filename = r.filename
                     AND tp.machine_id = r.machine_id
+                    AND tp.usage_scenario_variables = r.usage_scenario_variables
                 ORDER BY r.created_at DESC
                 LIMIT 1
-            ) as "last_run"
+            ) as "last_run",
+            tp.usage_scenario_variables
         FROM watchlist as tp
         LEFT JOIN machines as m ON m.id = tp.machine_id
         WHERE
@@ -1056,7 +1000,7 @@ async def runs_add(software: Software, no_url_check: bool = False, user: User = 
             except RuntimeError as exc:
                 raise HTTPException(status_code=422, detail=utils.filter_sensitive_data(str(exc))) from exc
 
-        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=software.carbon_simulation, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+        Watchlist.insert(name=software.name, email=software.email, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, category_ids=unique_category_ids, carbon_simulation=software.carbon_simulation, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
     job_ids_inserted = []
 

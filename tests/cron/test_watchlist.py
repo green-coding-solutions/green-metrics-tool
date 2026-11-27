@@ -83,6 +83,28 @@ def test_run_schedule_with_category():
     assert jobs[0]['state'] == 'WAITING'
     assert jobs[0]['category_ids'] == watchlist_item_modified['category_ids']
 
+def test_run_schedule_without_email():
+    Watchlist.insert(**WATCHLIST_ITEM)
+    schedule_watchlist_item()
+
+    jobs = get_jobs()
+    assert len(jobs) == 1
+    assert jobs[0]['email'] is None
+
+def test_run_schedule_with_email():
+    watchlist_item_modified = WATCHLIST_ITEM.copy()
+    watchlist_item_modified['email'] = 'watchlist@example.com'
+
+    Watchlist.insert(**watchlist_item_modified)
+    schedule_watchlist_item()
+
+    watchlist_item_db = utils.get_watchlist_item(watchlist_item_modified['repo_url'])
+    assert watchlist_item_db['email'] == 'watchlist@example.com'
+
+    jobs = get_jobs()
+    assert len(jobs) == 1
+    assert jobs[0]['email'] == 'watchlist@example.com'
+
 def test_run_schedule_daily_repeated():
     jobs = get_jobs()
     assert len(jobs) == 0

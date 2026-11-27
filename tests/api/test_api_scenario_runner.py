@@ -11,6 +11,7 @@ from api.api_helpers import MAX_LOG_CHARS
 from lib.db import DB
 from lib import utils
 from lib.job.run import RunJob
+from lib.watchlist import Watchlist
 from lib import metric_importer
 from lib.global_config import GlobalConfig
 from lib.phase_stats import build_and_store_phase_stats
@@ -166,6 +167,17 @@ def test_get_jobs_redacts_url_credentials():
     raw_url = DB().fetch_one('SELECT url FROM jobs WHERE id = %s', params=(job_id,))[0]
     assert raw_url == credentialed_url
 
+def test_get_watchlist_never_returns_email():
+    run_name = 'test_' + utils.randomword(12)
+    email = f"{run_name}@example.com"
+
+    watchlist_id = Watchlist.insert(name=run_name, email=email, image_url='', repo_url='https://github.com/green-coding-solutions/green-metrics-tool', branch='main', filename='usage_scenario.yml', usage_scenario_variables={}, category_ids=None, machine_id=1, user_id=1, schedule_mode='daily', last_marker=None)
+
+    response = requests.get(f"{API_URL}/v1/watchlist", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert watchlist_id in [row[0] for row in response.json()['data']]
+    assert email not in response.text
+
 def test_compare_valid():
     Tests.import_demo_data()
     Tests.flush_redis()
@@ -204,6 +216,7 @@ def test_compare_force_mode_same_style():
 
     # only the hash hash changed, but it will still force the same mode
     data['comparison_details'][0][0]['commit_hash'] = 'test' # we need to overload the test data to make it flexible
+    del data['common_info']['Commit'] # the commits differ now, so they must not be shown as common
 
     assert data['comparison_case'] == 'Usage Scenario'
     assert res_json['data'] == data
@@ -223,6 +236,7 @@ def test_compare_force_mode_different_style():
 
     # only the hash hash changed, but it will still force the same mode
     data['comparison_details'][0][0]['commit_hash'] = 'test'
+    del data['common_info']['Commit'] # the commits differ now, so they must not be shown as common
 
     assert data['comparison_case'] == 'Machine'
     assert res_json['data'] == data
@@ -312,6 +326,42 @@ def test_compare_runs_not_visible_for_user(ids):
     response = requests.get(f"{API_URL}/v1/compare?ids={ids}", headers={'X-Authentication': 'OTHER_USER'}, timeout=15)
     assert response.status_code == 404, Tests.assertion_info('not found', response.text)
     assert response.json()['err'] == 'None of the requested runs exist or you do not have access to them'
+
+RUN_NO_PHASE_STATS = 'af76f822-c042-4bf1-a5aa-5566761ef351' # stress/usage_scenario.yml, same config as RUN_3 and RUN_2
+RUN_DIFFERENT_SCENARIO = '6f07bd8a-ac53-47aa-a9df-17417a72238b' # different/usage_scenario.yml, same config as RUN_1
+OTHER_REPO = "uri = 'https://example.com/other-repo', commit_hash = 'other'"
+
+# Repository and Branch mode allow e.g. two usage scenarios in total, but each group must only have one.
+# Otherwise the runs of one group would be averaged over different configurations, so these must fall back to the table view
+@pytest.mark.parametrize('updates, ids', [
+    ([f"UPDATE runs SET {OTHER_REPO} WHERE id = '{RUN_2}'"], [RUN_3, RUN_4, RUN_2]), # repo A has two variable sets
+    ([f"UPDATE runs SET {OTHER_REPO} WHERE id = '{RUN_2}'"], [RUN_3, RUN_DIFFERENT_SCENARIO, RUN_2]), # repo A has two usage scenarios
+    ([f"UPDATE runs SET branch = 'dev' WHERE id = '{RUN_2}'", f"UPDATE runs SET {OTHER_REPO} WHERE id = '{RUN_1}'"], [RUN_3, RUN_2, RUN_1]), # repo A has two branches
+    ([f"UPDATE runs SET uri = 'https://example.com/fork' WHERE id = '{RUN_2}'", f"UPDATE runs SET commit_hash = 'c2' WHERE id = '{RUN_3}'"], [RUN_NO_PHASE_STATS, RUN_3, RUN_2]), # repo A has two commits, its fork shares one
+    ([f"UPDATE runs SET branch = 'feature' WHERE id = '{RUN_NO_PHASE_STATS}'", f"UPDATE runs SET commit_hash = 'c2' WHERE id = '{RUN_2}'"], [RUN_3, RUN_2, RUN_NO_PHASE_STATS]), # main has two commits, feature shares one
+])
+def test_compare_mixed_configurations_within_group_fall_back_to_table_mode(updates, ids):
+    Tests.import_demo_data()
+    Tests.flush_redis()
+    for update in updates:
+        DB().query(update)
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={','.join(ids)}", timeout=15)
+    assert response.status_code == 409, Tests.assertion_info('fallback to table mode', response.text)
+
+@pytest.mark.parametrize('update, ids, comparison_case, comparison_identifiers', [
+    (f"UPDATE runs SET {OTHER_REPO} WHERE id = '{RUN_1}'", [RUN_3, RUN_2, RUN_1], 'Repository', ['https://example.com/other-repo', '/home/arne/Sites/green-coding/example-applications/']),
+    (f"UPDATE runs SET branch = 'feature', commit_hash = 'c2' WHERE id = '{RUN_NO_PHASE_STATS}'", [RUN_3, RUN_2, RUN_NO_PHASE_STATS], 'Branch', ['feature', 'main']),
+])
+def test_compare_one_configuration_per_group(update, ids, comparison_case, comparison_identifiers):
+    Tests.import_demo_data()
+    Tests.flush_redis()
+    DB().query(update)
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={','.join(ids)}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.json()['data']['comparison_case'] == comparison_case
+    assert response.json()['data']['comparison_identifiers'] == comparison_identifiers
 
 def test_get_insights():
     Tests.import_demo_data()
@@ -515,3 +565,62 @@ def test_get_system_logs_clips_message():
     assert rows[1][5] is True
     assert rows[2][2] == 'b' * MAX_LOG_CHARS
     assert rows[2][5] is False
+
+def test_compare_common_info_only_contains_identical_values():
+    Tests.import_demo_data()
+    Tests.flush_redis()
+
+    # Repository mode allows a different branch per repo. Branch must then not be shown as common
+    DB().query(f"UPDATE runs SET uri = 'https://example.com/other-repo', commit_hash = 'other', branch = 'master' WHERE id = '{RUN_1}'")
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_2},{RUN_1}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    res_json = response.json()
+
+    assert res_json['data']['comparison_case'] == 'Repository'
+    assert res_json['data']['common_info'] == {'Machine': 'Development machine for testing'}
+
+def test_compare_common_info_force_mode():
+    Tests.import_demo_data()
+
+    # force_mode skips all checks. RUN_3 and RUN_1 differ in filename, which must not be shown as common
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}&force_mode=machine_ids", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    res_json = response.json()
+
+    assert res_json['data']['comparison_case'] == 'Machine'
+    assert res_json['data']['common_info'] == {
+        'Repository': '/home/arne/Sites/green-coding/example-applications/',
+        'Usage Scenario': 'Stress Container One Core 5 Seconds',
+        'Branch': 'main',
+        'Commit': '58c7a5002c684f41f8d7a355f3ede641d8e45ddc',
+    }
+
+# Duplicate and non existing IDs are not part of the comparison and must not count towards the amount of runs
+@pytest.mark.parametrize('ids', [
+    f"{RUN_3},{RUN_3},{RUN_2}",
+    f"{RUN_3},{RUN_2},00000000-0000-0000-0000-000000000000",
+])
+def test_compare_two_runs_with_duplicate_or_non_existing_ids(ids):
+    Tests.import_demo_data()
+    Tests.flush_redis()
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={ids}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    res_json = response.json()
+
+    assert res_json['data']['comparison_case'] == 'Repeated Run (Two only) on same Commit Hash'
+    assert sorted(res_json['data']['comparison_identifiers']) == sorted([RUN_3, RUN_2])
+
+def test_compare_ids_mode_with_duplicate_ids():
+    Tests.import_demo_data()
+    Tests.flush_redis()
+
+    DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1},{RUN_1}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    res_json = response.json()
+
+    assert res_json['data']['comparison_case'] == 'IDs'
+    assert res_json['data']['comparison_identifiers'] == [RUN_1, RUN_3]

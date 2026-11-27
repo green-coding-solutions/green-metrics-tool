@@ -121,4 +121,12 @@ def test_hog_add_future():
     future_timestamp = int(time.time() * 1000) + 5000 # ~ 5 seconds in the future depending on API request processing time
     response = requests.post(f"{API_URL}/v2/hog/add", json=make_hog_payload(future_timestamp), timeout=15, headers={'X-Authentication': 'DEFAULT'})
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
-    assert json.loads(response.text)['err'] == f"Power Hog does not accept timestamps in the future. Your timestamp was: {future_timestamp}"
+    err = json.loads(response.text)['err']
+    assert err.startswith(f"Power Hog does not accept timestamps in the future. Your timestamp was: {future_timestamp}. API timestamp was: "), Tests.assertion_info('future timestamp error', err)
+    api_timestamp = int(err.rsplit(' ', 1)[1])
+    assert future_timestamp - 5000 <= api_timestamp < future_timestamp, Tests.assertion_info('API timestamp shortly before supplied timestamp', err)
+
+def test_hog_add_future_within_tolerance():
+    future_timestamp = int(time.time() * 1000) + 500 # 0.5 s in the future is within the 1 s clock skew tolerance
+    response = requests.post(f"{API_URL}/v2/hog/add", json=make_hog_payload(future_timestamp), timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)

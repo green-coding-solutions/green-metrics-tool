@@ -56,7 +56,9 @@ let lastChecked = null;
 
 function handleCheckboxClick(e){
     const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-    if (lastChecked && e.shiftKey) {
+    // lastChecked is detached after a table redraw (paging, sorting). Without this check the range has no
+    // end marker and every checkbox after the clicked one would be selected
+    if (lastChecked && lastChecked.isConnected && e.shiftKey) {
         let inBetween = false;
         checkboxes.forEach(checkbox => {
             if (checkbox === this || checkbox === lastChecked) {

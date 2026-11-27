@@ -75,7 +75,18 @@ def test_carbondb_add_future():
     response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
 
-    assert json.loads(response.text)['err'] == f"CarbonDB does not accept timestamps in the future. Your timestamp was: {energydata_modified['time']}"
+    err = json.loads(response.text)['err']
+    assert err.startswith(f"CarbonDB does not accept timestamps in the future. Your timestamp was: {energydata_modified['time']}. API timestamp was: "), Tests.assertion_info('future timestamp error', err)
+    api_timestamp = int(err.rsplit(' ', 1)[1])
+    assert energydata_modified['time'] - 5*1e6 <= api_timestamp < energydata_modified['time'], Tests.assertion_info('API timestamp shortly before supplied timestamp', err)
+
+
+def test_carbondb_add_future_within_tolerance():
+
+    energydata_modified = ENERGY_DATA.copy()
+    energydata_modified['time'] = int( (time.time_ns()/1e3) + 0.5*1e6) # 0.5 s in the future is within the 1 s clock skew tolerance
+    response = requests.post(f"{API_URL}/v3/carbondb/add", json=energydata_modified, timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
 
 def test_carbondb_add_force_ip():

@@ -150,7 +150,7 @@ const calculateMA = (series, factor) => {
   factor = Math.round(factor)
 
   for (let i = 0, len = series.length; i < len; i++) {
-    if (i < factor) {
+    if (i < factor - 1) { // first full window of factor values ends at index factor - 1
       result.push('-');
       continue;
     }
@@ -356,7 +356,7 @@ const getChartGraphic = (text, top = 'center', left= 'center') => {
 
 function moveRight(e) {
     let el = e.currentTarget.closest(".statistics-chart-card")
-    const next = el.nextSibling;
+    const next = el.nextElementSibling; // nextSibling can be a whitespace text node, which made the move a no-op
     if (!next) return;
     next.after(el)
     window.dispatchEvent(new Event('resize'));
@@ -364,7 +364,7 @@ function moveRight(e) {
 
 function moveToLast(e) {
     let el = e.currentTarget.closest(".statistics-chart-card")
-    const last = el.parentNode.lastChild;
+    const last = el.parentNode.lastElementChild;
     last.after(el)
     window.dispatchEvent(new Event('resize'));
 }
@@ -379,7 +379,7 @@ function moveLeft(e) {
 
 function moveToFirst(e) {
     let el = e.currentTarget.closest(".statistics-chart-card")
-    const first = el.parentNode.childNodes[0];
+    const first = el.parentNode.firstElementChild;
     first.before(el)
     window.dispatchEvent(new Event('resize'));
 }
