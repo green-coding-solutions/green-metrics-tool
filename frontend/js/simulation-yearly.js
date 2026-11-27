@@ -28,7 +28,8 @@ const yearlyState = {
     selectedPhase: null,
     savedRows: [],
     savedTable: null,
-    phaseStats: null
+    phaseStats: null,
+    renderRequestId: 0 // only the latest recalculateAndRender call may render. Year data loads async and can resolve out of order
 };
 
 const queryY = (selector) => document.querySelector(selector);
@@ -135,7 +136,9 @@ const loadYearData = async (year) => {
     return yearlyState.yearlyData[year];
 };
 
-const buildTableRows = (yearData, totalKwh) => {
+// year and number of runs are stored in each row (not shown as columns), so that saving a row records the values
+// the row was calculated with and not the current selection, which can already have changed
+const buildTableRows = (yearData, totalKwh, year) => {
     const rows = [];
     Object.entries(yearData).forEach(([zoneCode, zoneEntry]) => {
         const intensity = zoneEntry?.carbonIntensity?.value;
@@ -153,7 +156,9 @@ const buildTableRows = (yearData, totalKwh) => {
             intensity,
             renewable != null ? renewable : null,
             carbonFree != null ? carbonFree : null,
-            emissions
+            emissions,
+            year,
+            yearlyState.numRuns
         ]);
     });
     return rows;
@@ -225,13 +230,13 @@ const renderTable = (rows) => {
         const rowData = yearlyState.dataTable.row($(this).closest('tr')).data();
         if (!rowData) return;
         addSavedRow({
-            year: yearlyState.selectedYear,
+            year: rowData[6],
             zone: rowData[0],
             country: rowData[1],
             intensity: rowData[2],
             renewable: rowData[3],
             carbonFree: rowData[4],
-            numRuns: yearlyState.numRuns,
+            numRuns: rowData[7],
             emissions: rowData[5]
         });
     });
@@ -330,6 +335,9 @@ const recalculateAndRender = async () => {
     if (yearlyState.selectedYear == null) return;
     if (!yearlyState.selectedMetric) return;
 
+    const requestId = ++yearlyState.renderRequestId;
+    const year = yearlyState.selectedYear;
+
     yearlyState.totalEnergyKwh = computeTotalEnergyKwh(yearlyState.phaseStats, yearlyState.selectedMetric, yearlyState.selectedPhase);
     setTextY('#run-energy', formatEnergy(yearlyState.totalEnergyKwh));
 
@@ -341,10 +349,12 @@ const recalculateAndRender = async () => {
     setLoadFailureVisible(false);
 
     try {
-        const yearData = await loadYearData(yearlyState.selectedYear);
-        const rows = buildTableRows(yearData, yearlyState.totalEnergyKwh);
+        const yearData = await loadYearData(year);
+        if (requestId !== yearlyState.renderRequestId) return; // a newer selection is rendering. Do not overwrite it
+        const rows = buildTableRows(yearData, yearlyState.totalEnergyKwh, year);
         renderTable(rows);
     } catch (err) {
+        if (requestId !== yearlyState.renderRequestId) return;
         setLoadFailureVisible(true, 'Failed to load year data', String(err?.message || err));
         renderTable([]);
     }

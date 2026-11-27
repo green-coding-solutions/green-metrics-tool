@@ -47,7 +47,12 @@ const createTableHeader = (phase, comparison_keys, comparison_case, comparison_a
 
 const getAndShowPhase = () => {
     let shown_phase = '[RUNTIME]'; // default
-    let phase_to_display = decodeURIComponent(window.location.hash).split('#')[1];
+    let phase_to_display = null;
+    try {
+        phase_to_display = decodeURIComponent(window.location.hash).split('#')[1];
+    } catch (err) { // malformed percent-encoding (e.g. #100%) must not stop the rendering. The default phase is shown then
+        console.log('Could not decode phase from URL hash', err);
+    }
     if (phase_to_display != null) {
         const allowed_phases = ['BASELINE', 'INSTALLATION', 'BOOT', 'IDLE', 'RUNTIME', 'REMOVE'];
         phase_to_display = phase_to_display.split('__');
@@ -165,6 +170,25 @@ const buildPhaseTabs = (phase_stats_object) => {
         }
     });
 
+}
+
+// The selected Power / Energy / CO2 tab of the key metrics is stored in localStorage (see PhaseMetrics in metric-boxes.js).
+// Phases that were rendered before must switch to it when they are shown again
+const bindMetricTabSyncOnPhaseChange = () => {
+    document.querySelectorAll('.ui.steps.phases .step, #runtime-sub-phases .item').forEach(node => { node.addEventListener('click', () => {
+        const activeTab = localStorage.getItem('activeMetricTab');
+        const tabName = node.getAttribute('data-tab');
+        const segment = document.querySelector('.ui.attached.tab.segment[data-tab="' + tabName + '"]');
+
+        if (!segment) return;
+
+        const tabs = $(segment).find('.ui.pointing.menu .item');
+
+        if (activeTab) {
+            tabs.tab('change tab', activeTab);
+        }
+      });
+    });
 }
 
 /*
@@ -299,7 +323,7 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]') => {
             if(phase_stats_object.comparison_case != null) { // compare charts will display for everything apart stats.html
                 displayCompareChart(
                     phase,
-                    `${getPretty(metric_name, 'clean_name')} via ${getPretty(metric_name, 'source')} - ${detail_name} <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`,
+                    `${escapeString(getPretty(metric_name, 'clean_name'))} via ${escapeString(getPretty(metric_name, 'source'))} - ${escapeString(detail_name)} <i data-tooltip="${escapeString(getPretty(metric_name, 'explanation'))}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`,
                     compare_chart_unit,
                     compare_chart_labels,
                     compare_chart_data,

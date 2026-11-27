@@ -40,6 +40,7 @@
         $('#token-details-message').hide();
         localStorage.removeItem('authentication_token');
         localStorage.removeItem('user_name');
+        clearCachedMachines();
         $('#logout-successful-message').show();
         setTimeout(() => {
           window.location.reload();
@@ -63,6 +64,7 @@
             localStorage.setItem('authentication_token', authentication_token);
             localStorage.setItem('user_name', user_data.data._name);
             localStorage.setItem('show_other_users', 'false'); // default setting on new login different from DEFAULT user
+            clearCachedMachines();
 
             $('#login-successful-message').show();
             $('#token-details-message').show();

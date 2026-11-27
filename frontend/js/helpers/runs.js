@@ -551,7 +551,9 @@ const getRunsTable = async (el, query_string, include_uri=true, include_button=t
         document.querySelectorAll('input.filter-option').forEach((el) => {
             el.value = '';
         })
-        getRunsTable($('#runs-and-repos-table tbody table'), '')
+        // Clear only resets the text filters. show_archived and show_other_users are kept, as their radios and the
+        // stored values in localStorage stay set. Sending none of them would show the API defaults instead
+        getRunsTable($('#runs-and-repos-table tbody table'), getFilterQueryStringFromInputs())
         $('.ui.accordion').accordion('close', 0); // close all accordions
         document.querySelector('#filters-active').classList.add('hidden');
     });
