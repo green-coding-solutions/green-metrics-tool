@@ -595,3 +595,32 @@ def test_compare_common_info_force_mode():
         'Branch': 'main',
         'Commit': '58c7a5002c684f41f8d7a355f3ede641d8e45ddc',
     }
+
+# Duplicate and non existing IDs are not part of the comparison and must not count towards the amount of runs
+@pytest.mark.parametrize('ids', [
+    f"{RUN_3},{RUN_3},{RUN_2}",
+    f"{RUN_3},{RUN_2},00000000-0000-0000-0000-000000000000",
+])
+def test_compare_two_runs_with_duplicate_or_non_existing_ids(ids):
+    Tests.import_demo_data()
+    Tests.flush_redis()
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={ids}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    res_json = response.json()
+
+    assert res_json['data']['comparison_case'] == 'Repeated Run (Two only) on same Commit Hash'
+    assert sorted(res_json['data']['comparison_identifiers']) == sorted([RUN_3, RUN_2])
+
+def test_compare_ids_mode_with_duplicate_ids():
+    Tests.import_demo_data()
+    Tests.flush_redis()
+
+    DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1},{RUN_1}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    res_json = response.json()
+
+    assert res_json['data']['comparison_case'] == 'IDs'
+    assert res_json['data']['comparison_identifiers'] == [RUN_1, RUN_3]

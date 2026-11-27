@@ -351,12 +351,15 @@ def get_comparison_details(user, ids, comparison_db_key):
 def determine_comparison_case(user, ids, force_mode=None):
 
     query = '''
-            WITH uniques as (
-                SELECT uri, filename, machine_id, commit_hash, branch, usage_scenario_variables
+            WITH visible_runs as (
+                SELECT id, uri, filename, machine_id, commit_hash, branch, usage_scenario_variables
                 FROM runs
                 WHERE
                     (TRUE = %s OR user_id = ANY(%s::int[]) OR public = TRUE)
                     AND id = ANY(%s::uuid[])
+            ), uniques as (
+                SELECT uri, filename, machine_id, commit_hash, branch, usage_scenario_variables
+                FROM visible_runs
                 GROUP BY uri, filename, usage_scenario_variables, machine_id, commit_hash, branch
             ), per_repo as (
                 SELECT
@@ -374,7 +377,8 @@ def determine_comparison_case(user, ids, force_mode=None):
                 COUNT(DISTINCT commit_hash ), COUNT(DISTINCT branch), COUNT(DISTINCT usage_scenario_variables),
                 (SELECT MAX(usage_scenarios) FROM per_repo), (SELECT MAX(commit_hashes) FROM per_repo),
                 (SELECT MAX(branches) FROM per_repo), (SELECT MAX(usage_scenario_variables) FROM per_repo),
-                (SELECT MAX(commit_hashes) FROM per_branch)
+                (SELECT MAX(commit_hashes) FROM per_branch),
+                (SELECT COUNT(*) FROM visible_runs)
             FROM uniques
     '''
     params = (user.is_super_user(), user.visible_users(), ids)
@@ -384,7 +388,9 @@ def determine_comparison_case(user, ids, force_mode=None):
 
     [repos, usage_scenarios, machine_ids, commit_hashes, branches, usage_scenario_variables,
      max_usage_scenarios_per_repo, max_commit_hashes_per_repo, max_branches_per_repo, max_usage_scenario_variables_per_repo,
-     max_commit_hashes_per_branch] = data
+     max_commit_hashes_per_branch, run_count] = data
+    # run_count must be used instead of len(ids), as ids can contain duplicates as well as runs that do not exist or are
+    # not visible to the user. These are not part of the comparison
 
     # The aggregate query always returns one row. If no requested run exists or is visible, all COUNTs are 0
     # (uri is NOT NULL, so repos == 0 means no rows at all). Without this check auto mode would fall through to the
@@ -516,7 +522,7 @@ def determine_comparison_case(user, ids, force_mode=None):
         # reason being is that two runs will shown with rel stddev of the population
         # which is not what we want.
         # we want actual difference in A vs. B
-        if len(ids) == 2:
+        if run_count == 2:
             return ('Repeated Run (Two only) on same Commit Hash', 'id')
 
         if usage_scenario_variables == 1:
@@ -528,7 +534,7 @@ def determine_comparison_case(user, ids, force_mode=None):
         # Although the check appears also couple of lines above we need it here again
         # Reason being is that two scenarios with two repos and two machines for instance will get into here
         # We then want to show this fallback
-        if len(ids) == 2:
+        if run_count == 2:
             ### DUO Case ####
             # In case we only encounter two IDs we can try to short circuit.
             # Before we would fail here. However for two scenarios we can ALWAYS
