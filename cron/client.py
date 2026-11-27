@@ -154,7 +154,7 @@ def do_maintenance():
     if ps.returncode != 0:
         set_status('maintenance_error')
         error_helpers.log_error('Cluster maintenance failed', stdout=ps.stdout, machine=config['machine']['description'])
-        time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
+        return False # caller handles back-off and retry
 
     set_status('maintenance_end', data=ps.stdout)
 
@@ -270,7 +270,11 @@ if __name__ == '__main__':
 
             # run forced maintenance with maintenance every 24 hours
             if not args.testing and last_24h_maintenance < (time.time() - 43200): # every 12 hours
-                if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
+                maintenance_result = do_maintenance()
+                if maintenance_result is False:
+                    time.sleep(600)
+                    continue # retry maintenance. Do not run jobs on a machine with failed maintenance
+                if maintenance_result: # returns True if packages where installed and then we must do revalidation and reboot
                     DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
                     systemctl_change_state('reboot')
                 last_24h_maintenance = time.time()
@@ -354,10 +358,14 @@ if __name__ == '__main__':
                 finally:
                     # run periodic maintenance between every run, but not if we are shutting down anyway
                     if not args.testing and not isinstance(sys.exc_info()[1], ClientEnd):
-                        if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
-                            DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
-                            systemctl_change_state('reboot')
-                        last_24h_maintenance = time.time()
+                        maintenance_result = do_maintenance()
+                        if maintenance_result is False:
+                            last_24h_maintenance = 0 # forces retry (after 10 min sleep) at top of the loop before next job is picked
+                        else:
+                            if maintenance_result: # returns True if packages where installed and then we must do revalidation and reboot
+                                DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
+                                systemctl_change_state('reboot')
+                            last_24h_maintenance = time.time()
 
             else:
                 set_status('job_no')
