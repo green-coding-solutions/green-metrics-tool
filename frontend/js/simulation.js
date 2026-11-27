@@ -132,6 +132,7 @@ const updateShiftButtonsAvailability = () => {
         && simulationState.selectedMetric
         && simulationState.providerHistory
         && !simulationState.shiftInProgress
+        && !getMixedUnits(simulationState.measurements, simulationState.selectedMetric)
     );
     setShiftButtonsDisabled(!ready);
     updateBestRuntimeAvailability();
@@ -604,23 +605,31 @@ const sumSeriesByTime = (seriesList, getKey, getValue, setValue, compare) => {
     };
 };
 
+// The values of the details of a metric are added up. This is only valid if they all share one unit
+// Returns the first two differing units if the metric has mixed units, otherwise null
+const getMixedUnits = (measurements, metric) => {
+    if (!Array.isArray(measurements) || !metric) return null;
+    let firstUnit = null;
+    for (const entry of measurements) {
+        if (entry?.[2] !== metric) continue;
+        if (firstUnit == null) firstUnit = entry[4];
+        else if (entry[4] !== firstUnit) return [firstUnit, entry[4]];
+    }
+    return null;
+};
+
+const getMixedUnitsMessage = (metric, mixedUnits) => `Metric ${metric} has mixed units (${mixedUnits[0]} and ${mixedUnits[1]}). Cannot add up its values`;
+
 const buildEnergyData = (measurements, metric) => {
     if (!Array.isArray(measurements) || measurements.length === 0) return null;
     if (!metric) return null;
+    if (getMixedUnits(measurements, metric)) return null;
 
     const series = {};
     let unit = null;
-    let raw_unit = null;
 
     measurements.forEach((entry) => {
         if (entry?.[2] !== metric) return;
-        // values of the details are added up below. This is only valid if they all share one unit
-        if (raw_unit == null) raw_unit = entry[4];
-        else if (entry[4] !== raw_unit) {
-            const message = `Metric ${metric} has mixed units (${raw_unit} and ${entry[4]}). Cannot add up its values`;
-            showNotification('Mixed units in metric', message);
-            throw new Error(message);
-        }
         const detail = entry?.[0];
         const timeMs = entry[1] / 1000;
         let value = entry[3];
@@ -657,6 +666,7 @@ const buildEnergyData = (measurements, metric) => {
 const buildEnergySeriesRaw = (measurements, metric) => {
     if (!Array.isArray(measurements) || measurements.length === 0) return null;
     if (!metric) return null;
+    if (getMixedUnits(measurements, metric)) return null;
 
     const series = {};
 
@@ -1082,6 +1092,12 @@ const updateMetricMiniChart = (metric, energyData) => {
         return;
     }
 
+    const mixedUnits = getMixedUnits(simulationState.measurements, metric);
+    if (mixedUnits) {
+        resetMiniChart('metricMiniChart', '#metric-mini-chart', getMixedUnitsMessage(metric, mixedUnits));
+        return;
+    }
+
     const resolvedEnergyData = energyData || buildEnergyData(simulationState.measurements, metric);
     const series = resolvedEnergyData?.primarySeries?.data;
     if (!resolvedEnergyData || !Array.isArray(series) || series.length === 0) {
@@ -1105,6 +1121,15 @@ const updateSimulationChart = () => {
         setCarbonSummary(null, 'No metric data available.');
         setAlignButtonVisible(false);
         setChartLoadFailureVisible(true, 'No metric data', NO_METRIC_DATA_DETAIL);
+        return;
+    }
+
+    const mixedUnits = getMixedUnits(simulationState.measurements, metric);
+    if (mixedUnits) {
+        resetSimulationChart();
+        setCarbonSummary(null, 'Metric cannot be used.');
+        setAlignButtonVisible(false);
+        setChartLoadFailureVisible(true, 'Mixed units in metric', getMixedUnitsMessage(metric, mixedUnits));
         return;
     }
 
@@ -1324,6 +1349,10 @@ const populateMetrics = (metrics) => {
                 simulationState.selectedMetric = value;
                 simulationState.metricTimeOffsetMs = 0;
                 resetBestRuntimeSummary();
+                const mixedUnits = getMixedUnits(simulationState.measurements, value);
+                if (mixedUnits) {
+                    showNotification('Mixed units in metric', getMixedUnitsMessage(value, mixedUnits));
+                }
                 updateMetricMiniChart(value);
                 updateSimulationChart();
                 updateShiftButtonsAvailability();
