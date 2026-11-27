@@ -325,6 +325,42 @@ def test_compare_runs_not_visible_for_user(ids):
     assert response.status_code == 404, Tests.assertion_info('not found', response.text)
     assert response.json()['err'] == 'None of the requested runs exist or you do not have access to them'
 
+RUN_NO_PHASE_STATS = 'af76f822-c042-4bf1-a5aa-5566761ef351' # stress/usage_scenario.yml, same config as RUN_3 and RUN_2
+RUN_DIFFERENT_SCENARIO = '6f07bd8a-ac53-47aa-a9df-17417a72238b' # different/usage_scenario.yml, same config as RUN_1
+OTHER_REPO = "uri = 'https://example.com/other-repo', commit_hash = 'other'"
+
+# Repository and Branch mode allow e.g. two usage scenarios in total, but each group must only have one.
+# Otherwise the runs of one group would be averaged over different configurations, so these must fall back to the table view
+@pytest.mark.parametrize('updates, ids', [
+    ([f"UPDATE runs SET {OTHER_REPO} WHERE id = '{RUN_2}'"], [RUN_3, RUN_4, RUN_2]), # repo A has two variable sets
+    ([f"UPDATE runs SET {OTHER_REPO} WHERE id = '{RUN_2}'"], [RUN_3, RUN_DIFFERENT_SCENARIO, RUN_2]), # repo A has two usage scenarios
+    ([f"UPDATE runs SET branch = 'dev' WHERE id = '{RUN_2}'", f"UPDATE runs SET {OTHER_REPO} WHERE id = '{RUN_1}'"], [RUN_3, RUN_2, RUN_1]), # repo A has two branches
+    ([f"UPDATE runs SET uri = 'https://example.com/fork' WHERE id = '{RUN_2}'", f"UPDATE runs SET commit_hash = 'c2' WHERE id = '{RUN_3}'"], [RUN_NO_PHASE_STATS, RUN_3, RUN_2]), # repo A has two commits, its fork shares one
+    ([f"UPDATE runs SET branch = 'feature' WHERE id = '{RUN_NO_PHASE_STATS}'", f"UPDATE runs SET commit_hash = 'c2' WHERE id = '{RUN_2}'"], [RUN_3, RUN_2, RUN_NO_PHASE_STATS]), # main has two commits, feature shares one
+])
+def test_compare_mixed_configurations_within_group_fall_back_to_table_mode(updates, ids):
+    Tests.import_demo_data()
+    Tests.flush_redis()
+    for update in updates:
+        DB().query(update)
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={','.join(ids)}", timeout=15)
+    assert response.status_code == 409, Tests.assertion_info('fallback to table mode', response.text)
+
+@pytest.mark.parametrize('update, ids, comparison_case, comparison_identifiers', [
+    (f"UPDATE runs SET {OTHER_REPO} WHERE id = '{RUN_1}'", [RUN_3, RUN_2, RUN_1], 'Repository', ['https://example.com/other-repo', '/home/arne/Sites/green-coding/example-applications/']),
+    (f"UPDATE runs SET branch = 'feature', commit_hash = 'c2' WHERE id = '{RUN_NO_PHASE_STATS}'", [RUN_3, RUN_2, RUN_NO_PHASE_STATS], 'Branch', ['feature', 'main']),
+])
+def test_compare_one_configuration_per_group(update, ids, comparison_case, comparison_identifiers):
+    Tests.import_demo_data()
+    Tests.flush_redis()
+    DB().query(update)
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={','.join(ids)}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.json()['data']['comparison_case'] == comparison_case
+    assert response.json()['data']['comparison_identifiers'] == comparison_identifiers
+
 def test_get_insights():
     Tests.import_demo_data()
 
