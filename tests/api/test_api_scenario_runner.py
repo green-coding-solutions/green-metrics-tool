@@ -11,6 +11,7 @@ from api.api_helpers import MAX_LOG_CHARS
 from lib.db import DB
 from lib import utils
 from lib.job.run import RunJob
+from lib.watchlist import Watchlist
 from lib import metric_importer
 from lib.global_config import GlobalConfig
 from lib.phase_stats import build_and_store_phase_stats
@@ -165,6 +166,17 @@ def test_get_jobs_redacts_url_credentials():
     # the DB copy must stay usable so the cluster worker can actually clone the repo later
     raw_url = DB().fetch_one('SELECT url FROM jobs WHERE id = %s', params=(job_id,))[0]
     assert raw_url == credentialed_url
+
+def test_get_watchlist_never_returns_email():
+    run_name = 'test_' + utils.randomword(12)
+    email = f"{run_name}@example.com"
+
+    watchlist_id = Watchlist.insert(name=run_name, email=email, image_url='', repo_url='https://github.com/green-coding-solutions/green-metrics-tool', branch='main', filename='usage_scenario.yml', usage_scenario_variables={}, category_ids=None, machine_id=1, user_id=1, schedule_mode='daily', last_marker=None)
+
+    response = requests.get(f"{API_URL}/v1/watchlist", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert watchlist_id in [row[0] for row in response.json()['data']]
+    assert email not in response.text
 
 def test_compare_valid():
     Tests.import_demo_data()
