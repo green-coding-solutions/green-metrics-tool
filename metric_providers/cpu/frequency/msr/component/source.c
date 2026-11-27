@@ -191,7 +191,7 @@ static void measure_freq(void) {
             double freq_hz = base_ghz * ratio * 1e9;
 
             struct timeval now;
-            get_adjusted_time(&now, &offset);
+            get_time(&now);
 
             uint64_t ts =
                 (uint64_t)now.tv_sec * 1000000ULL +
@@ -255,8 +255,6 @@ int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
 
     detect_cores();
-
-    get_time_offset(&offset);
 
     if (test_flag) {
         return test_msr();

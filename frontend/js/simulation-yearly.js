@@ -102,24 +102,23 @@ const getDefaultMetric = (metrics) => {
 const getPhaseEnergyEntry = (phaseStats, phaseName, metric) => {
     const metricData = phaseStats?.data?.[phaseName]?.data?.[metric];
     if (!metricData) return null;
-    const detailEntries = metricData.data?.['[MACHINE]']?.data
-        || Object.values(metricData.data || {})[0]?.data;
-    if (!detailEntries) return null;
-    const runEntry = Object.values(detailEntries)[0];
-    if (!runEntry || runEntry.mean == null) return null;
-    return { value: runEntry.mean, unit: metricData.unit };
+    // [MACHINE] is already the total. Otherwise all details (e.g. RAPL Package_0 and Package_1) together form the energy
+    const details = metricData.data?.['[MACHINE]'] != null
+        ? [metricData.data['[MACHINE]']]
+        : Object.values(metricData.data || {});
+    const means = details
+        .map((detail) => Object.values(detail?.data || {})[0]?.mean)
+        .filter((mean) => mean != null);
+    if (means.length === 0) return null;
+    return { value: means.reduce((sum, mean) => sum + mean, 0), unit: metricData.unit };
 };
 
 const computeTotalEnergyKwh = (phaseStats, metric, phaseName) => {
     if (!phaseStats || !metric || !phaseName) return null;
     const entry = getPhaseEnergyEntry(phaseStats, phaseName, metric);
     if (!entry) return null;
-    let energyKwh = entry.value;
-    let energyUnit = entry.unit === '*' && typeof metric === 'string' && metric.includes('energy') ? 'uJ' : entry.unit;
-    for (let i = 0; i < 2 && energyUnit !== 'kWh'; i++) {
-        [energyKwh, energyUnit] = convertValue(energyKwh, energyUnit);
-    }
-    return energyUnit === 'kWh' ? energyKwh : null;
+    const energyUnit = entry.unit === '*' && typeof metric === 'string' && metric.includes('energy') ? 'uJ' : entry.unit;
+    return convertEnergyToKwh(entry.value, energyUnit);
 };
 
 const formatEnergy = (kwh) => {

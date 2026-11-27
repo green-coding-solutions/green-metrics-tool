@@ -1,3 +1,4 @@
+"use strict";
 let select_diff_buffer = [];
 
 const addToDiffSelection = (node) => {
@@ -28,20 +29,23 @@ const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time'
                     return false;
                 }
 
-                const commit_link = getRepoRefUrl(comparison_details[params.seriesIndex][params.dataIndex].repo, 'commit');
-                const commit_hash = comparison_details[params.seriesIndex][params.dataIndex].commit_hash;
+                const detail = comparison_details[params.seriesIndex][params.dataIndex];
+                const run_id = escapeString(detail.run_id);
+                const gmt_hash = escapeString(detail.gmt_hash);
+                const commit_link = getRepoRefUrl(detail.repo, 'commit');
+                const commit_hash = escapeString(detail.commit_hash);
                 const commit_hash_link = commit_link
-                    ? `<a href="${escapeString(commit_link + commit_hash)}" target="_blank">${commit_hash}</a>`
+                    ? `<a href="${escapeString(commit_link + detail.commit_hash)}" target="_blank">${commit_hash}</a>`
                     : commit_hash;
-                return `<strong>${comparison_details[params.seriesIndex][params.dataIndex].name}</strong><br>
-                        run_id: <a href="/stats.html?id=${comparison_details[params.seriesIndex][params.dataIndex].run_id}"  target="_blank">${comparison_details[params.seriesIndex][params.dataIndex].run_id}</a><br>
-                        date: ${comparison_details[params.seriesIndex][params.dataIndex].created_at}<br>
+                return `<strong>${escapeString(detail.name)}</strong><br>
+                        run_id: <a href="/stats.html?id=${run_id}"  target="_blank">${run_id}</a><br>
+                        date: ${escapeString(detail.created_at)}<br>
                         value: ${numberFormatter.format(params.value)}<br>
-                        commit_timestamp: ${comparison_details[params.seriesIndex][params.dataIndex].commit_timestamp}<br>
+                        commit_timestamp: ${escapeString(detail.commit_timestamp)}<br>
                         commit_hash: ${commit_hash_link}<br>
-                        gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${comparison_details[params.seriesIndex][params.dataIndex].gmt_hash}" target="_blank">${comparison_details[params.seriesIndex][params.dataIndex].gmt_hash}</a><br>
+                        gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${gmt_hash}" target="_blank">${gmt_hash}</a><br>
                         <br>
-                        👉 <a href="" class="select-diff-run" onClick="return addToDiffSelection(this);" data-run-id="${comparison_details[params.seriesIndex][params.dataIndex].run_id}" target="_blank">Diff with ... (?)</a>
+                        👉 <a href="" class="select-diff-run" onClick="return addToDiffSelection(this);" data-run-id="${run_id}" target="_blank">Diff with ... (?)</a>
                         `;
             },
         },
@@ -146,7 +150,7 @@ const calculateMA = (series, factor) => {
   factor = Math.round(factor)
 
   for (let i = 0, len = series.length; i < len; i++) {
-    if (i < factor) {
+    if (i < factor - 1) { // first full window of factor values ends at index factor - 1
       result.push('-');
       continue;
     }
@@ -196,7 +200,7 @@ const getLineBarChartOptions = (legend, labels, series, x_axis_name=null, y_axis
                 },
                 data: [
                     [
-                        { yAxis: mean + stddev, name: `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `(${(stddev/mean * 100).toFixed(2)} %)` : 'N/A'}} %)`},
+                        { yAxis: mean + stddev, name: `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `${(stddev/mean * 100).toFixed(2)} %` : 'N/A'})`},
                         { yAxis: mean - stddev},
                     ]
 
@@ -249,7 +253,7 @@ const getLineBarChartOptions = (legend, labels, series, x_axis_name=null, y_axis
         }
     };
     if (mark_area != null) {
-        options['series']['markArea'] = {
+        options['series'][0]['markArea'] = { // series is an array. markArea must be set on a series object
             data: [
                 [
                     { name: mark_area[0].name, yAxis: mark_area[0].top }, // a name in one item is apprently enough ...
@@ -303,7 +307,7 @@ const getPieChartOptions = (title, data) => {
 }
 
 const getChartGraphic = (text, top = 'center', left= 'center') => {
-    return graphic = {
+    return {
         type: 'group',
         top: top,
         left: left,
@@ -352,7 +356,7 @@ const getChartGraphic = (text, top = 'center', left= 'center') => {
 
 function moveRight(e) {
     let el = e.currentTarget.closest(".statistics-chart-card")
-    const next = el.nextSibling;
+    const next = el.nextElementSibling; // nextSibling can be a whitespace text node, which made the move a no-op
     if (!next) return;
     next.after(el)
     window.dispatchEvent(new Event('resize'));
@@ -360,7 +364,7 @@ function moveRight(e) {
 
 function moveToLast(e) {
     let el = e.currentTarget.closest(".statistics-chart-card")
-    const last = el.parentNode.lastChild;
+    const last = el.parentNode.lastElementChild;
     last.after(el)
     window.dispatchEvent(new Event('resize'));
 }
@@ -375,7 +379,7 @@ function moveLeft(e) {
 
 function moveToFirst(e) {
     let el = e.currentTarget.closest(".statistics-chart-card")
-    const first = el.parentNode.childNodes[0];
+    const first = el.parentNode.firstElementChild;
     first.before(el)
     window.dispatchEvent(new Event('resize'));
 }

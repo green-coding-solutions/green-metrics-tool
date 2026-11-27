@@ -6,7 +6,7 @@ description: Docker args valid test
 services:
   test:
     image: alpine
-    entrypoint: tail -f /dev/null
+    entrypoint: sleep infinity
     docker-run-args:
       - --label test=true
 

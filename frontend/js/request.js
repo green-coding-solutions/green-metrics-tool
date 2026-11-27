@@ -1,36 +1,37 @@
 "use strict";
 const populateFieldsFromURL = () => {
     const urlParams = new URLSearchParams(window.location.search);
+    // no escaping needed. Setting .value does not interpret HTML and escaping would alter the submitted values
 
     if (urlParams.has('name')) {
-        document.querySelector('input[name="name"]').value = escapeString(urlParams.get('name'));
+        document.querySelector('input[name="name"]').value = urlParams.get('name');
     }
     if (urlParams.has('email')) {
-        document.querySelector('input[name="email"]').value = escapeString(urlParams.get('email'));
+        document.querySelector('input[name="email"]').value = urlParams.get('email');
     }
     if (urlParams.has('url')) {
-        document.querySelector('input[name="repo_url"]').value = escapeString(urlParams.get('url'));
+        document.querySelector('input[name="repo_url"]').value = urlParams.get('url');
     }
     if (urlParams.has('repo_url')) { // precedence
-        document.querySelector('input[name="repo_url"]').value = escapeString(urlParams.get('repo_url'));
+        document.querySelector('input[name="repo_url"]').value = urlParams.get('repo_url');
     }
     if (urlParams.has('filename')) {
-        document.querySelector('input[name="filename"]').value = escapeString(urlParams.get('filename'));
+        document.querySelector('input[name="filename"]').value = urlParams.get('filename');
     }
     if (urlParams.has('branch')) {
-        document.querySelector('input[name="branch"]').value = escapeString(urlParams.get('branch'));
+        document.querySelector('input[name="branch"]').value = urlParams.get('branch');
     }
     if (urlParams.has('commit_hash')) {
-        document.querySelector('input[name="commit_hash"]').value = escapeString(urlParams.get('commit_hash'));
+        document.querySelector('input[name="commit_hash"]').value = urlParams.get('commit_hash');
     }
     if (urlParams.has('machine_id')) {
-        document.querySelector('select[name="machine_id"]').value = escapeString(urlParams.get('machine_id'));
+        document.querySelector('select[name="machine_id"]').value = urlParams.get('machine_id');
     }
     if (urlParams.has('carbon_simulation')) {
-        document.querySelector('input[name="carbon_simulation"]').value = escapeString(urlParams.get('carbon_simulation'));
+        document.querySelector('input[name="carbon_simulation"]').value = urlParams.get('carbon_simulation');
     }
     if (urlParams.has('schedule_mode')) {
-        document.querySelector('select[name="schedule_mode"]').value = escapeString(urlParams.get('schedule_mode'));
+        document.querySelector('select[name="schedule_mode"]').value = urlParams.get('schedule_mode');
     }
     const usageScenarioVariables = {};
     for (const [key, value] of urlParams.entries()) {
@@ -183,6 +184,7 @@ const updateRemoveButtonsVisibility = () => {
             if (event.submitter?.id !== 'submit-keep-values') {
                 form.reset()
                 document.getElementById('variables-container').innerHTML = '';
+                addVariableField() // same state as on page load: one empty row
             }
             showNotification('Success', 'Save successful. Check your mail in 10-15 minutes', 'success');
         } catch (err) {

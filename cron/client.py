@@ -21,6 +21,7 @@ from lib import validate
 from lib.temperature import get_temperature
 from lib import error_helpers
 from lib import utils
+from lib.process_isolation import run_isolated
 from lib.configuration_check_error import ConfigurationCheckError, Status, TemperatureException
 
 STATUS_LIST = (
@@ -153,7 +154,7 @@ def do_maintenance():
     if ps.returncode != 0:
         set_status('maintenance_error')
         error_helpers.log_error('Cluster maintenance failed', stdout=ps.stdout, machine=config['machine']['description'])
-        time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
+        return False # caller handles back-off and retry
 
     set_status('maintenance_end', data=ps.stdout)
 
@@ -170,7 +171,9 @@ def do_measurement_control():
     cwl = config['cluster']['client']['control_workload']
 
     set_status('measurement_control_start')
-    validate.run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
+    # run in child process so that memory used by the measurement is handed back to the OS afterwards
+    # and does not inflate the GMT Overhead of all following measurements. See lib/process_isolation.py
+    run_isolated(validate.run_workload, cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
     set_status('measurement_control_end')
 
     stddev_data = validate.get_workload_stddev(cwl['uri'], cwl['filename'], cwl['branch'], config['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
@@ -267,7 +270,11 @@ if __name__ == '__main__':
 
             # run forced maintenance with maintenance every 24 hours
             if not args.testing and last_24h_maintenance < (time.time() - 43200): # every 12 hours
-                if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
+                maintenance_result = do_maintenance()
+                if maintenance_result is False:
+                    time.sleep(600)
+                    continue # retry maintenance. Do not run jobs on a machine with failed maintenance
+                if maintenance_result: # returns True if packages where installed and then we must do revalidation and reboot
                     DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
                     systemctl_change_state('reboot')
                 last_24h_maintenance = time.time()
@@ -294,7 +301,13 @@ if __name__ == '__main__':
             if job:
                 set_status('job_start', run_id=job._run_id)
                 try:
-                    job.process()
+                    try:
+                        # run in child process so that memory used by the measurement, its post-processing and the
+                        # optimization reporters is handed back to the OS afterwards and does not inflate the
+                        # GMT Overhead of all following measurements. See lib/process_isolation.py
+                        run_isolated(job.process)
+                    finally:
+                        job.load_run_id() # run_id was only set on the job object in the child process
                     if temperature_cooldown_time > 0:
                         DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(temperature_cooldown_time, config['machine']['id']))
                     temperature_errors = 0
@@ -345,10 +358,14 @@ if __name__ == '__main__':
                 finally:
                     # run periodic maintenance between every run, but not if we are shutting down anyway
                     if not args.testing and not isinstance(sys.exc_info()[1], ClientEnd):
-                        if do_maintenance(): # returns True if packages where installed and then we must do revalidation and reboot
-                            DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
-                            systemctl_change_state('reboot')
-                        last_24h_maintenance = time.time()
+                        maintenance_result = do_maintenance()
+                        if maintenance_result is False:
+                            last_24h_maintenance = 0 # forces retry (after 10 min sleep) at top of the loop before next job is picked
+                        else:
+                            if maintenance_result: # returns True if packages where installed and then we must do revalidation and reboot
+                                DB().query('UPDATE machines SET needs_revalidation = true WHERE id = %s', params=(config['machine']['id'],))
+                                systemctl_change_state('reboot')
+                            last_24h_maintenance = time.time()
 
             else:
                 set_status('job_no')
@@ -413,4 +430,4 @@ if __name__ == '__main__':
         )
 
     finally:
-        DB().shutdown()
+        DB.shutdown_if_initialized()

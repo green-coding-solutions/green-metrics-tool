@@ -8,7 +8,7 @@ const SIMULATION_CHART_COLORS = {
     provider: '#6ea9c9',
     emission: '#5c9d6e'
 };
-const DEFAULT_PROVIDER_HISTORY_FALLBACK_HALF_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
+const DEFAULT_PROVIDER_HISTORY_PADDING_MS = 30 * 60 * 1000; // 30 minutes before the start and after the end of the run
 const PROVIDER_HISTORY_PAST_HOURS = 12;
 const PROVIDER_HISTORY_FUTURE_HOURS = 12;
 const METRIC_SHIFT_STEP_MS = 5 * 60 * 1000; // 5 minutes
@@ -132,6 +132,7 @@ const updateShiftButtonsAvailability = () => {
         && simulationState.selectedMetric
         && simulationState.providerHistory
         && !simulationState.shiftInProgress
+        && !getMixedUnits(simulationState.measurements, simulationState.selectedMetric)
     );
     setShiftButtonsDisabled(!ready);
     updateBestRuntimeAvailability();
@@ -155,12 +156,14 @@ const parseLocalDatetimeInputValue = (value) => {
     return Number.isNaN(timeMs) ? null : timeMs;
 };
 
+// The range must cover the whole run and not only its start. Energy after the end of the carbon data
+// cannot be matched and would be missing from the emissions total
 const getDefaultProviderHistoryRangeMs = () => {
-    const anchorMs = simulationState.runTimes?.startMs ?? Date.now();
-    const halfWindowMs = DEFAULT_PROVIDER_HISTORY_FALLBACK_HALF_WINDOW_MS;
+    const runStartMs = simulationState.runTimes?.startMs ?? Date.now();
+    const runEndMs = simulationState.runTimes?.endMs ?? runStartMs;
     return {
-        startMs: anchorMs - halfWindowMs,
-        endMs: anchorMs + halfWindowMs
+        startMs: runStartMs - DEFAULT_PROVIDER_HISTORY_PADDING_MS,
+        endMs: runEndMs + DEFAULT_PROVIDER_HISTORY_PADDING_MS
     };
 };
 
@@ -582,9 +585,45 @@ const getDefaultMetric = (metrics) => {
     return metrics.includes(preferredMetric) ? preferredMetric : metrics[0];
 };
 
+// [MACHINE] is already the total. Otherwise a metric can have multiple details (e.g. RAPL Package_0 and Package_1)
+// which together form the energy of the metric. Their values are thus added up per timestamp
+const sumSeriesByTime = (seriesList, getKey, getValue, setValue, compare) => {
+    if (seriesList.length === 1) return seriesList[0];
+    const byKey = new Map();
+    seriesList.forEach((entry) => entry.data.forEach((point) => {
+        const key = getKey(point);
+        const existing = byKey.get(key);
+        if (existing == null) {
+            byKey.set(key, Array.isArray(point) ? [...point] : { ...point });
+        } else if (getValue(point) != null) {
+            setValue(existing, (getValue(existing) ?? 0) + getValue(point));
+        }
+    }));
+    return {
+        name: seriesList.map((entry) => entry.name).join(' + '),
+        data: [...byKey.values()].sort(compare)
+    };
+};
+
+// The values of the details of a metric are added up. This is only valid if they all share one unit
+// Returns the first two differing units if the metric has mixed units, otherwise null
+const getMixedUnits = (measurements, metric) => {
+    if (!Array.isArray(measurements) || !metric) return null;
+    let firstUnit = null;
+    for (const entry of measurements) {
+        if (entry?.[2] !== metric) continue;
+        if (firstUnit == null) firstUnit = entry[4];
+        else if (entry[4] !== firstUnit) return [firstUnit, entry[4]];
+    }
+    return null;
+};
+
+const getMixedUnitsMessage = (metric, mixedUnits) => `Metric ${metric} has mixed units (${mixedUnits[0]} and ${mixedUnits[1]}). Cannot add up its values`;
+
 const buildEnergyData = (measurements, metric) => {
     if (!Array.isArray(measurements) || measurements.length === 0) return null;
     if (!metric) return null;
+    if (getMixedUnits(measurements, metric)) return null;
 
     const series = {};
     let unit = null;
@@ -608,7 +647,13 @@ const buildEnergyData = (measurements, metric) => {
     const seriesKeys = Object.keys(series);
     if (seriesKeys.length === 0) return null;
 
-    const primarySeries = series['[MACHINE]'] || series[seriesKeys[0]];
+    const primarySeries = series['[MACHINE]'] || sumSeriesByTime(
+        Object.values(series),
+        (point) => point[0],
+        (point) => point[1],
+        (point, value) => { point[1] = value; },
+        (a, b) => a[0] - b[0]
+    );
 
     return {
         metric,
@@ -621,6 +666,7 @@ const buildEnergyData = (measurements, metric) => {
 const buildEnergySeriesRaw = (measurements, metric) => {
     if (!Array.isArray(measurements) || measurements.length === 0) return null;
     if (!metric) return null;
+    if (getMixedUnits(measurements, metric)) return null;
 
     const series = {};
 
@@ -641,7 +687,13 @@ const buildEnergySeriesRaw = (measurements, metric) => {
     const seriesKeys = Object.keys(series);
     if (seriesKeys.length === 0) return null;
 
-    const primarySeries = series['[MACHINE]'] || series[seriesKeys[0]];
+    const primarySeries = series['[MACHINE]'] || sumSeriesByTime(
+        Object.values(series),
+        (point) => `${point.timeMs}|${point.unit}`, // only add up values of the same unit
+        (point) => point.value,
+        (point, value) => { point.value = value; },
+        (a, b) => a.timeMs - b.timeMs
+    );
 
     return {
         metric,
@@ -666,6 +718,12 @@ const buildEmissionSeries = (energySeries, carbonHistory, metric, timeOffsetMs =
 
     if (carbonSeries.length === 0) return { data: [], debug: { reason: 'no_carbon_series' } };
 
+    // A carbon value is valid until the next one. The last value is only valid for one more sampling interval
+    // of the carbon data. Without this bound it would be applied to everything after the end of the carbon data
+    const lastCarbonTime = carbonSeries[carbonSeries.length - 1].time;
+    const carbonInterval = carbonSeries.length >= 2 ? lastCarbonTime - carbonSeries[carbonSeries.length - 2].time : 0;
+    const carbonValidUntil = lastCarbonTime + carbonInterval;
+
     let index = 0;
     let current = null;
     const result = [];
@@ -687,13 +745,10 @@ const buildEmissionSeries = (energySeries, carbonHistory, metric, timeOffsetMs =
 
     energySeries.data.forEach((point) => {
         const shiftedTime = point.timeMs + timeOffsetMs;
-        let energyKwh = point.value;
-        let energyUnit = point.unit === '*' && typeof metric === 'string' && metric.includes('energy') ? 'uJ' : point.unit;
-        for (let i = 0; i < 2 && energyUnit !== 'kWh'; i++) {
-            [energyKwh, energyUnit] = convertValue(energyKwh, energyUnit);
-        }
+        const energyUnit = point.unit === '*' && typeof metric === 'string' && metric.includes('energy') ? 'uJ' : point.unit;
+        const energyKwh = convertEnergyToKwh(point.value, energyUnit);
         debug.energyPoints += 1;
-        if (energyKwh == null || energyUnit !== 'kWh') {
+        if (energyKwh == null) {
             debug.skippedNoKwh += 1;
             return;
         }
@@ -704,7 +759,7 @@ const buildEmissionSeries = (energySeries, carbonHistory, metric, timeOffsetMs =
             index += 1;
         }
 
-        if (current) {
+        if (current && shiftedTime <= carbonValidUntil) {
             result.push([shiftedTime, energyKwh * current.value]);
             debug.matchedPoints += 1;
         } else {
@@ -1037,6 +1092,12 @@ const updateMetricMiniChart = (metric, energyData) => {
         return;
     }
 
+    const mixedUnits = getMixedUnits(simulationState.measurements, metric);
+    if (mixedUnits) {
+        resetMiniChart('metricMiniChart', '#metric-mini-chart', getMixedUnitsMessage(metric, mixedUnits));
+        return;
+    }
+
     const resolvedEnergyData = energyData || buildEnergyData(simulationState.measurements, metric);
     const series = resolvedEnergyData?.primarySeries?.data;
     if (!resolvedEnergyData || !Array.isArray(series) || series.length === 0) {
@@ -1060,6 +1121,15 @@ const updateSimulationChart = () => {
         setCarbonSummary(null, 'No metric data available.');
         setAlignButtonVisible(false);
         setChartLoadFailureVisible(true, 'No metric data', NO_METRIC_DATA_DETAIL);
+        return;
+    }
+
+    const mixedUnits = getMixedUnits(simulationState.measurements, metric);
+    if (mixedUnits) {
+        resetSimulationChart();
+        setCarbonSummary(null, 'Metric cannot be used.');
+        setAlignButtonVisible(false);
+        setChartLoadFailureVisible(true, 'Mixed units in metric', getMixedUnitsMessage(metric, mixedUnits));
         return;
     }
 
@@ -1149,7 +1219,12 @@ const updateSimulationChart = () => {
         emissionLabel,
         selection.provider
     );
-    setCarbonSummary(calculateEmissionTotal(emissionSeriesData), '');
+    // the provider can lack carbon data for parts of the run. The total then only covers the matched part
+    const { matchedPoints, energyPointsWithKwh } = emissionResult.debug;
+    const coverageStatus = matchedPoints < energyPointsWithKwh
+        ? `Partial: only ${Math.round(matchedPoints / energyPointsWithKwh * 100)}% of the run is covered by carbon intensity data.`
+        : '';
+    setCarbonSummary(calculateEmissionTotal(emissionSeriesData), coverageStatus);
     setAlignButtonVisible(false);
     setChartLoadFailureVisible(false);
 };
@@ -1274,6 +1349,10 @@ const populateMetrics = (metrics) => {
                 simulationState.selectedMetric = value;
                 simulationState.metricTimeOffsetMs = 0;
                 resetBestRuntimeSummary();
+                const mixedUnits = getMixedUnits(simulationState.measurements, value);
+                if (mixedUnits) {
+                    showNotification('Mixed units in metric', getMixedUnitsMessage(value, mixedUnits));
+                }
                 updateMetricMiniChart(value);
                 updateSimulationChart();
                 updateShiftButtonsAvailability();

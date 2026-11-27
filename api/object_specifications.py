@@ -1,9 +1,19 @@
+import json
+import uuid
+
 from typing import List, Optional, Dict, Literal, Union
 
 from enum import Enum
-from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
+from pydantic import BaseModel, ConfigDict, Field, field_validator, constr, StrictInt, StrictFloat
 
 ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE', 'SOFTWARE'])
+
+# Must be kept in sync with the cluster_service ENUM in docker/tables.sql
+class ClusterService(str, Enum):
+    CARBONDB = 'CarbonDB'
+    ECO_CI = 'Eco CI'
+    SCENARIO_RUNNER = 'ScenarioRunner'
+    POWER_HOG = 'Power HOG'
 
 ### Run
 class RunChange(BaseModel):
@@ -51,9 +61,45 @@ class Software(BaseModel):
     schedule_mode: str
     usage_scenario_variables: Optional[Dict[str, str]] = None
     category_ids: Optional[List[int]] = None
-    carbon_simulation: Optional[Union[int, str, List[int]]] = None
+    carbon_simulation: Optional[Union[List[StrictInt], str]] = None
 
     model_config = ConfigDict(extra='forbid')
+
+    # mode='before' so that we see the raw input. Otherwise pydantic lax mode would coerce true -> 1 or 1.0 -> 1
+    # Normalizes to None | list[int] | str (UUID)
+    @field_validator('carbon_simulation', mode='before')
+    @classmethod
+    def parse_carbon_simulation(cls, value):
+        if value is None:
+            return None
+
+        if isinstance(value, bool):
+            raise ValueError('Carbon simulation must be an integer, list of integers, or UUID string')
+
+        if isinstance(value, int):
+            return [value]
+
+        if isinstance(value, list):
+            if all(isinstance(item, int) and not isinstance(item, bool) for item in value):
+                return value
+            raise ValueError('Carbon simulation list must contain only integers')
+
+        if isinstance(value, str):
+            value = value.strip()
+            if value == '':
+                return None
+
+            try:
+                parsed_value = json.loads(value)
+            except json.JSONDecodeError:
+                try:
+                    return str(uuid.UUID(value))
+                except ValueError as exc:
+                    raise ValueError('Carbon simulation must be an integer, list of integers, or UUID string') from exc
+
+            return cls.parse_carbon_simulation(parsed_value)
+
+        raise ValueError('Carbon simulation must be an integer, list of integers, or UUID string')
 
 ### User Settings Update
 
@@ -72,12 +118,10 @@ class CI_MeasurementBase(BaseModel):
     cpu: str
     cpu_util_avg: float
     commit_hash: str
-    workflow: str   # workflow_id, change when we make API change of workflow_name being mandatory
     run_id: str
     source: str
     label: str
     duration_us: int
-    workflow_name: str = None
     filter_type: Optional[str] = 'machine.ci'
     filter_project: Optional[str] = 'CI/CD'
     filter_machine: Optional[str] = 'unknown'
@@ -86,19 +130,25 @@ class CI_MeasurementBase(BaseModel):
     lon: Optional[str] = None
     city: Optional[str] = None
     carbon_intensity_g: Optional[int] = None
-    carbon_ug: Optional[int] = None
     ip: Optional[str] = None
     note: Optional[constr(max_length=1024)] = None
+    os_name: Optional[str] = None
+    cpu_arch: Optional[str] = None
+    job_id: Optional[str] = None
+    version: Optional[str] = None
 
     # Empty string will not trigger error on their own
-    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label', 'filter_type', 'filter_project', 'filter_machine')
+    # filter_* have defaults, but are NOT NULL in the DB. So an explicitly sent empty value must be rejected and not turned into None
+    # workflow (v3) / workflow_id and workflow_name (v4) are only defined in the subclasses, hence check_fields=False
+    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'run_id', 'source', 'label', 'filter_type', 'filter_project', 'filter_machine',
+                     'workflow', 'workflow_id', 'workflow_name', check_fields=False)
     @classmethod
     def check_not_empty(cls, value, data):
-        if not value or value == '':
+        if not value or value.strip() == '':
             raise ValueError(f"{data.field_name} must be set and non-empty")
         return value
 
-    @field_validator('filter_type', 'filter_project', 'filter_machine', 'ip')
+    @field_validator('lat', 'lon', 'city', 'ip', 'note')
     @classmethod
     def empty_str_to_none(cls, value, _):
         if not value or value.strip() == '':
@@ -112,23 +162,36 @@ class CI_MeasurementBase(BaseModel):
             raise ValueError(f"{data.field_name} contains empty elements")
         return value
 
-class CI_Measurement(CI_MeasurementBase):
-    """
-    v2 CI measurement model.
-    This keeps backward compatibility with existing EcoCI clients.
-    """
-    model_config = ConfigDict(extra='forbid')
-
-
 class CI_MeasurementV3(CI_MeasurementBase):
     """
-    v3 CI measurement model.
-    Adds new optional fields; for now they are parsed but not stored.
+    v3 CI measurement model. Deprecated, use CI_MeasurementV4.
+    Carbon is submitted as one total value (carbon_ug). It is not stored as such, but split up
+    into operational and embodied carbon by api/eco_ci.py::split_carbon_ug
     """
-    os_name: Optional[str] = None
-    cpu_arch: Optional[str] = None
-    job_id: Optional[str] = None
-    version: Optional[str] = None
+    workflow: str
+    workflow_name: Optional[str] = None
+    carbon_ug: Optional[int] = None
+
+    model_config = ConfigDict(extra='forbid')
+
+    @property
+    def workflow_id(self):
+        return self.workflow
+
+
+class CI_MeasurementV4(CI_MeasurementBase):
+    """
+    v4 CI measurement model.
+    Carbon is submitted split into operational and embodied carbon.
+    Numeric values must be sent as JSON numbers, not as strings.
+    """
+    energy_uj: StrictInt
+    cpu_util_avg: StrictFloat | StrictInt
+    duration_us: StrictInt
+    workflow_id: str
+    workflow_name: str
+    operational_carbon_ug: Optional[StrictInt] = None
+    embodied_carbon_ug: Optional[StrictInt] = None
 
     model_config = ConfigDict(extra='forbid')
 
@@ -157,7 +220,7 @@ class SimplifiedMeasurement(BaseModel):
     hw_model: str
     elapsed_ns: int
     embodied_carbon_g: Optional[float] = 0.0
-    operational_carbon_g: Optional[float] = 0.0
+    operational_carbon_g: Optional[float] = None # stays NULL if unknown, so that cron/backfill_carbon_intensity.py can fill it
     thermal_pressure: str
     top_processes: List[Dict[str, Union[str, float, int]]]
 
@@ -240,8 +303,10 @@ class EnergyData(BaseModel):
     type: str
     time: int # value is in us as UTC timestamp
     energy_uj: int # is in uJ
-    carbon_intensity_g: Optional[int] = None # Will be populated if not transmitted, so we never have NULL in DB
-    ip: Optional[str] = None  # Will be populated if not transmitted, so we never have NULL in DB
+    embodied_carbon_ug: int = Field(ge=0) # mandatory, as it cannot be derived later. Is in ug. Cannot be negative, as hardware never removes carbon
+    operational_carbon_ug: Optional[int] = None # is in ug. If not transmitted it is calculated from carbon_intensity_g, now or once backfilled
+    carbon_intensity_g: Optional[int] = None # Will be backfilled if not transmitted
+    ip: Optional[str] = None  # Will be populated with the connecting IP if not transmitted
 
     model_config = ConfigDict(extra='forbid')
 

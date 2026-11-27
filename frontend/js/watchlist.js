@@ -11,10 +11,25 @@ $(document).ready(function () {
         }
         measurements.data.forEach(measurement => {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            let [id, name, image_url, repo_url, categories, branch, filename, machine_id, machine_description, schedule_mode, last_scheduled, created_at, updated_at, last_run, metrics] = measurement
+            let [id, name, image_url, repo_url, categories, branch, filename, machine_id, machine_description, schedule_mode, last_scheduled, created_at, updated_at, last_run, usage_scenario_variables] = measurement
             filename = filename == null ? '': filename
             branch = branch == null ? '': branch
             image_url = image_url == null ? '' : image_url;
+
+            // same format as runs.js, so that timeline and badges only show runs of this watchlist entry's variables
+            const timeline_params = new URLSearchParams();
+            timeline_params.set('uri', repo_url);
+            timeline_params.set('branch', branch);
+            timeline_params.set('filename', filename);
+            timeline_params.set('machine_id', machine_id);
+            if (usage_scenario_variables != null && Object.keys(usage_scenario_variables).length > 0) {
+                Object.entries(usage_scenario_variables).forEach(([key, value]) => {
+                    timeline_params.append(`usage_scenario_variables[${key}]`, String(value));
+                });
+            } else {
+                timeline_params.set('usage_scenario_variables', 'false');
+            }
+            const timeline_query = timeline_params.toString().replace(/&/g, '&amp;');
 
             const chart_node = document.createElement("div")
             chart_node.classList.add('ui')
@@ -41,7 +56,7 @@ $(document).ready(function () {
                     <p title="${escapeString(filename)}"><b>Filename: </b> ${filename == '' ? '-': escapeString(filename)}</p>
                     <p title="${escapeString(machine_description)}"><b>Machine: </b>${escapeString(machine_description)}</p>
                     <p title="${escapeString(schedule_mode)}"><b>Schedule Mode: </b>${escapeString(schedule_mode)}</p>
-                    <p title="${escapeString(last_run)}"><b>Last Run: </b>${last_run == '' ? '-' : dateToYMD(new Date(last_run), false, true)}</p>
+                    <p title="${escapeString(last_run)}"><b>Last Run: </b>${(last_run == null || last_run == '') ? '-' : dateToYMD(new Date(last_run), false, true)}</p>
 
                     `
 
@@ -53,13 +68,13 @@ $(document).ready(function () {
                             <i data-tooltip="${escapeString(getPretty(metric_name, 'explanation'))}" data-position="bottom center" data-inverted>
                                 <i class="question circle icon link"></i>
                             </i><br>
-                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${encodeURIComponent(repo_url)}&branch=${encodeURIComponent(branch)}&filename=${encodeURIComponent(filename)}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${encodeURIComponent(repo_url)}&branch=${encodeURIComponent(branch)}&filename=${encodeURIComponent(filename)}&machine_id=${machine_id}&metric=${encodeURIComponent(metric_name)}&detail_name=${encodeURIComponent(detail_name)}&unit=joules" alt="${escapeString(metric_name)} badge" onerror="this.closest('.field').style.display='none'" loading="lazy"></a></span>
+                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${timeline_query}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${timeline_query}&amp;metric=${encodeURIComponent(metric_name)}&detail_name=${encodeURIComponent(detail_name)}&unit=joules" alt="${escapeString(metric_name)} badge" onerror="this.closest('.field').style.display='none'" loading="lazy"></a></span>
                         </div>`
             })
 
             chart_node_html = `${chart_node_html}
                 </div>
-                <a class="ui button blue" href="/timeline.html?uri=${encodeURIComponent(repo_url)}&filename=${encodeURIComponent(filename)}&branch=${encodeURIComponent(branch)}&machine_id=${machine_id}" target="_blank">
+                <a class="ui button blue" href="/timeline.html?${timeline_query}" target="_blank">
                     Show Timeline <i class="external alternate icon"></i>
                 </a>
                 <hr>

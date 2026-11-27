@@ -11,6 +11,7 @@ from api.api_helpers import MAX_LOG_CHARS
 from lib.db import DB
 from lib import utils
 from lib.job.run import RunJob
+from lib.watchlist import Watchlist
 from lib import metric_importer
 from lib.global_config import GlobalConfig
 from lib.phase_stats import build_and_store_phase_stats
@@ -70,6 +71,84 @@ def test_get_runs_created_after_filter():
     assert len(response_filtered.json()['data']) == 1
 
 
+def test_get_runs_pagination():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v2/runs?limit=3&with_count=true", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    first_page = response.json()
+    assert len(first_page['data']) == 3
+    assert first_page['total'] == 8
+
+    response = requests.get(f"{API_URL}/v2/runs?limit=3&offset=3&with_count=true", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    second_page = response.json()
+    assert len(second_page['data']) == 3
+    assert second_page['total'] == 8
+    assert not {row[0] for row in first_page['data']} & {row[0] for row in second_page['data']}
+
+    response = requests.get(f"{API_URL}/v2/runs?limit=3&offset=6", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert len(response.json()['data']) == 2
+    assert 'total' not in response.json()
+
+    # offset beyond the last page still returns the total for paginated tables
+    response = requests.get(f"{API_URL}/v2/runs?limit=3&offset=30&with_count=true", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.json()['data'] == []
+    assert response.json()['total'] == 8
+
+def test_get_runs_limit_bounds():
+    response = requests.get(f"{API_URL}/v2/runs?limit=100", timeout=15)
+    assert response.status_code in (200, 204), Tests.assertion_info('success', response.text)
+
+    for invalid in ('limit=101', 'limit=0', 'offset=-1', 'order_by=r.id', 'order_dir=sideways'):
+        response = requests.get(f"{API_URL}/v2/runs?{invalid}", timeout=15)
+        assert response.status_code == 422, Tests.assertion_info(f"422 for {invalid}", response.text)
+
+def test_get_runs_order_and_search():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v2/runs?order_by=name&order_dir=asc&limit=100", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    names = [row[1] for row in response.json()['data']]
+    assert names == sorted(names)
+
+    name = names[0]
+    response = requests.get(f"{API_URL}/v2/runs?search={name}&with_count=true", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.json()['total'] >= 1
+    assert all(name.lower() in json.dumps(row).lower() for row in response.json()['data'])
+
+def test_get_repositories_respects_show_archived():
+    uri = f"/tmp/archived-repo-{utils.randomword(12)}"
+    DB().query("INSERT INTO runs (name,uri,branch,filename,created_at,user_id,machine_id,archived) \
+                    VALUES ('archived_run',%s,'testing','testing',NOW(),1,1,TRUE)", params=(uri, ))
+
+    for query_string in ('', '?show_archived=false'):
+        response = requests.get(f"{API_URL}/v1/repositories{query_string}", timeout=15)
+        assert response.status_code in (200, 204), Tests.assertion_info('success', response.text)
+        if response.status_code == 200:
+            assert uri not in [row[0] for row in response.json()['data']]
+
+    response = requests.get(f"{API_URL}/v1/repositories?show_archived=true", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert uri in [row[0] for row in response.json()['data']]
+
+def test_get_repositories_respects_show_other_users():
+    uri = f"/tmp/other-user-repo-{utils.randomword(12)}"
+    DB().query("INSERT INTO runs (name,uri,branch,filename,created_at,user_id,machine_id,public) \
+                    VALUES ('other_user_run',%s,'testing','testing',NOW(),0,1,TRUE)", params=(uri, ))
+
+    response = requests.get(f"{API_URL}/v1/repositories?show_other_users=true", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert uri in [row[0] for row in response.json()['data']]
+
+    response = requests.get(f"{API_URL}/v1/repositories?show_other_users=false", timeout=15)
+    assert response.status_code in (200, 204), Tests.assertion_info('success', response.text)
+    if response.status_code == 200:
+        assert uri not in [row[0] for row in response.json()['data']]
+
 def test_get_jobs_redacts_url_credentials():
     run_name = 'test_' + utils.randomword(12)
     credentialed_url = 'https://admin:s3cr3t@github.com/green-coding-solutions/green-metrics-tool'
@@ -87,6 +166,17 @@ def test_get_jobs_redacts_url_credentials():
     # the DB copy must stay usable so the cluster worker can actually clone the repo later
     raw_url = DB().fetch_one('SELECT url FROM jobs WHERE id = %s', params=(job_id,))[0]
     assert raw_url == credentialed_url
+
+def test_get_watchlist_never_returns_email():
+    run_name = 'test_' + utils.randomword(12)
+    email = f"{run_name}@example.com"
+
+    watchlist_id = Watchlist.insert(name=run_name, email=email, image_url='', repo_url='https://github.com/green-coding-solutions/green-metrics-tool', branch='main', filename='usage_scenario.yml', usage_scenario_variables={}, category_ids=None, machine_id=1, user_id=1, schedule_mode='daily', last_marker=None)
+
+    response = requests.get(f"{API_URL}/v1/watchlist", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert watchlist_id in [row[0] for row in response.json()['data']]
+    assert email not in response.text
 
 def test_compare_valid():
     Tests.import_demo_data()
@@ -126,6 +216,7 @@ def test_compare_force_mode_same_style():
 
     # only the hash hash changed, but it will still force the same mode
     data['comparison_details'][0][0]['commit_hash'] = 'test' # we need to overload the test data to make it flexible
+    del data['common_info']['Commit'] # the commits differ now, so they must not be shown as common
 
     assert data['comparison_case'] == 'Usage Scenario'
     assert res_json['data'] == data
@@ -145,6 +236,7 @@ def test_compare_force_mode_different_style():
 
     # only the hash hash changed, but it will still force the same mode
     data['comparison_details'][0][0]['commit_hash'] = 'test'
+    del data['common_info']['Commit'] # the commits differ now, so they must not be shown as common
 
     assert data['comparison_case'] == 'Machine'
     assert res_json['data'] == data
@@ -211,6 +303,65 @@ def test_compare_force_unknown_mode():
     res_json = response.json()
     assert response.status_code == 422
     assert res_json['err'] == 'Forcing a comparison mode for unknown mode'
+
+# two IDs used to hit the 'IDs' fallback and crash with a 500 in get_comparison_details(); three+ IDs used to return a misleading 409
+@pytest.mark.parametrize('ids', [
+    'b3a6c1d0-0000-4000-8000-000000000001,b3a6c1d0-0000-4000-8000-000000000002',
+    'b3a6c1d0-0000-4000-8000-000000000001,b3a6c1d0-0000-4000-8000-000000000002,b3a6c1d0-0000-4000-8000-000000000003',
+])
+@pytest.mark.parametrize('force_mode', [None, 'machine_ids'])
+def test_compare_non_existing_runs(ids, force_mode):
+    Tests.import_demo_data()
+
+    url = f"{API_URL}/v1/compare?ids={ids}" + (f"&force_mode={force_mode}" if force_mode else '')
+    response = requests.get(url, timeout=15)
+    assert response.status_code == 404, Tests.assertion_info('not found', response.text)
+    assert response.json()['err'] == 'None of the requested runs exist or you do not have access to them'
+
+@pytest.mark.parametrize('ids', [f"{RUN_3},{RUN_1}", f"{RUN_3},{RUN_1},{RUN_2}"])
+def test_compare_runs_not_visible_for_user(ids):
+    Tests.import_demo_data()
+    Tests.insert_user(2, 'OTHER_USER')
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={ids}", headers={'X-Authentication': 'OTHER_USER'}, timeout=15)
+    assert response.status_code == 404, Tests.assertion_info('not found', response.text)
+    assert response.json()['err'] == 'None of the requested runs exist or you do not have access to them'
+
+RUN_NO_PHASE_STATS = 'af76f822-c042-4bf1-a5aa-5566761ef351' # stress/usage_scenario.yml, same config as RUN_3 and RUN_2
+RUN_DIFFERENT_SCENARIO = '6f07bd8a-ac53-47aa-a9df-17417a72238b' # different/usage_scenario.yml, same config as RUN_1
+OTHER_REPO = "uri = 'https://example.com/other-repo', commit_hash = 'other'"
+
+# Repository and Branch mode allow e.g. two usage scenarios in total, but each group must only have one.
+# Otherwise the runs of one group would be averaged over different configurations, so these must fall back to the table view
+@pytest.mark.parametrize('updates, ids', [
+    ([f"UPDATE runs SET {OTHER_REPO} WHERE id = '{RUN_2}'"], [RUN_3, RUN_4, RUN_2]), # repo A has two variable sets
+    ([f"UPDATE runs SET {OTHER_REPO} WHERE id = '{RUN_2}'"], [RUN_3, RUN_DIFFERENT_SCENARIO, RUN_2]), # repo A has two usage scenarios
+    ([f"UPDATE runs SET branch = 'dev' WHERE id = '{RUN_2}'", f"UPDATE runs SET {OTHER_REPO} WHERE id = '{RUN_1}'"], [RUN_3, RUN_2, RUN_1]), # repo A has two branches
+    ([f"UPDATE runs SET uri = 'https://example.com/fork' WHERE id = '{RUN_2}'", f"UPDATE runs SET commit_hash = 'c2' WHERE id = '{RUN_3}'"], [RUN_NO_PHASE_STATS, RUN_3, RUN_2]), # repo A has two commits, its fork shares one
+    ([f"UPDATE runs SET branch = 'feature' WHERE id = '{RUN_NO_PHASE_STATS}'", f"UPDATE runs SET commit_hash = 'c2' WHERE id = '{RUN_2}'"], [RUN_3, RUN_2, RUN_NO_PHASE_STATS]), # main has two commits, feature shares one
+])
+def test_compare_mixed_configurations_within_group_fall_back_to_table_mode(updates, ids):
+    Tests.import_demo_data()
+    Tests.flush_redis()
+    for update in updates:
+        DB().query(update)
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={','.join(ids)}", timeout=15)
+    assert response.status_code == 409, Tests.assertion_info('fallback to table mode', response.text)
+
+@pytest.mark.parametrize('update, ids, comparison_case, comparison_identifiers', [
+    (f"UPDATE runs SET {OTHER_REPO} WHERE id = '{RUN_1}'", [RUN_3, RUN_2, RUN_1], 'Repository', ['https://example.com/other-repo', '/home/arne/Sites/green-coding/example-applications/']),
+    (f"UPDATE runs SET branch = 'feature', commit_hash = 'c2' WHERE id = '{RUN_NO_PHASE_STATS}'", [RUN_3, RUN_2, RUN_NO_PHASE_STATS], 'Branch', ['feature', 'main']),
+])
+def test_compare_one_configuration_per_group(update, ids, comparison_case, comparison_identifiers):
+    Tests.import_demo_data()
+    Tests.flush_redis()
+    DB().query(update)
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={','.join(ids)}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.json()['data']['comparison_case'] == comparison_case
+    assert response.json()['data']['comparison_identifiers'] == comparison_identifiers
 
 def test_get_insights():
     Tests.import_demo_data()
@@ -358,6 +509,48 @@ def test_get_logs_only_visible_for_allowed_users():
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert response.json()['data'] == {'ctr': [_log_entry(stdout='secret')]}
 
+def _insert_run_with_metric_providers(configured_metric_providers):
+    return DB().fetch_one(
+        """
+        INSERT INTO runs (name, uri, branch, filename, machine_id, user_id, measurement_config, created_at)
+        VALUES ('Network run', 'https://www.example.com', 'main', 'usage_scenario.yml', 1, 1, %s, NOW())
+        RETURNING id
+        """,
+        params=(json.dumps({'configured_metric_providers': configured_metric_providers}), )
+    )[0]
+
+def test_get_network_provider_not_active():
+    run_id = _insert_run_with_metric_providers({'cpu_utilization_procfs_system': {'sampling_rate': 99}})
+
+    response = requests.get(f"{API_URL}/v1/network/{run_id}", timeout=15)
+    assert response.status_code == 422, Tests.assertion_info('provider not active', response.text)
+    assert response.json()['err'] == 'Network connections metric provider was not active for this run'
+
+@pytest.mark.parametrize('provider', ['network_connections_proxy_container', 'network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider'])
+def test_get_network_provider_active_without_connections(provider):
+    run_id = _insert_run_with_metric_providers({provider: None})
+
+    response = requests.get(f"{API_URL}/v1/network/{run_id}", timeout=15)
+    assert response.status_code == 204, Tests.assertion_info('no content', response.text)
+
+def test_get_network_provider_active_with_connections():
+    run_id = _insert_run_with_metric_providers({'network_connections_proxy_container': None})
+    DB().query(
+        "INSERT INTO network_intercepts (run_id, time, connection_type, protocol) VALUES (%s, 1700000000000, 'example.com:443', 'HTTPS')",
+        params=(run_id, )
+    )
+
+    response = requests.get(f"{API_URL}/v1/network/{run_id}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert [row[3:5] for row in response.json()['data']] == [['example.com:443', 'HTTPS']]
+
+def test_get_network_run_not_visible():
+    Tests.insert_user(2, 'OTHER_USER')
+    run_id = _insert_run_with_metric_providers({'network_connections_proxy_container': None})
+
+    response = requests.get(f"{API_URL}/v1/network/{run_id}", headers={'X-Authentication': 'OTHER_USER'}, timeout=15)
+    assert response.status_code == 404, Tests.assertion_info('not found', response.text)
+
 def test_get_system_logs_clips_message():
     DB().query(
         "INSERT INTO system_logs (id, title, message) VALUES (1, 'long', %s), (2, 'at limit', %s)",
@@ -372,3 +565,62 @@ def test_get_system_logs_clips_message():
     assert rows[1][5] is True
     assert rows[2][2] == 'b' * MAX_LOG_CHARS
     assert rows[2][5] is False
+
+def test_compare_common_info_only_contains_identical_values():
+    Tests.import_demo_data()
+    Tests.flush_redis()
+
+    # Repository mode allows a different branch per repo. Branch must then not be shown as common
+    DB().query(f"UPDATE runs SET uri = 'https://example.com/other-repo', commit_hash = 'other', branch = 'master' WHERE id = '{RUN_1}'")
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_2},{RUN_1}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    res_json = response.json()
+
+    assert res_json['data']['comparison_case'] == 'Repository'
+    assert res_json['data']['common_info'] == {'Machine': 'Development machine for testing'}
+
+def test_compare_common_info_force_mode():
+    Tests.import_demo_data()
+
+    # force_mode skips all checks. RUN_3 and RUN_1 differ in filename, which must not be shown as common
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}&force_mode=machine_ids", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    res_json = response.json()
+
+    assert res_json['data']['comparison_case'] == 'Machine'
+    assert res_json['data']['common_info'] == {
+        'Repository': '/home/arne/Sites/green-coding/example-applications/',
+        'Usage Scenario': 'Stress Container One Core 5 Seconds',
+        'Branch': 'main',
+        'Commit': '58c7a5002c684f41f8d7a355f3ede641d8e45ddc',
+    }
+
+# Duplicate and non existing IDs are not part of the comparison and must not count towards the amount of runs
+@pytest.mark.parametrize('ids', [
+    f"{RUN_3},{RUN_3},{RUN_2}",
+    f"{RUN_3},{RUN_2},00000000-0000-0000-0000-000000000000",
+])
+def test_compare_two_runs_with_duplicate_or_non_existing_ids(ids):
+    Tests.import_demo_data()
+    Tests.flush_redis()
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={ids}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    res_json = response.json()
+
+    assert res_json['data']['comparison_case'] == 'Repeated Run (Two only) on same Commit Hash'
+    assert sorted(res_json['data']['comparison_identifiers']) == sorted([RUN_3, RUN_2])
+
+def test_compare_ids_mode_with_duplicate_ids():
+    Tests.import_demo_data()
+    Tests.flush_redis()
+
+    DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1},{RUN_1}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    res_json = response.json()
+
+    assert res_json['data']['comparison_case'] == 'IDs'
+    assert res_json['data']['comparison_identifiers'] == [RUN_1, RUN_3]

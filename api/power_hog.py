@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from fastapi import APIRouter, Response, Depends, Request, HTTPException
 
-from api.api_helpers import authenticate, get_connecting_ip, replace_nan_with_zero, CustomORJSONResponse
+from api.api_helpers import authenticate, get_connecting_ip, replace_nan_with_zero, CustomORJSONResponse, FUTURE_TIMESTAMP_TOLERANCE_S
 from api.object_specifications import HogMeasurement, SimplifiedMeasurement
 
 from lib.user import User
@@ -55,8 +55,8 @@ async def add_hog(
             merge_window = GlobalConfig().config['cluster']['carbondb_merge_window_days']
             if validated_measurement.timestamp < current_time_ms - merge_window * 24 * 60 * 60 * 1000:
                 raise HTTPException(status_code=422, detail=f"Power Hog is configured to not accept values older than {merge_window} days. Your timestamp was: {validated_measurement.timestamp}")
-            if validated_measurement.timestamp > current_time_ms:
-                raise HTTPException(status_code=422, detail=f"Power Hog does not accept timestamps in the future. Your timestamp was: {validated_measurement.timestamp}")
+            if validated_measurement.timestamp > current_time_ms + FUTURE_TIMESTAMP_TOLERANCE_S * 1_000: # milliseconds
+                raise HTTPException(status_code=422, detail=f"Power Hog does not accept timestamps in the future. Your timestamp was: {validated_measurement.timestamp}. API timestamp was: {current_time_ms}")
 
             query_measurement = """
             INSERT INTO hog_simplified_measurements (
@@ -81,7 +81,13 @@ async def add_hog(
             RETURNING id
             """
 
-            validated_operational_carbon_g = validated_measurement.operational_carbon_g or 0.0
+            # Operational carbon is energy * grid intensity. Without a grid intensity the client cannot have calculated it, so any
+            # transmitted value is not usable. It must stay NULL and not 0, as cron/backfill_carbon_intensity.py only fills NULL values
+            # once the carbon intensity is known. A 0 would be kept forever
+            if validated_measurement.grid_intensity_cog is None or validated_measurement.operational_carbon_g is None:
+                operational_carbon_ug = None
+            else:
+                operational_carbon_ug = validated_measurement.operational_carbon_g * 1_000_000 # Convert to micrograms
             validated_embodied_carbon_g = validated_measurement.embodied_carbon_g or 0.0
 
 
@@ -96,7 +102,7 @@ async def add_hog(
                 validated_measurement.gpu_energy_mj * 1000,
                 validated_measurement.ane_energy_mj * 1000,
                 validated_measurement.energy_impact,
-                validated_operational_carbon_g * 1_000_000, # Convert to micrograms
+                operational_carbon_ug,
                 validated_measurement.hw_model,
                 validated_measurement.elapsed_ns,
                 validated_embodied_carbon_g * 1_000_000, # Convert to micrograms

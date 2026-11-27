@@ -6,7 +6,7 @@ description: Testing SHM
 services:
   test-container:
     image: alpine
-    entrypoint: tail -f /dev/null
+    entrypoint: sleep infinity
     cpus: "1.2"
     mem_limit: "10MB"
 
@@ -14,7 +14,7 @@ services:
 
   test-container-2:
     image: alpine
-    entrypoint: tail -f /dev/null
+    entrypoint: sleep infinity
     cpus: "1.2"
     mem_limit: "10MB"
 

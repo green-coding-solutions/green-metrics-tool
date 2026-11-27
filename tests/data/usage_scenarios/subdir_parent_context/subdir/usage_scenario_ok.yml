@@ -8,7 +8,7 @@ services:
        context: ..
        dockerfile: Dockerfile
     container_name: test-container
-    entrypoint: tail -f /dev/null # keep container running
+    entrypoint: sleep infinity # keep container running
 
 flow:
   - name: Cat Subdir2

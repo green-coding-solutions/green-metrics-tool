@@ -451,7 +451,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", derivative_avg_s, 'MEAN', derivative_max_s, derivative_min_s, metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], f"{unit}/s"))
 
                 # we also generate a total line to see how much total data was processed
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric.replace('_io_', '_total_'), detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', None, None, metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric.replace('_io_', '_total_'), detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', metric_stats['max_value'], metric_stats['min_value'], metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
 
                 if metric == 'network_io_cgroup_container': # save to calculate CO2 later. We do this only for the cgroups. Not for the system to not double count
                     network_bytes_total.append(metric_stats['value_sum'])
@@ -460,7 +460,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                 csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', metric_stats['max_value'], metric_stats['min_value'], metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
 
             elif "_energy_" in metric and unit == 'uJ':
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', None, None, metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', metric_stats['max_value'], metric_stats['min_value'], metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
 
                 power_avg_mW = metric_stats['derivative_avg'] * Decimal(1e3)
                 power_max_mW = metric_stats['derivative_max'] * Decimal(1e3)
@@ -476,7 +476,7 @@ def build_and_store_phase_stats(run_id, sci=None, sci_metrics=None):
                         machine_power_current_phase = power_avg_mW
 
             elif '_carbon_' in metric and unit == 'ugCO2e':
-                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', None, None, metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
+                csv_buffer.write(generate_csv_line(phase['hidden'], run_id, metric, detail_name, f"{idx:03}_{phase['name']}", metric_stats['value_sum'], 'TOTAL', metric_stats['max_value'], metric_stats['min_value'], metric_stats['sampling_rate_avg'], metric_stats['sampling_rate_max'], metric_stats['sampling_rate_95p'], unit))
 
                 if metric.endswith('_machine') and chosen_carbon_metric_name is not None and chosen_carbon_metric_name in detail_name:
                     sci_phase_data['machine_carbon_ug'] = sci_phase_data.get('machine_carbon_ug', 0) + Decimal(metric_stats['value_sum'])

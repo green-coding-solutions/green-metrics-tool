@@ -1,3 +1,4 @@
+"use strict";
 const GMT_MACHINES = JSON.parse(localStorage.getItem('gmt_machines')) || {}; // global variable. dynamically resolved via resolveMachinesToGlobalVariable
 
 const escapeString = (string) =>{
@@ -12,6 +13,9 @@ const escapeString = (string) =>{
     const reg = /[&<>"']/ig;
     return my_string.replace(reg, (match) => map[match]);
 }
+
+// Run IDs are always UUIDs. Validate them before they are used in API paths or HTML
+const isValidUUID = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value));
 
 // Usage scenario variables named __GMT_VAR_SECRET_*__ hold secrets. The backend only ever hands us
 // their encrypted value, so nothing sensitive can leak here - we still mask it, as showing a long
@@ -180,20 +184,35 @@ customElements.define('gmt-menu', GMTMenu);
 
 // tricky to make this async as some other functions will depend on the value of the variable
 // but if it is not set yet it will populate in a later call
+// The cached names are used right away. They are refreshed once a day, as machines can be added or renamed
+// and the visible machines depend on the logged in user
+const GMT_MACHINES_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const resolveMachinesToGlobalVariable = async () => {
-    if (Object.keys(GMT_MACHINES).length === 0) {
-        const api_data = await makeAPICall('/v1/machines')
-        api_data.data.forEach(el => {
-            GMT_MACHINES[el[0]] = el[1];
-        })
+    const updated_at = Number(localStorage.getItem('gmt_machines_updated_at'));
+    if (Object.keys(GMT_MACHINES).length > 0 && Date.now() - updated_at < GMT_MACHINES_CACHE_MAX_AGE_MS) return;
+
+    let machines = [];
+    try {
+        machines = (await makeAPICall('/v1/machines')).data;
+    } catch (err) {
+        if (!(err instanceof APIHTTPError && err.status === 204)) { // 204 = no machines visible. Cache must be emptied then
+            console.error('Could not refresh machines. Using cached names', err);
+            return;
+        }
     }
+    // replaced in place, as GMT_MACHINES is a const that other scripts reference
+    Object.keys(GMT_MACHINES).forEach(key => delete GMT_MACHINES[key]);
+    machines.forEach(el => {
+        GMT_MACHINES[el[0]] = el[1];
+    })
     localStorage.setItem('gmt_machines', JSON.stringify(GMT_MACHINES));
+    localStorage.setItem('gmt_machines_updated_at', String(Date.now()));
 }
 
 
 const getClusterStatus = async (status_ok_selector, status_warning_selector) => {
     try {
-        cluster_status_data = await makeAPICall('/v1/cluster/status')
+        const cluster_status_data = await makeAPICall('/v1/cluster/status')
 
         const container = document.querySelector('.cluster-health-message.yellow #cluster-health-warnings');
         cluster_status_data.data.forEach(message => {
@@ -328,6 +347,7 @@ const showNotification = (message_title, message_text, type='error') => {
         displayTime: 5000,
         title: message_title,
         message: message,
+        preserveHTML: false, // title and message can contain user input (URL params, API errors). Render as text only
     });
     return;
 }
@@ -483,10 +503,44 @@ const fetchTimelineNotes = async (run_id) => {
     try {
         notes = await makeAPICall('/v1/notes/' + run_id)
     } catch (err) {
-        showNotification('Could not get notes data from API', err);
+        if (!(err instanceof APIHTTPError && err.status === 204)) { // 204 = run has no notes. Not an error
+            showNotification('Could not get notes data from API', err);
+        }
     }
     return notes?.data;
 }
+
+const fetchWarningsForRuns = async (run_ids) => {
+    // requests run in parallel. Promise.all keeps the order of run_ids
+    const warnings_per_run = await Promise.all(run_ids.map(async (run_id) => {
+        try {
+            const data = await makeAPICall('/v1/warnings/' + run_id);
+            return data?.data ?? [];
+        } catch (err) {
+            if (err instanceof APIHTTPError && err.status === 204) {
+                console.log('No warnings where present in API response. Skipping error as this is allowed case.')
+            } else {
+                showNotification('Could not get warnings data from API', err);
+            }
+            return [];
+        }
+    }));
+    return warnings_per_run.flat();
+};
+
+// fills the #run-warnings box. Identical warnings of multiple runs are only shown once
+const fillWarnings = (warnings) => {
+    if (!warnings || warnings.length === 0) return;
+    const warnings_texts = warnings.map(sub => sub[1]);
+    const unique_warnings = [...new Set(warnings_texts)];
+
+    const container = document.querySelector('#run-warnings');
+    const ul = container.querySelector('ul');
+    unique_warnings.forEach(w => {
+        ul.insertAdjacentHTML('beforeend', `<li>${escapeString(w)}</li>`);
+    });
+    container.classList.remove('hidden');
+};
 
 
 if (localStorage.getItem('closed_descriptions') == null) {
@@ -505,15 +559,24 @@ $(document).ready(() => {
 
     $("body").removeClass("preload"); // activate tranisition CSS properties again
 
-    const closed_descriptions = localStorage.getItem('closed_descriptions');
+    // A page can have multiple descriptions. They are stored by their id so closing one does not hide the others.
+    // Descriptions without id (and entries stored before) fall back to the page path
+    const descriptionKey = (el) => {
+        const id = el.closest('.ui')?.id;
+        return id ? `${window.location.pathname}#${id}` : window.location.pathname;
+    };
     $('.close').on('click', function() {
         $(this).closest('.ui').transition('fade');
-        localStorage.setItem('closed_descriptions', `${closed_descriptions},${window.location.pathname}`)
+        // read fresh, so closing a second description on the same page does not overwrite the first one
+        localStorage.setItem('closed_descriptions', `${localStorage.getItem('closed_descriptions')},${descriptionKey(this)}`)
     });
 
-    if (closed_descriptions.indexOf(window.location.pathname) !== -1) {
-        document.querySelectorAll('i.close.icon').forEach(el => { el.closest('.ui').remove()}
-        )
-    }
+    const closed_descriptions = localStorage.getItem('closed_descriptions').split(',');
+    document.querySelectorAll('i.close.icon').forEach(el => {
+        // exact match. Substring would match the root path "/" in every stored path
+        if (closed_descriptions.includes(descriptionKey(el)) || closed_descriptions.includes(window.location.pathname)) {
+            el.closest('.ui').remove();
+        }
+    })
     resolveMachinesToGlobalVariable();
 });

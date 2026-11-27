@@ -193,9 +193,9 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td>Skip optimizations after run<br><span><small><i class="question circle icon"></i>If you do not want the cluster to process optimizations you can turn it of. Will speed up runs slightly.</small></span></td>
-                                    <td><input type="checkbox"  id="measurement-skip-optimizations" name="measurement-skip-optimizations" data-setting="measurement.skip_optimizations"></td>
-                                    <td><button id="save-measurement-skip-optimizations" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                    <td>Run optimizations after run<br><span><small><i class="question circle icon"></i>If you want the cluster to analyze your run for possible optimizations you can turn it on. Will slow down runs slightly.</small></span></td>
+                                    <td><input type="checkbox"  id="measurement-optimizations" name="measurement-optimizations" data-setting="measurement.optimizations"></td>
+                                    <td><button id="save-measurement-optimizations" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
                                 </tr>
                                 <tr>
                                     <td>(DEV) No Sleeps during run<br><span><small><i class="question circle icon"></i>You can use this while developing to speed up runs on the cluster. However it will make the measurement invalid as important cooldown times are skipped.</small></span></td>

@@ -1,3 +1,4 @@
+"use strict";
 const createTableHeader = (phase, comparison_keys, comparison_case, comparison_amounts) => {
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] .compare-metrics-table thead`).insertRow();
 
@@ -51,7 +52,7 @@ const getAndShowPhase = () => {
         const allowed_phases = ['BASELINE', 'INSTALLATION', 'BOOT', 'IDLE', 'RUNTIME', 'REMOVE'];
         phase_to_display = phase_to_display.split('__');
         if (allowed_phases.includes(phase_to_display[0])) {
-            document.querySelector(`a.step[data-tab="[${phase_to_display[0]}]"`).dispatchEvent(new Event('click'));
+            document.querySelector(`a.step[data-tab="[${phase_to_display[0]}]"]`).dispatchEvent(new Event('click'));
             shown_phase = `[${phase_to_display[0]}]`;
         } else {
             document.querySelector('a.step[data-tab="[RUNTIME]"]').dispatchEvent(new Event('click'));
@@ -59,7 +60,7 @@ const getAndShowPhase = () => {
         const sub_phase_regex = /^[\.\s0-9a-zA-Z_\(\)-]+$/; // Matches strings containing only letters and digits
         if (phase_to_display[1] != null && sub_phase_regex.test(phase_to_display[1])) {
             try {
-                document.querySelector(`a.runtime-step[data-tab="${phase_to_display[1]}"`).dispatchEvent(new Event('click'));
+                document.querySelector(`a.runtime-step[data-tab="${phase_to_display[1]}"]`).dispatchEvent(new Event('click'));
             } catch(err) {
                 console.log('Could not match phase to show', err);
             }
@@ -172,7 +173,7 @@ const buildPhaseTabs = (phase_stats_object) => {
 
     render* means that build* and display* functions are mixed
 */
-const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_count=1) => {
+const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]') => {
 
     // we now traverse all branches of the tree
     // the tree is sparese, so although we see all metrics that are throughout all phases and comparison_keys
@@ -371,7 +372,6 @@ const buildTotalChartData = (phase_stats_object) => {
                     } else {
                         total_chart_bottom_legend[phase].push(getPretty(metric_name, 'clean_name'));
                         found_bottom_chart_metric = `${metric_name} ${detail_name}`;
-                        total_chart_bottom_unit = convertValue(0, metric_data.unit)[1]
                     }
                 }
                 // we loop over all keys that exist, not over the one that are present in detail_data['data']

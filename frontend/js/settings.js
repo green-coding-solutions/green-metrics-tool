@@ -169,7 +169,7 @@ const getSettings = async () => {
         const data = await makeAPICall('/v1/user/settings');
 
         // Checkboxes
-        document.querySelector('#measurement-skip-optimizations').checked = data?.data?._capabilities?.measurement?.skip_optimizations === true;
+        document.querySelector('#measurement-optimizations').checked = data?.data?._capabilities?.measurement?.optimizations === true;
         document.querySelector('#measurement-dev-no-sleeps').checked = data?.data?._capabilities?.measurement?.dev_no_sleeps === true;
         document.querySelector('#measurement-skip-volume-inspect').checked = data?.data?._capabilities?.measurement?.skip_volume_inspect === true;
 

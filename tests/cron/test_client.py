@@ -50,3 +50,4 @@ def test_simple_cluster_run():
 
     # also check that the tmp folder was deleted locally
     assert tmp_folder.exists() and not any(tmp_folder.iterdir()), '/tmp/green-metrics-tool was not emptied after run although --file-cleanup was set'
+    assert Tests.repo_tmp_folder_emptied(), 'repo/ and relations/ in /var/tmp/green-metrics-tool were not emptied after the cluster run'

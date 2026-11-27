@@ -40,6 +40,19 @@ def get_tmp_folder():
     name = f'green-metrics-tool-{worker_id}' if worker_id else 'green-metrics-tool'
     return host_platform.get_tmp_root().joinpath(name)
 
+def get_repo_tmp_folder():
+    # Same as get_tmp_folder(), but for the folder holding repo/ and relations/ (lib/scenario_runner.py)
+    worker_id = get_test_worker_id()
+    name = f'green-metrics-tool-{worker_id}' if worker_id else 'green-metrics-tool'
+    return host_platform.get_repo_tmp_root().joinpath(name)
+
+def repo_tmp_folder_emptied():
+    # repo/ and the checkouts in relations/ must still exist (stable inodes for Docker Desktop), but be empty
+    repo_folder = get_repo_tmp_folder().joinpath('repo')
+    relations_folder = get_repo_tmp_folder().joinpath('relations')
+    folders = [repo_folder] + [child for child in relations_folder.iterdir() if child.is_dir()]
+    return relations_folder.is_dir() and all(folder.is_dir() and not any(folder.iterdir()) for folder in folders)
+
 # Dedicated, isolated folder for the metric providers built by the import_* helpers below.
 GMT_METRICS_DIR = Path(tempfile.mkdtemp(prefix='green-metrics-tool-test-functions-'))
 
@@ -384,7 +397,7 @@ def flush_redis():
 
 # Must run before the test body, not just before reset_db()'s own truncate/reseed: DB (lib/db.py)
 # is a process-wide singleton whose connection pool bakes in search_path once, at pool-creation
-# time, and only rebuilds it after reset_db()'s DB().shutdown() call tears it down - so the env var
+# time, and only rebuilds it after reset_db()'s DB.shutdown_if_initialized() call tears it down - so the env var
 # has to already be gone by the time the test body makes its own first DB() call (which may be
 # well before reset_db() ever runs), or that call (and everything sharing the pool it creates)
 # targets the wrong schema for the rest of the test.
@@ -448,7 +461,7 @@ END $$;''',
     if ps.returncode != 0:
         raise RuntimeError('Resetting the test schema failed with ', ps.stdout, ps.stderr)
 
-    DB().shutdown()
+    DB.shutdown_if_initialized()
 
 class RunUntilManager:
     def __init__(self, runner):

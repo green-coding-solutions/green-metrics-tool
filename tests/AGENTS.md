@@ -22,6 +22,6 @@ This directory contains the integration and unit-style test harness for the repo
 
 ## Working rules
 
-- Schema/seeded-capability changes in `docker/tables.sql` are applied when the relevant test schema is created, reset, or reinitialized (no copy step); `create_test_schema()` in `test_functions.py` only needs to be called again (it's idempotent) to (re)create a worker's schema from the current `docker/tables.sql`.
+- Schema changes in `docker/tables.sql` are only applied when a test schema is created (no copy step). `create_test_schema()` in `test_functions.py` skips a schema that already exists, and `reset_db()` only TRUNCATEs the tables and re-runs `docker/seed-data.sql`. So drop the existing test schemas (or recreate the test postgres container) to pick up schema changes. Seeded-capability changes in `docker/seed-data.sql` are picked up on every reset.
 - Cron behavior belongs in `tests/cron/`; API behavior belongs in `tests/api/`; provider parsing belongs in `tests/metric_providers/`.
 - Many tests assume the dockerized test environment is already running. If a test interacts with the API, DB, or runner end-to-end, verify the container prerequisite first.

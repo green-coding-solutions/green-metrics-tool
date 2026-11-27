@@ -362,6 +362,16 @@ METRIC_MAPPINGS = {
         "source": "PowerSpy2",
         "explanation": "Full machine power (AC) as reported by PowerSpy2"
     },
+    "psu_energy_ac_gude_machine": {
+        "clean_name": "Machine Energy",
+        "source": "Gude",
+        "explanation": "Full machine energy (AC) as reported by Gude Expert Power Control"
+    },
+    "psu_power_ac_gude_machine": {
+        "clean_name": "Machine Power",
+        "source": "Gude",
+        "explanation": "Full machine power (AC) as reported by Gude Expert Power Control"
+    },
     "psu_energy_ac_xgboost_machine": {
         "clean_name": "Machine Energy",
         "source": "XGBoost",

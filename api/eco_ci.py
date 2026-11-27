@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from fastapi import Request, Response, Depends, HTTPException
 
 from api.api_helpers import authenticate, get_connecting_ip, convert_value, CustomORJSONResponse
-from api.object_specifications import CI_Measurement, CI_MeasurementV3
+from api.object_specifications import CI_MeasurementV3, CI_MeasurementV4
 
 import anybadge
 
@@ -17,27 +17,35 @@ from lib.db import DB
 router = APIRouter()
 
 
-def _insert_ci_measurement(request: Request, measurement, user: User) -> Response:
+def split_carbon_ug(carbon_ug, energy_uj, carbon_intensity_g):
     """
-    Shared insert logic for CI measurements.
-    Works for both v2 (CI_Measurement) and v3 (CI_MeasurementV3),
-    as they share the same DB-relevant fields.
+    Splits a combined carbon value (as submitted to /v3) into (operational_carbon_ug, embodied_carbon_ug).
+
     """
+    if carbon_ug is None:
+        return None, None
 
-    if measurement.lon is None or measurement.lon.strip() == '':
-        measurement.lon = None
+    if carbon_intensity_g is None:
+        # Eco CI only ever sent carbon_ug together with carbon_intensity_g, as its operational part is
+        # energy * carbon intensity. Thus the operational part can be recalculated and the remainder is embodied.
+        # Without a carbon intensity a client cannot have calculated operational carbon, so the value can only be embodied.
+        return None, carbon_ug
 
-    if measurement.lat is None or measurement.lat.strip() == '':
-        measurement.lat = None
+    operational_carbon_ug = round(energy_uj * carbon_intensity_g / 3_600_000) # uJ * g/kWh -> ug
+    return operational_carbon_ug, max(carbon_ug - operational_carbon_ug, 0) # max() absorbs rounding differences
 
-    if measurement.city is None or measurement.city.strip() == '':
-        measurement.city = None
 
+def _insert_ci_measurement(request: Request, measurement, user: User, operational_carbon_ug: int | None, embodied_carbon_ug: int | None) -> Response:
+    """
+    Shared insert logic for CI measurements of v3 (CI_MeasurementV3) and v4 (CI_MeasurementV4).
+    Carbon is always passed in split up into operational and embodied carbon.
+    Empty optional strings (lat, lon, city, ip, note) are already turned into None by the model validators.
+    """
 
     params = [measurement.energy_uj, measurement.repo, measurement.branch,
-              measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
+              measurement.workflow_id, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
               measurement.commit_hash, measurement.duration_us, measurement.cpu_util_avg, measurement.workflow_name,
-              measurement.lat, measurement.lon, measurement.city, measurement.carbon_intensity_g, measurement.carbon_ug,
+              measurement.lat, measurement.lon, measurement.city, measurement.carbon_intensity_g,
               measurement.filter_type, measurement.filter_project, measurement.filter_machine]
 
     tags_replacer = ' ARRAY[]::text[] '
@@ -50,13 +58,10 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
     if used_client_ip is None:
         used_client_ip = get_connecting_ip(request)
 
-    for field in ['os_name', 'cpu_arch', 'job_id', 'version']:
-        params.append(getattr(measurement, field, None))
+    params = params + [measurement.os_name, measurement.cpu_arch, measurement.job_id, measurement.version,
+                       operational_carbon_ug, embodied_carbon_ug]
     params.append(used_client_ip)
     params.append(user._id)
-
-    if measurement.note is not None and measurement.note.strip() == '':
-        measurement.note = None
     params.append(measurement.note)
 
     query = f"""
@@ -77,7 +82,6 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
                              longitude,
                              city,
                              carbon_intensity_g,
-                             carbon_ug,
                              filter_type,
                              filter_project,
                              filter_machine,
@@ -86,21 +90,24 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
                              cpu_arch,
                              job_id,
                              version,
+                             operational_carbon_ug,
+                             embodied_carbon_ug,
                              ip_address,
                              user_id,
                              note
                              )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 {tags_replacer},
-                %s, %s, %s, %s, %s, %s, %s)
+                %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
     DB().query(query=query, params=params)
 
-    if measurement.energy_uj <= 1 or (measurement.carbon_ug and measurement.carbon_ug <= 1):
+    carbon_ug = (operational_carbon_ug or 0) + (embodied_carbon_ug or 0)
+    if measurement.energy_uj <= 1 or 0 < carbon_ug <= 1:
         error_helpers.log_error(
-            'Extremely small energy budget was submitted to Eco CI API',
+            'Extremely small energy / carbon value was submitted to Eco CI API',
             measurement=measurement
         )
 
@@ -109,34 +116,40 @@ def _insert_ci_measurement(request: Request, measurement, user: User) -> Respons
 
 @router.post('/v1/ci/measurement/add', deprecated=True)
 def old_v1_measurement_add_endpoint():
-    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/ci/measurement/add'}, status_code=410)
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v4/ci/measurement/add'}, status_code=410)
 
 
-@router.post('/v2/ci/measurement/add')
-async def post_ci_measurement_add(
-    request: Request,
-    measurement: CI_Measurement,
-    user: User = Depends(authenticate)  # pylint: disable=unused-argument
-):
-    """
-    v2: backward-compatible behaviour (no new fields).
-    """
-    return _insert_ci_measurement(request, measurement, user)
-
-@router.post('/v3/ci/measurement/add')
+@router.post('/v3/ci/measurement/add', deprecated=True)
 async def post_ci_measurement_add_v3(
     request: Request,
     measurement: CI_MeasurementV3,
     user: User = Depends(authenticate)  # pylint: disable=unused-argument
 ):
     """
-    v3: accepts additional fields (os_name, cpu_arch, job_id, version) via CI_MeasurementV3.
-    For now, the insert logic is the same as v2 and ignores these extra fields.
+    v3: deprecated. Please migrate to /v4/ci/measurement/add
+    Carbon is submitted as one total value (carbon_ug), which is split up into operational and embodied carbon.
     """
-    return _insert_ci_measurement(request, measurement, user)
+    operational_carbon_ug, embodied_carbon_ug = split_carbon_ug(measurement.carbon_ug, measurement.energy_uj, measurement.carbon_intensity_g)
+    return _insert_ci_measurement(request, measurement, user, operational_carbon_ug, embodied_carbon_ug)
+
+@router.post('/v4/ci/measurement/add')
+async def post_ci_measurement_add_v4(
+    request: Request,
+    measurement: CI_MeasurementV4,
+    user: User = Depends(authenticate)  # pylint: disable=unused-argument
+):
+    """
+    v4: carbon is submitted split into operational_carbon_ug and embodied_carbon_ug via CI_MeasurementV4.
+    """
+    return _insert_ci_measurement(request, measurement, user, measurement.operational_carbon_ug, measurement.embodied_carbon_ug)
 
 
-@router.get('/v1/ci/measurements')
+@router.get('/v1/ci/measurements', deprecated=True)
+def old_v1_measurements_endpoint():
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Carbon is now split into operational and embodied carbon, which changed the returned data. Please migrate to /v2/ci/measurements'}, status_code=410)
+
+
+@router.get('/v2/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date, job_id: str | None = None, user: User = Depends(authenticate)):
 
     params = [user.is_super_user(), user.visible_users(), repo, branch, workflow, str(start_date), str(end_date)]
@@ -154,7 +167,8 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
                 AND latest_workflow.workflow_id = ci_measurements.workflow_id
                 ORDER BY latest_workflow.created_at DESC
                 LIMIT 1) AS workflow_name,
-               latitude, longitude, city, carbon_intensity_g, carbon_ug, note
+               latitude, longitude, city, carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug, note,
+               operational_carbon_ug + embodied_carbon_ug -- total carbon. NULL if a part is missing
         FROM ci_measurements
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))
@@ -172,7 +186,12 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
 
     return CustomORJSONResponse({'success': True, 'data': data})
 
-@router.get('/v1/ci/stats')
+@router.get('/v1/ci/stats', deprecated=True)
+def old_v1_stats_endpoint():
+    return CustomORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Carbon is now split into operational and embodied carbon, which changed the returned data. Please migrate to /v2/ci/stats'}, status_code=410)
+
+
+@router.get('/v2/ci/stats')
 async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, end_date: date, user: User = Depends(authenticate)):
 
 
@@ -183,7 +202,11 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
                 SUM(duration_us) as b,
                 SUM(cpu_util_avg * duration_us) / NULLIF(SUM(duration_us), 0)  as c, -- weighted average
                 SUM(carbon_intensity_g * duration_us) / NULLIF(SUM(duration_us), 0) as d,-- weighted average
-                SUM(carbon_ug) as e
+                SUM(operational_carbon_ug) as e,
+                SUM(embodied_carbon_ug) as f,
+                -- total carbon of a run is only known if every measurement of the run has both parts.
+                -- Otherwise e and f are averaged over different runs and cannot just be added up
+                CASE WHEN COUNT(*) = COUNT(operational_carbon_ug + embodied_carbon_ug) THEN SUM(operational_carbon_ug + embodied_carbon_ug) END as g
             FROM ci_measurements
             WHERE
                 (TRUE = %s OR user_id = ANY(%s::int[]))
@@ -197,6 +220,8 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
             AVG(c)::float, NULL, STDDEV(c)::float, (STDDEV(c) / NULLIF(AVG(c), 0))::float * 100, -- SUM of cpu_util_avg makes no sense
             AVG(d)::float, NULL, STDDEV(d)::float, (STDDEV(d) / NULLIF(AVG(d), 0))::float * 100, -- SUM of carbon_intensity_g makes no sense
             AVG(e)::float, SUM(e)::float, STDDEV(e)::float, (STDDEV(e) / NULLIF(AVG(e), 0))::float * 100,
+            AVG(f)::float, SUM(f)::float, STDDEV(f)::float, (STDDEV(f) / NULLIF(AVG(f), 0))::float * 100,
+            AVG(g)::float, SUM(g)::float, STDDEV(g)::float, (STDDEV(g) / NULLIF(AVG(g), 0))::float * 100, -- only runs with complete carbon data
             COUNT(*)
         FROM my_table;
     '''
@@ -215,7 +240,10 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
             AVG(duration_us)::float, SUM(duration_us)::float, STDDEV(duration_us)::float, (STDDEV(duration_us) / NULLIF(AVG(duration_us), 0))::float * 100,
             AVG(cpu_util_avg)::float, NULL, STDDEV(cpu_util_avg)::float, (STDDEV(cpu_util_avg) / NULLIF(AVG(cpu_util_avg), 0))::float * 100, -- SUM of cpu_util_avg makes no sense
             AVG(carbon_intensity_g)::float, NULL, STDDEV(carbon_intensity_g)::float, (STDDEV(carbon_intensity_g) / NULLIF(AVG(carbon_intensity_g), 0))::float * 100, -- SUM of carbon_intensity_g makes no sense
-            AVG(carbon_ug)::float, SUM(carbon_ug)::float, STDDEV(carbon_ug)::float, (STDDEV(carbon_ug) / NULLIF(AVG(carbon_ug), 0))::float * 100,
+            AVG(operational_carbon_ug)::float, SUM(operational_carbon_ug)::float, STDDEV(operational_carbon_ug)::float, (STDDEV(operational_carbon_ug) / NULLIF(AVG(operational_carbon_ug), 0))::float * 100,
+            AVG(embodied_carbon_ug)::float, SUM(embodied_carbon_ug)::float, STDDEV(embodied_carbon_ug)::float, (STDDEV(embodied_carbon_ug) / NULLIF(AVG(embodied_carbon_ug), 0))::float * 100,
+            -- total carbon only over measurements that have both parts. NULL + x is NULL and skipped by the aggregates
+            AVG(operational_carbon_ug + embodied_carbon_ug)::float, SUM(operational_carbon_ug + embodied_carbon_ug)::float, STDDEV(operational_carbon_ug + embodied_carbon_ug)::float, (STDDEV(operational_carbon_ug + embodied_carbon_ug) / NULLIF(AVG(operational_carbon_ug + embodied_carbon_ug), 0))::float * 100,
             COUNT(*), label
         FROM ci_measurements
         WHERE
@@ -301,9 +329,19 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         label = 'energy used'
         default_color = 'orange'
     elif metric == 'carbon':
-        metric = 'carbon_ug'
+        metric = '(operational_carbon_ug + embodied_carbon_ug)' # NULL if a part is missing, so SUM skips incomplete measurements (as it skipped a missing carbon_ug before). Shows only the known total until the backfill completes them
         metric_unit = 'ugCO2e'
         label = 'carbon emitted'
+        default_color = 'black'
+    elif metric == 'operational_carbon':
+        metric = 'operational_carbon_ug'
+        metric_unit = 'ugCO2e'
+        label = 'operational carbon emitted'
+        default_color = 'black'
+    elif metric == 'embodied_carbon':
+        metric = 'embodied_carbon_ug'
+        metric_unit = 'ugCO2e'
+        label = 'embodied carbon emitted'
         default_color = 'black'
     # Do not easily add values like cpu_util or carbon_intensity_g here. They need a weighted average in the SQL query later!
     else:

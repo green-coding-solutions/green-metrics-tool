@@ -45,6 +45,12 @@ const getEChartsOptions = () => {
 }
 
 
+// NULL means unknown and is never shown as 0: no value is '--', no deviation (e.g. a single run) shows no ±
+const formatStat = (value, unit, stddev = null, formatter = numberFormatter) => (value == null) ? '--' : `${formatter.format(value)}${unit}${(stddev == null) ? '' : ` (± ${numberFormatter.format(stddev)}%)`}`;
+const fromMicro = (value) => (value == null) ? null : value/1000000; // null must stay null, so that formatStat shows '--' instead of 0
+const formatCarbonUg = (ug, stddev = null) => formatStat((ug == null) ? null : ug/1000000, ' gCO2e', stddev, numberFormatterLong);
+const carbonTitle = (ug) => (ug == null) ? 'data missing' : ug/1000000; // exact value in g for cell tooltips
+
 const getChartOptions = (measurements) => {
     const options = getEChartsOptions();
     options.title.text = `Workflow energy cost per run [J]`;
@@ -53,7 +59,7 @@ const getChartOptions = (measurements) => {
     const labels = []
 
     measurements.forEach(measurement => { // iterate over all measurements, which are in row order
-        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, carbon_ug] = measurement;
+        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug, _note, total_carbon_ug] = measurement;
         cpu_util = cpu_util ? cpu_util : '--';
         options.series.push({
             type: 'bar',
@@ -73,14 +79,16 @@ const getChartOptions = (measurements) => {
             run_id: run_id,
             labels: [label],
             cpu_util: cpu_util,
-            duration_s: duration_us/1000000,
+            duration_s: fromMicro(duration_us) ?? '--',
             commit_hash: commit_hash,
             created_at: dateToYMD(new Date(created_at)),
             lat: lat,
             lon: lon,
             city: city,
             carbon_intensity_g: carbon_intensity_g,
-            carbon_g: carbon_ug / 1000000
+            operational_carbon: formatCarbonUg(operational_carbon_ug),
+            embodied_carbon: formatCarbonUg(embodied_carbon_ug),
+            total_carbon: formatCarbonUg(total_carbon_ug),
         })
     });
 
@@ -97,13 +105,15 @@ const getChartOptions = (measurements) => {
             return `<strong>${escapeString(labels[params.componentIndex].labels[params.dataIndex])}</strong><br>
                     run_id: ${escapeString(labels[params.componentIndex].run_id)}<br>
                     created_at: ${labels[params.componentIndex].created_at}<br>
-                    commit_hash: ${escapeString(labels[params.componentIndex].commit_hash)}<br>
+                    commit_hash: ${escapeString(labels[params.componentIndex].commit_hash ?? '--')}<br>
                     energy: ${escapeString(labels[params.componentIndex].energy_j)} J<br>
                     duration: ${escapeString(labels[params.componentIndex].duration_s)} seconds<br>
                     avg. cpu. utilization: ${escapeString(labels[params.componentIndex].cpu_util)}%<br>
                     location of run: ${escapeString(labels[params.componentIndex].city || 'N/A')}<br>
                     grid intensity: ${escapeString(labels[params.componentIndex].carbon_intensity_g || 'N/A')} g<br>
-                    carbon: ${escapeString(labels[params.componentIndex].carbon_g || 'N/A')} g<br>
+                    operational carbon: ${escapeString(labels[params.componentIndex].operational_carbon)}<br>
+                    embodied carbon: ${escapeString(labels[params.componentIndex].embodied_carbon)}<br>
+                    total carbon: ${escapeString(labels[params.componentIndex].total_carbon)}<br>
                     `;
         }
     };
@@ -133,45 +143,53 @@ const displayStatsTable = (stats) => {
     const full_run_stats_avg_node = document.createElement("tr")
     full_run_stats_avg_node.innerHTML += `
                             <td class="bold td-index" data-tooltip="Averages for whole run" data-position="top left">Total run <i class="question circle icon small"></i> </td>
-                            <td class="bold td-index">${numberFormatter.format(stats.totals[0]/1000000)} J (± ${numberFormatter.format(stats.totals[3])}%)</td>
-                            <td class="bold td-index">${numberFormatter.format(stats.totals[4]/1000000)} s (± ${numberFormatter.format(stats.totals[7])}%)</td>
-                            <td class="bold td-index">${numberFormatter.format(stats.totals[8])}% (± ${numberFormatter.format(stats.totals[11])}%%)</td>
-                            <td class="bold td-index">${numberFormatter.format(stats.totals[12])} gCO2/kWh (± ${numberFormatter.format(stats.totals[15])}%)</td>
-                            <td class="bold td-index">${numberFormatterLong.format(stats.totals[16]/1000000)} gCO2e (± ${numberFormatter.format(stats.totals[19])}%)</td>
-                            <td class="bold td-index">${stats.totals[20]}</td>`;
+                            <td class="bold td-index">${formatStat(fromMicro(stats.totals[0]), ' J', stats.totals[3])}</td>
+                            <td class="bold td-index">${formatStat(fromMicro(stats.totals[4]), ' s', stats.totals[7])}</td>
+                            <td class="bold td-index">${formatStat(stats.totals[8], '%', stats.totals[11])}</td>
+                            <td class="bold td-index">${formatStat(stats.totals[12], ' gCO2/kWh', stats.totals[15])}</td>
+                            <td class="bold td-index">${formatCarbonUg(stats.totals[16], stats.totals[19])}</td>
+                            <td class="bold td-index">${formatCarbonUg(stats.totals[20], stats.totals[23])}</td>
+                            <td class="bold td-index">${formatCarbonUg(stats.totals[24], stats.totals[27])}</td>
+                            <td class="bold td-index">${stats.totals[28]}</td>`;
 
     avg_table.appendChild(full_run_stats_avg_node);
 
     const full_run_stats_total_node = document.createElement("tr")
     full_run_stats_total_node.innerHTML += `
                             <td class="bold td-index" data-tooltip="Totals for whole run" data-position="top left">Per total run <i class="question circle icon small"></i> </td>
-                            <td class="bold td-index">${numberFormatter.format(stats.totals[1]/1000000)} J</td>
-                            <td class="bold td-index">${numberFormatter.format(stats.totals[5]/1000000)} s</td>
-                            <td class="bold td-index">${numberFormatterLong.format(stats.totals[17]/1000000)} gCO2e</td>
-                            <td class="bold td-index">${stats.totals[20]}</td>`;
+                            <td class="bold td-index">${formatStat(fromMicro(stats.totals[1]), ' J')}</td>
+                            <td class="bold td-index">${formatStat(fromMicro(stats.totals[5]), ' s')}</td>
+                            <td class="bold td-index">${formatCarbonUg(stats.totals[17])}</td>
+                            <td class="bold td-index">${formatCarbonUg(stats.totals[21])}</td>
+                            <td class="bold td-index">${formatCarbonUg(stats.totals[25])}</td>
+                            <td class="bold td-index">${stats.totals[28]}</td>`;
     total_table.appendChild(full_run_stats_total_node)
 
     stats.per_label.forEach((row) =>{
         const label_stats_avg_node = document.createElement("tr")
-        const label = row[21];
+        const label = row[29];
         label_stats_avg_node.innerHTML += `
                                         <td class="td-index" data-tooltip="Averages per step '${escapeString(label)}'"  data-position="top left">${escapeString(label)} <i class="question circle icon small"></i></td>
-                                        <td class=" td-index">${numberFormatter.format(row[0]/1000000)} J (± ${numberFormatter.format(row[3])}%)</td>
-                                        <td class=" td-index">${numberFormatter.format(row[4]/1000000)} s (± ${numberFormatter.format(row[7])}%)</td>
-                                        <td class=" td-index">${numberFormatter.format(row[8])}% (± ${numberFormatter.format(row[11])}%%)</td>
-                                        <td class=" td-index">${numberFormatter.format(row[12])} gCO2/kWh (± ${numberFormatter.format(row[15])}%)</td>
-                                        <td class=" td-index">${numberFormatterLong.format(row[16]/1000000)} gCO2e (± ${numberFormatter.format(row[19])}%)</td>
-                                        <td class="td-index">${row[20]}</td>`;
+                                        <td class=" td-index">${formatStat(fromMicro(row[0]), ' J', row[3])}</td>
+                                        <td class=" td-index">${formatStat(fromMicro(row[4]), ' s', row[7])}</td>
+                                        <td class=" td-index">${formatStat(row[8], '%', row[11])}</td>
+                                        <td class=" td-index">${formatStat(row[12], ' gCO2/kWh', row[15])}</td>
+                                        <td class=" td-index">${formatCarbonUg(row[16], row[19])}</td>
+                                        <td class=" td-index">${formatCarbonUg(row[20], row[23])}</td>
+                                        <td class=" td-index">${formatCarbonUg(row[24], row[27])}</td>
+                                        <td class="td-index">${row[28]}</td>`;
 
         avg_table.appendChild(label_stats_avg_node);
 
         const label_stats_total_node = document.createElement("tr")
         label_stats_total_node.innerHTML += `
                                         <td class="td-index" data-tooltip="Totals per step '${escapeString(label)}'"  data-position="top left">${escapeString(label)} <i class="question circle icon small"></i></td>
-                                        <td class=" td-index">${numberFormatter.format(row[0]/1000000)} J (± ${numberFormatter.format(row[3])}%)</td>
-                                        <td class=" td-index">${numberFormatter.format(row[4]/1000000)} s (± ${numberFormatter.format(row[7])}%)</td>
-                                        <td class=" td-index">${numberFormatterLong.format(row[17]/1000000)} gCO2e (± ${numberFormatter.format(row[19])}%)</td>
-                                        <td class="td-index">${row[20]}</td>`;
+                                        <td class=" td-index">${formatStat(fromMicro(row[1]), ' J')}</td>
+                                        <td class=" td-index">${formatStat(fromMicro(row[5]), ' s')}</td>
+                                        <td class=" td-index">${formatCarbonUg(row[17])}</td>
+                                        <td class=" td-index">${formatCarbonUg(row[21])}</td>
+                                        <td class=" td-index">${formatCarbonUg(row[25])}</td>
+                                        <td class="td-index">${row[28]}</td>`;
         total_table.appendChild(label_stats_total_node);
 
     }) ;
@@ -191,10 +209,9 @@ const displayRunDetailsTable = (measurements, repo) => {
     measurements.forEach(measurement => {
         const li_node = document.createElement("tr");
 
-        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, carbon_ug, note] = measurement;
+        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug, note, total_carbon_ug] = measurement;
 
-        const short_hash = commit_hash.substring(0, 7);
-        const tooltip = `title="${commit_hash}"`;
+        const short_hash = (commit_hash == null) ? '--' : commit_hash.substring(0, 7); // commit_hash is nullable in ci_measurements
         const cpu_avg = cpu_util ? cpu_util : '--';
 
         let run_link = '';
@@ -222,11 +239,13 @@ const displayRunDetailsTable = (measurements, repo) => {
                             <td class="td-index">${numberFormatter.format(energy_uj/1000000)} J</td>\
                             <td class="td-index">${escapeString(cpu)}</td>\
                             <td class="td-index">${escapeString(cpu_avg)}%</td>
-                            <td class="td-index">${numberFormatter.format(duration_us/1000000)} s</td>
-                            <td class="td-index" title="${escapeString(commit_hash)}">${escapeString(short_hash)}</td>\
+                            <td class="td-index">${formatStat(fromMicro(duration_us), ' s')}</td>
+                            <td class="td-index" title="${escapeString(commit_hash ?? '--')}">${escapeString(short_hash)}</td>\
                             <td class="td-index">${city_string}</td>
-                            <td class="td-index">${escapeString(carbon_intensity_g)} gCO2/kWh</td>
-                            <td class="td-index" title="${carbon_ug/1000000}">${escapeString(numberFormatterLong.format(carbon_ug/1000000))} gCO2e</td>
+                            <td class="td-index">${formatStat(carbon_intensity_g, ' gCO2/kWh')}</td>
+                            <td class="td-index" title="${carbonTitle(operational_carbon_ug)}">${escapeString(formatCarbonUg(operational_carbon_ug))}</td>
+                            <td class="td-index" title="${carbonTitle(embodied_carbon_ug)}">${escapeString(formatCarbonUg(embodied_carbon_ug))}</td>
+                            <td class="td-index" title="${carbonTitle(total_carbon_ug)}">${escapeString(formatCarbonUg(total_carbon_ug))}</td>
                             <td class="td-index">${ (note == null) ? '' : `<span class="ui icon" data-position="top right" data-inverted="" data-tooltip="${escapeString(note)}"><i class="ui question circle icon fluid"></i></span>` }</td>
 
                             `;
@@ -249,49 +268,24 @@ const getBadges = async (repo, branch, workflow_id) => {
         link_node.rel = 'noopener'
         link_node.target = '_blank'
 
-        const energy_last = link_node.cloneNode(true)
-        const energy_last_image = img_node.cloneNode(true)
-        energy_last_image.onerror = function() {this.src='/images/no-data-badge.webp'}
-        energy_last.appendChild(energy_last_image)
+        const appendBadge = (container_id, query_params) => {
+            const link = link_node.cloneNode(true)
+            const image = img_node.cloneNode(true)
+            image.src = `${image.src}${query_params}`
+            image.onerror = function() {this.src='/images/no-data-badge.webp'}
+            link.appendChild(image)
+            document.querySelector(`#${container_id}`).appendChild(link)
+        }
 
-        const carbon_last = link_node.cloneNode(true)
-        const carbon_last_image = img_node.cloneNode(true)
-        carbon_last_image.src = `${carbon_last_image.src}&metric=carbon`
-        carbon_last_image.onerror = function() {this.src='/images/no-data-badge.webp'}
-        carbon_last.appendChild(carbon_last_image)
+        appendBadge('energy-badge-container-last', '')
+        appendBadge('energy-badge-container-totals', '&mode=totals')
+        appendBadge('energy-badge-container-totals-monthly', '&mode=totals&duration_days=30')
 
-        const energy_totals = link_node.cloneNode(true)
-        const energy_totals_image = img_node.cloneNode(true)
-        energy_totals_image.src = `${energy_totals_image.src}&mode=totals`
-        energy_totals_image.onerror = function() {this.src='/images/no-data-badge.webp'}
-        energy_totals.appendChild(energy_totals_image)
-
-        const carbon_totals = link_node.cloneNode(true)
-        const carbon_totals_image = img_node.cloneNode(true)
-        carbon_totals_image.src = `${carbon_totals_image.src}&mode=totals&metric=carbon`
-        carbon_totals_image.onerror = function() {this.src='/images/no-data-badge.webp'}
-        carbon_totals.appendChild(carbon_totals_image)
-
-        const carbon_totals_monthly = link_node.cloneNode(true)
-        const carbon_totals_monthly_image = img_node.cloneNode(true)
-        carbon_totals_monthly_image.src = `${carbon_totals_monthly_image.src}&mode=totals&metric=carbon&duration_days=30`
-        carbon_totals_monthly_image.onerror = function() {this.src='/images/no-data-badge.webp'}
-        carbon_totals_monthly.appendChild(carbon_totals_monthly_image)
-
-        const energy_totals_monthly = link_node.cloneNode(true)
-        const energy_totals_monthly_image = img_node.cloneNode(true)
-        energy_totals_monthly_image.src = `${energy_totals_monthly_image.src}&mode=totals&duration_days=30`
-        energy_totals_monthly_image.onerror = function() {this.src='/images/no-data-badge.webp'}
-        energy_totals_monthly.appendChild(energy_totals_monthly_image)
-
-
-        document.querySelector("#energy-badge-container-last").appendChild(energy_last)
-        document.querySelector("#energy-badge-container-totals").appendChild(energy_totals)
-        document.querySelector("#carbon-badge-container-last").appendChild(carbon_last)
-        document.querySelector("#carbon-badge-container-totals").appendChild(carbon_totals)
-
-        document.querySelector("#energy-badge-container-totals-monthly").appendChild(energy_totals_monthly)
-        document.querySelector("#carbon-badge-container-totals-monthly").appendChild(carbon_totals_monthly)
+        for (const [prefix, metric] of [['carbon', 'carbon'], ['operational-carbon', 'operational_carbon'], ['embodied-carbon', 'embodied_carbon']]) {
+            appendBadge(`${prefix}-badge-container-last`, `&metric=${metric}`)
+            appendBadge(`${prefix}-badge-container-totals`, `&mode=totals&metric=${metric}`)
+            appendBadge(`${prefix}-badge-container-totals-monthly`, `&mode=totals&metric=${metric}&duration_days=30`)
+        }
 
         document.querySelectorAll(".copy-badge").forEach(el => {el.addEventListener('click', copyToClipboard)})
     } catch (err) {
@@ -301,10 +295,10 @@ const getBadges = async (repo, branch, workflow_id) => {
 
 const getMeasurementsAndStats = async (repo, branch, workflow_id, start_date, end_date) => {
 
-    const query_string=`repo=${escapeString(repo)}&branch=${escapeString(branch)}&workflow=${escapeString(workflow_id)}&start_date=${start_date}&end_date=${end_date}`;
+    const query_string=`repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}&workflow=${encodeURIComponent(workflow_id)}&start_date=${start_date}&end_date=${end_date}`;
     const [measurements, stats] = await Promise.all([
-        makeAPICall(`/v1/ci/measurements?${query_string}`),
-        makeAPICall(`/v1/ci/stats?${query_string}`)
+        makeAPICall(`/v2/ci/measurements?${query_string}`),
+        makeAPICall(`/v2/ci/stats?${query_string}`)
     ]);
 
     return [measurements, stats];
@@ -333,10 +327,10 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
         }
     }
 
-    history.pushState(null, '', `${window.location.origin}${window.location.pathname}?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`); // replace URL to bookmark!
+    history.pushState(null, '', `${window.location.origin}${window.location.pathname}?repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}&workflow=${encodeURIComponent(workflow_id)}&start_date=${start_date}&end_date=${end_date}`); // replace URL to bookmark!
 
-    const source = escapeString(measurements.data[0][7]);
-    let workflow_name = escapeString(measurements.data[0][9]);
+    const source = measurements.data[0][7];
+    let workflow_name = measurements.data[0][9];
     populateRunInfos(repo, branch, source, workflow_name, workflow_id)
 
     $('#display-run-details-table').off('click');
@@ -368,13 +362,13 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
 
 const populateRunInfos = async (repo, branch, source, workflow_name, workflow_id) => {
 
-    document.querySelector('#ci-data-branch').innerText =  escapeString(branch);
-    document.querySelector('#ci-data-workflow-id').innerText =  escapeString(workflow_id);
+    document.querySelector('#ci-data-branch').innerText =  branch;
+    document.querySelector('#ci-data-workflow-id').innerText =  workflow_id;
 
     if (workflow_name == '' || workflow_name == null) {
         workflow_name = workflow_id ;
     }
-    document.querySelector('#ci-data-workflow').innerText =  escapeString(workflow_name);
+    document.querySelector('#ci-data-workflow').innerText =  workflow_name;
 
     let repo_link = ''
     const repo_encoded = repo.split('/').map(encodeURIComponent).join('/');
@@ -397,9 +391,10 @@ $(document).ready((e) => {
 
         const url_params = getURLParams();
 
-        const branch = escapeString(url_params['branch']);
-        const repo = escapeString(url_params['repo']);
-        const workflow_id = escapeString(url_params['workflow']);
+        // raw values. Escaping / encoding happens where they are used (HTML vs. URL)
+        const branch = url_params['branch'];
+        const repo = url_params['repo'];
+        const workflow_id = url_params['workflow'];
 
         if (repo == null || repo == '' || repo == 'null') {
             showNotification('No Repo', 'Repo parameter in URL is empty or not present. Did you follow a correct URL?');

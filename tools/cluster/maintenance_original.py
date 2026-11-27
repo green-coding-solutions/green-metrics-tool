@@ -38,13 +38,15 @@ def sync_ntp():
     ## Update time
     # may throw exception, but we need to check if time sync calls work, as we do not know what the actual time is
     # Typically in cluster installations port 123 is blocked and a local time server is available. Thus the guard function here
-    subprocess.check_output(['/usr/bin/sudo', '/usr/bin/timedatectl', 'set-ntp', 'true'], encoding='UTF-8', errors='replace') # this will trigger immediate update
-    time.sleep(5)
-    ntp_status = subprocess.check_output(['/usr/bin/timedatectl', '-a'], encoding='UTF-8', errors='replace')
-    if 'System clock synchronized: yes' not in ntp_status or 'NTP service: active' not in ntp_status:
-        raise RuntimeError('System clock could not be synchronized', ntp_status)
+    try:
+        subprocess.check_output(['/usr/bin/sudo', '/usr/bin/timedatectl', 'set-ntp', 'true'], encoding='UTF-8', errors='replace') # this will trigger immediate update
+        time.sleep(20) # NTP daemon may need a while for DNS resolution and first poll
+        ntp_status = subprocess.check_output(['/usr/bin/timedatectl', '-a'], encoding='UTF-8', errors='replace')
+        if 'System clock synchronized: yes' not in ntp_status or 'NTP service: active' not in ntp_status:
+            raise RuntimeError('System clock could not be synchronized', ntp_status)
+    finally:
+        subprocess.check_output(['/usr/bin/sudo', '/usr/bin/timedatectl', 'set-ntp', 'false'], encoding='UTF-8', errors='replace') # we want NTP always off in clusters - also when sync failed
 
-    subprocess.check_output(['/usr/bin/sudo', '/usr/bin/timedatectl', 'set-ntp', 'false'], encoding='UTF-8', errors='replace') # we want NTP always off in clusters
     time.sleep(2)
     ntp_status = subprocess.check_output(['/usr/bin/timedatectl', '-a'], encoding='UTF-8', errors='replace')
     if 'System clock synchronized: yes' not in ntp_status:

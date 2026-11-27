@@ -1,4 +1,7 @@
 "use strict";
+// Intentionally defined here and not in metric-boxes.js, although <co2-tangible> is part of the shared <phase-metrics> markup.
+// The CO2 values are only calculated for single runs (see calculateCO2 in phase-stats.js). On compare.html the tag thus
+// stays an unknown element and renders nothing. Moving this definition would show an empty CO2 box on compare.html.
 class CO2Tangible extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
@@ -80,28 +83,26 @@ const getElephantServiceUrl = () => {
 const setAndShowAnalyticsLinks = (run_id, run_data) => {
 
     if (getElephantServiceUrl() !== '') {
-        const simulationLink = document.querySelector('#analytics-simulation-link');
-        if (simulationLink) {
-            simulationLink.href = `simulation.html?id=${encodeURIComponent(run_id)}`;
-        }
-        const simulationYearlyLink = document.querySelector('#analytics-simulation-yearly-link');
-        if (simulationYearlyLink) {
-            simulationYearlyLink.href = `simulation-yearly.html?id=${encodeURIComponent(run_id)}`;
-        }
+        document.querySelector('#analytics-simulation-link').href = `simulation.html?id=${encodeURIComponent(run_id)}`;
+        document.querySelector('#analytics-simulation-yearly-link').href = `simulation-yearly.html?id=${encodeURIComponent(run_id)}`;
     } else {
         document.querySelector('a[data-tab="analytics-simulation"]').classList.add('hidden');
     }
 
     const timelineLink = document.querySelector('#analytics-timeline-link');
-    if (!timelineLink) return;
 
     const timelineParams = new URLSearchParams();
-    if (run_data?.uri) timelineParams.set('uri', run_data.uri);
-    if (run_data?.branch) timelineParams.set('branch', run_data.branch);
-    if (run_data?.filename) timelineParams.set('filename', run_data.filename);
-    if (run_data?.machine_id != null) timelineParams.set('machine_id', String(run_data.machine_id));
-    if (run_data?.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
-        timelineParams.set('usage_scenario_variables', JSON.stringify(run_data.usage_scenario_variables));
+    if (run_data.uri) timelineParams.set('uri', run_data.uri);
+    if (run_data.branch) timelineParams.set('branch', run_data.branch);
+    if (run_data.filename) timelineParams.set('filename', run_data.filename);
+    if (run_data.machine_id != null) timelineParams.set('machine_id', String(run_data.machine_id));
+    // same format as runs.js: timeline.html only parses usage_scenario_variables[KEY]=value or the literal 'false'
+    if (run_data.usage_scenario_variables && Object.keys(run_data.usage_scenario_variables).length > 0) {
+        Object.entries(run_data.usage_scenario_variables).forEach(([key, value]) => {
+            timelineParams.append(`usage_scenario_variables[${key}]`, String(value));
+        });
+    } else {
+        timelineParams.set('usage_scenario_variables', 'false');
     }
 
     if (timelineParams.get('uri')) {
@@ -225,16 +226,16 @@ const fetchAndFillRunData = async (run_id) => {
                 const httpsUrl = toHttpsUri(url);
                 const relationHash = run_data[item][relation]['commit_hash'];
                 const display = httpsUrl.startsWith('http')
-                    ? `<a href="${escapeString(httpsUrl)}" target="_blank">${escapeString(url)} (${relationHash})</a>`
-                    : `${escapeString(url)} (${relationHash})`;
+                    ? `<a href="${escapeString(httpsUrl)}" target="_blank">${escapeString(url)} (${escapeString(relationHash)})</a>`
+                    : `${escapeString(url)} (${escapeString(relationHash)})`;
                 document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>relation: ${escapeString(relation)}</strong></td><td>${display}</td></tr>`)
             }
         }  else if(item == 'commit_hash') {
             if (run_data[item] == null) continue; // some old runs did not save it
             const commit_link = getRepoRefUrl(run_data['uri'], 'tree');
             const display = commit_link
-                ? `<a href="${escapeString(commit_link + run_data['commit_hash'])}" target="_blank">${run_data[item]}</a>`
-                : run_data[item];
+                ? `<a href="${escapeString(commit_link + run_data['commit_hash'])}" target="_blank">${escapeString(run_data[item])}</a>`
+                : escapeString(run_data[item]);
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${display}</td></tr>`)
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td>${escapeString(run_data[item])}</td></tr>`)
@@ -243,11 +244,13 @@ const fetchAndFillRunData = async (run_id) => {
             failedContainer.classList.remove('hidden');
 
         } else if(item == 'start_measurement' || item == 'end_measurement') {
-            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item] / 1e3)}</td></tr>`)
+            // can be null if the run has not yet reached or never reached this point
+            const measurement_date = run_data[item] == null ? 'N/A' : escapeString(new Date(run_data[item] / 1e3));
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${measurement_date}</td></tr>`)
         } else if(item == 'created_at' ) {
             run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td title="${escapeString(run_data[item])}">${new Date(run_data[item])}</td></tr>`)
         } else if(item == 'gmt_hash') {
-            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data[item]}">${escapeString(run_data[item])}</a></td></tr>`);
+            run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(item)}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${encodeURIComponent(run_data[item])}">${escapeString(run_data[item])}</a></td></tr>`);
         } else if(item == 'uri') {
             const uri = run_data[item];
             const httpsUri = toHttpsUri(uri);
@@ -371,30 +374,60 @@ const fetchAndFillRunData = async (run_id) => {
         });
     })
     // create new custom field
-    // timestamp is in microseconds, therefore divide by 10**6
-    const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1e6
-    const measurement_duration_display = (measurement_duration_in_s > 60) ? `${numberFormatter.format(measurement_duration_in_s / 60)} min` : `${numberFormatter.format(measurement_duration_in_s)} s`
+    // start / end can be null if the run is still running or failed before. Otherwise null would be treated as 0
+    if (run_data.start_measurement == null || run_data.end_measurement == null) {
+        run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="Measurement has not started or not ended">N/A</td></tr>`)
+    } else {
+        // timestamp is in microseconds, therefore divide by 10**6
+        const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1e6
+        const measurement_duration_display = (measurement_duration_in_s > 60) ? `${numberFormatter.format(measurement_duration_in_s / 60)} min` : `${numberFormatter.format(measurement_duration_in_s)} s`
 
-    run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
+        run_data_accordion_node.insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
+    }
 
     // warnings will be fetched separately
 
+    return run_data;
 }
 
-const fillRunTab = async (selector, data, parent = '') => {
+const fillRunTab = (selector, data, parent = '', is_top_level = true) => {
     const node = document.querySelector(selector);
-    for (const item in data) {
+    const isObject = (value) => value != null && typeof value == 'object';
+    const addHeading = (text) => node.insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(text)}</h2></strong></td><td></td></tr>`);
+    const addRow = (label, value) => node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(label)}</strong></td><td>${escapeString(value)}</td></tr>`);
 
-        if(data[item] != null && typeof data[item] == 'object') {
-            if (parent == '') {
-                node.insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${escapeString(item)}</h2></strong></td><td></td></tr>`)
-            }
-            fillRunTab(selector, data[item], `${item}.`)
+    if (is_top_level) {
+        // Top level scalars are collected in a "General" section first. Otherwise they would be displayed
+        // after the previous section heading and look like they belong to it.
+        // Top level objects become a heading and are thus not repeated in the labels below
+        const entries = Object.entries(data ?? {});
+        const scalar_entries = entries.filter(([, value]) => !isObject(value));
+        if (scalar_entries.length > 0) {
+            addHeading('General');
+            scalar_entries.forEach(([item, value]) => addRow(item, value));
+        }
+        entries.filter(([, value]) => isObject(value)).forEach(([item, value]) => {
+            addHeading(item);
+            fillRunTab(selector, value, '', false);
+        });
+        return;
+    }
+
+    for (const item in data) {
+        if (isObject(data[item])) {
+            fillRunTab(selector, data[item], `${parent}${item}.`, false);
         } else {
-            node.insertAdjacentHTML('beforeend', `<tr><td><strong>${escapeString(parent)}${escapeString(item)}</strong></td><td>${escapeString(data[item])}</td></tr>`)
+            addRow(`${parent}${item}`, data[item]);
         }
     }
 }
+
+// Fills all {{placeholders}} in one pass. Values are inserted verbatim, so callers must escape them.
+// Do not use chained String.replace(str, str) instead: it interprets $&, $', $` and $$ in the
+// replacement (common in shell logs) and a value containing a later {{placeholder}} would be substituted again.
+const fillTemplate = (template, values) => template.replace(/{{(\w+)}}/g, (match, key) =>
+    Object.hasOwn(values, key) ? String(values[key] ?? '') : match
+);
 
 
 // Strip CSI / OSC / common ESC sequences. Used only on explicit user click (no pre-scan at render).
@@ -463,9 +496,10 @@ const renderLegacyLogsFromJson = (logsData) => {
             // legacy logs do not have separate stdout and stderr but only a combined output
             // still it is funneled in the data structure through the stdout variable. This is just legacy naming. No stderr got lost :)
             if (logEntry.stdout) {
-                contentHTML += legacyLogTemplate
-                    .replace('{{containerName}}', escapeString(containerName))
-                    .replace('{{combinedOut}}', escapeString(logEntry.stdout));
+                contentHTML += fillTemplate(legacyLogTemplate, {
+                    containerName: escapeString(containerName),
+                    combinedOut: escapeString(logEntry.stdout),
+                });
             }
         });
     });
@@ -568,7 +602,7 @@ const renderLogsInterface = (logsData) => {
                     typeIcon = 'cog';
                     typeTooltip = 'Logs from the entire container execution process';
                     break;
-                case 'setup_commands':
+                case 'setup_command':
                     typeIcon = 'wrench';
                     typeTooltip = 'Logs from setup commands before flow execution';
                     break;
@@ -591,7 +625,7 @@ const renderLogsInterface = (logsData) => {
             }
 
             // Make the type name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
-            const typeTitle = escapeString(logEntry.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+            const typeTitle = escapeString(logEntry.type.replaceAll('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
             const typeLabel = `<div class="ui purple label" data-tooltip="${typeTooltip}" data-position="top center"><i class="${typeIcon} icon"></i> ${typeTitle}</div>`;
 
             const phaseLabel = logEntry.phase ?
@@ -603,10 +637,10 @@ const renderLogsInterface = (logsData) => {
             const idLabel = `<div class="ui label" data-tooltip="Unique identifier for this log entry" data-position="top center"><i class="hashtag icon"></i> ID: ${escapeString(logEntry.id)}</div>`;
 
             const stdoutContent = logEntry.stdout ?
-                stdoutTemplate.replace('{{stdout}}', escapeString(logEntry.stdout)) : '';
+                fillTemplate(stdoutTemplate, { stdout: escapeString(logEntry.stdout) }) : '';
 
             const stderrContent = logEntry.stderr ?
-                stderrTemplate.replace('{{stderr}}', escapeString(logEntry.stderr)) : '';
+                fillTemplate(stderrTemplate, { stderr: escapeString(logEntry.stderr) }) : '';
 
             // Show different information if the type is exception
             let operationLabel = '';
@@ -624,38 +658,33 @@ const renderLogsInterface = (logsData) => {
                         operationTooltip = `Exception occurred during '${logEntry.cmd}' operation`;
                 }
                 // Make the operation name more visually appealing by replacing underscores with spaces and capitalising the first letter of each word
-                const operationTitle = escapeString(logEntry.cmd.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
-                operationLabel = `<div class="ui orange label" data-tooltip="${operationTooltip}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
+                const operationTitle = escapeString(logEntry.cmd.replaceAll('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+                operationLabel = `<div class="ui orange label" data-tooltip="${escapeString(operationTooltip)}" data-position="top center"><i class="cogs icon"></i> ${operationTitle}</div>`;
 
                 if (logEntry.exception_class) {
                     classLabel = `<div class="ui red label" data-tooltip="Exception class type" data-position="top center"><i class="exclamation triangle icon"></i> ${escapeString(logEntry.exception_class)}</div>`;
                 }
             }
 
-            const metadataContent = metadataTemplate
-                .replace('{{flowLabel}}', flowLabel)
-                .replace('{{typeLabel}}', typeLabel)
-                .replace('{{operationLabel}}', operationLabel)
-                .replace('{{classLabel}}', classLabel)
-                .replace('{{phaseLabel}}', phaseLabel)
-                .replace('{{idLabel}}', idLabel);
+            const metadataContent = fillTemplate(metadataTemplate, {
+                flowLabel, typeLabel, operationLabel, classLabel, phaseLabel, idLabel,
+            });
 
             // For exceptions or empty/null commands, don't show the command section
             const commandContent = (logEntry.type === 'exception' || !logEntry.cmd) ? '' :
-                commandTemplate.replace('{{command}}', escapeString(logEntry.cmd));
+                fillTemplate(commandTemplate, { command: escapeString(logEntry.cmd) });
 
-                contentHTML += logCardTemplate
-                .replace('{{metadataContent}}', metadataContent)
-                .replace('{{commandContent}}', commandContent)
-                .replace('{{stdoutContent}}', stdoutContent)
-                .replace('{{stderrContent}}', stderrContent);
+            contentHTML += fillTemplate(logCardTemplate, {
+                metadataContent, commandContent, stdoutContent, stderrContent,
+            });
         });
 
-        accordionHTML += containerTemplate
-            .replace('{{containerName}}', escapeString(containerName))
-            .replace('{{logCount}}', containerLogs.length)
-            .replace('{{logPlural}}', containerLogs.length === 1 ? '' : 's')
-            .replace('{{content}}', contentHTML);
+        accordionHTML += fillTemplate(containerTemplate, {
+            containerName: escapeString(containerName),
+            logCount: containerLogs.length,
+            logPlural: containerLogs.length === 1 ? '' : 's',
+            content: contentHTML,
+        });
     });
 
     accordionHTML += '</div>';
@@ -665,21 +694,22 @@ const renderLogsInterface = (logsData) => {
 }
 
 
-const buildTimelineChartData = async (measurements_data) => {
+// Energy units that convertValue() can return for energy metrics, mapped to their factor to Joules
+const TIMELINE_ENERGY_UNIT_TO_JOULES = { 'J': 1, 'mWh': 3.6, 'kWh': 3_600_000 };
+
+const buildTimelineChartData = (measurements_data) => {
     const metrics = {}
     const t0 = performance.now();
 
-    const transform_timelines_energy_to_power = localStorage.getItem('transform_timelines_energy_to_power') === 'true' ? true : false;
+    const transform_timelines_energy_to_power = localStorage.getItem('transform_timelines_energy_to_power') === 'true';
+
+    // declared outside of try so that the failing metric can be reported in the catch block.
+    // This helps debugging quickly, as we apparently often forget to add new metrics to the converters
+    let metric_name = null;
+    let time_before = 0;
+    let detail_name = null;
 
     try {
-         // define here as var (not let!), so we can alert it later in error case.
-         // this was done, because we apparently often forget to add new metrics here and this helps debugging quickly with the alert later :)
-        var metric_name = null
-
-        // this can be let
-        let time_before = 0;
-        let detail_name = null;
-
         measurements_data.forEach(el => {
             const time_after = el[1] / 1000000;
             const time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
@@ -704,16 +734,25 @@ const buildTimelineChartData = async (measurements_data) => {
                 }
             }
 
-            if(transform_timelines_energy_to_power && metrics[metric_name].unit == 'J') {
-                value = value/(time_after-time_before); // convert Joules to Watts by dividing through the time difference of two measurements
-                metrics[metric_name].converted_unit = 'W';
-            } else if(!transform_timelines_energy_to_power && metrics[metric_name].unit == 'W') {
-                value = value*(time_after-time_before); // convert Watts to Joules by multiplying with the time difference of two measurements
-                metrics[metric_name].converted_unit = 'J';
-            }
+            const time_delta = time_after - time_before;
             time_before = time_after;
 
-            if(metric_changed && transform_timelines_energy_to_power) return; // if watts display then the first graph value will be zero. We skip that.
+            // convertValue() has already changed the unit. Energy can now be J, mWh or kWh, depending on display_in_joules
+            const energy_to_joules = TIMELINE_ENERGY_UNIT_TO_JOULES[metrics[metric_name].unit];
+            let rate_converted = false;
+            if(transform_timelines_energy_to_power && energy_to_joules !== undefined) {
+                value = value * energy_to_joules / time_delta; // convert energy to Watts by dividing through the time difference of two measurements
+                metrics[metric_name].converted_unit = 'W';
+                rate_converted = true;
+            } else if(!transform_timelines_energy_to_power && metrics[metric_name].unit == 'W') {
+                // convert Watts to Joules by multiplying with the time difference of two measurements.
+                // Passed through convertValue() as mJ so that the result honours display_in_joules (J or mWh)
+                [value, metrics[metric_name].converted_unit] = convertValue(value * time_delta * 1_000, 'mJ');
+                rate_converted = true;
+            }
+
+            // the first value of a series has no time difference to a previous value and thus cannot be converted. We skip that.
+            if(metric_changed && rate_converted) return;
 
             // Depending on the charting library the object has to be reformatted
             // First we check if structure is initialized
@@ -725,8 +764,8 @@ const buildTimelineChartData = async (measurements_data) => {
 
         })
     } catch (err) {
-        alert(err)
-        alert(metric_name)
+        console.error(`Could not build time series data for metric ${metric_name}`, err);
+        showNotification('Could not build time series charts', `Failed at metric ${metric_name}: ${err.message}`);
     }
 
     const t1 = performance.now();
@@ -763,7 +802,7 @@ const wrapNoteText = (text, maxLength = 80) => {
     return lines.join('\n');
 };
 
-const displayTimelineCharts = async (metrics, notes) => {
+const displayTimelineCharts = (metrics, notes) => {
 
     const note_positions = [
         'insideStartTop',
@@ -782,7 +821,7 @@ const displayTimelineCharts = async (metrics, notes) => {
 
     for (const metric_name in metrics) {
 
-        const element = createChartContainer("#chart-container", `${getPretty(metric_name, 'clean_name')} via ${getPretty(metric_name, 'source')} <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
+        const element = createChartContainer("#chart-container", `${escapeString(getPretty(metric_name, 'clean_name'))} via ${escapeString(getPretty(metric_name, 'source'))} <i data-tooltip="${escapeString(getPretty(metric_name, 'explanation'))}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
 
         let legend = [];
         let series = [];
@@ -805,7 +844,9 @@ const displayTimelineCharts = async (metrics, notes) => {
         let inner_counter = 0;
         if (notes != null) {
             notes.forEach(note => {
-                notes_labels.push({xAxis: note[3]/1000, label: {formatter: wrapNoteText(note[2]), position: note_positions[inner_counter%2]}})
+                // formatter as function, as ECharts would interpret {a}, {b}, {c} etc. in a formatter string as template variables
+                const note_text = wrapNoteText(note[2]);
+                notes_labels.push({xAxis: note[3]/1000, label: {formatter: () => note_text, position: note_positions[inner_counter%2]}})
                 inner_counter++;
             });
         }
@@ -821,7 +862,7 @@ const displayTimelineCharts = async (metrics, notes) => {
         });
 
         const chart_instance = echarts.init(element);
-        let options = getLineBarChartOptions(null, legend, series, 'Time', metrics[metric_name].converted_unit);
+        let options = getLineBarChartOptions(legend, null, series, 'Time', metrics[metric_name].converted_unit); // time axis needs no labels
         chart_instance.setOption(options);
         chart_instances.push(chart_instance);
 
@@ -830,11 +871,11 @@ const displayTimelineCharts = async (metrics, notes) => {
     const t1 = performance.now();
     console.log(`buildTimelineCharts took ${t1 - t0} milliseconds.`);
 
-    window.onresize = function() { // set callback when ever the user changes the viewport
+    $(window).on('resize', () => { // set callback when ever the user changes the viewport. Adds to and does not replace other resize handlers
         chart_instances.forEach(chart_instance => {
             chart_instance.resize();
         })
-    }
+    });
 
     document.querySelector('#api-loader').remove();
 
@@ -844,7 +885,7 @@ const displayTimelineCharts = async (metrics, notes) => {
 
 }
 
-const renderBadges = async (run_id, phase_stats) => {
+const renderBadges = (run_id, phase_stats) => {
     if (phase_stats == null) return;
 
     const phase_stats_keys = Object.keys(phase_stats);
@@ -855,19 +896,24 @@ const renderBadges = async (run_id, phase_stats) => {
     phase_stats_keys.forEach(metric_name => {
         if (phase_stats[metric_name].type != 'TOTAL') return; // skip averaged metrics
 
-        badge_container.innerHTML += `
+        const encoded_run_id = encodeURIComponent(run_id);
+        badge_container.insertAdjacentHTML('beforeend', `
             <div class="inline field">
-                <a href="${METRICS_URL}/stats.html?id=${run_id}">
-                    <img src="${API_URL}/v1/badge/single/${run_id}?metric=${encodeURIComponent(metric_name)}" loading="lazy" onerror="this.parentNode.parentNode.remove(); console.log('Could not render ${metric_name} badge - Likely due to non public visibility of the run.')">
+                <a href="${escapeString(METRICS_URL)}/stats.html?id=${encoded_run_id}">
+                    <img src="${escapeString(API_URL)}/v1/badge/single/${encoded_run_id}?metric=${encodeURIComponent(metric_name)}" loading="lazy">
                 </a>
                 <a class="copy-badge"><i class="copy icon"></i></a>
                 <div class="ui left pointing blue basic label">
                     ${escapeString(METRIC_MAPPINGS[metric_name]?.['explanation'])}
                 </div>
                 <hr class="ui divider"></hr>
-            </div>`;
+            </div>`);
 
-
+        const badge_field = badge_container.lastElementChild;
+        badge_field.querySelector('img').addEventListener('error', () => {
+            badge_field.remove();
+            console.log(`Could not render ${metric_name} badge - Likely due to non public visibility of the run.`);
+        });
     })
     document.querySelectorAll(".copy-badge").forEach(el => {
         el.addEventListener('click', copyToClipboard)
@@ -915,20 +961,28 @@ const fetchAndFillPhaseStatsData = async (run_id) => {
 }
 
 const fetchAndFillNetworkIntercepts = async (run_id) => {
+    const showNetworkMessage = (message) => {
+        document.querySelector("#network-divider").insertAdjacentHTML('afterend', `<p>${escapeString(message)}</p>`)
+    };
+
     let network = null;
     try {
         network = await makeAPICall('/v1/network/' + run_id)
     } catch (err) {
         if (err instanceof APIHTTPError && err.status === 204) {
-            console.log('No network intercepts present in API response. Skipping error as this is allowed case.')
+            // API returns 204 only if the network connections provider was active, but no connections were made
+            showNetworkMessage('No external network connections were detected.');
+        } else if (err instanceof APIHTTPError && err.status === 422) {
+            // API returns 422 if the network connections provider was not active. Thus no statement can be made
+            showNetworkMessage(`${err.message}. External network connections were not recorded.`);
         } else {
             showNotification('Could not get network intercepts data from API', err);
         }
         return
     }
 
-    if (network.data.length === 0) {
-        document.querySelector("#network-divider").insertAdjacentHTML('afterEnd', '<p>No external network connections were detected.</p>')
+    if (!network?.data?.length) {
+        showNetworkMessage('No external network connections were detected.');
     } else {
         const node = document.querySelector("#network-intercepts");
         for (const item of network.data) {
@@ -944,7 +998,9 @@ const fetchAndFillOptimizationsData = async (run_id) => {
     try {
         optimizations = await makeAPICall('/v1/optimizations/' + run_id)
     } catch (err) {
-        showNotification('Could not get optimizations data from API', err);
+        if (!(err instanceof APIHTTPError && err.status === 204)) { // 204 = no optimizations found. Count in HTML stays at 0
+            showNotification('Could not get optimizations data from API', err);
+        }
         return
     }
 
@@ -969,22 +1025,20 @@ const fetchAndFillOptimizationsData = async (run_id) => {
     const container = document.getElementById("optimizationsContainer");
 
     optimizations.data.forEach(optimization => {
-        let optimizationHTML = optimizationTemplate
-            .replace("{{header}}", escapeString(optimization[0]))
-            .replace("{{label}}", escapeString(optimization[1]))
-            .replace("{{label_colour}}", escapeString(optimization[2]))
-            .replace("{{description}}", escapeString(optimization[5]))
-            .replace("{{subsystem}}", escapeString(optimization[3]))
-            .replace("{{subsystem_icon}}", escapeString(optimization[4]))
-
-        if (optimization[6]){
-            optimizationHTML = optimizationHTML.replace("{{link}}", `
+        const link = optimization[6] ? `
             <a class="ui mini icon primary basic button" href="${escapeString(optimization[6])}">
                 <i class="angle right icon"></i>
-            </a>`);
-        }else{
-            optimizationHTML = optimizationHTML.replace("{{link}}", "");
-        }
+            </a>` : '';
+
+        const optimizationHTML = fillTemplate(optimizationTemplate, {
+            header: escapeString(optimization[0]),
+            label: escapeString(optimization[1]),
+            label_colour: escapeString(optimization[2]),
+            description: escapeString(optimization[5]),
+            subsystem: escapeString(optimization[3]),
+            subsystem_icon: escapeString(optimization[4]),
+            link,
+        });
 
         const optimizationElement = document.createElement("div");
         optimizationElement.classList.add("ui", "horizontal", "fluid", "card");
@@ -1063,13 +1117,14 @@ const fetchAndFillAIData = async (run_id) => {
 
     ai_data.forEach(d => {
         let optimizationHTML = aiTemplate
-            .replace("{{function_name}}", escapeString(d.name))
-            .replace("{{rating}}", escapeString(d.rating))
-            .replace("{{filename}}", escapeString(d.filename))
-            .replace("{{code}}", escapeString(d.code))
-            .replace("{{model}}", escapeString(d.model))
-            .replace("{{color}}", escapeString(d.color))
-            .replace("{{ret_val}}", (d.ret_val || '').replace(/\n/g, '<br>'))
+            // replacer functions are used so that "$&", "$'" etc. in the data are not interpreted as replacement patterns
+            .replace("{{function_name}}", () => escapeString(d.name))
+            .replace("{{rating}}", () => escapeString(d.rating))
+            .replace("{{filename}}", () => escapeString(d.filename))
+            .replace("{{code}}", () => escapeString(d.code))
+            .replace("{{model}}", () => escapeString(d.model))
+            .replace("{{color}}", () => escapeString(d.color))
+            .replace("{{ret_val}}", () => escapeString(d.ret_val || '').replace(/\n/g, '<br>'))
 
         const optimizationElement = document.createElement("div");
         optimizationElement.classList.add("ui", "styled","fluid", "accordion");
@@ -1083,7 +1138,7 @@ const fetchAndFillAIData = async (run_id) => {
     $('body').on('click', '.copy-button', function() {
         var code = $(this).closest('.content').find('pre').text();
         copyTextToClipboard('You are a world class programmer. Please improve:' + code); // TODO: Refactor to use central function in main.js
-        showNotification('Code copied', 'The code has been copied to the clipboard.')
+        showNotification('Code copied', 'The code has been copied to the clipboard.', 'success')
     });
 
 }
@@ -1119,28 +1174,19 @@ const fetchTimelineData = async (run_id) => {
 
 }
 
-const fetchAndFillWarnings = async (run_id) => {
-    let warnings = null;
-    try {
-        warnings = await makeAPICall('/v1/warnings/' + run_id)
-    } catch (err) {
-        if (err instanceof APIHTTPError && err.status === 204) {
-            console.log('No warnings where present in API response. Skipping error as this is allowed case.')
-        } else {
-            showNotification('Could not get warnings data from API', err);
-        }
-        return;
+const fetchAndShowTimelineCharts = async (run_id) => {
+    const [timeline_data, timeline_notes] = await Promise.all([
+        fetchTimelineData(run_id),
+        fetchTimelineNotes(run_id)
+    ]);
 
+    if (timeline_data == null) {
+        document.querySelector('#api-loader').remove()
+        document.querySelector('#message-chart-load-failure').classList.remove('hidden');
+        return
     }
-
-    if (!warnings || warnings?.data?.length === 0) return;
-
-    const container = document.querySelector('#run-warnings');
-    const ul = container.querySelector('ul');
-    warnings.data.forEach(w => {
-        ul.insertAdjacentHTML('beforeend', `<li>${escapeString(w[1])}</li>`);
-    });
-    container.classList.remove('hidden');
+    const timeline_chart_data = buildTimelineChartData(timeline_data);
+    displayTimelineCharts(timeline_chart_data, timeline_notes);
 }
 
 
@@ -1212,9 +1258,9 @@ function renderUsageScenarioDependencies(container_name, dependency_data) {
     if (package_managers.length > 0) {
         const accordion_items = buildPackageManagerAccordionItems(package_managers, container_dependencies);
 
-        package_manager_content = dependencies_templates.scopeAccordion.replace('{{accordion_items}}', accordion_items);
+        package_manager_content = fillTemplate(dependencies_templates.scopeAccordion, { accordion_items });
     } else {
-        package_manager_content = dependencies_templates.noDepsMessage.replace('{{message}}', '<em>No package dependencies found</em>');
+        package_manager_content = fillTemplate(dependencies_templates.noDepsMessage, { message: '<em>No package dependencies found</em>' });
     }
 
     return package_manager_content;
@@ -1253,21 +1299,22 @@ function buildSingleAccordionItem(packageManager, displayName, data, parentData)
     }
 
     const packageManagerMetadata = metadataContent ?
-        dependencies_templates.scopeMetadata.replace('{{metadataContent}}', metadataContent) : '';
+        fillTemplate(dependencies_templates.scopeMetadata, { metadataContent }) : '';
 
     let depsTable = '';
     if (totalDeps > 0) {
         const tableRows = buildDependencyTableRows(dependenciesArray);
-        depsTable = dependencies_templates.depsTable.replace('{{tableRows}}', tableRows);
+        depsTable = fillTemplate(dependencies_templates.depsTable, { tableRows });
     } else {
-        depsTable = dependencies_templates.noDepsMessage.replace('{{message}}', '<em>No dependencies found</em>');
+        depsTable = fillTemplate(dependencies_templates.noDepsMessage, { message: '<em>No dependencies found</em>' });
     }
 
-    return dependencies_templates.accordionItem
-        .replace('{{scopeDisplayName}}', escapeString(displayName))
-        .replace('{{totalDeps}}', totalDeps)
-        .replace('{{scopeMetadata}}', packageManagerMetadata)
-        .replace('{{depsTable}}', depsTable);
+    return fillTemplate(dependencies_templates.accordionItem, {
+        scopeDisplayName: escapeString(displayName),
+        totalDeps,
+        scopeMetadata: packageManagerMetadata,
+        depsTable,
+    });
 }
 
 function buildPackageManagerAccordionItems(package_managers, container_dependencies) {
@@ -1302,11 +1349,12 @@ function buildDependencyTableRows(packages) {
         const depHash = pkg.hash || 'N/A';
         const truncatedHash = depHash !== 'N/A' ? depHash.substring(0, 12) + '...' : 'N/A';
 
-        const row = dependencies_templates.depsTableRow
-            .replace('{{depName}}', escapeString(pkg.name || 'N/A'))
-            .replace('{{version}}', version)
-            .replace('{{fullHash}}', escapeString(depHash))
-            .replace('{{truncatedHash}}', escapeString(truncatedHash));
+        const row = fillTemplate(dependencies_templates.depsTableRow, {
+            depName: escapeString(pkg.name || 'N/A'),
+            version,
+            fullHash: escapeString(depHash),
+            truncatedHash: escapeString(truncatedHash),
+        });
 
         tableRows += row;
     });
@@ -1330,14 +1378,28 @@ $(document).ready( () => {
             return;
         }
 
+        if (!isValidUUID(url_params['id'])) {
+            showNotification('Invalid run id', 'ID parameter in URL is not a valid run ID. Did you follow a correct URL?');
+            return;
+        }
+
         const run_id = url_params['id'];
 
         // run all without await, as they have no blocking visuals or depended upon changes
         fetchAndFillNetworkIntercepts(run_id);
-        fetchAndFillOptimizationsData(run_id);
         fetchAndFillAIData(run_id);
-        fetchAndFillWarnings(run_id);
-        fetchAndFillRunData(run_id);
+        fetchWarningsForRuns([run_id]).then(fillWarnings);
+        fetchAndFillRunData(run_id).then((run_data) => {
+            // optimizations are opt-in. Only fetch them if the run was started with --optimizations.
+            // Legacy runs (pre opt-in) have no `optimizations` key. For them we fetch unless skip_optimizations was set.
+            const runner_arguments = run_data?.runner_arguments;
+            if (runner_arguments?.optimizations === true
+                || (runner_arguments?.optimizations === undefined && runner_arguments?.skip_optimizations !== true)) {
+                fetchAndFillOptimizationsData(run_id);
+            } else {
+                document.querySelector('#optimizationsContainer').insertAdjacentHTML('beforeend', '<div class="ui info message">Optimizations were not enabled for this run. Use <code>--optimizations</code> in the CLI or activate them in your user settings to get them.</div>');
+            }
+        });
 
         (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
             const phase_stats = await fetchAndFillPhaseStatsData(run_id);
@@ -1346,34 +1408,9 @@ $(document).ready( () => {
 
 
         if (localStorage.getItem('fetch_time_series') === 'true') {
-            const [timeline_data, timeline_notes] = await Promise.all([
-                fetchTimelineData(run_id),
-                fetchTimelineNotes(run_id)
-            ]);
-            if (timeline_data == null) {
-                document.querySelector('#api-loader').remove()
-                document.querySelector('#message-chart-load-failure').classList.remove('hidden');
-                return
-            }
-            const timeline_chart_data = await buildTimelineChartData(timeline_data);
-            displayTimelineCharts(timeline_chart_data, timeline_notes);
+            fetchAndShowTimelineCharts(run_id);
         } else {
-            document.querySelector('#fetch-time-series').addEventListener('click', async () => {
-                const [timeline_data, timeline_notes] = await Promise.all([
-                    fetchTimelineData(run_id),
-                    fetchTimelineNotes(run_id)
-                ]);
-
-                if (timeline_data == null) {
-                    document.querySelector('#api-loader').remove()
-                    document.querySelector('#message-chart-load-failure').classList.remove('hidden');
-                    return
-                }
-                const timeline_chart_data = await buildTimelineChartData(timeline_data);
-                displayTimelineCharts(timeline_chart_data, timeline_notes);
-
-
-            });
+            document.querySelector('#fetch-time-series').addEventListener('click', () => fetchAndShowTimelineCharts(run_id));
         }
     })();
 });

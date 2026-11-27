@@ -141,6 +141,12 @@ class DB:
             self._pool.close()
             del self._pool
 
+    @classmethod
+    def shutdown_if_initialized(cls):
+        # Never goes through __new__/__init__, so it never opens a pool just to close it again
+        instance = cls.__dict__.get('instance')
+        if instance is not None:
+            instance.shutdown()
 
     @with_db_retry
     def __query_single(self, query, params=None, return_type=None, fetch_mode=None):

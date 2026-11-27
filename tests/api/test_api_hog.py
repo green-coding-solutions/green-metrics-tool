@@ -67,8 +67,34 @@ def test_hogDB_add():
     assert obj['total_embodied_carbon_ug'] == hog_string['embodied_carbon_g'] * 1_000_000
 
 
-def make_hog_payload(measurement_timestamp):
+def test_hog_add_without_grid_intensity():
+    # without a grid intensity the client cannot have calculated operational carbon. It must stay NULL, so it can be backfilled
     hog_obj = dict(hog_string)
+    del hog_obj['grid_intensity_cog']
+    payload = make_hog_payload(int(time.time() * 1000), hog_obj)
+
+    response = requests.post(f"{API_URL}/v2/hog/add", json=payload, timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    assert response.status_code == 202, response.text
+
+    data = DB().fetch_one('SELECT carbon_intensity_g, operational_carbon_ug, embodied_carbon_ug FROM hog_simplified_measurements', fetch_mode='dict')
+    assert data['carbon_intensity_g'] is None
+    assert data['operational_carbon_ug'] is None
+    assert data['embodied_carbon_ug'] == hog_string['embodied_carbon_g'] * 1_000_000 # embodied carbon does not depend on the grid
+
+def test_hog_add_without_operational_carbon():
+    hog_obj = dict(hog_string)
+    del hog_obj['operational_carbon_g']
+    payload = make_hog_payload(int(time.time() * 1000), hog_obj)
+
+    response = requests.post(f"{API_URL}/v2/hog/add", json=payload, timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    assert response.status_code == 202, response.text
+
+    data = DB().fetch_one('SELECT carbon_intensity_g, operational_carbon_ug FROM hog_simplified_measurements', fetch_mode='dict')
+    assert data['carbon_intensity_g'] == 100
+    assert data['operational_carbon_ug'] is None # filled by update_power_hog_carbon() from the transmitted grid intensity
+
+def make_hog_payload(measurement_timestamp, hog_obj=None):
+    hog_obj = dict(hog_string if hog_obj is None else hog_obj)
     hog_obj['timestamp'] = measurement_timestamp
     compressed = zlib.compress(str(json.dumps(hog_obj)).encode())
     compressed_str = base64.b64encode(compressed).decode()
@@ -95,4 +121,12 @@ def test_hog_add_future():
     future_timestamp = int(time.time() * 1000) + 5000 # ~ 5 seconds in the future depending on API request processing time
     response = requests.post(f"{API_URL}/v2/hog/add", json=make_hog_payload(future_timestamp), timeout=15, headers={'X-Authentication': 'DEFAULT'})
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
-    assert json.loads(response.text)['err'] == f"Power Hog does not accept timestamps in the future. Your timestamp was: {future_timestamp}"
+    err = json.loads(response.text)['err']
+    assert err.startswith(f"Power Hog does not accept timestamps in the future. Your timestamp was: {future_timestamp}. API timestamp was: "), Tests.assertion_info('future timestamp error', err)
+    api_timestamp = int(err.rsplit(' ', 1)[1])
+    assert future_timestamp - 5000 <= api_timestamp < future_timestamp, Tests.assertion_info('API timestamp shortly before supplied timestamp', err)
+
+def test_hog_add_future_within_tolerance():
+    future_timestamp = int(time.time() * 1000) + 500 # 0.5 s in the future is within the 1 s clock skew tolerance
+    response = requests.post(f"{API_URL}/v2/hog/add", json=make_hog_payload(future_timestamp), timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)

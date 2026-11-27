@@ -779,7 +779,7 @@ def test_phase_stats_process_user_custom_metrics():
 @pytest.mark.serial
 @pytest.mark.skipif(bool(os.environ.get('PYTEST_XDIST_WORKER')), reason="needs the whole machine's CPUs uncontended for accurate real energy/SCI assertions - run this outside of -n/xdist, on its own")
 def test_custom_metric_sci_run():
-    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_custom_metrics.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True, skip_optimizations=True)
+    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_custom_metrics.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -939,6 +939,52 @@ def test_phase_stats_runtime_max_min_reconstruction():
     assert data[0]['min_value'] == 5, 'RUNTIME min_value must reflect the true sample min across sub-phases'
     # sanity check that the averaged "value" column is unrelated to (and well inside) the true extremes
     assert 5 < data[0]['value'] < 200
+
+@pytest.mark.parametrize('metric, unit, total_metric', [
+    ('cpu_energy_rapl_msr_component', 'uJ', 'cpu_energy_rapl_msr_component'),
+    ('network_io_cgroup_container', 'Bytes', 'network_total_cgroup_container'),
+    ('cpu_carbon_rapl_msr_component', 'ugCO2e', 'cpu_carbon_rapl_msr_component'),
+])
+def test_phase_stats_total_max_min(metric, unit, total_metric):
+    # TOTAL metrics must carry the single max / min sample of the series in the phase,
+    # and reconstruct_runtime_phase() must aggregate them with MAX/MIN across sub-phases
+    phases = [
+        {"start": 0, "name": "[BASELINE]", "end": 100_000, "hidden": False},
+        {"start": 200_000, "name": "[RUNTIME]", "end": 3_200_000, "hidden": False},
+        {"start": 200_000, "name": "Sub1", "end": 1_700_000, "hidden": False},
+        {"start": 1_700_000, "name": "Sub2", "end": 3_200_000, "hidden": False},
+    ]
+    run_id = Tests.insert_run(phases)
+
+    import_custom_metric(
+        run_id,
+        metric,
+        unit,
+        [
+            (300_000, 40), (600_000, 70), (900_000, 50),        # Sub1: 40 / 70
+            (1_900_000, 5), (2_500_000, 30), (3_100_000, 200),  # Sub2: 5 / 200
+        ],
+    )
+
+    build_and_store_phase_stats(run_id)
+
+    data = DB().fetch_all(
+        "SELECT phase, value, max_value, min_value FROM phase_stats WHERE run_id = %s AND metric = %s AND type = 'TOTAL' ORDER BY phase",
+        params=(run_id, total_metric), fetch_mode='dict'
+    )
+    data = {row['phase']: row for row in data}
+
+    assert data['002_Sub1']['value'] == 160
+    assert data['002_Sub1']['max_value'] == 70
+    assert data['002_Sub1']['min_value'] == 40
+
+    assert data['003_Sub2']['value'] == 235
+    assert data['003_Sub2']['max_value'] == 200
+    assert data['003_Sub2']['min_value'] == 5
+
+    assert data['001_[RUNTIME]']['value'] == 395
+    assert data['001_[RUNTIME]']['max_value'] == 200
+    assert data['001_[RUNTIME]']['min_value'] == 5
 
 
 def test_phase_stats_psu_cgroup_container_and_slice():
