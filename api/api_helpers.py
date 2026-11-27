@@ -26,6 +26,7 @@ from lib.secure_variable import SecureVariable
 import redis
 from enum import Enum
 
+FUTURE_TIMESTAMP_TOLERANCE_S = 1 # Clients with NTP-synced clocks are within milliseconds of the API. This only absorbs that small skew; unsynced clients are still rejected
 MAX_LOG_CHARS = 1_000_000 # Roughly 10k lines at 100 chars per line. Larger system log messages slow down the frontend too much. Also adapt the "clipped" message in the frontend when changing
 
 def get_artifact(artifact_type: Enum, key: str, decode_responses=True):

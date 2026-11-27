@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from fastapi import APIRouter, Response, Depends, Request, HTTPException
 
-from api.api_helpers import authenticate, get_connecting_ip, replace_nan_with_zero, CustomORJSONResponse
+from api.api_helpers import authenticate, get_connecting_ip, replace_nan_with_zero, CustomORJSONResponse, FUTURE_TIMESTAMP_TOLERANCE_S
 from api.object_specifications import HogMeasurement, SimplifiedMeasurement
 
 from lib.user import User
@@ -55,8 +55,8 @@ async def add_hog(
             merge_window = GlobalConfig().config['cluster']['carbondb_merge_window_days']
             if validated_measurement.timestamp < current_time_ms - merge_window * 24 * 60 * 60 * 1000:
                 raise HTTPException(status_code=422, detail=f"Power Hog is configured to not accept values older than {merge_window} days. Your timestamp was: {validated_measurement.timestamp}")
-            if validated_measurement.timestamp > current_time_ms:
-                raise HTTPException(status_code=422, detail=f"Power Hog does not accept timestamps in the future. Your timestamp was: {validated_measurement.timestamp}")
+            if validated_measurement.timestamp > current_time_ms + FUTURE_TIMESTAMP_TOLERANCE_S * 1_000: # milliseconds
+                raise HTTPException(status_code=422, detail=f"Power Hog does not accept timestamps in the future. Your timestamp was: {validated_measurement.timestamp}. API timestamp was: {current_time_ms}")
 
             query_measurement = """
             INSERT INTO hog_simplified_measurements (
