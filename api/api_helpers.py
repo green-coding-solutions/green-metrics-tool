@@ -265,6 +265,47 @@ def get_timeline_query(user, uri, filename, usage_scenario_variables, machine_id
 
     return (query, params)
 
+# Attributes that are displayed as common info for each comparison case
+COMMON_INFO_KEYS_PER_CASE = {
+    'Repeated Run on same Commit Hash': ['Repository', 'Filename', 'Usage Scenario', 'Machine', 'Branch', 'Commit'],
+    'Repeated Run (Two only) on same Commit Hash': ['Repository', 'Filename', 'Usage Scenario', 'Machine', 'Branch', 'Commit'],
+    'Usage Scenario': ['Repository', 'Machine', 'Branch', 'Commit'],
+    'Machine': ['Repository', 'Filename', 'Usage Scenario', 'Branch', 'Commit'],
+    'Commit': ['Repository', 'Filename', 'Usage Scenario', 'Machine'],
+    'Repository': ['Machine', 'Branch'],
+    'Branch': ['Repository', 'Filename', 'Usage Scenario', 'Machine'],
+}
+
+def get_common_info(user, ids, case):
+    # The case only decides which attributes are displayed. Whether they are actually identical for all compared runs
+    # must be checked on the data, as force_mode skips all checks in determine_comparison_case() and e.g.
+    # Repository mode allows a different branch per repo
+    # ARRAY_AGG(DISTINCT) is used instead of COUNT(DISTINCT), as COUNT ignores NULL values
+    query = """
+            SELECT
+                ARRAY_AGG(DISTINCT r.uri), ARRAY_AGG(DISTINCT r.filename), ARRAY_AGG(DISTINCT r.usage_scenario->>'name'),
+                ARRAY_AGG(DISTINCT m.description), ARRAY_AGG(DISTINCT r.branch), ARRAY_AGG(DISTINCT r.commit_hash)
+            FROM runs as r
+            LEFT JOIN machines as m ON m.id = r.machine_id
+            WHERE
+                (TRUE = %s OR r.user_id = ANY(%s::int[]) OR r.public = TRUE)
+                AND r.id = ANY(%s::uuid[])
+        """
+    params = (user.is_super_user(), user.visible_users(), ids)
+    data = DB().fetch_one(query, params=params)
+
+    common_info = {}
+    if data is None:
+        return common_info
+
+    values_per_key = dict(zip(['Repository', 'Filename', 'Usage Scenario', 'Machine', 'Branch', 'Commit'], data))
+    for key in COMMON_INFO_KEYS_PER_CASE.get(case, []):
+        values = values_per_key[key]
+        if values is not None and len(values) == 1 and values[0] is not None:
+            common_info[key] = values[0]
+
+    return common_info
+
 def get_comparison_details(user, ids, comparison_db_key):
 
     query = sql.SQL('''

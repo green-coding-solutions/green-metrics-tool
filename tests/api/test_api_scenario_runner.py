@@ -216,6 +216,7 @@ def test_compare_force_mode_same_style():
 
     # only the hash hash changed, but it will still force the same mode
     data['comparison_details'][0][0]['commit_hash'] = 'test' # we need to overload the test data to make it flexible
+    del data['common_info']['Commit'] # the commits differ now, so they must not be shown as common
 
     assert data['comparison_case'] == 'Usage Scenario'
     assert res_json['data'] == data
@@ -235,6 +236,7 @@ def test_compare_force_mode_different_style():
 
     # only the hash hash changed, but it will still force the same mode
     data['comparison_details'][0][0]['commit_hash'] = 'test'
+    del data['common_info']['Commit'] # the commits differ now, so they must not be shown as common
 
     assert data['comparison_case'] == 'Machine'
     assert res_json['data'] == data
@@ -563,3 +565,33 @@ def test_get_system_logs_clips_message():
     assert rows[1][5] is True
     assert rows[2][2] == 'b' * MAX_LOG_CHARS
     assert rows[2][5] is False
+
+def test_compare_common_info_only_contains_identical_values():
+    Tests.import_demo_data()
+    Tests.flush_redis()
+
+    # Repository mode allows a different branch per repo. Branch must then not be shown as common
+    DB().query(f"UPDATE runs SET uri = 'https://example.com/other-repo', commit_hash = 'other', branch = 'master' WHERE id = '{RUN_1}'")
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_2},{RUN_1}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    res_json = response.json()
+
+    assert res_json['data']['comparison_case'] == 'Repository'
+    assert res_json['data']['common_info'] == {'Machine': 'Development machine for testing'}
+
+def test_compare_common_info_force_mode():
+    Tests.import_demo_data()
+
+    # force_mode skips all checks. RUN_3 and RUN_1 differ in filename, which must not be shown as common
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}&force_mode=machine_ids", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    res_json = response.json()
+
+    assert res_json['data']['comparison_case'] == 'Machine'
+    assert res_json['data']['common_info'] == {
+        'Repository': '/home/arne/Sites/green-coding/example-applications/',
+        'Usage Scenario': 'Stress Container One Core 5 Seconds',
+        'Branch': 'main',
+        'Commit': '58c7a5002c684f41f8d7a355f3ede641d8e45ddc',
+    }
