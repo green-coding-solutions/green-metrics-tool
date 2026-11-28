@@ -46,6 +46,7 @@ disable_path_security_checks=false
 ee_branch=''
 ask_elephant=true
 skip_submodules=false
+add_ssh_login_banner=false
 
 function print_message {
     echo ""
@@ -537,6 +538,10 @@ while [[ $# -gt 0 ]]; do
             install_tinyproxy=false
             shift
             ;;
+        --add-ssh-login-banner)
+            add_ssh_login_banner=true
+            shift
+            ;;
         --disable-path-security)
             disable_path_security_checks=true
             shift
@@ -707,6 +712,7 @@ while [[ $# -gt 0 ]]; do
             echo -e '  --tz TZ:\t\t\tSet timezone'
             echo -e '  --nvidia-gpu:\t\tInstall NVIDIA container toolkit headers'
             echo -e '  --disable-tinyproxy:\tDo not install tinyproxy'
+            echo -e '  --add-ssh-login-banner:\tWarn on login shells when a measurement is running (Linux only)'
             echo -e '  --disable-path-security:\tDisable path security checks'
             echo -e '  --elephant-url URL:\tSupply Elephant URL'
             echo -e '  --no-elephant:\t\tDo not configure Elephant'
