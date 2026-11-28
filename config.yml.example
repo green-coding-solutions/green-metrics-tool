@@ -219,9 +219,16 @@ measurement:
     #--- Debug - These providers should only be needed for debugging and introspection purposes
 #      cpu_throttling_msr_component:
 #        sampling_rate: 99
-#      cpu_frequency_msr_core:
+#      cpu_frequency_msr_component: # Core frequency via APERF/MPERF MSRs
 #        sampling_rate: 99
 #        base_ghz: 2.4  # Set to the nominal (non-turbo) base clock of your x86 (Intel or AMD) CPU in GHz
+#        uncore: true   # Optional (default false): also report uncore frequency via MSR_UNCORE_PERF_STATUS (instantaneous). Intel only
+#      cpu_frequency_perf_component: # Core frequency via perf msr PMU (APERF/MPERF)
+#        sampling_rate: 99
+#        base_ghz: 2.4  # Set to the nominal (non-turbo) base clock of your x86 (Intel or AMD) CPU in GHz
+#        uncore: true   # Optional (default false): also report uncore frequency via perf uncore clockticks (interval average). Intel only
+#        uncore_pmu: null    # Optional: override auto-detected uncore PMU, e.g. uncore_cha_0. Requires uncore: true
+#        uncore_event: null  # Optional: override uncore event terms, e.g. 'event=0x00'. Requires uncore_pmu
 #      cpu_time_cgroup_container:
 #        sampling_rate: 99
 #      cpu_time_cgroup_system:

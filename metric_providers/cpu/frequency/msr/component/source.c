@@ -11,14 +11,29 @@
 #include <errno.h>
 #include "gmt-lib.h"
 
+/*
+ * Reports per core frequency via APERF/MPERF (averaged over the sampling interval)
+ * and, with -u, the per package uncore frequency via MSR_UNCORE_PERF_STATUS (0x621).
+ * The uncore value is an instantaneous snapshot and Intel only (Haswell and newer).
+ */
+
 #define MAX_CPUS 1024
 #define MAX_PACKAGES 16
 
+#define MSR_APERF 0xE8
+#define MSR_MPERF 0xE7
+#define MSR_UNCORE_PERF_STATUS 0x621
+#define UNCORE_RATIO_MASK 0x7F
+#define UNCORE_RATIO_HZ 100000000ULL
+
 static unsigned int msleep_time = 1000;
 static double base_ghz = 2.4;
+static bool uncore_flag = false;
 
 static int total_cores = 0;
 static int *cpu_map = NULL;
+
+static int package_map[MAX_PACKAGES]; // package id -> first cpu in that package, -1 if none
 
 static int open_msr(int core) {
     char path[PATH_MAX];
@@ -55,6 +70,8 @@ static void detect_cores(void) {
     int id;
     char path[PATH_MAX];
 
+    for (int i = 0; i < MAX_PACKAGES; i++) package_map[i] = -1;
+
     for (int i = 0; i < MAX_CPUS; i++) {
         snprintf(path, PATH_MAX, "/sys/devices/system/cpu/cpu%d/topology/core_id", i);
 
@@ -69,6 +86,25 @@ static void detect_cores(void) {
         fclose(f);
 
         cpu_map[total_cores++] = i;
+
+        if (!uncore_flag) continue;
+
+        snprintf(path, PATH_MAX, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", i);
+        f = fopen(path, "r");
+        if (!f || fscanf(f, "%d", &id) != 1) {
+            if (f) fclose(f);
+            fprintf(stderr, "Could not read package id from %s\n", path);
+            exit(127);
+        }
+        fclose(f);
+
+        if (id < 0 || id >= MAX_PACKAGES) {
+            fprintf(stderr, "Package ID %d exceeds maximum supported packages (%d)\n", id, MAX_PACKAGES);
+            exit(127);
+        }
+        if (package_map[id] == -1) {
+            package_map[id] = i;
+        }
     }
 
     if (total_cores == 0) {
@@ -78,11 +114,24 @@ static void detect_cores(void) {
 
 }
 
+static int test_uncore_msr(void) {
+    for (int p = 0; p < MAX_PACKAGES; p++) {
+        if (package_map[p] == -1) continue;
+
+        int fd = open_msr(package_map[p]);
+        long long ratio = read_msr(fd, MSR_UNCORE_PERF_STATUS) & UNCORE_RATIO_MASK;
+        close(fd);
+
+        if (ratio == 0) {
+            fprintf(stderr, "MSR_UNCORE_PERF_STATUS (0x%x) returned ratio 0 on package %d. Uncore frequency via MSR is not supported on this CPU. Disable uncore reporting.\n", MSR_UNCORE_PERF_STATUS, p);
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static int test_msr(void) {
     int fd = open_msr(0);
-
-    const int MSR_APERF = 0xE8;
-    const int MSR_MPERF = 0xE7;
 
     long long a1 = read_msr(fd, MSR_APERF);
     long long m1 = read_msr(fd, MSR_MPERF);
@@ -99,14 +148,20 @@ static int test_msr(void) {
         return -1;
     }
 
+    if (uncore_flag) {
+        return test_uncore_msr();
+    }
+
     return 0;
 }
 
 static void measure_freq(void) {
     int fd[total_cores];
+    int uncore_fd[MAX_PACKAGES];
 
-    const int MSR_APERF = 0xE8;
-    const int MSR_MPERF = 0xE7;
+    for (int p = 0; p < MAX_PACKAGES; p++) {
+        uncore_fd[p] = (package_map[p] == -1) ? -1 : open_msr(package_map[p]);
+    }
 
     uint64_t last_aperf[MAX_CPUS];
     uint64_t last_mperf[MAX_CPUS];
@@ -141,10 +196,24 @@ static void measure_freq(void) {
                 (uint64_t)now.tv_sec * 1000000ULL +
                 (uint64_t)now.tv_usec;
 
-            printf("%llu %.0f %d\n",
+            printf("%llu %.0f Core_%d\n",
                    (unsigned long long)ts,
                    freq_hz,
                    cpu_map[i]);
+        }
+
+        for (int p = 0; p < MAX_PACKAGES; p++) {
+            if (uncore_fd[p] == -1) continue;
+
+            uint64_t ratio = read_msr(uncore_fd[p], MSR_UNCORE_PERF_STATUS) & UNCORE_RATIO_MASK;
+
+            struct timeval now;
+            get_time(&now);
+
+            printf("%llu %llu Uncore_Package_%d\n",
+                   (unsigned long long)now.tv_sec * 1000000ULL + (unsigned long long)now.tv_usec,
+                   (unsigned long long)(ratio * UNCORE_RATIO_HZ),
+                   p);
         }
     }
 }
@@ -153,11 +222,16 @@ int main(int argc, char **argv) {
     int c;
     bool test_flag = false;
 
-    while ((c = getopt(argc, argv, "hi:f:c")) != -1) {
+    while ((c = getopt(argc, argv, "hi:f:cu")) != -1) {
         switch (c) {
         case 'h':
-            printf("Usage: %s [-h] [-i msleep] [-f base_ghz] [-c]\n", argv[0]);
+            printf("Usage: %s [-h] [-i msleep] [-f base_ghz] [-u] [-c]\n", argv[0]);
+            printf("\t-u      : additionally report the uncore frequency per package (Intel only)\n");
             exit(0);
+
+        case 'u':
+            uncore_flag = true;
+            break;
 
         case 'i':
             msleep_time = parse_int(optarg);
