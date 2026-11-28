@@ -223,3 +223,45 @@ def test_flow_runs_on_host_only_for_yaml_null():
     # the literal string 'None' is a valid container name and must not trigger host execution
     assert flow_runs_on_host({'name': 'flow', 'container': 'None'}) is False
     assert flow_runs_on_host({'name': 'flow', 'container': 'my-container'}) is False
+
+def _valid_usage_scenario_with_custom_metrics(custom_metrics):
+    usage_scenario_path = os.path.join(CURRENT_DIR, '../data/usage_scenarios/schema_checker/', 'schema_checker_valid.yml')
+    with open(usage_scenario_path, encoding='utf8') as file:
+        usage_scenario = yaml.safe_load(file)
+    usage_scenario['custom_metrics'] = custom_metrics
+    return usage_scenario
+
+def test_schema_checker_custom_metrics_type_valid():
+    usage_scenario = _valid_usage_scenario_with_custom_metrics({
+        'requests': {'unit': 'count', 'type': 'TOTAL', 'sci': True},
+        'open_fds': {'unit': 'count', 'type': 'MEAN'},
+        'files_stored': {'unit': 'count', 'type': 'LAST'},
+        'hits': {'unit': 'count', 'sci': True}, # no type means TOTAL
+    })
+    schema_checker = SchemaChecker(validate_compose_flag=True)
+    schema_checker.check_usage_scenario(usage_scenario)
+
+def test_schema_checker_custom_metrics_type_invalid():
+    usage_scenario = _valid_usage_scenario_with_custom_metrics({
+        'open_fds': {'unit': 'count', 'type': 'MAX'},
+    })
+    schema_checker = SchemaChecker(validate_compose_flag=True)
+    with pytest.raises(SchemaError) as error:
+        schema_checker.check_usage_scenario(usage_scenario)
+
+    expected_exception = "Or('TOTAL', 'MEAN', 'LAST') did not validate 'MAX'"
+    assert expected_exception in str(error.value), \
+        Tests.assertion_info(f"Exception: {expected_exception}", str(error.value))
+
+@pytest.mark.parametrize('custom_metric_type', ['MEAN', 'LAST'])
+def test_schema_checker_custom_metrics_sci_only_for_total(custom_metric_type):
+    usage_scenario = _valid_usage_scenario_with_custom_metrics({
+        'open_fds': {'unit': 'count', 'type': custom_metric_type, 'sci': True},
+    })
+    schema_checker = SchemaChecker(validate_compose_flag=True)
+    with pytest.raises(SchemaError) as error:
+        schema_checker.check_usage_scenario(usage_scenario)
+
+    expected_exception = f"Custom metric 'open_fds' has `sci: true` but type '{custom_metric_type}'. SCI can only be calculated for custom metrics of type 'TOTAL'."
+    assert expected_exception in str(error.value), \
+        Tests.assertion_info(f"Exception: {expected_exception}", str(error.value))

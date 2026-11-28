@@ -768,6 +768,116 @@ def test_phase_stats_process_user_custom_metrics():
     assert runtime_data['value'] == 42
     assert runtime_data['type'] == 'TOTAL'
 
+def test_phase_stats_custom_metric_type_mean():
+    run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
+    stress_start = Tests.TEST_MEASUREMENT_PHASES[7]['start']
+    import_custom_metric(
+        run_id,
+        'custom_open_fds',
+        'count',
+        [
+            (stress_start + 100_000, 40),
+            (stress_start + 300_000, 2),
+            (stress_start + 500_000, 30),
+        ],
+        detail_name='gcb-alpine-stress',
+    )
+
+    build_and_store_phase_stats(run_id, custom_metric_types={'custom_open_fds': 'MEAN'})
+
+    stress_phase_data = DB().fetch_one(
+        'SELECT detail_name, unit, value, type, max_value, min_value FROM phase_stats WHERE phase = %s AND metric = %s',
+        params=('007_Stress', 'custom_open_fds'),
+        fetch_mode='dict',
+    )
+
+    # Time weighted like every other MEAN metric: (2 * 200_000 + 30 * 200_000) / 400_000 = 16
+    # A TOTAL would have given 72, which is meaningless for a gauge like open file descriptors.
+    assert stress_phase_data['detail_name'] == 'gcb-alpine-stress'
+    assert stress_phase_data['unit'] == 'count'
+    assert stress_phase_data['value'] == 16
+    assert stress_phase_data['type'] == 'MEAN'
+    assert stress_phase_data['max_value'] == 40
+    assert stress_phase_data['min_value'] == 2
+
+    runtime_data = DB().fetch_one(
+        'SELECT value, type, max_value, min_value FROM phase_stats WHERE phase = %s AND metric = %s',
+        params=('004_[RUNTIME]', 'custom_open_fds'),
+        fetch_mode='dict',
+    )
+
+    # The metric only has samples in the Stress sub phase. Its MEAN over the runtime must therefore be the
+    # MEAN of the Stress phase and not be diluted by the sub phases in which the metric did not exist.
+    assert runtime_data['value'] == 16
+    assert runtime_data['type'] == 'MEAN'
+    assert runtime_data['max_value'] == 40
+    assert runtime_data['min_value'] == 2
+
+def test_phase_stats_custom_metric_type_mean_over_multiple_sub_phases():
+    run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
+    stress_phase = Tests.TEST_MEASUREMENT_PHASES[7]
+    download_phase = Tests.TEST_MEASUREMENT_PHASES[8]
+    import_custom_metric(
+        run_id,
+        'custom_latency_avg',
+        'ms',
+        [
+            (stress_phase['start'] + 100_000, 100),
+            (download_phase['start'] + 100_000, 400),
+        ],
+        detail_name='k6',
+    )
+
+    build_and_store_phase_stats(run_id, custom_metric_types={'custom_latency_avg': 'MEAN'})
+
+    data = DB().fetch_all(
+        'SELECT phase, value, type FROM phase_stats WHERE metric = %s ORDER BY phase ASC',
+        params=('custom_latency_avg', ),
+        fetch_mode='dict',
+    )
+
+    assert [(row['phase'], row['value'], row['type']) for row in data] == [
+        ('004_[RUNTIME]', round((100 * Tests.TEST_MEASUREMENT_STRESS_SUBPHASE_DURATION + 400 * Tests.TEST_MEASUREMENT_DOWNLOAD_SUBPHASE_DURATION) / (Tests.TEST_MEASUREMENT_STRESS_SUBPHASE_DURATION + Tests.TEST_MEASUREMENT_DOWNLOAD_SUBPHASE_DURATION)), 'MEAN'),
+        ('007_Stress', 100, 'MEAN'),
+        ('008_Download', 400, 'MEAN'),
+    ]
+
+@pytest.mark.parametrize('custom_metric_type, expected_stress, expected_download, expected_runtime', [
+    ('LAST', 30, 5, 5), # RUNTIME is the value of the last sub phase
+    ('TOTAL', 72, 105, 177), # unchanged default for comparison
+])
+def test_phase_stats_custom_metric_type_last(custom_metric_type, expected_stress, expected_download, expected_runtime):
+    run_id = Tests.insert_run(Tests.TEST_MEASUREMENT_PHASES)
+    stress_start = Tests.TEST_MEASUREMENT_PHASES[7]['start']
+    download_start = Tests.TEST_MEASUREMENT_PHASES[8]['start']
+    import_custom_metric(
+        run_id,
+        'custom_queue_length',
+        'count',
+        [
+            (stress_start + 100_000, 40),
+            (stress_start + 300_000, 2),
+            (stress_start + 500_000, 30),
+            (download_start + 100_000, 100),
+            (download_start + 200_000, 5),
+        ],
+        detail_name='gcb-alpine-stress',
+    )
+
+    build_and_store_phase_stats(run_id, custom_metric_types={'custom_queue_length': custom_metric_type})
+
+    data = DB().fetch_all(
+        'SELECT phase, value, type, max_value, min_value FROM phase_stats WHERE metric = %s ORDER BY phase ASC',
+        params=('custom_queue_length', ),
+        fetch_mode='dict',
+    )
+
+    assert [(row['phase'], row['value'], row['type'], row['max_value'], row['min_value']) for row in data] == [
+        ('004_[RUNTIME]', expected_runtime, custom_metric_type, 100, 2),
+        ('007_Stress', expected_stress, custom_metric_type, 40, 2),
+        ('008_Download', expected_download, custom_metric_type, 100, 5),
+    ]
+
 # Starts the full default set of real metric providers from test-config.yml (dev_no_metrics=False)
 # for real and asserts a narrow numeric range on the resulting real energy/SCI measurements
 # (custom_api_hits_sci_global etc.) - same class of flakiness as test_metric_providers.py's
@@ -850,6 +960,28 @@ def test_custom_metric_sci_run():
     row = get_row('006_Stress 2', 'custom_my_coolness', tc2)
     assert row['unit'] == 'gigacools'
     assert 10 < row['value'] < 250
+
+# Phase stats are only built with real metric providers (dev_no_metrics=False). See test_custom_metric_sci_run for the markers
+@pytest.mark.serial
+@pytest.mark.skipif(bool(os.environ.get('PYTEST_XDIST_WORKER')), reason="starts the real metric providers - run this outside of -n/xdist, on its own")
+def test_custom_metric_types_run():
+    runner = ScenarioRunner(uri=GMT_ROOT_DIR.as_posix(), uri_type='folder', filename='tests/data/usage_scenarios/stress_custom_metrics_types.yml', dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        run_id = runner.run()
+
+    data = DB().fetch_all("SELECT phase, metric, value, type, max_value, min_value, unit FROM phase_stats WHERE run_id = %s AND metric LIKE 'custom_%%' ORDER BY phase ASC, metric ASC", params=(run_id, ), fetch_mode='dict')
+
+    assert [(d['phase'], d['metric'], d['value'], d['type'], d['max_value'], d['min_value'], d['unit']) for d in data] == [
+        ('004_[RUNTIME]', 'custom_api_hits', 77, 'TOTAL', 44, 33, 'API Hits'),
+        ('004_[RUNTIME]', 'custom_files_stored', 30, 'LAST', 30, 10, 'count'),
+        ('004_[RUNTIME]', 'custom_open_fds', 20, 'MEAN', 30, 10, 'count'),
+        ('005_Stress', 'custom_api_hits', 77, 'TOTAL', 44, 33, 'API Hits'),
+        ('005_Stress', 'custom_files_stored', 30, 'LAST', 30, 10, 'count'),
+        ('005_Stress', 'custom_open_fds', 20, 'MEAN', 30, 10, 'count'),
+    ]
 
 
 def test_calculate_co2_intensity_uses_microgram_scale():

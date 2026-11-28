@@ -3060,7 +3060,8 @@ class ScenarioRunner:
         # get all the metrics from the measurements table grouped by metric
         # loop over them issuing separate queries to the DB
         from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-        build_and_store_phase_stats(self._run_id, self._sci, self.__sci_metrics.copy())
+        custom_metric_types = {key: custom_metric.get('type', 'TOTAL') for key, custom_metric in self.__custom_metrics.items()}
+        build_and_store_phase_stats(self._run_id, self._sci, self.__sci_metrics.copy(), custom_metric_types)
 
     def _store_cumulative_run_logs(self):
         """
