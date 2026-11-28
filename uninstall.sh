@@ -47,6 +47,8 @@ sudo rm -f /etc/sudoers.d/green-coding* || true # Linux
 
 
 if [[ $(uname) == "Linux" ]]; then
+    sudo rm -f /etc/profile.d/gmt-measurement-running-warning.sh || true
+
     if cat /etc/os-release | grep -q "Fedora"; then
         sudo dnf -y remove msr-tools lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy stress-ng lshw ipmitool
     elif cat /etc/os-release | grep -q "openSUSE"; then

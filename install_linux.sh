@@ -117,6 +117,13 @@ if [[ $activate_scenario_runner == true ]] ; then
     echo "${USER} ALL=(ALL) NOPASSWD:${sysctl_path} -w vm.drop_caches=3" | sudo tee /etc/sudoers.d/green-coding-drop-caches
     sudo chmod 400 /etc/sudoers.d/green-coding-drop-caches
 
+    if [[ $add_ssh_login_banner == true ]] ; then
+        print_message "Installing login warning that shows when a measurement is running"
+        sudo cp -f "${PWD}/tools/gmt-measurement-running-warning.sh" /etc/profile.d/gmt-measurement-running-warning.sh
+        sudo chown 0:0 /etc/profile.d/gmt-measurement-running-warning.sh
+        sudo chmod 644 /etc/profile.d/gmt-measurement-running-warning.sh
+    fi
+
     print_message "Setting the cluster maintenance.py file to be owned by root"
     check_file_permissions $(realpath "/usr/bin/python3") # since it will be called later with this interpreter, we need to check if that is ok
     # we do not expose this sudoers entry here as it is only for cluster mode. Thus we want to reduce possible attack surface in case of bugs

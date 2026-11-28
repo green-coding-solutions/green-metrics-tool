@@ -3170,6 +3170,26 @@ class ScenarioRunner:
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
 
+    # Marker file that exists only while a measurement is actually running (not while e.g. client.py idles).
+    # It is picked up by the login warning in tools/gmt-measurement-running-warning.sh
+    # The file contains the PID so that stale markers from killed runs can be detected
+    def _get_measurement_running_marker(self):
+        return host_platform.get_tmp_root().joinpath(f"gmt-measurement-running.{os.getpid()}")
+
+    def _create_measurement_running_marker(self):
+        try:
+            marker = self._get_measurement_running_marker()
+            marker.write_text(f"{os.getpid()}\n{int(time.time())}\n", encoding='utf-8')
+            marker.chmod(0o644)
+        except OSError as exc: # the marker is only informational and must never break a measurement
+            print(TerminalColors.WARNING, f"Could not create measurement running marker: {exc}", TerminalColors.ENDC)
+
+    def _remove_measurement_running_marker(self):
+        try:
+            self._get_measurement_running_marker().unlink(missing_ok=True)
+        except OSError as exc:
+            print(TerminalColors.WARNING, f"Could not remove measurement running marker: {exc}", TerminalColors.ENDC)
+
     def set_filename(self, filename):
         """Update filename for reusing ScenarioRunner with different files"""
         self._original_filename = Path(filename)
@@ -3185,6 +3205,7 @@ class ScenarioRunner:
             Methods thus will behave differently given the runner was instantiated with different arguments.
 
         '''
+        self._create_measurement_running_marker()
         try:
             self._run_id = None  # Reset run ID for new run
             # Remove any stale config left by a previously crashed run
@@ -3309,7 +3330,10 @@ class ScenarioRunner:
             try:
                 self._post_process(0)
             finally:
-                self.cleanup()
+                try:
+                    self.cleanup()
+                finally:
+                    self._remove_measurement_running_marker()
 
 
         print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
