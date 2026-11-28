@@ -169,7 +169,12 @@ class ScenarioRunner:
         self._dev_no_system_checks = system_checks.normalize_disabled_checks(dev_no_system_checks)
         self._dev_no_resource_limits = dev_no_resource_limits
 
-        self._uri = uri
+        if uri_type == 'URL':
+            self._uri = uri
+        else:
+            # Normalize local folders so that e.g. /path/to/repo/, /path/./to/repo or a symlink to it
+            # are all stored as the same uri. strict=True raises FileNotFoundError if the folder does not exist
+            self._uri = Path(uri).resolve(strict=True).as_posix()
         self._uri_type = uri_type
         self._original_filename = Path(filename)
         self._branch = branch
@@ -635,8 +640,8 @@ class ScenarioRunner:
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
             if self._requested_commit_hash is not None:
                 raise RuntimeError('Specified --commit-hash but using local URI. Did you mean to specify a github url?')
-            # If the provided uri is a symlink we need to resolve it.
-            self.__working_folder = self._repo_folder = Path(self._uri).resolve(strict=True)
+            # self._uri was already normalized and resolved (incl. symlinks) in __init__
+            self.__working_folder = self._repo_folder = Path(self._uri)
 
         if self._dev_no_save:
             return

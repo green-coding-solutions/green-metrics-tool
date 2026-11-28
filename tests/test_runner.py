@@ -60,11 +60,27 @@ def test_uri_local_dir():
     # also check that the tmp folder was deleted locally
     assert tmp_folder.exists(), '/tmp/green-metrics-tool was deleted after run, which should not happen without --file-cleanup set'
 
-def test_uri_local_dir_missing():
-    runner = ScenarioRunner(uri='/tmp/missing', uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
+@pytest.mark.parametrize('uri', [
+    pytest.param(f"{GMT_DIR}/", id='trailing-slash'),
+    pytest.param(f"{GMT_DIR}/././", id='dot-segments'),
+    pytest.param(f"{Path(GMT_DIR).parent.as_posix()}/./{Path(GMT_DIR).name}", id='inner-dot-segment'),
+    pytest.param(f"{GMT_DIR}//", id='double-slash'),
+])
+def test_uri_local_dir_is_stored_normalized(uri):
+    # all of these point to the same folder and must end up as the same uri in the DB
+    runner = ScenarioRunner(uri=uri, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_container_dependency_collection=True, skip_download_dependencies=True, dev_no_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_save=False)
 
+    # initialize_run is the step that writes the runs row, so no full runner.run() is needed
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('initialize_run')
+
+    uri_in_db = DB().fetch_one('SELECT uri FROM runs WHERE id = %s', params=(runner._run_id,))[0]
+    assert uri_in_db == GMT_DIR, Tests.assertion_info(f"uri: {GMT_DIR}", uri_in_db)
+
+def test_uri_local_dir_missing():
+    # local folders are resolved when the ScenarioRunner is created, so a missing one fails right away
     with pytest.raises(FileNotFoundError) as e:
-        runner.run()
+        ScenarioRunner(uri='/tmp/missing', uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', dev_no_system_checks=True, dev_no_sleeps=True, dev_cache_build=True, dev_no_save=True, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
 
     expected_exception = f"[Errno 2] No such file or directory: '{os.path.realpath('/tmp/missing')}'"
@@ -625,7 +641,7 @@ test_data = [
 def test_check_system(dev_no_system_checks, config_file, expectation):
 
     GlobalConfig().override_config(config_location=config_file)
-    runner = ScenarioRunner(uri="not_relevant", uri_type="folder", dev_no_system_checks=dev_no_system_checks, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type="folder", dev_no_system_checks=dev_no_system_checks, dev_no_container_dependency_collection=True, skip_download_dependencies=True)
 
     with expectation:
         runner._check_system('start')
