@@ -619,8 +619,8 @@ def get_phase_stats(user, ids):
                                             mean: // mean per commit/repo etc.
                                             stddev:
                                             ci:
-                                            p_value: // Only case A for last key vs compare to the rest. one-sided t-test
-                                            is_significant: // Only case A .... one-sided t-test
+                                            p_value: // newest value vs. the previous values of this key. two-sided prediction-interval t-test (needs 3+ values)
+                                            is_significant: // see p_value
                                             values: [] // 1 for stats.html. 1+ for cases
                                             max_values: []
 
@@ -761,8 +761,8 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
                 'sr_max_values': [sampling_rate_max], # temporary, we will delete this later
                 'sr_95p_values': [sampling_rate_95p], # temporary, we will delete this later
                 'ci': None,
-                'p_value': None, # only for the last key the list compare to the rest. one-sided t-test
-                'is_significant': None, # only for the last key the list compare to the rest. one-sided t-test
+                'p_value': None, # newest value vs. the previous values of this key. two-sided prediction-interval t-test (needs 3+ values)
+                'is_significant': None, # see p_value
                 'values': [value],
             }
             if comparison_details: # create None filled lists in comparison casese so that we can later understand which values are missing when parsing in JS for example
@@ -804,7 +804,7 @@ def add_phase_stats_statistics(phase_stats_object):
             for _, detail in metric['data'].items():
                 for _, key_obj in detail['data'].items():
 
-                    # if a detail has multiple values we calculate a std.dev and the one-sided t-test for the last value
+                    # if a detail has multiple values we calculate a std.dev and test if the newest value is consistent with the previous ones
 
                     values_none_filtered = [item for item in key_obj['values'] if item is not None]
                     sr_avg_values_none_filtered = [item for item in key_obj['sr_avg_values'] if item is not None]
@@ -842,11 +842,27 @@ def add_phase_stats_statistics(phase_stats_object):
                         key_obj['ci'] = round((key_obj['stddev']*t_stat).item(), 2)
 
                         if len(values_none_filtered) > 2:
-                            data_c = values_none_filtered.copy()
-                            pop_mean = data_c.pop()
-                            _, p_value = scipy.stats.ttest_1samp(data_c, pop_mean)
-                            if not np.isnan(p_value):
-                                key_obj['p_value'] = p_value.item()
+                            # Is the newest value (last, as values are ordered by created_at) consistent with the previous ones?
+                            # This is a two-sided prediction-interval t-test for a single new observation:
+                            #   t = (x_new - mean_prev) / (stddev_prev * sqrt(1 + 1/n_prev)), dof = n_prev - 1
+                            # scipy.stats.ttest_1samp(previous, x_new) must NOT be used here: it treats x_new as a known
+                            # population mean and uses stddev_prev / sqrt(n_prev), which inflates t by sqrt(n_prev + 1)
+                            # and flags ~50% of unchanged runs as significant already for n_prev = 9
+                            previous_values = values_none_filtered[:-1]
+                            n_prev = len(previous_values)
+                            stddev_prev = np.std(previous_values, ddof=1).item()
+                            diff = values_none_filtered[-1] - np.mean(previous_values).item()
+
+                            if stddev_prev > 0:
+                                t_value = diff / (stddev_prev * math.sqrt(1 + 1/n_prev))
+                                p_value = scipy.stats.t.sf(abs(t_value), n_prev - 1).item() * 2
+                            elif diff != 0:
+                                p_value = 0.0 # previous values have no spread at all, so any deviation is significant
+                            else:
+                                p_value = None # all values identical: test is undefined
+
+                            if p_value is not None:
+                                key_obj['p_value'] = p_value
                                 if key_obj['p_value'] > 0.05:
                                     key_obj['is_significant'] = False
                                 else:
