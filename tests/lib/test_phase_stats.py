@@ -564,28 +564,31 @@ def test_phase_stats_network_procfs():
 
     assert len(data) == 27
 
-    df = df_network_io.loc[df_network_io['detail_name'] == data[13]['detail_name']]
-    assert data[13]['metric'] == 'network_total_procfs_system'
-    assert data[13]['detail_name'] == 'wlp170s0'
-    assert data[13]['value'] == Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
-    assert data[13]['sampling_rate_avg'] == 99771
-    assert data[13]['sampling_rate_max'] == 101780
-    assert data[13]['sampling_rate_95p'] == 100411
-    assert isinstance(data[13]['sampling_rate_95p'], int)
+    # The [RUNTIME] rows are INSERTed and then their MEAN rows UPDATEd in reconstruct_runtime_phase().
+    # Their physical (= unordered SELECT) order thus depends on tuple size / page free space and is not
+    # stable. So we look rows up by (metric, detail_name) instead of relying on positional indices.
+    rows = {(row['metric'], row['detail_name']): row for row in data}
+    assert len(rows) == 27
 
-    df = df_network_io.loc[df_network_io['detail_name'] == data[2]['detail_name']]
-    assert data[2]['metric'] == 'network_total_procfs_system'
-    assert data[2]['detail_name'] == 'br-f1a25ccf9cd0'
-    assert data[2]['value'] == Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
+    row = rows[('network_total_procfs_system', 'wlp170s0')]
+    df = df_network_io.loc[df_network_io['detail_name'] == 'wlp170s0']
+    assert row['value'] == Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
+    assert row['sampling_rate_avg'] == 99771
+    assert row['sampling_rate_max'] == 101780
+    assert row['sampling_rate_95p'] == 100411
+    assert isinstance(row['sampling_rate_95p'], int)
 
-    df = df_network_io.loc[df_network_io['detail_name'] == data[16]['detail_name']]
-    assert data[16]['metric'] == 'network_io_procfs_system'
-    assert data[16]['detail_name'] == 'docker0'
-    assert data[16]['value'] == round(Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()/Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN * 1e6)
-    assert data[16]['sampling_rate_avg'] == 99771
-    assert data[16]['sampling_rate_max'] == 101780
-    assert data[16]['sampling_rate_95p'] == 100411
-    assert isinstance(data[16]['sampling_rate_95p'], int)
+    row = rows[('network_total_procfs_system', 'br-f1a25ccf9cd0')]
+    df = df_network_io.loc[df_network_io['detail_name'] == 'br-f1a25ccf9cd0']
+    assert row['value'] == Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()
+
+    row = rows[('network_io_procfs_system', 'docker0')]
+    df = df_network_io.loc[df_network_io['detail_name'] == 'docker0']
+    assert row['value'] == round(Tests.filter_df_runtime_subphase(df, hidden=False)['value'].sum()/Tests.TEST_MEASUREMENT_RUNTIME_DURATION_NON_HIDDEN * 1e6)
+    assert row['sampling_rate_avg'] == 99771
+    assert row['sampling_rate_max'] == 101780
+    assert row['sampling_rate_95p'] == 100411
+    assert isinstance(row['sampling_rate_95p'], int)
 
 
 def test_phase_stats_network_data():
