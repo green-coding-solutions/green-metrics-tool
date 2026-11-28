@@ -508,6 +508,10 @@ a,
     font-weight: bold;
 }
 
+.ui.table.compare-metrics-table tr:not(.gmt-overhead-row) + tr.gmt-overhead-row > td {
+    border-top: 3px solid rgba(34, 36, 38, 0.35);
+}
+
 .compare-chart-container, .key-metrics-chart-container {
     display: flex;
     flex-direction: row;

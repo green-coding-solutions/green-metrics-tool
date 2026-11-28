@@ -337,9 +337,20 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]') => {
 
     // displayKeyMetricsEmbodiedCarbonChart(phase);
 
-    $(`div.tab[data-tab='${phase}'] .compare-metrics-table.sortable`).tablesort();
+    moveGmtOverheadRowsToBottom(phase);
+    $(`div.tab[data-tab='${phase}'] .compare-metrics-table.sortable`)
+        .tablesort()
+        .on('tablesort:complete', () => moveGmtOverheadRowsToBottom(phase));
 
     window.dispatchEvent(new Event('resize'));
+}
+
+// GMT Overhead rows are always kept at the bottom of the detailed metrics table (also after sorting)
+// The separator line is drawn via CSS on the first .gmt-overhead-row
+const moveGmtOverheadRowsToBottom = (phase) => {
+    const tbody = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`);
+    if (tbody == null) return;
+    tbody.querySelectorAll('tr.gmt-overhead-row').forEach(tr => tbody.appendChild(tr));
 }
 
 const buildTotalChartData = (phase_stats_object) => {
