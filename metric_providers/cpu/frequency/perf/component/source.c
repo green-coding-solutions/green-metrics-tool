@@ -83,7 +83,6 @@ struct uncore_read_format {
 static unsigned int msleep_time = 1000;
 static double base_ghz = 2.4;
 static bool uncore_flag = false;
-static struct timespec offset;
 
 static struct pmu_event aperf_event, mperf_event;
 static struct core cores[MAX_CPUS];
@@ -481,7 +480,7 @@ static void measure_freq(void) {
         for (int i = 0; i < total_cores; i++) {
             double hz = sample_core(&cores[i]);
 
-            get_adjusted_time(&now, &offset);
+            get_time(&now);
             printf("%ld%06ld %.0f Core_%d\n", now.tv_sec, now.tv_usec, hz, cores[i].cpu);
         }
 
@@ -489,7 +488,7 @@ static void measure_freq(void) {
             double hz;
             if (!sample_uncore(&domains[i], &hz)) continue; // no data for this interval
 
-            get_adjusted_time(&now, &offset);
+            get_time(&now);
             printf("%ld%06ld %.0f %s\n", now.tv_sec, now.tv_usec, hz, domains[i].label);
         }
     }
@@ -558,7 +557,6 @@ int main(int argc, char **argv) {
         exit(check_system());
     }
 
-    get_time_offset(&offset);
     measure_freq();
 
     return 0;

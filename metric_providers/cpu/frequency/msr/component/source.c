@@ -29,7 +29,6 @@
 static unsigned int msleep_time = 1000;
 static double base_ghz = 2.4;
 static bool uncore_flag = false;
-static struct timespec offset;
 
 static int total_cores = 0;
 static int *cpu_map = NULL;
@@ -209,7 +208,7 @@ static void measure_freq(void) {
             uint64_t ratio = read_msr(uncore_fd[p], MSR_UNCORE_PERF_STATUS) & UNCORE_RATIO_MASK;
 
             struct timeval now;
-            get_adjusted_time(&now, &offset);
+            get_time(&now);
 
             printf("%llu %llu Uncore_Package_%d\n",
                    (unsigned long long)now.tv_sec * 1000000ULL + (unsigned long long)now.tv_usec,
